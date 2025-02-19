@@ -1,7 +1,7 @@
-package proj.ankichess.axl.core.game.pieces.material
+package proj.ankichess.axl.core.game.pieces.vectors
 
 import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.pieces.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.moves.description.ClassicMoveDescription
 
 /** Piece that can move infinitely by adding multiple times [its vectors][getVectors]. */
 abstract class AInfiniteMovers(player: Game.Player) : AVectorizedMovers(player) {

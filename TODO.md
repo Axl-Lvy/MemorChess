@@ -15,6 +15,8 @@ Roadmap summary for this project.
   - [ ] Add anki function parameters
 - Security
   - [ ] Account management
+- Perf
+  - [ ] Perf engine (https://www.chessprogramming.org)
 
 ### In progress
 
@@ -22,7 +24,8 @@ Roadmap summary for this project.
   - [x] Pieces movements
   - [x] FEN parser
   - [x] Move parser
-  - [ ] Detect checks and mates
+  - [x] Detect checks and mates
+  - [ ] Promotions
 
 ### Done
 

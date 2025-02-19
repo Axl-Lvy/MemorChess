@@ -1,15 +1,15 @@
 package proj.ankichess.axl.core.game.board
 
 import proj.ankichess.axl.core.game.Game.Player
-import proj.ankichess.axl.core.game.pieces.material.Bishop
-import proj.ankichess.axl.core.game.pieces.material.IPiece
-import proj.ankichess.axl.core.game.pieces.material.King
-import proj.ankichess.axl.core.game.pieces.material.Knight
-import proj.ankichess.axl.core.game.pieces.material.Pawn
-import proj.ankichess.axl.core.game.pieces.material.PieceFactory
-import proj.ankichess.axl.core.game.pieces.material.Queen
-import proj.ankichess.axl.core.game.pieces.material.Rook
-import proj.ankichess.axl.core.game.pieces.moves.IMove
+import proj.ankichess.axl.core.game.moves.IMove
+import proj.ankichess.axl.core.game.pieces.IPiece
+import proj.ankichess.axl.core.game.pieces.Pawn
+import proj.ankichess.axl.core.game.pieces.PieceFactory
+import proj.ankichess.axl.core.game.pieces.vectors.Bishop
+import proj.ankichess.axl.core.game.pieces.vectors.King
+import proj.ankichess.axl.core.game.pieces.vectors.Knight
+import proj.ankichess.axl.core.game.pieces.vectors.Queen
+import proj.ankichess.axl.core.game.pieces.vectors.Rook
 
 /**
  * Board game.
@@ -145,6 +145,10 @@ class Board {
     return array[x][y]
   }
 
+  fun getTilesIterator(): Iterator<ITile> {
+    return array.flatten().iterator()
+  }
+
   fun placePiece(t: String, p: String) {
     placePiece(getCoords(t), PieceFactory.createPiece(p))
   }
@@ -160,8 +164,19 @@ class Board {
   }
 
   fun playMove(move: IMove) {
-    move.play(array)
-    move.updateCaches(array, piecePositionsCache)
+    move.generateChanges().forEach { (changingTileCoords, ref) ->
+      run {
+        val changingTile = array[changingTileCoords.first][changingTileCoords.second]
+        piecePositionsCache[changingTile.piece.toString()]?.remove(changingTile.getCoords())
+        if (ref != null) {
+          val refPiece = array[ref.first][ref.second].piece
+          changingTile.piece = refPiece
+          addPositionToCache(changingTile)
+        } else {
+          changingTile.reset()
+        }
+      }
+    }
   }
 
   override fun toString(): String {

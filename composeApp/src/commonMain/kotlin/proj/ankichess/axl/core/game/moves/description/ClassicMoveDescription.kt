@@ -1,4 +1,4 @@
-package proj.ankichess.axl.core.game.pieces.moves.description
+package proj.ankichess.axl.core.game.moves.description
 
 class ClassicMoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
 

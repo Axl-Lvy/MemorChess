@@ -1,7 +1,7 @@
-package proj.ankichess.axl.core.game.pieces.material
+package proj.ankichess.axl.core.game.pieces
 
 import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.pieces.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.moves.description.ClassicMoveDescription
 
 /** A piece represents a real chess piece. */
 interface IPiece {

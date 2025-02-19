@@ -1,11 +1,12 @@
-package proj.ankichess.axl.core.game.pieces.moves
+package proj.ankichess.axl.core.game.moves.factory
 
 import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.board.Board
 import proj.ankichess.axl.core.game.board.ITile
-import proj.ankichess.axl.core.game.pieces.material.IPiece
-import proj.ankichess.axl.core.game.pieces.material.Pawn
-import proj.ankichess.axl.core.game.pieces.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.moves.*
+import proj.ankichess.axl.core.game.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.pieces.IPiece
+import proj.ankichess.axl.core.game.pieces.Pawn
 
 /**
  * Move factory.
@@ -13,7 +14,7 @@ import proj.ankichess.axl.core.game.pieces.moves.description.ClassicMoveDescript
  * @property board The board.
  * @constructor Creates a Move factory from a board.
  */
-class MoveFactory(val board: Board) {
+abstract class AMoveFactory(val board: Board) {
 
   /**
    * Extracts moves from a piece which is not a pawn.
@@ -25,8 +26,9 @@ class MoveFactory(val board: Board) {
     val moves = mutableListOf<IMove>()
     for (rawMoveList in originalMoves) {
       for (rawMove in rawMoveList) {
-        val fromTile = board.getTile(rawMove.from)
-        val toTile = board.getTile(rawMove.to)
+        val coords = rawMove.from
+        val fromTile = getTileAtCoords(coords)
+        val toTile = getTileAtCoords(rawMove.to)
         if (toTile.getSafePiece() != null) {
           if (toTile.getSafePiece()?.player != fromTile.getSafePiece()?.player) {
             moves.add(Capture(fromTile.getCoords(), toTile.getCoords()))
@@ -54,9 +56,12 @@ class MoveFactory(val board: Board) {
     val moves = mutableListOf<IMove>()
     for (rawMoveList in originalMoves) {
       for (rawMove in rawMoveList) {
-        val fromTile = board.getTile(rawMove.from)
-        val toTile = board.getTile(rawMove.to)
-        if (rawMove.from.first != rawMove.to.first) {
+        val fromTile = getTileAtCoords(rawMove.from)
+        if (fromTile.getSafePiece() !is Pawn) {
+          break
+        }
+        val toTile = getTileAtCoords(rawMove.to)
+        if (rawMove.from.second != rawMove.to.second) {
           extractPawnCapture(toTile, fromTile, moves, rawMove, enPassantColumn)
           break
         }
@@ -89,8 +94,8 @@ class MoveFactory(val board: Board) {
     if (toTile.getSafePiece() != null) {
       moves.add(Capture(fromTile.getCoords(), toTile.getCoords()))
     } else if (
-      rawMove.from.first == enPassantColumn &&
-        rawMove.from.second == (if (fromTile.getSafePiece()?.player == Game.Player.WHITE) 2 else 5)
+      rawMove.to.second == enPassantColumn &&
+        rawMove.from.first == (if (fromTile.getSafePiece()?.player == Game.Player.WHITE) 4 else 3)
     ) {
       moves.add(
         EnPassant(
@@ -98,9 +103,9 @@ class MoveFactory(val board: Board) {
           toTile.getCoords(),
           board
             .getTile(
-              rawMove.to.first,
-              rawMove.to.second +
-                if (fromTile.getSafePiece()?.player == Game.Player.WHITE) 1 else -1,
+              rawMove.to.first +
+                if (fromTile.getSafePiece()?.player == Game.Player.WHITE) -1 else 1,
+              rawMove.to.second,
             )
             .getCoords(),
         )
@@ -108,45 +113,54 @@ class MoveFactory(val board: Board) {
     }
   }
 
-  fun parseMove(stringMove: String, playerTurn: Game.Player): IMove {
-    if (stringMove == Castle.LONG_CASTLE_STRING) {
+  fun parseMove(stringMove: String, playerTurn: Game.Player, enPassantColumn: Int): IMove {
+    val cleanMove =
+      if (stringMove.endsWith('+') || stringMove.endsWith('#')) {
+        stringMove.substring(0, stringMove.length - 1)
+      } else {
+        stringMove
+      }
+    if (cleanMove == Castle.LONG_CASTLE_STRING) {
       return if (playerTurn == Game.Player.WHITE) Castle.castles[1] else Castle.castles[3]
     }
-    if (stringMove == Castle.SHORT_CASTLE_STRING) {
+    if (cleanMove == Castle.SHORT_CASTLE_STRING) {
       return if (playerTurn == Game.Player.WHITE) Castle.castles[0] else Castle.castles[2]
     }
-    return if ((stringMove.contains('x') && stringMove.length == 3) || stringMove.length == 2) {
-      parsePawnMove(stringMove, playerTurn)
+    return if (cleanMove.length == 2 || cleanMove[0].isLowerCase()) {
+      parsePawnMove(cleanMove, playerTurn, enPassantColumn)
     } else {
-      parseGenericPieceMove(stringMove, playerTurn)
+      parseGenericPieceMove(cleanMove, playerTurn)
     }
   }
 
-  private fun parsePawnMove(stringMove: String, playerTurn: Game.Player): IMove {
-    return if (!stringMove.contains('x')) {
-      val destination = Board.getCoords(stringMove)
-      val forward = if (playerTurn == Game.Player.WHITE) -1 else 1
-      if (
-        board.getTile(Pair(destination.first - forward, destination.second)).getSafePiece() == null
-      ) {
-        ClassicMove(Pair(destination.first - 2 * forward, destination.second), destination)
+  private fun parsePawnMove(
+    stringMove: String,
+    playerTurn: Game.Player,
+    enPassantColumn: Int,
+  ): IMove {
+    val desc =
+      if (!stringMove.contains('x')) {
+        val destination = Board.getCoords(stringMove)
+        val forward = if (playerTurn == Game.Player.WHITE) 1 else -1
+        if (
+          getTileAtCoords(Pair(destination.first - forward, destination.second)).getSafePiece() ==
+            null
+        ) {
+          ClassicMoveDescription(
+            Pair(destination.first - 2 * forward, destination.second),
+            destination,
+          )
+        } else {
+          ClassicMoveDescription(Pair(destination.first - forward, destination.second), destination)
+        }
       } else {
-        ClassicMove(Pair(destination.first - forward, destination.second), destination)
+        val originColumn = Board.getColumnNumber(stringMove[0].toString())
+        val destination = Board.getCoords(stringMove.substring(2))
+        val forward = if (playerTurn == Game.Player.WHITE) 1 else -1
+        ClassicMoveDescription(Pair(destination.first - forward, originColumn), destination)
       }
-    } else {
-      val originColumn = Board.getColumnNumber(stringMove[0].toString())
-      val destination = Board.getCoords(stringMove)
-      val forward = if (playerTurn == Game.Player.WHITE) -1 else 1
-      if (board.getTile(destination).getSafePiece() == null) {
-        EnPassant(
-          Pair(destination.first - forward, originColumn),
-          destination,
-          Pair(destination.first - forward, destination.second),
-        )
-      } else {
-        Capture(Pair(destination.first - forward, originColumn), destination)
-      }
-    }
+    return extractPawnMoves(listOf(listOf(desc)), enPassantColumn).firstOrNull()
+      ?: error("No valid pawn moves found.")
   }
 
   private fun parseGenericPieceMove(stringMove: String, playerTurn: Game.Player): IMove {
@@ -167,7 +181,7 @@ class MoveFactory(val board: Board) {
         continue
       }
       val candidate = ClassicMoveDescription(position, destination)
-      if (board.getTile(position).getSafePiece()?.isMovePossible(candidate) == true) {
+      if (getTileAtCoords(position).getSafePiece()?.isMovePossible(candidate) == true) {
         candidateMoves.add(listOf(candidate))
       }
     }
@@ -209,7 +223,7 @@ class MoveFactory(val board: Board) {
     }
 
     val stringMoveBuilder = StringBuilder()
-    val movingPiece = board.getTile(move.origin()).getSafePiece()
+    val movingPiece = getTileAtCoords(move.origin()).getSafePiece()
     checkNotNull(movingPiece) { "Can't create a move from an empty tile." }
     if (movingPiece is Pawn) {
       stringMoveBuilder.append(Board.getColumnName(move.origin().second))
@@ -223,6 +237,8 @@ class MoveFactory(val board: Board) {
     stringMoveBuilder.append(Board.getTileName(move.destination()))
     return stringMoveBuilder.toString()
   }
+
+  abstract fun getTileAtCoords(coords: Pair<Int, Int>): ITile
 
   private fun ambiguityClue(movingPiece: IPiece, move: IMove): String {
     val samePiecePosition = board.piecePositionsCache[movingPiece.toString()]

@@ -86,6 +86,4 @@ android {
 
 dependencies { debugImplementation(compose.uiTooling) }
 
-ktfmt {
-  googleStyle()
-}
+ktfmt { googleStyle() }

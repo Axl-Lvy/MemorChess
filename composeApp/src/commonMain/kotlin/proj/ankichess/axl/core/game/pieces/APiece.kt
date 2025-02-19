@@ -1,4 +1,4 @@
-package proj.ankichess.axl.core.game.pieces.material
+package proj.ankichess.axl.core.game.pieces
 
 import proj.ankichess.axl.core.game.Game
 

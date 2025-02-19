@@ -1,6 +1,6 @@
 package proj.ankichess.axl.core.game.moves
 
-import proj.ankichess.axl.core.game.pieces.material.IPiece
+import proj.ankichess.axl.core.game.pieces.IPiece
 
 class TestRook : ATestPiece(IPiece.ROOK) {
 

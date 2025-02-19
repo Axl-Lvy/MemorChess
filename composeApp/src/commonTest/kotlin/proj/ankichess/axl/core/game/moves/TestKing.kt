@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.board.Board
-import proj.ankichess.axl.core.game.pieces.material.IPiece
+import proj.ankichess.axl.core.game.pieces.IPiece
 
 class TestKing : ATestPiece(IPiece.KING) {
 
@@ -18,7 +18,7 @@ class TestKing : ATestPiece(IPiece.KING) {
     board.placePiece("e1", "K")
     board.placePiece("a1", "R")
     val game = Game(board)
-    game.playMove("O-O-O")
+    game.safePlayMove("O-O-O")
     assertEquals(IPiece.ROOK.uppercase(), game.board.getTile("d1").getSafePiece().toString())
     assertEquals(IPiece.KING.uppercase(), game.board.getTile("c1").getSafePiece().toString())
   }
@@ -29,7 +29,7 @@ class TestKing : ATestPiece(IPiece.KING) {
     board.placePiece("e1", "K")
     board.placePiece("h1", "R")
     val game = Game(board)
-    game.playMove("O-O")
+    game.safePlayMove("O-O")
     assertEquals(IPiece.ROOK.uppercase(), game.board.getTile("f1").getSafePiece().toString())
     assertEquals(IPiece.KING.uppercase(), game.board.getTile("g1").getSafePiece().toString())
   }

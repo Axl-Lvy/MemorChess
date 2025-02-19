@@ -2,7 +2,7 @@ package proj.ankichess.axl.core.game.parser
 
 import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.board.Board
-import proj.ankichess.axl.core.game.pieces.material.IPiece
+import proj.ankichess.axl.core.game.pieces.IPiece
 
 /**
  * Fen parser to create or read [games][Game].

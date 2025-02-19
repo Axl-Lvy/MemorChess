@@ -1,11 +1,13 @@
 package proj.ankichess.axl.core.game
 
+import kotlin.math.abs
 import proj.ankichess.axl.core.game.board.Board
+import proj.ankichess.axl.core.game.moves.Castle
+import proj.ankichess.axl.core.game.moves.IMove
+import proj.ankichess.axl.core.game.moves.factory.DummyCheckChecker
+import proj.ankichess.axl.core.game.moves.factory.SimpleMoveFactory
 import proj.ankichess.axl.core.game.parser.FenParser
-import proj.ankichess.axl.core.game.pieces.material.Pawn
-import proj.ankichess.axl.core.game.pieces.moves.Castle
-import proj.ankichess.axl.core.game.pieces.moves.IMove
-import proj.ankichess.axl.core.game.pieces.moves.MoveFactory
+import proj.ankichess.axl.core.game.pieces.Pawn
 
 /**
  * Game instance.
@@ -31,7 +33,9 @@ class Game(val board: Board) {
   var lastCaptureOrPawnHalfMove = 0
 
   /** Move factory. */
-  private val moveFactory = MoveFactory(board)
+  private val moveFactory = SimpleMoveFactory(board)
+
+  private val checkChecker = DummyCheckChecker(board)
 
   /** Creates a game from the starting position. */
   constructor() : this(Board.createFromStartingPosition())
@@ -78,16 +82,53 @@ class Game(val board: Board) {
       }
     }
 
-    return moveList
+    return moveList.filter { checkChecker.isPossible(it) }
+  }
+
+  fun safePlayMove(stringMove: String) {
+    safePlayMove(moveFactory.parseMove(stringMove, playerTurn, enPassantColumn))
+  }
+
+  fun safePlayMove(move: IMove) {
+    if (checkChecker.isPossible(move)) {
+      playMove(move)
+    }
   }
 
   fun playMove(stringMove: String) {
-    playMove(moveFactory.parseMove(stringMove, playerTurn))
+    playMove(moveFactory.parseMove(stringMove, playerTurn, enPassantColumn))
   }
 
-  fun playMove(move: IMove) {
+  private fun playMove(move: IMove) {
     board.playMove(move)
+    aftenPlayMove(move)
+  }
+
+  private fun aftenPlayMove(move: IMove) {
+    updatePossibleCastle()
+    updateEnPassant(move)
     playerTurn = playerTurn.other()
+    if (playerTurn == Player.WHITE) {
+      moveCount++
+    }
+  }
+
+  private fun updatePossibleCastle() {
+    for (i in 0..3) {
+      possibleCastle[i] = possibleCastle[i] && Castle.castles[i].isPositionCorrect(board)
+    }
+  }
+
+  private fun updateEnPassant(move: IMove) {
+    enPassantColumn =
+      if (
+        board.getTile(move.destination()).getSafePiece() is Pawn &&
+          abs(move.origin().first - move.destination().first) == 2
+      ) {
+        move.destination().second
+      } else {
+        -1
+      }
   }
 
   override fun toString(): String {

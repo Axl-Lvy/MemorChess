@@ -25,7 +25,7 @@ abstract class ATestPiece(private val pieceName: String) {
   @Test
   fun testMoves() {
     for (tile in getTiles()) {
-      game.playMove(pieceName + tile)
+      game.playMove(pieceName.uppercase() + tile)
     }
     checkFinalDestinations()
   }
@@ -36,13 +36,19 @@ abstract class ATestPiece(private val pieceName: String) {
       pieceName.uppercase(),
       game.board.getTile(getTiles()[getTiles().size - 2]).toString(),
     )
+    game.board.getTilesIterator().forEach {
+      val tileName = Board.getTileName(it.getCoords())
+      if (tileName != getTiles()[getTiles().size - 2] && tileName != getTiles().last()) {
+        assertEquals(null, it.getSafePiece())
+      }
+    }
   }
 
   @Test
   fun testCapture() {
     for (tile in getTiles()) {
       game.board.placePiece(tile, if (game.playerTurn == Game.Player.WHITE) "p" else "P")
-      game.playMove(pieceName + "x" + tile)
+      game.playMove(pieceName.uppercase() + "x" + tile)
     }
     checkFinalDestinations()
   }
@@ -50,7 +56,7 @@ abstract class ATestPiece(private val pieceName: String) {
   @Test
   fun testImpossibleMove() {
     assertFailsWith<IllegalStateException>("Found 0 possible moves with ka3") {
-      game.playMove(pieceName + "b8")
+      game.playMove(pieceName.uppercase() + "b8")
     }
   }
 }
