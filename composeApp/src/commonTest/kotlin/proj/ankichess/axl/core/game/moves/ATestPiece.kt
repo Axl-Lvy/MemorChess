@@ -1,11 +1,11 @@
 package proj.ankichess.axl.core.game.moves
 
-import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.board.Board
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import proj.ankichess.axl.core.game.Game
+import proj.ankichess.axl.core.game.board.Board
 
 abstract class ATestPiece(private val pieceName: String) {
 

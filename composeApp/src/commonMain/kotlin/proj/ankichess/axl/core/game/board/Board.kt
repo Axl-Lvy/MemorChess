@@ -10,7 +10,6 @@ import proj.ankichess.axl.core.game.pieces.material.PieceFactory
 import proj.ankichess.axl.core.game.pieces.material.Queen
 import proj.ankichess.axl.core.game.pieces.material.Rook
 import proj.ankichess.axl.core.game.pieces.moves.IMove
-import proj.ankichess.axl.core.game.board.Tile
 
 /**
  * Board game.

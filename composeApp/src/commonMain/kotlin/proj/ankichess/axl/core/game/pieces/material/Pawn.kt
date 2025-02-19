@@ -1,8 +1,8 @@
 package proj.ankichess.axl.core.game.pieces.material
 
+import kotlin.math.abs
 import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.pieces.moves.description.ClassicMoveDescription
-import kotlin.math.abs
 
 /** Pawn. */
 class Pawn(player: Game.Player) : APiece(player) {

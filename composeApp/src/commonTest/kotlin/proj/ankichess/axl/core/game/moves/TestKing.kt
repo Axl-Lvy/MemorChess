@@ -1,10 +1,10 @@
 package proj.ankichess.axl.core.game.moves
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.board.Board
 import proj.ankichess.axl.core.game.pieces.material.IPiece
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class TestKing : ATestPiece(IPiece.KING) {
 

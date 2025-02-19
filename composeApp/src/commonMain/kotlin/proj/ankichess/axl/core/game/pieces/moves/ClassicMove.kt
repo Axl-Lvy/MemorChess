@@ -20,8 +20,8 @@ open class ClassicMove(val from: Pair<Int, Int>, val to: Pair<Int, Int>) : IMove
   }
 
   override fun updateCaches(
-      boardArray: Array<Array<Tile>>,
-      cache: Map<String, MutableSet<Pair<Int, Int>>>,
+    boardArray: Array<Array<Tile>>,
+    cache: Map<String, MutableSet<Pair<Int, Int>>>,
   ) {
     val oldPositions = cache[boardArray[to.first][to.second].piece?.toString() ?: ""]
     checkNotNull(oldPositions) {

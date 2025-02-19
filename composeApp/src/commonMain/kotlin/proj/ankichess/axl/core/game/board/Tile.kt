@@ -1,7 +1,6 @@
 package proj.ankichess.axl.core.game.board
 
 import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.board.ITile
 import proj.ankichess.axl.core.game.pieces.material.IPiece
 
 /**

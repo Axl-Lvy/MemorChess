@@ -12,8 +12,8 @@ class Capture(from: Pair<Int, Int>, to: Pair<Int, Int>) : ClassicMove(from, to) 
   }
 
   override fun updateCaches(
-      boardArray: Array<Array<Tile>>,
-      cache: Map<String, MutableSet<Pair<Int, Int>>>,
+    boardArray: Array<Array<Tile>>,
+    cache: Map<String, MutableSet<Pair<Int, Int>>>,
   ) {
     super.updateCaches(boardArray, cache)
     cache[takenPiece]?.remove(to)

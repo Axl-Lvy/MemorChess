@@ -1,7 +1,7 @@
 package proj.ankichess.axl.core.game.pieces.moves
 
-import proj.ankichess.axl.core.game.board.Tile
 import kotlin.math.abs
+import proj.ankichess.axl.core.game.board.Tile
 
 class Castle(
   private val rook: Pair<Int, Int>,
@@ -31,8 +31,8 @@ class Castle(
   }
 
   override fun updateCaches(
-      boardArray: Array<Array<Tile>>,
-      cache: Map<String, MutableSet<Pair<Int, Int>>>,
+    boardArray: Array<Array<Tile>>,
+    cache: Map<String, MutableSet<Pair<Int, Int>>>,
   ) {
     val rookCache =
       cache[boardArray[rookDestination.first][rookDestination.second].piece?.toString()]

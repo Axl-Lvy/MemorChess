@@ -15,8 +15,8 @@ class EnPassant(from: Pair<Int, Int>, to: Pair<Int, Int>, private val captured: 
   }
 
   override fun updateCaches(
-      boardArray: Array<Array<Tile>>,
-      cache: Map<String, MutableSet<Pair<Int, Int>>>,
+    boardArray: Array<Array<Tile>>,
+    cache: Map<String, MutableSet<Pair<Int, Int>>>,
   ) {
     super.updateCaches(boardArray, cache)
     cache[takenPiece]?.remove(captured)
