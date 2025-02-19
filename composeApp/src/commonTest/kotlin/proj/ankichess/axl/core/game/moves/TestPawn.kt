@@ -24,7 +24,7 @@ class TestPawn {
   }
 
   @Test
-  fun testCaptureMoves() {
+  fun testEnPassant() {
     val board = Board()
     board.placePiece("b4", "p") // Black pawn
     board.placePiece("a2", "P") // White pawn to capture
@@ -38,14 +38,13 @@ class TestPawn {
   }
 
   @Test
-  fun testEnPassant() {
+  fun testCapture() {
     val board = Board()
-    board.placePiece("e5", "P") // White pawn
-    board.placePiece("d5", "p") // Black pawn for en passant
+    board.placePiece("e5", "P")
+    board.placePiece("d6", "p")
     val game = Game(board)
 
-    game.playMove("d5") // Black plays, setting up en passant
-    game.playMove("exd6") // En passant capture
+    game.playMove("exd6")
     assertEquals(IPiece.PAWN.uppercase(), game.board.getTile("d6").getSafePiece().toString())
     assertEquals(null, game.board.getTile("d5").getSafePiece())
   }
