@@ -10,12 +10,12 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    setContent { app() }
+    setContent { App() }
   }
 }
 
 @Preview
 @Composable
 fun AppAndroidPreview() {
-  app()
+  App()
 }
