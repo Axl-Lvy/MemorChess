@@ -25,13 +25,13 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 @Preview
-fun App() {
+fun app() {
   MaterialTheme {
     var showContent by remember { mutableStateOf(false) }
     val greeting = remember { Greeting().greet() }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
       Text(
-        text = "Today's date is ${todaysDate()}",
+        text = "Today's date is ${todayDate()}",
         modifier = Modifier.padding(20.dp),
         fontSize = 24.sp,
         textAlign = TextAlign.Center,
@@ -47,7 +47,7 @@ fun App() {
   }
 }
 
-fun todaysDate(): String {
+private fun todayDate(): String {
   fun LocalDateTime.format() = toString().substringBefore('T')
 
   val now = Clock.System.now()
