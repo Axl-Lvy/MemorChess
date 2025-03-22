@@ -16,6 +16,7 @@ pluginManagement {
 }
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
+    id("org.danilopianini.gradle-pre-commit-git-hooks") version "2.0.21"
 }
 
 dependencyResolutionManagement {
@@ -34,3 +35,16 @@ dependencyResolutionManagement {
 include(":composeApp")
 include("core")
 include("core")
+
+gitHooks {
+    commitMsg {
+        conventionalCommits()
+    }
+
+    preCommit {
+        tasks("ktfmtFormat", requireSuccess = false)
+        tasks("ktfmtCheck","allTests")
+    }
+
+    createHooks(true)
+}

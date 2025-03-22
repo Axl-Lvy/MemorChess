@@ -1,7 +1,10 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
-plugins { alias(libs.plugins.kotlinMultiplatform) }
+plugins {
+  alias(libs.plugins.kotlinMultiplatform)
+  id("com.ncorti.ktfmt.gradle") version "0.22.0"
+}
 
 group = "proj.ankichess.axl"
 
@@ -47,3 +50,5 @@ kotlin {
     }
   }
 }
+
+ktfmt { googleStyle() }
