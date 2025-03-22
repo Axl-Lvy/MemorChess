@@ -41,7 +41,6 @@ gitHooks {
     }
 
     preCommit {
-        tasks("ktfmtFormat", requireSuccess = false)
         tasks("ktfmtCheck","allTests")
     }
 
