@@ -1,7 +1,7 @@
 package proj.ankichess.axl.core.game.moves.description
 
-import proj.ankichess.axl.core.game.board.Board
 import kotlin.math.abs
+import proj.ankichess.axl.core.game.board.Board
 
 class MoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
 

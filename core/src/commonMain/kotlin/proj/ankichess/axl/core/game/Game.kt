@@ -5,6 +5,7 @@ import kotlin.math.abs
 import proj.ankichess.axl.core.game.board.Board
 import proj.ankichess.axl.core.game.moves.Castle
 import proj.ankichess.axl.core.game.moves.IMove
+import proj.ankichess.axl.core.game.moves.IllegalMoveException
 import proj.ankichess.axl.core.game.moves.description.MoveDescription
 import proj.ankichess.axl.core.game.moves.factory.DummyCheckChecker
 import proj.ankichess.axl.core.game.moves.factory.SimpleMoveFactory
@@ -65,20 +66,12 @@ class Game(val board: Board) {
 
     val moveList = mutableListOf<IMove>()
 
-    if (tile.getSafePiece() is Pawn) {
-      moveList.addAll(
-        moveFactory.extractPawnMoves(
-          tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList(),
-          enPassantColumn,
-        )
+    moveList.addAll(
+      moveFactory.extractMoves(
+        tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList(),
+        enPassantColumn,
       )
-    } else {
-      moveList.addAll(
-        moveFactory.extractPieceMoves(
-          tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList()
-        )
-      )
-    }
+    )
 
     for (i in 0..3) {
       if (possibleCastle[i]) {
@@ -103,13 +96,12 @@ class Game(val board: Board) {
     ) {
       val move = moveFactory.createMoveFrom(moveDescription, enPassantColumn)
       if (move == null) {
-        LOGGER.info { "$moveDescription is invalid." }
+        throw IllegalMoveException("$moveDescription is invalid.")
       } else {
-        LOGGER.info { "Playing $moveDescription." }
         safePlayMove(move)
       }
     } else {
-      LOGGER.info { "Cannot play $moveDescription." }
+      throw IllegalMoveException("Cannot play $moveDescription.")
     }
   }
 
@@ -127,7 +119,7 @@ class Game(val board: Board) {
       LOGGER.info { "Playing ${moveFactory.stringifyMove(move)}." }
       playMove(move)
     } else {
-      LOGGER.info { "Move ${moveFactory.stringifyMove(move)} is blocked by a check." }
+      throw IllegalMoveException("Move ${moveFactory.stringifyMove(move)} is blocked by a check.")
     }
   }
 

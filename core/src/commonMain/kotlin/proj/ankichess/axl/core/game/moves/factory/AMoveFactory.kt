@@ -41,6 +41,38 @@ abstract class AMoveFactory(val board: Board) {
     }
   }
 
+  fun stringifyMove(move: IMove): String {
+    (move as? Castle)?.let {
+      return if (move.isLong()) Castle.LONG_CASTLE_STRING else Castle.SHORT_CASTLE_STRING
+    }
+
+    (move as? EnPassant)?.let {
+      return Board.getColumnName(move.from.second) + "x" + Board.getTileName(move.to)
+    }
+
+    val stringMoveBuilder = StringBuilder()
+    val movingPiece = getTileAtCoords(move.origin()).getSafePiece()
+    checkNotNull(movingPiece) { "Can't create a move from an empty tile." }
+    if (movingPiece is Pawn) {
+      stringMoveBuilder.append(Board.getColumnName(move.origin().second))
+    } else {
+      stringMoveBuilder.append(movingPiece.toString().uppercase())
+      stringMoveBuilder.append(ambiguityClue(movingPiece, move))
+    }
+    if (move is Capture) {
+      stringMoveBuilder.append("x")
+      if (movingPiece is Pawn) {
+        stringMoveBuilder.append(Board.getTileName(move.destination()))
+      }
+    } else if (movingPiece is Pawn) {
+      stringMoveBuilder.append(Board.getTileName(move.destination()).last())
+    }
+    if (movingPiece !is Pawn) {
+      stringMoveBuilder.append(Board.getTileName(move.destination()))
+    }
+    return stringMoveBuilder.toString()
+  }
+
   /**
    * Extracts moves from [move descriptions][MoveDescription].
    *
@@ -63,12 +95,45 @@ abstract class AMoveFactory(val board: Board) {
   }
 
   /**
+   * Parses a move.
+   *
+   * @param stringMove Move notation.
+   * @param playerTurn Player turn.
+   * @param enPassantColumn En passant column.
+   * @return The move.
+   * @throws IllegalMoveException if the move is not possible.
+   */
+  fun parseMove(stringMove: String, playerTurn: Game.Player, enPassantColumn: Int): IMove {
+    val cleanMove =
+      if (stringMove.endsWith('+') || stringMove.endsWith('#')) {
+        stringMove.substring(0, stringMove.length - 1)
+      } else {
+        stringMove
+      }
+    if (cleanMove == Castle.LONG_CASTLE_STRING) {
+      return if (playerTurn == Game.Player.WHITE) Castle.castles[1] else Castle.castles[3]
+    }
+    if (cleanMove == Castle.SHORT_CASTLE_STRING) {
+      return if (playerTurn == Game.Player.WHITE) Castle.castles[0] else Castle.castles[2]
+    }
+    try {
+      return if (cleanMove.length == 2 || cleanMove[0].isLowerCase()) {
+        parsePawnMove(cleanMove, playerTurn, enPassantColumn)
+      } else {
+        parseGenericPieceMove(cleanMove, playerTurn)
+      }
+    } catch (e: IllegalStateException) {
+      throw IllegalMoveException("$stringMove is not a valid move.", e)
+    }
+  }
+
+  /**
    * Extracts moves from a piece which is not a pawn.
    *
    * @param originalMoves Move descriptions computed by the piece.
    * @return The available moves.
    */
-  fun extractPieceMoves(originalMoves: List<List<MoveDescription>>): List<IMove> {
+  private fun extractPieceMoves(originalMoves: List<List<MoveDescription>>): List<IMove> {
     val moves = mutableListOf<IMove>()
     for (rawMoveList in originalMoves) {
       for (rawMove in rawMoveList) {
@@ -95,7 +160,7 @@ abstract class AMoveFactory(val board: Board) {
    * @param enPassantColumn En passant column.
    * @return The available moves.
    */
-  fun extractPawnMoves(
+  private fun extractPawnMoves(
     originalMoves: List<List<MoveDescription>>,
     enPassantColumn: Int,
   ): List<IMove> {
@@ -159,34 +224,15 @@ abstract class AMoveFactory(val board: Board) {
     }
   }
 
-  fun parseMove(stringMove: String, playerTurn: Game.Player, enPassantColumn: Int): IMove {
-    val cleanMove =
-      if (stringMove.endsWith('+') || stringMove.endsWith('#')) {
-        stringMove.substring(0, stringMove.length - 1)
-      } else {
-        stringMove
-      }
-    if (cleanMove == Castle.LONG_CASTLE_STRING) {
-      return if (playerTurn == Game.Player.WHITE) Castle.castles[1] else Castle.castles[3]
-    }
-    if (cleanMove == Castle.SHORT_CASTLE_STRING) {
-      return if (playerTurn == Game.Player.WHITE) Castle.castles[0] else Castle.castles[2]
-    }
-    return if (cleanMove.length == 2 || cleanMove[0].isLowerCase()) {
-      parsePawnMove(cleanMove, playerTurn, enPassantColumn)
-    } else {
-      parseGenericPieceMove(cleanMove, playerTurn)
-    }
-  }
-
   private fun parsePawnMove(
     stringMove: String,
     playerTurn: Game.Player,
     enPassantColumn: Int,
   ): IMove {
+    val destination: Pair<Int, Int>
     val desc =
       if (!stringMove.contains('x')) {
-        val destination = Board.getCoords(stringMove)
+        destination = Board.getCoords(stringMove)
         val forward = if (playerTurn == Game.Player.WHITE) 1 else -1
         if (
           getTileAtCoords(Pair(destination.first - forward, destination.second)).getSafePiece() ==
@@ -198,12 +244,12 @@ abstract class AMoveFactory(val board: Board) {
         }
       } else {
         val originColumn = Board.getColumnNumber(stringMove[0].toString())
-        val destination = Board.getCoords(stringMove.substring(2))
+        destination = Board.getCoords(stringMove.substring(2))
         val forward = if (playerTurn == Game.Player.WHITE) 1 else -1
         MoveDescription(Pair(destination.first - forward, originColumn), destination)
       }
     return extractPawnMoves(listOf(listOf(desc)), enPassantColumn).firstOrNull()
-      ?: error("No valid pawn moves found.")
+      ?: throw IllegalMoveException("No pawn can go to " + Board.getTileName(destination) + ".")
   }
 
   private fun parseGenericPieceMove(stringMove: String, playerTurn: Game.Player): IMove {
@@ -256,38 +302,6 @@ abstract class AMoveFactory(val board: Board) {
     return Pair(clueColumn, clueRow)
   }
 
-  fun stringifyMove(move: IMove): String {
-    (move as? Castle)?.let {
-      return if (move.isLong()) Castle.LONG_CASTLE_STRING else Castle.SHORT_CASTLE_STRING
-    }
-
-    (move as? EnPassant)?.let {
-      return Board.getColumnName(move.from.second) + "x" + Board.getTileName(move.to)
-    }
-
-    val stringMoveBuilder = StringBuilder()
-    val movingPiece = getTileAtCoords(move.origin()).getSafePiece()
-    checkNotNull(movingPiece) { "Can't create a move from an empty tile." }
-    if (movingPiece is Pawn) {
-      stringMoveBuilder.append(Board.getColumnName(move.origin().second))
-    } else {
-      stringMoveBuilder.append(movingPiece.toString().uppercase())
-      stringMoveBuilder.append(ambiguityClue(movingPiece, move))
-    }
-    if (move is Capture) {
-      stringMoveBuilder.append("x")
-      if (movingPiece is Pawn) {
-        stringMoveBuilder.append(Board.getTileName(move.destination()))
-      }
-    } else if (movingPiece is Pawn) {
-      stringMoveBuilder.append(Board.getTileName(move.destination()).last())
-    }
-    if (movingPiece !is Pawn) {
-      stringMoveBuilder.append(Board.getTileName(move.destination()))
-    }
-    return stringMoveBuilder.toString()
-  }
-
   abstract fun getTileAtCoords(coords: Pair<Int, Int>): ITile
 
   private fun ambiguityClue(movingPiece: IPiece, move: IMove): String {
@@ -300,7 +314,8 @@ abstract class AMoveFactory(val board: Board) {
     for (position in samePiecePosition) {
       val candidateMove = MoveDescription(position, move.destination())
       if (
-        position != move.origin() && movingPiece.isMovePossible(candidateMove) &&
+        position != move.origin() &&
+          movingPiece.isMovePossible(candidateMove) &&
           createMoveFrom(candidateMove, -1) != null
       ) {
         if (position.first == move.origin().first) {

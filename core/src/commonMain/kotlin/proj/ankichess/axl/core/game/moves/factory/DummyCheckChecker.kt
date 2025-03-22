@@ -16,9 +16,13 @@ class DummyCheckChecker(board: Board) : AMoveFactory(board) {
     changes = move.generateChanges()
     val player = board.getTile(move.origin()).getSafePiece()?.player ?: return false
     val kingPosition =
-      board.piecePositionsCache[
-          if (player == Game.Player.WHITE) IPiece.KING.uppercase() else IPiece.KING]!!
-        .first()
+      if (board.getTile(move.origin()).getSafePiece()?.toString()?.lowercase() == IPiece.KING) {
+        move.destination()
+      } else {
+        board.piecePositionsCache[
+            if (player == Game.Player.WHITE) IPiece.KING.uppercase() else IPiece.KING]!!
+          .first()
+      }
     IPiece.PIECES.map { if (player == Game.Player.WHITE) it else it.uppercase() }
       .forEach {
         board.piecePositionsCache[it]!!.forEach { pos ->

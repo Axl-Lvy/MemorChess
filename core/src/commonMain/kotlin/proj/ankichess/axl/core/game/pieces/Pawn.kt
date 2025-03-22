@@ -20,14 +20,10 @@ class Pawn(player: Game.Player) : APiece(player) {
     moveList.add(frontMoves)
 
     if (coords.first > 0) {
-      moveList.add(
-        listOf(MoveDescription(coords, Pair(coords.first - 1, coords.second + forward)))
-      )
+      moveList.add(listOf(MoveDescription(coords, Pair(coords.first - 1, coords.second + forward))))
     }
     if (coords.first < 7) {
-      moveList.add(
-        listOf(MoveDescription(coords, Pair(coords.first + 1, coords.second + forward)))
-      )
+      moveList.add(listOf(MoveDescription(coords, Pair(coords.first + 1, coords.second + forward))))
     }
 
     return moveList

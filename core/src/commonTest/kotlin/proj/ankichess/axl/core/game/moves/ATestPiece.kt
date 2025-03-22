@@ -7,6 +7,12 @@ import kotlin.test.assertFailsWith
 import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.board.Board
 
+/**
+ * Simple and general tests for a piece. The game is initialized with just 2 pieces in a1 (white)
+ * and h8 (black). We only need to create the path for each piece in [getTiles].
+ *
+ * @property pieceName The name of the piece.
+ */
 abstract class ATestPiece(private val pieceName: String) {
 
   /** Moves of both black and white piece. White starts in a1 and black in h8. */
@@ -55,8 +61,6 @@ abstract class ATestPiece(private val pieceName: String) {
 
   @Test
   fun testImpossibleMove() {
-    assertFailsWith<IllegalStateException>() {
-      game.playMove(pieceName.uppercase() + "b8")
-    }
+    assertFailsWith<IllegalMoveException>() { game.playMove(pieceName.uppercase() + "b8") }
   }
 }

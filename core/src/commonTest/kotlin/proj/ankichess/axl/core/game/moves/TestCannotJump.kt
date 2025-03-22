@@ -1,9 +1,8 @@
 package proj.ankichess.axl.core.game.moves
 
-import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.moves.description.MoveDescription
-import proj.ankichess.axl.core.game.pieces.IPiece
 import kotlin.test.*
+import proj.ankichess.axl.core.game.Game
+import proj.ankichess.axl.core.game.pieces.IPiece
 
 class TestCannotJump {
 
@@ -16,28 +15,22 @@ class TestCannotJump {
 
   @Test
   fun testBishop() {
-    assertFailsWith<IllegalStateException>() {
-      game.playMove("B" + "a3")
-    }
+    assertFailsWith<IllegalMoveException>() { game.playMove("Ba3") }
   }
 
   @Test
   fun testRook() {
-    assertFailsWith<IllegalStateException>() {
-      game.playMove("R" + "a3")
-    }
+    assertFailsWith<IllegalMoveException>() { game.playMove("Ra3") }
   }
 
   @Test
   fun testQueen() {
-    assertFailsWith<IllegalStateException>() {
-      game.playMove("Q" + "d3")
-    }
+    assertFailsWith<IllegalMoveException>() { game.playMove("Qd3") }
   }
 
   @Test
   fun testKnight() {
-    game.playMove("N" + "f3")
+    game.playMove("Nf3")
     assertNull(game.board.getTile("g1").getSafePiece())
     assertEquals(IPiece.KNIGHT.uppercase(), game.board.getTile("f3").getSafePiece().toString())
   }
