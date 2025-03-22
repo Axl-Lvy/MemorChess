@@ -5,14 +5,14 @@ import proj.ankichess.axl.core.game.board.Board
 import proj.ankichess.axl.core.game.board.ITile
 import proj.ankichess.axl.core.game.board.Tile
 import proj.ankichess.axl.core.game.moves.IMove
-import proj.ankichess.axl.core.game.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.moves.description.MoveDescription
 import proj.ankichess.axl.core.game.pieces.IPiece
 
 class DummyCheckChecker(board: Board) : AMoveFactory(board) {
 
   var changes = mapOf<Pair<Int, Int>, Pair<Int, Int>?>()
 
-  fun isPossible(move: IMove): Boolean {
+  fun isPossible(move: IMove, enPassantColumn: Int): Boolean {
     changes = move.generateChanges()
     val player = board.getTile(move.origin()).getSafePiece()?.player ?: return false
     val kingPosition =
@@ -23,8 +23,11 @@ class DummyCheckChecker(board: Board) : AMoveFactory(board) {
       .forEach {
         board.piecePositionsCache[it]!!.forEach { pos ->
           run {
-            val moveDescription = ClassicMoveDescription(pos, kingPosition)
-            if (getTileAtCoords(pos).getSafePiece()?.isMovePossible(moveDescription) == true) {
+            val moveDescription = MoveDescription(pos, kingPosition)
+            if (
+              getTileAtCoords(pos).getSafePiece()?.isMovePossible(moveDescription) == true &&
+                createMoveFrom(moveDescription, enPassantColumn) != null
+            ) {
               return false
             }
           }

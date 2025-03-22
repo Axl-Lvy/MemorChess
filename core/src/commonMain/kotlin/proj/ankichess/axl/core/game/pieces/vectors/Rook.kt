@@ -6,7 +6,7 @@ import proj.ankichess.axl.core.game.pieces.IPiece
 /** Rook. */
 class Rook(player: Game.Player) : AInfiniteMovers(player) {
   override fun getVectors(): Set<Pair<Int, Int>> {
-    return STRAIGHT_VECTORS
+    return VectorUtils.STRAIGHT_VECTORS
   }
 
   override fun baseChar(): String {

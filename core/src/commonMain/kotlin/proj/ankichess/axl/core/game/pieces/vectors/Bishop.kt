@@ -6,7 +6,7 @@ import proj.ankichess.axl.core.game.pieces.IPiece
 /** Bishop. */
 class Bishop(player: Game.Player) : AInfiniteMovers(player) {
   override fun getVectors(): Set<Pair<Int, Int>> {
-    return DIAG_VECTORS
+    return VectorUtils.DIAG_VECTORS
   }
 
   override fun baseChar(): String {

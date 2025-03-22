@@ -1,30 +1,39 @@
 package proj.ankichess.axl
 
-import androidx.compose.material.MaterialTheme
+import androidx.compose.material.*
 import androidx.compose.runtime.*
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.compose.ui.tooling.preview.Preview
-import proj.ankichess.axl.pages.Home
+import org.jetbrains.compose.resources.painterResource
+import proj.ankichess.axl.navigation.BottomBarItem
+import proj.ankichess.axl.navigation.Destination
+import proj.ankichess.axl.navigation.Router
 
 @Composable
-@Preview
 fun App() {
   MaterialTheme {
-    var navController = rememberNavController()
-    NavHost(navController, startDestination = "home") { composable("home") { Home() } }
+    val navController = rememberNavController()
+    Scaffold(
+      content = { Router(navController = navController) },
+      bottomBar = {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute =
+          navBackStackEntry?.destination?.route?.substringBefore("?")
+            ?: Destination.MANAGE_SAVES.name
+        BottomNavigation() {
+          BottomBarItem.entries.forEach { item ->
+            val isSelected by
+              remember(currentRoute) { derivedStateOf { currentRoute == item.destination.name } }
+            BottomNavigationItem(
+              selected = isSelected,
+              icon = {
+                Icon(painter = painterResource(item.icon), contentDescription = item.label)
+              },
+              onClick = { navController.navigate(item.destination.name) },
+            )
+          }
+        }
+      },
+    )
   }
-}
-
-private fun todayDate(): String {
-  fun LocalDateTime.format() = toString().substringBefore('T')
-
-  val now = Clock.System.now()
-  val zone = TimeZone.currentSystemDefault()
-  return now.toLocalDateTime(zone).format()
 }

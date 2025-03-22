@@ -8,6 +8,7 @@ plugins {
   alias(libs.plugins.androidApplication)
   alias(libs.plugins.composeMultiplatform)
   alias(libs.plugins.composeCompiler)
+  alias(libs.plugins.kotlinX.serialization.plugin)
   id("com.ncorti.ktfmt.gradle") version "0.22.0"
 }
 
@@ -61,8 +62,10 @@ kotlin {
       implementation(libs.androidx.lifecycle.viewmodel)
       implementation(libs.androidx.lifecycle.runtime.compose)
       implementation(libs.kotlinx.datetime)
+      implementation(libs.kotlinx.serialization.json)
       implementation(libs.navigation.compose)
       implementation(project(":core"))
+      api(libs.logging)
     }
     commonTest.dependencies { implementation(libs.kotlin.test) }
   }
@@ -86,7 +89,5 @@ android {
     targetCompatibility = JavaVersion.VERSION_11
   }
 }
-
-dependencies { debugImplementation(compose.uiTooling) }
 
 ktfmt { googleStyle() }

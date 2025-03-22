@@ -60,7 +60,7 @@ class TestPawn {
     board.placePiece("a2", "P") // White pawn
     val game = Game(board)
 
-    assertFailsWith<IllegalStateException>("Move should be impossible") {
+    assertFailsWith<IllegalStateException>() {
       game.playMove("a5") // Cannot jump two squares from a2 directly to a5
     }
   }

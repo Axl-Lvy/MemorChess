@@ -6,4 +6,6 @@ interface ITile {
   fun getSafePiece(): IPiece?
 
   fun getCoords(): Pair<Int, Int>
+
+  fun getColor(): Tile.TileColor
 }

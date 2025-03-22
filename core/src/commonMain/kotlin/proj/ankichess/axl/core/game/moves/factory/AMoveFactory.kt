@@ -4,9 +4,10 @@ import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.board.Board
 import proj.ankichess.axl.core.game.board.ITile
 import proj.ankichess.axl.core.game.moves.*
-import proj.ankichess.axl.core.game.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.moves.description.MoveDescription
 import proj.ankichess.axl.core.game.pieces.IPiece
 import proj.ankichess.axl.core.game.pieces.Pawn
+import proj.ankichess.axl.core.game.pieces.vectors.VectorUtils
 
 /**
  * Move factory.
@@ -17,12 +18,57 @@ import proj.ankichess.axl.core.game.pieces.Pawn
 abstract class AMoveFactory(val board: Board) {
 
   /**
+   * Creates one move.
+   *
+   * @param moveDescription The move we want to check
+   * @param enPassantColumn En passant column.
+   * @return
+   */
+  fun createMoveFrom(moveDescription: MoveDescription, enPassantColumn: Int): IMove? {
+    val subMoves = mutableListOf<MoveDescription>()
+    val subVector = moveDescription.getSubVector()
+    var currentCoordinates: Pair<Int, Int>? = VectorUtils.addVector(moveDescription.from, subVector)
+    while (currentCoordinates != null && currentCoordinates != moveDescription.to) {
+      subMoves.add(MoveDescription(moveDescription.from, currentCoordinates))
+      currentCoordinates = VectorUtils.addVector(subVector, currentCoordinates.copy())
+    }
+    subMoves.add(moveDescription)
+    val extractedMoves = extractMoves(listOf(subMoves), enPassantColumn)
+    return if (extractedMoves.size != subMoves.size) {
+      null
+    } else {
+      extractedMoves.last()
+    }
+  }
+
+  /**
+   * Extracts moves from [move descriptions][MoveDescription].
+   *
+   * @param originalMoves
+   * @param enPassantColumn
+   * @return
+   */
+  fun extractMoves(originalMoves: List<List<MoveDescription>>, enPassantColumn: Int): List<IMove> {
+    if (originalMoves.isEmpty() || originalMoves[0].isEmpty()) {
+      return listOf()
+    }
+    return if (
+      (getTileAtCoords(originalMoves[0][0].from).getSafePiece()?.toString()?.lowercase() ?: "") ==
+        IPiece.PAWN.lowercase()
+    ) {
+      extractPawnMoves(originalMoves, enPassantColumn)
+    } else {
+      extractPieceMoves(originalMoves)
+    }
+  }
+
+  /**
    * Extracts moves from a piece which is not a pawn.
    *
    * @param originalMoves Move descriptions computed by the piece.
    * @return The available moves.
    */
-  fun extractMoves(originalMoves: List<List<ClassicMoveDescription>>): List<IMove> {
+  fun extractPieceMoves(originalMoves: List<List<MoveDescription>>): List<IMove> {
     val moves = mutableListOf<IMove>()
     for (rawMoveList in originalMoves) {
       for (rawMove in rawMoveList) {
@@ -50,7 +96,7 @@ abstract class AMoveFactory(val board: Board) {
    * @return The available moves.
    */
   fun extractPawnMoves(
-    originalMoves: List<List<ClassicMoveDescription>>,
+    originalMoves: List<List<MoveDescription>>,
     enPassantColumn: Int,
   ): List<IMove> {
     val moves = mutableListOf<IMove>()
@@ -88,7 +134,7 @@ abstract class AMoveFactory(val board: Board) {
     toTile: ITile,
     fromTile: ITile,
     moves: MutableList<IMove>,
-    rawMove: ClassicMoveDescription,
+    rawMove: MoveDescription,
     enPassantColumn: Int,
   ) {
     if (toTile.getSafePiece() != null) {
@@ -146,18 +192,15 @@ abstract class AMoveFactory(val board: Board) {
           getTileAtCoords(Pair(destination.first - forward, destination.second)).getSafePiece() ==
             null
         ) {
-          ClassicMoveDescription(
-            Pair(destination.first - 2 * forward, destination.second),
-            destination,
-          )
+          MoveDescription(Pair(destination.first - 2 * forward, destination.second), destination)
         } else {
-          ClassicMoveDescription(Pair(destination.first - forward, destination.second), destination)
+          MoveDescription(Pair(destination.first - forward, destination.second), destination)
         }
       } else {
         val originColumn = Board.getColumnNumber(stringMove[0].toString())
         val destination = Board.getCoords(stringMove.substring(2))
         val forward = if (playerTurn == Game.Player.WHITE) 1 else -1
-        ClassicMoveDescription(Pair(destination.first - forward, originColumn), destination)
+        MoveDescription(Pair(destination.first - forward, originColumn), destination)
       }
     return extractPawnMoves(listOf(listOf(desc)), enPassantColumn).firstOrNull()
       ?: error("No valid pawn moves found.")
@@ -172,7 +215,7 @@ abstract class AMoveFactory(val board: Board) {
     val (clueColumn: Int?, clueRow: Int?) = extractClues(stringMove)
     val candidatePositions = board.piecePositionsCache[pieceString]
     checkNotNull(candidatePositions) { "No piece " + pieceString + "left on the board." }
-    val candidateMoves = mutableListOf<List<ClassicMoveDescription>>()
+    val candidateMoves = mutableListOf<MoveDescription>()
     for (position in candidatePositions) {
       if (clueRow != null && position.first != clueRow) {
         continue
@@ -180,12 +223,12 @@ abstract class AMoveFactory(val board: Board) {
       if (clueColumn != null && position.second != clueRow) {
         continue
       }
-      val candidate = ClassicMoveDescription(position, destination)
+      val candidate = MoveDescription(position, destination)
       if (getTileAtCoords(position).getSafePiece()?.isMovePossible(candidate) == true) {
-        candidateMoves.add(listOf(candidate))
+        candidateMoves.add(candidate)
       }
     }
-    val moves = extractMoves(candidateMoves)
+    val moves = candidateMoves.mapNotNull { createMoveFrom(it, -1) }
     check(moves.size == 1) { "Found ${moves.size} possible moves with $stringMove" }
     return moves[0]
   }
@@ -233,8 +276,15 @@ abstract class AMoveFactory(val board: Board) {
     }
     if (move is Capture) {
       stringMoveBuilder.append("x")
+      if (movingPiece is Pawn) {
+        stringMoveBuilder.append(Board.getTileName(move.destination()))
+      }
+    } else if (movingPiece is Pawn) {
+      stringMoveBuilder.append(Board.getTileName(move.destination()).last())
     }
-    stringMoveBuilder.append(Board.getTileName(move.destination()))
+    if (movingPiece !is Pawn) {
+      stringMoveBuilder.append(Board.getTileName(move.destination()))
+    }
     return stringMoveBuilder.toString()
   }
 
@@ -248,10 +298,10 @@ abstract class AMoveFactory(val board: Board) {
     var isSameColumn = false
     var isSameRow = false
     for (position in samePiecePosition) {
+      val candidateMove = MoveDescription(position, move.destination())
       if (
-        position != move.origin() &&
-          extractMoves(listOf(listOf(ClassicMoveDescription(position, move.destination()))))
-            .isNotEmpty()
+        position != move.origin() && movingPiece.isMovePossible(candidateMove) &&
+          createMoveFrom(candidateMove, -1) != null
       ) {
         if (position.first == move.origin().first) {
           isSameRow = true

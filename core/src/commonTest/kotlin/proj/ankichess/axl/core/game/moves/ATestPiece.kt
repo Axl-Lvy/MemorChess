@@ -55,7 +55,7 @@ abstract class ATestPiece(private val pieceName: String) {
 
   @Test
   fun testImpossibleMove() {
-    assertFailsWith<IllegalStateException>("Found 0 possible moves with ka3") {
+    assertFailsWith<IllegalStateException>() {
       game.playMove(pieceName.uppercase() + "b8")
     }
   }

@@ -1,9 +1,11 @@
 package proj.ankichess.axl.core.game
 
+import com.diamondedge.logging.logging
 import kotlin.math.abs
 import proj.ankichess.axl.core.game.board.Board
 import proj.ankichess.axl.core.game.moves.Castle
 import proj.ankichess.axl.core.game.moves.IMove
+import proj.ankichess.axl.core.game.moves.description.MoveDescription
 import proj.ankichess.axl.core.game.moves.factory.DummyCheckChecker
 import proj.ankichess.axl.core.game.moves.factory.SimpleMoveFactory
 import proj.ankichess.axl.core.game.parser.FenParser
@@ -72,7 +74,9 @@ class Game(val board: Board) {
       )
     } else {
       moveList.addAll(
-        moveFactory.extractMoves(tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList())
+        moveFactory.extractPieceMoves(
+          tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList()
+        )
       )
     }
 
@@ -82,29 +86,66 @@ class Game(val board: Board) {
       }
     }
 
-    return moveList.filter { checkChecker.isPossible(it) }
+    return moveList.filter { checkChecker.isPossible(it, enPassantColumn) }
   }
 
+  /**
+   * Plays a move.
+   *
+   * @param moveDescription The description of the move.
+   */
+  fun safePlayMove(moveDescription: MoveDescription) {
+    val immutableOriginPiece = board.getTile(moveDescription.from).getSafePiece()
+    if (
+      immutableOriginPiece != null &&
+        immutableOriginPiece.player == playerTurn &&
+        immutableOriginPiece.isMovePossible(moveDescription)
+    ) {
+      val move = moveFactory.createMoveFrom(moveDescription, enPassantColumn)
+      if (move == null) {
+        LOGGER.info { "$moveDescription is invalid." }
+      } else {
+        LOGGER.info { "Playing $moveDescription." }
+        safePlayMove(move)
+      }
+    } else {
+      LOGGER.info { "Cannot play $moveDescription." }
+    }
+  }
+
+  /**
+   * Plays a move.
+   *
+   * @param stringMove The name of the move.
+   */
   fun safePlayMove(stringMove: String) {
     safePlayMove(moveFactory.parseMove(stringMove, playerTurn, enPassantColumn))
   }
 
-  fun safePlayMove(move: IMove) {
-    if (checkChecker.isPossible(move)) {
+  private fun safePlayMove(move: IMove) {
+    if (checkChecker.isPossible(move, enPassantColumn)) {
+      LOGGER.info { "Playing ${moveFactory.stringifyMove(move)}." }
       playMove(move)
+    } else {
+      LOGGER.info { "Move ${moveFactory.stringifyMove(move)} is blocked by a check." }
     }
   }
 
+  /**
+   * Plays a move bypassing the [check checker][checkChecker].
+   *
+   * @param stringMove
+   */
   fun playMove(stringMove: String) {
     playMove(moveFactory.parseMove(stringMove, playerTurn, enPassantColumn))
   }
 
   private fun playMove(move: IMove) {
     board.playMove(move)
-    aftenPlayMove(move)
+    afterPlayMove(move)
   }
 
-  private fun aftenPlayMove(move: IMove) {
+  private fun afterPlayMove(move: IMove) {
     updatePossibleCastle()
     updateEnPassant(move)
     playerTurn = playerTurn.other()
@@ -133,5 +174,9 @@ class Game(val board: Board) {
 
   override fun toString(): String {
     return FenParser.parse(this)
+  }
+
+  companion object {
+    val LOGGER = logging()
   }
 }

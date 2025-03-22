@@ -1,7 +1,7 @@
 package proj.ankichess.axl.core.game.pieces
 
 import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.moves.description.MoveDescription
 
 /** A piece represents a real chess piece. */
 interface IPiece {
@@ -28,7 +28,7 @@ interface IPiece {
    * @return Available moves. In a list of moves, if one is blocked then all next ones are also
    *   blocked.
    */
-  fun availableMoves(coords: Pair<Int, Int>): List<List<ClassicMoveDescription>>
+  fun availableMoves(coords: Pair<Int, Int>): List<List<MoveDescription>>
 
-  fun isMovePossible(move: ClassicMoveDescription): Boolean
+  fun isMovePossible(move: MoveDescription): Boolean
 }

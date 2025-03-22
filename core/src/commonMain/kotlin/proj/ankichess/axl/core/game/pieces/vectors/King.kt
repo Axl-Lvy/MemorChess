@@ -6,7 +6,7 @@ import proj.ankichess.axl.core.game.pieces.IPiece
 /** King. */
 class King(player: Game.Player) : AFiniteMovers(player) {
   override fun getVectors(): Set<Pair<Int, Int>> {
-    return ALL_VECTORS
+    return VectorUtils.ALL_VECTORS
   }
 
   override fun baseChar(): String {

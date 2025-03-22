@@ -1,11 +1,14 @@
 package proj.ankichess.axl.core.game.moves.description
 
-class ClassicMoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
+import proj.ankichess.axl.core.game.board.Board
+import kotlin.math.abs
+
+class MoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
 
   fun getSubVector(): Pair<Int, Int> {
     val firstCoords = to.first - from.first
     val secondCoords = to.second - from.second
-    val divider = gcd(firstCoords, secondCoords)
+    val divider = abs(gcd(firstCoords, secondCoords))
     return Pair(firstCoords / divider, secondCoords / divider)
   }
 
@@ -22,5 +25,9 @@ class ClassicMoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
       }
       return gcd(b, a % b)
     }
+  }
+
+  override fun toString(): String {
+    return "MoveDescription[" + Board.getTileName(from) + "," + Board.getTileName(to) + "]"
   }
 }

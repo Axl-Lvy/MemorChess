@@ -1,19 +1,19 @@
 package proj.ankichess.axl.core.game.pieces.vectors
 
 import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.moves.description.ClassicMoveDescription
+import proj.ankichess.axl.core.game.moves.description.MoveDescription
 
 /** Piece that can move infinitely by adding multiple times [its vectors][getVectors]. */
 abstract class AInfiniteMovers(player: Game.Player) : AVectorizedMovers(player) {
-  override fun availableMoves(coords: Pair<Int, Int>): List<List<ClassicMoveDescription>> {
+  override fun availableMoves(coords: Pair<Int, Int>): List<List<MoveDescription>> {
     val vectors = getVectors()
-    val moves = mutableListOf<List<ClassicMoveDescription>>()
+    val moves = mutableListOf<List<MoveDescription>>()
     for (vector in vectors) {
-      val moveLine = mutableListOf<ClassicMoveDescription>()
-      var result = addVector(coords, vector)
+      val moveLine = mutableListOf<MoveDescription>()
+      var result = VectorUtils.addVector(coords, vector)
       while (result != null) {
-        moveLine.add(ClassicMoveDescription(coords, result))
-        result = addVector(result, vector)
+        moveLine.add(MoveDescription(coords, result))
+        result = VectorUtils.addVector(result, vector)
       }
       if (moveLine.isNotEmpty()) {
         moves.add(moveLine)
@@ -22,7 +22,7 @@ abstract class AInfiniteMovers(player: Game.Player) : AVectorizedMovers(player) 
     return moves
   }
 
-  override fun isMovePossible(move: ClassicMoveDescription): Boolean {
+  override fun isMovePossible(move: MoveDescription): Boolean {
     return getVectors().contains(move.getSubVector())
   }
 }
