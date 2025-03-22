@@ -67,7 +67,10 @@ kotlin {
       implementation(project(":core"))
       api(libs.logging)
     }
-    commonTest.dependencies { implementation(libs.kotlin.test) }
+    commonTest.dependencies {
+      implementation(libs.kotlin.test)
+      implementation(projects.testing)
+    }
   }
 }
 

@@ -25,7 +25,7 @@ class InteractionManager(val game: Game) {
   fun clickOnTile(coordinates: Pair<Int, Int>) {
     val immutableFirstTile = firstTile
     if (immutableFirstTile != null) {
-      game.safePlayMove(MoveDescription(immutableFirstTile, coordinates))
+      game.playMove(MoveDescription(immutableFirstTile, coordinates))
       firstTile = null
     } else if (game.board.getTile(coordinates).getSafePiece() != null) {
       firstTile = coordinates

@@ -18,7 +18,7 @@ class TestKing : ATestPiece(IPiece.KING) {
     board.placePiece("e1", "K")
     board.placePiece("a1", "R")
     val game = Game(board)
-    game.safePlayMove("O-O-O")
+    game.playMove("O-O-O")
     assertEquals(IPiece.ROOK.uppercase(), game.board.getTile("d1").getSafePiece().toString())
     assertEquals(IPiece.KING.uppercase(), game.board.getTile("c1").getSafePiece().toString())
   }
@@ -29,7 +29,7 @@ class TestKing : ATestPiece(IPiece.KING) {
     board.placePiece("e1", "K")
     board.placePiece("h1", "R")
     val game = Game(board)
-    game.safePlayMove("O-O")
+    game.playMove("O-O")
     assertEquals(IPiece.ROOK.uppercase(), game.board.getTile("f1").getSafePiece().toString())
     assertEquals(IPiece.KING.uppercase(), game.board.getTile("g1").getSafePiece().toString())
   }

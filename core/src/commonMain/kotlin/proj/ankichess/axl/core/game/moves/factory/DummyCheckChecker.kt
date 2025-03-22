@@ -8,11 +8,11 @@ import proj.ankichess.axl.core.game.moves.IMove
 import proj.ankichess.axl.core.game.moves.description.MoveDescription
 import proj.ankichess.axl.core.game.pieces.IPiece
 
-class DummyCheckChecker(board: Board) : AMoveFactory(board) {
+class DummyCheckChecker(board: Board) : ACheckChecker(board) {
 
-  var changes = mapOf<Pair<Int, Int>, Pair<Int, Int>?>()
+  private var changes = mapOf<Pair<Int, Int>, Pair<Int, Int>?>()
 
-  fun isPossible(move: IMove, enPassantColumn: Int): Boolean {
+  override fun isPossible(move: IMove, enPassantColumn: Int): Boolean {
     changes = move.generateChanges()
     val player = board.getTile(move.origin()).getSafePiece()?.player ?: return false
     val kingPosition =

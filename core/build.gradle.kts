@@ -26,7 +26,10 @@ kotlin {
       implementation(libs.kotlinx.datetime) // Common dependencies used in core
       api(libs.logging)
     }
-    commonTest.dependencies { implementation(libs.kotlin.test) }
+    commonTest.dependencies {
+      implementation(libs.kotlin.test)
+      implementation(projects.testing)
+    }
   }
 
   @OptIn(ExperimentalWasmDsl::class)

@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import proj.ankichess.axl.core.game.Game
 import proj.ankichess.axl.core.game.board.Board
+import proj.ankichess.axl.core.game.moves.factory.NoCheckChecker
 
 /**
  * Simple and general tests for a piece. The game is initialized with just 2 pieces in a1 (white)
@@ -25,7 +26,7 @@ abstract class ATestPiece(private val pieceName: String) {
     val board = Board()
     board.placePiece("a1", pieceName.uppercase())
     board.placePiece("h8", pieceName)
-    game = Game(board)
+    game = Game(board, NoCheckChecker())
   }
 
   @Test

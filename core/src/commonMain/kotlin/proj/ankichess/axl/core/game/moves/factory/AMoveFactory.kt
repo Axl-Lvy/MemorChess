@@ -103,12 +103,17 @@ abstract class AMoveFactory(val board: Board) {
    * @return The move.
    * @throws IllegalMoveException if the move is not possible.
    */
-  fun parseMove(stringMove: String, playerTurn: Game.Player, enPassantColumn: Int): IMove {
+  fun parseMove(
+    stringMove: String,
+    playerTurn: Game.Player,
+    enPassantColumn: Int,
+    checkChecker: ACheckChecker,
+  ): IMove {
     val cleanMove =
       if (stringMove.endsWith('+') || stringMove.endsWith('#')) {
-        stringMove.substring(0, stringMove.length - 1)
+        stringMove.substring(0, stringMove.length - 1).split("=")[0]
       } else {
-        stringMove
+        stringMove.split("=")[0]
       }
     if (cleanMove == Castle.LONG_CASTLE_STRING) {
       return if (playerTurn == Game.Player.WHITE) Castle.castles[1] else Castle.castles[3]
@@ -120,10 +125,13 @@ abstract class AMoveFactory(val board: Board) {
       return if (cleanMove.length == 2 || cleanMove[0].isLowerCase()) {
         parsePawnMove(cleanMove, playerTurn, enPassantColumn)
       } else {
-        parseGenericPieceMove(cleanMove, playerTurn)
+        parseGenericPieceMove(cleanMove, playerTurn, checkChecker)
       }
     } catch (e: IllegalStateException) {
-      throw IllegalMoveException("$stringMove is not a valid move.", e)
+      throw IllegalMoveException(
+        "$stringMove is not a valid move. $playerTurn to play, of the board: \n $board",
+        e,
+      )
     }
   }
 
@@ -252,7 +260,11 @@ abstract class AMoveFactory(val board: Board) {
       ?: throw IllegalMoveException("No pawn can go to " + Board.getTileName(destination) + ".")
   }
 
-  private fun parseGenericPieceMove(stringMove: String, playerTurn: Game.Player): IMove {
+  private fun parseGenericPieceMove(
+    stringMove: String,
+    playerTurn: Game.Player,
+    checkChecker: ACheckChecker,
+  ): IMove {
     val destination = Board.getCoords(stringMove.substring(stringMove.length - 2))
     val pieceString =
       stringMove[0].toString().let {
@@ -266,7 +278,7 @@ abstract class AMoveFactory(val board: Board) {
       if (clueRow != null && position.first != clueRow) {
         continue
       }
-      if (clueColumn != null && position.second != clueRow) {
+      if (clueColumn != null && position.second != clueColumn) {
         continue
       }
       val candidate = MoveDescription(position, destination)
@@ -274,7 +286,10 @@ abstract class AMoveFactory(val board: Board) {
         candidateMoves.add(candidate)
       }
     }
-    val moves = candidateMoves.mapNotNull { createMoveFrom(it, -1) }
+    val moves =
+      candidateMoves
+        .mapNotNull { createMoveFrom(it, -1) }
+        .filter { checkChecker.isPossible(it, -1) }
     check(moves.size == 1) { "Found ${moves.size} possible moves with $stringMove" }
     return moves[0]
   }
