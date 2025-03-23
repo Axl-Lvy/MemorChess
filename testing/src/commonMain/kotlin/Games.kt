@@ -23,24 +23,6 @@ fun getGames(): List<List<String>> {
   return games
 }
 
-private val testPgn = """
-  1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 4. a3 Bxc3+ 5. bxc3 c5 6. e3 Nc6
-  7. Bd3 e5 8. Ne2 e4 9. Bb1 b6 10. Ng3 Ba6 11. f3 Bxc4 12. Nf5
-  O-O 13. Nd6 Bd3 14. Bxd3 exd3 15. Qxd3 cxd4 16. cxd4 Ne8
-  17. Nf5 d5 18. a4 Nd6 19. Nxd6 Qxd6 20. Ba3 Nb4 21. Qb3 a5
-  22. O-O Rfc8 23. Rac1 Qe6 24. Bxb4 axb4 25. Kf2 Qd6 26. h3 Kf8
-  27. Rc2 Rxc2+ 28. Qxc2 g6 29. Rc1 Qd7 30. Qc6 Qxc6 31. Rxc6
-  Ra6 32. a5 b3 33. axb6 b2 34. b7 b1=Q 35. Rc8+ Kg7 36. b8=Q
-  Ra2+ 37. Kg3 Qe1+ 38. Kh2 Qxe3 39. Rg8+ Kf6 40. Qd6+ Qe6
-  41. Qf4+ Qf5 42. Qd6+ Qe6 43. Qg3 Qe3 44. h4 Re2 45. Qd6+ Qe6
-  46. Qf4+ Qf5 47. Qh6 Ke7 48. Qf8+ Kf6 49. Qg7+ Ke7 50. Ra8 Qd7
-  51. Qf8+ Kf6 52. Ra6+ Re6 53. Qh8+ Ke7 54. Ra8 Re1 55. Kg3 h5
-  56. Kf2 Re6 57. Rc8 Rd6 58. Qf8+ Kf6 59. Re8 Re6 60. Qh8+ Kf5
-  61. Qh6 Kf6 62. Qh8+ Kf5 63. Rd8 Qc6 64. Rc8 Qa6 65. Kg3 Qd6+
-  66. Kh3 Re1 67. g3 Rg1 68. f4 Re1 69. Rc2 Qe6 70. Rf2 Rh1+
-  71. Kg2 Qe4+ 72. Rf3 Kg4 73. Qc8+ f5 0-1
-""".trimIndent()
-
 private val pgnString =
   """
   1.c4 e6 2.Nc3 d5 3.d4 c6 4.Nf3 Nf6 5.Bg5 dxc4 6.e4 b5 7.e5 h6
