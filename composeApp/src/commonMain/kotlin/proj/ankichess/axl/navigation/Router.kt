@@ -11,6 +11,6 @@ import proj.ankichess.axl.pages.Training
 fun Router(navController: NavHostController) {
   NavHost(navController = navController, startDestination = Destination.TRAINING.name) {
     composable(Destination.TRAINING.name) { Training() }
-    composable(Destination.MANAGE_SAVES.name) { ManageSaves() }
+    composable(Destination.EXPLORE.name) { ManageSaves() }
   }
 }

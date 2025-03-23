@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.Snackbar
+import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import proj.ankichess.axl.core.game.board.ITile
@@ -53,5 +55,8 @@ fun Board() {
         }
       }
     }
+  }
+  if (interactionManager.error != null) {
+    Snackbar { Text(text = interactionManager.error!!) }
   }
 }

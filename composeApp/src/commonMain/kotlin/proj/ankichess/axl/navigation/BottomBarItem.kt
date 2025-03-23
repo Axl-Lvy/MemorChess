@@ -1,25 +1,26 @@
 package proj.ankichess.axl.navigation
 
-import ankichess.composeapp.generated.resources.Res
-import ankichess.composeapp.generated.resources.compose_multiplatform
-import org.jetbrains.compose.resources.DrawableResource
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class BottomBarItem(
   val label: String,
-  val icon: DrawableResource,
+  val icon: ImageVector,
   val destination: Destination,
   val index: Int,
 ) {
   Training(
     label = "Training",
-    icon = Res.drawable.compose_multiplatform,
+    icon = Icons.Rounded.Check,
     destination = Destination.TRAINING,
     index = 0,
   ),
   ManageSaves(
     label = "Manage Saves",
-    icon = Res.drawable.compose_multiplatform,
-    destination = Destination.MANAGE_SAVES,
+    icon = Icons.Rounded.Search,
+    destination = Destination.EXPLORE,
     index = 1,
   ),
 }
