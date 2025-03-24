@@ -6,6 +6,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 
 @Composable
-fun ManageSaves() {
-  Column(verticalArrangement = Arrangement.Center) { Text(text = "Managing Saves") }
+fun Settings() {
+  // TODO
+  Column(verticalArrangement = Arrangement.Center) { Text(text = "Settings") }
 }

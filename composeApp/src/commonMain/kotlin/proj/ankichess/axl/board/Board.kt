@@ -3,7 +3,6 @@ package proj.ankichess.axl.board
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.Snackbar
@@ -14,10 +13,9 @@ import proj.ankichess.axl.core.game.board.ITile
 import proj.ankichess.axl.core.game.pieces.IPiece
 
 @Composable
-fun Board() {
+fun Board(inverted: Boolean = false, modifier: Modifier = Modifier) {
   val interactionManager = InteractionManager()
   val board = interactionManager.game.board
-  var inverted by remember { mutableStateOf(false) }
 
   fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
     return if (inverted) {
@@ -31,7 +29,7 @@ fun Board() {
       board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
     }
   }
-  LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = Modifier.fillMaxSize()) {
+  LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = modifier) {
     items(64) { index ->
       val coords = squareIndexToBoardTile(index)
       run {

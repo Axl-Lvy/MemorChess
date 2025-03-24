@@ -4,9 +4,10 @@ import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import proj.ankichess.axl.navigation.BottomBarItem
 import proj.ankichess.axl.navigation.Destination
 import proj.ankichess.axl.navigation.Router
+import proj.ankichess.axl.navigation.bottomBar.BottomBar
+import proj.ankichess.axl.navigation.bottomBar.CenterButton
 
 @Composable
 fun App() {
@@ -18,20 +19,11 @@ fun App() {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute =
           navBackStackEntry?.destination?.route?.substringBefore("?") ?: Destination.EXPLORE.name
-        BottomNavigation() {
-          BottomBarItem.entries
-            .sortedBy { it.index }
-            .forEach { item ->
-              val isSelected by
-                remember(currentRoute) { derivedStateOf { currentRoute == item.destination.name } }
-              BottomNavigationItem(
-                selected = isSelected,
-                icon = { Icon(item.icon, contentDescription = item.label) },
-                onClick = { navController.navigate(item.destination.name) },
-              )
-            }
-        }
+        BottomBar(currentRoute, navController)
       },
+      floatingActionButtonPosition = FabPosition.Center,
+      isFloatingActionButtonDocked = true,
+      floatingActionButton = { CenterButton(navController = navController) },
     )
   }
 }
