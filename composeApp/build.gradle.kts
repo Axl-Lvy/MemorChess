@@ -67,6 +67,7 @@ kotlin {
       implementation(libs.navigation.compose)
       implementation(project(":core"))
       api(libs.logging)
+      implementation(libs.xfeather.z)
     }
     commonTest.dependencies {
       implementation(libs.kotlin.test)

@@ -13,8 +13,8 @@ import proj.ankichess.axl.core.game.board.ITile
 import proj.ankichess.axl.core.game.pieces.IPiece
 
 @Composable
-fun Board(inverted: Boolean = false, modifier: Modifier = Modifier) {
-  val interactionManager = InteractionManager()
+fun Board(inverted: Boolean = false, reloadKey: Any, modifier: Modifier = Modifier) {
+  val interactionManager = remember(reloadKey) { InteractionManager() }
   val board = interactionManager.game.board
 
   fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
@@ -24,11 +24,12 @@ fun Board(inverted: Boolean = false, modifier: Modifier = Modifier) {
       Pair((63 - index) / 8, index % 8)
     }
   }
-  val tileToPiece = remember {
-    mutableStateMapOf<ITile, IPiece?>().apply {
-      board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
+  val tileToPiece =
+    remember(reloadKey) {
+      mutableStateMapOf<ITile, IPiece?>().apply {
+        board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
+      }
     }
-  }
   LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = modifier) {
     items(64) { index ->
       val coords = squareIndexToBoardTile(index)
