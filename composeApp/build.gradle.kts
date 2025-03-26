@@ -65,14 +65,10 @@ kotlin {
       implementation(libs.kotlinx.datetime)
       implementation(libs.kotlinx.serialization.json)
       implementation(libs.navigation.compose)
-      implementation(project(":core"))
       api(libs.logging)
       implementation(libs.xfeather.z)
     }
-    commonTest.dependencies {
-      implementation(libs.kotlin.test)
-      implementation(projects.testing)
-    }
+    commonTest.dependencies { implementation(libs.kotlin.test) }
   }
 }
 
@@ -93,6 +89,7 @@ android {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
+  testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 ktfmt { googleStyle() }

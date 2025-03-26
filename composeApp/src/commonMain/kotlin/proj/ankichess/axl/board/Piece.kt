@@ -5,8 +5,8 @@ import androidx.compose.runtime.Composable
 import ankichess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.pieces.IPiece
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.pieces.IPiece
 
 @Composable
 fun Piece(piece: IPiece) {

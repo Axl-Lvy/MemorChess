@@ -9,8 +9,8 @@ import androidx.compose.material.Snackbar
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import proj.ankichess.axl.core.game.board.ITile
-import proj.ankichess.axl.core.game.pieces.IPiece
+import proj.ankichess.axl.core.engine.board.ITile
+import proj.ankichess.axl.core.engine.pieces.IPiece
 
 @Composable
 fun Board(inverted: Boolean = false, reloadKey: Any, modifier: Modifier = Modifier) {

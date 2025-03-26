@@ -1,8 +1,8 @@
 package proj.ankichess.axl.board
 
-import proj.ankichess.axl.core.game.Game
-import proj.ankichess.axl.core.game.moves.IllegalMoveException
-import proj.ankichess.axl.core.game.moves.description.MoveDescription
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.moves.IllegalMoveException
+import proj.ankichess.axl.core.engine.moves.description.MoveDescription
 import proj.ankichess.axl.popup.info
 
 /**

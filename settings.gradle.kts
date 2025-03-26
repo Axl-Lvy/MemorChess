@@ -33,8 +33,6 @@ dependencyResolutionManagement {
 }
 
 include(":composeApp")
-include(":core")
-include(":testing")
 
 gitHooks {
     commitMsg {
