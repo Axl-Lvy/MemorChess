@@ -13,12 +13,14 @@ import proj.ankichess.axl.core.engine.pieces.IPiece
  */
 class Tile(private val row: Int, private val col: Int, var piece: IPiece?) : ITile {
 
+  constructor(row: Int, col: Int) : this(row, col, null)
+
+  private val color: TileColor = if ((row + col) % 2 == 0) TileColor.BLACK else TileColor.WHITE
+
   /** Remove the piece on this tile. */
   fun reset() {
     piece = null
   }
-
-  constructor(row: Int, col: Int) : this(row, col, null)
 
   enum class TileColor {
     WHITE,
@@ -34,7 +36,7 @@ class Tile(private val row: Int, private val col: Int, var piece: IPiece?) : ITi
   }
 
   override fun getColor(): TileColor {
-    return if ((row + col) % 2 == 0) TileColor.WHITE else TileColor.BLACK
+    return color
   }
 
   override fun toString(): String {
