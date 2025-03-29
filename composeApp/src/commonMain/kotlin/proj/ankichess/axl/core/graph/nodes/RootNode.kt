@@ -1,9 +1,13 @@
 package proj.ankichess.axl.core.graph.nodes
 
-/** Root node. It represents the starting position. */
-class RootNode : AParentNode() {
+import proj.ankichess.axl.core.engine.Game
 
-  override fun getParents(): Map<String, INode> {
-    return emptyMap()
+/** Root node. It represents the starting position. */
+class RootNode(position: String) : AParentNode(position) {
+
+  constructor() : this(NodeFactory.createKey(Game()))
+
+  override fun getParent(): INode? {
+    return null
   }
 }

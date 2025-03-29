@@ -5,17 +5,21 @@ package proj.ankichess.axl.core.graph.nodes
  *
  * @param parent Parent node.
  * @param move Move that leaded to this node.
+ * @param position Position.
  * @constructor Creates a node from a parent.
  */
-class Node(parent: INode, move: String) : AParentNode() {
+class Node(private val parent: INode, private val move: String?, position: String) :
+  AParentNode(position) {
 
-  private val parents = mutableMapOf<String, INode>()
-
-  init {
-    parents[move] = parent
+  override fun getParent(): INode {
+    return parent
   }
 
-  override fun getParents(): Map<String, INode> {
-    return parents
+  override fun save() {
+    super.save()
+    if (move != null && !parent.getChildren().containsKey(move)) {
+      parent.getChildren()[move] = this
+      parent.save()
+    }
   }
 }

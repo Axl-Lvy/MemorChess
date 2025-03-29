@@ -12,7 +12,7 @@ object NodeFactory {
    *
    * TODO: handle many index
    */
-  private val cache = mutableMapOf<String, INode>(createKey(Game()) to RootNode())
+  private val cache = createCache()
 
   /**
    * Creates a node.
@@ -22,10 +22,10 @@ object NodeFactory {
    */
   fun createNode(game: Game, parent: INode, move: String): INode {
     val key = createKey(game)
-    return cache.getOrPut(key) { Node(parent, move) }
+    return cache.getOrPut(key) { Node(parent, move, key) }
   }
 
-  private fun createKey(game: Game): String {
+  fun createKey(game: Game): String {
     val fen = FenParser.parse(game).split(" ")
     val keyBuilder = StringBuilder()
     for (i in 0..2) {
@@ -56,5 +56,11 @@ object NodeFactory {
       }
     }
     return false
+  }
+
+  private fun createCache(): MutableMap<String, INode> {
+    val rootKey = createKey(Game())
+
+    return mutableMapOf(rootKey to RootNode(rootKey))
   }
 }
