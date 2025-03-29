@@ -19,15 +19,12 @@ class InteractionManager(val game: Game) {
   /** Coordinates of the tile that was clicked first. */
   private var firstTile: Pair<Int, Int>? = null
 
-  var error: String? = null
-
   /**
    * Clicks on a tile.
    *
    * @param coordinates The clicked tile's coordinates.
    */
   fun clickOnTile(coordinates: Pair<Int, Int>) {
-    error = null
     val immutableFirstTile = firstTile
     if (immutableFirstTile != null) {
       try {
