@@ -2,7 +2,8 @@ package proj.ankichess.axl.core.engine.moves
 
 import kotlin.math.abs
 import proj.ankichess.axl.core.engine.board.Board
-import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.engine.pieces.vectors.King
+import proj.ankichess.axl.core.engine.pieces.vectors.Rook
 
 class Castle(
   private val rook: Pair<Int, Int>,
@@ -28,8 +29,7 @@ class Castle(
   }
 
   fun isPositionCorrect(board: Board): Boolean {
-    return board.getTile(king).getSafePiece()?.toString()?.lowercase() == IPiece.KING &&
-      board.getTile(rook).getSafePiece()?.toString()?.lowercase() == IPiece.ROOK
+    return board.getTile(king).getSafePiece() is King && board.getTile(rook).getSafePiece() is Rook
   }
 
   companion object {

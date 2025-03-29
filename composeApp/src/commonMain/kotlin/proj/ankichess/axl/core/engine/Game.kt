@@ -2,13 +2,14 @@ package proj.ankichess.axl.core.engine
 
 import com.diamondedge.logging.logging
 import kotlin.math.abs
-import proj.ankichess.axl.core.engine.board.Board
+import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.moves.Castle
 import proj.ankichess.axl.core.engine.moves.IMove
 import proj.ankichess.axl.core.engine.moves.IllegalMoveException
 import proj.ankichess.axl.core.engine.moves.Promoter
 import proj.ankichess.axl.core.engine.moves.description.MoveDescription
 import proj.ankichess.axl.core.engine.moves.factory.ACheckChecker
+import proj.ankichess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.ankichess.axl.core.engine.moves.factory.SimpleMoveFactory
 import proj.ankichess.axl.core.engine.parser.FenParser
 import proj.ankichess.axl.core.engine.pieces.Pawn
@@ -16,22 +17,13 @@ import proj.ankichess.axl.core.engine.pieces.Pawn
 /**
  * Game instance.
  *
- * @property board Starting position.
  * @constructor Creates a game from a given position.
  */
-class Game(val board: Board, private val checkChecker: ACheckChecker) {
-  constructor(
-    board: Board
-  ) : this(board, proj.ankichess.axl.core.engine.moves.factory.DummyCheckChecker(board))
+class Game(val position: Position, private val checkChecker: ACheckChecker) {
+  constructor(position: Position) : this(position, DummyCheckChecker(position))
 
-  /** Player turn. */
-  var playerTurn = Player.WHITE
-
-  /** Castle moves that are still allowed (KQkq) */
-  val possibleCastle = Array(4) { true }
-
-  /** En passant column. -1 for no one. */
-  var enPassantColumn = -1
+  /** Creates a game from the starting position. */
+  constructor() : this(Position())
 
   /** Number of moves. */
   var moveCount = 1
@@ -39,13 +31,10 @@ class Game(val board: Board, private val checkChecker: ACheckChecker) {
   /** Number of half moves since the last pawn forward or the last capture. */
   var lastCaptureOrPawnHalfMove = 0
 
-  val promoter = Promoter(board)
+  private val promoter = Promoter(position.board)
 
   /** Move factory. */
-  private val moveFactory = SimpleMoveFactory(board)
-
-  /** Creates a game from the starting position. */
-  constructor() : this(Board.createFromStartingPosition())
+  private val moveFactory = SimpleMoveFactory(position)
 
   /** White and black player. */
   enum class Player {
@@ -63,27 +52,24 @@ class Game(val board: Board, private val checkChecker: ACheckChecker) {
    * @return Possible moves.
    */
   fun availableMoves(x: Int, y: Int): Collection<IMove> {
-    val tile = board.getTile(x, y)
-    if (tile.getSafePiece()?.player != playerTurn) {
+    val tile = position.board.getTile(x, y)
+    if (tile.getSafePiece()?.player != position.playerTurn) {
       return emptyList()
     }
 
     val moveList = mutableListOf<IMove>()
 
     moveList.addAll(
-      moveFactory.extractMoves(
-        tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList(),
-        enPassantColumn,
-      )
+      moveFactory.extractMoves(tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList())
     )
 
     for (i in 0..3) {
-      if (possibleCastle[i]) {
+      if (position.possibleCastles[i]) {
         moveList.add(Castle.castles[i])
       }
     }
 
-    return moveList.filter { checkChecker.isPossible(it, enPassantColumn) }
+    return moveList.filter { checkChecker.isPossible(it) }
   }
 
   /**
@@ -92,13 +78,13 @@ class Game(val board: Board, private val checkChecker: ACheckChecker) {
    * @param moveDescription The description of the move.
    */
   fun playMove(moveDescription: MoveDescription) {
-    val immutableOriginPiece = board.getTile(moveDescription.from).getSafePiece()
+    val immutableOriginPiece = position.board.getTile(moveDescription.from).getSafePiece()
     if (
       immutableOriginPiece != null &&
-        immutableOriginPiece.player == playerTurn &&
+        immutableOriginPiece.player == position.playerTurn &&
         immutableOriginPiece.isMovePossible(moveDescription)
     ) {
-      val move = moveFactory.createMoveFrom(moveDescription, enPassantColumn)
+      val move = moveFactory.createMoveFrom(moveDescription)
       if (move == null) {
         throw IllegalMoveException("$moveDescription is invalid.")
       } else {
@@ -116,14 +102,14 @@ class Game(val board: Board, private val checkChecker: ACheckChecker) {
    */
   fun playMove(stringMove: String) {
     promoter.savePromotion(stringMove)
-    playMove(moveFactory.parseMove(stringMove, playerTurn, enPassantColumn, checkChecker))
+    playMove(moveFactory.parseMove(stringMove, checkChecker))
   }
 
   private fun playMove(move: IMove) {
-    if (checkChecker.isPossible(move, enPassantColumn)) {
+    if (checkChecker.isPossible(move)) {
       LOGGER.info { "Playing ${moveFactory.stringifyMove(move)}." }
       beforePlayMove()
-      board.playMove(move)
+      position.board.playMove(move)
       afterPlayMove(move)
     } else {
       throw IllegalMoveException("Move ${moveFactory.stringifyMove(move)} is blocked by a check.")
@@ -140,22 +126,23 @@ class Game(val board: Board, private val checkChecker: ACheckChecker) {
     updatePossibleCastle()
     updateEnPassant(move)
     promoter.update(move)
-    playerTurn = playerTurn.other()
-    if (playerTurn == Player.WHITE) {
+    position.playerTurn = position.playerTurn.other()
+    if (position.playerTurn == Player.WHITE) {
       moveCount++
     }
   }
 
   private fun updatePossibleCastle() {
     for (i in 0..3) {
-      possibleCastle[i] = possibleCastle[i] && Castle.castles[i].isPositionCorrect(board)
+      position.possibleCastles[i] =
+        position.possibleCastles[i] && Castle.castles[i].isPositionCorrect(position.board)
     }
   }
 
   private fun updateEnPassant(move: IMove) {
-    enPassantColumn =
+    position.enPassantColumn =
       if (
-        board.getTile(move.destination()).getSafePiece() is Pawn &&
+        position.board.getTile(move.destination()).getSafePiece() is Pawn &&
           abs(move.origin().first - move.destination().first) == 2
       ) {
         move.destination().second

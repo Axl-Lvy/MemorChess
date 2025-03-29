@@ -38,20 +38,22 @@ object NodeFactory {
   }
 
   private fun isEnpassantNecessary(game: Game): Boolean {
-    if (game.enPassantColumn == -1) {
+    if (game.position.enPassantColumn == -1) {
       return false
     }
 
-    val checkingRow = if (game.playerTurn == Game.Player.WHITE) 4 else 3
-    if (game.enPassantColumn > 0) {
-      val piece = game.board.getTile(checkingRow, game.enPassantColumn + 1).getSafePiece()
-      if (piece is Pawn && piece.player == game.playerTurn.other()) {
+    val checkingRow = if (game.position.playerTurn == Game.Player.WHITE) 4 else 3
+    if (game.position.enPassantColumn > 0) {
+      val piece =
+        game.position.board.getTile(checkingRow, game.position.enPassantColumn + 1).getSafePiece()
+      if (piece is Pawn && piece.player == game.position.playerTurn.other()) {
         return true
       }
     }
-    if (game.enPassantColumn < 7) {
-      val piece = game.board.getTile(checkingRow, game.enPassantColumn - 1).getSafePiece()
-      if (piece is Pawn && piece.player == game.playerTurn.other()) {
+    if (game.position.enPassantColumn < 7) {
+      val piece =
+        game.position.board.getTile(checkingRow, game.position.enPassantColumn - 1).getSafePiece()
+      if (piece is Pawn && piece.player == game.position.playerTurn.other()) {
         return true
       }
     }

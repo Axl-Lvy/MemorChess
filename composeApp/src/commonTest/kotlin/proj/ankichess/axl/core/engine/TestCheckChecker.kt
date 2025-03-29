@@ -24,7 +24,7 @@ class TestCheckChecker {
 
     assertFailsWith<IllegalMoveException>() {
       game.playMove("h6")
-      print(game.board)
+      print(game.position.board)
     }
 
     assertFailsWith<IllegalMoveException>() { game.playMove("Kf3") }

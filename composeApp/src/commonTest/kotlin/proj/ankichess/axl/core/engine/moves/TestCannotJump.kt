@@ -31,7 +31,10 @@ class TestCannotJump {
   @Test
   fun testKnight() {
     game.playMove("Nf3")
-    assertNull(game.board.getTile("g1").getSafePiece())
-    assertEquals(IPiece.KNIGHT.uppercase(), game.board.getTile("f3").getSafePiece().toString())
+    assertNull(game.position.board.getTile("g1").getSafePiece())
+    assertEquals(
+      IPiece.KNIGHT.uppercase(),
+      game.position.board.getTile("f3").getSafePiece().toString(),
+    )
   }
 }

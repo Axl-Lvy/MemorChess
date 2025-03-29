@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.board.Board
+import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.pieces.IPiece
 
 class TestKing : ATestPiece(IPiece.KING) {
@@ -17,10 +18,16 @@ class TestKing : ATestPiece(IPiece.KING) {
     val board = Board()
     board.placePiece("e1", "K")
     board.placePiece("a1", "R")
-    val game = Game(board)
+    val game = Game(Position(board))
     game.playMove("O-O-O")
-    assertEquals(IPiece.ROOK.uppercase(), game.board.getTile("d1").getSafePiece().toString())
-    assertEquals(IPiece.KING.uppercase(), game.board.getTile("c1").getSafePiece().toString())
+    assertEquals(
+      IPiece.ROOK.uppercase(),
+      game.position.board.getTile("d1").getSafePiece().toString(),
+    )
+    assertEquals(
+      IPiece.KING.uppercase(),
+      game.position.board.getTile("c1").getSafePiece().toString(),
+    )
   }
 
   @Test
@@ -28,9 +35,15 @@ class TestKing : ATestPiece(IPiece.KING) {
     val board = Board()
     board.placePiece("e1", "K")
     board.placePiece("h1", "R")
-    val game = Game(board)
+    val game = Game(Position(board))
     game.playMove("O-O")
-    assertEquals(IPiece.ROOK.uppercase(), game.board.getTile("f1").getSafePiece().toString())
-    assertEquals(IPiece.KING.uppercase(), game.board.getTile("g1").getSafePiece().toString())
+    assertEquals(
+      IPiece.ROOK.uppercase(),
+      game.position.board.getTile("f1").getSafePiece().toString(),
+    )
+    assertEquals(
+      IPiece.KING.uppercase(),
+      game.position.board.getTile("g1").getSafePiece().toString(),
+    )
   }
 }

@@ -9,7 +9,7 @@ plugins {
   alias(libs.plugins.composeMultiplatform)
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.kotlinX.serialization.plugin)
-  id("com.ncorti.ktfmt.gradle") version "0.22.0"
+  alias(libs.plugins.ktfmt)
 }
 
 kotlin {

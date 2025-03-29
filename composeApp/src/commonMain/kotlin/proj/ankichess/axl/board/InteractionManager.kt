@@ -30,12 +30,16 @@ class InteractionManager(val game: Game) {
       try {
         game.playMove(MoveDescription(immutableFirstTile, coordinates))
       } catch (e: IllegalMoveException) {
-        info(e.message.toString())
+        displayMessage(e.message.toString())
       }
 
       firstTile = null
-    } else if (game.board.getTile(coordinates).getSafePiece() != null) {
+    } else if (game.position.board.getTile(coordinates).getSafePiece() != null) {
       firstTile = coordinates
     }
+  }
+
+  private fun displayMessage(message: String) {
+    info(message)
   }
 }

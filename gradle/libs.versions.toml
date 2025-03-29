@@ -19,11 +19,13 @@ kotlinxCoroutinesCore = "1.10.1"
 kotlinxDatetime = "0.6.0"
 kotlinxSerializationJson = "1.8.0"
 logging = "2.0.3"
+mockative = "v2.2.2"
 navigationCompose = "{latest_version}"
 navigationComposeVersion = "2.8.0-alpha10"
 androidxNavigationCompose = "2.8.9"
 material3Android = "1.3.1"
 xfeather_z = "1.1.1"
+ktfmt = "0.22.0"
 
 [libraries]
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
@@ -43,6 +45,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 logging = { module = "com.diamondedge:logging", version.ref = "logging" }
+mockative = { module = "io.mockative:mockative", version.ref = "mockative" }
 navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationComposeVersion" }
 androidx-navigation-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigationCompose" }
 androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
@@ -55,3 +58,5 @@ composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-mu
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinX-serialization-plugin = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+mockative = {id = "io.mockative", version.ref = "mockative"}
+ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}

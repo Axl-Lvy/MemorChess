@@ -2,6 +2,7 @@ package proj.ankichess.axl.core.engine.parser
 
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.board.Board
+import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.pieces.IPiece
 
 /**
@@ -18,12 +19,18 @@ object FenParser {
    */
   fun parse(game: Game): String {
     val fenBuilder = StringBuilder()
-    fenBuilder.append(parseBoard(game.board)).append(" ")
-    fenBuilder.append(parsePlayer(game)).append(" ")
-    fenBuilder.append(parsePossibleCastles(game)).append(" ")
-    fenBuilder.append(parseEnPassant(game)).append(" ")
+    fenBuilder.append(parsePosition(game.position)).append(" ")
     fenBuilder.append(game.lastCaptureOrPawnHalfMove).append(" ")
     fenBuilder.append(game.moveCount)
+    return fenBuilder.toString()
+  }
+
+  fun parsePosition(position: Position): String {
+    val fenBuilder = StringBuilder()
+    fenBuilder.append(parseBoard(position.board)).append(" ")
+    fenBuilder.append(parsePlayer(position.playerTurn)).append(" ")
+    fenBuilder.append(parsePossibleCastles(position.possibleCastles)).append(" ")
+    fenBuilder.append(parseEnPassant(position))
     return fenBuilder.toString()
   }
 
@@ -34,13 +41,25 @@ object FenParser {
         "This fen contains ${splitFen.size} parts but should contain exactly 6 parts: $fen"
       )
     }
-    val game = Game(readBoard(splitFen[0]))
-    game.playerTurn = readPlayer(splitFen[1])
-    readCastle(splitFen[2], game.possibleCastle)
-    game.enPassantColumn = readEnPassant(splitFen[3])
+    val position = readPosition(fen)
+    val game = Game(position)
     game.lastCaptureOrPawnHalfMove = readSemiMoves(splitFen[4])
     game.moveCount = readMoves(splitFen[5])
     return game
+  }
+
+  fun readPosition(fen: String): Position {
+    val splitFen = fen.split(" ")
+    if (splitFen.size < 3) {
+      throwOnInvalidFen(
+        "This fen contains ${splitFen.size} parts but should contain exactly 6 parts: $fen"
+      )
+    }
+    val board = readBoard(splitFen[0])
+    val playerTurn = readPlayer(splitFen[1])
+    val possibleCastles = readCastle(splitFen[2])
+    val enPassantColumn = if (splitFen.size > 3) readEnPassant(splitFen[3]) else -1
+    return Position(board, playerTurn, possibleCastles, enPassantColumn)
   }
 
   private fun readBoard(boardFen: String): Board {
@@ -74,10 +93,10 @@ object FenParser {
     }
   }
 
-  private fun readCastle(castleString: String, resultArray: Array<Boolean>) {
-    resultArray.fill(false)
+  private fun readCastle(castleString: String): Array<Boolean> {
+    val resultArray = arrayOf(false, false, false, false)
     if (castleString == "-") {
-      return
+      return resultArray
     }
     for (c in castleString) {
       when (c.toString()) {
@@ -87,6 +106,7 @@ object FenParser {
         IPiece.QUEEN -> resultArray[3] = true
       }
     }
+    return resultArray
   }
 
   private fun readEnPassant(enPassantString: String): Int {
@@ -148,17 +168,17 @@ object FenParser {
     return sequence.toString()
   }
 
-  private fun parsePlayer(game: Game): String {
-    return when (game.playerTurn) {
+  private fun parsePlayer(player: Game.Player): String {
+    return when (player) {
       Game.Player.WHITE -> "w"
       Game.Player.BLACK -> "b"
     }
   }
 
-  private fun parsePossibleCastles(game: Game): String {
+  private fun parsePossibleCastles(possibleCastle: Array<Boolean>): String {
     var isAllFalse = true
     val builder = StringBuilder()
-    for ((index, isCastlePossible) in game.possibleCastle.withIndex()) {
+    for ((index, isCastlePossible) in possibleCastle.withIndex()) {
       if (isCastlePossible) {
         builder.append(
           when (index) {
@@ -178,16 +198,16 @@ object FenParser {
     return builder.toString()
   }
 
-  private fun parseEnPassant(game: Game): String {
-    if (game.enPassantColumn == -1) {
+  private fun parseEnPassant(position: Position): String {
+    if (position.enPassantColumn == -1) {
       return "-"
     }
     val lineNumber =
-      when (game.playerTurn) {
+      when (position.playerTurn) {
         Game.Player.WHITE -> 6
         Game.Player.BLACK -> 3
       }
-    return Board.getColumnName(game.enPassantColumn) + lineNumber
+    return Board.getColumnName(position.enPassantColumn) + lineNumber
   }
 
   /**

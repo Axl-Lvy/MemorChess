@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.board.Board
+import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.moves.factory.NoCheckChecker
 
 /**
@@ -26,7 +27,7 @@ abstract class ATestPiece(private val pieceName: String) {
     val board = Board()
     board.placePiece("a1", pieceName.uppercase())
     board.placePiece("h8", pieceName)
-    game = Game(board, NoCheckChecker())
+    game = Game(Position(board), NoCheckChecker())
   }
 
   @Test
@@ -38,12 +39,12 @@ abstract class ATestPiece(private val pieceName: String) {
   }
 
   private fun checkFinalDestinations() {
-    assertEquals(pieceName, game.board.getTile(getTiles().last()).toString())
+    assertEquals(pieceName, game.position.board.getTile(getTiles().last()).toString())
     assertEquals(
       pieceName.uppercase(),
-      game.board.getTile(getTiles()[getTiles().size - 2]).toString(),
+      game.position.board.getTile(getTiles()[getTiles().size - 2]).toString(),
     )
-    game.board.getTilesIterator().forEach {
+    game.position.board.getTilesIterator().forEach {
       val tileName = Board.getTileName(it.getCoords())
       if (tileName != getTiles()[getTiles().size - 2] && tileName != getTiles().last()) {
         assertEquals(null, it.getSafePiece())
@@ -54,7 +55,10 @@ abstract class ATestPiece(private val pieceName: String) {
   @Test
   fun testCapture() {
     for (tile in getTiles()) {
-      game.board.placePiece(tile, if (game.playerTurn == Game.Player.WHITE) "p" else "P")
+      game.position.board.placePiece(
+        tile,
+        if (game.position.playerTurn == Game.Player.WHITE) "p" else "P",
+      )
       game.playMove(pieceName.uppercase() + "x" + tile)
     }
     checkFinalDestinations()

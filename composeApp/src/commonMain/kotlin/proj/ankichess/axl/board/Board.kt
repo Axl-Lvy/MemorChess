@@ -13,7 +13,7 @@ import proj.ankichess.axl.core.engine.pieces.IPiece
 @Composable
 fun Board(inverted: Boolean = false, reloadKey: Any, modifier: Modifier = Modifier) {
   val interactionManager = remember(reloadKey) { InteractionManager() }
-  val board = interactionManager.game.board
+  val board = interactionManager.game.position.board
 
   fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
     return if (inverted) {
