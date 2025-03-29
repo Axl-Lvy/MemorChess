@@ -3,7 +3,6 @@ package proj.ankichess.axl.board
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.moves.IllegalMoveException
 import proj.ankichess.axl.core.engine.moves.description.MoveDescription
-import proj.ankichess.axl.popup.info
 
 /**
  * Class that handles clicks on the chess board.
@@ -40,6 +39,6 @@ class InteractionManager(val game: Game) {
   }
 
   private fun displayMessage(message: String) {
-    info(message)
+    throw IllegalStateException(message)
   }
 }

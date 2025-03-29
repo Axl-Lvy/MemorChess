@@ -15,7 +15,7 @@ import proj.ankichess.axl.core.engine.pieces.vectors.VectorUtils
 /**
  * Move factory.
  *
- * @property game The game.
+ * @property position The position.
  * @constructor Creates a Move factory from a board.
  */
 abstract class AMoveFactory(val position: Position) {
@@ -24,14 +24,17 @@ abstract class AMoveFactory(val position: Position) {
    * Creates one move.
    *
    * @param moveDescription The move we want to check
-   * @param enPassantColumn En passant column.
    * @return
    */
   fun createMoveFrom(moveDescription: MoveDescription): IMove? {
     if (
       position.board.getTile(moveDescription.from).getSafePiece() is King &&
-        position.board.getTile(moveDescription.to).getSafePiece() is Rook
-    ) {}
+        position.board.getTile(moveDescription.to).getSafePiece() is Rook &&
+        position.board.getTile(moveDescription.from).getSafePiece()!!.player ==
+          position.board.getTile(moveDescription.to).getSafePiece()!!.player
+    ) {
+      return extractCastle(moveDescription)
+    }
     val subMoves = mutableListOf<MoveDescription>()
     val subVector = moveDescription.getSubVector()
     var currentCoordinates: Pair<Int, Int>? = VectorUtils.addVector(moveDescription.from, subVector)
@@ -46,6 +49,27 @@ abstract class AMoveFactory(val position: Position) {
     } else {
       extractedMoves.last()
     }
+  }
+
+  private fun extractCastle(moveDescription: MoveDescription): IMove? {
+    val index =
+      if (moveDescription.to.second == 0) {
+        if (position.playerTurn == Game.Player.WHITE) {
+          1
+        } else {
+          3
+        }
+      } else {
+        if (position.playerTurn == Game.Player.WHITE) {
+          0
+        } else {
+          2
+        }
+      }
+    check(position.possibleCastles[index])
+    val castle = Castle.castles[index]
+    check(castle.isPossible(position.board))
+    return castle
   }
 
   fun stringifyMove(move: IMove): String {
@@ -104,8 +128,6 @@ abstract class AMoveFactory(val position: Position) {
    * Parses a move.
    *
    * @param stringMove Move notation.
-   * @param playerTurn Player turn.
-   * @param enPassantColumn En passant column.
    * @return The move.
    * @throws IllegalMoveException if the move is not possible.
    */
@@ -116,11 +138,25 @@ abstract class AMoveFactory(val position: Position) {
       } else {
         stringMove.split("=")[0]
       }
-    if (cleanMove == Castle.LONG_CASTLE_STRING) {
-      return if (position.playerTurn == Game.Player.WHITE) Castle.castles[1] else Castle.castles[3]
-    }
-    if (cleanMove == Castle.SHORT_CASTLE_STRING) {
-      return if (position.playerTurn == Game.Player.WHITE) Castle.castles[0] else Castle.castles[2]
+    if (cleanMove == Castle.LONG_CASTLE_STRING || cleanMove == Castle.SHORT_CASTLE_STRING) {
+      val index =
+        if (cleanMove == Castle.LONG_CASTLE_STRING) {
+          if (position.playerTurn == Game.Player.WHITE) {
+            1
+          } else {
+            3
+          }
+        } else {
+          if (position.playerTurn == Game.Player.WHITE) {
+            0
+          } else {
+            2
+          }
+        }
+      check(position.possibleCastles[index])
+      val castle = Castle.castles[index]
+      check(castle.isPossible(position.board))
+      return castle
     }
     try {
       return if (cleanMove.length == 2 || cleanMove[0].isLowerCase()) {

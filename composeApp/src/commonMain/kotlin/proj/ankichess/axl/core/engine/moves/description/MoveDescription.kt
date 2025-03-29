@@ -1,6 +1,7 @@
 package proj.ankichess.axl.core.engine.moves.description
 
 import kotlin.math.abs
+import kotlin.math.max
 import proj.ankichess.axl.core.engine.board.Board
 
 class MoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
@@ -8,7 +9,7 @@ class MoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
   fun getSubVector(): Pair<Int, Int> {
     val firstCoords = to.first - from.first
     val secondCoords = to.second - from.second
-    val divider = abs(gcd(firstCoords, secondCoords))
+    val divider = max(abs(gcd(firstCoords, secondCoords)), 1)
     return Pair(firstCoords / divider, secondCoords / divider)
   }
 

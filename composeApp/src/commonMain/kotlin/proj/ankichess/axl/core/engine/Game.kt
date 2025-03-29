@@ -105,6 +105,13 @@ class Game(val position: Position, private val checkChecker: ACheckChecker) {
     playMove(moveFactory.parseMove(stringMove, checkChecker))
   }
 
+  fun applyPromotion(newPieceName: String) {
+    promoter.newPieceName =
+      if (position.playerTurn == Player.WHITE) newPieceName.lowercase()
+      else newPieceName.uppercase()
+    promoter.applyPromotion()
+  }
+
   private fun playMove(move: IMove) {
     if (checkChecker.isPossible(move)) {
       LOGGER.info { "Playing ${moveFactory.stringifyMove(move)}." }

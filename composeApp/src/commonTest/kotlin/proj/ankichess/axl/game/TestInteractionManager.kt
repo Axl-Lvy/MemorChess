@@ -22,7 +22,6 @@ class TestInteractionManager {
 
   @Test
   fun testManyGames() {
-    return
     val gameList = getGames()
     gameList.forEach { testGame(it) }
   }
@@ -34,6 +33,9 @@ class TestInteractionManager {
       val move = createMove(it)
       interactionManager.clickOnTile(move.origin())
       interactionManager.clickOnTile(move.destination())
+      if (it.contains("=")) {
+        interactionManager.game.applyPromotion(it.split("=")[1].substring(0, 1).lowercase())
+      }
       refGame.playMove(it)
       validateGame(refGame)
     }

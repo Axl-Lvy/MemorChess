@@ -32,6 +32,18 @@ class Castle(
     return board.getTile(king).getSafePiece() is King && board.getTile(rook).getSafePiece() is Rook
   }
 
+  fun isPossible(board: Board): Boolean {
+    var index = 1
+    val direction = if (rook.second < king.second) 1 else -1
+    while (index * direction + rook.second < king.second) {
+      if (board.getTile(Pair(rook.first, index * direction + rook.second)).getSafePiece() != null) {
+        return false
+      }
+      index++
+    }
+    return isPositionCorrect(board)
+  }
+
   companion object {
     const val LONG_CASTLE_STRING = "O-O-O"
     const val SHORT_CASTLE_STRING = "O-O"
