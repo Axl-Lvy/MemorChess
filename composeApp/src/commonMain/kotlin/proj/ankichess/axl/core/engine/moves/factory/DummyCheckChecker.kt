@@ -8,8 +8,7 @@ import proj.ankichess.axl.core.engine.moves.IMove
 import proj.ankichess.axl.core.engine.moves.description.MoveDescription
 import proj.ankichess.axl.core.engine.pieces.IPiece
 
-class DummyCheckChecker(position: Position) :
-  proj.ankichess.axl.core.engine.moves.factory.ACheckChecker(position) {
+class DummyCheckChecker(position: Position) : ACheckChecker(position) {
 
   private var changes = mapOf<Pair<Int, Int>, Pair<Int, Int>?>()
 
@@ -23,22 +22,27 @@ class DummyCheckChecker(position: Position) :
         move.destination()
       } else {
         position.board.piecePositionsCache[
-            if (player == Game.Player.WHITE) IPiece.KING.uppercase() else IPiece.KING]!!
-          .first()
+            if (player == Game.Player.WHITE) IPiece.KING.uppercase() else IPiece.KING]
+          ?.firstOrNull()
       }
+    if (kingPosition == null) {
+      return false
+    }
     IPiece.PIECES.map { if (player == Game.Player.WHITE) it else it.uppercase() }
       .forEach {
-        position.board.piecePositionsCache[it]!!.forEach { pos ->
-          run {
-            val moveDescription = MoveDescription(pos, kingPosition)
-            if (
-              getTileAtCoords(pos).getSafePiece()?.isMovePossible(moveDescription) == true &&
-                createMoveFrom(moveDescription) != null
-            ) {
-              return false
+        position.board.piecePositionsCache
+          .getOrElse(it) { emptySet() }
+          .forEach { pos ->
+            run {
+              val moveDescription = MoveDescription(pos, kingPosition)
+              if (
+                getTileAtCoords(pos).getSafePiece()?.isMovePossible(moveDescription) == true &&
+                  createMoveFrom(moveDescription) != null
+              ) {
+                return false
+              }
             }
           }
-        }
       }
     return true
   }

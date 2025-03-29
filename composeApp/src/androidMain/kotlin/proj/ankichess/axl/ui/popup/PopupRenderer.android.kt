@@ -1,4 +1,4 @@
-package proj.ankichess.axl.popup
+package proj.ankichess.axl.ui.popup
 
 import android.widget.Toast
 import proj.ankichess.axl.MAIN_ACTIVITY

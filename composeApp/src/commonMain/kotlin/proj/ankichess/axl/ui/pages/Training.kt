@@ -1,4 +1,4 @@
-package proj.ankichess.axl.pages
+package proj.ankichess.axl.ui.pages
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.RefreshCw
 import compose.icons.feathericons.Repeat
-import proj.ankichess.axl.board.Board
+import proj.ankichess.axl.ui.board.Board
 
 @Composable
 fun Training() {

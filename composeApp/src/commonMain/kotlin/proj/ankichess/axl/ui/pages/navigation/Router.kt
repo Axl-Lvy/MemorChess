@@ -1,4 +1,4 @@
-package proj.ankichess.axl.navigation
+package proj.ankichess.axl.ui.pages.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController

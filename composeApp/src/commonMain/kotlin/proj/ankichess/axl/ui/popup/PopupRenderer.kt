@@ -1,4 +1,4 @@
-package proj.ankichess.axl.popup
+package proj.ankichess.axl.ui.popup
 
 /** Popup renderer. */
 interface PopupRenderer {

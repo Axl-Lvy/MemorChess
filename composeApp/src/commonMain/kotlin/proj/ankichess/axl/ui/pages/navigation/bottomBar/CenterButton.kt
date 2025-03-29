@@ -1,4 +1,4 @@
-package proj.ankichess.axl.navigation.bottomBar
+package proj.ankichess.axl.ui.pages.navigation.bottomBar
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -11,7 +11,7 @@ import androidx.navigation.NavHostController
 import ankichess.composeapp.generated.resources.Res
 import ankichess.composeapp.generated.resources.icon_main
 import org.jetbrains.compose.resources.painterResource
-import proj.ankichess.axl.navigation.Destination
+import proj.ankichess.axl.ui.pages.navigation.Destination
 
 @Composable
 fun CenterButton(navController: NavHostController) {

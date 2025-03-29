@@ -1,4 +1,4 @@
-package proj.ankichess.axl.board
+package proj.ankichess.axl.ui.board
 
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable

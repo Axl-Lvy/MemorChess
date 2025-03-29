@@ -1,10 +1,10 @@
-package proj.ankichess.axl.navigation.bottomBar
+package proj.ankichess.axl.ui.pages.navigation.bottomBar
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
-import proj.ankichess.axl.navigation.Destination
+import proj.ankichess.axl.ui.pages.navigation.Destination
 
 enum class BottomBarItem(
   val label: String,

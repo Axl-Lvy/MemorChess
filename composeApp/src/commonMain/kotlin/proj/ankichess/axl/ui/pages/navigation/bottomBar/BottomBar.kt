@@ -1,4 +1,4 @@
-package proj.ankichess.axl.navigation.bottomBar
+package proj.ankichess.axl.ui.pages.navigation.bottomBar
 
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem

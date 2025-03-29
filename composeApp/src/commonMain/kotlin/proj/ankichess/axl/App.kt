@@ -4,10 +4,10 @@ import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import proj.ankichess.axl.navigation.Destination
-import proj.ankichess.axl.navigation.Router
-import proj.ankichess.axl.navigation.bottomBar.BottomBar
-import proj.ankichess.axl.navigation.bottomBar.CenterButton
+import proj.ankichess.axl.ui.pages.navigation.Destination
+import proj.ankichess.axl.ui.pages.navigation.Router
+import proj.ankichess.axl.ui.pages.navigation.bottomBar.BottomBar
+import proj.ankichess.axl.ui.pages.navigation.bottomBar.CenterButton
 
 @Composable
 fun App() {

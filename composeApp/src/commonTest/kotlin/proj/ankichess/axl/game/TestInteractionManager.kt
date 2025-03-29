@@ -2,12 +2,12 @@ package proj.ankichess.axl.game
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import proj.ankichess.axl.board.InteractionManager
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.moves.IMove
 import proj.ankichess.axl.core.engine.moves.factory.ACheckChecker
 import proj.ankichess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.ankichess.axl.core.engine.moves.factory.SimpleMoveFactory
+import proj.ankichess.axl.core.interactions.InteractionManager
 
 class TestInteractionManager {
   private lateinit var interactionManager: InteractionManager
