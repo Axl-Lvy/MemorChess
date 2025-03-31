@@ -10,10 +10,15 @@ import androidx.compose.ui.Modifier
 import proj.ankichess.axl.core.engine.board.ITile
 import proj.ankichess.axl.core.engine.pieces.IPiece
 import proj.ankichess.axl.core.interactions.InteractionManager
+import proj.ankichess.axl.ui.util.intf.IReloader
 
 @Composable
-fun Board(inverted: Boolean = false, reloadKey: Any, modifier: Modifier = Modifier) {
-  val interactionManager = remember(reloadKey) { InteractionManager() }
+fun Board(
+  inverted: Boolean = false,
+  interactionManager: InteractionManager,
+  reloader: IReloader,
+  modifier: Modifier = Modifier,
+) {
   val board = interactionManager.game.position.board
 
   fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
@@ -24,7 +29,7 @@ fun Board(inverted: Boolean = false, reloadKey: Any, modifier: Modifier = Modifi
     }
   }
   val tileToPiece =
-    remember(reloadKey) {
+    remember(reloader.getKey()) {
       mutableStateMapOf<ITile, IPiece?>().apply {
         board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
       }

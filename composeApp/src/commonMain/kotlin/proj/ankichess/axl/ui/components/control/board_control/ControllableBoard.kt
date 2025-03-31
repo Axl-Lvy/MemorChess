@@ -5,21 +5,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import proj.ankichess.axl.core.interactions.InteractionManager
 import proj.ankichess.axl.ui.components.board.Board
+import proj.ankichess.axl.ui.util.impl.BasicReloader
 
 @Composable
 fun ControllableBoard(modifier: Modifier = Modifier) {
   var inverted by remember { mutableStateOf(false) }
-  var reloadKey by remember { mutableStateOf(false) }
-  Column(
-    //    modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
-    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)
-  ) {
+  val interactionManagerReloader = remember { BasicReloader() }
+  val interactionManager = remember(interactionManagerReloader.getKey()) { InteractionManager() }
+  Column(verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
     ControlBar(
       modifier = Modifier.height(50.dp),
       onReverseClick = { inverted = !inverted },
-      onResetClick = { reloadKey = !reloadKey },
+      onResetClick = { interactionManagerReloader.reload() },
     )
-    Board(inverted, reloadKey, modifier = Modifier.fillMaxWidth())
+    Board(
+      inverted,
+      interactionManager,
+      interactionManagerReloader,
+      modifier = modifier.fillMaxWidth(),
+    )
   }
 }

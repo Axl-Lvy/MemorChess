@@ -4,9 +4,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import ankichess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.engine.pieces.Pawn
+import proj.ankichess.axl.core.engine.pieces.vectors.*
 
 @Composable
 fun Piece(piece: IPiece) {
@@ -14,25 +17,24 @@ fun Piece(piece: IPiece) {
 }
 
 fun pieceToResource(piece: IPiece): DrawableResource {
-  return if (piece.player == Game.Player.WHITE) {
-    when (piece.toString().lowercase()) {
-      IPiece.BISHOP -> Res.drawable.piece_bishop_w
-      IPiece.KNIGHT -> Res.drawable.piece_knight_w
-      IPiece.ROOK -> Res.drawable.piece_rook_w
-      IPiece.QUEEN -> Res.drawable.piece_queen_w
-      IPiece.KING -> Res.drawable.piece_king_w
-      IPiece.PAWN -> Res.drawable.piece_pawn_w
-      else -> throw IllegalArgumentException("Unknown piece $piece.")
-    }
-  } else {
-    when (piece.toString().lowercase()) {
-      IPiece.BISHOP -> Res.drawable.piece_bishop_b
-      IPiece.KNIGHT -> Res.drawable.piece_knight_b
-      IPiece.ROOK -> Res.drawable.piece_rook_b
-      IPiece.QUEEN -> Res.drawable.piece_queen_b
-      IPiece.KING -> Res.drawable.piece_king_b
-      IPiece.PAWN -> Res.drawable.piece_pawn_b
-      else -> throw IllegalArgumentException("Unknown piece $piece.")
-    }
-  }
+  val resourceSuffix = if (piece.player == Game.Player.WHITE) "w" else "b"
+  return drawableResource(
+    "piece_${
+            when (piece) {
+                is King -> "king"
+                is Knight -> "knight"
+                is Bishop -> "bishop"
+                is Queen -> "queen"
+                is Rook -> "rook"
+                is Pawn -> "pawn"
+                else -> throw IllegalArgumentException("Unknown piece $piece.")
+            }
+        }_$resourceSuffix"
+  )
+}
+
+@OptIn(ExperimentalResourceApi::class)
+private fun drawableResource(name: String): DrawableResource {
+  return Res.allDrawableResources[name]
+    ?: throw IllegalArgumentException("Drawable resource $name not found.")
 }
