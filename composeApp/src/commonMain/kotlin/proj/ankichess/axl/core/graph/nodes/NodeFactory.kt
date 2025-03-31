@@ -22,7 +22,21 @@ object NodeFactory {
    */
   fun createNode(game: Game, parent: INode, move: String): INode {
     val key = createKey(game)
+    return Node(parent, move, key)
+  }
+
+  fun getOrCreateNode(game: Game, parent: INode, move: String): INode {
+    val key = createKey(game)
     return cache.getOrPut(key) { Node(parent, move, key) }
+  }
+
+  fun getNode(game: Game): INode? {
+    val key = createKey(game)
+    return cache[key]
+  }
+
+  fun cacheNode(node: INode): INode? {
+    return cache.put(node.toString(), node)
   }
 
   fun createKey(game: Game): String {
@@ -45,14 +59,14 @@ object NodeFactory {
     val checkingRow = if (game.position.playerTurn == Game.Player.WHITE) 4 else 3
     if (game.position.enPassantColumn > 0) {
       val piece =
-        game.position.board.getTile(checkingRow, game.position.enPassantColumn + 1).getSafePiece()
+        game.position.board.getTile(checkingRow, game.position.enPassantColumn - 1).getSafePiece()
       if (piece is Pawn && piece.player == game.position.playerTurn.other()) {
         return true
       }
     }
     if (game.position.enPassantColumn < 7) {
       val piece =
-        game.position.board.getTile(checkingRow, game.position.enPassantColumn - 1).getSafePiece()
+        game.position.board.getTile(checkingRow, game.position.enPassantColumn + 1).getSafePiece()
       if (piece is Pawn && piece.player == game.position.playerTurn.other()) {
         return true
       }

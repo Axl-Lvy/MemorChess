@@ -77,7 +77,7 @@ class Game(val position: Position, private val checkChecker: ACheckChecker) {
    *
    * @param moveDescription The description of the move.
    */
-  fun playMove(moveDescription: MoveDescription) {
+  fun playMove(moveDescription: MoveDescription): String {
     val immutableOriginPiece = position.board.getTile(moveDescription.from).getSafePiece()
     if (
       immutableOriginPiece != null &&
@@ -88,7 +88,9 @@ class Game(val position: Position, private val checkChecker: ACheckChecker) {
       if (move == null) {
         throw IllegalMoveException("$moveDescription is invalid.")
       } else {
+        val moveName = moveFactory.stringifyMove(move)
         playMove(move)
+        return moveName
       }
     } else {
       throw IllegalMoveException("Cannot play $moveDescription.")

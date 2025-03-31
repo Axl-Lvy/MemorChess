@@ -73,6 +73,7 @@ abstract class AMoveFactory(val position: Position) {
   }
 
   fun stringifyMove(move: IMove): String {
+
     (move as? Castle)?.let {
       return if (move.isLong()) Castle.LONG_CASTLE_STRING else Castle.SHORT_CASTLE_STRING
     }

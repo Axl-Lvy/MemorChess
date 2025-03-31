@@ -3,6 +3,8 @@ package proj.ankichess.axl.core.interactions
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.moves.IllegalMoveException
 import proj.ankichess.axl.core.engine.moves.description.MoveDescription
+import proj.ankichess.axl.core.graph.nodes.INode
+import proj.ankichess.axl.core.graph.nodes.NodeFactory
 import proj.ankichess.axl.ui.popup.info
 
 /**
@@ -19,6 +21,14 @@ class InteractionManager(val game: Game) {
   /** Coordinates of the tile that was clicked first. */
   private var firstTile: Pair<Int, Int>? = null
 
+  private var node: INode
+
+  init {
+    val rootNode = NodeFactory.getNode(game)
+    checkNotNull(rootNode)
+    node = rootNode
+  }
+
   /**
    * Clicks on a tile.
    *
@@ -28,7 +38,8 @@ class InteractionManager(val game: Game) {
     val immutableFirstTile = firstTile
     if (immutableFirstTile != null) {
       try {
-        game.playMove(MoveDescription(immutableFirstTile, coordinates))
+        val move = game.playMove(MoveDescription(immutableFirstTile, coordinates))
+        node = NodeFactory.createNode(game, node, move)
       } catch (e: IllegalMoveException) {
         displayMessage(e.message.toString())
       }
