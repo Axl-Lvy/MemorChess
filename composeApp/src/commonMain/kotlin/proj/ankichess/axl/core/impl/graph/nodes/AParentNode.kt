@@ -9,18 +9,26 @@ import proj.ankichess.axl.core.intf.graph.INode
  *
  * @constructor Create empty A parent node
  */
-abstract class AParentNode(private val position: String) : INode {
+abstract class AParentNode(private val position: String) : ASavableNode() {
+
+  private var firstChild: INode? = null
+
+  override fun addChild(move: String, node: INode) {
+    firstChild = node
+    children[move] = node
+  }
+
   private val children = mutableMapOf<String, INode>()
 
   override fun getChildren(): MutableMap<String, INode> {
     return children
   }
 
-  override fun save() {
-    TODO("Not yet implemented")
+  override fun getFirstChild(): INode? {
+    return firstChild
   }
 
   override fun getGame(): Game {
-    return FenParser.read(position)
+    return Game(FenParser.readPosition(position))
   }
 }

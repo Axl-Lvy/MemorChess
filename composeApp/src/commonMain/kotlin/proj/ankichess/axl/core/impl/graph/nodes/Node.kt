@@ -6,12 +6,10 @@ import proj.ankichess.axl.core.intf.graph.INode
  * Main node.
  *
  * @param parent Parent node.
- * @param move Move that leaded to this node.
  * @param position Position.
  * @constructor Creates a node from a parent.
  */
-class Node(private val parent: INode, private val move: String?, position: String) :
-  AParentNode(position) {
+class Node(private val parent: INode, position: String) : AParentNode(position) {
 
   override fun getParent(): INode {
     return parent
@@ -19,8 +17,7 @@ class Node(private val parent: INode, private val move: String?, position: Strin
 
   override fun save() {
     super.save()
-    if (move != null && !parent.getChildren().containsKey(move)) {
-      parent.getChildren()[move] = this
+    if (!parent.isSaved()) {
       parent.save()
     }
   }

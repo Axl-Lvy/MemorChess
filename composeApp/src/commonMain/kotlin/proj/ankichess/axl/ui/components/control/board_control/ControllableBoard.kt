@@ -18,9 +18,9 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
     ControlBar(
       modifier = Modifier.height(50.dp),
       onReverseClick = { inverted = !inverted },
-      onResetClick = { boardReloader.reload() },
-      onForwardClick = {},
-      onBackClick = {},
+      onResetClick = { interactionManager.reset(boardReloader) },
+      onForwardClick = { interactionManager.forward(boardReloader) },
+      onBackClick = { interactionManager.back(boardReloader) },
     )
     Board(inverted, interactionManager, boardReloader, modifier = modifier.fillMaxWidth())
   }

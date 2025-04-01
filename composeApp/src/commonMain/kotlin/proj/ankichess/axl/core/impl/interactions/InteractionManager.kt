@@ -6,6 +6,7 @@ import proj.ankichess.axl.core.impl.engine.moves.description.MoveDescription
 import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
 import proj.ankichess.axl.core.intf.graph.INode
 import proj.ankichess.axl.ui.popup.info
+import proj.ankichess.axl.ui.util.impl.BasicReloader
 
 /**
  * Class that handles clicks on the chess board.
@@ -50,12 +51,35 @@ class InteractionManager(var game: Game) {
     }
   }
 
-  fun reset() {
+  fun reset(reloader: BasicReloader) {
     firstTile = null
     game = Game()
     val rootNode = NodeFactory.getNode(game)
     checkNotNull(rootNode)
     node = rootNode
+    reloader.reload()
+  }
+
+  fun back(reloader: BasicReloader) {
+    val parent = node.getParent()
+    if (parent != null) {
+      node = parent
+      game = node.getGame()
+      reloader.reload()
+    } else {
+      displayMessage("No previous move.")
+    }
+  }
+
+  fun forward(reloader: BasicReloader) {
+    val firstChild = node.getFirstChild()
+    if (firstChild != null) {
+      node = firstChild
+      game = firstChild.getGame()
+      reloader.reload()
+    } else {
+      displayMessage("No next move.")
+    }
   }
 
   private fun displayMessage(message: String) {

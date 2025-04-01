@@ -17,7 +17,25 @@ interface INode {
    *
    * @return Next nodes.
    */
-  fun getChildren(): MutableMap<String, INode>
+  fun getChildren(): Map<String, INode>
+
+  /**
+   * Adds a child to this node.
+   *
+   * @param move Move that leaded to this node.
+   * @param node Node that is the child of this node.
+   */
+  fun addChild(move: String, node: INode)
+
+  /**
+   * The next node.
+   *
+   * @return Next node.
+   */
+  fun getFirstChild(): INode?
+
+  /** True if this node is saved. */
+  fun isSaved(): Boolean
 
   /** Saves this node. */
   fun save()

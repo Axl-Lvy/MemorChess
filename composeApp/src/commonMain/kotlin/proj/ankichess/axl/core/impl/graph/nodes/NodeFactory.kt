@@ -23,12 +23,18 @@ object NodeFactory {
    */
   fun createNode(game: Game, parent: INode, move: String): INode {
     val key = createKey(game)
-    return Node(parent, move, key)
+    val newNode = Node(parent, key)
+    parent.addChild(move, newNode)
+    return newNode
   }
 
   fun getOrCreateNode(game: Game, parent: INode, move: String): INode {
     val key = createKey(game)
-    return cache.getOrPut(key) { Node(parent, move, key) }
+    return cache.getOrPut(key) {
+      val newNode = Node(parent, key)
+      parent.addChild(move, newNode)
+      return newNode
+    }
   }
 
   fun getNode(game: Game): INode? {
@@ -47,9 +53,9 @@ object NodeFactory {
       keyBuilder.append(fen[i]).append(" ")
     }
     if (isEnpassantNecessary(game)) {
-      keyBuilder.append(fen[2]).append(" ")
+      keyBuilder.append(fen[2])
     }
-    return keyBuilder.toString()
+    return keyBuilder.toString().trim()
   }
 
   private fun isEnpassantNecessary(game: Game): Boolean {
