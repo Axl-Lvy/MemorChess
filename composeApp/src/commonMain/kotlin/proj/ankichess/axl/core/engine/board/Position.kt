@@ -3,19 +3,21 @@ package proj.ankichess.axl.core.engine.board
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.parser.FenParser
 import proj.ankichess.axl.core.engine.pieces.Pawn
+import proj.ankichess.axl.core.intf.engine.board.IBoard
+import proj.ankichess.axl.core.intf.engine.board.IPosition
 
 class Position(
-  val board: Board,
-  var playerTurn: Game.Player,
-  val possibleCastles: Array<Boolean>,
-  var enPassantColumn: Int,
-) {
+  override val board: IBoard,
+  override var playerTurn: Game.Player,
+  override val possibleCastles: Array<Boolean>,
+  override var enPassantColumn: Int,
+) : IPosition {
 
-  constructor(board: Board) : this(board, Game.Player.WHITE, arrayOf(true, true, true, true), -1)
+  constructor(board: IBoard) : this(board, Game.Player.WHITE, arrayOf(true, true, true, true), -1)
 
   constructor() : this(Board.createFromStartingPosition())
 
-  fun createKey(): String {
+  override fun toString(): String {
     val fen = FenParser.parsePosition(this).split(" ")
     val keyBuilder = StringBuilder()
     for (i in 0..2) {

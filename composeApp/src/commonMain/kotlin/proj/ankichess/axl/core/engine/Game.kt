@@ -13,14 +13,15 @@ import proj.ankichess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.ankichess.axl.core.engine.moves.factory.SimpleMoveFactory
 import proj.ankichess.axl.core.engine.parser.FenParser
 import proj.ankichess.axl.core.engine.pieces.Pawn
+import proj.ankichess.axl.core.intf.engine.board.IPosition
 
 /**
  * Game instance.
  *
  * @constructor Creates a game from a given position.
  */
-class Game(val position: Position, private val checkChecker: ACheckChecker) {
-  constructor(position: Position) : this(position, DummyCheckChecker(position))
+class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
+  constructor(position: IPosition) : this(position, DummyCheckChecker(position))
 
   /** Creates a game from the starting position. */
   constructor() : this(Position())
@@ -107,7 +108,18 @@ class Game(val position: Position, private val checkChecker: ACheckChecker) {
     playMove(moveFactory.parseMove(stringMove, checkChecker))
   }
 
+  /**
+   * Applies promotion.
+   *
+   * Because the promotion needs additional information, this function has to be called after the
+   * move.
+   *
+   * @param newPieceName
+   */
   fun applyPromotion(newPieceName: String) {
+    if (!promoter.needPromotion) {
+      throw IllegalStateException("No promotion to apply.")
+    }
     promoter.newPieceName =
       if (position.playerTurn == Player.WHITE) newPieceName.lowercase()
       else newPieceName.uppercase()

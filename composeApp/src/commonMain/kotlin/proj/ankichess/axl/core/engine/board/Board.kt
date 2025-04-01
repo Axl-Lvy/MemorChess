@@ -10,15 +10,14 @@ import proj.ankichess.axl.core.engine.pieces.vectors.King
 import proj.ankichess.axl.core.engine.pieces.vectors.Knight
 import proj.ankichess.axl.core.engine.pieces.vectors.Queen
 import proj.ankichess.axl.core.engine.pieces.vectors.Rook
+import proj.ankichess.axl.core.intf.engine.board.IBoard
+import proj.ankichess.axl.core.intf.engine.board.IBoard.Companion.getCoords
+import proj.ankichess.axl.core.intf.engine.board.ITile
 
-/**
- * Board game.
- *
- * @constructor Creates empty Board.
- */
-class Board {
+/** Main implementation of [IBoard]. */
+class Board : IBoard {
 
-  val piecePositionsCache: Map<String, MutableSet<Pair<Int, Int>>> =
+  override val piecePositionsCache: Map<String, MutableSet<Pair<Int, Int>>> =
     IPiece.PIECES.flatMap { listOf(it, it.uppercase()) }.associateWith { mutableSetOf() }
 
   /** Array of tiles representing the chess board. */
@@ -36,7 +35,7 @@ class Board {
      *
      * @return An empty array.
      */
-    fun createEmptyArray(): Array<Array<Tile>> {
+    private fun createEmptyArray(): Array<Array<Tile>> {
       return Array(8) { row -> Array(8) { col -> Tile(row, col) } }
     }
 
@@ -45,52 +44,14 @@ class Board {
      *
      * @return The board.
      */
-    fun createFromStartingPosition(): Board {
+    fun createFromStartingPosition(): IBoard {
       val board = Board()
       board.startingPosition()
       return board
     }
-
-    fun getColumnNumber(columnName: String): Int {
-      return when (columnName) {
-        "a" -> 0
-        "b" -> 1
-        "c" -> 2
-        "d" -> 3
-        "e" -> 4
-        "f" -> 5
-        "g" -> 6
-        "h" -> 7
-        else -> throw IllegalArgumentException("Invalid column name: $columnName.")
-      }
-    }
-
-    fun getColumnName(columnNumber: Int): String {
-      return when (columnNumber) {
-        0 -> "a"
-        1 -> "b"
-        2 -> "c"
-        3 -> "d"
-        4 -> "e"
-        5 -> "f"
-        6 -> "g"
-        7 -> "h"
-        else -> throw IllegalArgumentException("Invalid column number: $columnNumber.")
-      }
-    }
-
-    fun getTileName(coords: Pair<Int, Int>): String {
-      return getColumnName(coords.second) + (coords.first + 1)
-    }
-
-    fun getCoords(tileName: String): Pair<Int, Int> {
-      require(tileName.length == 2) { "$tileName is not a valid tile name." }
-      return Pair(tileName[1].toString().toInt() - 1, getColumnNumber(tileName[0].toString()))
-    }
   }
 
-  /** Resets the board. */
-  fun reset() {
+  override fun reset() {
     for (tiles in array) {
       for (tile in tiles) {
         tile.reset()
@@ -99,8 +60,7 @@ class Board {
     piecePositionsCache.values.forEach { i -> i.clear() }
   }
 
-  /** Sets the board to the starting position. */
-  fun startingPosition() {
+  override fun startingPosition() {
     reset()
     for (col in 0..7) {
       array[1][col].piece = Pawn(Player.WHITE)
@@ -133,37 +93,37 @@ class Board {
     piecePositionsCache[tile.piece.toString()]?.add(tile.getCoords())
   }
 
-  fun getTile(tileName: String): ITile {
+  override fun getTile(tileName: String): ITile {
     return getTile(getCoords(tileName))
   }
 
-  fun getTile(coords: Pair<Int, Int>): ITile {
+  override fun getTile(coords: Pair<Int, Int>): ITile {
     return getTile(coords.first, coords.second)
   }
 
-  fun getTile(x: Int, y: Int): ITile {
+  override fun getTile(x: Int, y: Int): ITile {
     return array[x][y]
   }
 
-  fun getTilesIterator(): Iterator<ITile> {
+  override fun getTilesIterator(): Iterator<ITile> {
     return array.flatten().iterator()
   }
 
-  fun placePiece(t: String, p: String) {
-    placePiece(getCoords(t), PieceFactory.createPiece(p))
+  override fun placePiece(tileName: String, p: String) {
+    placePiece(getCoords(tileName), PieceFactory.createPiece(p))
   }
 
-  fun placePiece(x: Int, y: Int, p: String) {
+  override fun placePiece(x: Int, y: Int, p: String) {
     placePiece(Pair(x, y), PieceFactory.createPiece(p))
   }
 
-  fun placePiece(coords: Pair<Int, Int>, p: IPiece) {
+  override fun placePiece(coords: Pair<Int, Int>, p: IPiece) {
     val tile = array[coords.first][coords.second]
     tile.piece = p
     addPositionToCache(tile)
   }
 
-  fun playMove(move: IMove) {
+  override fun playMove(move: IMove) {
     move.generateChanges().forEach { (changingTileCoords, ref) ->
       run {
         val changingTile = array[changingTileCoords.first][changingTileCoords.second]

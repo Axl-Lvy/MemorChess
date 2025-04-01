@@ -1,9 +1,9 @@
 package proj.ankichess.axl.core.engine.moves.factory
 
-import proj.ankichess.axl.core.engine.board.ITile
-import proj.ankichess.axl.core.engine.board.Position
+import proj.ankichess.axl.core.intf.engine.board.IPosition
+import proj.ankichess.axl.core.intf.engine.board.ITile
 
-class SimpleMoveFactory(position: Position) : AMoveFactory(position) {
+class SimpleMoveFactory(position: IPosition) : AMoveFactory(position) {
   override fun getTileAtCoords(coords: Pair<Int, Int>): ITile {
     return position.board.getTile(coords)
   }

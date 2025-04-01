@@ -1,14 +1,14 @@
 package proj.ankichess.axl.core.engine.moves.factory
 
 import proj.ankichess.axl.core.engine.Game
-import proj.ankichess.axl.core.engine.board.ITile
-import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.board.Tile
 import proj.ankichess.axl.core.engine.moves.IMove
 import proj.ankichess.axl.core.engine.moves.description.MoveDescription
 import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.intf.engine.board.IPosition
+import proj.ankichess.axl.core.intf.engine.board.ITile
 
-class DummyCheckChecker(position: Position) : ACheckChecker(position) {
+class DummyCheckChecker(position: IPosition) : ACheckChecker(position) {
 
   private var changes = mapOf<Pair<Int, Int>, Pair<Int, Int>?>()
 

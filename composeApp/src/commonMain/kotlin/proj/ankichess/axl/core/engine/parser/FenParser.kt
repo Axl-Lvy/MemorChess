@@ -4,6 +4,8 @@ import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.board.Board
 import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.intf.engine.board.IBoard
+import proj.ankichess.axl.core.intf.engine.board.IPosition
 
 /**
  * Fen parser to create or read [games][Game].
@@ -25,7 +27,7 @@ object FenParser {
     return fenBuilder.toString()
   }
 
-  fun parsePosition(position: Position): String {
+  fun parsePosition(position: IPosition): String {
     val fenBuilder = StringBuilder()
     fenBuilder.append(parseBoard(position.board)).append(" ")
     fenBuilder.append(parsePlayer(position.playerTurn)).append(" ")
@@ -48,7 +50,7 @@ object FenParser {
     return game
   }
 
-  fun readPosition(fen: String): Position {
+  fun readPosition(fen: String): IPosition {
     val splitFen = fen.split(" ")
     if (splitFen.size < 3) {
       throwOnInvalidFen(
@@ -62,7 +64,7 @@ object FenParser {
     return Position(board, playerTurn, possibleCastles, enPassantColumn)
   }
 
-  private fun readBoard(boardFen: String): Board {
+  private fun readBoard(boardFen: String): IBoard {
     val splitBoardFen = boardFen.split("/")
     if (splitBoardFen.size != 8) {
       throwOnInvalidFen("This fen is describing ${splitBoardFen.size} lines: $boardFen.")
@@ -113,7 +115,7 @@ object FenParser {
     if (enPassantString == "-") {
       return -1
     }
-    return Board.getColumnNumber(enPassantString[0].toString())
+    return IBoard.getColumnNumber(enPassantString[0].toString())
   }
 
   private fun readSemiMoves(semiMoveString: String): Int {
@@ -142,7 +144,7 @@ object FenParser {
    * @param board The board.
    * @return The string representing the board.
    */
-  private fun parseBoard(board: Board): String {
+  private fun parseBoard(board: IBoard): String {
     val sequence = StringBuilder()
     for (rowIndex in 7 downTo 0) {
       if (rowIndex < 7) {
@@ -198,7 +200,7 @@ object FenParser {
     return builder.toString()
   }
 
-  private fun parseEnPassant(position: Position): String {
+  private fun parseEnPassant(position: IPosition): String {
     if (position.enPassantColumn == -1) {
       return "-"
     }
@@ -207,7 +209,7 @@ object FenParser {
         Game.Player.WHITE -> 6
         Game.Player.BLACK -> 3
       }
-    return Board.getColumnName(position.enPassantColumn) + lineNumber
+    return IBoard.getColumnName(position.enPassantColumn) + lineNumber
   }
 
   /**

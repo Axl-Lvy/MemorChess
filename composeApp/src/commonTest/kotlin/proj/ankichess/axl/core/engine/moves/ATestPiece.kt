@@ -8,6 +8,7 @@ import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.board.Board
 import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.moves.factory.NoCheckChecker
+import proj.ankichess.axl.core.intf.engine.board.IBoard
 
 /**
  * Simple and general tests for a piece. The game is initialized with just 2 pieces in a1 (white)
@@ -45,7 +46,7 @@ abstract class ATestPiece(private val pieceName: String) {
       game.position.board.getTile(getTiles()[getTiles().size - 2]).toString(),
     )
     game.position.board.getTilesIterator().forEach {
-      val tileName = Board.getTileName(it.getCoords())
+      val tileName = IBoard.getTileName(it.getCoords())
       if (tileName != getTiles()[getTiles().size - 2] && tileName != getTiles().last()) {
         assertEquals(null, it.getSafePiece())
       }

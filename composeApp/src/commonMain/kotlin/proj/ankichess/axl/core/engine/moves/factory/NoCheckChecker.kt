@@ -1,8 +1,8 @@
 package proj.ankichess.axl.core.engine.moves.factory
 
-import proj.ankichess.axl.core.engine.board.ITile
 import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.moves.IMove
+import proj.ankichess.axl.core.intf.engine.board.ITile
 
 class NoCheckChecker() : ACheckChecker(Position()) {
   override fun isPossible(move: IMove): Boolean {

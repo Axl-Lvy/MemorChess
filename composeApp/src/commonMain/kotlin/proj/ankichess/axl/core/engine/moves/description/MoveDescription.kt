@@ -2,7 +2,7 @@ package proj.ankichess.axl.core.engine.moves.description
 
 import kotlin.math.abs
 import kotlin.math.max
-import proj.ankichess.axl.core.engine.board.Board
+import proj.ankichess.axl.core.intf.engine.board.IBoard
 
 class MoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
 
@@ -29,6 +29,6 @@ class MoveDescription(val from: Pair<Int, Int>, val to: Pair<Int, Int>) {
   }
 
   override fun toString(): String {
-    return "MoveDescription[" + Board.getTileName(from) + "," + Board.getTileName(to) + "]"
+    return "MoveDescription[" + IBoard.getTileName(from) + "," + IBoard.getTileName(to) + "]"
   }
 }

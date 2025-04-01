@@ -1,9 +1,9 @@
 package proj.ankichess.axl.core.engine.moves
 
 import kotlin.math.abs
-import proj.ankichess.axl.core.engine.board.Board
 import proj.ankichess.axl.core.engine.pieces.vectors.King
 import proj.ankichess.axl.core.engine.pieces.vectors.Rook
+import proj.ankichess.axl.core.intf.engine.board.IBoard
 
 class Castle(
   private val rook: Pair<Int, Int>,
@@ -28,11 +28,11 @@ class Castle(
     return abs(rook.first - king.first) == 4
   }
 
-  fun isPositionCorrect(board: Board): Boolean {
+  fun isPositionCorrect(board: IBoard): Boolean {
     return board.getTile(king).getSafePiece() is King && board.getTile(rook).getSafePiece() is Rook
   }
 
-  fun isPossible(board: Board): Boolean {
+  fun isPossible(board: IBoard): Boolean {
     var index = 1
     val direction = if (rook.second < king.second) 1 else -1
     while (index * direction + rook.second < king.second) {

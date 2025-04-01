@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import proj.ankichess.axl.core.engine.board.ITile
 import proj.ankichess.axl.core.engine.board.Tile.TileColor
+import proj.ankichess.axl.core.intf.engine.board.ITile
 
 @Composable
 fun Tile(tile: ITile) {

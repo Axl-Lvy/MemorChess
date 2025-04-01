@@ -1,12 +1,12 @@
 package proj.ankichess.axl.core.engine.moves
 
 import proj.ankichess.axl.core.engine.Game
-import proj.ankichess.axl.core.engine.board.Board
 import proj.ankichess.axl.core.engine.board.Tile
 import proj.ankichess.axl.core.engine.pieces.Pawn
 import proj.ankichess.axl.core.engine.pieces.PieceFactory
+import proj.ankichess.axl.core.intf.engine.board.IBoard
 
-class Promoter(val board: Board) {
+class Promoter(val board: IBoard) {
 
   /** True to block the game and ask for a promotion. */
   var needPromotion = false

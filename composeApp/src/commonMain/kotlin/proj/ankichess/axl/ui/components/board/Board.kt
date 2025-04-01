@@ -7,9 +7,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import proj.ankichess.axl.core.engine.board.ITile
 import proj.ankichess.axl.core.engine.pieces.IPiece
 import proj.ankichess.axl.core.interactions.InteractionManager
+import proj.ankichess.axl.core.intf.engine.board.ITile
 import proj.ankichess.axl.ui.util.intf.IReloader
 
 @Composable

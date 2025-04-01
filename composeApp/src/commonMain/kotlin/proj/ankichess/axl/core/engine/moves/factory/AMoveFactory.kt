@@ -1,9 +1,6 @@
 package proj.ankichess.axl.core.engine.moves.factory
 
 import proj.ankichess.axl.core.engine.Game
-import proj.ankichess.axl.core.engine.board.Board
-import proj.ankichess.axl.core.engine.board.ITile
-import proj.ankichess.axl.core.engine.board.Position
 import proj.ankichess.axl.core.engine.moves.*
 import proj.ankichess.axl.core.engine.moves.description.MoveDescription
 import proj.ankichess.axl.core.engine.pieces.IPiece
@@ -11,6 +8,9 @@ import proj.ankichess.axl.core.engine.pieces.Pawn
 import proj.ankichess.axl.core.engine.pieces.vectors.King
 import proj.ankichess.axl.core.engine.pieces.vectors.Rook
 import proj.ankichess.axl.core.engine.pieces.vectors.VectorUtils
+import proj.ankichess.axl.core.intf.engine.board.IBoard
+import proj.ankichess.axl.core.intf.engine.board.IPosition
+import proj.ankichess.axl.core.intf.engine.board.ITile
 
 /**
  * Move factory.
@@ -18,7 +18,7 @@ import proj.ankichess.axl.core.engine.pieces.vectors.VectorUtils
  * @property position The position.
  * @constructor Creates a Move factory from a board.
  */
-abstract class AMoveFactory(val position: Position) {
+abstract class AMoveFactory(val position: IPosition) {
 
   /**
    * Creates one move.
@@ -79,14 +79,14 @@ abstract class AMoveFactory(val position: Position) {
     }
 
     (move as? EnPassant)?.let {
-      return Board.getColumnName(move.from.second) + "x" + Board.getTileName(move.to)
+      return IBoard.getColumnName(move.from.second) + "x" + IBoard.getTileName(move.to)
     }
 
     val stringMoveBuilder = StringBuilder()
     val movingPiece = getTileAtCoords(move.origin()).getSafePiece()
     checkNotNull(movingPiece) { "Can't create a move from an empty tile." }
     if (movingPiece is Pawn) {
-      stringMoveBuilder.append(Board.getColumnName(move.origin().second))
+      stringMoveBuilder.append(IBoard.getColumnName(move.origin().second))
     } else {
       stringMoveBuilder.append(movingPiece.toString().uppercase())
       stringMoveBuilder.append(ambiguityClue(movingPiece, move))
@@ -94,13 +94,13 @@ abstract class AMoveFactory(val position: Position) {
     if (move is Capture) {
       stringMoveBuilder.append("x")
       if (movingPiece is Pawn) {
-        stringMoveBuilder.append(Board.getTileName(move.destination()))
+        stringMoveBuilder.append(IBoard.getTileName(move.destination()))
       }
     } else if (movingPiece is Pawn) {
-      stringMoveBuilder.append(Board.getTileName(move.destination()).last())
+      stringMoveBuilder.append(IBoard.getTileName(move.destination()).last())
     }
     if (movingPiece !is Pawn) {
-      stringMoveBuilder.append(Board.getTileName(move.destination()))
+      stringMoveBuilder.append(IBoard.getTileName(move.destination()))
     }
     return stringMoveBuilder.toString()
   }
@@ -269,7 +269,7 @@ abstract class AMoveFactory(val position: Position) {
     val destination: Pair<Int, Int>
     val desc =
       if (!stringMove.contains('x')) {
-        destination = Board.getCoords(stringMove)
+        destination = IBoard.getCoords(stringMove)
         val forward = if (position.playerTurn == Game.Player.WHITE) 1 else -1
         if (
           getTileAtCoords(Pair(destination.first - forward, destination.second)).getSafePiece() ==
@@ -280,17 +280,17 @@ abstract class AMoveFactory(val position: Position) {
           MoveDescription(Pair(destination.first - forward, destination.second), destination)
         }
       } else {
-        val originColumn = Board.getColumnNumber(stringMove[0].toString())
-        destination = Board.getCoords(stringMove.substring(2))
+        val originColumn = IBoard.getColumnNumber(stringMove[0].toString())
+        destination = IBoard.getCoords(stringMove.substring(2))
         val forward = if (position.playerTurn == Game.Player.WHITE) 1 else -1
         MoveDescription(Pair(destination.first - forward, originColumn), destination)
       }
     return extractPawnMoves(listOf(listOf(desc))).firstOrNull()
-      ?: throw IllegalMoveException("No pawn can go to " + Board.getTileName(destination) + ".")
+      ?: throw IllegalMoveException("No pawn can go to " + IBoard.getTileName(destination) + ".")
   }
 
   private fun parseGenericPieceMove(stringMove: String, checkChecker: ACheckChecker): IMove {
-    val destination = Board.getCoords(stringMove.substring(stringMove.length - 2))
+    val destination = IBoard.getCoords(stringMove.substring(stringMove.length - 2))
     val pieceString =
       stringMove[0].toString().let {
         if (position.playerTurn == Game.Player.WHITE) it.uppercase() else it.lowercase()
@@ -322,7 +322,7 @@ abstract class AMoveFactory(val position: Position) {
     val clueColumn: Int?
     val clueRow: Int?
     if (clues.length == 2) {
-      val clueTile = Board.getCoords(clues)
+      val clueTile = IBoard.getCoords(clues)
       clueRow = clueTile.first
       clueColumn = clueTile.second
     } else if (clues.length == 1) {
@@ -331,7 +331,7 @@ abstract class AMoveFactory(val position: Position) {
         clueColumn = null
       } else {
         clueRow = null
-        clueColumn = Board.getColumnNumber(clues)
+        clueColumn = IBoard.getColumnNumber(clues)
       }
     } else {
       clueRow = null
@@ -365,7 +365,7 @@ abstract class AMoveFactory(val position: Position) {
     }
     val ambiguityBuilder = StringBuilder()
     if (isSameRow) {
-      ambiguityBuilder.append(Board.getColumnName(move.origin().second))
+      ambiguityBuilder.append(IBoard.getColumnName(move.origin().second))
     }
     if (isSameColumn) {
       ambiguityBuilder.append(move.origin().first)

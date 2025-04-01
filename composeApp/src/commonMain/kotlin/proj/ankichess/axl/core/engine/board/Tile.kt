@@ -2,6 +2,7 @@ package proj.ankichess.axl.core.engine.board
 
 import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.intf.engine.board.ITile
 
 /**
  * Tile.
