@@ -1,8 +1,9 @@
 package proj.ankichess.axl.core.engine.moves
 
 import kotlin.test.*
-import proj.ankichess.axl.core.engine.Game
-import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.impl.engine.moves.IllegalMoveException
+import proj.ankichess.axl.core.intf.engine.pieces.IPiece
 
 class TestCannotJump {
 

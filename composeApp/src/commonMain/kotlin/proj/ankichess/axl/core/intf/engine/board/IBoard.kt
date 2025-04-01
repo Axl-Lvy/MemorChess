@@ -1,7 +1,7 @@
 package proj.ankichess.axl.core.intf.engine.board
 
-import proj.ankichess.axl.core.engine.moves.IMove
-import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.intf.engine.moves.IMove
+import proj.ankichess.axl.core.intf.engine.pieces.IPiece
 
 /** Chess board. */
 interface IBoard {

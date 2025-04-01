@@ -1,6 +1,6 @@
 package proj.ankichess.axl.core.intf.engine.board
 
-import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.impl.engine.Game
 
 /** A position identifies the state of the board during a game. */
 interface IPosition {

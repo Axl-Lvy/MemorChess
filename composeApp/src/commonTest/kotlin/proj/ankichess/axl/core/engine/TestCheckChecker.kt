@@ -3,7 +3,8 @@ package proj.ankichess.axl.core.engine
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
-import proj.ankichess.axl.core.engine.moves.IllegalMoveException
+import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.impl.engine.moves.IllegalMoveException
 
 class TestCheckChecker {
   private lateinit var game: Game

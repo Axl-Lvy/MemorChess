@@ -6,10 +6,10 @@ import ankichess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
-import proj.ankichess.axl.core.engine.Game
-import proj.ankichess.axl.core.engine.pieces.IPiece
-import proj.ankichess.axl.core.engine.pieces.Pawn
-import proj.ankichess.axl.core.engine.pieces.vectors.*
+import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.impl.engine.pieces.Pawn
+import proj.ankichess.axl.core.impl.engine.pieces.vectors.*
+import proj.ankichess.axl.core.intf.engine.pieces.IPiece
 
 @Composable
 fun Piece(piece: IPiece) {

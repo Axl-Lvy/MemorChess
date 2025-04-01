@@ -1,6 +1,6 @@
 package proj.ankichess.axl.core.engine.moves
 
-import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.intf.engine.pieces.IPiece
 
 class TestKnight : ATestPiece(IPiece.KNIGHT) {
 

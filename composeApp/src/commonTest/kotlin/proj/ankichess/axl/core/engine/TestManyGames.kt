@@ -3,6 +3,7 @@ package proj.ankichess.axl.core.engine
 import com.diamondedge.logging.KmLogging
 import com.diamondedge.logging.LogLevel
 import kotlin.test.Test
+import proj.ankichess.axl.core.impl.engine.Game
 import proj.ankichess.axl.game.getGames
 
 class TestManyGames {
