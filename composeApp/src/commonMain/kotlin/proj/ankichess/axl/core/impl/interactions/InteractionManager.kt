@@ -6,7 +6,7 @@ import proj.ankichess.axl.core.impl.engine.moves.description.MoveDescription
 import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
 import proj.ankichess.axl.core.intf.graph.INode
 import proj.ankichess.axl.ui.popup.info
-import proj.ankichess.axl.ui.util.impl.BasicReloader
+import proj.ankichess.axl.ui.util.intf.IReloader
 
 /**
  * Class that handles clicks on the chess board.
@@ -51,7 +51,7 @@ class InteractionManager(var game: Game) {
     }
   }
 
-  fun reset(reloader: BasicReloader) {
+  fun reset(reloader: IReloader) {
     firstTile = null
     game = Game()
     val rootNode = NodeFactory.getNode(game)
@@ -60,7 +60,7 @@ class InteractionManager(var game: Game) {
     reloader.reload()
   }
 
-  fun back(reloader: BasicReloader) {
+  fun back(reloader: IReloader) {
     val parent = node.getParent()
     if (parent != null) {
       node = parent
@@ -71,7 +71,7 @@ class InteractionManager(var game: Game) {
     }
   }
 
-  fun forward(reloader: BasicReloader) {
+  fun forward(reloader: IReloader) {
     val firstChild = node.getFirstChild()
     if (firstChild != null) {
       node = firstChild
@@ -80,6 +80,16 @@ class InteractionManager(var game: Game) {
     } else {
       displayMessage("No next move.")
     }
+  }
+
+  fun playMove(move: String, reloader: IReloader) {
+    game.playMove(move)
+    node = NodeFactory.createNode(game, node, move)
+    reloader.reload()
+  }
+
+  fun getChildrenMoves(): List<String> {
+    return node.getChildren().keys.toList()
   }
 
   private fun displayMessage(message: String) {

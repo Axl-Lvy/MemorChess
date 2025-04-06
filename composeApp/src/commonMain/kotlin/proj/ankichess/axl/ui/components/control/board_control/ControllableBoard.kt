@@ -14,6 +14,7 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
   var inverted by remember { mutableStateOf(false) }
   val boardReloader = remember { BasicReloader() }
   val interactionManager = remember { InteractionManager() }
+  val nextMoves = remember(boardReloader.getKey()) { interactionManager.getChildrenMoves() }
   Column(verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
     ControlBar(
       modifier = Modifier.height(50.dp),
@@ -23,5 +24,6 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
       onBackClick = { interactionManager.back(boardReloader) },
     )
     Board(inverted, interactionManager, boardReloader, modifier = modifier.fillMaxWidth())
+    NextMoveBar(moveList = nextMoves, playMove = { interactionManager.playMove(it, boardReloader) })
   }
 }
