@@ -46,7 +46,9 @@ class InteractionManager(var game: Game) {
       }
 
       firstTile = null
-    } else if (game.position.board.getTile(coordinates).getSafePiece() != null) {
+    } else if (
+      game.position.board.getTile(coordinates).getSafePiece()?.player == game.position.playerTurn
+    ) {
       firstTile = coordinates
     }
   }
