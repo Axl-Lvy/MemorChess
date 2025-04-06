@@ -27,6 +27,12 @@ object FenParser {
     return fenBuilder.toString()
   }
 
+  /**
+   * Reads an [IPosition].
+   *
+   * @param position The position to read.
+   * @return The string representation of the position.
+   */
   fun parsePosition(position: IPosition): String {
     val fenBuilder = StringBuilder()
     fenBuilder.append(parseBoard(position.board)).append(" ")
@@ -36,6 +42,12 @@ object FenParser {
     return fenBuilder.toString()
   }
 
+  /**
+   * Creates an [Game] from a string.
+   *
+   * @param fen Fen representation of the game.
+   * @return The created game.
+   */
   fun read(fen: String): Game {
     val splitFen = fen.split(" ")
     if (splitFen.size != 6) {
@@ -50,6 +62,12 @@ object FenParser {
     return game
   }
 
+  /**
+   * Creates an [IPosition] from a string.
+   *
+   * @param fen Fen representation of the position.
+   * @return The created position.
+   */
   fun readPosition(fen: String): IPosition {
     val splitFen = fen.split(" ")
     if (splitFen.size < 3) {
