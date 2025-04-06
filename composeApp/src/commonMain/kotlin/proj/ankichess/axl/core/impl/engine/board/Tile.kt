@@ -40,4 +40,22 @@ class Tile(private val row: Int, private val col: Int, var piece: IPiece?) : ITi
     val pieceString = piece?.toString() ?: " "
     return if (piece?.player == Game.Player.WHITE) pieceString.uppercase() else pieceString
   }
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is Tile) return false
+
+    if (row != other.row) return false
+    if (col != other.col) return false
+    if (piece != other.piece) return false
+
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var result = row
+    result = 31 * result + col
+    result = 31 * result + (piece?.hashCode() ?: 0)
+    return result
+  }
 }

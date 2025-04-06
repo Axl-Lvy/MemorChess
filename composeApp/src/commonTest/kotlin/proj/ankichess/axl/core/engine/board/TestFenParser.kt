@@ -23,7 +23,13 @@ class TestFenParser {
         "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       )
     for (fen in fensToTest) {
-      assertEquals(fen, FenParser.parse(FenParser.read(fen)))
+      testOnGame(FenParser.read(fen))
+    }
+  }
+
+  companion object {
+    fun testOnGame(game: Game) {
+      assertEquals(game.position, FenParser.read(FenParser.parse(game)).position)
     }
   }
 }

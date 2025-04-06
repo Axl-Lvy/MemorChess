@@ -71,16 +71,16 @@ object FenParser {
     }
     val board = Board()
     for ((lineIndex, line) in splitBoardFen.reversed().withIndex()) {
-      var offset = 0
-      for ((columnIndex, character) in line.withIndex()) {
-        if (columnIndex + offset > 7) {
+      var columnIndex = 0
+      for (character in line) {
+        if (columnIndex > 7) {
           throwOnInvalidFen("Found a line representing more than 8 tiles: $line.")
         }
         if (character.isDigit()) {
-          offset += character.digitToInt() - 1
+          columnIndex += character.digitToInt()
         } else {
-          board.placePiece(lineIndex, columnIndex + offset, character.toString())
-          offset = 0
+          board.placePiece(lineIndex, columnIndex, character.toString())
+          columnIndex++
         }
       }
     }

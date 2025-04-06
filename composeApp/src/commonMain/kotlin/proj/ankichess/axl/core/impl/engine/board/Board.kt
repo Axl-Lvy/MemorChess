@@ -139,6 +139,19 @@ class Board : IBoard {
     }
   }
 
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is Board) return false
+
+    if (!array.contentDeepEquals(other.array)) return false
+
+    return true
+  }
+
+  override fun hashCode(): Int {
+    return array.contentDeepHashCode()
+  }
+
   override fun toString(): String {
     val result = StringBuilder()
     val lineSeparator = "-----------------"

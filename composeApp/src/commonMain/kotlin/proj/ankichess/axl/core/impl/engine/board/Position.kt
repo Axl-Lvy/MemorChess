@@ -24,9 +24,9 @@ class Position(
       keyBuilder.append(fen[i]).append(" ")
     }
     if (isEnpassantNecessary()) {
-      keyBuilder.append(fen[2]).append(" ")
+      keyBuilder.append(fen[2])
     }
-    return keyBuilder.toString()
+    return keyBuilder.toString().trim()
   }
 
   private fun isEnpassantNecessary(): Boolean {
@@ -48,5 +48,24 @@ class Position(
       }
     }
     return false
+  }
+
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is Position) return false
+
+    if (board != other.board) return false
+    if (playerTurn != other.playerTurn) return false
+    if (!possibleCastles.contentEquals(other.possibleCastles)) return false
+    if (enPassantColumn != other.enPassantColumn) return false
+    return true
+  }
+
+  override fun hashCode(): Int {
+    var result = board.hashCode()
+    result = 31 * result + playerTurn.hashCode()
+    result = 31 * result + possibleCastles.contentHashCode()
+    result = 31 * result + enPassantColumn
+    return result
   }
 }
