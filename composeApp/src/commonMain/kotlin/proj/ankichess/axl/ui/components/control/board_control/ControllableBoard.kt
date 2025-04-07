@@ -1,10 +1,14 @@
 package proj.ankichess.axl.ui.components.control.board_control
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.Button
+import androidx.compose.material.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Save
 import proj.ankichess.axl.core.impl.interactions.InteractionManager
 import proj.ankichess.axl.ui.components.board.Board
 import proj.ankichess.axl.ui.util.impl.BasicReloader
@@ -25,5 +29,8 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
     )
     Board(inverted, interactionManager, boardReloader, modifier = modifier.fillMaxWidth())
     NextMoveBar(moveList = nextMoves, playMove = { interactionManager.playMove(it, boardReloader) })
+    Button(onClick = { interactionManager.save() }) {
+      Icon(FeatherIcons.Save, contentDescription = "Save")
+    }
   }
 }

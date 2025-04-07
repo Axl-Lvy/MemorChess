@@ -10,13 +10,11 @@ plugins {
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.kotlinX.serialization.plugin)
   alias(libs.plugins.ktfmt)
+  alias(libs.plugins.room)
 }
 
 kotlin {
-  androidTarget {
-    @OptIn(ExperimentalKotlinGradlePluginApi::class)
-    compilerOptions { jvmTarget.set(JvmTarget.JVM_11) }
-  }
+  androidTarget { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
 
   listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
     iosTarget.binaries.framework {
@@ -24,6 +22,8 @@ kotlin {
       isStatic = true
     }
   }
+
+  jvm("desktop")
 
   @OptIn(ExperimentalWasmDsl::class)
   wasmJs {
@@ -45,6 +45,21 @@ kotlin {
       }
     }
     binaries.executable()
+  }
+
+  @OptIn(ExperimentalKotlinGradlePluginApi::class)
+  applyDefaultHierarchyTemplate {
+    // create a new group that
+    // depends on `common`
+    common {
+      // Define group name without
+      // `Main` as suffix
+      group("nonJs") {
+        withAndroidTarget()
+        withJvm()
+        group("ios") { withIos() }
+      }
+    }
   }
 
   sourceSets {
@@ -69,6 +84,12 @@ kotlin {
       implementation(libs.xfeather.z)
     }
     commonTest.dependencies { implementation(libs.kotlin.test) }
+    val nonJsMain by getting {
+      dependencies {
+        api(libs.androidx.room.runtime)
+        implementation(libs.sqlite.bundled)
+      }
+    }
   }
 }
 
@@ -93,3 +114,5 @@ android {
 }
 
 ktfmt { googleStyle() }
+
+room { schemaDirectory("$projectDir/schemas") }

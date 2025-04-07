@@ -94,6 +94,10 @@ class InteractionManager(var game: Game) {
     return node.getChildren().keys.toList()
   }
 
+  fun save() {
+    node.save()
+  }
+
   private fun displayMessage(message: String) {
     info(message)
   }
