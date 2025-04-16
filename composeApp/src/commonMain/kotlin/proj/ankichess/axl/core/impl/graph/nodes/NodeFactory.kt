@@ -96,7 +96,7 @@ object NodeFactory {
     return false
   }
 
-  public suspend fun retrieveGraphFromDatabase(): INode {
+  fun retrieveGraphFromDatabase(): INode {
     val allPosition: Flow<IStoredPosition> = getCommonDataBase().getAllPositions()
     allPosition.onEach { getOrCreateNode(OrphanNode(it.fenRepresentation).getGame(), null, null) }
     return getOrCreateNode(Game(), null, null)
