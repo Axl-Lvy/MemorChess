@@ -94,7 +94,7 @@ class InteractionManager(var game: Game) {
     return node.getChildren().keys.toList()
   }
 
-  fun save() {
+  suspend fun save() {
     node.save()
   }
 

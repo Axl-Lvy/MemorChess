@@ -11,6 +11,7 @@ plugins {
   alias(libs.plugins.kotlinX.serialization.plugin)
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.room)
+  alias(libs.plugins.ksp)
 }
 
 kotlin {
@@ -86,9 +87,11 @@ kotlin {
     commonTest.dependencies { implementation(libs.kotlin.test) }
     val nonJsMain by getting {
       dependencies {
-        api(libs.androidx.room.runtime)
+        implementation(libs.androidx.room.runtime)
+        implementation(libs.androidx.room.compiler)
         implementation(libs.sqlite.bundled)
       }
+      configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
     }
   }
 }
@@ -107,8 +110,8 @@ android {
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
   buildTypes { getByName("release") { isMinifyEnabled = false } }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
   testOptions { unitTests.isReturnDefaultValues = true }
 }
@@ -116,3 +119,5 @@ android {
 ktfmt { googleStyle() }
 
 room { schemaDirectory("$projectDir/schemas") }
+
+dependencies { ksp(libs.androidx.room.compiler) }

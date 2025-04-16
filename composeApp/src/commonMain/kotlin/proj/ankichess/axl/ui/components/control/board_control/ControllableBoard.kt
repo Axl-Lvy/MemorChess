@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
+import kotlinx.coroutines.launch
+import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
 import proj.ankichess.axl.core.impl.interactions.InteractionManager
 import proj.ankichess.axl.ui.components.board.Board
 import proj.ankichess.axl.ui.util.impl.BasicReloader
@@ -19,6 +21,8 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
   val boardReloader = remember { BasicReloader() }
   val interactionManager = remember { InteractionManager() }
   val nextMoves = remember(boardReloader.getKey()) { interactionManager.getChildrenMoves() }
+  val coroutineScope = rememberCoroutineScope()
+  coroutineScope.launch { NodeFactory.retrieveGraphFromDatabase() }
   Column(verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
     ControlBar(
       modifier = Modifier.height(50.dp),
@@ -29,7 +33,7 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
     )
     Board(inverted, interactionManager, boardReloader, modifier = modifier.fillMaxWidth())
     NextMoveBar(moveList = nextMoves, playMove = { interactionManager.playMove(it, boardReloader) })
-    Button(onClick = { interactionManager.save() }) {
+    Button(onClick = { coroutineScope.launch { interactionManager.save() } }) {
       Icon(FeatherIcons.Save, contentDescription = "Save")
     }
   }

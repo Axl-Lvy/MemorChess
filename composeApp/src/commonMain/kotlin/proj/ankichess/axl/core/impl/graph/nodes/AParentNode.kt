@@ -1,7 +1,7 @@
 package proj.ankichess.axl.core.impl.graph.nodes
 
-import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.parser.FenParser
+import proj.ankichess.axl.core.impl.data.StoredPosition
+import proj.ankichess.axl.core.intf.data.IStoredPosition
 import proj.ankichess.axl.core.intf.graph.INode
 
 /**
@@ -9,7 +9,7 @@ import proj.ankichess.axl.core.intf.graph.INode
  *
  * @constructor Create empty A parent node
  */
-abstract class AParentNode(private val position: String) : ASavableNode() {
+abstract class AParentNode(position: String) : ASavableNode(position) {
 
   private var firstChild: INode? = null
 
@@ -28,7 +28,7 @@ abstract class AParentNode(private val position: String) : ASavableNode() {
     return firstChild
   }
 
-  override fun getGame(): Game {
-    return Game(FenParser.readPosition(position))
+  override fun getPosition(): IStoredPosition {
+    return StoredPosition(position, children.keys.toList())
   }
 }

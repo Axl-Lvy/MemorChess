@@ -15,7 +15,7 @@ class Node(private val parent: INode, position: String) : AParentNode(position) 
     return parent
   }
 
-  override fun save() {
+  override suspend fun save() {
     super.save()
     if (!parent.isSaved()) {
       parent.save()

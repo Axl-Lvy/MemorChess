@@ -38,7 +38,7 @@ interface INode {
   fun isSaved(): Boolean
 
   /** Saves this node. */
-  fun save()
+  suspend fun save()
 
   fun getGame(): Game
 }

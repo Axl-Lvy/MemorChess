@@ -1,8 +1,12 @@
 package proj.ankichess.axl.core.impl.graph.nodes
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onEach
 import proj.ankichess.axl.core.impl.engine.Game
 import proj.ankichess.axl.core.impl.engine.parser.FenParser
 import proj.ankichess.axl.core.impl.engine.pieces.Pawn
+import proj.ankichess.axl.core.intf.data.IStoredPosition
+import proj.ankichess.axl.core.intf.data.getCommonDataBase
 import proj.ankichess.axl.core.intf.graph.INode
 
 /** Node factory singleton. */
@@ -14,6 +18,12 @@ object NodeFactory {
    * TODO: handle many index
    */
   private val cache = createCache()
+
+  private fun createCache(): MutableMap<String, INode> {
+    val rootKey = createKey(Game())
+
+    return mutableMapOf(rootKey to RootNode())
+  }
 
   /**
    * Creates a node.
@@ -28,11 +38,16 @@ object NodeFactory {
     return newNode
   }
 
-  fun getOrCreateNode(game: Game, parent: INode, move: String): INode {
+  fun getOrCreateNode(game: Game, parent: INode?, move: String?): INode {
     val key = createKey(game)
     return cache.getOrPut(key) {
+      if (parent == null) {
+        return OrphanNode(key)
+      }
       val newNode = Node(parent, key)
-      parent.addChild(move, newNode)
+      if (move != null) {
+        parent.addChild(move, newNode)
+      }
       return newNode
     }
   }
@@ -53,7 +68,7 @@ object NodeFactory {
       keyBuilder.append(fen[i]).append(" ")
     }
     if (isEnpassantNecessary(game)) {
-      keyBuilder.append(fen[2])
+      keyBuilder.append(fen[3])
     }
     return keyBuilder.toString().trim()
   }
@@ -81,9 +96,9 @@ object NodeFactory {
     return false
   }
 
-  private fun createCache(): MutableMap<String, INode> {
-    val rootKey = createKey(Game())
-
-    return mutableMapOf(rootKey to RootNode(rootKey))
+  public suspend fun retrieveGraphFromDatabase(): INode {
+    val allPosition: Flow<IStoredPosition> = getCommonDataBase().getAllPositions()
+    allPosition.onEach { getOrCreateNode(OrphanNode(it.fenRepresentation).getGame(), null, null) }
+    return getOrCreateNode(Game(), null, null)
   }
 }
