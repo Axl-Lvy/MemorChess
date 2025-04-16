@@ -21,8 +21,8 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
   val boardReloader = remember { BasicReloader() }
   val interactionManager = remember { InteractionManager() }
   val nextMoves = remember(boardReloader.getKey()) { interactionManager.getChildrenMoves() }
-  val coroutineScope = rememberCoroutineScope()
   NodeFactory.retrieveGraphFromDatabase()
+  val coroutineScope = rememberCoroutineScope()
   Column(verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
     ControlBar(
       modifier = Modifier.height(50.dp),

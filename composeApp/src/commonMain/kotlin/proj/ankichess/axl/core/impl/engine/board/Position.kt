@@ -17,18 +17,6 @@ class Position(
 
   constructor() : this(Board.createFromStartingPosition())
 
-  override fun toString(): String {
-    val fen = FenParser.parsePosition(this).split(" ")
-    val keyBuilder = StringBuilder()
-    for (i in 0..2) {
-      keyBuilder.append(fen[i]).append(" ")
-    }
-    if (isEnpassantNecessary()) {
-      keyBuilder.append(fen[2])
-    }
-    return keyBuilder.toString().trim()
-  }
-
   private fun isEnpassantNecessary(): Boolean {
     if (enPassantColumn == -1) {
       return false
@@ -48,6 +36,18 @@ class Position(
       }
     }
     return false
+  }
+
+  override fun toString(): String {
+    val fen = FenParser.parsePosition(this).split(" ")
+    val keyBuilder = StringBuilder()
+    for (i in 0..2) {
+      keyBuilder.append(fen[i]).append(" ")
+    }
+    if (isEnpassantNecessary()) {
+      keyBuilder.append(fen[2])
+    }
+    return keyBuilder.toString().trim()
   }
 
   override fun equals(other: Any?): Boolean {

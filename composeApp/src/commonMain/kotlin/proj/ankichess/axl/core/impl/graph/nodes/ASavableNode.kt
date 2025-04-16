@@ -1,12 +1,12 @@
 package proj.ankichess.axl.core.impl.graph.nodes
 
 import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.parser.FenParser
 import proj.ankichess.axl.core.intf.data.IStoredPosition
 import proj.ankichess.axl.core.intf.data.getCommonDataBase
+import proj.ankichess.axl.core.intf.engine.board.IPosition
 import proj.ankichess.axl.core.intf.graph.INode
 
-abstract class ASavableNode(protected val position: String) : INode {
+abstract class ASavableNode(protected val position: IPosition) : INode {
   private var isSaved = false
 
   override fun isSaved(): Boolean {
@@ -19,7 +19,7 @@ abstract class ASavableNode(protected val position: String) : INode {
   }
 
   override fun getGame(): Game {
-    return Game(FenParser.readPosition(position))
+    return Game(position)
   }
 
   abstract fun getPosition(): IStoredPosition
