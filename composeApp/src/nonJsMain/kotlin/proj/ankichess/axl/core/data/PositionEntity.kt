@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import proj.ankichess.axl.core.intf.data.IStoredPosition
 
-@Entity
+@Entity(tableName = "PositionEntity")
 data class PositionEntity(
   @PrimaryKey(autoGenerate = false) override val fenRepresentation: String,
   val availableMoves: String,
