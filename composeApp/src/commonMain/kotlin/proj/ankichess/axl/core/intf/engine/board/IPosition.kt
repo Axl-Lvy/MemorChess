@@ -1,8 +1,9 @@
 package proj.ankichess.axl.core.intf.engine.board
 
+import proj.ankichess.axl.core.impl.data.PositionKey
 import proj.ankichess.axl.core.impl.engine.Game
 
-/** A position identifies the state of the board during a game. */
+/** A position identifies the state of the board during a game. It can change it state. */
 interface IPosition {
   /** The board. */
   val board: IBoard
@@ -15,4 +16,6 @@ interface IPosition {
 
   /** The column for en passant. -1 means no column. */
   var enPassantColumn: Int
+
+  fun toImmutablePosition(): PositionKey
 }

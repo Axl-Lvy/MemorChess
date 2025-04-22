@@ -2,6 +2,7 @@ package proj.ankichess.axl.core.impl.engine
 
 import com.diamondedge.logging.logging
 import kotlin.math.abs
+import proj.ankichess.axl.core.impl.data.PositionKey
 import proj.ankichess.axl.core.impl.engine.board.Position
 import proj.ankichess.axl.core.impl.engine.moves.Castle
 import proj.ankichess.axl.core.impl.engine.moves.IllegalMoveException
@@ -25,6 +26,8 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
 
   /** Creates a game from the starting position. */
   constructor() : this(Position())
+
+  constructor(positionKey: PositionKey) : this(positionKey.createPosition())
 
   /** Number of moves. */
   var moveCount = 1

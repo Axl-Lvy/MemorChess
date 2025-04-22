@@ -1,5 +1,6 @@
 package proj.ankichess.axl.core.impl.engine.parser
 
+import proj.ankichess.axl.core.impl.data.PositionKey
 import proj.ankichess.axl.core.impl.engine.Game
 import proj.ankichess.axl.core.impl.engine.board.Board
 import proj.ankichess.axl.core.impl.engine.board.Position
@@ -33,12 +34,14 @@ object FenParser {
    * @param position The position to read.
    * @return The string representation of the position.
    */
-  fun parsePosition(position: IPosition): String {
+  fun parsePosition(position: IPosition, isEnPassantNecessary: Boolean = true): String {
     val fenBuilder = StringBuilder()
     fenBuilder.append(parseBoard(position.board)).append(" ")
     fenBuilder.append(parsePlayer(position.playerTurn)).append(" ")
-    fenBuilder.append(parsePossibleCastles(position.possibleCastles)).append(" ")
-    fenBuilder.append(parseEnPassant(position))
+    fenBuilder.append(parsePossibleCastles(position.possibleCastles))
+    if (isEnPassantNecessary) {
+      fenBuilder.append(" ").append(parseEnPassant(position))
+    }
     return fenBuilder.toString()
   }
 
@@ -68,7 +71,17 @@ object FenParser {
    * @param fen Fen representation of the position.
    * @return The created position.
    */
-  fun readPosition(fen: String): IPosition {
+  fun readPosition(key: PositionKey): IPosition {
+    return readPosition(key.fenRepresentation)
+  }
+
+  /**
+   * Creates an [IPosition] from a string.
+   *
+   * @param fen Fen representation of the position.
+   * @return The created position.
+   */
+  private fun readPosition(fen: String): IPosition {
     val splitFen = fen.split(" ")
     if (splitFen.size < 3) {
       throwOnInvalidFen(

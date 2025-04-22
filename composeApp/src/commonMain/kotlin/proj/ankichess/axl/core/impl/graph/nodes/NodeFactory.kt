@@ -1,14 +1,10 @@
 package proj.ankichess.axl.core.impl.graph.nodes
 
 import com.diamondedge.logging.logging
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.onEach
+import proj.ankichess.axl.core.impl.data.PositionKey
 import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.parser.FenParser
-import proj.ankichess.axl.core.intf.data.IStoredPosition
+import proj.ankichess.axl.core.intf.data.IStoredNode
 import proj.ankichess.axl.core.intf.data.getCommonDataBase
-import proj.ankichess.axl.core.intf.engine.board.IPosition
-import proj.ankichess.axl.core.intf.graph.INode
 
 /** Node factory singleton. */
 object NodeFactory {
@@ -18,12 +14,14 @@ object NodeFactory {
    *
    * TODO: handle many index
    */
-  private val cache = createCache()
+  private val movesCache = mutableMapOf<PositionKey, MutableSet<String>>()
 
-  private fun createCache(): MutableMap<IPosition, INode> {
-    val rootNode = RootNode()
-
-    return mutableMapOf(rootNode.getGame().position to RootNode())
+  fun createRootNode(): Node {
+    val position = Game().position.toImmutablePosition()
+    val rootNode = Node(position)
+    val newNodeMoves = movesCache.getOrPut(position) { mutableSetOf() }
+    rootNode.moves.addAll(newNodeMoves)
+    return rootNode
   }
 
   /**
@@ -32,47 +30,20 @@ object NodeFactory {
    * @param game The game at the position we want to store.
    * @return The node.
    */
-  fun createNode(game: Game, parent: INode, move: String): INode {
-    val key = game.position
-    val newNode = Node(parent, key)
-    parent.addChild(move, newNode)
+  fun createNode(game: Game, previous: Node, move: String): Node {
+    val newNodeMoves = movesCache.getOrPut(game.position.toImmutablePosition()) { mutableSetOf() }
+    val newNode =
+      Node(game.position.toImmutablePosition(), previous = previous, moves = newNodeMoves)
+    previous.addChild(move, newNode)
     return newNode
   }
 
-  private fun getOrCreateNode(game: Game, parent: INode?, move: String?): INode {
-    val key = game.position
-    return cache.getOrPut(key) {
-      if (parent == null) {
-        return OrphanNode(key)
-      }
-      val newNode = Node(parent, key)
-      if (move != null) {
-        parent.addChild(move, newNode)
-      }
-      return newNode
+  suspend fun retrieveGraphFromDatabase() {
+    val allPosition: List<IStoredNode> = getCommonDataBase().getAllPositions()
+    allPosition.forEach {
+      movesCache.getOrPut(it.positionKey, { mutableSetOf() }).addAll(it.getAvailableMoveList())
+      LOGGER.i { "Retrieved node: ${it.positionKey}" }
     }
-  }
-
-  fun getNode(game: Game): INode? {
-    val key = game.position
-    return cache[key]
-  }
-
-  fun cacheNode(node: INode): INode? {
-    return cache.put(node.getGame().position, node)
-  }
-
-  fun retrieveGraphFromDatabase(): INode {
-    val allPosition: Flow<IStoredPosition> = getCommonDataBase().getAllPositions()
-    allPosition.onEach {
-      getOrCreateNode(
-        OrphanNode(FenParser.readPosition(it.fenRepresentation)).getGame(),
-        null,
-        null,
-      )
-      LOGGER.i { "Retrieved node: ${it.fenRepresentation}" }
-    }
-    return getOrCreateNode(Game(), null, null)
   }
 
   private val LOGGER = logging()

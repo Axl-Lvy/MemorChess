@@ -3,8 +3,8 @@ package proj.ankichess.axl.core.impl.interactions
 import proj.ankichess.axl.core.impl.engine.Game
 import proj.ankichess.axl.core.impl.engine.moves.IllegalMoveException
 import proj.ankichess.axl.core.impl.engine.moves.description.MoveDescription
+import proj.ankichess.axl.core.impl.graph.nodes.Node
 import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
-import proj.ankichess.axl.core.intf.graph.INode
 import proj.ankichess.axl.ui.popup.info
 import proj.ankichess.axl.ui.util.intf.IReloader
 
@@ -22,11 +22,10 @@ class InteractionManager(var game: Game) {
   /** Coordinates of the tile that was clicked first. */
   private var firstTile: Pair<Int, Int>? = null
 
-  private var node: INode
+  private var node: Node
 
   init {
-    val rootNode = NodeFactory.getNode(game)
-    checkNotNull(rootNode)
+    val rootNode = NodeFactory.createRootNode()
     node = rootNode
   }
 
@@ -44,7 +43,6 @@ class InteractionManager(var game: Game) {
       } catch (e: IllegalMoveException) {
         displayMessage(e.message.toString())
       }
-
       firstTile = null
     } else if (
       game.position.board.getTile(coordinates).getSafePiece()?.player == game.position.playerTurn
@@ -56,17 +54,15 @@ class InteractionManager(var game: Game) {
   fun reset(reloader: IReloader) {
     firstTile = null
     game = Game()
-    val rootNode = NodeFactory.getNode(game)
-    checkNotNull(rootNode)
-    node = rootNode
+    node = NodeFactory.createRootNode()
     reloader.reload()
   }
 
   fun back(reloader: IReloader) {
-    val parent = node.getParent()
+    val parent = node.previous
     if (parent != null) {
       node = parent
-      game = node.getGame()
+      game = node.createGame()
       reloader.reload()
     } else {
       displayMessage("No previous move.")
@@ -74,10 +70,10 @@ class InteractionManager(var game: Game) {
   }
 
   fun forward(reloader: IReloader) {
-    val firstChild = node.getFirstChild()
+    val firstChild = node.next
     if (firstChild != null) {
       node = firstChild
-      game = firstChild.getGame()
+      game = firstChild.createGame()
       reloader.reload()
     } else {
       displayMessage("No next move.")
@@ -91,7 +87,7 @@ class InteractionManager(var game: Game) {
   }
 
   fun getChildrenMoves(): List<String> {
-    return node.getChildren().keys.toList()
+    return node.moves.sorted()
   }
 
   suspend fun save() {

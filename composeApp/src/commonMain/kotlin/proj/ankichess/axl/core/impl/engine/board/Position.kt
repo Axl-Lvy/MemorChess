@@ -1,5 +1,6 @@
 package proj.ankichess.axl.core.impl.engine.board
 
+import proj.ankichess.axl.core.impl.data.PositionKey
 import proj.ankichess.axl.core.impl.engine.Game
 import proj.ankichess.axl.core.impl.engine.parser.FenParser
 import proj.ankichess.axl.core.impl.engine.pieces.Pawn
@@ -67,5 +68,9 @@ class Position(
     result = 31 * result + possibleCastles.contentHashCode()
     result = 31 * result + enPassantColumn
     return result
+  }
+
+  override fun toImmutablePosition(): PositionKey {
+    return PositionKey(FenParser.parsePosition(this, isEnpassantNecessary()))
   }
 }

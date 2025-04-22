@@ -1,13 +1,11 @@
 package proj.ankichess.axl.core.intf.data
 
-import kotlinx.coroutines.flow.Flow
-
 interface ICommonDataBase {
-  fun getAllPositions(): Flow<IStoredPosition>
+  suspend fun getAllPositions(): List<IStoredNode>
 
   suspend fun deletePosition(fen: String)
 
-  suspend fun insertPosition(position: IStoredPosition)
+  suspend fun insertPosition(position: IStoredNode)
 }
 
 expect fun getCommonDataBase(): ICommonDataBase

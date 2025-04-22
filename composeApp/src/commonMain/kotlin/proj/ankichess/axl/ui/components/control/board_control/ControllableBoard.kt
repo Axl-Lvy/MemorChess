@@ -13,16 +13,22 @@ import kotlinx.coroutines.launch
 import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
 import proj.ankichess.axl.core.impl.interactions.InteractionManager
 import proj.ankichess.axl.ui.components.board.Board
+import proj.ankichess.axl.ui.components.loading.LoadingPage
 import proj.ankichess.axl.ui.util.impl.BasicReloader
 
 @Composable
-fun ControllableBoard(modifier: Modifier = Modifier) {
+fun ControllableBoardPage(modifier: Modifier = Modifier) {
+  LoadingPage({ NodeFactory.retrieveGraphFromDatabase() }) { ControllableBoard(modifier) }
+}
+
+@Composable
+private fun ControllableBoard(modifier: Modifier = Modifier) {
   var inverted by remember { mutableStateOf(false) }
   val boardReloader = remember { BasicReloader() }
   val interactionManager = remember { InteractionManager() }
-  val nextMoves = remember(boardReloader.getKey()) { interactionManager.getChildrenMoves() }
-  NodeFactory.retrieveGraphFromDatabase()
   val coroutineScope = rememberCoroutineScope()
+
+  val nextMoves = remember(boardReloader.getKey()) { interactionManager.getChildrenMoves() }
   Column(verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
     ControlBar(
       modifier = Modifier.height(50.dp),

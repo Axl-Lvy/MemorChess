@@ -118,4 +118,6 @@ interface IBoard {
    * @param move The move to play.
    */
   fun playMove(move: IMove)
+
+  fun copy(): IBoard
 }

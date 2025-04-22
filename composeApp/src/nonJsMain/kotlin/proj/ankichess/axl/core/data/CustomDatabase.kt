@@ -8,7 +8,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-@Database(entities = [PositionEntity::class], version = 1)
+@Database(entities = [NodeEntity::class], version = 1)
 @ConstructedBy(DatabaseConstructor::class)
 abstract class CustomDatabase : RoomDatabase() {
   abstract fun getPositionDao(): PositionDao

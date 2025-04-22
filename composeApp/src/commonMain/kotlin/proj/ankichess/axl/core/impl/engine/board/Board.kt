@@ -15,13 +15,11 @@ import proj.ankichess.axl.core.intf.engine.moves.IMove
 import proj.ankichess.axl.core.intf.engine.pieces.IPiece
 
 /** Main implementation of [IBoard]. */
-class Board : IBoard {
-
+class Board(
   override val piecePositionsCache: Map<String, MutableSet<Pair<Int, Int>>> =
-    IPiece.PIECES.flatMap { listOf(it, it.uppercase()) }.associateWith { mutableSetOf() }
-
-  /** Array of tiles representing the chess board. */
-  private val array = createEmptyArray()
+    IPiece.PIECES.flatMap { listOf(it, it.uppercase()) }.associateWith { mutableSetOf() },
+  private val array: Array<Array<Tile>> = createEmptyArray(),
+) : IBoard {
 
   /**
    * Factory.
@@ -137,6 +135,20 @@ class Board : IBoard {
         }
       }
     }
+  }
+
+  override fun copy(): IBoard {
+    val newBoard = Board(piecePositionsCache.toMap())
+    for (i in 0..7) {
+      for (j in 0..7) {
+        val tile = array[i][j]
+        newBoard.array[i][j].piece = tile.piece
+        if (tile.piece != null) {
+          newBoard.addPositionToCache(newBoard.array[i][j])
+        }
+      }
+    }
+    return newBoard
   }
 
   override fun equals(other: Any?): Boolean {

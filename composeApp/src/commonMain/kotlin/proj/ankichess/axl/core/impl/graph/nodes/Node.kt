@@ -1,25 +1,27 @@
 package proj.ankichess.axl.core.impl.graph.nodes
 
-import proj.ankichess.axl.core.intf.engine.board.IPosition
-import proj.ankichess.axl.core.intf.graph.INode
+import proj.ankichess.axl.core.impl.data.PositionKey
+import proj.ankichess.axl.core.impl.data.StoredNode
+import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.intf.data.getCommonDataBase
 
-/**
- * Main node.
- *
- * @param parent Parent node.
- * @param position Position.
- * @constructor Creates a node from a parent.
- */
-class Node(private val parent: INode, position: IPosition) : AParentNode(position) {
-
-  override fun getParent(): INode {
-    return parent
+class Node(
+  val position: PositionKey,
+  val moves: MutableSet<String> = mutableSetOf(),
+  var previous: Node? = null,
+  var next: Node? = null,
+) {
+  fun createGame(): Game {
+    return Game(position)
   }
 
-  override suspend fun save() {
-    super.save()
-    if (!parent.isSaved()) {
-      parent.save()
-    }
+  fun addChild(move: String, child: Node) {
+    moves.add(move)
+    next = child
+  }
+
+  suspend fun save() {
+    getCommonDataBase().insertPosition(StoredNode(position, moves.sorted()))
+    previous?.save()
   }
 }
