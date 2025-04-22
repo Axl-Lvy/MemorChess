@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
@@ -15,7 +16,11 @@ plugins {
 }
 
 kotlin {
-  androidTarget { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
+  androidTarget {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+  }
 
   listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
     iosTarget.binaries.framework {
@@ -84,7 +89,13 @@ kotlin {
       api(libs.logging)
       implementation(libs.xfeather.z)
     }
-    commonTest.dependencies { implementation(libs.kotlin.test) }
+    val desktopTest by getting
+    commonTest.dependencies {
+      implementation(libs.kotlin.test)
+      @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class) implementation(compose.uiTest)
+    }
+    // Adds the desktop test dependency
+    desktopTest.dependencies { implementation(compose.desktop.currentOs) }
     val nonJsMain by getting {
       dependencies {
         implementation(libs.androidx.room.runtime)
@@ -106,6 +117,7 @@ android {
     targetSdk = libs.versions.android.targetSdk.get().toInt()
     versionCode = 1
     versionName = "1.0"
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
   buildTypes { getByName("release") { isMinifyEnabled = false } }
@@ -127,4 +139,7 @@ dependencies {
   add("kspIosSimulatorArm64", libs.androidx.room.compiler)
   add("kspIosX64", libs.androidx.room.compiler)
   add("kspIosArm64", libs.androidx.room.compiler)
+
+  androidTestImplementation(libs.androidx.ui.test.junit4.android)
+  debugImplementation(libs.androidx.ui.test.manifest)
 }
