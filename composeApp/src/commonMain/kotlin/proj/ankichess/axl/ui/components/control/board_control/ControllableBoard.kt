@@ -1,14 +1,21 @@
 package proj.ankichess.axl.ui.components.control.board_control
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Button
 import androidx.compose.material.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
+import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
 import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
 import proj.ankichess.axl.core.impl.interactions.InteractionManager
@@ -29,7 +36,10 @@ private fun ControllableBoard(modifier: Modifier = Modifier) {
   val coroutineScope = rememberCoroutineScope()
 
   val nextMoves = remember(boardReloader.getKey()) { interactionManager.getChildrenMoves() }
-  Column(verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)) {
+  Column(
+    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+    modifier = modifier.padding(16.dp),
+  ) {
     ControlBar(
       modifier = Modifier.height(50.dp),
       onReverseClick = { inverted = !inverted },
@@ -39,8 +49,23 @@ private fun ControllableBoard(modifier: Modifier = Modifier) {
     )
     Board(inverted, interactionManager, boardReloader, modifier = modifier.fillMaxWidth())
     NextMoveBar(moveList = nextMoves, playMove = { interactionManager.playMove(it, boardReloader) })
-    Button(onClick = { coroutineScope.launch { interactionManager.save() } }) {
-      Icon(FeatherIcons.Save, contentDescription = "Save")
+    Row(
+      horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      Button(
+        onClick = { coroutineScope.launch { interactionManager.save() } },
+        modifier = Modifier.weight(1f),
+      ) {
+        Icon(FeatherIcons.Save, contentDescription = "Save")
+      }
+      Button(
+        onClick = { coroutineScope.launch { interactionManager.delete(boardReloader) } },
+        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color.Red),
+        modifier = Modifier.weight(1f),
+      ) {
+        Icon(FeatherIcons.Trash, contentDescription = "Delete")
+      }
     }
   }
 }

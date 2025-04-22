@@ -94,6 +94,11 @@ class InteractionManager(var game: Game) {
     node.save()
   }
 
+  suspend fun delete(reloader: IReloader) {
+    node.delete()
+    reloader.reload()
+  }
+
   private fun displayMessage(message: String) {
     info(message)
   }

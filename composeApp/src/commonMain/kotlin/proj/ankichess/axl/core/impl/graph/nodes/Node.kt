@@ -24,4 +24,15 @@ class Node(
     getCommonDataBase().insertPosition(StoredNode(position, moves.sorted()))
     previous?.save()
   }
+
+  suspend fun delete() {
+    moves.forEach { move ->
+      val game = createGame()
+      game.playMove(move)
+      val childNode = NodeFactory.createNode(game, this, move)
+      childNode.delete()
+    }
+    getCommonDataBase().deletePosition(position.fenRepresentation)
+    moves.clear()
+  }
 }
