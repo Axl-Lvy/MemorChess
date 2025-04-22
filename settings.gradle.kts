@@ -45,4 +45,3 @@ gitHooks {
 
     createHooks(true)
 }
-include("testing")
