@@ -7,6 +7,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import ankichess.composeapp.generated.resources.Res
+import ankichess.composeapp.generated.resources.description_board_tile
+import org.jetbrains.compose.resources.stringResource
 import proj.ankichess.axl.core.impl.interactions.InteractionManager
 import proj.ankichess.axl.core.intf.engine.board.ITile
 import proj.ankichess.axl.core.intf.engine.pieces.IPiece
@@ -37,6 +40,7 @@ fun Board(
   LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = modifier) {
     items(64) { index ->
       val coords = squareIndexToBoardTile(index)
+      val tile = board.getTile(coords)
       run {
         Box(
           modifier =
@@ -48,11 +52,11 @@ fun Board(
                       tileToPiece[boardTile] = boardTile.getSafePiece()
                     }
                   }
-                }
+                },
+                onClickLabel = stringResource(Res.string.description_board_tile, tile.getName()),
               )
               .aspectRatio(1f)
         ) {
-          val tile = board.getTile(coords)
           Tile(tile)
           tileToPiece[tile]?.let { Piece(it) }
         }

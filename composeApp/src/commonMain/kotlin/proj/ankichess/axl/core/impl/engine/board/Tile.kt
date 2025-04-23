@@ -1,6 +1,7 @@
 package proj.ankichess.axl.core.impl.engine.board
 
 import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.intf.engine.board.IBoard
 import proj.ankichess.axl.core.intf.engine.board.ITile
 import proj.ankichess.axl.core.intf.engine.pieces.IPiece
 
@@ -34,6 +35,10 @@ class Tile(private val row: Int, private val col: Int, var piece: IPiece?) : ITi
 
   override fun getColor(): ITile.TileColor {
     return color
+  }
+
+  override fun getName(): String {
+    return IBoard.getTileName(getCoords())
   }
 
   override fun toString(): String {

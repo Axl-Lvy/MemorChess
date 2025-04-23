@@ -1,0 +1,12 @@
+<resources>
+  <!-- Board -->
+  <string name="description_board_controllable_board">Controllable board</string>
+  <string name="description_board_reverse">Reverse board</string>
+  <string name="description_board_reset">Reset board</string>
+  <string name="description_board_back">Back</string>
+  <string name="description_board_next">Next</string>
+  <string name="description_board_save">Save</string>
+  <string name="description_board_delete">Delete</string>
+  <string name="description_board_next_move">Play %1$s</string>
+  <string name="description_board_tile">Tile %1$s</string>
+</resources>

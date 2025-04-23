@@ -9,6 +9,8 @@ interface ITile {
 
   fun getColor(): TileColor
 
+  fun getName(): String
+
   enum class TileColor {
     WHITE,
     BLACK,

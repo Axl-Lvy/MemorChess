@@ -40,7 +40,7 @@ gitHooks {
     }
 
     preCommit {
-        tasks("ktfmtCheck","desktopTest")
+        tasks("ktfmtCheck","desktopTest", "connectedAndroidTest")
     }
 
     createHooks(true)
