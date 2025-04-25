@@ -1,7 +1,9 @@
 package proj.ankichess.axl
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -17,7 +19,6 @@ fun App() {
   MaterialTheme {
     val navController = rememberNavController()
     Scaffold(
-      content = { Router(navController = navController) },
       topBar = { TopBar() },
       bottomBar = {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -27,14 +28,16 @@ fun App() {
       },
       floatingActionButtonPosition = FabPosition.Center,
       floatingActionButton = { CenterButton(navController = navController) },
-    )
+    ) { innerPadding ->
+      Router(navController = navController, modifier = Modifier.padding(innerPadding))
+    }
   }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar() {
-  TopAppBar(
+  CenterAlignedTopAppBar(
     title = { Text(text = "AnkiChess", color = Color.White) },
     navigationIcon = {
       IconButton(onClick = { /* TODO: Handle navigation icon click */ }) {
