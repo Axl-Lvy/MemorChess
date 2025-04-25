@@ -1,9 +1,8 @@
 package proj.ankichess.axl
 
-import androidx.compose.material.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import compose.icons.FeatherIcons
@@ -27,12 +26,12 @@ fun App() {
         BottomBar(currentRoute, navController)
       },
       floatingActionButtonPosition = FabPosition.Center,
-      isFloatingActionButtonDocked = true,
       floatingActionButton = { CenterButton(navController = navController) },
     )
   }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar() {
   TopAppBar(
@@ -42,7 +41,5 @@ private fun TopBar() {
         Icon(FeatherIcons.Menu, contentDescription = "Menu", tint = Color.White)
       }
     },
-    backgroundColor = MaterialTheme.colors.primary,
-    elevation = 4.dp,
   )
 }

@@ -2,7 +2,7 @@ package proj.ankichess.axl.ui.components.loading
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,7 +23,7 @@ fun LoadingPage(suspendingFunction: suspend () -> Any?, composable: @Composable 
 
   if (isLoading) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      CircularProgressIndicator()
+      CircularProgressIndicator(modifier = Modifier.fillMaxSize())
     }
   } else {
     composable()

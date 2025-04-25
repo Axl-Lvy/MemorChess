@@ -6,8 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Button
-import androidx.compose.material.Icon
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +67,7 @@ private fun ControllableBoard(modifier: Modifier = Modifier) {
       }
       Button(
         onClick = { coroutineScope.launch { interactionManager.delete(boardReloader) } },
-        colors = androidx.compose.material.ButtonDefaults.buttonColors(backgroundColor = Color.Red),
+        colors = ButtonDefaults.buttonColors(Color.Red),
         modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Trash, contentDescription = "Delete")
