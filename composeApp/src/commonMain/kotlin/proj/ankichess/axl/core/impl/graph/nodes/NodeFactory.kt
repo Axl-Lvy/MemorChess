@@ -3,9 +3,8 @@ package proj.ankichess.axl.core.impl.graph.nodes
 import com.diamondedge.logging.logging
 import proj.ankichess.axl.core.impl.data.PositionKey
 import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.intf.data.ICommonDataBase
+import proj.ankichess.axl.core.intf.data.DatabaseHolder
 import proj.ankichess.axl.core.intf.data.IStoredNode
-import proj.ankichess.axl.core.intf.data.getCommonDataBase
 
 /** Node factory singleton. */
 object NodeFactory {
@@ -41,12 +40,18 @@ object NodeFactory {
     return newNode
   }
 
-  suspend fun retrieveGraphFromDatabase(dataBase: ICommonDataBase? = null) {
+  suspend fun resetCacheFromDataBase() {
+    movesCache.clear()
+    databaseRetrieved = false
+    retrieveGraphFromDatabase()
+  }
+
+  suspend fun retrieveGraphFromDatabase() {
     if (databaseRetrieved) {
       LOGGER.i { "Database already retrieved." }
       return
     }
-    val allPosition: List<IStoredNode> = (dataBase ?: getCommonDataBase()).getAllPositions()
+    val allPosition: List<IStoredNode> = (DatabaseHolder.getDatabase()).getAllPositions()
     allPosition.forEach {
       movesCache.getOrPut(it.positionKey) { mutableSetOf() }.addAll(it.getAvailableMoveList())
       LOGGER.i { "Retrieved node: ${it.positionKey}" }
