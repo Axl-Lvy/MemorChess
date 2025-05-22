@@ -16,6 +16,10 @@ object CommonDataBase : ICommonDataBase {
     database.getPositionDao().delete(fen)
   }
 
+  override suspend fun deleteAllPositions() {
+    database.getPositionDao().deleteAll()
+  }
+
   override suspend fun insertPosition(position: IStoredNode) {
     database.getPositionDao().insert(NodeEntity.convertToEntity(position))
   }

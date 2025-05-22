@@ -5,6 +5,8 @@ interface ICommonDataBase {
 
   suspend fun deletePosition(fen: String)
 
+  suspend fun deleteAllPositions()
+
   suspend fun insertPosition(position: IStoredNode)
 }
 

@@ -10,7 +10,6 @@ import proj.ankichess.axl.ui.pages.navigation.Destination
 
 @Composable
 fun Settings() {
-  // TODO
   Column(
     verticalArrangement = Arrangement.Center,
     modifier = Modifier.testTag(Destination.SETTINGS.name),

@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 import proj.ankichess.axl.core.impl.data.PositionKey
 import proj.ankichess.axl.core.intf.data.IStoredNode
 
-@Entity(tableName = "PositionEntity")
+@Entity(tableName = "NodeEntity")
 data class NodeEntity(
   @PrimaryKey(autoGenerate = false) val fenRepresentation: String,
   val availableMoves: String,
