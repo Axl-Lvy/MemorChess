@@ -19,7 +19,7 @@ fun CenterButton(navController: NavHostController) {
     Icon(
       modifier = Modifier.size(64.dp).padding(10.dp),
       painter = painterResource(Res.drawable.icon_main),
-      contentDescription = "main",
+      contentDescription = Destination.TRAINING.name + " button",
     )
   }
 }

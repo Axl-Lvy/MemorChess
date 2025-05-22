@@ -19,7 +19,7 @@ fun BottomBar(currentRoute: String, navController: NavHostController) {
           remember(currentRoute) { derivedStateOf { currentRoute == item.destination.name } }
         NavigationBarItem(
           selected = isSelected,
-          icon = { Icon(item.icon, contentDescription = item.label) },
+          icon = { Icon(item.icon, contentDescription = item.label + " button") },
           onClick = { navController.navigate(item.destination.name) },
         )
       }

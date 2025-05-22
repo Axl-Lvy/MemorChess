@@ -13,13 +13,13 @@ enum class BottomBarItem(
   val index: Int,
 ) {
   Explore(
-    label = "Explore",
+    label = Destination.EXPLORE.name,
     icon = Icons.Rounded.Search,
     destination = Destination.EXPLORE,
     index = 0,
   ),
   Settings(
-    label = "Settings",
+    label = Destination.SETTINGS.name,
     icon = Icons.Rounded.Settings,
     destination = Destination.SETTINGS,
     index = 1,

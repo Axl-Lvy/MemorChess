@@ -20,18 +20,13 @@ import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
 import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
 import proj.ankichess.axl.core.impl.interactions.InteractionManager
-import proj.ankichess.axl.core.intf.data.ICommonDataBase
-import proj.ankichess.axl.core.intf.data.getCommonDataBase
 import proj.ankichess.axl.ui.components.board.Board
 import proj.ankichess.axl.ui.components.loading.LoadingPage
 import proj.ankichess.axl.ui.util.impl.BasicReloader
 
 @Composable
-fun ControllableBoardPage(
-  modifier: Modifier = Modifier,
-  dataBase: ICommonDataBase = getCommonDataBase(),
-) {
-  LoadingPage({ NodeFactory.retrieveGraphFromDatabase(dataBase) }) { ControllableBoard(modifier) }
+fun ControllableBoardPage(modifier: Modifier = Modifier) {
+  LoadingPage({ NodeFactory.retrieveGraphFromDatabase() }) { ControllableBoard(modifier) }
 }
 
 @Composable
