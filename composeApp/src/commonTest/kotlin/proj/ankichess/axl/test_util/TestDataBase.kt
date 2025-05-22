@@ -17,4 +17,8 @@ object TestDataBase : ICommonDataBase {
   override suspend fun insertPosition(position: IStoredNode) {
     storedNodes.put(position.positionKey.fenRepresentation, position)
   }
+
+  override suspend fun deleteAllPositions() {
+    storedNodes.clear()
+  }
 }

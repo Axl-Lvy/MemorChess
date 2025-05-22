@@ -2,10 +2,10 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "fb8f7b3f27d96d81680b4da182d998cf",
+    "identityHash": "1efae24d37569c64172797f28091ede7",
     "entities": [
       {
-        "tableName": "PositionEntity",
+        "tableName": "NodeEntity",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fenRepresentation` TEXT NOT NULL, `availableMoves` TEXT NOT NULL, PRIMARY KEY(`fenRepresentation`))",
         "fields": [
           {
@@ -31,7 +31,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fb8f7b3f27d96d81680b4da182d998cf')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1efae24d37569c64172797f28091ede7')"
     ]
   }
 }

@@ -11,7 +11,7 @@ import kotlinx.coroutines.IO
 @Database(entities = [NodeEntity::class], version = 1)
 @ConstructedBy(DatabaseConstructor::class)
 abstract class CustomDatabase : RoomDatabase() {
-  abstract fun getPositionDao(): PositionDao
+  abstract fun getPositionDao(): NodeEntityDao
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

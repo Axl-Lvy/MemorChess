@@ -7,7 +7,7 @@ import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import org.junit.Rule
 import org.junit.Test
-import proj.akichess.axl.RetrieveFakeDatabaseRule
+import proj.akichess.axl.InstantiateFakeDataBaseRule
 import proj.ankichess.axl.App
 import proj.ankichess.axl.test_util.getButtonDescription
 import proj.ankichess.axl.ui.pages.navigation.Destination
@@ -15,7 +15,7 @@ import proj.ankichess.axl.ui.pages.navigation.Destination
 class TestPageNavigation {
 
   @get:Rule val composeTestRule = createComposeRule()
-  @get:Rule val retrieveDatabaseRules = RetrieveFakeDatabaseRule()
+  @get:Rule val retrieveDatabaseRules = InstantiateFakeDataBaseRule()
 
   @BeforeTest
   fun setUp() {
