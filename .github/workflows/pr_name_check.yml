@@ -15,8 +15,9 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const body = pr.body || "";
-            const checked = body.includes('- [x] Run PR name check');
-            core.setOutput('should_run', checked ? 'true' : 'false');
+            if (!body.includes('- [x] Run PR name check')) {
+              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
+            }
       - name: Conventional commit check in pull request title
         if: steps.checkbox.outputs.should_run == 'true'
         uses: ytanikin/pr-conventional-commits@1.4.1
