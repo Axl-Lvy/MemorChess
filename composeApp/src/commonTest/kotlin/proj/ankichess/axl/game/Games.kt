@@ -1,30 +1,65 @@
 package proj.ankichess.axl.game
 
-/**
- * Retrieves a list of games defined by moves.
- *
- * @return
- */
+/** Retrieves a list of games defined by moves. */
 fun getGames(): List<List<String>> {
-  val games = mutableListOf<MutableList<String>>()
+  val games = mutableListOf<List<String>>()
   for (game in
     pgnString.split("\n\n").map { it.replace("\r", "").replace("\n", " ").replace(". ", ".") }) {
-    games.add(mutableListOf())
-    val moves = game.split(" ")
-    for (move in
-      moves.subList(0, moves.size - 1).map {
-        val splited = it.split(".")
-        if (splited.size == 2) {
-          splited[1].trim()
-        } else {
-          splited[0].trim()
-        }
-      }) {
-      games.last().add(move)
-    }
+    games.add(getGame(game))
   }
   return games
 }
+
+/** Retrieves a list of moves for the Vienna game. */
+fun getVienna(): List<String> {
+  return getGame(pgnVienna)
+}
+
+/** Retrieves a list of moves for the London game. */
+fun getLondon(): List<String> {
+  return getGame(pgnLondon)
+}
+
+/** Retrieves a list of moves for the Scandinavian game. */
+fun getScandinavian(): List<String> {
+  return getGame(pgnScandinavian)
+}
+
+/** Parses a PGN string and returns a list of moves. */
+private fun getGame(pgn: String): List<String> {
+  val game = mutableListOf<String>()
+  val moves = pgn.split(" ")
+  for (move in
+    moves.subList(0, moves.size - 1).map {
+      val splited = it.split(".")
+      if (splited.size == 2) {
+        splited[1].trim()
+      } else {
+        splited[0].trim()
+      }
+    }) {
+    game.add(move)
+  }
+  return game
+}
+
+private val pgnVienna =
+  """
+    1.e4 e5 2.Nc3 Nf6 3.f4 d5 4.fxe5 Nxe4 5.Qf3
+  """
+    .trimIndent()
+
+private val pgnLondon =
+  """
+    1.d4 d5 2.Bf4 Nf6 3.e3 e6 4.Nf3 Bd6 5.Bg3 O-O
+  """
+    .trimIndent()
+
+private val pgnScandinavian =
+  """
+    1.e4 d5 2.exd5 Qxd5 3.Nc3 Qa5 4.d4 c6
+  """
+    .trimIndent()
 
 private val pgnString =
   """
