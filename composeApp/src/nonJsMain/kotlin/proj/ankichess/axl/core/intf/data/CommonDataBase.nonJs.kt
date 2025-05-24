@@ -9,19 +9,19 @@ object CommonDataBase : ICommonDataBase {
   private val database = getRoomDatabase(databaseBuilder())
 
   override suspend fun getAllPositions(): List<IStoredNode> {
-    return database.getPositionDao().getAll()
+    return database.getNodeEntityDao().getAll()
   }
 
   override suspend fun deletePosition(fen: String) {
-    database.getPositionDao().delete(fen)
+    database.getNodeEntityDao().delete(fen)
   }
 
   override suspend fun deleteAllPositions() {
-    database.getPositionDao().deleteAll()
+    database.getNodeEntityDao().deleteAll()
   }
 
   override suspend fun insertPosition(position: IStoredNode) {
-    database.getPositionDao().insert(NodeEntity.convertToEntity(position))
+    database.getNodeEntityDao().insert(NodeEntity.convertToEntity(position))
   }
 }
 

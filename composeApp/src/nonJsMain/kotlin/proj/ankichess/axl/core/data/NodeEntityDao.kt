@@ -8,7 +8,7 @@ import androidx.room.Query
 @Dao
 interface NodeEntityDao {
 
-  @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insert(item: NodeEntity)
+  @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(item: NodeEntity)
 
   @Query("SELECT * FROM NodeEntity") suspend fun getAll(): List<NodeEntity>
 
