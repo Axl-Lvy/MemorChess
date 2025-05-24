@@ -8,16 +8,6 @@ jobs:
   validate-pr-title:
     runs-on: ubuntu-latest
     steps:
-      - name: Check if PR checkbox is checked
-        id: checkbox
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const body = pr.body || "";
-            if (!body.includes('- [x] Run PR name check')) {
-              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
-            }
       - name: Conventional commit check in pull request title
         uses: ytanikin/pr-conventional-commits@1.4.1
         with:
