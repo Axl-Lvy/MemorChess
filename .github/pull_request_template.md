@@ -1,3 +1,5 @@
 ## Checklist
-- [ ] Run PR name check
-- [ ] I've run the tests on my machine
+
+- [ ] Check code formatting
+- [ ] Run desktop tests
+- [ ] Run Android tests
