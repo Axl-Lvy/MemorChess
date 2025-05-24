@@ -1,6 +1,5 @@
 package proj.ankichess.axl.game
 
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import proj.ankichess.axl.core.impl.engine.Game
@@ -22,7 +21,6 @@ class TestInteractionManager {
   }
 
   @Test
-  @Ignore
   fun testManyGames() {
     val gameList = getGames()
     gameList.forEach { testGame(it) }
