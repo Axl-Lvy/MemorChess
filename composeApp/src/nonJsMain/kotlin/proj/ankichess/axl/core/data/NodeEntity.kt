@@ -43,6 +43,8 @@ data class NodeEntity(
      * @return A [NodeEntity] with the same FEN and available moves.
      */
     fun convertToEntity(position: IStoredNode): NodeEntity {
+      println("hey" + position.getAvailableMoveList())
+      println("fenRepresentation: " + position.getAvailableMoveList().joinToString(","))
       return NodeEntity(
         fenRepresentation = position.positionKey.fenRepresentation,
         availableMoves = position.getAvailableMoveList().joinToString(","),
