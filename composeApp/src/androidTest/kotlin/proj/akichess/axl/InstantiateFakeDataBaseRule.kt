@@ -10,7 +10,7 @@ class InstantiateFakeDataBaseRule : TestRule {
   override fun apply(base: Statement?, description: Description?): Statement? {
     return object : Statement() {
       override fun evaluate() {
-        DatabaseHolder.init(TestDataBase)
+        DatabaseHolder.init(TestDataBase.vienna())
       }
     }
   }
