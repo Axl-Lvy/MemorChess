@@ -10,12 +10,14 @@ jobs:
 
     steps:
       - name: Ensure tests checkbox is checked
-        run: |
-          PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q ".body")
-          echo "$PR_BODY" | grep -q '\[x\] Run tests' || {
-            echo 'Tests disabled. Please check the "Run tests" checkbox in the PR description.'
-            exit 1
-          }
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || "";
+            if (!body.includes('- [x] Run tests')) {
+              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
+            }
       - name: Checkout
         uses: actions/checkout@v3
 
