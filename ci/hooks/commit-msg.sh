@@ -11,6 +11,7 @@ fi
 msg_file="$1"
 
 # join types with | to form regex ORs
+types=("feat" "fix" "docs" "test" "ci" "refactor" "perf" "chore")
 r_types="($(IFS='|'; echo "${types[*]}"))"
 # optional (scope)
 r_scope="(\([[:alnum:] \/-]+\))?"
