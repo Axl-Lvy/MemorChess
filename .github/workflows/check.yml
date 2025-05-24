@@ -15,7 +15,7 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const body = pr.body || "";
-            if (!body.includes('- [x] Run tests')) {
+            if (!body.includes('- [x] Run Android tests')) {
               core.setFailed('The "Run PR name check" box must be checked in the PR description.');
             }
 
@@ -32,4 +32,40 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
+          target: google_apis
           script: ./gradlew connectedCheck
+
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure tests checkbox is checked
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || "";
+            if (!body.includes('- [x] Check code formatting')) {
+              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
+            }
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run formatter check
+        run: ./gradlew ktfmtCheck
+
+  desktop-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure tests checkbox is checked
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || "";
+            if (!body.includes('- [x] Run desktop tests')) {
+              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
+            }
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run desktop tests
+        run: ./gradlew desktopTest
+

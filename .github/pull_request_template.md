@@ -1,2 +1,5 @@
 ## Checklist
-- [ ] Run tests
+
+- [ ] Check code formatting
+- [ ] Run desktop tests
+- [ ] Run Android tests
