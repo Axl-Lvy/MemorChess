@@ -33,8 +33,8 @@ class TestDataBase() : ICommonDataBase {
   }
 
   /**
-   * Utility methods to create test databases prefilled with common chess openings,
-   * as well as to merge multiple test databases.
+   * Utility methods to create test databases prefilled with common chess openings, as well as to
+   * merge multiple test databases.
    */
   companion object {
 
