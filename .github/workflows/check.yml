@@ -1,4 +1,4 @@
-name: PR Conventional Commit Validation
+name: Check code
 
 on:
   pull_request:
