@@ -25,7 +25,7 @@ class TestDataBase() : ICommonDataBase {
   }
 
   override suspend fun insertPosition(position: IStoredNode) {
-    storedNodes.put(position.positionKey.fenRepresentation, position)
+    storedNodes[position.positionKey.fenRepresentation] = position
   }
 
   override suspend fun deleteAllPositions() {
