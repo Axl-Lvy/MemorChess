@@ -6,6 +6,7 @@ import ankichess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import proj.ankichess.axl.core.impl.engine.Game
 import proj.ankichess.axl.core.impl.engine.pieces.Pawn
 import proj.ankichess.axl.core.impl.engine.pieces.vectors.*
@@ -13,10 +14,13 @@ import proj.ankichess.axl.core.intf.engine.pieces.IPiece
 
 @Composable
 fun Piece(piece: IPiece) {
-  Image(painter = painterResource(pieceToResource(piece)), contentDescription = piece.toString())
+  Image(
+    painter = painterResource(pieceToResource(piece)),
+    contentDescription = stringResource(Res.string.description_board_piece, piece.toString()),
+  )
 }
 
-fun pieceToResource(piece: IPiece): DrawableResource {
+private fun pieceToResource(piece: IPiece): DrawableResource {
   val resourceSuffix = if (piece.player == Game.Player.WHITE) "w" else "b"
   return drawableResource(
     "piece_${

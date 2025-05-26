@@ -22,5 +22,10 @@ expect object DatabaseConstructor : RoomDatabaseConstructor<CustomDatabase> {
 expect fun databaseBuilder(): RoomDatabase.Builder<CustomDatabase>
 
 fun getRoomDatabase(builder: RoomDatabase.Builder<CustomDatabase>): CustomDatabase {
-  return builder.setDriver(BundledSQLiteDriver()).setQueryCoroutineContext(Dispatchers.IO).build()
+  return builder
+    .fallbackToDestructiveMigration(true)
+    .setDriver(BundledSQLiteDriver())
+    .setQueryCoroutineContext(Dispatchers.IO)
+    // TODO: remove in production
+    .build()
 }
