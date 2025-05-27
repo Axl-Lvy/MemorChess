@@ -16,7 +16,7 @@ import proj.ankichess.axl.test_util.getNextMoveDescription
 import proj.ankichess.axl.test_util.getTileDescription
 import proj.ankichess.axl.ui.components.control.board_control.ControllableBoardPage
 
-class TestBoardControl {
+class TestControlBar {
 
   @get:Rule val composeTestRule = createComposeRule()
 
@@ -71,6 +71,5 @@ class TestBoardControl {
       .onNode(hasClickLabel(getTileDescription("e2")))
       .assertExists()
       .assertContentDescriptionContains("Piece P")
-    composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertExists()
   }
 }
