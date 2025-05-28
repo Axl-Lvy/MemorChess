@@ -16,7 +16,7 @@ import proj.ankichess.axl.test_util.getNextMoveDescription
 import proj.ankichess.axl.test_util.getTileDescription
 import proj.ankichess.axl.ui.components.control.board_control.ControllableBoardPage
 
-class TestBoardControl {
+class TestNextMoveBar {
 
   @get:Rule val composeTestRule = createComposeRule()
 
@@ -29,28 +29,15 @@ class TestBoardControl {
   }
 
   @Test
-  fun testInvertBoard() {
-    composeTestRule.onNodeWithTag("Reverse board").assertExists().performClick()
-    composeTestRule.onNodeWithTag("Reverse board").assertExists().performClick()
-  }
-
-  @Test
-  fun testBack() {
+  fun testNextMoveAppears() {
     composeTestRule.onNodeWithTag("Back").assertExists().performClick()
-    composeTestRule
-      .onNode(hasClickLabel(getTileDescription("e4")))
-      .assert(hasContentDescription("Piece", substring = true).not())
-    composeTestRule
-      .onNode(hasClickLabel(getTileDescription("e2")))
-      .assertExists()
-      .assertContentDescriptionContains("Piece P")
     composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertExists()
   }
 
   @Test
-  fun testForward() {
+  fun testNextMoveWorks() {
     composeTestRule.onNodeWithTag("Back").assertExists().performClick()
-    composeTestRule.onNodeWithTag("Next").assertExists().performClick()
+    composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertExists().performClick()
     composeTestRule
       .onNode(hasClickLabel(getTileDescription("e4")))
       .assertExists()
@@ -58,19 +45,39 @@ class TestBoardControl {
     composeTestRule
       .onNode(hasClickLabel(getTileDescription("e2")))
       .assert(hasContentDescription("", substring = true).not())
-    composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertDoesNotExist()
   }
 
   @Test
-  fun testReset() {
-    composeTestRule.onNodeWithTag("Reset board").assertExists().performClick()
+  fun testMultipleNextMoves() {
+    composeTestRule.onNodeWithTag("Back").assertExists().performClick()
+    composeTestRule.onNode(hasClickLabel(getTileDescription("e2"))).assertExists().performClick()
+    composeTestRule.onNode(hasClickLabel(getTileDescription("e3"))).assertExists().performClick()
+    composeTestRule.onNodeWithTag("Back").assertExists().performClick()
+
+    composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertExists()
+    composeTestRule.onNodeWithTag(getNextMoveDescription("e3")).assertExists().performClick()
     composeTestRule
-      .onNode(hasClickLabel(getTileDescription("e4")))
-      .assert(hasContentDescription("Piece", substring = true).not())
-    composeTestRule
-      .onNode(hasClickLabel(getTileDescription("e2")))
+      .onNode(hasClickLabel(getTileDescription("e3")))
       .assertExists()
       .assertContentDescriptionContains("Piece P")
-    composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertExists()
+    composeTestRule
+      .onNode(hasClickLabel(getTileDescription("e2")))
+      .assert(hasContentDescription("", substring = true).not())
+    composeTestRule
+      .onNode(hasClickLabel(getTileDescription("e4")))
+      .assert(hasContentDescription("", substring = true).not())
+  }
+
+  @Test
+  fun testNextMoveAfterReset() {
+    composeTestRule.onNodeWithTag("Reset board").assertExists().performClick()
+    composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertExists().performClick()
+    composeTestRule
+      .onNode(hasClickLabel(getTileDescription("e4")))
+      .assertExists()
+      .assertContentDescriptionContains("Piece P")
+    composeTestRule
+      .onNode(hasClickLabel(getTileDescription("e2")))
+      .assert(hasContentDescription("", substring = true).not())
   }
 }

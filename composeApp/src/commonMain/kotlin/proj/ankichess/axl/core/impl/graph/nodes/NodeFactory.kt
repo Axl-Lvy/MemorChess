@@ -33,6 +33,8 @@ object NodeFactory {
    * @return The node.
    */
   fun createNode(game: Game, previous: Node, move: String): Node {
+    val previousNodeMoves = movesCache.getOrPut(previous.position) { mutableSetOf() }
+    previousNodeMoves.add(move)
     val newNodeMoves = movesCache.getOrPut(game.position.toImmutablePosition()) { mutableSetOf() }
     val newNode =
       Node(game.position.toImmutablePosition(), previous = previous, moves = newNodeMoves)

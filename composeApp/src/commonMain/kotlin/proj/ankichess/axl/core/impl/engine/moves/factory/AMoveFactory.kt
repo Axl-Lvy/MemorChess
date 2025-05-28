@@ -357,10 +357,13 @@ abstract class AMoveFactory(val position: IPosition) {
           movingPiece.isMovePossible(candidateMove) &&
           createMoveFrom(candidateMove) != null
       ) {
-        if (position.first == move.origin().first) {
-          isSameRow = true
-        } else {
+        if (position.second == move.origin().second) {
           isSameColumn = true
+        } else {
+          // Even if the piece is not on the same row, this boolean is set as true to add the column
+          // clue. For nights for example, they can go to the same tile being
+          // on different rows and columns.
+          isSameRow = true
         }
       }
     }
