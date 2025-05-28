@@ -16,7 +16,7 @@ jobs:
             const pr = context.payload.pull_request;
             const body = pr.body || "";
             if (!body.includes('- [x] Run Android tests')) {
-              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
+              core.setFailed('The "Run Android tests" box must be checked in the PR description.');
             }
 
       - name: checkout
@@ -49,7 +49,7 @@ jobs:
             const pr = context.payload.pull_request;
             const body = pr.body || "";
             if (!body.includes('- [x] Check code formatting')) {
-              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
+              core.setFailed('The "Check code formatting" box must be checked in the PR description.');
             }
 
       - name: Checkout code
@@ -79,7 +79,7 @@ jobs:
             const pr = context.payload.pull_request;
             const body = pr.body || "";
             if (!body.includes('- [x] Run desktop tests')) {
-              core.setFailed('The "Run PR name check" box must be checked in the PR description.');
+              core.setFailed('The "Run desktop tests" box must be checked in the PR description.');
             }
 
       - name: Checkout code

@@ -4,12 +4,21 @@ on:
     branches:
       - master
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened, edited ]
 jobs:
   build:
     name: Build and analyze
     runs-on: ubuntu-latest
     steps:
+      - name: Ensure sonar checkbox is checked
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || "";
+            if (!body.includes('- [x] Run Sonar analysis')) {
+              core.setFailed('The "Run Sonar analysis" box must be checked in the PR description.');
+            }
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
