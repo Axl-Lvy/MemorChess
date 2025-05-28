@@ -10,6 +10,7 @@ Thank you for your interest in contributing to AnkiChess! 🚀 Please follow the
   ./gradlew ktfmtCheck
   ```
 - Our pre-commit hook will automatically check formatting and run tests on the `master` branch.
+- Sonar is used to ensure code quality.
 
 ## 🤝 Pull Requests
 

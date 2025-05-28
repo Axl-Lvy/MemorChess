@@ -7,4 +7,13 @@ plugins {
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.sonar)
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "Axl-Lvy_AnkiChess")
+        property("sonar.organization", "axl-lvy")
+        property("sonar.host.url", "https://sonarcloud.io")
+    }
 }
