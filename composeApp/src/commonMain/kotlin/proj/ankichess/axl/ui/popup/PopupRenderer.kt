@@ -1,7 +1,7 @@
 package proj.ankichess.axl.ui.popup
 
 /** Popup renderer. */
-interface PopupRenderer {
+fun interface PopupRenderer {
   fun renderPopup(message: String, type: PopupType)
 }
 
