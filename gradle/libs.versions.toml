@@ -31,6 +31,7 @@ ksp = "2.1.20-2.0.0"
 sqlite = "2.5.1"
 koin-bom = "4.0.0"
 uiTestAndroid = "1.8.2"
+sonar = "6.2.0.5505"
 
 [libraries]
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
@@ -75,3 +76,4 @@ kotlinX-serialization-plugin = { id = "org.jetbrains.kotlin.plugin.serialization
 ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}
 room = { id = "androidx.room", version.ref = "androidx-room" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+sonar = { id = "org.sonarqube", version.ref = "sonar" }
