@@ -141,24 +141,7 @@ abstract class AMoveFactory(val position: IPosition) {
         stringMove.split("=")[0]
       }
     if (cleanMove == Castle.LONG_CASTLE_STRING || cleanMove == Castle.SHORT_CASTLE_STRING) {
-      val index =
-        if (cleanMove == Castle.LONG_CASTLE_STRING) {
-          if (position.playerTurn == Game.Player.WHITE) {
-            1
-          } else {
-            3
-          }
-        } else {
-          if (position.playerTurn == Game.Player.WHITE) {
-            0
-          } else {
-            2
-          }
-        }
-      check(position.possibleCastles[index])
-      val castle = Castle.castles[index]
-      check(castle.isPossible(position.board))
-      return castle
+      return parseCastleMove(cleanMove)
     }
     try {
       return if (cleanMove.length == 2 || cleanMove[0].isLowerCase()) {
@@ -168,10 +151,31 @@ abstract class AMoveFactory(val position: IPosition) {
       }
     } catch (e: IllegalStateException) {
       throw IllegalMoveException(
-        "$stringMove is not a valid move. $position.playerTurn to play, of the board: \n ${position.board}",
+        "$stringMove is not a valid move. ${position.playerTurn} to play, of the board: \n ${position.board}",
         e,
       )
     }
+  }
+
+  private fun parseCastleMove(cleanMove: String): Castle {
+    val index =
+      if (cleanMove == Castle.LONG_CASTLE_STRING) {
+        if (position.playerTurn == Game.Player.WHITE) {
+          1
+        } else {
+          3
+        }
+      } else {
+        if (position.playerTurn == Game.Player.WHITE) {
+          0
+        } else {
+          2
+        }
+      }
+    check(position.possibleCastles[index])
+    val castle = Castle.castles[index]
+    check(castle.isPossible(position.board))
+    return castle
   }
 
   /**
@@ -372,7 +376,7 @@ abstract class AMoveFactory(val position: IPosition) {
       ambiguityBuilder.append(IBoard.getColumnName(move.origin().second))
     }
     if (isSameColumn) {
-      ambiguityBuilder.append(move.origin().first)
+      ambiguityBuilder.append(move.origin().first + 1)
     }
     return ambiguityBuilder.toString()
   }
