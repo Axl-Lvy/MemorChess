@@ -67,4 +67,17 @@ class TestNextMoveBar {
       .onNode(hasClickLabel(getTileDescription("e4")))
       .assert(hasContentDescription("", substring = true).not())
   }
+
+  @Test
+  fun testNextMoveAfterReset() {
+    composeTestRule.onNodeWithTag("Reset board").assertExists().performClick()
+    composeTestRule.onNodeWithTag(getNextMoveDescription("e4")).assertExists().performClick()
+    composeTestRule
+      .onNode(hasClickLabel(getTileDescription("e4")))
+      .assertExists()
+      .assertContentDescriptionContains("Piece P")
+    composeTestRule
+      .onNode(hasClickLabel(getTileDescription("e2")))
+      .assert(hasContentDescription("", substring = true).not())
+  }
 }
