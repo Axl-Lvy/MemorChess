@@ -5,8 +5,8 @@ import proj.ankichess.axl.core.impl.engine.moves.IllegalMoveException
 import proj.ankichess.axl.core.impl.engine.moves.description.MoveDescription
 import proj.ankichess.axl.core.impl.graph.nodes.Node
 import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
+import proj.ankichess.axl.core.intf.util.IReloader
 import proj.ankichess.axl.ui.popup.info
-import proj.ankichess.axl.ui.util.intf.IReloader
 
 /**
  * Class that handles clicks on the chess board.
@@ -87,7 +87,7 @@ class InteractionManager(var game: Game) {
   }
 
   fun getChildrenMoves(): List<String> {
-    return node.moves.sorted()
+    return node.linkedMoves.nextMoves.sorted()
   }
 
   suspend fun save() {

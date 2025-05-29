@@ -6,4 +6,6 @@ interface IStoredNode {
   val positionKey: PositionKey
 
   fun getAvailableMoveList(): List<String>
+
+  fun getPreviousMoveList(): List<String>
 }

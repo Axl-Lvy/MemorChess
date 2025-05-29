@@ -13,7 +13,7 @@ import org.jetbrains.compose.resources.stringResource
 import proj.ankichess.axl.core.impl.interactions.InteractionManager
 import proj.ankichess.axl.core.intf.engine.board.ITile
 import proj.ankichess.axl.core.intf.engine.pieces.IPiece
-import proj.ankichess.axl.ui.util.intf.IReloader
+import proj.ankichess.axl.core.intf.util.IReloader
 
 @Composable
 fun Board(
