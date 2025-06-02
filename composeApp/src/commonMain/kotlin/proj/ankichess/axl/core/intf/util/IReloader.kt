@@ -1,4 +1,4 @@
-package proj.ankichess.axl.ui.util.intf
+package proj.ankichess.axl.core.intf.util
 
 /** Reloader. */
 interface IReloader {

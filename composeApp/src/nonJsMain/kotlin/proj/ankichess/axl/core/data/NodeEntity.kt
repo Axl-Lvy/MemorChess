@@ -24,6 +24,9 @@ data class NodeEntity(
 
   /** Comma-separated list of moves from this position. */
   val availableMoves: String,
+
+  /** Comma-separated list of moves that can lead to this position. */
+  val previousMoves: String,
 ) : IStoredNode {
 
   /** Returns the [PositionKey] for this node, constructed from the FEN representation. */
@@ -33,6 +36,10 @@ data class NodeEntity(
   /** Returns the list of available moves by splitting the comma-separated string. */
   override fun getAvailableMoveList(): List<String> =
     availableMoves.split(",").filter { it.isNotBlank() }
+
+  /** Returns the list of previous moves by splitting the comma-separated string. */
+  override fun getPreviousMoveList(): List<String> =
+    previousMoves.split(",").filter { it.isNotBlank() }
 
   /** Converter object for creating [NodeEntity] instances from [IStoredNode]s. */
   companion object Converter {
@@ -46,6 +53,7 @@ data class NodeEntity(
       return NodeEntity(
         fenRepresentation = position.positionKey.fenRepresentation,
         availableMoves = position.getAvailableMoveList().joinToString(","),
+        previousMoves = position.getPreviousMoveList().joinToString(","),
       )
     }
   }

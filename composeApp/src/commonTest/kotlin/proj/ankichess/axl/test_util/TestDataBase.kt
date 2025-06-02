@@ -13,7 +13,7 @@ import proj.ankichess.axl.game.getVienna
  *
  * @constructor Creates an empty test database.
  */
-class TestDataBase() : ICommonDataBase {
+class TestDataBase private constructor() : ICommonDataBase {
   val storedNodes = mutableMapOf<String, IStoredNode>()
 
   override suspend fun getAllPositions(): List<IStoredNode> {
@@ -53,6 +53,11 @@ class TestDataBase() : ICommonDataBase {
       return createDataBaseFromMoves(getScandinavian())
     }
 
+    /** An empty database. */
+    fun empty(): TestDataBase {
+      return TestDataBase()
+    }
+
     /**
      * A database with the given moves.
      *
@@ -62,8 +67,15 @@ class TestDataBase() : ICommonDataBase {
     private fun createDataBaseFromMoves(moves: List<String>): TestDataBase {
       val testDataBase = TestDataBase()
       val game = Game()
+      var previousMove: String? = null
       for (move in moves) {
-        val node = StoredNode(game.position.toImmutablePosition(), listOf(move))
+        val node =
+          StoredNode(
+            game.position.toImmutablePosition(),
+            listOf(move),
+            previousMove?.let { listOf(it) } ?: emptyList(),
+          )
+        previousMove = move
         testDataBase.storedNodes[node.positionKey.fenRepresentation] = node
         game.playMove(move)
       }
@@ -86,7 +98,10 @@ class TestDataBase() : ICommonDataBase {
           } else {
             val newMoves = storedNode.getAvailableMoveList().toMutableSet()
             newMoves.addAll(entry.value.getAvailableMoveList())
-            merged.storedNodes[entry.key] = StoredNode(storedNode.positionKey, newMoves.sorted())
+            val previousMoves = storedNode.getPreviousMoveList().toMutableSet()
+            newMoves.addAll(entry.value.getPreviousMoveList())
+            merged.storedNodes[entry.key] =
+              StoredNode(storedNode.positionKey, newMoves.sorted(), previousMoves.sorted())
           }
         }
       }
