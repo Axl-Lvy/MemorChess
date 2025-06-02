@@ -14,6 +14,7 @@ import proj.ankichess.axl.core.intf.engine.board.IBoard
 import proj.ankichess.axl.core.intf.engine.moves.IMove
 import proj.ankichess.axl.test_util.NoOpReloader
 import proj.ankichess.axl.test_util.TestDataBase
+import proj.ankichess.axl.ui.popup.PopupRendererHolder
 
 class TestInteractionManager {
   private lateinit var interactionManager: InteractionManager
@@ -22,6 +23,7 @@ class TestInteractionManager {
 
   private fun initialize() {
     DatabaseHolder.init(TestDataBase.empty())
+    PopupRendererHolder.init { _, _ -> }
     interactionManager = InteractionManager()
     moveFactory = SimpleMoveFactory(interactionManager.game.position)
     checkChecker = DummyCheckChecker(interactionManager.game.position)

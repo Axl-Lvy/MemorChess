@@ -1,7 +1,5 @@
 package proj.ankichess.axl.core.intf.data
 
-import proj.ankichess.axl.core.intf.data.DatabaseHolder.getDatabase
-
 /**
  * Object that holds the database. Before the first database retrieval, it is possible to initialize
  * it with a custom [ICommonDataBase].
