@@ -4,12 +4,11 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.board.Board
-import proj.ankichess.axl.core.impl.engine.board.Position
-import proj.ankichess.axl.core.impl.engine.moves.IllegalMoveException
-import proj.ankichess.axl.core.impl.engine.moves.factory.NoCheckChecker
-import proj.ankichess.axl.core.intf.engine.board.IBoard
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.board.Board
+import proj.ankichess.axl.core.engine.board.IBoard
+import proj.ankichess.axl.core.engine.board.Position
+import proj.ankichess.axl.core.engine.moves.factory.NoCheckChecker
 
 /**
  * Simple and general tests for a piece. The game is initialized with just 2 pieces in a1 (white)

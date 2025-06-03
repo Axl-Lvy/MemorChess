@@ -3,12 +3,11 @@ package proj.ankichess.axl.core.engine.moves
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.board.Board
-import proj.ankichess.axl.core.impl.engine.board.Position
-import proj.ankichess.axl.core.impl.engine.moves.IllegalMoveException
-import proj.ankichess.axl.core.impl.engine.moves.factory.NoCheckChecker
-import proj.ankichess.axl.core.intf.engine.pieces.IPiece
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.board.Board
+import proj.ankichess.axl.core.engine.board.Position
+import proj.ankichess.axl.core.engine.moves.factory.NoCheckChecker
+import proj.ankichess.axl.core.engine.pieces.IPiece
 
 class TestPawn {
   @Test

@@ -1,0 +1,27 @@
+package proj.ankichess.axl.core.engine.pieces.vectors
+
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.moves.Castle
+import proj.ankichess.axl.core.engine.moves.description.MoveDescription
+import proj.ankichess.axl.core.engine.pieces.IPiece
+
+/** King. */
+class King(player: Game.Player) :
+  proj.ankichess.axl.core.engine.pieces.vectors.AFiniteMovers(player) {
+  override fun getVectors(): Set<Pair<Int, Int>> {
+    return proj.ankichess.axl.core.engine.pieces.vectors.VectorUtils.ALL_VECTORS
+  }
+
+  override fun baseChar(): String {
+    return IPiece.KING
+  }
+
+  override fun isMovePossible(move: MoveDescription): Boolean {
+    Castle.castles.forEach { castle ->
+      if (move.from == castle.origin() && move.to == castle.destination()) {
+        return true
+      }
+    }
+    return super.isMovePossible(move)
+  }
+}

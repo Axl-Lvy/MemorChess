@@ -1,7 +1,6 @@
 package proj.ankichess.axl.core.engine.board
 
 import kotlin.test.Test
-import proj.ankichess.axl.core.impl.engine.board.Board
 
 class TestSimpleOperations {
   @Test

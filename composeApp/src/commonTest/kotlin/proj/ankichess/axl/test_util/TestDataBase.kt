@@ -1,9 +1,9 @@
 package proj.ankichess.axl.test_util
 
-import proj.ankichess.axl.core.impl.data.StoredNode
-import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.intf.data.ICommonDataBase
-import proj.ankichess.axl.core.intf.data.IStoredNode
+import proj.ankichess.axl.core.data.ICommonDataBase
+import proj.ankichess.axl.core.data.IStoredNode
+import proj.ankichess.axl.core.data.StoredNode
+import proj.ankichess.axl.core.engine.Game
 import proj.ankichess.axl.game.getLondon
 import proj.ankichess.axl.game.getScandinavian
 import proj.ankichess.axl.game.getVienna

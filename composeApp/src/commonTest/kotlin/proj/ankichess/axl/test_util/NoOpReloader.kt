@@ -1,6 +1,6 @@
 package proj.ankichess.axl.test_util
 
-import proj.ankichess.axl.core.intf.util.IReloader
+import proj.ankichess.axl.core.util.IReloader
 
 object NoOpReloader : IReloader {
   override fun reload() {
