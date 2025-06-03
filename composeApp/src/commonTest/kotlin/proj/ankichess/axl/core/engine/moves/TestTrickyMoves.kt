@@ -2,10 +2,10 @@ package proj.ankichess.axl.core.engine.moves
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.moves.description.MoveDescription
-import proj.ankichess.axl.core.impl.engine.parser.FenParser
-import proj.ankichess.axl.core.intf.engine.board.IBoard
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.board.IBoard
+import proj.ankichess.axl.core.engine.moves.description.MoveDescription
+import proj.ankichess.axl.core.engine.parser.FenParser
 
 class TestTrickyMoves {
   @Test

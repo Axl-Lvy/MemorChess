@@ -16,8 +16,8 @@ import org.junit.Before
 import proj.ankichess.axl.core.data.CustomDatabase
 import proj.ankichess.axl.core.data.NodeEntity
 import proj.ankichess.axl.core.data.NodeEntityDao
-import proj.ankichess.axl.core.impl.data.StoredNode
-import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.data.StoredNode
+import proj.ankichess.axl.core.engine.Game
 
 class TestNodeEntitiesDataBase {
   private lateinit var nodeEntityDao: NodeEntityDao

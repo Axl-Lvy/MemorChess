@@ -8,7 +8,7 @@ import kotlin.test.BeforeTest
 import org.junit.Rule
 import org.junit.Test
 import proj.ankichess.axl.App
-import proj.ankichess.axl.core.intf.data.DatabaseHolder
+import proj.ankichess.axl.core.data.DatabaseHolder
 import proj.ankichess.axl.test_util.TestDataBase
 import proj.ankichess.axl.test_util.getNavigationButtonDescription
 import proj.ankichess.axl.ui.pages.navigation.Destination

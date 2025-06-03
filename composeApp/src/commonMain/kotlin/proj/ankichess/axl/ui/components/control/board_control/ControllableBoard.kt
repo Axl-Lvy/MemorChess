@@ -18,8 +18,8 @@ import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
-import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
-import proj.ankichess.axl.core.impl.interactions.InteractionManager
+import proj.ankichess.axl.core.graph.nodes.NodeFactory
+import proj.ankichess.axl.core.interactions.InteractionManager
 import proj.ankichess.axl.ui.components.board.Board
 import proj.ankichess.axl.ui.components.loading.LoadingPage
 import proj.ankichess.axl.ui.util.impl.BasicReloader

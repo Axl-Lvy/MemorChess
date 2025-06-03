@@ -2,8 +2,8 @@ package proj.ankichess.axl.core.engine.board
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.parser.FenParser
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.parser.FenParser
 
 class TestFenParser {
 

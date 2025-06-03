@@ -2,8 +2,6 @@ package proj.ankichess.axl.core.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import proj.ankichess.axl.core.impl.data.PositionKey
-import proj.ankichess.axl.core.intf.data.IStoredNode
 
 /**
  * Entity representing an [IStoredNode] ready to be stored in the database.
@@ -30,8 +28,8 @@ data class NodeEntity(
 ) : IStoredNode {
 
   /** Returns the [PositionKey] for this node, constructed from the FEN representation. */
-  override val positionKey: PositionKey
-    get() = PositionKey(fenRepresentation)
+  override val positionKey: proj.ankichess.axl.core.data.PositionKey
+    get() = proj.ankichess.axl.core.data.PositionKey(fenRepresentation)
 
   /** Returns the list of available moves by splitting the comma-separated string. */
   override fun getAvailableMoveList(): List<String> =

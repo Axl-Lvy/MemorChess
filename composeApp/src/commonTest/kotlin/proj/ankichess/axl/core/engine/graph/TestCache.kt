@@ -2,13 +2,13 @@ package proj.ankichess.axl.core.engine.graph
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import proj.ankichess.axl.core.impl.data.PositionKey
-import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.data.PositionKey
+import proj.ankichess.axl.core.engine.Game
 
 class TestCache {
   @Test
   fun testCacheManyPosition() {
-    val cache = mutableSetOf<PositionKey>()
+    val cache = mutableSetOf<proj.ankichess.axl.core.data.PositionKey>()
     repeat(10) {
       val game = Game()
       cache.add(game.position.toImmutablePosition())
