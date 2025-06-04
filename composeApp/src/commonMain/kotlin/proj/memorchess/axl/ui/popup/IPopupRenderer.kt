@@ -15,3 +15,5 @@ fun popup(message: String, type: PopupType) {
 fun info(message: String) {
   popup(message, PopupType.INFO)
 }
+
+val noOpPopupRenderer = IPopupRenderer {_, _ -> }
