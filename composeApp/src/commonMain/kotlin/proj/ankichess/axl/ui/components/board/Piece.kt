@@ -7,10 +7,10 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import proj.ankichess.axl.core.impl.engine.Game
-import proj.ankichess.axl.core.impl.engine.pieces.Pawn
-import proj.ankichess.axl.core.impl.engine.pieces.vectors.*
-import proj.ankichess.axl.core.intf.engine.pieces.IPiece
+import proj.ankichess.axl.core.engine.Game
+import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.engine.pieces.Pawn
+import proj.ankichess.axl.core.engine.pieces.vectors.*
 
 @Composable
 fun Piece(piece: IPiece) {
@@ -25,11 +25,11 @@ private fun pieceToResource(piece: IPiece): DrawableResource {
   return drawableResource(
     "piece_${
             when (piece) {
-                is King -> "king"
-                is Knight -> "knight"
+                is proj.ankichess.axl.core.engine.pieces.vectors.King -> "king"
+                is proj.ankichess.axl.core.engine.pieces.vectors.Knight -> "knight"
                 is Bishop -> "bishop"
                 is Queen -> "queen"
-                is Rook -> "rook"
+                is proj.ankichess.axl.core.engine.pieces.vectors.Rook -> "rook"
                 is Pawn -> "pawn"
                 else -> throw IllegalArgumentException("Unknown piece $piece.")
             }

@@ -1,9 +1,9 @@
 package proj.ankichess.axl.ui.popup
 
-object IosPopupRenderer : PopupRenderer {
+object IosPopupRenderer : IPopupRenderer {
   override fun renderPopup(message: String, type: PopupType) {
     // TODO
   }
 }
 
-actual fun getPopupRenderer(): PopupRenderer = IosPopupRenderer
+actual fun getPopupRenderer(): IPopupRenderer = IosPopupRenderer

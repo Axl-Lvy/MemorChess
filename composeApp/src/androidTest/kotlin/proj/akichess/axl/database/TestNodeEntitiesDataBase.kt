@@ -16,8 +16,8 @@ import org.junit.Before
 import proj.ankichess.axl.core.data.CustomDatabase
 import proj.ankichess.axl.core.data.NodeEntity
 import proj.ankichess.axl.core.data.NodeEntityDao
-import proj.ankichess.axl.core.impl.data.StoredNode
-import proj.ankichess.axl.core.impl.engine.Game
+import proj.ankichess.axl.core.data.StoredNode
+import proj.ankichess.axl.core.engine.Game
 
 class TestNodeEntitiesDataBase {
   private lateinit var nodeEntityDao: NodeEntityDao
@@ -42,7 +42,7 @@ class TestNodeEntitiesDataBase {
     val game = Game()
     runBlocking {
       nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition()))
+        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), ""))
       )
       retrievedNodes = nodeEntityDao.getAll()
     }
@@ -58,7 +58,7 @@ class TestNodeEntitiesDataBase {
     val game = Game()
     runBlocking {
       nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition()))
+        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), ""))
       )
       nodeEntityDao.deleteAll()
       retrievedNode = nodeEntityDao.getAll().firstOrNull()
@@ -70,9 +70,9 @@ class TestNodeEntitiesDataBase {
   fun testDeleteSingle() {
     val retrievedNodes: List<NodeEntity>
     val game = Game()
-    val rootNode = StoredNode(game.position.toImmutablePosition(), listOf("e4"))
+    val rootNode = StoredNode(game.position.toImmutablePosition(), listOf("e4"), listOf())
     game.playMove("e4")
-    val childNode = StoredNode(game.position.toImmutablePosition())
+    val childNode = StoredNode(game.position.toImmutablePosition(), "")
     runBlocking {
       nodeEntityDao.insert(NodeEntity.convertToEntity(rootNode))
       nodeEntityDao.insert(NodeEntity.convertToEntity(childNode))
@@ -90,13 +90,17 @@ class TestNodeEntitiesDataBase {
     val game = Game()
     runBlocking {
       nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition()))
+        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), ""))
       )
       nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), listOf("e4")))
+        NodeEntity.convertToEntity(
+          StoredNode(game.position.toImmutablePosition(), listOf("e4"), listOf())
+        )
       )
       nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), listOf("e3")))
+        NodeEntity.convertToEntity(
+          StoredNode(game.position.toImmutablePosition(), listOf("e3"), listOf())
+        )
       )
       retrievedNodes = nodeEntityDao.getAll()
     }

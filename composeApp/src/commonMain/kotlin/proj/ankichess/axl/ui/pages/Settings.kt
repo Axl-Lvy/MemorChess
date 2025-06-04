@@ -9,8 +9,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import kotlinx.coroutines.launch
-import proj.ankichess.axl.core.impl.graph.nodes.NodeFactory
-import proj.ankichess.axl.core.intf.data.DatabaseHolder.getDatabase
+import proj.ankichess.axl.core.data.DatabaseHolder.getDatabase
+import proj.ankichess.axl.core.graph.nodes.NodeFactory
 import proj.ankichess.axl.ui.pages.navigation.Destination
 
 @Composable

@@ -10,10 +10,10 @@ import androidx.compose.ui.Modifier
 import ankichess.composeapp.generated.resources.Res
 import ankichess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
-import proj.ankichess.axl.core.impl.interactions.InteractionManager
-import proj.ankichess.axl.core.intf.engine.board.ITile
-import proj.ankichess.axl.core.intf.engine.pieces.IPiece
-import proj.ankichess.axl.ui.util.intf.IReloader
+import proj.ankichess.axl.core.engine.board.ITile
+import proj.ankichess.axl.core.engine.pieces.IPiece
+import proj.ankichess.axl.core.interactions.InteractionManager
+import proj.ankichess.axl.core.util.IReloader
 
 @Composable
 fun Board(

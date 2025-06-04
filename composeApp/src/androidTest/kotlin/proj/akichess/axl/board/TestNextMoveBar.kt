@@ -10,7 +10,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import org.junit.Rule
 import proj.akichess.axl.utils.hasClickLabel
-import proj.ankichess.axl.core.intf.data.DatabaseHolder
+import proj.ankichess.axl.core.data.DatabaseHolder
 import proj.ankichess.axl.test_util.TestDataBase
 import proj.ankichess.axl.test_util.getNextMoveDescription
 import proj.ankichess.axl.test_util.getTileDescription

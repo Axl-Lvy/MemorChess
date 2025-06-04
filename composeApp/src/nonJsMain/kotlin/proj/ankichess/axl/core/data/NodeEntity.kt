@@ -2,8 +2,6 @@ package proj.ankichess.axl.core.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import proj.ankichess.axl.core.impl.data.PositionKey
-import proj.ankichess.axl.core.intf.data.IStoredNode
 
 /**
  * Entity representing an [IStoredNode] ready to be stored in the database.
@@ -24,15 +22,22 @@ data class NodeEntity(
 
   /** Comma-separated list of moves from this position. */
   val availableMoves: String,
+
+  /** Comma-separated list of moves that can lead to this position. */
+  val previousMoves: String,
 ) : IStoredNode {
 
   /** Returns the [PositionKey] for this node, constructed from the FEN representation. */
-  override val positionKey: PositionKey
-    get() = PositionKey(fenRepresentation)
+  override val positionKey: proj.ankichess.axl.core.data.PositionKey
+    get() = proj.ankichess.axl.core.data.PositionKey(fenRepresentation)
 
   /** Returns the list of available moves by splitting the comma-separated string. */
   override fun getAvailableMoveList(): List<String> =
     availableMoves.split(",").filter { it.isNotBlank() }
+
+  /** Returns the list of previous moves by splitting the comma-separated string. */
+  override fun getPreviousMoveList(): List<String> =
+    previousMoves.split(",").filter { it.isNotBlank() }
 
   /** Converter object for creating [NodeEntity] instances from [IStoredNode]s. */
   companion object Converter {
@@ -46,6 +51,7 @@ data class NodeEntity(
       return NodeEntity(
         fenRepresentation = position.positionKey.fenRepresentation,
         availableMoves = position.getAvailableMoveList().joinToString(","),
+        previousMoves = position.getPreviousMoveList().joinToString(","),
       )
     }
   }

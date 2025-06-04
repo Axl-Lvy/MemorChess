@@ -3,7 +3,7 @@ package proj.ankichess.axl.ui.util.impl
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import proj.ankichess.axl.ui.util.intf.IReloader
+import proj.ankichess.axl.core.util.IReloader
 
 /**
  * Basic implementation of [IReloader].
