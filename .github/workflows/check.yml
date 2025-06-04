@@ -99,7 +99,7 @@ jobs:
       - name: Run desktop tests
         run: ./gradlew desktopTest
 
-  build:
+  build-and-analyze:
     name: Build and analyze
     runs-on: ubuntu-latest
     steps:
