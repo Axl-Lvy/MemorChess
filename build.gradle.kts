@@ -12,7 +12,7 @@ plugins {
 
 sonar {
     properties {
-        property("sonar.projectKey", "Axl-Lvy_AnkiChess")
+        property("sonar.projectKey", "Axl-Lvy_MemorChess")
         property("sonar.organization", "axl-lvy")
         property("sonar.host.url", "https://sonarcloud.io")
     }

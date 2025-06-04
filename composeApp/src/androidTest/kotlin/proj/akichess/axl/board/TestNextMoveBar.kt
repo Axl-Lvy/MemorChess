@@ -10,11 +10,11 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import org.junit.Rule
 import proj.akichess.axl.utils.hasClickLabel
-import proj.ankichess.axl.core.data.DatabaseHolder
-import proj.ankichess.axl.test_util.TestDataBase
-import proj.ankichess.axl.test_util.getNextMoveDescription
-import proj.ankichess.axl.test_util.getTileDescription
-import proj.ankichess.axl.ui.components.control.board_control.ControllableBoardPage
+import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.test_util.TestDataBase
+import proj.memorchess.axl.test_util.getNextMoveDescription
+import proj.memorchess.axl.test_util.getTileDescription
+import proj.memorchess.axl.ui.components.control.board_control.ControllableBoardPage
 
 class TestNextMoveBar {
 

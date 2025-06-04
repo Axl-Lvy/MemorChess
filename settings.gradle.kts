@@ -1,4 +1,4 @@
-rootProject.name = "AnkiChess"
+rootProject.name = "MemorChess"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

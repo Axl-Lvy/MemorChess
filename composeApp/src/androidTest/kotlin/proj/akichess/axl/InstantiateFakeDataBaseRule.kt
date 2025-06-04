@@ -3,8 +3,8 @@ package proj.akichess.axl
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
-import proj.ankichess.axl.core.data.DatabaseHolder
-import proj.ankichess.axl.test_util.TestDataBase
+import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.test_util.TestDataBase
 
 class InstantiateFakeDataBaseRule() : TestRule {
   override fun apply(base: Statement?, description: Description?): Statement? {

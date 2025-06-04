@@ -108,11 +108,11 @@ kotlin {
 }
 
 android {
-  namespace = "proj.ankichess.axl"
+  namespace = "proj.memorchess.axl"
   compileSdk = libs.versions.android.compileSdk.get().toInt()
 
   defaultConfig {
-    applicationId = "proj.ankichess.axl"
+    applicationId = "proj.memorchess.axl"
     minSdk = libs.versions.android.minSdk.get().toInt()
     targetSdk = libs.versions.android.targetSdk.get().toInt()
     versionCode = 1
