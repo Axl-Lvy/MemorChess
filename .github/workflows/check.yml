@@ -99,8 +99,8 @@ jobs:
       - name: Run desktop tests
         run: ./gradlew desktopTest
 
-  build-and-analyze:
-    name: Build and analyze
+  sonar-analysis:
+    name: Sonar analysis
     runs-on: ubuntu-latest
     steps:
       - name: Ensure sonar checkbox is checked
@@ -134,7 +134,7 @@ jobs:
           path: ~/.gradle/caches
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
-      - name: Build and analyze
+      - name: Analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: gradle assemble sonar --info
+        run: gradle sonar
