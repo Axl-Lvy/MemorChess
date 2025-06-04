@@ -7,11 +7,11 @@ import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import org.junit.Rule
 import org.junit.Test
-import proj.ankichess.axl.App
-import proj.ankichess.axl.core.data.DatabaseHolder
-import proj.ankichess.axl.test_util.TestDataBase
-import proj.ankichess.axl.test_util.getNavigationButtonDescription
-import proj.ankichess.axl.ui.pages.navigation.Destination
+import proj.memorchess.axl.App
+import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.test_util.TestDataBase
+import proj.memorchess.axl.test_util.getNavigationButtonDescription
+import proj.memorchess.axl.ui.pages.navigation.Destination
 
 class TestPageNavigation {
 

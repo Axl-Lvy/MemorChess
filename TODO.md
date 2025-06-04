@@ -11,7 +11,7 @@ Roadmap summary for this project.
     - [ ] Deploy the database
     - [ ] Create a database format to export / import from a file
     - [ ] Remove
-      the [fallbackToDestructiveMigration](composeApp/src/nonJsMain/kotlin/proj/ankichess/axl/core/data/CustomDatabase.kt)
+      the [fallbackToDestructiveMigration](composeApp/src/nonJsMain/kotlin/proj/memorchess/axl/core/data/CustomDatabase.kt)
 - Anki method
     - [ ] Implement anki algorithm
     - [ ] Add anki function parameters

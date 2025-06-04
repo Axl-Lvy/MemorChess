@@ -13,11 +13,11 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
-import proj.ankichess.axl.core.data.CustomDatabase
-import proj.ankichess.axl.core.data.NodeEntity
-import proj.ankichess.axl.core.data.NodeEntityDao
-import proj.ankichess.axl.core.data.StoredNode
-import proj.ankichess.axl.core.engine.Game
+import proj.memorchess.axl.core.data.CustomDatabase
+import proj.memorchess.axl.core.data.NodeEntity
+import proj.memorchess.axl.core.data.NodeEntityDao
+import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.engine.Game
 
 class TestNodeEntitiesDataBase {
   private lateinit var nodeEntityDao: NodeEntityDao

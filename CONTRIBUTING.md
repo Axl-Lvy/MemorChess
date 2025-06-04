@@ -1,6 +1,6 @@
-# Contributing to AnkiChess ♟️
+# Contributing to MemorChess ♟️
 
-Thank you for your interest in contributing to AnkiChess! 🚀 Please follow these guidelines to help us maintain a high-quality codebase and smooth development process.
+Thank you for your interest in contributing to MemorChess! 🚀 Please follow these guidelines to help us maintain a high-quality codebase and smooth development process.
 
 ## ✨ Code Formatting
 
