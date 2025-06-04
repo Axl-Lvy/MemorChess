@@ -40,7 +40,7 @@ private fun TopBar() {
   CenterAlignedTopAppBar(
     title = { Text(text = "MemorChess", color = Color.White) },
     navigationIcon = {
-      IconButton(onClick = { /* TODO: Handle navigation icon click */ }) {
+      IconButton(onClick = { }) {
         Icon(FeatherIcons.Menu, contentDescription = "Menu", tint = Color.White)
       }
     },
