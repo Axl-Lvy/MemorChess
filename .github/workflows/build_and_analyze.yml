@@ -1,4 +1,4 @@
-name: Build and analyze on master
+name: Sonar analyze on master
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - master
 
 jobs:
-  build-and-analyze:
-    name: Build and analyze
+  sonar-analysis:
+    name: Sonar analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,4 +35,4 @@ jobs:
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: gradle assemble sonar --info
+        run: gradle sonar
