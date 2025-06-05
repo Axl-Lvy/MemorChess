@@ -4,7 +4,7 @@ object CommonDataBase : ICommonDataBase {
 
   private val database = getRoomDatabase(databaseBuilder())
 
-  override suspend fun getAllPositions(): List<IStoredNode> {
+  override suspend fun getAllPositions(): List<NodeWithMoves> {
     return database.getNodeEntityDao().getAll()
   }
 
@@ -17,7 +17,7 @@ object CommonDataBase : ICommonDataBase {
   }
 
   override suspend fun insertPosition(position: IStoredNode) {
-    database.getNodeEntityDao().insert(NodeEntity.convertToEntity(position))
+    database.getNodeEntityDao().createNewNode(NodeWithMoves.convertToEntity(position))
   }
 }
 

@@ -1,9 +1,9 @@
 package proj.memorchess.axl.core.data
 
 interface IStoredNode {
-  val positionKey: proj.memorchess.axl.core.data.PositionKey
+  val positionKey: PositionKey
 
-  fun getAvailableMoveList(): List<String>
+  val nextMoves: List<IStoredMove>
 
-  fun getPreviousMoveList(): List<String>
+  val previousMoves: List<IStoredMove>
 }

@@ -8,7 +8,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-@Database(entities = [NodeEntity::class], version = 1)
+@Database(entities = [NodeEntity::class, MoveEntity::class], version = 1)
 @ConstructedBy(DatabaseConstructor::class)
 abstract class CustomDatabase : RoomDatabase() {
   abstract fun getNodeEntityDao(): NodeEntityDao
@@ -22,10 +22,5 @@ expect object DatabaseConstructor : RoomDatabaseConstructor<CustomDatabase> {
 expect fun databaseBuilder(): RoomDatabase.Builder<CustomDatabase>
 
 fun getRoomDatabase(builder: RoomDatabase.Builder<CustomDatabase>): CustomDatabase {
-  return builder
-    .fallbackToDestructiveMigration(true)
-    .setDriver(BundledSQLiteDriver())
-    .setQueryCoroutineContext(Dispatchers.IO)
-    // TODO: remove in production
-    .build()
+  return builder.setDriver(BundledSQLiteDriver()).setQueryCoroutineContext(Dispatchers.IO).build()
 }

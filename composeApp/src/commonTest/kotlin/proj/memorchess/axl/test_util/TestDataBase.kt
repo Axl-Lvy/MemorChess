@@ -1,7 +1,9 @@
 package proj.memorchess.axl.test_util
 
 import proj.memorchess.axl.core.data.ICommonDataBase
+import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.IStoredNode
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.game.getLondon
@@ -67,17 +69,19 @@ class TestDataBase private constructor() : ICommonDataBase {
     private fun createDataBaseFromMoves(moves: List<String>): TestDataBase {
       val testDataBase = TestDataBase()
       val game = Game()
-      var previousMove: String? = null
+      var previousMove: IStoredMove? = null
       for (move in moves) {
+        val currentPosition = game.position.toImmutablePosition()
+        game.playMove(move)
+        val storedMove = StoredMove(currentPosition, game.position.toImmutablePosition(), move)
         val node =
           StoredNode(
-            game.position.toImmutablePosition(),
-            listOf(move),
+            currentPosition,
+            listOf(storedMove),
             previousMove?.let { listOf(it) } ?: emptyList(),
           )
-        previousMove = move
+        previousMove = storedMove
         testDataBase.storedNodes[node.positionKey.fenRepresentation] = node
-        game.playMove(move)
       }
       return testDataBase
     }
@@ -96,12 +100,16 @@ class TestDataBase private constructor() : ICommonDataBase {
           if (storedNode == null) {
             merged.storedNodes[entry.key] = entry.value
           } else {
-            val newMoves = storedNode.getAvailableMoveList().toMutableSet()
-            newMoves.addAll(entry.value.getAvailableMoveList())
-            val previousMoves = storedNode.getPreviousMoveList().toMutableSet()
-            newMoves.addAll(entry.value.getPreviousMoveList())
+            val newMoves = storedNode.nextMoves.toMutableSet()
+            newMoves.addAll(entry.value.nextMoves)
+            val previousMoves = storedNode.previousMoves.toMutableSet()
+            newMoves.addAll(entry.value.previousMoves)
             merged.storedNodes[entry.key] =
-              StoredNode(storedNode.positionKey, newMoves.sorted(), previousMoves.sorted())
+              StoredNode(
+                storedNode.positionKey,
+                newMoves.sortedBy { it.move },
+                previousMoves.sortedBy { it.move },
+              )
           }
         }
       }

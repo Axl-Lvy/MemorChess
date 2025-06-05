@@ -26,8 +26,7 @@ class TestTestDatabase {
 
     // Verify each move is stored in the database
     for (move in viennaMoves) {
-      val found =
-        viennaDb.storedNodes.values.any { node -> node.getAvailableMoveList().contains(move) }
+      val found = viennaDb.storedNodes.values.any { node -> node.nextMoves.any { it.move == move } }
       assertTrue(found, "Move $move should be in the Vienna database")
     }
   }
@@ -46,8 +45,7 @@ class TestTestDatabase {
 
     // Verify each move is stored in the database
     for (move in londonMoves) {
-      val found =
-        londonDb.storedNodes.values.any { node -> node.getAvailableMoveList().contains(move) }
+      val found = londonDb.storedNodes.values.any { node -> node.nextMoves.any { it.move == move } }
       assertTrue(found, "Move $move should be in the London database")
     }
   }
@@ -67,7 +65,7 @@ class TestTestDatabase {
     // Verify each move is stored in the database
     for (move in scandinavianMoves) {
       val found =
-        scandinavianDb.storedNodes.values.any { node -> node.getAvailableMoveList().contains(move) }
+        scandinavianDb.storedNodes.values.any { node -> node.nextMoves.any { it.move == move } }
       assertTrue(found, "Move $move should be in the Scandinavian database")
     }
   }
@@ -95,9 +93,9 @@ class TestTestDatabase {
     for (node in viennaDb.storedNodes.values) {
       val mergedNode = mergedDb.storedNodes[node.positionKey.fenRepresentation]
       assertTrue(mergedNode != null, "Position from Vienna database should be in merged database")
-      for (move in node.getAvailableMoveList()) {
+      for (move in node.nextMoves) {
         assertTrue(
-          mergedNode!!.getAvailableMoveList().contains(move),
+          mergedNode.nextMoves.contains(move),
           "Move $move from Vienna database should be in merged database",
         )
       }
@@ -106,9 +104,9 @@ class TestTestDatabase {
     for (node in londonDb.storedNodes.values) {
       val mergedNode = mergedDb.storedNodes[node.positionKey.fenRepresentation]
       assertTrue(mergedNode != null, "Position from London database should be in merged database")
-      for (move in node.getAvailableMoveList()) {
+      for (move in node.nextMoves) {
         assertTrue(
-          mergedNode!!.getAvailableMoveList().contains(move),
+          mergedNode.nextMoves.contains(move),
           "Move $move from London database should be in merged database",
         )
       }
@@ -120,9 +118,9 @@ class TestTestDatabase {
         mergedNode != null,
         "Position from Scandinavian database should be in merged database",
       )
-      for (move in node.getAvailableMoveList()) {
+      for (move in node.nextMoves) {
         assertTrue(
-          mergedNode!!.getAvailableMoveList().contains(move),
+          mergedNode.nextMoves.contains(move),
           "Move $move from Scandinavian database should be in merged database",
         )
       }

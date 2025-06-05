@@ -87,7 +87,7 @@ class InteractionManager(var game: Game) {
   }
 
   fun getChildrenMoves(): List<String> {
-    return node.linkedMoves.nextMoves.sorted()
+    return node.linkedMoves.nextMoves.map { it.move }.sorted()
   }
 
   suspend fun save() {

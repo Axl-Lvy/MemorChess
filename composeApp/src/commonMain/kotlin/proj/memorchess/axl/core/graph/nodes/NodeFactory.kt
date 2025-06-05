@@ -2,8 +2,10 @@ package proj.memorchess.axl.core.graph.nodes
 
 import com.diamondedge.logging.logging
 import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.IStoredNode
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.engine.Game
 
 /** Node factory singleton. */
@@ -37,17 +39,18 @@ object NodeFactory {
    */
   fun createNode(game: Game, previous: Node, move: String): Node {
     val previousNodeMoves = movesCache.getOrPut(previous.position) { PreviousAndNextMoves() }
-    previousNodeMoves.addNextMove(move)
+    val storedMove = StoredMove(previous.position, game.position.toImmutablePosition(), move)
+    previousNodeMoves.addNextMove(storedMove)
     val newNodeLinkedMoves =
       movesCache.getOrPut(game.position.toImmutablePosition()) { PreviousAndNextMoves() }
-    newNodeLinkedMoves.addPreviousMove(move)
+    newNodeLinkedMoves.addPreviousMove(storedMove)
     val newNode =
       Node(
         game.position.toImmutablePosition(),
         previous = previous,
         linkedMoves = newNodeLinkedMoves,
       )
-    previous.addChild(move, newNode)
+    previous.addChild(storedMove, newNode)
     return newNode
   }
 
@@ -56,7 +59,7 @@ object NodeFactory {
     LOGGER.i { "Cleared next moves for position: $positionKey" }
   }
 
-  fun clearPreviousMove(positionKey: PositionKey, move: String) {
+  fun clearPreviousMove(positionKey: PositionKey, move: IStoredMove) {
     movesCache[positionKey]?.previousMoves?.remove(move)
     LOGGER.i { "Cleared previous move $move for position: $positionKey" }
   }
@@ -81,9 +84,7 @@ object NodeFactory {
     }
     val allPosition: List<IStoredNode> = (DatabaseHolder.getDatabase()).getAllPositions()
     allPosition.forEach {
-      movesCache.getOrPut(it.positionKey) {
-        PreviousAndNextMoves(it.getPreviousMoveList(), it.getAvailableMoveList())
-      }
+      movesCache.getOrPut(it.positionKey) { PreviousAndNextMoves(it.previousMoves, it.nextMoves) }
       LOGGER.i { "Retrieved node: ${it.positionKey}" }
     }
     databaseRetrieved = true
