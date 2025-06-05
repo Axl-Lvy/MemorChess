@@ -43,7 +43,7 @@ class TestNodeEntitiesDataBase {
     val retrievedNodes: List<NodeWithMoves>
     val game = Game()
     runBlocking {
-      nodeEntityDao.createNewNode(
+      nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
           StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
         )
@@ -53,7 +53,10 @@ class TestNodeEntitiesDataBase {
     assertEquals(1, retrievedNodes.size)
     assertNotNull(retrievedNodes.first())
     assertTrue { retrievedNodes.first().nextMoves.isEmpty() }
-    assertEquals(game.position.toImmutablePosition(), retrievedNodes.first().positionKey)
+    assertEquals(
+      game.position.toImmutablePosition(),
+      retrievedNodes.first().toStoredNode().positionKey,
+    )
   }
 
   @Test
@@ -61,7 +64,7 @@ class TestNodeEntitiesDataBase {
     val retrievedNode: NodeWithMoves?
     val game = Game()
     runBlocking {
-      nodeEntityDao.createNewNode(
+      nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
           StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
         )
@@ -84,16 +87,16 @@ class TestNodeEntitiesDataBase {
         game.position.toImmutablePosition().fenRepresentation,
         "e4",
       )
-    val rootNode = StoredNode(rootPositionKey, listOf(linkMove), listOf())
+    val rootNode = StoredNode(rootPositionKey, listOf(linkMove.toStoredMove()), listOf())
     val childNode = StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
     runBlocking {
-      nodeEntityDao.createNewNode(NodeWithMoves.convertToEntity(rootNode))
-      nodeEntityDao.createNewNode(NodeWithMoves.convertToEntity(childNode))
+      nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
+      nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(childNode))
       nodeEntityDao.delete(childNode.positionKey.fenRepresentation)
       retrievedNodes = nodeEntityDao.getAll()
     }
     assertEquals(1, retrievedNodes.size)
     assertContains(retrievedNodes.first().nextMoves, linkMove)
-    assertEquals(rootPositionKey, retrievedNodes.first().positionKey)
+    assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionKey)
   }
 }

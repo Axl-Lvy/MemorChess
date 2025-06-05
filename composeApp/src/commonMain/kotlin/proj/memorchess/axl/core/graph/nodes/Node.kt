@@ -4,7 +4,6 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredNode
-import proj.memorchess.axl.core.data.getCommonDataBase
 import proj.memorchess.axl.core.engine.Game
 
 /**
@@ -48,7 +47,7 @@ class Node(
    * recursively saves the previous node.
    */
   suspend fun save() {
-    getCommonDataBase().insertPosition(StoredNode(position, linkedMoves))
+    DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
     previous?.save()
   }
 
@@ -73,9 +72,7 @@ class Node(
     println("Deleting from previous: $previousMove. Position: $position")
     NodeFactory.clearPreviousMove(position, previousMove)
     check(!linkedMoves.previousMoves.contains(previousMove)) { "$previousMove not removed." }
-    if (linkedMoves.previousMoves.isNotEmpty()) {
-      DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
-    } else {
+    if (linkedMoves.previousMoves.isEmpty()) {
       delete()
     }
   }

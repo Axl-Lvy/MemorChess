@@ -54,14 +54,16 @@ object NodeFactory {
     return newNode
   }
 
-  fun clearNextMoves(positionKey: PositionKey) {
+  suspend fun clearNextMoves(positionKey: PositionKey) {
     movesCache[positionKey]?.nextMoves?.clear()
     LOGGER.i { "Cleared next moves for position: $positionKey" }
+    DatabaseHolder.getDatabase().deleteMoveFrom(positionKey.fenRepresentation)
   }
 
-  fun clearPreviousMove(positionKey: PositionKey, move: IStoredMove) {
+  suspend fun clearPreviousMove(positionKey: PositionKey, move: IStoredMove) {
     movesCache[positionKey]?.previousMoves?.remove(move)
     LOGGER.i { "Cleared previous move $move for position: $positionKey" }
+    DatabaseHolder.getDatabase().deleteMove(positionKey.fenRepresentation, move.move)
   }
 
   /** Resets the cache from the database. */

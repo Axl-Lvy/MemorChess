@@ -1,8 +1,9 @@
 package proj.memorchess.axl.test_util
 
-import proj.memorchess.axl.core.data.ICommonDataBase
+import proj.memorchess.axl.core.data.ICommonDatabase
 import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.IStoredNode
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
@@ -15,7 +16,7 @@ import proj.memorchess.axl.game.getVienna
  *
  * @constructor Creates an empty test database.
  */
-class TestDataBase private constructor() : ICommonDataBase {
+class TestDatabase private constructor() : ICommonDatabase {
   val storedNodes = mutableMapOf<String, IStoredNode>()
 
   override suspend fun getAllPositions(): List<IStoredNode> {
@@ -24,6 +25,31 @@ class TestDataBase private constructor() : ICommonDataBase {
 
   override suspend fun deletePosition(fen: String) {
     storedNodes.remove(fen)
+  }
+
+  override suspend fun deleteMoveFrom(origin: String) {
+    if (storedNodes[origin] == null) {
+      return
+    }
+    storedNodes[origin] =
+      StoredNode(PositionKey(origin), emptyList(), storedNodes[origin]!!.previousMoves)
+  }
+
+  override suspend fun deleteMoveTo(destination: String) {
+    if (storedNodes[destination] == null) {
+      return
+    }
+    storedNodes[destination] =
+      StoredNode(PositionKey(destination), storedNodes[destination]!!.nextMoves, emptyList())
+  }
+
+  override suspend fun deleteMove(origin: String, move: String) {
+    if (storedNodes[origin] == null) {
+      return
+    }
+    val newNextMoves = storedNodes[origin]!!.nextMoves.filter { it.move != move }
+    storedNodes[origin] =
+      StoredNode(PositionKey(origin), newNextMoves, storedNodes[origin]!!.previousMoves)
   }
 
   override suspend fun insertPosition(position: IStoredNode) {
@@ -41,33 +67,33 @@ class TestDataBase private constructor() : ICommonDataBase {
   companion object {
 
     /** A database with the Vienna opening. */
-    fun vienna(): TestDataBase {
+    fun vienna(): TestDatabase {
       return createDataBaseFromMoves(getVienna())
     }
 
     /** A database with the London opening. */
-    fun london(): TestDataBase {
+    fun london(): TestDatabase {
       return createDataBaseFromMoves(getLondon())
     }
 
     /** A database with the Scandinavian opening. */
-    fun scandinavian(): TestDataBase {
+    fun scandinavian(): TestDatabase {
       return createDataBaseFromMoves(getScandinavian())
     }
 
     /** An empty database. */
-    fun empty(): TestDataBase {
-      return TestDataBase()
+    fun empty(): TestDatabase {
+      return TestDatabase()
     }
 
     /**
      * A database with the given moves.
      *
      * @param moves The moves to create the database from.
-     * @return A [TestDataBase] with the given moves.
+     * @return A [TestDatabase] with the given moves.
      */
-    private fun createDataBaseFromMoves(moves: List<String>): TestDataBase {
-      val testDataBase = TestDataBase()
+    private fun createDataBaseFromMoves(moves: List<String>): TestDatabase {
+      val testDataBase = TestDatabase()
       val game = Game()
       var previousMove: IStoredMove? = null
       for (move in moves) {
@@ -87,13 +113,13 @@ class TestDataBase private constructor() : ICommonDataBase {
     }
 
     /**
-     * Merges multiple [TestDataBase] instances into one.
+     * Merges multiple [TestDatabase] instances into one.
      *
      * @param testDataBases The databases to merge.
-     * @return A new [TestDataBase] containing all positions and their moves.
+     * @return A new [TestDatabase] containing all positions and their moves.
      */
-    fun merge(vararg testDataBases: TestDataBase): TestDataBase {
-      val merged = TestDataBase()
+    fun merge(vararg testDataBases: TestDatabase): TestDatabase {
+      val merged = TestDatabase()
       for (dataBase in testDataBases) {
         for (entry in dataBase.storedNodes) {
           val storedNode = merged.storedNodes[entry.key]

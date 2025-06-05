@@ -9,7 +9,7 @@ import org.junit.Rule
 import org.junit.Test
 import proj.memorchess.axl.App
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.test_util.TestDataBase
+import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
 
@@ -19,7 +19,7 @@ class TestPageNavigation {
 
   @BeforeTest
   fun setUp() {
-    DatabaseHolder.init(TestDataBase.vienna())
+    DatabaseHolder.init(TestDatabase.vienna())
     composeTestRule.setContent { App() }
   }
 

@@ -6,13 +6,17 @@ import androidx.room.Relation
 data class NodeWithMoves(
   @Embedded val node: NodeEntity,
   @Relation(parentColumn = "fenRepresentation", entityColumn = "destination")
-  override val previousMoves: List<MoveEntity>,
+  val previousMoves: List<MoveEntity>,
   @Relation(parentColumn = "fenRepresentation", entityColumn = "origin")
-  override val nextMoves: List<MoveEntity>,
-) : IStoredNode {
-
-  override val positionKey: PositionKey
-    get() = PositionKey(node.fenRepresentation)
+  val nextMoves: List<MoveEntity>,
+) {
+  fun toStoredNode(): StoredNode {
+    return StoredNode(
+      PositionKey(node.fenRepresentation),
+      nextMoves.map { it.toStoredMove() },
+      previousMoves.map { it.toStoredMove() },
+    )
+  }
 
   companion object {
     fun convertToEntity(storedNode: IStoredNode): NodeWithMoves {

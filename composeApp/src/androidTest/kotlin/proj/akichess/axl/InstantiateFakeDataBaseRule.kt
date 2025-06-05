@@ -4,13 +4,13 @@ import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.test_util.TestDataBase
+import proj.memorchess.axl.test_util.TestDatabase
 
 class InstantiateFakeDataBaseRule() : TestRule {
   override fun apply(base: Statement?, description: Description?): Statement? {
     return object : Statement() {
       override fun evaluate() {
-        DatabaseHolder.init(TestDataBase.vienna())
+        DatabaseHolder.init(TestDatabase.vienna())
       }
     }
   }
