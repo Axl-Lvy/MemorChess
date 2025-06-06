@@ -11,13 +11,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.time.measureTime
+import proj.memorchess.axl.core.config.IAppConfig
 
+/**
+ * A composable that displays a loading indicator while a suspending function is executed. Once the
+ * function completes, it displays the provided composable content.
+ *
+ * This composable ensures that the loading indicator is shown for at least the
+ * [minimum duration specified in the application configuration][IAppConfig.minimumLoadingTime].
+ *
+ * @param suspendingFunction The suspending function to execute.
+ * @param composable The composable content to display after loading.
+ */
 @Composable
 fun LoadingPage(suspendingFunction: suspend () -> Any?, composable: @Composable () -> Unit) {
   var isLoading by remember { mutableStateOf(true) }
 
   LaunchedEffect(Unit) {
-    suspendingFunction()
+    val minimumLoadingTime = IAppConfig.get().minimumLoadingTime
+    val timeTaken = measureTime { suspendingFunction() }
+    if (timeTaken < minimumLoadingTime) {
+      kotlinx.coroutines.delay(minimumLoadingTime - timeTaken)
+    }
     isLoading = false
   }
 

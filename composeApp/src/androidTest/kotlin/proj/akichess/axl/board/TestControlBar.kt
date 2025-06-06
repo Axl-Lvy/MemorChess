@@ -1,5 +1,6 @@
 package proj.akichess.axl.board
 
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.hasContentDescription
@@ -14,16 +15,21 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
+import proj.memorchess.axl.test_util.setupConfigForTest
 import proj.memorchess.axl.ui.components.control.board_control.ControllableBoardPage
 
 class TestControlBar {
 
   @get:Rule val composeTestRule = createComposeRule()
 
+  @OptIn(ExperimentalTestApi::class)
   @BeforeTest
   fun setUp() {
+    // Use test configuration for faster tests
+    setupConfigForTest()
     DatabaseHolder.init(TestDatabase.vienna())
     composeTestRule.setContent { ControllableBoardPage() }
+    composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")), 5_000L)
     composeTestRule.onNode(hasClickLabel(getTileDescription("e2"))).assertExists().performClick()
     composeTestRule.onNode(hasClickLabel(getTileDescription("e4"))).assertExists().performClick()
   }
