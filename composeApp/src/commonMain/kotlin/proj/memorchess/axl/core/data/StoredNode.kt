@@ -17,7 +17,7 @@ class StoredNode(
     linkedMoves: PreviousAndNextMoves,
   ) : this(
     positionKey,
-    linkedMoves.previousMoves.sortedBy { it.move },
     linkedMoves.nextMoves.sortedBy { it.move },
+    linkedMoves.previousMoves.sortedBy { it.move },
   )
 }

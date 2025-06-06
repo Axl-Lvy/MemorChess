@@ -55,10 +55,18 @@ private fun ControllableBoard(modifier: Modifier = Modifier) {
       modifier = Modifier.fillMaxWidth(),
     ) {
       Button(
-        onClick = { coroutineScope.launch { interactionManager.save() } },
+        onClick = { coroutineScope.launch { interactionManager.saveGood() } },
+        colors = ButtonDefaults.buttonColors(Color.Green),
         modifier = Modifier.weight(1f),
       ) {
-        Icon(FeatherIcons.Save, contentDescription = "Save")
+        Icon(FeatherIcons.Save, contentDescription = "Save Good")
+      }
+      Button(
+        onClick = { coroutineScope.launch { interactionManager.saveBad() } },
+        colors = ButtonDefaults.buttonColors(Color.Yellow),
+        modifier = Modifier.weight(1f),
+      ) {
+        Icon(FeatherIcons.Save, contentDescription = "Save Bad")
       }
       Button(
         onClick = { coroutineScope.launch { interactionManager.delete(boardReloader) } },

@@ -90,8 +90,12 @@ class InteractionManager(var game: Game) {
     return node.linkedMoves.nextMoves.map { it.move }.sorted()
   }
 
-  suspend fun save() {
+  suspend fun saveGood() {
     node.saveGood()
+  }
+
+  suspend fun saveBad() {
+    node.saveBad()
   }
 
   suspend fun delete(reloader: IReloader) {
