@@ -13,7 +13,7 @@ import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
 import proj.memorchess.axl.core.interactions.InteractionManager
 import proj.memorchess.axl.test_util.NoOpReloader
-import proj.memorchess.axl.test_util.TestDataBase
+import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.ui.popup.PopupRendererHolder
 
 class TestInteractionManager {
@@ -22,7 +22,7 @@ class TestInteractionManager {
   private lateinit var checkChecker: ACheckChecker
 
   private fun initialize() {
-    DatabaseHolder.init(TestDataBase.empty())
+    DatabaseHolder.init(TestDatabase.empty())
     PopupRendererHolder.init { _, _ -> }
     interactionManager = InteractionManager()
     moveFactory = SimpleMoveFactory(interactionManager.game.position)

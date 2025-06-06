@@ -14,10 +14,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import proj.memorchess.axl.core.data.CustomDatabase
-import proj.memorchess.axl.core.data.NodeEntity
+import proj.memorchess.axl.core.data.MoveEntity
 import proj.memorchess.axl.core.data.NodeEntityDao
+import proj.memorchess.axl.core.data.NodeWithMoves
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 class TestNodeEntitiesDataBase {
   private lateinit var nodeEntityDao: NodeEntityDao
@@ -38,27 +40,34 @@ class TestNodeEntitiesDataBase {
 
   @Test
   fun writeAndReadNode() {
-    val retrievedNodes: List<NodeEntity>
+    val retrievedNodes: List<NodeWithMoves>
     val game = Game()
     runBlocking {
-      nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), ""))
+      nodeEntityDao.insertNodeAndMoves(
+        NodeWithMoves.convertToEntity(
+          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
+        )
       )
       retrievedNodes = nodeEntityDao.getAll()
     }
     assertEquals(1, retrievedNodes.size)
     assertNotNull(retrievedNodes.first())
-    assertTrue { retrievedNodes.first().getAvailableMoveList().isEmpty() }
-    assertEquals(game.position.toImmutablePosition(), retrievedNodes.first().positionKey)
+    assertTrue { retrievedNodes.first().nextMoves.isEmpty() }
+    assertEquals(
+      game.position.toImmutablePosition(),
+      retrievedNodes.first().toStoredNode().positionKey,
+    )
   }
 
   @Test
   fun testDeleteAll() {
-    val retrievedNode: NodeEntity?
+    val retrievedNode: NodeWithMoves?
     val game = Game()
     runBlocking {
-      nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), ""))
+      nodeEntityDao.insertNodeAndMoves(
+        NodeWithMoves.convertToEntity(
+          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
+        )
       )
       nodeEntityDao.deleteAll()
       retrievedNode = nodeEntityDao.getAll().firstOrNull()
@@ -68,46 +77,26 @@ class TestNodeEntitiesDataBase {
 
   @Test
   fun testDeleteSingle() {
-    val retrievedNodes: List<NodeEntity>
+    val retrievedNodes: List<NodeWithMoves>
     val game = Game()
-    val rootNode = StoredNode(game.position.toImmutablePosition(), listOf("e4"), listOf())
+    val rootPositionKey = game.position.toImmutablePosition()
     game.playMove("e4")
-    val childNode = StoredNode(game.position.toImmutablePosition(), "")
+    val linkMove =
+      MoveEntity(
+        rootPositionKey.fenRepresentation,
+        game.position.toImmutablePosition().fenRepresentation,
+        "e4",
+      )
+    val rootNode = StoredNode(rootPositionKey, listOf(linkMove.toStoredMove()), listOf())
+    val childNode = StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
     runBlocking {
-      nodeEntityDao.insert(NodeEntity.convertToEntity(rootNode))
-      nodeEntityDao.insert(NodeEntity.convertToEntity(childNode))
+      nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
+      nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(childNode))
       nodeEntityDao.delete(childNode.positionKey.fenRepresentation)
       retrievedNodes = nodeEntityDao.getAll()
     }
     assertEquals(1, retrievedNodes.size)
-    assertContains(retrievedNodes.first().getAvailableMoveList(), "e4")
-    assertEquals(rootNode.positionKey, retrievedNodes.first().positionKey)
-  }
-
-  @Test
-  fun testReplace() {
-    val retrievedNodes: List<NodeEntity>
-    val game = Game()
-    runBlocking {
-      nodeEntityDao.insert(
-        NodeEntity.convertToEntity(StoredNode(game.position.toImmutablePosition(), ""))
-      )
-      nodeEntityDao.insert(
-        NodeEntity.convertToEntity(
-          StoredNode(game.position.toImmutablePosition(), listOf("e4"), listOf())
-        )
-      )
-      nodeEntityDao.insert(
-        NodeEntity.convertToEntity(
-          StoredNode(game.position.toImmutablePosition(), listOf("e3"), listOf())
-        )
-      )
-      retrievedNodes = nodeEntityDao.getAll()
-    }
-    assertEquals(1, retrievedNodes.size)
-    val node = retrievedNodes.first()
-    assertEquals(1, node.getAvailableMoveList().size)
-    assertContains(node.getAvailableMoveList(), "e3")
-    assertEquals(game.position.toImmutablePosition(), node.positionKey)
+    assertContains(retrievedNodes.first().nextMoves, linkMove)
+    assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionKey)
   }
 }

@@ -1,9 +1,14 @@
 package proj.memorchess.axl.core.data
 
+/** Node that can be stored in [ICommonDatabase] */
 interface IStoredNode {
-  val positionKey: proj.memorchess.axl.core.data.PositionKey
 
-  fun getAvailableMoveList(): List<String>
+  /** The key of the position, used to uniquely identify it */
+  val positionKey: PositionKey
 
-  fun getPreviousMoveList(): List<String>
+  /** The list of next moves from this position */
+  val nextMoves: List<IStoredMove>
+
+  /** The list of previous moves leading to this position */
+  val previousMoves: List<IStoredMove>
 }

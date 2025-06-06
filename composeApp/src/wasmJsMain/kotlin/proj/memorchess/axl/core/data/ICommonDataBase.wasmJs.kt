@@ -1,5 +1,5 @@
 package proj.memorchess.axl.core.data
 
-actual fun getCommonDataBase(): ICommonDataBase {
+actual fun getCommonDatabase(): ICommonDatabase {
   TODO("Not yet implemented")
 }

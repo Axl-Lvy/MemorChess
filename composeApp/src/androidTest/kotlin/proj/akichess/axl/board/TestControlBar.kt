@@ -11,7 +11,7 @@ import kotlin.test.Test
 import org.junit.Rule
 import proj.akichess.axl.utils.hasClickLabel
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.test_util.TestDataBase
+import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.components.control.board_control.ControllableBoardPage
@@ -22,7 +22,7 @@ class TestControlBar {
 
   @BeforeTest
   fun setUp() {
-    DatabaseHolder.init(TestDataBase.vienna())
+    DatabaseHolder.init(TestDatabase.vienna())
     composeTestRule.setContent { ControllableBoardPage() }
     composeTestRule.onNode(hasClickLabel(getTileDescription("e2"))).assertExists().performClick()
     composeTestRule.onNode(hasClickLabel(getTileDescription("e4"))).assertExists().performClick()

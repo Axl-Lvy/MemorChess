@@ -1,9 +1,9 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredNode
-import proj.memorchess.axl.core.data.getCommonDataBase
 import proj.memorchess.axl.core.engine.Game
 
 /**
@@ -37,7 +37,7 @@ class Node(
    * @param move The move string to add.
    * @param child The child [Node] resulting from the move.
    */
-  fun addChild(move: String, child: Node) {
+  fun addChild(move: IStoredMove, child: Node) {
     linkedMoves.addNextMove(move)
     next = child
   }
@@ -47,7 +47,7 @@ class Node(
    * recursively saves the previous node.
    */
   suspend fun save() {
-    getCommonDataBase().insertPosition(StoredNode(position, linkedMoves))
+    DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
     previous?.save()
   }
 
@@ -59,8 +59,8 @@ class Node(
     NodeFactory.clearNextMoves(position)
     linkedMoves.nextMoves.forEach { move ->
       val game = createGame()
-      game.playMove(move)
-      val childNode = NodeFactory.createNode(game, this, move)
+      game.playMove(move.move)
+      val childNode = NodeFactory.createNode(game, this, move.move)
       childNode.deleteFromPrevious(move)
     }
     DatabaseHolder.getDatabase().deletePosition(position.fenRepresentation)
@@ -68,13 +68,11 @@ class Node(
     next = null
   }
 
-  private suspend fun deleteFromPrevious(previousMove: String) {
+  private suspend fun deleteFromPrevious(previousMove: IStoredMove) {
     println("Deleting from previous: $previousMove. Position: $position")
     NodeFactory.clearPreviousMove(position, previousMove)
     check(!linkedMoves.previousMoves.contains(previousMove)) { "$previousMove not removed." }
-    if (linkedMoves.previousMoves.isNotEmpty()) {
-      DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
-    } else {
+    if (linkedMoves.previousMoves.isEmpty()) {
       delete()
     }
   }

@@ -8,13 +8,13 @@ import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 
 /**
- * Test the [TestDataBase], most particularly the utility methods to create prefilled test
+ * Test the [TestDatabase], most particularly the utility methods to create prefilled test
  * databases.
  */
 class TestTestDatabase {
   @Test
   fun testViennaDatabase() {
-    val viennaDb = TestDataBase.vienna()
+    val viennaDb = TestDatabase.vienna()
     val viennaMoves = getVienna()
 
     // Check that the database has the correct number of positions
@@ -26,15 +26,14 @@ class TestTestDatabase {
 
     // Verify each move is stored in the database
     for (move in viennaMoves) {
-      val found =
-        viennaDb.storedNodes.values.any { node -> node.getAvailableMoveList().contains(move) }
+      val found = viennaDb.storedNodes.values.any { node -> node.nextMoves.any { it.move == move } }
       assertTrue(found, "Move $move should be in the Vienna database")
     }
   }
 
   @Test
   fun testLondonDatabase() {
-    val londonDb = TestDataBase.london()
+    val londonDb = TestDatabase.london()
     val londonMoves = getLondon()
 
     // Check that the database has the correct number of positions
@@ -46,15 +45,14 @@ class TestTestDatabase {
 
     // Verify each move is stored in the database
     for (move in londonMoves) {
-      val found =
-        londonDb.storedNodes.values.any { node -> node.getAvailableMoveList().contains(move) }
+      val found = londonDb.storedNodes.values.any { node -> node.nextMoves.any { it.move == move } }
       assertTrue(found, "Move $move should be in the London database")
     }
   }
 
   @Test
   fun testScandinavianDatabase() {
-    val scandinavianDb = TestDataBase.scandinavian()
+    val scandinavianDb = TestDatabase.scandinavian()
     val scandinavianMoves = getScandinavian()
 
     // Check that the database has the correct number of positions
@@ -67,19 +65,19 @@ class TestTestDatabase {
     // Verify each move is stored in the database
     for (move in scandinavianMoves) {
       val found =
-        scandinavianDb.storedNodes.values.any { node -> node.getAvailableMoveList().contains(move) }
+        scandinavianDb.storedNodes.values.any { node -> node.nextMoves.any { it.move == move } }
       assertTrue(found, "Move $move should be in the Scandinavian database")
     }
   }
 
   @Test
   fun testMergeFunction() {
-    val viennaDb = TestDataBase.vienna()
-    val londonDb = TestDataBase.london()
-    val scandinavianDb = TestDataBase.scandinavian()
+    val viennaDb = TestDatabase.vienna()
+    val londonDb = TestDatabase.london()
+    val scandinavianDb = TestDatabase.scandinavian()
 
     // Merge all databases
-    val mergedDb = TestDataBase.merge(viennaDb, londonDb, scandinavianDb)
+    val mergedDb = TestDatabase.merge(viennaDb, londonDb, scandinavianDb)
 
     // Check that the merged database contains all positions from individual databases
     val uniquePositions =
@@ -95,9 +93,9 @@ class TestTestDatabase {
     for (node in viennaDb.storedNodes.values) {
       val mergedNode = mergedDb.storedNodes[node.positionKey.fenRepresentation]
       assertTrue(mergedNode != null, "Position from Vienna database should be in merged database")
-      for (move in node.getAvailableMoveList()) {
+      for (move in node.nextMoves) {
         assertTrue(
-          mergedNode!!.getAvailableMoveList().contains(move),
+          mergedNode.nextMoves.contains(move),
           "Move $move from Vienna database should be in merged database",
         )
       }
@@ -106,9 +104,9 @@ class TestTestDatabase {
     for (node in londonDb.storedNodes.values) {
       val mergedNode = mergedDb.storedNodes[node.positionKey.fenRepresentation]
       assertTrue(mergedNode != null, "Position from London database should be in merged database")
-      for (move in node.getAvailableMoveList()) {
+      for (move in node.nextMoves) {
         assertTrue(
-          mergedNode!!.getAvailableMoveList().contains(move),
+          mergedNode.nextMoves.contains(move),
           "Move $move from London database should be in merged database",
         )
       }
@@ -120,9 +118,9 @@ class TestTestDatabase {
         mergedNode != null,
         "Position from Scandinavian database should be in merged database",
       )
-      for (move in node.getAvailableMoveList()) {
+      for (move in node.nextMoves) {
         assertTrue(
-          mergedNode!!.getAvailableMoveList().contains(move),
+          mergedNode.nextMoves.contains(move),
           "Move $move from Scandinavian database should be in merged database",
         )
       }

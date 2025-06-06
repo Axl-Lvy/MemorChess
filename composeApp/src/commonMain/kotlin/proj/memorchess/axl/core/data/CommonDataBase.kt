@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.data
 
 /** Interface for the application's database operations on positions. */
-interface ICommonDataBase {
+interface ICommonDatabase {
   /**
    * Retrieves all stored positions.
    *
@@ -15,6 +15,12 @@ interface ICommonDataBase {
    * @param fen The FEN identifying the position to delete.
    */
   suspend fun deletePosition(fen: String)
+
+  suspend fun deleteMoveFrom(origin: String)
+
+  suspend fun deleteMoveTo(destination: String)
+
+  suspend fun deleteMove(origin: String, move: String)
 
   /** Deletes all stored positions. */
   suspend fun deleteAllPositions()
@@ -34,4 +40,4 @@ interface ICommonDataBase {
  *
  * @return The default database.
  */
-expect fun getCommonDataBase(): ICommonDataBase
+expect fun getCommonDatabase(): ICommonDatabase

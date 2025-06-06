@@ -1,0 +1,68 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "8d3b69062d979b10e65fad9a3a06baf9",
+    "entities": [
+      {
+        "tableName": "NodeEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fenRepresentation` TEXT NOT NULL, PRIMARY KEY(`fenRepresentation`))",
+        "fields": [
+          {
+            "fieldPath": "fenRepresentation",
+            "columnName": "fenRepresentation",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "fenRepresentation"
+          ]
+        }
+      },
+      {
+        "tableName": "MoveEntity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`origin` TEXT NOT NULL, `destination` TEXT NOT NULL, `move` TEXT NOT NULL, `isGood` INTEGER NOT NULL, PRIMARY KEY(`origin`, `destination`))",
+        "fields": [
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "destination",
+            "columnName": "destination",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "move",
+            "columnName": "move",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isGood",
+            "columnName": "isGood",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "origin",
+            "destination"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8d3b69062d979b10e65fad9a3a06baf9')"
+    ]
+  }
+}

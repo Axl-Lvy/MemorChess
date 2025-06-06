@@ -14,7 +14,7 @@ class PositionKey(val fenRepresentation: String) {
 
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
-    if (other !is proj.memorchess.axl.core.data.PositionKey) return false
+    if (other !is PositionKey) return false
     return fenRepresentation == other.fenRepresentation
   }
 
