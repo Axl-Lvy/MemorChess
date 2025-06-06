@@ -46,9 +46,21 @@ class Node(
    * Saves this node and its ancestors to the database. Persists the position and moves, then
    * recursively saves the previous node.
    */
-  suspend fun save() {
+  private suspend fun save() {
     DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
     previous?.save()
+  }
+
+  /** Sets this node as [good][IStoredMove.isGood] and saves it to the database. */
+  suspend fun saveGood() {
+    linkedMoves.setPreviousMovesAsGood(true)
+    save()
+  }
+
+  /** Sets this node as [bad][IStoredMove.isGood] and saves it to the database. */
+  suspend fun saveBad() {
+    linkedMoves.setPreviousMovesAsGood(false)
+    save()
   }
 
   /**
@@ -56,11 +68,11 @@ class Node(
    * clears the moves.
    */
   suspend fun delete() {
-    NodeFactory.clearNextMoves(position)
+    NodeManager.clearNextMoves(position)
     linkedMoves.nextMoves.forEach { move ->
       val game = createGame()
       game.playMove(move.move)
-      val childNode = NodeFactory.createNode(game, this, move.move)
+      val childNode = NodeManager.createNode(game, this, move.move)
       childNode.deleteFromPrevious(move)
     }
     DatabaseHolder.getDatabase().deletePosition(position.fenRepresentation)
@@ -70,7 +82,7 @@ class Node(
 
   private suspend fun deleteFromPrevious(previousMove: IStoredMove) {
     println("Deleting from previous: $previousMove. Position: $position")
-    NodeFactory.clearPreviousMove(position, previousMove)
+    NodeManager.clearPreviousMove(position, previousMove)
     check(!linkedMoves.previousMoves.contains(previousMove)) { "$previousMove not removed." }
     if (linkedMoves.previousMoves.isEmpty()) {
       delete()

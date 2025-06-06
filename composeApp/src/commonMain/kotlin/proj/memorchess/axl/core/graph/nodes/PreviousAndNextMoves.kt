@@ -22,4 +22,8 @@ class PreviousAndNextMoves(
   fun addNextMove(move: IStoredMove) {
     nextMoves.add(move)
   }
+
+  fun setPreviousMovesAsGood(isGood: Boolean) {
+    previousMoves.forEach { it.isGood = isGood }
+  }
 }

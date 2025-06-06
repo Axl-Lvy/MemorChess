@@ -18,7 +18,7 @@ import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
-import proj.memorchess.axl.core.graph.nodes.NodeFactory
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.InteractionManager
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.loading.LoadingPage
@@ -26,7 +26,7 @@ import proj.memorchess.axl.ui.util.impl.BasicReloader
 
 @Composable
 fun ControllableBoardPage(modifier: Modifier = Modifier) {
-  LoadingPage({ NodeFactory.retrieveGraphFromDatabase() }) { ControllableBoard(modifier) }
+  LoadingPage({ NodeManager.resetCacheFromDataBase() }) { ControllableBoard(modifier) }
 }
 
 @Composable

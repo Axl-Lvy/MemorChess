@@ -4,7 +4,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 import proj.memorchess.axl.core.graph.nodes.Node
-import proj.memorchess.axl.core.graph.nodes.NodeFactory
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.util.IReloader
 import proj.memorchess.axl.ui.popup.info
 
@@ -25,7 +25,7 @@ class InteractionManager(var game: Game) {
   private var node: Node
 
   init {
-    val rootNode = NodeFactory.createRootNode()
+    val rootNode = NodeManager.createRootNode()
     node = rootNode
   }
 
@@ -39,7 +39,7 @@ class InteractionManager(var game: Game) {
     if (immutableFirstTile != null) {
       try {
         val move = game.playMove(MoveDescription(immutableFirstTile, coordinates))
-        node = NodeFactory.createNode(game, node, move)
+        node = NodeManager.createNode(game, node, move)
       } catch (e: IllegalMoveException) {
         displayMessage(e.message.toString())
       }
@@ -54,7 +54,7 @@ class InteractionManager(var game: Game) {
   fun reset(reloader: IReloader) {
     firstTile = null
     game = Game()
-    node = NodeFactory.createRootNode()
+    node = NodeManager.createRootNode()
     reloader.reload()
   }
 
@@ -82,7 +82,7 @@ class InteractionManager(var game: Game) {
 
   fun playMove(move: String, reloader: IReloader) {
     game.playMove(move)
-    node = NodeFactory.createNode(game, node, move)
+    node = NodeManager.createNode(game, node, move)
     reloader.reload()
   }
 
@@ -91,7 +91,7 @@ class InteractionManager(var game: Game) {
   }
 
   suspend fun save() {
-    node.save()
+    node.saveGood()
   }
 
   suspend fun delete(reloader: IReloader) {
