@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.data.DatabaseHolder.getDatabase
-import proj.memorchess.axl.core.graph.nodes.NodeFactory
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.ui.pages.navigation.Destination
 
 @Composable
@@ -25,7 +25,7 @@ fun Settings() {
       onClick = {
         coroutineScope.launch {
           getDatabase().deleteAllPositions()
-          NodeFactory.resetCacheFromDataBase()
+          NodeManager.resetCacheFromDataBase()
         }
       }
     ) {

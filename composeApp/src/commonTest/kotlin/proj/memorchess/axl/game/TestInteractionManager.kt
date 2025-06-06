@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.engine.moves.IMove
 import proj.memorchess.axl.core.engine.moves.factory.ACheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.InteractionManager
 import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestDatabase
@@ -20,9 +21,12 @@ class TestInteractionManager {
   private lateinit var interactionManager: InteractionManager
   private lateinit var moveFactory: SimpleMoveFactory
   private lateinit var checkChecker: ACheckChecker
+  private lateinit var database: TestDatabase
 
   private fun initialize() {
-    DatabaseHolder.init(TestDatabase.empty())
+    database = TestDatabase.empty()
+    DatabaseHolder.init(database)
+    runTest { NodeManager.resetCacheFromDataBase() }
     PopupRendererHolder.init { _, _ -> }
     interactionManager = InteractionManager()
     moveFactory = SimpleMoveFactory(interactionManager.game.position)
@@ -58,6 +62,55 @@ class TestInteractionManager {
     runTest { interactionManager.delete(NoOpReloader) }
     interactionManager.forward(NoOpReloader)
     assertPawnOnE2()
+  }
+
+  @Test
+  fun testSaveGood() {
+    initialize()
+    val startPosition = interactionManager.game.position.toImmutablePosition()
+    interactionManager.clickOnTile(IBoard.getCoords("e2"))
+    interactionManager.clickOnTile(IBoard.getCoords("e4"))
+    runTest { interactionManager.saveGood() }
+
+    // Verify the move was saved as good
+    val storedNode = database.storedNodes[startPosition.fenRepresentation]
+    val savedMove = storedNode?.nextMoves?.find { it.move == "e4" }
+    assertEquals(true, savedMove?.isGood, "Move should be saved as good")
+  }
+
+  @Test
+  fun testSaveBad() {
+    initialize()
+    val startPosition = interactionManager.game.position.toImmutablePosition()
+    interactionManager.clickOnTile(IBoard.getCoords("e2"))
+    interactionManager.clickOnTile(IBoard.getCoords("e4"))
+    runTest { interactionManager.saveBad() }
+
+    // Verify the move was saved as bad
+    val storedNode = database.storedNodes[startPosition.fenRepresentation]
+    val savedMove = storedNode?.nextMoves?.find { it.move == "e4" }
+    assertEquals(false, savedMove?.isGood, "Move should be saved as bad")
+  }
+
+  @Test
+  fun testSaveGoodThenBad() {
+    initialize()
+    val startPosition = interactionManager.game.position.toImmutablePosition()
+    interactionManager.clickOnTile(IBoard.getCoords("e2"))
+    interactionManager.clickOnTile(IBoard.getCoords("e4"))
+    runTest { interactionManager.saveBad() }
+    val secondPosition = interactionManager.game.position.toImmutablePosition()
+    interactionManager.clickOnTile(IBoard.getCoords("e7"))
+    interactionManager.clickOnTile(IBoard.getCoords("e5"))
+    runTest { interactionManager.saveGood() }
+
+    // Verify the move was saved as bad
+    val storedRootNode = database.storedNodes[startPosition.fenRepresentation]
+    val savedBadMove = storedRootNode?.nextMoves?.find { it.move == "e4" }
+    assertEquals(false, savedBadMove?.isGood, "Move should be saved as bad")
+    val storedSecondNode = database.storedNodes[secondPosition.fenRepresentation]
+    val savedGoodMove = storedSecondNode?.nextMoves?.find { it.move == "e5" }
+    assertEquals(true, savedGoodMove?.isGood, "Move should be saved as good")
   }
 
   private fun assertPawnOnE4() {
