@@ -1,5 +1,7 @@
 package proj.memorchess.axl.test_util
 
+import proj.memorchess.axl.core.config.IAppConfig
+
 /**
  * Get button description according to string resource.
  *
@@ -34,4 +36,12 @@ fun getNextMoveDescription(move: String): String {
  */
 fun getPieceDescription(piece: String): String {
   return "Piece $piece"
+}
+
+/**
+ * Setup the application configuration for testing. This sets the configuration to a test-specific
+ * implementation.
+ */
+fun setupConfigForTest() {
+  IAppConfig.set(TestConfig)
 }
