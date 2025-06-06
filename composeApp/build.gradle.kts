@@ -86,6 +86,7 @@ kotlin {
       implementation(libs.kotlinx.datetime)
       implementation(libs.kotlinx.serialization.json)
       implementation(libs.navigation.compose)
+      implementation(libs.material.icons)
       api(libs.logging)
       implementation(libs.xfeather.z)
     }
