@@ -1,42 +1,38 @@
-# Anki Chess Openings
+# MemorChess Roadmap
 
-Roadmap summary for this project.
+Roadmap summary for this project. This document lists future developments, sorted by feature.
 
-## Backend
+### Database
 
-### Todo
+- [ ] JS database.
+- [ ] Have an online database per user.
+- [ ] Allow users to import/export their own database. The format should be compatible with every kind of database.
+- [x] Store graphs in the database.
 
-- Database management
-    - [ ] Find a way to store lines (with a graph)
-    - [ ] Deploy the database
-    - [ ] Create a database format to export / import from a file
-    - [ ] Remove
-      the [fallbackToDestructiveMigration](composeApp/src/nonJsMain/kotlin/proj/memorchess/axl/core/data/CustomDatabase.kt)
-- Anki method
-    - [ ] Implement anki algorithm
-    - [ ] Add anki function parameters
-- Security
-    - [ ] Account management
-- Perf
-    - [ ] Perf engine (https://www.chessprogramming.org)
+### Training
 
-### In progress
+- [ ] Good and bad moves.
+- [ ] Training manager.
+- [ ] Store last and next training date for each move.
+- [ ] Compute the next training date based on the last training date and the training algorithm.
 
-- Implement chess mechanism
-    - [x] Pieces movements
-    - [x] FEN parser
-    - [x] Move parser
-    - [x] Detect checks and mates
-    - [ ] Promotions
+### Settings
 
-### Done
+- [ ] Use [Multiplatform-Settings](https://github.com/russhwolf/multiplatform-settings)
+- [ ] Add a settings page.
+- [ ] Implement a customizable training algorithm.
 
-## Frontend
+### UI
 
-### Todo
+- [ ] Choose a design chart.
+- [ ] Create customizable components.
+- [ ] Different application themes.
 
-- Everything
+### Implementation details
 
-### In progress
+- [ ] Improve testing with [assertk](https://github.com/willowtreeapps/assertk)
+- [ ] Analyze code coverage
 
-### Done
+### Perf engine (https://www.chessprogramming.org)
+
+- [ ] The chess engine can be improved to allow fast move searching and evaluation.
