@@ -4,20 +4,16 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 class StoredNode(
   override val positionKey: PositionKey,
-  override val nextMoves: List<IStoredMove>,
-  override val previousMoves: List<IStoredMove>,
+  override val nextMoves: List<StoredMove>,
+  override val previousMoves: List<StoredMove>,
 ) : IStoredNode {
-  constructor(
-    positionKey: PositionKey,
-    previousMove: IStoredMove,
-  ) : this(positionKey, emptyList(), listOf(previousMove))
 
   constructor(
     positionKey: PositionKey,
     linkedMoves: PreviousAndNextMoves,
   ) : this(
     positionKey,
-    linkedMoves.nextMoves.sortedBy { it.move },
-    linkedMoves.previousMoves.sortedBy { it.move },
+    linkedMoves.nextMoves.values.sortedBy { it.move },
+    linkedMoves.previousMoves.values.sortedBy { it.move },
   )
 }

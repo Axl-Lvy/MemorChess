@@ -7,8 +7,8 @@ interface IStoredNode {
   val positionKey: PositionKey
 
   /** The list of next moves from this position */
-  val nextMoves: List<IStoredMove>
+  val nextMoves: List<StoredMove>
 
   /** The list of previous moves leading to this position */
-  val previousMoves: List<IStoredMove>
+  val previousMoves: List<StoredMove>
 }

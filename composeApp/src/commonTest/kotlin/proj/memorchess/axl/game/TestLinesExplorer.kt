@@ -12,13 +12,13 @@ import proj.memorchess.axl.core.engine.moves.factory.ACheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.interactions.InteractionManager
+import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.ui.popup.PopupRendererHolder
 
-class TestInteractionManager {
-  private lateinit var interactionManager: InteractionManager
+class TestLinesExplorer {
+  private lateinit var interactionsManager: LinesExplorer
   private lateinit var moveFactory: SimpleMoveFactory
   private lateinit var checkChecker: ACheckChecker
   private lateinit var database: TestDatabase
@@ -28,9 +28,9 @@ class TestInteractionManager {
     DatabaseHolder.init(database)
     runTest { NodeManager.resetCacheFromDataBase() }
     PopupRendererHolder.init { _, _ -> }
-    interactionManager = InteractionManager()
-    moveFactory = SimpleMoveFactory(interactionManager.game.position)
-    checkChecker = DummyCheckChecker(interactionManager.game.position)
+    interactionsManager = LinesExplorer()
+    moveFactory = SimpleMoveFactory(interactionsManager.game.position)
+    checkChecker = DummyCheckChecker(interactionsManager.game.position)
   }
 
   @Test
@@ -42,16 +42,16 @@ class TestInteractionManager {
   @Test
   fun testPrevious() {
     initialize()
-    interactionManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionManager.clickOnTile(IBoard.getCoords("e4"))
-    interactionManager.back(NoOpReloader)
+    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
+    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    interactionsManager.back(NoOpReloader)
     assertPawnOnE2()
   }
 
   @Test
   fun testForward() {
     testPrevious()
-    interactionManager.forward(NoOpReloader)
+    interactionsManager.forward(NoOpReloader)
     assertPawnOnE4()
   }
 
@@ -59,18 +59,18 @@ class TestInteractionManager {
   fun testDelete() {
     testManyGames()
     testPrevious()
-    runTest { interactionManager.delete(NoOpReloader) }
-    interactionManager.forward(NoOpReloader)
+    runTest { interactionsManager.delete(NoOpReloader) }
+    interactionsManager.forward(NoOpReloader)
     assertPawnOnE2()
   }
 
   @Test
   fun testSaveGood() {
     initialize()
-    val startPosition = interactionManager.game.position.toImmutablePosition()
-    interactionManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionManager.clickOnTile(IBoard.getCoords("e4"))
-    runTest { interactionManager.saveGood() }
+    val startPosition = interactionsManager.game.position.toImmutablePosition()
+    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
+    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    runTest { interactionsManager.saveGood() }
 
     // Verify the move was saved as good
     val storedNode = database.storedNodes[startPosition.fenRepresentation]
@@ -81,10 +81,10 @@ class TestInteractionManager {
   @Test
   fun testSaveBad() {
     initialize()
-    val startPosition = interactionManager.game.position.toImmutablePosition()
-    interactionManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionManager.clickOnTile(IBoard.getCoords("e4"))
-    runTest { interactionManager.saveBad() }
+    val startPosition = interactionsManager.game.position.toImmutablePosition()
+    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
+    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    runTest { interactionsManager.saveBad() }
 
     // Verify the move was saved as bad
     val storedNode = database.storedNodes[startPosition.fenRepresentation]
@@ -95,14 +95,14 @@ class TestInteractionManager {
   @Test
   fun testSaveGoodThenBad() {
     initialize()
-    val startPosition = interactionManager.game.position.toImmutablePosition()
-    interactionManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionManager.clickOnTile(IBoard.getCoords("e4"))
-    runTest { interactionManager.saveBad() }
-    val secondPosition = interactionManager.game.position.toImmutablePosition()
-    interactionManager.clickOnTile(IBoard.getCoords("e7"))
-    interactionManager.clickOnTile(IBoard.getCoords("e5"))
-    runTest { interactionManager.saveGood() }
+    val startPosition = interactionsManager.game.position.toImmutablePosition()
+    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
+    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    runTest { interactionsManager.saveBad() }
+    val secondPosition = interactionsManager.game.position.toImmutablePosition()
+    interactionsManager.clickOnTile(IBoard.getCoords("e7"))
+    interactionsManager.clickOnTile(IBoard.getCoords("e5"))
+    runTest { interactionsManager.saveGood() }
 
     // Verify the move was saved as bad
     val storedRootNode = database.storedNodes[startPosition.fenRepresentation]
@@ -122,10 +122,10 @@ class TestInteractionManager {
   }
 
   private fun assertPawnOnTile(pawnTile: String, emptyTile: String) {
-    interactionManager.game.position.board.getTile(pawnTile).getSafePiece()?.let {
+    interactionsManager.game.position.board.getTile(pawnTile).getSafePiece()?.let {
       assertEquals("P", it.toString())
     } ?: error("No piece found on $pawnTile")
-    assertNull(interactionManager.game.position.board.getTile(emptyTile).getSafePiece())
+    assertNull(interactionsManager.game.position.board.getTile(emptyTile).getSafePiece())
   }
 
   private fun testGame(stringMoves: List<String>) {
@@ -133,10 +133,10 @@ class TestInteractionManager {
     val refGame = Game()
     stringMoves.forEach {
       val move = createMove(it)
-      interactionManager.clickOnTile(move.origin())
-      interactionManager.clickOnTile(move.destination())
+      interactionsManager.clickOnTile(move.origin())
+      interactionsManager.clickOnTile(move.destination())
       if (it.contains("=")) {
-        interactionManager.game.applyPromotion(it.split("=")[1].substring(0, 1).lowercase())
+        interactionsManager.game.applyPromotion(it.split("=")[1].substring(0, 1).lowercase())
       }
       refGame.playMove(it)
       validateGame(refGame)
@@ -148,6 +148,6 @@ class TestInteractionManager {
   }
 
   private fun validateGame(refGame: Game) {
-    assertEquals(refGame.toString(), interactionManager.game.toString())
+    assertEquals(refGame.toString(), interactionsManager.game.toString())
   }
 }

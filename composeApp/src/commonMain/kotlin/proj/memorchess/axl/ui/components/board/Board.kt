@@ -12,17 +12,17 @@ import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.pieces.IPiece
-import proj.memorchess.axl.core.interactions.InteractionManager
+import proj.memorchess.axl.core.interactions.AInteractionsManager
 import proj.memorchess.axl.core.util.IReloader
 
 @Composable
 fun Board(
   inverted: Boolean = false,
-  interactionManager: InteractionManager,
+  interactionsManager: AInteractionsManager,
   reloader: IReloader,
   modifier: Modifier = Modifier,
 ) {
-  val board = interactionManager.game.position.board
+  val board = interactionsManager.game.position.board
 
   fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
     return if (inverted) {
@@ -46,7 +46,7 @@ fun Board(
           modifier =
             Modifier.clickable(
                 onClick = {
-                  interactionManager.clickOnTile(coords)
+                  interactionsManager.clickOnTile(coords)
                   for (boardTile in board.getTilesIterator()) {
                     if (tileToPiece[boardTile] != boardTile.getSafePiece()) {
                       tileToPiece[boardTile] = boardTile.getSafePiece()

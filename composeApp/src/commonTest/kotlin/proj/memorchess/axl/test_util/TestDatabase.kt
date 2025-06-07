@@ -1,7 +1,6 @@
 package proj.memorchess.axl.test_util
 
 import proj.memorchess.axl.core.data.ICommonDatabase
-import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.IStoredNode
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
@@ -95,7 +94,7 @@ class TestDatabase private constructor() : ICommonDatabase {
     private fun createDataBaseFromMoves(moves: List<String>): TestDatabase {
       val testDataBase = TestDatabase()
       val game = Game()
-      var previousMove: IStoredMove? = null
+      var previousMove: StoredMove? = null
       for (move in moves) {
         val currentPosition = game.position.toImmutablePosition()
         game.playMove(move)
