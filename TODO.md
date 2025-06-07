@@ -1,42 +1,42 @@
-# Anki Chess Openings
+# MemorChess Roadmap
 
-Roadmap summary for this project.
+Roadmap summary for this project. This document lists future developments, sorted by feature.
 
-## Backend
+## Performance Improvements
 
-### Todo
+### Perf engine (https://www.chessprogramming.org)
 
-- Database management
-    - [ ] Find a way to store lines (with a graph)
-    - [ ] Deploy the database
-    - [ ] Create a database format to export / import from a file
-    - [ ] Remove
-      the [fallbackToDestructiveMigration](composeApp/src/nonJsMain/kotlin/proj/memorchess/axl/core/data/CustomDatabase.kt)
-- Anki method
-    - [ ] Implement anki algorithm
-    - [ ] Add anki function parameters
-- Security
-    - [ ] Account management
-- Perf
-    - [ ] Perf engine (https://www.chessprogramming.org)
+The chess engine can be improved to allow fast move searching and evaluation.
 
-### In progress
+Status: Not started
 
-- Implement chess mechanism
-    - [x] Pieces movements
-    - [x] FEN parser
-    - [x] Move parser
-    - [x] Detect checks and mates
-    - [ ] Promotions
+### Database
 
-### Done
+- [ ] JS database.
+- [ ] Have an online database per user.
+- [ ] Allow users to import/export their own database. The format should be compatible with every kind of database.
+- [x] Store graphs in the database.
 
-## Frontend
+### Training
 
-### Todo
+- [ ] Good and bad moves.
+- [ ] Training manager.
+- [ ] Store last and next training date for each move.
+- [ ] Compute the next training date based on the last training date and the training algorithm.
 
-- Everything
+### Settings
 
-### In progress
+- [ ] Use [Multiplatform-Settings](https://github.com/russhwolf/multiplatform-settings)
+- [ ] Add a settings page.
+- [ ] Implement a customizable training algorithm.
 
-### Done
+### UI
+
+- [ ] Choose a design chart.
+- [ ] Create customizable components.
+- [ ] Different application themes.
+
+### Implementation details
+
+- [ ] Improve testing with [assertk](https://github.com/willowtreeapps/assertk)
+- [ ] Analyze code coverage
