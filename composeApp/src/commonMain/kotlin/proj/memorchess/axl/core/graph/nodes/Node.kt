@@ -1,8 +1,8 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 
@@ -37,7 +37,7 @@ class Node(
    * @param move The move string to add.
    * @param child The child [Node] resulting from the move.
    */
-  fun addChild(move: IStoredMove, child: Node) {
+  fun addChild(move: StoredMove, child: Node) {
     linkedMoves.addNextMove(move)
     next = child
   }
@@ -51,13 +51,13 @@ class Node(
     previous?.save()
   }
 
-  /** Sets this node as [good][IStoredMove.isGood] and saves it to the database. */
+  /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
   suspend fun saveGood() {
     linkedMoves.setPreviousMovesAsGood(true)
     save()
   }
 
-  /** Sets this node as [bad][IStoredMove.isGood] and saves it to the database. */
+  /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
   suspend fun saveBad() {
     linkedMoves.setPreviousMovesAsGood(false)
     save()
@@ -69,7 +69,7 @@ class Node(
    */
   suspend fun delete() {
     NodeManager.clearNextMoves(position)
-    linkedMoves.nextMoves.forEach { move ->
+    linkedMoves.nextMoves.values.forEach { move ->
       val game = createGame()
       game.playMove(move.move)
       val childNode = NodeManager.createNode(game, this, move.move)
@@ -80,10 +80,10 @@ class Node(
     next = null
   }
 
-  private suspend fun deleteFromPrevious(previousMove: IStoredMove) {
+  private suspend fun deleteFromPrevious(previousMove: StoredMove) {
     println("Deleting from previous: $previousMove. Position: $position")
     NodeManager.clearPreviousMove(position, previousMove)
-    check(!linkedMoves.previousMoves.contains(previousMove)) { "$previousMove not removed." }
+    check(!linkedMoves.previousMoves.contains(previousMove.move)) { "$previousMove not removed." }
     if (linkedMoves.previousMoves.isEmpty()) {
       delete()
     }

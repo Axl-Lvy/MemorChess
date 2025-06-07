@@ -1,0 +1,95 @@
+package proj.memorchess.axl.core.interactions
+
+import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.graph.nodes.Node
+import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.util.IReloader
+import proj.memorchess.axl.ui.popup.info
+
+/** LinesExplorer is an interaction manager that allows exploring the stored lines. */
+class LinesExplorer : AInteractionsManager(Game()) {
+
+  /** The current node in the exploration tree. */
+  private var node: Node
+
+  init {
+    node = NodeManager.createRootNode()
+  }
+
+  /**
+   * Creates an instance of LinesExplorer with the given node.
+   *
+   * @param node The node to start exploring from.
+   */
+  fun back(reloader: IReloader) {
+    val parent = node.previous
+    if (parent != null) {
+      node = parent
+      game = node.createGame()
+      reloader.reload()
+    } else {
+      info("No previous move.")
+    }
+  }
+
+  /**
+   * Moves forward in the exploration tree to the next child node.
+   *
+   * @param reloader The reloader to refresh the UI after moving forward.
+   */
+  fun forward(reloader: IReloader) {
+    val firstChild = node.next
+    if (firstChild != null) {
+      val move = node.linkedMoves.nextMoves.values.find { it.destination == firstChild.position }
+      checkNotNull(move) { "No move found to go to ${firstChild.position}" }
+      node = firstChild
+      game.playMove(move.move)
+      reloader.reload()
+    } else {
+      info("No next move.")
+    }
+  }
+
+  /**
+   * Get the list of moves that can be played from the current position.
+   *
+   * @return A list of moves that can be played from the current position.
+   */
+  fun getNextMoves(): List<String> {
+    return node.linkedMoves.nextMoves.keys.sorted()
+  }
+
+  /**
+   * Resets the LinesExplorer to the root node.
+   *
+   * @param reloader The reloader.
+   */
+  fun reset(reloader: IReloader) {
+    node = NodeManager.createRootNode()
+    super.reset(reloader, node.position)
+  }
+
+  override fun afterPlayMove(move: String) {
+    node = NodeManager.createNode(game, node, move)
+  }
+
+  /** Saves the current node as coming from a good move. */
+  suspend fun saveGood() {
+    node.saveGood()
+  }
+
+  /** Saves the current node as coming from a bad move. */
+  suspend fun saveBad() {
+    node.saveBad()
+  }
+
+  /**
+   * Deletes the current node and reloads the explorer.
+   *
+   * @param reloader The reloader to refresh the UI after deletion.
+   */
+  suspend fun delete(reloader: IReloader) {
+    node.delete()
+    reloader.reload()
+  }
+}

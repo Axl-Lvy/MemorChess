@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.data
 import androidx.room.Entity
 
 /**
- * Room entity representing an [IStoredMove].
+ * Room entity representing an [StoredMove].
  *
  * @property origin FEN string of the origin position.
  * @property destination FEN string of the destination position.
@@ -19,19 +19,19 @@ data class MoveEntity(
   val isGood: Boolean = true,
 ) {
 
-  /** Converts to an [IStoredMove]. */
-  fun toStoredMove(): IStoredMove {
+  /** Converts to an [StoredMove]. */
+  fun toStoredMove(): StoredMove {
     return StoredMove(PositionKey(origin), PositionKey(destination), move, isGood)
   }
 
   companion object {
-    /** Converts an [IStoredMove] to a [MoveEntity]. */
-    fun convertToEntity(storedMove: IStoredMove): MoveEntity {
+    /** Converts an [StoredMove] to a [MoveEntity]. */
+    fun convertToEntity(storedMove: StoredMove): MoveEntity {
       return MoveEntity(
-        storedMove.getOrigin().fenRepresentation,
-        storedMove.getDestination().fenRepresentation,
+        storedMove.origin.fenRepresentation,
+        storedMove.destination.fenRepresentation,
         storedMove.move,
-        storedMove.isGood,
+        storedMove.isGood ?: true,
       )
     }
   }

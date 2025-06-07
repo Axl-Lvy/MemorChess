@@ -3,22 +3,21 @@ package proj.memorchess.axl.core.data
 import proj.memorchess.axl.core.engine.board.IPosition
 import proj.memorchess.axl.core.engine.parser.FenParser
 
-class PositionKey(val fenRepresentation: String) {
+/**
+ * Represents a unique key for a chess position based on its pseudo FEN representation. This key can
+ * be used to create an [IPosition] instance.
+ *
+ * @property fenRepresentation The pseudo FEN string representing the chess position. It is not a
+ *   full FEN as it does not include the move counts and not always the en passant column.
+ */
+data class PositionKey(val fenRepresentation: String) {
+
+  /**
+   * Creates an [IPosition] from this key.
+   *
+   * @return An [IPosition] created from this key.
+   */
   fun createPosition(): IPosition {
     return FenParser.readPosition(this)
-  }
-
-  override fun toString(): String {
-    return "PositionKey(fenRepresentation='$fenRepresentation')"
-  }
-
-  override fun equals(other: Any?): Boolean {
-    if (this === other) return true
-    if (other !is PositionKey) return false
-    return fenRepresentation == other.fenRepresentation
-  }
-
-  override fun hashCode(): Int {
-    return fenRepresentation.hashCode()
   }
 }
