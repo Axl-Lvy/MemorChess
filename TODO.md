@@ -2,14 +2,6 @@
 
 Roadmap summary for this project. This document lists future developments, sorted by feature.
 
-## Performance Improvements
-
-### Perf engine (https://www.chessprogramming.org)
-
-The chess engine can be improved to allow fast move searching and evaluation.
-
-Status: Not started
-
 ### Database
 
 - [ ] JS database.
@@ -40,3 +32,7 @@ Status: Not started
 
 - [ ] Improve testing with [assertk](https://github.com/willowtreeapps/assertk)
 - [ ] Analyze code coverage
+
+### Perf engine (https://www.chessprogramming.org)
+
+- [ ] The chess engine can be improved to allow fast move searching and evaluation.
