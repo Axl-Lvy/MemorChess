@@ -25,6 +25,10 @@ object NonJsCommonDatabase : ICommonDatabase {
     database.getNodeEntityDao().removeMove(origin, move)
   }
 
+  override suspend fun insertMove(move: StoredMove) {
+    database.getNodeEntityDao().insertMoves(listOf(MoveEntity.convertToEntity(move)))
+  }
+
   override suspend fun deleteAllPositions() {
     database.getNodeEntityDao().deleteAll()
   }

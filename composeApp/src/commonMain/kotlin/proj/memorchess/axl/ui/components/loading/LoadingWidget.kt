@@ -2,6 +2,7 @@ package proj.memorchess.axl.ui.components.loading
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -11,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import kotlin.time.measureTime
 import proj.memorchess.axl.core.config.IAppConfig
 
@@ -25,7 +27,7 @@ import proj.memorchess.axl.core.config.IAppConfig
  * @param composable The composable content to display after loading.
  */
 @Composable
-fun LoadingPage(suspendingFunction: suspend () -> Any?, composable: @Composable () -> Unit) {
+fun LoadingWidget(suspendingFunction: suspend () -> Any?, composable: @Composable () -> Unit) {
   var isLoading by remember { mutableStateOf(true) }
 
   LaunchedEffect(Unit) {
@@ -39,7 +41,7 @@ fun LoadingPage(suspendingFunction: suspend () -> Any?, composable: @Composable 
 
   if (isLoading) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      CircularProgressIndicator(modifier = Modifier.fillMaxSize())
+      CircularProgressIndicator(modifier = Modifier.then(Modifier.size(200.dp)))
     }
   } else {
     composable()

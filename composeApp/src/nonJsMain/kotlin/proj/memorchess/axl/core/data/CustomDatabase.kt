@@ -4,11 +4,13 @@ import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
+import androidx.room.TypeConverters
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-@Database(entities = [NodeEntity::class, MoveEntity::class], version = 1)
+@Database(entities = [NodeEntity::class, MoveEntity::class], version = 2, autoMigrations = [])
+@TypeConverters(DateConverters::class)
 @ConstructedBy(DatabaseConstructor::class)
 abstract class CustomDatabase : RoomDatabase() {
   abstract fun getNodeEntityDao(): NodeEntityDao

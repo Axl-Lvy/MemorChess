@@ -6,6 +6,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.game.getLondon
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
@@ -31,7 +32,7 @@ class TestDatabase private constructor() : ICommonDatabase {
       return
     }
     storedNodes[origin] =
-      StoredNode(PositionKey(origin), emptyList(), storedNodes[origin]!!.previousMoves)
+      StoredNode(PositionKey(origin), storedNodes[origin]!!.previousMoves, mutableListOf())
   }
 
   override suspend fun deleteMoveTo(destination: String) {
@@ -39,7 +40,7 @@ class TestDatabase private constructor() : ICommonDatabase {
       return
     }
     storedNodes[destination] =
-      StoredNode(PositionKey(destination), storedNodes[destination]!!.nextMoves, emptyList())
+      StoredNode(PositionKey(destination), mutableListOf(), storedNodes[destination]!!.nextMoves)
   }
 
   override suspend fun deleteMove(origin: String, move: String) {
@@ -48,7 +49,15 @@ class TestDatabase private constructor() : ICommonDatabase {
     }
     val newNextMoves = storedNodes[origin]!!.nextMoves.filter { it.move != move }
     storedNodes[origin] =
-      StoredNode(PositionKey(origin), newNextMoves, storedNodes[origin]!!.previousMoves)
+      StoredNode(
+        PositionKey(origin),
+        PreviousAndNextMoves(storedNodes[origin]!!.previousMoves, newNextMoves),
+      )
+  }
+
+  override suspend fun insertMove(move: StoredMove) {
+    storedNodes[move.origin.fenRepresentation]!!.nextMoves.add(move)
+    storedNodes[move.destination.fenRepresentation]!!.previousMoves.add(move)
   }
 
   override suspend fun insertPosition(position: IStoredNode) {
@@ -102,8 +111,8 @@ class TestDatabase private constructor() : ICommonDatabase {
         val node =
           StoredNode(
             currentPosition,
-            listOf(storedMove),
-            previousMove?.let { listOf(it) } ?: emptyList(),
+            previousMove?.let { mutableListOf(it) } ?: mutableListOf(),
+            mutableListOf(storedMove),
           )
         previousMove = storedMove
         testDataBase.storedNodes[node.positionKey.fenRepresentation] = node
@@ -132,8 +141,8 @@ class TestDatabase private constructor() : ICommonDatabase {
             merged.storedNodes[entry.key] =
               StoredNode(
                 storedNode.positionKey,
-                newMoves.sortedBy { it.move },
-                previousMoves.sortedBy { it.move },
+                previousMoves.sortedBy { it.move }.toMutableList(),
+                newMoves.sortedBy { it.move }.toMutableList(),
               )
           }
         }

@@ -1,6 +1,10 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import com.diamondedge.logging.logging
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.IStoredNode
 import proj.memorchess.axl.core.data.PositionKey
@@ -80,7 +84,11 @@ object NodeManager {
  * position keys and their associated moves.
  */
 private object NodeCache {
+  private lateinit var todayDate: LocalDate
+
   private var databaseRetrieved = false
+
+  private val movesToLearn = mutableListOf<StoredMove>()
 
   /** Cache to prevent creating a node twice. */
   private val movesCache = mutableMapOf<PositionKey, PreviousAndNextMoves>()
@@ -144,10 +152,20 @@ private object NodeCache {
       LOGGER.i { "Database already retrieved." }
       return
     }
+    movesToLearn.clear()
+    todayDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val allPosition: List<IStoredNode> = (DatabaseHolder.getDatabase()).getAllPositions()
-    allPosition.forEach {
-      movesCache.getOrPut(it.positionKey) { PreviousAndNextMoves(it.previousMoves, it.nextMoves) }
-      LOGGER.i { "Retrieved node: ${it.positionKey}" }
+    allPosition.forEach { position ->
+      movesCache.getOrPut(position.positionKey) {
+        PreviousAndNextMoves(position.previousMoves, position.nextMoves)
+      }
+      position.nextMoves.forEach {
+        if (it.nextTrainedDate < todayDate) {
+          movesToLearn.add(it)
+          LOGGER.i { "Move $it has to be learned today" }
+        }
+      }
+      LOGGER.i { "Retrieved node: ${position.positionKey}" }
     }
     databaseRetrieved = true
   }

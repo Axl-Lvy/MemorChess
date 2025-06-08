@@ -22,6 +22,8 @@ interface ICommonDatabase {
 
   suspend fun deleteMove(origin: String, move: String)
 
+  suspend fun insertMove(move: StoredMove)
+
   /** Deletes all stored positions. */
   suspend fun deleteAllPositions()
 

@@ -46,7 +46,7 @@ class Node(
    * Saves this node and its ancestors to the database. Persists the position and moves, then
    * recursively saves the previous node.
    */
-  private suspend fun save() {
+  suspend fun save() {
     DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
     previous?.save()
   }
