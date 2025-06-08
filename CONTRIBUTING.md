@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to MemorChess! 🚀 Please follow these guidelines to help us maintain a high-quality codebase and smooth development process.
 
+The project roadmap can be found on [Notion](https://www.notion.so/MemorChess-20b6a98d8ad280f189bbeb49f6bbf043).
+
 ## ✨ Code Formatting
 
 - We use [ktfmt](https://github.com/facebook/ktfmt) for Kotlin code formatting.
