@@ -33,7 +33,8 @@ fun Settings() {
             NodeManager.resetCacheFromDataBase()
           }
         }
-      }
+      },
+      modifier = Modifier.testTag("eraseAllDataButton"),
     ) {
       Text("Erase All Data")
     }

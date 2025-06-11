@@ -8,9 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-/**
- * A confirmation dialog that can be shown with a confirmation action.
- */
+/** A confirmation dialog that can be shown with a confirmation action. */
 class ConfirmationDialog {
   private var show by mutableStateOf(true)
   private var onConfirm = {}
