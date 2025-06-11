@@ -6,7 +6,7 @@ import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.util.IReloader
-import proj.memorchess.axl.ui.popup.info
+import proj.memorchess.axl.ui.components.popup.info
 
 /**
  * Class that handles clicks on the chess board.

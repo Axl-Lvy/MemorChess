@@ -15,7 +15,7 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.InteractionManager
 import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestDatabase
-import proj.memorchess.axl.ui.popup.PopupRendererHolder
+import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
 class TestInteractionManager {
   private lateinit var interactionManager: InteractionManager
@@ -27,7 +27,7 @@ class TestInteractionManager {
     database = TestDatabase.empty()
     DatabaseHolder.init(database)
     runTest { NodeManager.resetCacheFromDataBase() }
-    PopupRendererHolder.init { _, _ -> }
+    ToastRendererHolder.init { _, _ -> }
     interactionManager = InteractionManager()
     moveFactory = SimpleMoveFactory(interactionManager.game.position)
     checkChecker = DummyCheckChecker(interactionManager.game.position)
