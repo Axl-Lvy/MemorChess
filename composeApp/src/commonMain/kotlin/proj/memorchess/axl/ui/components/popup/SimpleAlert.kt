@@ -10,7 +10,7 @@ import androidx.compose.runtime.setValue
 
 /** A simple alert dialog that can be shown with a message. */
 class SimpleAlert {
-  private var show by mutableStateOf(true)
+  private var show by mutableStateOf(false)
   private var text: String = ""
 
   /**

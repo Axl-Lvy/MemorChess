@@ -32,6 +32,8 @@ class TestSettings {
   @Test
   fun testEraseAllDataButton() {
 
+    composeTestRule.onNodeWithText("Confirm?").assertDoesNotExist()
+
     // Find and click the Erase All Data button
     composeTestRule.onNodeWithTag("eraseAllDataButton").assertExists().performClick()
 
