@@ -1,5 +1,7 @@
 package proj.memorchess.axl.core.data
 
+import kotlinx.datetime.LocalDate
+
 /** Node that can be stored in [ICommonDatabase] */
 interface IStoredNode {
 
@@ -11,4 +13,10 @@ interface IStoredNode {
 
   /** The list of previous moves leading to this position */
   val previousMoves: MutableList<StoredMove>
+
+  /** The date when this node was last trained */
+  val lastTrainedDate: LocalDate
+
+  /** The date when this node should be trained next */
+  val nextTrainedDate: LocalDate
 }

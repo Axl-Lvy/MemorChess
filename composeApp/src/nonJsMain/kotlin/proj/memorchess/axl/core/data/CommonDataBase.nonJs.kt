@@ -5,7 +5,7 @@ object NonJsCommonDatabase : ICommonDatabase {
 
   private val database = getRoomDatabase(databaseBuilder())
 
-  override suspend fun getAllPositions(): List<IStoredNode> {
+  override suspend fun getAllPositions(): List<StoredNode> {
     return database.getNodeEntityDao().getAll().map { it.toStoredNode() }
   }
 

@@ -22,15 +22,15 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
-import proj.memorchess.axl.ui.util.impl.BasicReloader
+import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
-fun ControllableBoardPage(modifier: Modifier = Modifier) {
-  LoadingWidget({ NodeManager.resetCacheFromDataBase() }) { ControllableBoard(modifier) }
+fun ControllableBoard(modifier: Modifier = Modifier) {
+  LoadingWidget({ NodeManager.resetCacheFromDataBase() }) { Component(modifier) }
 }
 
 @Composable
-private fun ControllableBoard(modifier: Modifier = Modifier) {
+private fun Component(modifier: Modifier = Modifier) {
   var inverted by remember { mutableStateOf(false) }
   val boardReloader = remember { BasicReloader() }
   val linesExplorer = remember { LinesExplorer() }

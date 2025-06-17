@@ -16,7 +16,7 @@ import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.test_util.setupConfigForTest
-import proj.memorchess.axl.ui.components.control.board_control.ControllableBoardPage
+import proj.memorchess.axl.ui.components.control.board_control.ControllableBoard
 
 class TestControlBar {
 
@@ -28,7 +28,7 @@ class TestControlBar {
     // Use test configuration for faster tests
     setupConfigForTest()
     DatabaseHolder.init(TestDatabase.vienna())
-    composeTestRule.setContent { ControllableBoardPage() }
+    composeTestRule.setContent { ControllableBoard() }
     composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")), 5_000L)
     composeTestRule.onNode(hasClickLabel(getTileDescription("e2"))).assertExists().performClick()
     composeTestRule.onNode(hasClickLabel(getTileDescription("e4"))).assertExists().performClick()

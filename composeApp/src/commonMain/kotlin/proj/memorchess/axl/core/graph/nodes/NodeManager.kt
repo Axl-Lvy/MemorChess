@@ -1,15 +1,13 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import com.diamondedge.logging.logging
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.IStoredNode
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
+import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.ui.util.DateUtil
 
 /** Node factory singleton. */
 object NodeManager {
@@ -62,6 +60,10 @@ object NodeManager {
     return newNode
   }
 
+  fun getMovesFor(positionKey: PositionKey): PreviousAndNextMoves {
+    return nodeCache.getOrPut(positionKey) { PreviousAndNextMoves() }
+  }
+
   suspend fun clearNextMoves(positionKey: PositionKey) {
     nodeCache.clearNextMoves(positionKey)
   }
@@ -76,6 +78,10 @@ object NodeManager {
     nodeCache.retrieveGraphFromDatabase()
   }
 
+  fun getNextNodeToLearn(day: Int): StoredNode? {
+    return nodeCache.getNodeFromDay(day)
+  }
+
   private val LOGGER = logging()
 }
 
@@ -88,7 +94,7 @@ private object NodeCache {
 
   private var databaseRetrieved = false
 
-  private val movesToLearn = mutableListOf<StoredMove>()
+  private val nodesByDay = mutableMapOf<Int, MutableList<StoredNode>>()
 
   /** Cache to prevent creating a node twice. */
   private val movesCache = mutableMapOf<PositionKey, PreviousAndNextMoves>()
@@ -146,37 +152,30 @@ private object NodeCache {
     databaseRetrieved = false
   }
 
+  fun getNodeFromDay(day: Int): StoredNode? {
+    return nodesByDay[day]?.removeFirstOrNull()
+  }
+
   /** Retrieves the graph from the database and populates the cache. */
   suspend fun retrieveGraphFromDatabase() {
     if (databaseRetrieved) {
       LOGGER.i { "Database already retrieved." }
       return
     }
-    movesToLearn.clear()
-    todayDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    val allPosition: List<IStoredNode> = (DatabaseHolder.getDatabase()).getAllPositions()
-    allPosition.forEach { position ->
-      movesCache.getOrPut(position.positionKey) {
-        PreviousAndNextMoves(position.previousMoves, position.nextMoves)
+    nodesByDay.clear()
+    todayDate = DateUtil.today()
+    val allNodes: List<StoredNode> = DatabaseHolder.getDatabase().getAllPositions()
+    allNodes.forEach { node ->
+      movesCache.getOrPut(node.positionKey) {
+        PreviousAndNextMoves(node.previousMoves, node.nextMoves)
       }
-      position.nextMoves.forEach {
-        if (it.nextTrainedDate < todayDate) {
-          movesToLearn.add(it)
-          LOGGER.i { "Move $it has to be learned today" }
-        }
+      if (node.nextMoves.any { it.isGood == true }) {
+        val daysUntil = DateUtil.daysUntil(node.nextTrainedDate)
+        nodesByDay.getOrPut(daysUntil) { mutableListOf() }.add(node)
       }
-      LOGGER.i { "Retrieved node: ${position.positionKey}" }
+      LOGGER.i { "Retrieved node: ${node.positionKey}" }
     }
     databaseRetrieved = true
-  }
-
-  /**
-   * Checks if the database has been retrieved.
-   *
-   * @return True if the database has been retrieved, false otherwise.
-   */
-  fun isDatabaseRetrieved(): Boolean {
-    return databaseRetrieved
   }
 
   private val LOGGER = logging()

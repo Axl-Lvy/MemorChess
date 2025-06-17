@@ -4,7 +4,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.util.IReloader
-import proj.memorchess.axl.ui.popup.info
+import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
 class LinesExplorer : AInteractionsManager(Game()) {
@@ -69,8 +69,9 @@ class LinesExplorer : AInteractionsManager(Game()) {
     super.reset(reloader, node.position)
   }
 
-  override fun afterPlayMove(move: String) {
+  override suspend fun afterPlayMove(move: String, reloader: IReloader) {
     node = NodeManager.createNode(game, node, move)
+    reloader.reload()
   }
 
   /** Saves the current node as coming from a good move. */

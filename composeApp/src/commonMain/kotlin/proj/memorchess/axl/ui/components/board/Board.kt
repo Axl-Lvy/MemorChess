@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
@@ -37,6 +38,7 @@ fun Board(
         board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
       }
     }
+  val coroutineScope = rememberCoroutineScope()
   LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = modifier) {
     items(64) { index ->
       val coords = squareIndexToBoardTile(index)
@@ -46,10 +48,12 @@ fun Board(
           modifier =
             Modifier.clickable(
                 onClick = {
-                  interactionsManager.clickOnTile(coords)
-                  for (boardTile in board.getTilesIterator()) {
-                    if (tileToPiece[boardTile] != boardTile.getSafePiece()) {
-                      tileToPiece[boardTile] = boardTile.getSafePiece()
+                  coroutineScope.launch {
+                    interactionsManager.clickOnTile(coords, reloader)
+                    for (boardTile in board.getTilesIterator()) {
+                      if (tileToPiece[boardTile] != boardTile.getSafePiece()) {
+                        tileToPiece[boardTile] = boardTile.getSafePiece()
+                      }
                     }
                   }
                 },

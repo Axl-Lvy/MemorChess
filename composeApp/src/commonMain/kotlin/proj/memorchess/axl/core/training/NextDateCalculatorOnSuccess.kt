@@ -1,14 +1,18 @@
 package proj.memorchess.axl.core.training
 
-import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.days
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import kotlinx.datetime.todayIn
+import proj.memorchess.axl.ui.util.DateUtil
 
+/** Calculate the next training date on success. */
 object NextDateCalculatorOnSuccess : INextDateCalculator {
   override fun calculateNextDate(lastTrainedDate: LocalDate): LocalDate {
-    return Clock.System.todayIn(TimeZone.currentSystemDefault()).plus(DatePeriod(days = 1))
+    val today = DateUtil.today()
+    val passedDays = today.minus(lastTrainedDate).days
+    val daysToAdd = (passedDays * 1.5).toInt() // Increase the interval by 50% on success
+    return today.plus(DatePeriod(days = daysToAdd))
   }
 }

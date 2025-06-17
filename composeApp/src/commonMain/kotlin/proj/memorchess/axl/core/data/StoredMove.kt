@@ -1,9 +1,6 @@
 package proj.memorchess.axl.core.data
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
+import com.diamondedge.logging.logging
 
 /** Move that can be stored in [ICommonDatabase] */
 data class StoredMove(
@@ -24,15 +21,16 @@ data class StoredMove(
    * Bad moves are always isolated: previous and the next moves are good.
    */
   var isGood: Boolean? = null,
-
-  /** The date when this move was last trained */
-  var lastTrainedDate: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
-
-  /** The date when this move should be trained next */
-  var nextTrainedDate: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
 ) {
   /** Saves the move to the database */
   suspend fun save() {
+    LOGGER.info { "Saving $this" }
     DatabaseHolder.getDatabase().insertMove(this)
   }
+
+  override fun toString(): String {
+    return "StoredMove(move='$move', isGood=$isGood, origin=$origin, destination=$destination)"
+  }
 }
+
+private val LOGGER = logging()

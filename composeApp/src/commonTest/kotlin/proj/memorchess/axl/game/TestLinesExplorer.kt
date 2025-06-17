@@ -42,8 +42,8 @@ class TestLinesExplorer {
   @Test
   fun testPrevious() {
     initialize()
-    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    clickOnTile("e2")
+    clickOnTile("e4")
     interactionsManager.back(NoOpReloader)
     assertPawnOnE2()
   }
@@ -68,8 +68,8 @@ class TestLinesExplorer {
   fun testSaveGood() {
     initialize()
     val startPosition = interactionsManager.game.position.toImmutablePosition()
-    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    clickOnTile("e2")
+    clickOnTile("e4")
     runTest { interactionsManager.saveGood() }
 
     // Verify the move was saved as good
@@ -82,8 +82,8 @@ class TestLinesExplorer {
   fun testSaveBad() {
     initialize()
     val startPosition = interactionsManager.game.position.toImmutablePosition()
-    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    clickOnTile("e2")
+    clickOnTile("e4")
     runTest { interactionsManager.saveBad() }
 
     // Verify the move was saved as bad
@@ -96,12 +96,12 @@ class TestLinesExplorer {
   fun testSaveGoodThenBad() {
     initialize()
     val startPosition = interactionsManager.game.position.toImmutablePosition()
-    interactionsManager.clickOnTile(IBoard.getCoords("e2"))
-    interactionsManager.clickOnTile(IBoard.getCoords("e4"))
+    clickOnTile("e2")
+    clickOnTile("e4")
     runTest { interactionsManager.saveBad() }
     val secondPosition = interactionsManager.game.position.toImmutablePosition()
-    interactionsManager.clickOnTile(IBoard.getCoords("e7"))
-    interactionsManager.clickOnTile(IBoard.getCoords("e5"))
+    clickOnTile("e7")
+    clickOnTile("e5")
     runTest { interactionsManager.saveGood() }
 
     // Verify the move was saved as bad
@@ -133,8 +133,8 @@ class TestLinesExplorer {
     val refGame = Game()
     stringMoves.forEach {
       val move = createMove(it)
-      interactionsManager.clickOnTile(move.origin())
-      interactionsManager.clickOnTile(move.destination())
+      clickOnTile(move.origin())
+      clickOnTile(move.destination())
       if (it.contains("=")) {
         interactionsManager.game.applyPromotion(it.split("=")[1].substring(0, 1).lowercase())
       }
@@ -149,5 +149,13 @@ class TestLinesExplorer {
 
   private fun validateGame(refGame: Game) {
     assertEquals(refGame.toString(), interactionsManager.game.toString())
+  }
+
+  private fun clickOnTile(tile: String) {
+    clickOnTile(IBoard.getCoords(tile))
+  }
+
+  private fun clickOnTile(coords: Pair<Int, Int>) {
+    runTest { interactionsManager.clickOnTile(coords, NoOpReloader) }
   }
 }

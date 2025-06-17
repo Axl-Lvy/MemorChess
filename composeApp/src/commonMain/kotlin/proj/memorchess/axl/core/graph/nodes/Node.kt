@@ -1,10 +1,12 @@
 package proj.memorchess.axl.core.graph.nodes
 
+import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.ui.util.DateUtil
 
 /**
  * Represents a node in the chess position graph. Each node corresponds to a unique chess position
@@ -45,22 +47,45 @@ class Node(
   /**
    * Saves this node and its ancestors to the database. Persists the position and moves, then
    * recursively saves the previous node.
+   *
+   * @param lastTrainedDate The date when this node was last trained. Default is today.
+   * @param nextTrainedDate The date when this node should be trained next. Default is today.
    */
-  suspend fun save() {
-    DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
+  suspend fun save(
+    lastTrainedDate: LocalDate = DateUtil.today(),
+    nextTrainedDate: LocalDate = DateUtil.today(),
+  ) {
+    DatabaseHolder.getDatabase()
+      .insertPosition(StoredNode(position, linkedMoves, lastTrainedDate, nextTrainedDate))
     previous?.save()
   }
 
-  /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
-  suspend fun saveGood() {
+  /**
+   * Sets this node as [good][StoredMove.isGood] and saves it to the database.
+   *
+   * @param lastTrainedDate The date when this node was last trained. Default is today.
+   * @param nextTrainedDate The date when this node should be trained next. Default is today.
+   */
+  suspend fun saveGood(
+    lastTrainedDate: LocalDate = DateUtil.today(),
+    nextTrainedDate: LocalDate = DateUtil.today(),
+  ) {
     linkedMoves.setPreviousMovesAsGood(true)
-    save()
+    save(lastTrainedDate, nextTrainedDate)
   }
 
-  /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
-  suspend fun saveBad() {
+  /**
+   * Sets this node as [bad][StoredMove.isGood] and saves it to the database.
+   *
+   * @param lastTrainedDate The date when this node was last trained. Default is today.
+   * @param nextTrainedDate The date when this node should be trained next. Default is today.
+   */
+  suspend fun saveBad(
+    lastTrainedDate: LocalDate = DateUtil.today(),
+    nextTrainedDate: LocalDate = DateUtil.today(),
+  ) {
     linkedMoves.setPreviousMovesAsGood(false)
-    save()
+    save(lastTrainedDate, nextTrainedDate)
   }
 
   /**

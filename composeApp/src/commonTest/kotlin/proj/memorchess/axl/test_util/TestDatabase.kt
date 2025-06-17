@@ -17,9 +17,9 @@ import proj.memorchess.axl.game.getVienna
  * @constructor Creates an empty test database.
  */
 class TestDatabase private constructor() : ICommonDatabase {
-  val storedNodes = mutableMapOf<String, IStoredNode>()
+  val storedNodes = mutableMapOf<String, StoredNode>()
 
-  override suspend fun getAllPositions(): List<IStoredNode> {
+  override suspend fun getAllPositions(): List<StoredNode> {
     return storedNodes.values.toList()
   }
 
@@ -61,7 +61,7 @@ class TestDatabase private constructor() : ICommonDatabase {
   }
 
   override suspend fun insertPosition(position: IStoredNode) {
-    storedNodes[position.positionKey.fenRepresentation] = position
+    storedNodes[position.positionKey.fenRepresentation] = position as StoredNode
   }
 
   override suspend fun deleteAllPositions() {

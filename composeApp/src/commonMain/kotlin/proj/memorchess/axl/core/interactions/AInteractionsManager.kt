@@ -5,7 +5,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 import proj.memorchess.axl.core.util.IReloader
-import proj.memorchess.axl.ui.popup.info
+import proj.memorchess.axl.ui.components.popup.info
 
 /**
  * Class that handles clicks on the chess board.
@@ -23,12 +23,12 @@ abstract class AInteractionsManager(var game: Game) {
    *
    * @param coordinates The clicked tile's coordinates.
    */
-  fun clickOnTile(coordinates: Pair<Int, Int>) {
+  suspend fun clickOnTile(coordinates: Pair<Int, Int>, reloader: IReloader) {
     val immutableFirstTile = firstTile
     if (immutableFirstTile != null) {
       try {
         val move = game.playMove(MoveDescription(immutableFirstTile, coordinates))
-        afterPlayMove(move)
+        afterPlayMove(move, reloader)
       } catch (e: IllegalMoveException) {
         info(e.message.toString())
       }
@@ -46,10 +46,9 @@ abstract class AInteractionsManager(var game: Game) {
    * @param move the move to play
    * @param reloader the reloader
    */
-  fun playMove(move: String, reloader: IReloader) {
+  suspend fun playMove(move: String, reloader: IReloader) {
     game.playMove(move)
-    afterPlayMove(move)
-    reloader.reload()
+    afterPlayMove(move, reloader)
   }
 
   /**
@@ -57,7 +56,7 @@ abstract class AInteractionsManager(var game: Game) {
    *
    * @param move The move that was played.
    */
-  abstract fun afterPlayMove(move: String)
+  abstract suspend fun afterPlayMove(move: String, reloader: IReloader)
 
   /**
    * Resets the game to a new position.

@@ -13,7 +13,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.test_util.setupConfigForTest
-import proj.memorchess.axl.ui.components.control.board_control.ControllableBoardPage
+import proj.memorchess.axl.ui.components.control.board_control.ControllableBoard
 
 class TestSaveButtons {
 
@@ -28,7 +28,7 @@ class TestSaveButtons {
     setupConfigForTest()
     database = TestDatabase.empty()
     DatabaseHolder.init(database)
-    composeTestRule.setContent { ControllableBoardPage() }
+    composeTestRule.setContent { ControllableBoard() }
     composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")), 5_000L)
     composeTestRule.onNode(hasClickLabel(getTileDescription("e2"))).assertExists().performClick()
     composeTestRule.onNode(hasClickLabel(getTileDescription("e4"))).assertExists().performClick()
