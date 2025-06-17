@@ -21,6 +21,7 @@ import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.util.BasicReloader
 
+/** Training board */
 @Composable
 fun TrainingBoard(modifier: Modifier = Modifier) {
   LoadingWidget({ NodeManager.resetCacheFromDataBase() }) { Component(modifier) }
@@ -34,10 +35,17 @@ private fun Component(modifier: Modifier = Modifier) {
   if (moveToTrain == null) {
     NoNodeToTrain(modifier = modifier) { daysFromToday++ }
   } else {
-    NodeToTrain(moveToTrain, modifier = modifier, reloader)
+    NodeToTrain(moveToTrain, reloader, modifier = modifier)
   }
 }
 
+/**
+ * Composable that displays a message when there are no nodes to train.
+ *
+ * @param modifier Modifier for styling.
+ * @param incrementDays Function to call when the button is clicked to increment the days. This
+ *   allows to train with nodes from tomorrow.
+ */
 @Composable
 private fun NoNodeToTrain(modifier: Modifier = Modifier, incrementDays: () -> Unit) {
   Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -71,11 +79,18 @@ private fun NoNodeToTrain(modifier: Modifier = Modifier, incrementDays: () -> Un
   }
 }
 
+/**
+ * Composable based on a node to train.
+ *
+ * @param nodeToLearn The node to learn.
+ * @param modifier Modifier for styling.
+ * @param reloader The reloader to use for refreshing the board.
+ */
 @Composable
 private fun NodeToTrain(
   nodeToLearn: StoredNode,
-  modifier: Modifier = Modifier,
   reloader: IReloader,
+  modifier: Modifier = Modifier,
 ) {
   val trainer = remember(nodeToLearn) { SingleLineTrainer(nodeToLearn) }
   Column(

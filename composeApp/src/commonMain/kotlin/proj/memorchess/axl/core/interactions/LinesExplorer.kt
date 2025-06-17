@@ -17,9 +17,9 @@ class LinesExplorer : AInteractionsManager(Game()) {
   }
 
   /**
-   * Creates an instance of LinesExplorer with the given node.
+   * Moves back in the exploration tree to the previous node.
    *
-   * @param node The node to start exploring from.
+   * @param reloader The reloader to refresh the UI after moving back.
    */
   fun back(reloader: IReloader) {
     val parent = node.previous

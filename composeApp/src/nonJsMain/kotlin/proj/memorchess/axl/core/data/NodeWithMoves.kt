@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.data
 import androidx.room.Embedded
 import androidx.room.Relation
 
+/** Entity representing a node with its associated moves. */
 data class NodeWithMoves(
   @Embedded val node: NodeEntity,
   @Relation(parentColumn = "fenRepresentation", entityColumn = "destination")

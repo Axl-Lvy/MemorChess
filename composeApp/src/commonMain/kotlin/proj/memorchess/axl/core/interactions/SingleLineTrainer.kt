@@ -7,6 +7,11 @@ import proj.memorchess.axl.core.training.NextDateCalculatorOnSuccess
 import proj.memorchess.axl.core.util.IReloader
 import proj.memorchess.axl.ui.util.DateUtil
 
+/**
+ * Trainer based on a node.
+ *
+ * @property node The node to train on.
+ */
 class SingleLineTrainer(private var node: StoredNode) :
   AInteractionsManager(Game(node.positionKey)) {
 

@@ -22,6 +22,7 @@ abstract class AInteractionsManager(var game: Game) {
    * Clicks on a tile.
    *
    * @param coordinates The clicked tile's coordinates.
+   * @param reloader The reloader to use after the move is played.
    */
   suspend fun clickOnTile(coordinates: Pair<Int, Int>, reloader: IReloader) {
     val immutableFirstTile = firstTile
@@ -55,6 +56,7 @@ abstract class AInteractionsManager(var game: Game) {
    * Called after a move is played.
    *
    * @param move The move that was played.
+   * @param reloader The reloader to use after the move is played.
    */
   abstract suspend fun afterPlayMove(move: String, reloader: IReloader)
 

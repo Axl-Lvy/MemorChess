@@ -60,10 +60,6 @@ object NodeManager {
     return newNode
   }
 
-  fun getMovesFor(positionKey: PositionKey): PreviousAndNextMoves {
-    return nodeCache.getOrPut(positionKey) { PreviousAndNextMoves() }
-  }
-
   suspend fun clearNextMoves(positionKey: PositionKey) {
     nodeCache.clearNextMoves(positionKey)
   }
