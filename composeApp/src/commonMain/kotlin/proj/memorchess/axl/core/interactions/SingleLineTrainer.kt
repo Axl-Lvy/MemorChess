@@ -2,8 +2,7 @@ package proj.memorchess.axl.core.interactions
 
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.training.NextDateCalculatorOnFailure
-import proj.memorchess.axl.core.training.NextDateCalculatorOnSuccess
+import proj.memorchess.axl.core.training.INextDateCalculator
 import proj.memorchess.axl.core.util.IReloader
 import proj.memorchess.axl.ui.util.DateUtil
 
@@ -27,9 +26,9 @@ class SingleLineTrainer(private var node: StoredNode) :
   private suspend fun saveNode() {
     val calculator =
       if (isCorrect) {
-        NextDateCalculatorOnSuccess
+        INextDateCalculator.SUCCESS
       } else {
-        NextDateCalculatorOnFailure
+        INextDateCalculator.FAILURE
       }
 
     val nextTrainedDate = calculator.calculateNextDate(node.lastTrainedDate)
