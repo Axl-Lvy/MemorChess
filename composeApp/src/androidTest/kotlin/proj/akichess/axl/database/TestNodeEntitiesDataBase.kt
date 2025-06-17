@@ -11,6 +11,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import org.junit.After
 import org.junit.Before
 import proj.memorchess.axl.core.data.CustomDatabase
@@ -42,10 +45,11 @@ class TestNodeEntitiesDataBase {
   fun writeAndReadNode() {
     val retrievedNodes: List<NodeWithMoves>
     val game = Game()
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
-          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
+          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves(), today, today)
         )
       )
       retrievedNodes = nodeEntityDao.getAll()
@@ -63,10 +67,11 @@ class TestNodeEntitiesDataBase {
   fun testDeleteAll() {
     val retrievedNode: NodeWithMoves?
     val game = Game()
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
-          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
+          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves(), today, today)
         )
       )
       nodeEntityDao.deleteAll()
@@ -86,9 +91,18 @@ class TestNodeEntitiesDataBase {
         rootPositionKey.fenRepresentation,
         game.position.toImmutablePosition().fenRepresentation,
         "e4",
+        true,
       )
-    val rootNode = StoredNode(rootPositionKey, listOf(linkMove.toStoredMove()), listOf())
-    val childNode = StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves())
+    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val rootNode =
+      StoredNode(
+        rootPositionKey,
+        PreviousAndNextMoves(listOf(), listOf(linkMove.toStoredMove())),
+        today,
+        today,
+      )
+    val childNode =
+      StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves(), today, today)
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(childNode))

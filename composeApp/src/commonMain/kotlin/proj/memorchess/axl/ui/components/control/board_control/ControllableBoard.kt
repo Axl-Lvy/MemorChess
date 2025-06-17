@@ -19,24 +19,24 @@ import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.interactions.InteractionManager
+import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
-import proj.memorchess.axl.ui.components.loading.LoadingPage
-import proj.memorchess.axl.ui.util.impl.BasicReloader
+import proj.memorchess.axl.ui.components.loading.LoadingWidget
+import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
-fun ControllableBoardPage(modifier: Modifier = Modifier) {
-  LoadingPage({ NodeManager.resetCacheFromDataBase() }) { ControllableBoard(modifier) }
+fun ControllableBoard(modifier: Modifier = Modifier) {
+  LoadingWidget({ NodeManager.resetCacheFromDataBase() }) { Component(modifier) }
 }
 
 @Composable
-private fun ControllableBoard(modifier: Modifier = Modifier) {
+private fun Component(modifier: Modifier = Modifier) {
   var inverted by remember { mutableStateOf(false) }
   val boardReloader = remember { BasicReloader() }
-  val interactionManager = remember { InteractionManager() }
+  val linesExplorer = remember { LinesExplorer() }
   val coroutineScope = rememberCoroutineScope()
 
-  val nextMoves = remember(boardReloader.getKey()) { interactionManager.getChildrenMoves() }
+  val nextMoves = remember(boardReloader.getKey()) { linesExplorer.getNextMoves() }
   Column(
     verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     modifier = modifier.padding(16.dp),
@@ -44,32 +44,32 @@ private fun ControllableBoard(modifier: Modifier = Modifier) {
     ControlBar(
       modifier = Modifier.height(50.dp),
       onReverseClick = { inverted = !inverted },
-      onResetClick = { interactionManager.reset(boardReloader) },
-      onForwardClick = { interactionManager.forward(boardReloader) },
-      onBackClick = { interactionManager.back(boardReloader) },
+      onResetClick = { linesExplorer.reset(boardReloader) },
+      onForwardClick = { linesExplorer.forward(boardReloader) },
+      onBackClick = { linesExplorer.back(boardReloader) },
     )
-    Board(inverted, interactionManager, boardReloader, modifier = modifier.fillMaxWidth())
-    NextMoveBar(moveList = nextMoves, playMove = { interactionManager.playMove(it, boardReloader) })
+    Board(inverted, linesExplorer, boardReloader, modifier = modifier.fillMaxWidth())
+    NextMoveBar(moveList = nextMoves, playMove = { linesExplorer.playMove(it, boardReloader) })
     Row(
       horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
       modifier = Modifier.fillMaxWidth(),
     ) {
       Button(
-        onClick = { coroutineScope.launch { interactionManager.saveGood() } },
+        onClick = { coroutineScope.launch { linesExplorer.saveGood() } },
         colors = ButtonDefaults.buttonColors(Color.Green),
         modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Save, contentDescription = "Save Good")
       }
       Button(
-        onClick = { coroutineScope.launch { interactionManager.saveBad() } },
+        onClick = { coroutineScope.launch { linesExplorer.saveBad() } },
         colors = ButtonDefaults.buttonColors(Color.Yellow),
         modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Save, contentDescription = "Save Bad")
       }
       Button(
-        onClick = { coroutineScope.launch { interactionManager.delete(boardReloader) } },
+        onClick = { coroutineScope.launch { linesExplorer.delete(boardReloader) } },
         colors = ButtonDefaults.buttonColors(Color.Red),
         modifier = Modifier.weight(1f),
       ) {

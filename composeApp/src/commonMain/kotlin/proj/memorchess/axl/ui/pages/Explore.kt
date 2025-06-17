@@ -6,7 +6,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import proj.memorchess.axl.ui.components.control.board_control.ControllableBoardPage
+import proj.memorchess.axl.ui.components.control.board_control.ControllableBoard
 import proj.memorchess.axl.ui.pages.navigation.Destination
 
 @Composable
@@ -18,6 +18,6 @@ fun Explore() {
         .testTag(Destination.EXPLORE.name),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    ControllableBoardPage(modifier = Modifier.fillMaxWidth())
+    ControllableBoard(modifier = Modifier.fillMaxWidth())
   }
 }

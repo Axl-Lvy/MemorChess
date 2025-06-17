@@ -14,7 +14,7 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
-import proj.memorchess.axl.ui.components.control.board_control.ControllableBoardPage
+import proj.memorchess.axl.ui.components.control.board_control.ControllableBoard
 
 class TestNextMoveBar {
 
@@ -23,7 +23,7 @@ class TestNextMoveBar {
   @BeforeTest
   fun setUp() {
     DatabaseHolder.init(TestDatabase.vienna())
-    composeTestRule.setContent { ControllableBoardPage() }
+    composeTestRule.setContent { ControllableBoard() }
     composeTestRule.onNode(hasClickLabel(getTileDescription("e2"))).assertExists().performClick()
     composeTestRule.onNode(hasClickLabel(getTileDescription("e4"))).assertExists().performClick()
   }

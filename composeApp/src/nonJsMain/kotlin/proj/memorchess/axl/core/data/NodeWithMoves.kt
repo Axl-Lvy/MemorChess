@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.data
 import androidx.room.Embedded
 import androidx.room.Relation
 
+/** Entity representing a node with its associated moves. */
 data class NodeWithMoves(
   @Embedded val node: NodeEntity,
   @Relation(parentColumn = "fenRepresentation", entityColumn = "destination")
@@ -13,15 +14,21 @@ data class NodeWithMoves(
   fun toStoredNode(): StoredNode {
     return StoredNode(
       PositionKey(node.fenRepresentation),
-      nextMoves.map { it.toStoredMove() },
-      previousMoves.map { it.toStoredMove() },
+      previousMoves.map { it.toStoredMove() }.toMutableList(),
+      nextMoves.map { it.toStoredMove() }.toMutableList(),
+      node.lastTrainedDate,
+      node.nextTrainedDate,
     )
   }
 
   companion object {
     fun convertToEntity(storedNode: IStoredNode): NodeWithMoves {
       return NodeWithMoves(
-        NodeEntity(storedNode.positionKey.fenRepresentation),
+        NodeEntity(
+          storedNode.positionKey.fenRepresentation,
+          storedNode.lastTrainedDate,
+          storedNode.nextTrainedDate,
+        ),
         storedNode.previousMoves.map { MoveEntity.convertToEntity(it) },
         storedNode.nextMoves.map { MoveEntity.convertToEntity(it) },
       )

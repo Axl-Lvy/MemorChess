@@ -2,12 +2,17 @@ package proj.memorchess.axl.core.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 
 /**
  * Entity representing an [IStoredNode] ready to be stored in the database.
  *
  * @property fenRepresentation FEN string uniquely identifying the chess position.
- * @property availableMoves Comma-separated list of moves from this position.
+ * @property lastTrainedDate The date when this node was last trained.
+ * @property nextTrainedDate The date when this node should be trained next.
  */
 @Entity(tableName = "NodeEntity")
 data class NodeEntity(
@@ -18,5 +23,11 @@ data class NodeEntity(
    * Note that it should not be always the exact FEN string: it does not keep useless en passant
    * information.
    */
-  @PrimaryKey(autoGenerate = false) val fenRepresentation: String
+  @PrimaryKey(autoGenerate = false) val fenRepresentation: String,
+
+  /** The date when this node was last trained */
+  val lastTrainedDate: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
+
+  /** The date when this node should be trained next */
+  val nextTrainedDate: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
 )

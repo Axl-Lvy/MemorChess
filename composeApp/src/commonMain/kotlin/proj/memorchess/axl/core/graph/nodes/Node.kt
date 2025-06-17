@@ -1,10 +1,12 @@
 package proj.memorchess.axl.core.graph.nodes
 
+import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.IStoredMove
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.ui.util.DateUtil
 
 /**
  * Represents a node in the chess position graph. Each node corresponds to a unique chess position
@@ -37,7 +39,7 @@ class Node(
    * @param move The move string to add.
    * @param child The child [Node] resulting from the move.
    */
-  fun addChild(move: IStoredMove, child: Node) {
+  fun addChild(move: StoredMove, child: Node) {
     linkedMoves.addNextMove(move)
     next = child
   }
@@ -45,22 +47,45 @@ class Node(
   /**
    * Saves this node and its ancestors to the database. Persists the position and moves, then
    * recursively saves the previous node.
+   *
+   * @param lastTrainedDate The date when this node was last trained. Default is today.
+   * @param nextTrainedDate The date when this node should be trained next. Default is today.
    */
-  private suspend fun save() {
-    DatabaseHolder.getDatabase().insertPosition(StoredNode(position, linkedMoves))
+  suspend fun save(
+    lastTrainedDate: LocalDate = DateUtil.today(),
+    nextTrainedDate: LocalDate = DateUtil.today(),
+  ) {
+    DatabaseHolder.getDatabase()
+      .insertPosition(StoredNode(position, linkedMoves, lastTrainedDate, nextTrainedDate))
     previous?.save()
   }
 
-  /** Sets this node as [good][IStoredMove.isGood] and saves it to the database. */
-  suspend fun saveGood() {
+  /**
+   * Sets this node as [good][StoredMove.isGood] and saves it to the database.
+   *
+   * @param lastTrainedDate The date when this node was last trained. Default is today.
+   * @param nextTrainedDate The date when this node should be trained next. Default is today.
+   */
+  suspend fun saveGood(
+    lastTrainedDate: LocalDate = DateUtil.today(),
+    nextTrainedDate: LocalDate = DateUtil.today(),
+  ) {
     linkedMoves.setPreviousMovesAsGood(true)
-    save()
+    save(lastTrainedDate, nextTrainedDate)
   }
 
-  /** Sets this node as [bad][IStoredMove.isGood] and saves it to the database. */
-  suspend fun saveBad() {
+  /**
+   * Sets this node as [bad][StoredMove.isGood] and saves it to the database.
+   *
+   * @param lastTrainedDate The date when this node was last trained. Default is today.
+   * @param nextTrainedDate The date when this node should be trained next. Default is today.
+   */
+  suspend fun saveBad(
+    lastTrainedDate: LocalDate = DateUtil.today(),
+    nextTrainedDate: LocalDate = DateUtil.today(),
+  ) {
     linkedMoves.setPreviousMovesAsGood(false)
-    save()
+    save(lastTrainedDate, nextTrainedDate)
   }
 
   /**
@@ -69,7 +94,7 @@ class Node(
    */
   suspend fun delete() {
     NodeManager.clearNextMoves(position)
-    linkedMoves.nextMoves.forEach { move ->
+    linkedMoves.nextMoves.values.forEach { move ->
       val game = createGame()
       game.playMove(move.move)
       val childNode = NodeManager.createNode(game, this, move.move)
@@ -80,10 +105,10 @@ class Node(
     next = null
   }
 
-  private suspend fun deleteFromPrevious(previousMove: IStoredMove) {
+  private suspend fun deleteFromPrevious(previousMove: StoredMove) {
     println("Deleting from previous: $previousMove. Position: $position")
     NodeManager.clearPreviousMove(position, previousMove)
-    check(!linkedMoves.previousMoves.contains(previousMove)) { "$previousMove not removed." }
+    check(!linkedMoves.previousMoves.contains(previousMove.move)) { "$previousMove not removed." }
     if (linkedMoves.previousMoves.isEmpty()) {
       delete()
     }

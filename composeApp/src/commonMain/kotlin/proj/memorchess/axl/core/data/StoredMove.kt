@@ -1,17 +1,36 @@
 package proj.memorchess.axl.core.data
 
-/** Implementation of [IStoredMove] that can be used in core. */
+import com.diamondedge.logging.logging
+
+/** Move that can be stored in [ICommonDatabase] */
 data class StoredMove(
-  private val origin: PositionKey,
-  private val destination: PositionKey,
-  override val move: String,
-  override var isGood: Boolean = true,
-) : IStoredMove {
-  override fun getOrigin(): PositionKey {
-    return origin
+  /** Origin position of the move */
+  val origin: PositionKey,
+
+  /** Destination position of the move */
+  val destination: PositionKey,
+
+  /** The move in standard notation */
+  val move: String,
+
+  /**
+   * Whether the move has to be learned.
+   *
+   * A bad move is a mistake. It is still saved because the user has to learn how to counter it.
+   *
+   * Bad moves are always isolated: previous and the next moves are good.
+   */
+  var isGood: Boolean? = null,
+) {
+  /** Saves the move to the database */
+  suspend fun save() {
+    LOGGER.info { "Saving $this" }
+    DatabaseHolder.getDatabase().insertMove(this)
   }
 
-  override fun getDestination(): PositionKey {
-    return destination
+  override fun toString(): String {
+    return "StoredMove(move='$move', isGood=$isGood, origin=$origin, destination=$destination)"
   }
 }
+
+private val LOGGER = logging()

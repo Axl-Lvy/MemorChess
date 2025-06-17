@@ -7,7 +7,7 @@ interface ICommonDatabase {
    *
    * @return A list of all stored positions as [IStoredNode] objects.
    */
-  suspend fun getAllPositions(): List<IStoredNode>
+  suspend fun getAllPositions(): List<StoredNode>
 
   /**
    * Deletes a specific position by its FEN.
@@ -21,6 +21,8 @@ interface ICommonDatabase {
   suspend fun deleteMoveTo(destination: String)
 
   suspend fun deleteMove(origin: String, move: String)
+
+  suspend fun insertMove(move: StoredMove)
 
   /** Deletes all stored positions. */
   suspend fun deleteAllPositions()
