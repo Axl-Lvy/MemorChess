@@ -24,14 +24,6 @@ fun Board(
   modifier: Modifier = Modifier,
 ) {
   val board = interactionsManager.game.position.board
-
-  fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
-    return if (inverted) {
-      Pair(index / 8, (63 - index) % 8)
-    } else {
-      Pair((63 - index) / 8, index % 8)
-    }
-  }
   val tileToPiece =
     remember(reloader.getKey()) {
       mutableStateMapOf<ITile, IPiece?>().apply {
@@ -41,7 +33,7 @@ fun Board(
   val coroutineScope = rememberCoroutineScope()
   LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = modifier) {
     items(64) { index ->
-      val coords = squareIndexToBoardTile(index)
+      val coords = squareIndexToBoardTile(index, inverted)
       val tile = board.getTile(coords)
       run {
         Box(
@@ -66,5 +58,13 @@ fun Board(
         }
       }
     }
+  }
+}
+
+private fun squareIndexToBoardTile(index: Int, inverted: Boolean): Pair<Int, Int> {
+  return if (inverted) {
+    Pair(index / 8, (63 - index) % 8)
+  } else {
+    Pair((63 - index) / 8, index % 8)
   }
 }
