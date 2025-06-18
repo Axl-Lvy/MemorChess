@@ -1,4 +1,4 @@
-package proj.akichess.axl.board
+package proj.memorchess.axl.board
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -7,7 +7,7 @@ import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import org.junit.Rule
-import proj.akichess.axl.utils.hasClickLabel
+import proj.memorchess.axl.utils.hasClickLabel
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.test_util.TestDatabase

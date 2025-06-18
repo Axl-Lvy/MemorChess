@@ -1,4 +1,4 @@
-package proj.akichess.axl.navigation
+package proj.memorchess.axl.navigation
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription

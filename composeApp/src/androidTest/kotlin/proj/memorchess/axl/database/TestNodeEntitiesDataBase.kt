@@ -1,4 +1,4 @@
-package proj.akichess.axl.database
+package proj.memorchess.axl.database
 
 import android.content.Context
 import androidx.room.Room

@@ -1,4 +1,4 @@
-package proj.akichess.axl.board
+package proj.memorchess.axl.board
 
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionContains
@@ -9,7 +9,7 @@ import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import org.junit.Rule
-import proj.akichess.axl.utils.hasClickLabel
+import proj.memorchess.axl.utils.hasClickLabel
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNextMoveDescription
