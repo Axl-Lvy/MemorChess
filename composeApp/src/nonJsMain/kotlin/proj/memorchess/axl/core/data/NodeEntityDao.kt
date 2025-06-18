@@ -94,4 +94,7 @@ interface NodeEntityDao {
    * This operation will remove all entries in the NodeEntity and MoveEntity tables.
    */
   @Query(value = "DELETE FROM NodeEntity") suspend fun deleteAll()
+
+  /** Delete all moves from the database. */
+  @Query(value = "DELETE FROM MoveEntity") suspend fun deleteAllMoves()
 }

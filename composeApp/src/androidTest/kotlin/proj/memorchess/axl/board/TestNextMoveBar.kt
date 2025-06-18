@@ -9,12 +9,12 @@ import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import org.junit.Rule
-import proj.memorchess.axl.utils.hasClickLabel
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.components.control.board_control.ControllableBoard
+import proj.memorchess.axl.utils.hasClickLabel
 
 class TestNextMoveBar {
 

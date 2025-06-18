@@ -29,7 +29,7 @@ fun Settings() {
       onClick = {
         dlg.show {
           coroutineScope.launch {
-            getDatabase().deleteAllPositions()
+            getDatabase().deleteAllNodes()
             NodeManager.resetCacheFromDataBase()
           }
         }

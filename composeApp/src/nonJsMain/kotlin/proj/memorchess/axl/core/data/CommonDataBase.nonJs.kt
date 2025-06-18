@@ -29,7 +29,11 @@ object NonJsCommonDatabase : ICommonDatabase {
     database.getNodeEntityDao().insertMoves(listOf(MoveEntity.convertToEntity(move)))
   }
 
-  override suspend fun deleteAllPositions() {
+  override suspend fun deleteAllMoves() {
+    database.getNodeEntityDao().deleteAllMoves()
+  }
+
+  override suspend fun deleteAllNodes() {
     database.getNodeEntityDao().deleteAll()
   }
 
