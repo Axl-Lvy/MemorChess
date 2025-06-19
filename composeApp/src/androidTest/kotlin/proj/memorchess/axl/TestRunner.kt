@@ -5,6 +5,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import com.diamondedge.logging.logging
 import kotlin.test.BeforeTest
 import kotlin.test.Ignore
 import kotlin.test.Test
@@ -15,6 +16,8 @@ import proj.memorchess.axl.core.config.IAppConfig
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.factories.TestNavigationFactory
+import proj.memorchess.axl.factories.TestSettingsFactory
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 import proj.memorchess.axl.test_util.TestConfig
@@ -27,7 +30,7 @@ import proj.memorchess.axl.ui.util.DateUtil
 class TestRunner {
   @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
 
-  private val testFactories = listOf(TestNavigationFactory(), TestExploreFactory())
+  private val testFactories = listOf(TestNavigationFactory(), TestSettingsFactory())
 
   @BeforeTest
   fun setUp() {
@@ -38,18 +41,32 @@ class TestRunner {
   @Test
   fun runTests() {
     val failedTests = mutableMapOf<String, Int>()
+    val successTests = mutableMapOf<String, Int>()
     for (testFactory in testFactories) {
       testFactory.composeTestRule = composeTestRule
       for (test in testFactory.createTests()) {
         reset()
         try {
+          testFactory.beforeEach()
           test()
+          successTests.compute(testFactory.javaClass.name) { _, value ->
+            if (value == null) 1 else value + 1
+          }
         } catch (t: Throwable) {
-          failedTests.compute(testFactory.javaClass.simpleName) { _, value ->
+          failedTests.compute(testFactory.javaClass.name) { _, value ->
             if (value == null) 1 else value + 1
           }
         }
       }
+    }
+    if (successTests.isNotEmpty()) {
+      val message = StringBuilder()
+      for (failedTestClass in failedTests) {
+        message.append(
+          "${failedTestClass.value} tests run with success in ${failedTestClass.key}\n"
+        )
+      }
+      LOGGER.info { "${successTests.values.sum()} tests run with success : \n$message" }
     }
     if (failedTests.isNotEmpty()) {
       val message = StringBuilder()
@@ -63,12 +80,15 @@ class TestRunner {
   @Test
   @Ignore("Use this to run a single test class")
   fun runSingleTestClass() {
-    val testFactory = TestNavigationFactory()
+    val testFactory = TestSettingsFactory()
     testFactory.composeTestRule = composeTestRule
     for (test in testFactory.createTests()) {
       reset()
+      testFactory.beforeEach()
       test()
     }
+    // Always fail so that we are sure this test is ignored
+    fail("SUCCESS")
   }
 
   @Test
@@ -76,7 +96,11 @@ class TestRunner {
   fun runSingleTest() {
     val testFactory = TestNavigationFactory()
     testFactory.composeTestRule = composeTestRule
+    reset()
+    testFactory.beforeEach()
     testFactory.testGoToExplore()
+    // Always fail so that we are sure this test is ignored
+    fail("SUCCESS")
   }
 
   private fun reset() {
@@ -118,3 +142,5 @@ class TestRunner {
     }
   }
 }
+
+private val LOGGER = logging()
