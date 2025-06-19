@@ -1,7 +1,9 @@
 package proj.memorchess.axl.factories
 
 import androidx.compose.ui.test.performClick
+import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.AUiTestFactory
+import proj.memorchess.axl.utils.Awaitility
 
 class TestSettingsFactory : AUiTestFactory() {
   override fun createTests(): List<() -> Unit> {
@@ -26,8 +28,7 @@ class TestSettingsFactory : AUiTestFactory() {
     assertNodeWithTagExists("eraseAllDataButton").performClick()
     assertNodeWithTextExists("OK").performClick()
 
-    // Verify the database is cleared. We don't need to wait here as the deletion should have been
-    // sent before the query.
-    assert(getAllPosition().isEmpty()) { "Database should be empty after erasing all data" }
+    // Verify the database is cleared
+    Awaitility.awaitUntilTrue(5.seconds) { getAllPosition().isEmpty() }
   }
 }
