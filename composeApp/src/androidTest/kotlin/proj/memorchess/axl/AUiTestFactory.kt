@@ -117,6 +117,7 @@ abstract class AUiTestFactory {
    */
   fun goToExplore() {
     clickOnDestinationButton(Destination.EXPLORE)
+    composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")))
     assertNodeWithTagExists(Destination.EXPLORE.name)
   }
 
@@ -128,6 +129,7 @@ abstract class AUiTestFactory {
    */
   fun goToTraining() {
     clickOnDestinationButton(Destination.TRAINING)
+    composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")))
     assertNodeWithTagExists(Destination.TRAINING.name)
   }
 
