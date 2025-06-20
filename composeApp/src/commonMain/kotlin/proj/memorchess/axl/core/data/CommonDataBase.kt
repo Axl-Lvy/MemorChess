@@ -9,6 +9,8 @@ interface ICommonDatabase {
    */
   suspend fun getAllPositions(): List<StoredNode>
 
+  suspend fun getPosition(positionKey: PositionKey): StoredNode?
+
   /**
    * Deletes a specific position by its FEN.
    *

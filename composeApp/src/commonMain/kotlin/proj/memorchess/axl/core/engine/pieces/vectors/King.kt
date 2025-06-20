@@ -6,10 +6,9 @@ import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 import proj.memorchess.axl.core.engine.pieces.IPiece
 
 /** King. */
-class King(player: Game.Player) :
-  proj.memorchess.axl.core.engine.pieces.vectors.AFiniteMovers(player) {
+class King(player: Game.Player) : AFiniteMovers(player) {
   override fun getVectors(): Set<Pair<Int, Int>> {
-    return proj.memorchess.axl.core.engine.pieces.vectors.VectorUtils.ALL_VECTORS
+    return VectorUtils.ALL_VECTORS
   }
 
   override fun baseChar(): String {
@@ -23,5 +22,11 @@ class King(player: Game.Player) :
       }
     }
     return super.isMovePossible(move)
+  }
+
+  companion object {
+    fun white() = King(Game.Player.WHITE)
+
+    fun black() = King(Game.Player.BLACK)
   }
 }

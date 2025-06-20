@@ -1,7 +1,6 @@
 package proj.memorchess.axl.factories
 
 import proj.memorchess.axl.AUiTestFactory
-import proj.memorchess.axl.ui.pages.navigation.Destination
 
 class TestNavigationFactory : AUiTestFactory() {
   override fun createTests(): List<() -> Unit> {
@@ -13,17 +12,14 @@ class TestNavigationFactory : AUiTestFactory() {
   }
 
   fun testGoToExplore() {
-    clickOnExplore()
-    assertNodeWithTagExists(Destination.EXPLORE.name)
+    goToExplore()
   }
 
   fun testGoToTraining() {
-    clickOnTraining()
-    assertNodeWithTagExists(Destination.TRAINING.name)
+    goToTraining()
   }
 
   fun testGoToSettings() {
-    clickOnSettings()
-    assertNodeWithTagExists(Destination.SETTINGS.name)
+    goToSettings()
   }
 }

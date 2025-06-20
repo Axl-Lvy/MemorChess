@@ -78,7 +78,11 @@ interface NodeEntityDao {
    *
    * @return A list of [NodeWithMoves] containing nodes and their associated moves.
    */
-  @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAll(): List<NodeWithMoves>
+  @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAllNodes(): List<NodeWithMoves>
+
+  @Transaction
+  @Query("SELECT * FROM NodeEntity WHERE fenRepresentation = :fen")
+  suspend fun getNode(fen: String): NodeWithMoves?
 
   /**
    * Retrieves a specific node with its moves by FEN representation.

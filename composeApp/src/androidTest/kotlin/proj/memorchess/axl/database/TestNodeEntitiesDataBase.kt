@@ -52,7 +52,7 @@ class TestNodeEntitiesDataBase {
           StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves(), today, today)
         )
       )
-      retrievedNodes = nodeEntityDao.getAll()
+      retrievedNodes = nodeEntityDao.getAllNodes()
     }
     assertEquals(1, retrievedNodes.size)
     assertNotNull(retrievedNodes.first())
@@ -75,7 +75,7 @@ class TestNodeEntitiesDataBase {
         )
       )
       nodeEntityDao.deleteAll()
-      retrievedNode = nodeEntityDao.getAll().firstOrNull()
+      retrievedNode = nodeEntityDao.getAllNodes().firstOrNull()
     }
     assertNull(retrievedNode)
   }
@@ -107,7 +107,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(childNode))
       nodeEntityDao.delete(childNode.positionKey.fenRepresentation)
-      retrievedNodes = nodeEntityDao.getAll()
+      retrievedNodes = nodeEntityDao.getAllNodes()
     }
     assertEquals(1, retrievedNodes.size)
     assertContains(retrievedNodes.first().nextMoves, linkMove)

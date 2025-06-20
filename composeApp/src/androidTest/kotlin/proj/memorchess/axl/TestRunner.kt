@@ -10,6 +10,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.fail
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import proj.memorchess.axl.core.config.IAppConfig
@@ -18,19 +19,31 @@ import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.factories.TestNavigationFactory
 import proj.memorchess.axl.factories.TestSettingsFactory
+import proj.memorchess.axl.factories.board.TestControlBarFactory
+import proj.memorchess.axl.factories.board.TestNextMoveBarFactory
+import proj.memorchess.axl.factories.board.TestSaveButton
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestConfig
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.util.DateUtil
+import proj.memorchess.axl.utils.Awaitility
 
 @OptIn(ExperimentalTestApi::class)
 class TestRunner {
   @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
 
-  private val testFactories = listOf(TestNavigationFactory(), TestSettingsFactory())
+  private val testFactories =
+    listOf(
+      TestNavigationFactory(),
+      TestSettingsFactory(),
+      TestControlBarFactory(),
+      TestNextMoveBarFactory(),
+      TestSaveButton(),
+    )
 
   @BeforeTest
   fun setUp() {
@@ -45,7 +58,7 @@ class TestRunner {
     for (testFactory in testFactories) {
       testFactory.composeTestRule = composeTestRule
       for (test in testFactory.createTests()) {
-        reset()
+        reset(testFactory.needsDatabaseReset())
         try {
           testFactory.beforeEach()
           test()
@@ -81,10 +94,10 @@ class TestRunner {
   @Test
   @Ignore("Use this to run a single test class")
   fun runSingleTestClass() {
-    val testFactory = TestSettingsFactory()
+    val testFactory = TestSaveButton()
     testFactory.composeTestRule = composeTestRule
     for (test in testFactory.createTests()) {
-      reset()
+      reset(testFactory.needsDatabaseReset())
       testFactory.beforeEach()
       test()
     }
@@ -95,29 +108,37 @@ class TestRunner {
   @Test
   @Ignore("Use this to run a single test")
   fun runSingleTest() {
-    val testFactory = TestNavigationFactory()
+    val testFactory = TestSaveButton()
     testFactory.composeTestRule = composeTestRule
-    reset()
+    reset(testFactory.needsDatabaseReset())
     testFactory.beforeEach()
-    testFactory.testGoToExplore()
+    testFactory.testPropagateSave()
     // Always fail so that we are sure this test is ignored
     fail("SUCCESS")
   }
 
-  private fun reset() {
+  private fun reset(resetDatabase: Boolean) {
     composeTestRule.mainClock.autoAdvance = true
     val trainingDescription = getNavigationButtonDescription(Destination.TRAINING.name)
     composeTestRule.waitUntilAtLeastOneExists(hasContentDescription(trainingDescription))
     composeTestRule.onNodeWithContentDescription(trainingDescription).assertExists().performClick()
 
     runTest {
-      resetDatabase()
+      if (resetDatabase) {
+        resetDatabase()
+      }
       NodeManager.resetCacheFromDataBase()
     }
   }
 
   private suspend fun resetDatabase() {
     DatabaseHolder.getDatabase().deleteAllNodes()
+    DatabaseHolder.getDatabase().deleteAllMoves()
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
+      lateinit var allPositions: List<StoredNode>
+      runTest { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
+      allPositions.isEmpty()
+    }
     val viennaNodes =
       TestDatabase.convertStringMovesToNodes(getVienna()).map {
         StoredNode(
@@ -138,8 +159,14 @@ class TestRunner {
           DateUtil.tomorrow(),
         )
       }
-    for (node in viennaNodes + scandinavianNodes) {
+    val storedNodes = (viennaNodes + scandinavianNodes)
+    for (node in storedNodes) {
       DatabaseHolder.getDatabase().insertPosition(node)
+    }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
+      lateinit var allPositions: List<StoredNode>
+      runBlocking { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
+      allPositions.size == storedNodes.map { it.positionKey }.distinct().size
     }
   }
 }

@@ -6,7 +6,11 @@ object NonJsCommonDatabase : ICommonDatabase {
   private val database = getRoomDatabase(databaseBuilder())
 
   override suspend fun getAllPositions(): List<StoredNode> {
-    return database.getNodeEntityDao().getAll().map { it.toStoredNode() }
+    return database.getNodeEntityDao().getAllNodes().map { it.toStoredNode() }
+  }
+
+  override suspend fun getPosition(positionKey: PositionKey): StoredNode? {
+    return database.getNodeEntityDao().getNode(positionKey.fenRepresentation)?.toStoredNode()
   }
 
   override suspend fun deletePosition(fen: String) {

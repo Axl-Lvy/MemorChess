@@ -23,6 +23,10 @@ class TestDatabase private constructor() : ICommonDatabase {
     return storedNodes.values.toList()
   }
 
+  override suspend fun getPosition(positionKey: PositionKey): StoredNode? {
+    return storedNodes[positionKey.fenRepresentation]
+  }
+
   override suspend fun deletePosition(fen: String) {
     storedNodes.remove(fen)
   }
