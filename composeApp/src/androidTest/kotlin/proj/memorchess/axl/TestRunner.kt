@@ -114,7 +114,6 @@ class TestRunner {
           failedTests.compute(testFactory.javaClass.name) { _, value ->
             if (value == null) 1 else value + 1
           }
-          throw t
         }
       }
     }
