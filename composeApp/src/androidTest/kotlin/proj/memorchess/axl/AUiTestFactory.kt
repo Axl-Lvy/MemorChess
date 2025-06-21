@@ -9,7 +9,6 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -157,12 +156,7 @@ abstract class AUiTestFactory {
    * @param destination The destination to navigate to
    */
   private fun clickOnDestinationButton(destination: Destination) {
-    composeTestRule.waitUntilAtLeastOneExists(
-      hasContentDescription(getNavigationButtonDescription(destination.name))
-    )
-    composeTestRule
-      .onNodeWithContentDescription(getNavigationButtonDescription(destination.name))
-      .assertExists()
+    waitUntilNodeExists(hasContentDescription(getNavigationButtonDescription(destination.name)))
       .performClick()
   }
 
@@ -190,24 +184,24 @@ abstract class AUiTestFactory {
 
   /** Clicks the button to reverse/flip the chess board orientation. */
   fun clickOnReverse() {
-    waitUntilNodeExists(hasTestTag("Reverse board")).assertExists().performClick()
+    this.waitUntilNodeExists(hasTestTag("Reverse board")).assertExists().performClick()
   }
 
   /** Clicks the back button to undo the last move. */
   fun clickOnBack() {
-    waitUntilNodeExists(hasTestTag("Back")).assertExists().performClick()
+    this.waitUntilNodeExists(hasTestTag("Back")).assertExists().performClick()
     runTest { composeTestRule.awaitIdle() }
   }
 
   /** Clicks the next button to redo a previously undone move. */
   fun clickOnNext() {
-    waitUntilNodeExists(hasTestTag("Next")).assertExists().performClick()
+    this.waitUntilNodeExists(hasTestTag("Next")).assertExists().performClick()
     runTest { composeTestRule.awaitIdle() }
   }
 
   /** Clicks the reset button to return the board to its initial state. */
   fun clickOnReset() {
-    waitUntilNodeExists(hasTestTag("Reset board")).assertExists().performClick()
+    this.waitUntilNodeExists(hasTestTag("Reset board")).assertExists().performClick()
     runTest { composeTestRule.awaitIdle() }
   }
 
@@ -271,7 +265,7 @@ abstract class AUiTestFactory {
    * @throws AssertionError if no element with the specified tag exists
    */
   fun assertNodeWithTagExists(tag: String): SemanticsNodeInteraction {
-    return waitUntilNodeExists(hasTestTag(tag)).assertExists()
+    return this.waitUntilNodeExists(hasTestTag(tag)).assertExists()
   }
 
   /**
@@ -305,11 +299,6 @@ abstract class AUiTestFactory {
     composeTestRule.onNodeWithText(text).assertDoesNotExist()
   }
 
-  private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
-    composeTestRule.waitUntilAtLeastOneExists(matcher)
-    return composeTestRule.onNode(matcher)
-  }
-
   // DATABASE
 
   /**
@@ -337,11 +326,16 @@ abstract class AUiTestFactory {
 
   /** Clicks the "Save Good" button to mark the current position as a good move. */
   fun clickOnSaveGood() {
-    composeTestRule.onNodeWithContentDescription("Save Good").assertExists().performClick()
+    this.waitUntilNodeExists(hasContentDescription("Save Good")).assertExists().performClick()
   }
 
   /** Clicks the "Save Bad" button to mark the current position as a bad move. */
   fun clickOnSaveBad() {
-    composeTestRule.onNodeWithContentDescription("Save Bad").assertExists().performClick()
+    this.waitUntilNodeExists(hasContentDescription("Save Bad")).assertExists().performClick()
+  }
+
+  private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
+    composeTestRule.waitUntilAtLeastOneExists(matcher)
+    return composeTestRule.onNode(matcher).assertExists()
   }
 }
