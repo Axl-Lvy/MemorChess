@@ -217,8 +217,7 @@ abstract class AUiTestFactory {
    * @param tileName The algebraic notation of the tile to check (e.g., "e4")
    */
   fun assertTileIsEmpty(tileName: String) {
-    waitUntilTileAppears(tileName)
-      .assert(hasContentDescription("Piece", substring = true).not())
+    waitUntilTileAppears(tileName).assert(hasContentDescription("Piece", substring = true).not())
   }
 
   /**
@@ -228,8 +227,7 @@ abstract class AUiTestFactory {
    * @param piece The chess piece that should be on the tile
    */
   fun assertTileContainsPiece(tileName: String, piece: IPiece) {
-    waitUntilTileAppears(tileName)
-      .assertContentDescriptionContains("Piece $piece")
+    waitUntilTileAppears(tileName).assertContentDescriptionContains("Piece $piece")
   }
 
   /**
