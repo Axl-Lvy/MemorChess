@@ -24,9 +24,9 @@ class TestSaveButton : AUiTestFactory() {
 
   fun testSaveGood() {
     assertNull(getPosition(afterH3Position))
-    clickOnSaveGood()
     var savedPosition: StoredNode? = null
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
+      clickOnSaveGood()
       savedPosition = getPosition(afterH3Position)
       savedPosition != null
     }
@@ -35,9 +35,9 @@ class TestSaveButton : AUiTestFactory() {
 
   fun testSaveBad() {
     assertNull(getPosition(afterH3Position))
-    clickOnSaveBad()
     var savedPosition: StoredNode? = null
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
+      clickOnSaveBad()
       savedPosition = getPosition(afterH3Position)
       savedPosition != null
     }
@@ -48,10 +48,10 @@ class TestSaveButton : AUiTestFactory() {
     playMove("h7", "h6")
     assertNull(getPosition(afterH3Position))
     assertNull(getPosition(afterH6Position))
-    clickOnSaveBad()
     var savedLastPosition: StoredNode? = null
     var savedFirstPosition: StoredNode? = null
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testPropagateSave: Positions not saved") {
+      clickOnSaveBad()
       savedLastPosition = getPosition(afterH6Position)
       savedFirstPosition = getPosition(afterH3Position)
       savedLastPosition != null && savedFirstPosition != null
