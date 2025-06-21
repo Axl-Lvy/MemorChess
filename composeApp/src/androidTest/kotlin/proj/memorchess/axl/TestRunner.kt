@@ -103,18 +103,12 @@ class TestRunner {
     for (testFactory in testFactories) {
       testFactory.composeTestRule = composeTestRule
       for (test in testFactory.createTests()) {
-        reset(testFactory.needsDatabaseReset())
-        testFactory.beforeEach()
-        test()
-        successTests.compute(testFactory.javaClass.name) { _, value ->
-          if (value == null) 1 else value + 1
-        }
         try {
-          //          testFactory.beforeEach()
-          //          test()
-          //          successTests.compute(testFactory.javaClass.name) { _, value ->
-          //            if (value == null) 1 else value + 1
-          //          }
+          testFactory.beforeEach()
+          test()
+          successTests.compute(testFactory.javaClass.name) { _, value ->
+            if (value == null) 1 else value + 1
+          }
         } catch (t: Throwable) {
           failedTests.compute(testFactory.javaClass.name) { _, value ->
             if (value == null) 1 else value + 1
