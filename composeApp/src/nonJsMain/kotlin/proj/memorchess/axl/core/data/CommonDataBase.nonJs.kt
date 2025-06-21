@@ -33,6 +33,10 @@ object NonJsCommonDatabase : ICommonDatabase {
     database.getNodeEntityDao().insertMoves(listOf(MoveEntity.convertToEntity(move)))
   }
 
+  override suspend fun getAllMoves(): List<StoredMove> {
+    return database.getNodeEntityDao().getAllMoves().map { it.toStoredMove() }
+  }
+
   override suspend fun deleteAllMoves() {
     database.getNodeEntityDao().deleteAllMoves()
   }

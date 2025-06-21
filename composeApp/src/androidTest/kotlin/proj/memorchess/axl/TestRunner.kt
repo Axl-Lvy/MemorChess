@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import proj.memorchess.axl.core.config.IAppConfig
 import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.factories.TestNavigationFactory
@@ -229,8 +230,12 @@ class TestRunner {
     DatabaseHolder.getDatabase().deleteAllMoves()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
       lateinit var allPositions: List<StoredNode>
-      runTest { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
-      allPositions.isEmpty()
+      lateinit var allMoves: List<StoredMove>
+      runTest {
+        allPositions = DatabaseHolder.getDatabase().getAllPositions()
+        allMoves = DatabaseHolder.getDatabase().getAllMoves()
+      }
+      allPositions.isEmpty() && allMoves.isEmpty()
     }
     val viennaNodes =
       TestDatabase.convertStringMovesToNodes(getVienna()).map {

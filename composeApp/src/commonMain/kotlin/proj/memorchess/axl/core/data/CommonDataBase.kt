@@ -26,6 +26,8 @@ interface ICommonDatabase {
 
   suspend fun insertMove(move: StoredMove)
 
+  suspend fun getAllMoves(): List<StoredMove>
+
   /** Deletes all stored moves. */
   suspend fun deleteAllMoves()
 

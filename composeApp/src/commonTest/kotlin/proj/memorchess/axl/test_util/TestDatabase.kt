@@ -64,6 +64,10 @@ class TestDatabase private constructor() : ICommonDatabase {
     storedNodes[move.destination.fenRepresentation]!!.previousMoves.add(move)
   }
 
+  override suspend fun getAllMoves(): List<StoredMove> {
+    return storedNodes.values.flatMap { it.nextMoves + it.previousMoves }.distinct()
+  }
+
   override suspend fun deleteAllMoves() {
     storedNodes.values.forEach {
       it.nextMoves.clear()

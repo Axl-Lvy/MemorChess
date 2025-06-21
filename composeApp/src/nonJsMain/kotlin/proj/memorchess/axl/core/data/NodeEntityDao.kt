@@ -101,4 +101,6 @@ interface NodeEntityDao {
 
   /** Delete all moves from the database. */
   @Query(value = "DELETE FROM MoveEntity") suspend fun deleteAllMoves()
+
+  @Query("SELECT * FROM MoveEntity") fun getAllMoves(): List<MoveEntity>
 }
