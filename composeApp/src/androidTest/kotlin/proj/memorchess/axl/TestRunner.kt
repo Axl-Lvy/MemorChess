@@ -135,7 +135,7 @@ class TestRunner {
       }
       message.append(exception?.stackTraceToString())
       fail(
-        "${failedTests.values.sum()} tests failed : \n$message \nwith exception ${exception!!.stackTrace} \n$failedTests"
+        "${failedTests.values.sum()} tests failed : $message with exception ${exception!!.stackTrace} $failedTests"
       )
     }
   }
