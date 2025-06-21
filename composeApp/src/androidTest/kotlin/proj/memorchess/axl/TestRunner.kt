@@ -7,7 +7,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import com.diamondedge.logging.logging
 import kotlin.test.BeforeTest
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.fail
 import kotlinx.coroutines.runBlocking
@@ -63,11 +62,11 @@ class TestRunner {
    */
   private val testFactories =
     listOf(
-//      TestNavigationFactory(),
-//      TestSettingsFactory(),
-//      TestControlBarFactory(),
-//      TestNextMoveBarFactory(),
-      TestSaveButton(),
+      //      TestNavigationFactory(),
+      //      TestSettingsFactory(),
+      //      TestControlBarFactory(),
+      //      TestNextMoveBarFactory(),
+      TestSaveButton()
     )
 
   /**
@@ -147,7 +146,7 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-//  @Ignore("Use this to run a single test class")
+  //  @Ignore("Use this to run a single test class")
   fun runSingleTestClass() {
     val testFactory = TestSaveButton()
     testFactory.composeTestRule = composeTestRule
@@ -169,7 +168,7 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-//  @Ignore("Use this to run a single test")
+  //  @Ignore("Use this to run a single test")
   fun runSingleTest() {
     val testFactory = TestSaveButton()
     testFactory.composeTestRule = composeTestRule
