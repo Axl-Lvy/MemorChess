@@ -1,10 +1,12 @@
 package proj.memorchess.axl
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -172,9 +174,7 @@ abstract class AUiTestFactory {
    * @param tileName The algebraic notation of the tile (e.g., "e4", "h8")
    */
   fun clickOnTile(tileName: String) {
-    val matcher = hasClickLabel(getTileDescription(tileName))
-    composeTestRule.waitUntilAtLeastOneExists(matcher)
-    composeTestRule.onNode(matcher).assertExists().performClick()
+    waitUntilTileAppears(tileName).performClick()
   }
 
   /**
@@ -190,24 +190,24 @@ abstract class AUiTestFactory {
 
   /** Clicks the button to reverse/flip the chess board orientation. */
   fun clickOnReverse() {
-    composeTestRule.onNodeWithTag("Reverse board").assertExists().performClick()
+    waitUntilNodeExists(hasTestTag("Reverse board")).assertExists().performClick()
   }
 
   /** Clicks the back button to undo the last move. */
   fun clickOnBack() {
-    composeTestRule.onNodeWithTag("Back").assertExists().performClick()
+    waitUntilNodeExists(hasTestTag("Back")).assertExists().performClick()
     runTest { composeTestRule.awaitIdle() }
   }
 
   /** Clicks the next button to redo a previously undone move. */
   fun clickOnNext() {
-    composeTestRule.onNodeWithTag("Next").assertExists().performClick()
+    waitUntilNodeExists(hasTestTag("Next")).assertExists().performClick()
     runTest { composeTestRule.awaitIdle() }
   }
 
   /** Clicks the reset button to return the board to its initial state. */
   fun clickOnReset() {
-    composeTestRule.onNodeWithTag("Reset board").assertExists().performClick()
+    waitUntilNodeExists(hasTestTag("Reset board")).assertExists().performClick()
     runTest { composeTestRule.awaitIdle() }
   }
 
@@ -217,9 +217,7 @@ abstract class AUiTestFactory {
    * @param tileName The algebraic notation of the tile to check (e.g., "e4")
    */
   fun assertTileIsEmpty(tileName: String) {
-    composeTestRule
-      .onNode(hasClickLabel(getTileDescription(tileName)))
-      .assertExists()
+    waitUntilTileAppears(tileName)
       .assert(hasContentDescription("Piece", substring = true).not())
   }
 
@@ -230,9 +228,7 @@ abstract class AUiTestFactory {
    * @param piece The chess piece that should be on the tile
    */
   fun assertTileContainsPiece(tileName: String, piece: IPiece) {
-    composeTestRule
-      .onNode(hasClickLabel(getTileDescription(tileName)))
-      .assertExists()
+    waitUntilTileAppears(tileName)
       .assertContentDescriptionContains("Piece $piece")
   }
 
@@ -245,7 +241,9 @@ abstract class AUiTestFactory {
    * @param piece The chess piece that should have moved
    */
   fun assertPieceMoved(fromTile: String, toTile: String, piece: IPiece) {
+    waitUntilTileAppears(fromTile)
     assertTileIsEmpty(fromTile)
+    waitUntilTileAppears(toTile)
     assertTileContainsPiece(toTile, piece)
   }
 
@@ -259,6 +257,12 @@ abstract class AUiTestFactory {
     return composeTestRule.onNodeWithTag(getNextMoveDescription(move)).assertExists()
   }
 
+  private fun waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
+    val matcher = hasClickLabel(getTileDescription(tileName))
+    composeTestRule.waitUntilAtLeastOneExists(matcher)
+    return composeTestRule.onNode(matcher).assertExists()
+  }
+
   // GENERAL
 
   /**
@@ -269,7 +273,7 @@ abstract class AUiTestFactory {
    * @throws AssertionError if no element with the specified tag exists
    */
   fun assertNodeWithTagExists(tag: String): SemanticsNodeInteraction {
-    return composeTestRule.onNodeWithTag(tag).assertExists()
+    return waitUntilNodeExists(hasTestTag(tag)).assertExists()
   }
 
   /**
@@ -301,6 +305,11 @@ abstract class AUiTestFactory {
    */
   fun assertNodeWithTextDoesNotExists(text: String) {
     composeTestRule.onNodeWithText(text).assertDoesNotExist()
+  }
+
+  private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
+    composeTestRule.waitUntilAtLeastOneExists(matcher)
+    return composeTestRule.onNode(matcher)
   }
 
   // DATABASE
