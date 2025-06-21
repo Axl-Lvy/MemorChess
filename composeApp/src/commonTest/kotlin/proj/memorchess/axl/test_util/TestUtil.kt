@@ -1,5 +1,6 @@
 package proj.memorchess.axl.test_util
 
+import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.core.config.IAppConfig
 
 /**
@@ -45,3 +46,5 @@ fun getPieceDescription(piece: String): String {
 fun setupConfigForTest() {
   IAppConfig.set(TestConfig)
 }
+
+val TEST_TIMEOUT = 5.seconds

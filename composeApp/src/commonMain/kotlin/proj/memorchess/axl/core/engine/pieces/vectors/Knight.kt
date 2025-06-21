@@ -13,4 +13,10 @@ class Knight(player: Game.Player) :
   override fun baseChar(): String {
     return IPiece.KNIGHT
   }
+
+  companion object {
+    fun white() = Knight(Game.Player.WHITE)
+
+    fun black() = Knight(Game.Player.BLACK)
+  }
 }

@@ -78,7 +78,11 @@ interface NodeEntityDao {
    *
    * @return A list of [NodeWithMoves] containing nodes and their associated moves.
    */
-  @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAll(): List<NodeWithMoves>
+  @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAllNodes(): List<NodeWithMoves>
+
+  @Transaction
+  @Query("SELECT * FROM NodeEntity WHERE fenRepresentation = :fen")
+  suspend fun getNode(fen: String): NodeWithMoves?
 
   /**
    * Retrieves a specific node with its moves by FEN representation.
@@ -94,4 +98,9 @@ interface NodeEntityDao {
    * This operation will remove all entries in the NodeEntity and MoveEntity tables.
    */
   @Query(value = "DELETE FROM NodeEntity") suspend fun deleteAll()
+
+  /** Delete all moves from the database. */
+  @Query(value = "DELETE FROM MoveEntity") suspend fun deleteAllMoves()
+
+  @Query("SELECT * FROM MoveEntity") fun getAllMoves(): List<MoveEntity>
 }
