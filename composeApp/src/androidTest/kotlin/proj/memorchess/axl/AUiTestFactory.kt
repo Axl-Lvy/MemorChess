@@ -5,6 +5,7 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -129,7 +130,9 @@ abstract class AUiTestFactory {
    */
   fun goToTraining() {
     clickOnDestinationButton(Destination.TRAINING)
-    composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")))
+    composeTestRule.waitUntilAtLeastOneExists(
+      hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !"))
+    )
     assertNodeWithTagExists(Destination.TRAINING.name)
   }
 
