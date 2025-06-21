@@ -83,6 +83,7 @@ class TestRunner {
   fun setUp() {
     composeTestRule.mainClock.autoAdvance = true
     IAppConfig.set(TestConfig)
+    reset(true)
   }
 
   /**
@@ -105,9 +106,9 @@ class TestRunner {
       testFactory.composeTestRule = composeTestRule
       for (test in testFactory.createTests()) {
         try {
-          reset(testFactory.needsDatabaseReset())
           testFactory.beforeEach()
           test()
+          reset(testFactory.needsDatabaseReset())
           successTests.compute(testFactory.javaClass.name) { _, value ->
             if (value == null) 1 else value + 1
           }
@@ -120,7 +121,6 @@ class TestRunner {
           }
         }
       }
-      reset(testFactory.needsDatabaseReset())
     }
     if (successTests.isNotEmpty()) {
       val message = StringBuilder()
