@@ -195,16 +195,19 @@ abstract class AUiTestFactory {
   /** Clicks the back button to undo the last move. */
   fun clickOnBack() {
     composeTestRule.onNodeWithTag("Back").assertExists().performClick()
+    runTest { composeTestRule.awaitIdle() }
   }
 
   /** Clicks the next button to redo a previously undone move. */
   fun clickOnNext() {
     composeTestRule.onNodeWithTag("Next").assertExists().performClick()
+    runTest { composeTestRule.awaitIdle() }
   }
 
   /** Clicks the reset button to return the board to its initial state. */
   fun clickOnReset() {
     composeTestRule.onNodeWithTag("Reset board").assertExists().performClick()
+    runTest { composeTestRule.awaitIdle() }
   }
 
   /**
