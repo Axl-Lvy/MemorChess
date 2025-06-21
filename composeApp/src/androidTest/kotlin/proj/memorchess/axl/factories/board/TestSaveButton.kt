@@ -1,27 +1,27 @@
 package proj.memorchess.axl.factories.board
 
+import kotlin.test.BeforeTest
+import kotlin.test.Test
 import kotlin.test.assertNull
-import proj.memorchess.axl.AUiTestFactory
+import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.Awaitility
 
-class TestSaveButtonFactory : AUiTestFactory() {
-  override fun createTests(): List<() -> Unit> {
-    return listOf(::testSaveGood, ::testSaveBad, ::testPropagateSave)
-  }
-
-  override fun needsDatabaseReset(): Boolean = true
+class TestSaveButton : AUiTestFromMainActivity() {
 
   private val afterH3Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq")
   private val afterH6Position = PositionKey("rnbqkbnr/ppppppp1/7p/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq")
 
-  override fun beforeEach() {
+  @BeforeTest
+  override fun setUp() {
+    super.setUp()
     goToExplore()
     playMove("h2", "h3")
   }
 
+  @Test
   fun testSaveGood() {
     assertNull(getPosition(afterH3Position))
     var savedPosition: StoredNode? = null
@@ -33,6 +33,7 @@ class TestSaveButtonFactory : AUiTestFactory() {
     check(savedPosition!!.previousMoves.all { it.isGood == true })
   }
 
+  @Test
   fun testSaveBad() {
     assertNull(getPosition(afterH3Position))
     var savedPosition: StoredNode? = null
@@ -44,6 +45,7 @@ class TestSaveButtonFactory : AUiTestFactory() {
     check(savedPosition!!.previousMoves.all { it.isGood != true })
   }
 
+  @Test
   fun testPropagateSave() {
     playMove("h7", "h6")
     assertNull(getPosition(afterH3Position))

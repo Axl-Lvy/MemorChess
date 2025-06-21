@@ -1,21 +1,21 @@
 package proj.memorchess.axl.factories
 
 import androidx.compose.ui.test.performClick
-import proj.memorchess.axl.AUiTestFactory
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.Awaitility
 
-class TestSettingsFactory : AUiTestFactory() {
-  override fun createTests(): List<() -> Unit> {
-    return listOf(::testEraseAllDataButton)
-  }
+class TestSettingsFactory : AUiTestFromMainActivity() {
 
-  override fun beforeEach() {
+  @BeforeTest
+  override fun setUp() {
+    super.setUp()
     goToSettings()
   }
 
-  override fun needsDatabaseReset(): Boolean = true
-
+  @Test
   fun testEraseAllDataButton() {
     assertNodeWithTextDoesNotExists("Confirm?")
 

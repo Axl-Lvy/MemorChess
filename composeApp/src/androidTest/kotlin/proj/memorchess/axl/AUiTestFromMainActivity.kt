@@ -8,106 +8,51 @@ import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.AndroidComposeTestRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.test.ext.junit.rules.ActivityScenarioRule
+import kotlin.test.BeforeTest
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.junit.Rule
+import proj.memorchess.axl.core.config.IAppConfig
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.game.getScandinavian
+import proj.memorchess.axl.game.getVienna
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
+import proj.memorchess.axl.test_util.TestConfig
+import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
+import proj.memorchess.axl.ui.util.DateUtil
+import proj.memorchess.axl.utils.Awaitility
 import proj.memorchess.axl.utils.hasClickLabel
 
 /**
- * Abstract base class for UI test factories.
- *
- * This class provides a structured approach to creating UI tests by:
- * 1. Organizing tests into logical groups (factories)
- * 2. Providing common utility methods for UI interactions
- * 3. Standardizing test setup and execution
- *
- * Test factories are designed to work with the [TestRunner], which manages the lifecycle of test
- * execution and provides a single application instance for all tests to improve performance.
- *
- * To create a new test factory:
- * 1. Extend this class
- * 2. Implement [createTests] to return a list of test functions
- * 3. Implement [beforeEach] to set up the test environment
- * 4. Override [needsDatabaseReset] if your tests require a fresh database
- * 5. Add your test factory to the [TestRunner.testFactories] list
- *
- * Example:
- * ```
- * class MyTestFactory : AUiTestFactory() {
- *   override fun createTests(): List<() -> Unit> {
- *     return listOf(::testFeatureA, ::testFeatureB)
- *   }
- *
- *   override fun beforeEach() {
- *     goToExplore() // Navigate to the explore screen before each test
- *   }
- *
- *   private fun testFeatureA() {
- *     // Test implementation
- *   }
- *
- *   private fun testFeatureB() {
- *     // Test implementation
- *   }
- * }
- * ```
- *
  * This class contains a lot of ready-to-use methods for common UI interactions, do not hesitate to
  * use them and to create new one if needed. Tests are way more readable this way.
  */
 @OptIn(ExperimentalTestApi::class)
-abstract class AUiTestFactory {
-
+abstract class AUiTestFromMainActivity {
   /**
-   * The Compose test rule used to interact with the UI. This is set by the [TestRunner] before
-   * tests are executed.
-   *
-   * Always prefer using built-in methods rather than accessing this property directly.
+   * The Compose test rule used to interact with the UI. This is automatically initialized by JUnit
+   * before tests are executed.
    */
-  lateinit var composeTestRule:
-    AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>
+  @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
 
-  /**
-   * Creates a list of test functions to be executed by the [TestRunner].
-   *
-   * Each function in the list represents a single test case. Tests will be executed in the order
-   * they appear in the list.
-   *
-   * @return A list of test functions
-   */
-  abstract fun createTests(): List<() -> Unit>
-
-  /**
-   * Sets up the test environment before each test is executed.
-   *
-   * This method is called by the [TestRunner] before each test function from [createTests] is
-   * executed. Use this method to:
-   * - Navigate to the appropriate screen
-   * - Set up initial state
-   * - Prepare test data
-   */
-  abstract fun beforeEach()
-
-  /**
-   * Indicates whether the database should be reset before running tests from this factory.
-   *
-   * Override this method and return true if your tests require a fresh database. By default, the
-   * database is not reset to improve test execution speed.
-   *
-   * @return true if the database should be reset, false otherwise
-   */
-  open fun needsDatabaseReset(): Boolean = false
+  @BeforeTest
+  open fun setUp() {
+    composeTestRule.mainClock.autoAdvance = true
+    IAppConfig.set(TestConfig)
+    runTest { resetDatabase() }
+  }
 
   // NAVIGATION
 
@@ -299,6 +244,11 @@ abstract class AUiTestFactory {
     composeTestRule.onNodeWithText(text).assertDoesNotExist()
   }
 
+  private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
+    composeTestRule.waitUntilAtLeastOneExists(matcher)
+    return composeTestRule.onNode(matcher).assertExists()
+  }
+
   // DATABASE
 
   /**
@@ -334,8 +284,63 @@ abstract class AUiTestFactory {
     this.waitUntilNodeExists(hasContentDescription("Save Bad")).assertExists().performClick()
   }
 
-  private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
-    composeTestRule.waitUntilAtLeastOneExists(matcher)
-    return composeTestRule.onNode(matcher).assertExists()
+  /**
+   * Resets the database to a known initial state with test data.
+   *
+   * This method:
+   * 1. Deletes all existing nodes and moves from the database
+   * 2. Waits for the database to be empty
+   * 3. Populates the database with test data (Vienna and Scandinavian openings)
+   * 4. Waits for the database to be populated
+   *
+   * The test data includes:
+   * - Vienna opening positions (with yesterday/today dates)
+   * - Scandinavian opening positions (with older dates)
+   *
+   * This provides a consistent starting point for tests that require database access.
+   */
+  suspend fun resetDatabase() {
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
+      runTest {
+        DatabaseHolder.getDatabase().deleteAllNodes()
+        DatabaseHolder.getDatabase().deleteAllMoves()
+      }
+      lateinit var allPositions: List<StoredNode>
+      lateinit var allMoves: List<StoredMove>
+      runTest {
+        allPositions = DatabaseHolder.getDatabase().getAllPositions()
+        allMoves = DatabaseHolder.getDatabase().getAllMoves()
+      }
+      allPositions.isEmpty() && allMoves.isEmpty()
+    }
+    val viennaNodes =
+      TestDatabase.convertStringMovesToNodes(getVienna()).map {
+        StoredNode(
+          it.positionKey,
+          it.previousMoves,
+          it.nextMoves,
+          DateUtil.yesterday(),
+          DateUtil.today(),
+        )
+      }
+    val scandinavianNodes =
+      TestDatabase.convertStringMovesToNodes(getScandinavian()).map {
+        StoredNode(
+          it.positionKey,
+          it.previousMoves,
+          it.nextMoves,
+          DateUtil.dateInDays(-2),
+          DateUtil.tomorrow(),
+        )
+      }
+    val storedNodes = (viennaNodes + scandinavianNodes)
+    for (node in storedNodes) {
+      DatabaseHolder.getDatabase().insertPosition(node)
+    }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
+      lateinit var allPositions: List<StoredNode>
+      runBlocking { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
+      allPositions.size == storedNodes.map { it.positionKey }.distinct().size
+    }
   }
 }

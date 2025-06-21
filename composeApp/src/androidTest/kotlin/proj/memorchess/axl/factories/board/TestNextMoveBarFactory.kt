@@ -1,36 +1,35 @@
 package proj.memorchess.axl.factories.board
 
 import androidx.compose.ui.test.performClick
-import proj.memorchess.axl.AUiTestFactory
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.core.engine.pieces.Pawn
 
-class TestNextMoveBarFactory : AUiTestFactory() {
-  override fun createTests(): List<() -> Unit> {
-    return listOf(
-      ::testNextMoveAppears,
-      ::testNextMoveWorks,
-      ::testMultipleNextMoves,
-      ::testNextMoveAfterReset,
-    )
-  }
+class TestNextMoveBar : AUiTestFromMainActivity() {
 
-  override fun beforeEach() {
+  @BeforeTest
+  override fun setUp() {
+    super.setUp()
     goToExplore()
     playMove("e2", "e4")
     assertPieceMoved("e2", "e4", Pawn.white())
   }
 
+  @Test
   fun testNextMoveAppears() {
     clickOnBack()
     assertNextMoveExist("e4")
   }
 
+  @Test
   fun testNextMoveWorks() {
     clickOnBack()
     assertNextMoveExist("e4").performClick()
     assertPieceMoved("e2", "e4", Pawn.white())
   }
 
+  @Test
   fun testMultipleNextMoves() {
     clickOnBack()
     playMove("e2", "e3")
@@ -45,6 +44,7 @@ class TestNextMoveBarFactory : AUiTestFactory() {
     assertPieceMoved("e2", "e4", Pawn.white())
   }
 
+  @Test
   fun testNextMoveAfterReset() {
     clickOnReset()
     assertNextMoveExist("e4").performClick()
