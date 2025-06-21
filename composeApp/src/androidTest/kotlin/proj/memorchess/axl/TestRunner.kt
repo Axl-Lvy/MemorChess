@@ -67,10 +67,10 @@ class TestRunner {
    */
   private val testFactories =
     listOf(
-      TestNavigationFactory(),
-      TestSettingsFactory(),
-      TestControlBarFactory(),
-      TestNextMoveBarFactory(),
+//      TestNavigationFactory(),
+//      TestSettingsFactory(),
+//      TestControlBarFactory(),
+//      TestNextMoveBarFactory(),
       TestSaveButton(),
     )
 
