@@ -123,10 +123,8 @@ class TestRunner {
     }
     if (successTests.isNotEmpty()) {
       val message = StringBuilder()
-      for (failedTestClass in failedTests) {
-        message.append(
-          "${failedTestClass.value} tests run with success in ${failedTestClass.key}\n"
-        )
+      for (successTest in successTests) {
+        message.append("${successTest.value} tests run with success in ${successTest.key}\n")
       }
       LOGGER.info { "${successTests.values.sum()} tests run with success : \n$message" }
     }
@@ -136,7 +134,9 @@ class TestRunner {
         message.append("${failedTestClass.value} tests failed in ${failedTestClass.key}\n")
       }
       message.append(exception?.stackTraceToString())
-      fail("${failedTests.values.sum()} tests failed : \n$message")
+      fail(
+        "${failedTests.values.sum()} tests failed : \n$message \nwith exception ${exception!!.stackTrace} \n$failedTests"
+      )
     }
   }
 
