@@ -173,6 +173,7 @@ abstract class AUiTestFactory {
    */
   fun clickOnTile(tileName: String) {
     val matcher = hasClickLabel(getTileDescription(tileName))
+    composeTestRule.waitUntilAtLeastOneExists(matcher)
     composeTestRule.onNode(matcher).assertExists().performClick()
   }
 
