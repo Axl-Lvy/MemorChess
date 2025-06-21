@@ -68,8 +68,8 @@ class TestRunner {
     listOf(
       TestNavigationFactory(),
       TestSettingsFactory(),
-//      TestControlBarFactory(),
-//      TestNextMoveBarFactory(),
+      TestControlBarFactory(),
+      TestNextMoveBarFactory(),
       TestSaveButton(),
     )
 
@@ -121,6 +121,7 @@ class TestRunner {
           }
         }
       }
+      reset(testFactory.needsDatabaseReset())
     }
     if (successTests.isNotEmpty()) {
       val message = StringBuilder()
