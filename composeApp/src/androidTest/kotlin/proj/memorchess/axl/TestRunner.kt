@@ -222,9 +222,11 @@ class TestRunner {
    * This provides a consistent starting point for tests that require database access.
    */
   private suspend fun resetDatabase() {
-    DatabaseHolder.getDatabase().deleteAllNodes()
-    DatabaseHolder.getDatabase().deleteAllMoves()
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
+      runTest {
+        DatabaseHolder.getDatabase().deleteAllNodes()
+        DatabaseHolder.getDatabase().deleteAllMoves()
+      }
       lateinit var allPositions: List<StoredNode>
       lateinit var allMoves: List<StoredMove>
       runTest {
@@ -257,7 +259,7 @@ class TestRunner {
     for (node in storedNodes) {
       DatabaseHolder.getDatabase().insertPosition(node)
     }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
       lateinit var allPositions: List<StoredNode>
       runBlocking { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
       allPositions.size == storedNodes.map { it.positionKey }.distinct().size

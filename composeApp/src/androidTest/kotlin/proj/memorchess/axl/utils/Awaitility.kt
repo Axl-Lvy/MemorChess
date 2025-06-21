@@ -29,12 +29,12 @@ object Awaitility {
    * @param condition A function that returns a boolean indicating if the condition is met
    * @throws AssertionError if the condition doesn't become true within the timeout period
    */
-  fun awaitUntilTrue(timeout: Duration, condition: () -> Boolean) {
+  fun awaitUntilTrue(timeout: Duration, failingMessage: String? = null, condition: () -> Boolean) {
     val timeOutNano = timeout.inWholeNanoseconds
     val startTime = System.nanoTime()
     while (!condition()) {
       if (System.nanoTime() - startTime > timeOutNano) {
-        throw AssertionError("Timed out waiting for condition")
+        throw AssertionError(failingMessage ?: "Timed out waiting for condition")
       }
       Thread.sleep(100)
     }
