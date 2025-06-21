@@ -32,7 +32,6 @@ class TestControlBarFactory : AUiTestFactory() {
   }
 
   fun testReset() {
-    return
     clickOnReset()
     assertPieceMoved("e4", "e2", Pawn.white())
   }

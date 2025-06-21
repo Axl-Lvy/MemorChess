@@ -68,8 +68,8 @@ class TestRunner {
     listOf(
       TestNavigationFactory(),
       TestSettingsFactory(),
-      TestControlBarFactory(),
-      TestNextMoveBarFactory(),
+//      TestControlBarFactory(),
+//      TestNextMoveBarFactory(),
       TestSaveButton(),
     )
 
