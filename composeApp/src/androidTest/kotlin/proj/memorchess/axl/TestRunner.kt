@@ -100,10 +100,12 @@ class TestRunner {
   fun runTests() {
     val failedTests = mutableMapOf<String, Int>()
     val successTests = mutableMapOf<String, Int>()
+    var exception: Throwable? = null
     for (testFactory in testFactories) {
       testFactory.composeTestRule = composeTestRule
       for (test in testFactory.createTests()) {
         try {
+          reset(testFactory.needsDatabaseReset())
           testFactory.beforeEach()
           test()
           successTests.compute(testFactory.javaClass.name) { _, value ->
@@ -112,6 +114,9 @@ class TestRunner {
         } catch (t: Throwable) {
           failedTests.compute(testFactory.javaClass.name) { _, value ->
             if (value == null) 1 else value + 1
+          }
+          if (exception == null) {
+            exception = t
           }
         }
       }
@@ -130,6 +135,7 @@ class TestRunner {
       for (failedTestClass in failedTests) {
         message.append("${failedTestClass.value} tests failed in ${failedTestClass.key}\n")
       }
+      message.append(exception?.stackTraceToString())
       fail("${failedTests.values.sum()} tests failed : \n$message")
     }
   }
