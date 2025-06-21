@@ -18,10 +18,6 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.factories.TestNavigationFactory
-import proj.memorchess.axl.factories.TestSettingsFactory
-import proj.memorchess.axl.factories.board.TestControlBarFactory
-import proj.memorchess.axl.factories.board.TestNextMoveBarFactory
 import proj.memorchess.axl.factories.board.TestSaveButton
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
@@ -151,14 +147,14 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-  @Ignore("Use this to run a single test class")
+//  @Ignore("Use this to run a single test class")
   fun runSingleTestClass() {
     val testFactory = TestSaveButton()
     testFactory.composeTestRule = composeTestRule
     for (test in testFactory.createTests()) {
-      reset(testFactory.needsDatabaseReset())
       testFactory.beforeEach()
       test()
+      reset(testFactory.needsDatabaseReset())
     }
     // Always fail so that we are sure this test is ignored
     fail("SUCCESS")
@@ -173,13 +169,13 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-  @Ignore("Use this to run a single test")
+//  @Ignore("Use this to run a single test")
   fun runSingleTest() {
     val testFactory = TestSaveButton()
     testFactory.composeTestRule = composeTestRule
-    reset(testFactory.needsDatabaseReset())
     testFactory.beforeEach()
     testFactory.testPropagateSave()
+    reset(testFactory.needsDatabaseReset())
     // Always fail so that we are sure this test is ignored
     fail("SUCCESS")
   }
