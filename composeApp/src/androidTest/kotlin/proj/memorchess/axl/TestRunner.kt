@@ -198,17 +198,15 @@ class TestRunner {
    * @param resetDatabase Whether to reset the database to its initial state
    */
   private fun reset(resetDatabase: Boolean) {
-    composeTestRule.mainClock.autoAdvance = true
     val trainingDescription = getNavigationButtonDescription(Destination.TRAINING.name)
     composeTestRule.waitUntilAtLeastOneExists(hasContentDescription(trainingDescription))
-    composeTestRule.onNodeWithContentDescription(trainingDescription).assertExists().performClick()
-
     runTest {
       if (resetDatabase) {
         resetDatabase()
       }
       NodeManager.resetCacheFromDataBase()
     }
+    composeTestRule.onNodeWithContentDescription(trainingDescription).assertExists().performClick()
   }
 
   /**
