@@ -18,6 +18,7 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.factories.board.TestNextMoveBarFactory
 import proj.memorchess.axl.factories.board.TestSaveButtonFactory
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
@@ -103,12 +104,14 @@ class TestRunner {
     val successTests = mutableMapOf<String, Int>()
     var exception: Throwable? = null
     for (testFactory in testFactories) {
+      var firstTest = true
       testFactory.composeTestRule = composeTestRule
       for (test in testFactory.createTests()) {
         try {
+          reset(firstTest || testFactory.needsDatabaseReset())
+          firstTest = false
           testFactory.beforeEach()
           test()
-          reset(testFactory.needsDatabaseReset())
           successTests.compute(testFactory.javaClass.name) { _, value ->
             if (value == null) 1 else value + 1
           }
@@ -149,14 +152,14 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-  @Ignore("Use this to run a single test class")
+//  @Ignore("Use this to run a single test class")
   fun runSingleTestClass() {
     val testFactory = TestSaveButtonFactory()
     testFactory.composeTestRule = composeTestRule
     for (test in testFactory.createTests()) {
+      reset(testFactory.needsDatabaseReset())
       testFactory.beforeEach()
       test()
-      reset(testFactory.needsDatabaseReset())
     }
     // Always fail so that we are sure this test is ignored
     fail("SUCCESS")
@@ -171,13 +174,13 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-  @Ignore("Use this to run a single test")
+//  @Ignore("Use this to run a single test")
   fun runSingleTest() {
-    val testFactory = TestSaveButtonFactory()
+    val testFactory = TestNextMoveBarFactory()
     testFactory.composeTestRule = composeTestRule
     testFactory.beforeEach()
-    testFactory.testPropagateSave()
     reset(testFactory.needsDatabaseReset())
+    testFactory.testMultipleNextMoves()
     // Always fail so that we are sure this test is ignored
     fail("SUCCESS")
   }
