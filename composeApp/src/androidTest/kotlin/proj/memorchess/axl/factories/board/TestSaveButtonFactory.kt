@@ -7,7 +7,7 @@ import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.Awaitility
 
-class TestSaveButton : AUiTestFactory() {
+class TestSaveButtonFactory : AUiTestFactory() {
   override fun createTests(): List<() -> Unit> {
     return listOf(::testSaveGood, ::testSaveBad, ::testPropagateSave)
   }

@@ -17,7 +17,7 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.factories.board.TestSaveButton
+import proj.memorchess.axl.factories.board.TestSaveButtonFactory
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
@@ -66,7 +66,7 @@ class TestRunner {
       //      TestSettingsFactory(),
       //      TestControlBarFactory(),
       //      TestNextMoveBarFactory(),
-      TestSaveButton()
+      TestSaveButtonFactory()
     )
 
   /**
@@ -148,7 +148,7 @@ class TestRunner {
   @Test
   //  @Ignore("Use this to run a single test class")
   fun runSingleTestClass() {
-    val testFactory = TestSaveButton()
+    val testFactory = TestSaveButtonFactory()
     testFactory.composeTestRule = composeTestRule
     for (test in testFactory.createTests()) {
       testFactory.beforeEach()
@@ -170,7 +170,7 @@ class TestRunner {
   @Test
   //  @Ignore("Use this to run a single test")
   fun runSingleTest() {
-    val testFactory = TestSaveButton()
+    val testFactory = TestSaveButtonFactory()
     testFactory.composeTestRule = composeTestRule
     testFactory.beforeEach()
     testFactory.testPropagateSave()
