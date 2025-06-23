@@ -38,6 +38,8 @@ boards, and real fun! ♟️✨
 To setup the environment, please consult
 these [instructions](https://www.jetbrains.com/help/kotlin-multiplatform-dev/compose-multiplatform-setup.html).
 
+I personally recommend using [Android Studio](https://developer.android.com/kotlin/multiplatform/setup).
+
 ---
 
 ## 🤝 Contributing
