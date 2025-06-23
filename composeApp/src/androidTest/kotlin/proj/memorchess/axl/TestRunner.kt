@@ -177,9 +177,9 @@ class TestRunner {
 //  @Ignore("Use this to run a single test")
   fun runSingleTest() {
     val testFactory = TestNextMoveBarFactory()
+    reset(testFactory.needsDatabaseReset())
     testFactory.composeTestRule = composeTestRule
     testFactory.beforeEach()
-    reset(testFactory.needsDatabaseReset())
     testFactory.testMultipleNextMoves()
     // Always fail so that we are sure this test is ignored
     fail("SUCCESS")
