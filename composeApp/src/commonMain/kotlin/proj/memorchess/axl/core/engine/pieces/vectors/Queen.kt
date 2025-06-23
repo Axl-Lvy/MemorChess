@@ -12,4 +12,10 @@ class Queen(player: Game.Player) : AInfiniteMovers(player) {
   override fun baseChar(): String {
     return IPiece.QUEEN
   }
+
+  companion object {
+    fun white() = Queen(Game.Player.WHITE)
+
+    fun black() = Queen(Game.Player.BLACK)
+  }
 }

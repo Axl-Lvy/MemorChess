@@ -28,6 +28,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
 
@@ -37,7 +42,7 @@ jobs:
           api-level: 35
           target: google_apis
           arch: x86_64
-          script: ./gradlew connectedCheck
+          script: ./gradlew connectedCheck --stacktrace
 
   format-check:
     runs-on: ubuntu-latest

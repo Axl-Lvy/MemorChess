@@ -1,4 +1,4 @@
-package proj.akichess.axl.utils
+package proj.memorchess.axl.util
 
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull

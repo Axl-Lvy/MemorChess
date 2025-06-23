@@ -13,4 +13,10 @@ class Rook(player: Game.Player) :
   override fun baseChar(): String {
     return IPiece.ROOK
   }
+
+  companion object {
+    fun white() = Rook(Game.Player.WHITE)
+
+    fun black() = Rook(Game.Player.BLACK)
+  }
 }
