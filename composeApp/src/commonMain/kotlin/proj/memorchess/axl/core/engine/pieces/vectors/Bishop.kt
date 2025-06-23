@@ -12,4 +12,10 @@ class Bishop(player: Game.Player) : AInfiniteMovers(player) {
   override fun baseChar(): String {
     return IPiece.BISHOP
   }
+
+  companion object {
+    fun white() = Bishop(Game.Player.WHITE)
+
+    fun black() = Bishop(Game.Player.BLACK)
+  }
 }
