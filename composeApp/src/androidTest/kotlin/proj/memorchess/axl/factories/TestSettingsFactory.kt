@@ -3,12 +3,10 @@ package proj.memorchess.axl.factories
 import androidx.compose.ui.test.performClick
 import proj.memorchess.axl.AUiTestFactory
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.utils.Awaitility
+import proj.memorchess.axl.util.AwaitUtil
+import proj.memorchess.axl.util.UiTest
 
 class TestSettingsFactory : AUiTestFactory() {
-  override fun createTests(): List<() -> Unit> {
-    return listOf(::testEraseAllDataButton)
-  }
 
   override fun beforeEach() {
     goToSettings()
@@ -16,6 +14,7 @@ class TestSettingsFactory : AUiTestFactory() {
 
   override fun needsDatabaseReset(): Boolean = true
 
+  @UiTest
   fun testEraseAllDataButton() {
     assertNodeWithTextDoesNotExists("Confirm?")
 
@@ -31,6 +30,6 @@ class TestSettingsFactory : AUiTestFactory() {
     assertNodeWithTextExists("OK").performClick()
 
     // Verify the database is cleared
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { getAllPositions().isEmpty() }
+    AwaitUtil.awaitUntilTrue(TEST_TIMEOUT) { getAllPositions().isEmpty() }
   }
 }

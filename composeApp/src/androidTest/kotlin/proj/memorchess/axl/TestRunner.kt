@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import com.diamondedge.logging.logging
 import kotlin.test.BeforeTest
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.fail
 import kotlinx.coroutines.runBlocking
@@ -26,7 +27,8 @@ import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.util.DateUtil
-import proj.memorchess.axl.utils.Awaitility
+import proj.memorchess.axl.util.AwaitUtil
+import proj.memorchess.axl.util.FactoryClassFinder
 
 /**
  * Main test runner for the application.
@@ -44,7 +46,8 @@ import proj.memorchess.axl.utils.Awaitility
  * To add new tests:
  * 1. Create a new class extending [AUiTestFactory]
  * 2. Implement the required methods
- * 3. Add your test factory to the [testFactories] list
+ * 3. Annotate the tests with [UiTest][proj.memorchess.axl.util.UiTest]
+ * 4. Add the new factory to the [FactoryClassFinder.getAllTestFactories] list
  */
 @OptIn(ExperimentalTestApi::class)
 class TestRunner {
@@ -59,15 +62,14 @@ class TestRunner {
    *
    * Each factory contains a group of related tests that test a specific feature or component. To
    * add new tests, create a new factory and add it to this list.
+   *
+   * This list is automatically populated with all classes extending AUiTestFactory using
+   * reflection.
    */
-  private val testFactories =
-    listOf(
-      //      TestNavigationFactory(),
-      //      TestSettingsFactory(),
-      //      TestControlBarFactory(),
-      //      TestNextMoveBarFactory(),
-      TestSaveButtonFactory()
-    )
+  private val testFactories: List<AUiTestFactory> by lazy {
+    // Get all test factories using the ClassFinder utility
+    FactoryClassFinder.getAllTestFactories()
+  }
 
   /**
    * Sets up the test environment before each test.
@@ -79,6 +81,7 @@ class TestRunner {
   fun setUp() {
     composeTestRule.mainClock.autoAdvance = true
     IAppConfig.set(TestConfig)
+    DatabaseHolder.init(TestDatabase.empty())
     reset(true)
   }
 
@@ -95,6 +98,7 @@ class TestRunner {
    */
   @Test
   fun runTests() {
+    LOGGER.error { testFactories.toString() }
     val failedTests = mutableMapOf<String, Int>()
     val successTests = mutableMapOf<String, Int>()
     var exception: Throwable? = null
@@ -130,9 +134,8 @@ class TestRunner {
       for (failedTestClass in failedTests) {
         message.append("${failedTestClass.value} tests failed in ${failedTestClass.key}\n")
       }
-      message.append(exception?.stackTraceToString())
       fail(
-        "${failedTests.values.sum()} tests failed : $message with exception ${exception!!.stackTrace} $failedTests"
+        "${failedTests.values.sum()} tests failed : $message with exception ${exception!!.stackTraceToString()} $failedTests"
       )
     }
   }
@@ -146,7 +149,7 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-  //  @Ignore("Use this to run a single test class")
+  @Ignore("Use this to run a single test class")
   fun runSingleTestClass() {
     val testFactory = TestSaveButtonFactory()
     testFactory.composeTestRule = composeTestRule
@@ -168,7 +171,7 @@ class TestRunner {
    * Note: This test is ignored by default to prevent it from running during normal test execution.
    */
   @Test
-  //  @Ignore("Use this to run a single test")
+  @Ignore("Use this to run a single test")
   fun runSingleTest() {
     val testFactory = TestSaveButtonFactory()
     testFactory.composeTestRule = composeTestRule
@@ -221,7 +224,7 @@ class TestRunner {
    * This provides a consistent starting point for tests that require database access.
    */
   private suspend fun resetDatabase() {
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
+    AwaitUtil.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
       runTest {
         DatabaseHolder.getDatabase().deleteAllNodes()
         DatabaseHolder.getDatabase().deleteAllMoves()
@@ -258,7 +261,7 @@ class TestRunner {
     for (node in storedNodes) {
       DatabaseHolder.getDatabase().insertPosition(node)
     }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
+    AwaitUtil.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
       lateinit var allPositions: List<StoredNode>
       runBlocking { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
       allPositions.size == storedNodes.map { it.positionKey }.distinct().size

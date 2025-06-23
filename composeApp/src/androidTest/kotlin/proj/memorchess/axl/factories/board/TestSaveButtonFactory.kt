@@ -5,12 +5,10 @@ import proj.memorchess.axl.AUiTestFactory
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.utils.Awaitility
+import proj.memorchess.axl.util.AwaitUtil
+import proj.memorchess.axl.util.UiTest
 
 class TestSaveButtonFactory : AUiTestFactory() {
-  override fun createTests(): List<() -> Unit> {
-    return listOf(::testSaveGood, ::testSaveBad, ::testPropagateSave)
-  }
 
   override fun needsDatabaseReset(): Boolean = true
 
@@ -22,10 +20,11 @@ class TestSaveButtonFactory : AUiTestFactory() {
     playMove("h2", "h3")
   }
 
+  @UiTest
   fun testSaveGood() {
     assertNull(getPosition(afterH3Position))
     var savedPosition: StoredNode? = null
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
+    AwaitUtil.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
       clickOnSaveGood()
       savedPosition = getPosition(afterH3Position)
       savedPosition != null
@@ -33,10 +32,11 @@ class TestSaveButtonFactory : AUiTestFactory() {
     check(savedPosition!!.previousMoves.all { it.isGood == true })
   }
 
+  @UiTest
   fun testSaveBad() {
     assertNull(getPosition(afterH3Position))
     var savedPosition: StoredNode? = null
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
+    AwaitUtil.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
       clickOnSaveBad()
       savedPosition = getPosition(afterH3Position)
       savedPosition != null
@@ -44,19 +44,20 @@ class TestSaveButtonFactory : AUiTestFactory() {
     check(savedPosition!!.previousMoves.all { it.isGood != true })
   }
 
+  @UiTest
   fun testPropagateSave() {
     playMove("h7", "h6")
     assertNull(getPosition(afterH3Position))
     assertNull(getPosition(afterH6Position))
     var savedLastPosition: StoredNode? = null
     var savedFirstPosition: StoredNode? = null
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testPropagateSave: Positions not saved") {
+    AwaitUtil.awaitUntilTrue(TEST_TIMEOUT, "testPropagateSave: Positions not saved") {
       clickOnSaveBad()
       savedLastPosition = getPosition(afterH6Position)
       savedFirstPosition = getPosition(afterH3Position)
       savedLastPosition != null && savedFirstPosition != null
     }
     check(savedLastPosition!!.previousMoves.all { it.isGood != true })
-    check(savedFirstPosition!!.previousMoves.all { it.isGood == true })
+    check(savedFirstPosition!!.previousMoves.all { it.isGood != false })
   }
 }

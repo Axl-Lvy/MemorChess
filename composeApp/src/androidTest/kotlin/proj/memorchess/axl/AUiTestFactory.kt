@@ -23,7 +23,8 @@ import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
-import proj.memorchess.axl.utils.hasClickLabel
+import proj.memorchess.axl.util.UiTest
+import proj.memorchess.axl.util.hasClickLabel
 
 /**
  * Abstract base class for UI test factories.
@@ -37,11 +38,11 @@ import proj.memorchess.axl.utils.hasClickLabel
  * execution and provides a single application instance for all tests to improve performance.
  *
  * To create a new test factory:
- * 1. Extend this class
- * 2. Implement [createTests] to return a list of test functions
+ * 1. Extend this class 2 Annotate your tests with [UiTest]
  * 3. Implement [beforeEach] to set up the test environment
  * 4. Override [needsDatabaseReset] if your tests require a fresh database
- * 5. Add your test factory to the [TestRunner.testFactories] list
+ * 5. Add your test factory to the [proj.memorchess.axl.util.FactoryClassFinder.getAllTestFactories]
+ *    list
  *
  * Example:
  * ```
@@ -54,11 +55,13 @@ import proj.memorchess.axl.utils.hasClickLabel
  *     goToExplore() // Navigate to the explore screen before each test
  *   }
  *
- *   private fun testFeatureA() {
+ *   @UiTest
+ *   fun testFeatureA() {
  *     // Test implementation
  *   }
  *
- *   private fun testFeatureB() {
+ *   @UiTest
+ *   fun testFeatureB() {
  *     // Test implementation
  *   }
  * }
@@ -87,7 +90,19 @@ abstract class AUiTestFactory {
    *
    * @return A list of test functions
    */
-  abstract fun createTests(): List<() -> Unit>
+  fun createTests(): List<() -> Unit> {
+    val methods =
+      this.javaClass.declaredMethods
+        //      .filter { it.name.startsWith("test") }
+        .filter { it.isAnnotationPresent(UiTest::class.java) }
+        .map { method ->
+          {
+            method.invoke(this)
+            Unit
+          }
+        }
+    return methods
+  }
 
   /**
    * Sets up the test environment before each test is executed.

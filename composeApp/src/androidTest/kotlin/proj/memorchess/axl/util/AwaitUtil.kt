@@ -1,4 +1,4 @@
-package proj.memorchess.axl.utils
+package proj.memorchess.axl.util
 
 import kotlin.time.Duration
 
@@ -8,7 +8,7 @@ import kotlin.time.Duration
  * This class provides methods to wait for conditions to become true within a specified timeout.
  * It's particularly useful for UI tests where operations may not complete immediately.
  */
-object Awaitility {
+object AwaitUtil {
 
   /**
    * Waits until the specified condition becomes true or the timeout is reached.
