@@ -22,18 +22,6 @@ class TestSaveButton : AUiTestFromMainActivity() {
   }
 
   @Test
-  fun testSaveGood() {
-    assertNull(getPosition(afterH3Position))
-    var savedPosition: StoredNode? = null
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
-      clickOnSaveGood()
-      savedPosition = getPosition(afterH3Position)
-      savedPosition != null
-    }
-    check(savedPosition!!.previousMoves.all { it.isGood == true })
-  }
-
-  @Test
   fun testSaveBad() {
     assertNull(getPosition(afterH3Position))
     var savedPosition: StoredNode? = null
@@ -43,6 +31,18 @@ class TestSaveButton : AUiTestFromMainActivity() {
       savedPosition != null
     }
     check(savedPosition!!.previousMoves.all { it.isGood != true })
+  }
+
+  @Test
+  fun testSaveGood() {
+    assertNull(getPosition(afterH3Position))
+    var savedPosition: StoredNode? = null
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
+      clickOnSaveGood()
+      savedPosition = getPosition(afterH3Position)
+      savedPosition != null
+    }
+    check(savedPosition!!.previousMoves.all { it.isGood == true })
   }
 
   @Test

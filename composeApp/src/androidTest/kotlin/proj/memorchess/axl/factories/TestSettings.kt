@@ -7,7 +7,7 @@ import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.Awaitility
 
-class TestSettingsFactory : AUiTestFromMainActivity() {
+class TestSettings : AUiTestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {

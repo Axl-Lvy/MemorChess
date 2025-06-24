@@ -276,12 +276,12 @@ abstract class AUiTestFromMainActivity {
 
   /** Clicks the "Save Good" button to mark the current position as a good move. */
   fun clickOnSaveGood() {
-    this.waitUntilNodeExists(hasContentDescription("Save Good")).assertExists().performClick()
+    this.waitUntilNodeExists(hasContentDescription("Save Good", ignoreCase = true)).assertExists().performClick()
   }
 
   /** Clicks the "Save Bad" button to mark the current position as a bad move. */
   fun clickOnSaveBad() {
-    this.waitUntilNodeExists(hasContentDescription("Save Bad")).assertExists().performClick()
+    this.waitUntilNodeExists(hasContentDescription("Save Bad", ignoreCase = true)).assertExists().performClick()
   }
 
   /**
