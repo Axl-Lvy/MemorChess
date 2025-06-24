@@ -22,19 +22,21 @@ fun ControlBar(
   Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = modifier.fillMaxWidth()) {
     ControlButton.REVERSE.render(
       onReverseClick,
-      modifier = Modifier.size(50.dp).testTag(stringResource(Res.string.description_board_reverse)),
+      modifier = Modifier.size(SIZE).testTag(stringResource(Res.string.description_board_reverse)),
     )
     ControlButton.RESET.render(
       onResetClick,
-      modifier = Modifier.size(50.dp).testTag(stringResource(Res.string.description_board_reset)),
+      modifier = Modifier.size(SIZE).testTag(stringResource(Res.string.description_board_reset)),
     )
     ControlButton.BACK.render(
       onBackClick,
-      modifier = Modifier.size(50.dp).testTag(stringResource(Res.string.description_board_back)),
+      modifier = Modifier.size(SIZE).testTag(stringResource(Res.string.description_board_back)),
     )
     ControlButton.FORWARD.render(
       onForwardClick,
-      modifier = Modifier.size(50.dp).testTag(stringResource(Res.string.description_board_next)),
+      modifier = Modifier.size(SIZE).testTag(stringResource(Res.string.description_board_next)),
     )
   }
 }
+
+private val SIZE = 50.dp
