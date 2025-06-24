@@ -23,6 +23,10 @@ class TestDatabase private constructor() : ICommonDatabase {
     return storedNodes.values.toList()
   }
 
+  override suspend fun getPosition(positionKey: PositionKey): StoredNode? {
+    return storedNodes[positionKey.fenRepresentation]
+  }
+
   override suspend fun deletePosition(fen: String) {
     storedNodes.remove(fen)
   }
@@ -60,11 +64,22 @@ class TestDatabase private constructor() : ICommonDatabase {
     storedNodes[move.destination.fenRepresentation]!!.previousMoves.add(move)
   }
 
+  override suspend fun getAllMoves(): List<StoredMove> {
+    return storedNodes.values.flatMap { it.nextMoves + it.previousMoves }.distinct()
+  }
+
+  override suspend fun deleteAllMoves() {
+    storedNodes.values.forEach {
+      it.nextMoves.clear()
+      it.previousMoves.clear()
+    }
+  }
+
   override suspend fun insertPosition(position: IStoredNode) {
     storedNodes[position.positionKey.fenRepresentation] = position as StoredNode
   }
 
-  override suspend fun deleteAllPositions() {
+  override suspend fun deleteAllNodes() {
     storedNodes.clear()
   }
 
@@ -102,6 +117,15 @@ class TestDatabase private constructor() : ICommonDatabase {
      */
     private fun createDataBaseFromMoves(moves: List<String>): TestDatabase {
       val testDataBase = TestDatabase()
+      val nodes = convertStringMovesToNodes(moves)
+      for (node in nodes) {
+        testDataBase.storedNodes[node.positionKey.fenRepresentation] = node
+      }
+      return testDataBase
+    }
+
+    fun convertStringMovesToNodes(moves: List<String>): List<StoredNode> {
+      val nodes = mutableListOf<StoredNode>()
       val game = Game()
       var previousMove: StoredMove? = null
       for (move in moves) {
@@ -115,9 +139,9 @@ class TestDatabase private constructor() : ICommonDatabase {
             mutableListOf(storedMove),
           )
         previousMove = storedMove
-        testDataBase.storedNodes[node.positionKey.fenRepresentation] = node
+        nodes.add(node)
       }
-      return testDataBase
+      return nodes
     }
 
     /**

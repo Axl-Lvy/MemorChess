@@ -46,4 +46,10 @@ class Pawn(player: Game.Player) : APiece(player) {
   override fun baseChar(): String {
     return IPiece.PAWN
   }
+
+  companion object {
+    fun white() = Pawn(Game.Player.WHITE)
+
+    fun black() = Pawn(Game.Player.BLACK)
+  }
 }

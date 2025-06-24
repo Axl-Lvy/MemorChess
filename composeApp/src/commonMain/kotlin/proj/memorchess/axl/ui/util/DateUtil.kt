@@ -10,6 +10,11 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 
 object DateUtil {
+
+  fun yesterday(): LocalDate {
+    return dateInDays(-1)
+  }
+
   fun today(): LocalDate {
     return Clock.System.todayIn(TimeZone.currentSystemDefault())
   }
