@@ -33,7 +33,7 @@ enum class BottomBarItem(
     icon = {
       Icon(
         painterResource(Res.drawable.icon_main),
-        contentDescription = Destination.EXPLORE.name + BUTTON_SUFFIX,
+        contentDescription = Destination.TRAINING.name + BUTTON_SUFFIX,
         modifier = Modifier.size(32.dp),
       )
     },
