@@ -1,6 +1,6 @@
 package proj.memorchess.axl.ui.pages.navigation.bottomBar
 
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.runtime.Composable
@@ -11,7 +11,7 @@ import androidx.navigation.NavHostController
 
 @Composable
 fun BottomBar(currentRoute: String, navController: NavHostController) {
-  NavigationBar {
+  NavigationBar(windowInsets = WindowInsets(0, 0, 0, 0)) {
     BottomBarItem.entries
       .sortedBy { it.index }
       .forEach { item ->
@@ -19,7 +19,7 @@ fun BottomBar(currentRoute: String, navController: NavHostController) {
           remember(currentRoute) { derivedStateOf { currentRoute == item.destination.name } }
         NavigationBarItem(
           selected = isSelected,
-          icon = { Icon(item.icon, contentDescription = item.label + " button") },
+          icon = item.icon,
           onClick = { navController.navigate(item.destination.name) },
         )
       }

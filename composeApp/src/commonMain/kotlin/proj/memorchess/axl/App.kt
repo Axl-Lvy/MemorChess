@@ -14,7 +14,6 @@ import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.pages.navigation.Router
 import proj.memorchess.axl.ui.pages.navigation.bottomBar.BottomBar
-import proj.memorchess.axl.ui.pages.navigation.bottomBar.CenterButton
 
 @Composable
 fun App() {
@@ -30,7 +29,6 @@ fun App() {
           BottomBar(currentRoute, navController)
         },
         floatingActionButtonPosition = FabPosition.Center,
-        floatingActionButton = { CenterButton(navController = navController) },
       ) { innerPadding ->
         Router(navController = navController, modifier = Modifier.padding(innerPadding))
       }
