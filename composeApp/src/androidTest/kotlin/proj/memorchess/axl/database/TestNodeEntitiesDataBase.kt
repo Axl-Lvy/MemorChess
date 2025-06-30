@@ -21,6 +21,7 @@ import proj.memorchess.axl.core.data.MoveEntity
 import proj.memorchess.axl.core.data.NodeEntityDao
 import proj.memorchess.axl.core.data.NodeWithMoves
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -45,11 +46,14 @@ class TestNodeEntitiesDataBase {
   fun writeAndReadNode() {
     val retrievedNodes: List<NodeWithMoves>
     val game = Game()
-    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
-          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves(), today, today)
+          StoredNode(
+            game.position.toImmutablePosition(),
+            PreviousAndNextMoves(),
+            PreviousAndNextDate.dummyToday(),
+          )
         )
       )
       retrievedNodes = nodeEntityDao.getAllNodes()
@@ -67,11 +71,14 @@ class TestNodeEntitiesDataBase {
   fun testDeleteAll() {
     val retrievedNode: NodeWithMoves?
     val game = Game()
-    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
-          StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves(), today, today)
+          StoredNode(
+            game.position.toImmutablePosition(),
+            PreviousAndNextMoves(),
+            PreviousAndNextDate.dummyToday(),
+          )
         )
       )
       nodeEntityDao.deleteAll()
@@ -98,11 +105,14 @@ class TestNodeEntitiesDataBase {
       StoredNode(
         rootPositionKey,
         PreviousAndNextMoves(listOf(), listOf(linkMove.toStoredMove())),
-        today,
-        today,
+        PreviousAndNextDate.dummyToday(),
       )
     val childNode =
-      StoredNode(game.position.toImmutablePosition(), PreviousAndNextMoves(), today, today)
+      StoredNode(
+        game.position.toImmutablePosition(),
+        PreviousAndNextMoves(),
+        PreviousAndNextDate.dummyToday(),
+      )
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(childNode))
