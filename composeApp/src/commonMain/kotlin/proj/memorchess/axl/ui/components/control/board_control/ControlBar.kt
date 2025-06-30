@@ -10,6 +10,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.pieces.vectors.King
+import proj.memorchess.axl.ui.components.board.Piece
 
 @Composable
 fun ControlBar(
@@ -17,6 +20,7 @@ fun ControlBar(
   onResetClick: () -> Unit,
   onBackClick: () -> Unit,
   onForwardClick: () -> Unit,
+  playerTurn: Game.Player,
   modifier: Modifier = Modifier,
 ) {
   Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = modifier.fillMaxWidth()) {
@@ -28,6 +32,7 @@ fun ControlBar(
       onResetClick,
       modifier = Modifier.size(SIZE).testTag(stringResource(Res.string.description_board_reset)),
     )
+    Piece(if (playerTurn == Game.Player.WHITE) King.white() else King.black())
     ControlButton.BACK.render(
       onBackClick,
       modifier = Modifier.size(SIZE).testTag(stringResource(Res.string.description_board_back)),

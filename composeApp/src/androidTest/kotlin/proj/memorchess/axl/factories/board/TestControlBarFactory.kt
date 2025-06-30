@@ -2,6 +2,8 @@ package proj.memorchess.axl.factories.board
 
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.core.engine.pieces.Pawn
 
@@ -17,8 +19,11 @@ class TestControlBar : AUiTestFromMainActivity() {
 
   @Test
   fun testInvertBoard() {
+    assertFalse { isBoardReversed() }
     clickOnReverse()
+    assertTrue { isBoardReversed() }
     clickOnReverse()
+    assertFalse { isBoardReversed() }
   }
 
   @Test
