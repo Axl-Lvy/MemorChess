@@ -1,4 +1,4 @@
-package proj.memorchess.axl
+package proj.memorchess.axl.utils
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -16,6 +16,7 @@ import kotlin.test.BeforeTest
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
+import proj.memorchess.axl.MainActivity
 import proj.memorchess.axl.core.config.IAppConfig
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
@@ -31,8 +32,6 @@ import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
-import proj.memorchess.axl.utils.Awaitility
-import proj.memorchess.axl.utils.hasClickLabel
 
 /**
  * This class contains a lot of ready-to-use methods for common UI interactions, do not hesitate to
@@ -309,7 +308,7 @@ abstract class AUiTestFromMainActivity {
    *
    * This provides a consistent starting point for tests that require database access.
    */
-  suspend fun resetDatabase() {
+  open suspend fun resetDatabase() {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
       runTest {
         DatabaseHolder.getDatabase().deleteAllNodes()

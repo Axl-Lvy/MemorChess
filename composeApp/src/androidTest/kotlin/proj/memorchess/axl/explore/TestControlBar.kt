@@ -1,11 +1,11 @@
-package proj.memorchess.axl.factories.board
+package proj.memorchess.axl.explore
 
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.utils.AUiTestFromMainActivity
 
 class TestControlBar : AUiTestFromMainActivity() {
 

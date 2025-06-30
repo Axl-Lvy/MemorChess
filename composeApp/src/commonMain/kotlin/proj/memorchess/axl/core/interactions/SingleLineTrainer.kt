@@ -5,6 +5,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.INextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.util.IReloader
 
 /**
@@ -35,11 +36,13 @@ class SingleLineTrainer(private var node: StoredNode) :
 
     val nextTrainingDate = calculator.calculateNextDate(node.previousAndNextTrainingDate)
 
-    StoredNode(
+    val storedNode =
+      StoredNode(
         positionKey = node.positionKey,
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
-      .save()
+    NodeManager.cacheNode(storedNode)
+    storedNode.save()
   }
 }
