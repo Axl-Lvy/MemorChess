@@ -2,6 +2,8 @@ package proj.memorchess.axl.core.data
 
 import androidx.room.Embedded
 import androidx.room.Relation
+import proj.memorchess.axl.core.date.PreviousAndNextDate
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 /** Entity representing a node with its associated moves. */
 data class NodeWithMoves(
@@ -14,10 +16,11 @@ data class NodeWithMoves(
   fun toStoredNode(): StoredNode {
     return StoredNode(
       PositionKey(node.fenRepresentation),
-      previousMoves.map { it.toStoredMove() }.toMutableList(),
-      nextMoves.map { it.toStoredMove() }.toMutableList(),
-      node.lastTrainedDate,
-      node.nextTrainedDate,
+      PreviousAndNextMoves(
+        previousMoves.map { it.toStoredMove() },
+        nextMoves.map { it.toStoredMove() },
+      ),
+      PreviousAndNextDate(node.lastTrainedDate, node.nextTrainedDate),
     )
   }
 
@@ -26,11 +29,11 @@ data class NodeWithMoves(
       return NodeWithMoves(
         NodeEntity(
           storedNode.positionKey.fenRepresentation,
-          storedNode.lastTrainedDate,
-          storedNode.nextTrainedDate,
+          storedNode.previousAndNextTrainingDate.previousDate,
+          storedNode.previousAndNextTrainingDate.nextDate,
         ),
-        storedNode.previousMoves.map { MoveEntity.convertToEntity(it) },
-        storedNode.nextMoves.map { MoveEntity.convertToEntity(it) },
+        storedNode.previousAndNextMoves.previousMoves.map { MoveEntity.convertToEntity(it.value) },
+        storedNode.previousAndNextMoves.nextMoves.map { MoveEntity.convertToEntity(it.value) },
       )
     }
   }

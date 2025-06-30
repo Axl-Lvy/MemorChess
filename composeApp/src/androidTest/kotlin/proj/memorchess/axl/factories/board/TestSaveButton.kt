@@ -30,7 +30,7 @@ class TestSaveButton : AUiTestFromMainActivity() {
       savedPosition = getPosition(afterH3Position)
       savedPosition != null
     }
-    check(savedPosition!!.previousMoves.all { it.isGood != true })
+    check(savedPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood != true })
   }
 
   @Test
@@ -42,7 +42,7 @@ class TestSaveButton : AUiTestFromMainActivity() {
       savedPosition = getPosition(afterH3Position)
       savedPosition != null
     }
-    check(savedPosition!!.previousMoves.all { it.isGood == true })
+    check(savedPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
   }
 
   @Test
@@ -58,7 +58,7 @@ class TestSaveButton : AUiTestFromMainActivity() {
       savedFirstPosition = getPosition(afterH3Position)
       savedLastPosition != null && savedFirstPosition != null
     }
-    check(savedLastPosition!!.previousMoves.all { it.isGood != true })
-    check(savedFirstPosition!!.previousMoves.all { it.isGood == true })
+    check(savedLastPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood != true })
+    check(savedFirstPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
   }
 }

@@ -1,6 +1,6 @@
 ## Checklist
 
-- [ ] Check code formatting
-- [ ] Run desktop tests
-- [ ] Run Android tests
-- [ ] Run Sonar analysis
+- [x] Check code formatting
+- [x] Run desktop tests
+- [x] Run Android tests
+- [x] Run Sonar analysis

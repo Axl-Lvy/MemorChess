@@ -6,8 +6,8 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.ui.util.DateUtil
 
 /** Node factory singleton. */
 object NodeManager {
@@ -162,11 +162,9 @@ private object NodeCache {
     todayDate = DateUtil.today()
     val allNodes: List<StoredNode> = DatabaseHolder.getDatabase().getAllPositions()
     allNodes.forEach { node ->
-      movesCache.getOrPut(node.positionKey) {
-        PreviousAndNextMoves(node.previousMoves, node.nextMoves)
-      }
-      if (node.nextMoves.any { it.isGood == true }) {
-        val daysUntil = DateUtil.daysUntil(node.nextTrainedDate)
+      movesCache.getOrPut(node.positionKey) { node.previousAndNextMoves }
+      if (node.previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {
+        val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
         nodesByDay.getOrPut(daysUntil) { mutableListOf() }.add(node)
       }
       LOGGER.i { "Retrieved node: ${node.positionKey}" }

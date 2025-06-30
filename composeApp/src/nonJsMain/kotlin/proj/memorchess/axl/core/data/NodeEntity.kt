@@ -2,10 +2,8 @@ package proj.memorchess.axl.core.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
+import proj.memorchess.axl.core.date.DateUtil
 
 /**
  * Entity representing an [IStoredNode] ready to be stored in the database.
@@ -26,8 +24,14 @@ data class NodeEntity(
   @PrimaryKey(autoGenerate = false) val fenRepresentation: String,
 
   /** The date when this node was last trained */
-  val lastTrainedDate: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
+  val lastTrainedDate: LocalDate = DateUtil.today(),
 
   /** The date when this node should be trained next */
-  val nextTrainedDate: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
-)
+  val nextTrainedDate: LocalDate = DateUtil.today(),
+) {
+  init {
+    check(lastTrainedDate <= nextTrainedDate) {
+      "Last trained date cannot be after next trained date"
+    }
+  }
+}
