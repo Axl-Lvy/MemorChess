@@ -1,10 +1,10 @@
-package proj.memorchess.axl.factories.board
+package proj.memorchess.axl.explore
 
 import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.utils.AUiTestFromMainActivity
 
 class TestNextMoveBar : AUiTestFromMainActivity() {
 

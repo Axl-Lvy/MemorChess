@@ -1,7 +1,7 @@
-package proj.memorchess.axl.factories
+package proj.memorchess.axl
 
 import kotlin.test.Test
-import proj.memorchess.axl.AUiTestFromMainActivity
+import proj.memorchess.axl.utils.AUiTestFromMainActivity
 
 class TestNavigation : AUiTestFromMainActivity() {
 

@@ -1,10 +1,10 @@
-package proj.memorchess.axl.factories
+package proj.memorchess.axl
 
 import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
+import proj.memorchess.axl.utils.AUiTestFromMainActivity
 import proj.memorchess.axl.utils.Awaitility
 
 class TestSettings : AUiTestFromMainActivity() {

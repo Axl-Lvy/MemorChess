@@ -20,4 +20,8 @@ data class PositionKey(val fenRepresentation: String) {
   fun createPosition(): IPosition {
     return FenParser.readPosition(this)
   }
+
+  companion object {
+    val START_POSITION = PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq")
+  }
 }

@@ -1,12 +1,12 @@
-package proj.memorchess.axl.factories.board
+package proj.memorchess.axl.explore
 
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertNull
-import proj.memorchess.axl.AUiTestFromMainActivity
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
+import proj.memorchess.axl.utils.AUiTestFromMainActivity
 import proj.memorchess.axl.utils.Awaitility
 
 class TestSaveButton : AUiTestFromMainActivity() {

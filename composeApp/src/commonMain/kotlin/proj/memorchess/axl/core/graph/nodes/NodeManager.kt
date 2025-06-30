@@ -78,6 +78,10 @@ object NodeManager {
     return nodeCache.getNodeFromDay(day)
   }
 
+  fun cacheNode(node: StoredNode) {
+    NodeCache.cacheNode(node)
+  }
+
   private val LOGGER = logging()
 }
 
@@ -146,6 +150,12 @@ private object NodeCache {
   fun clear() {
     movesCache.clear()
     databaseRetrieved = false
+  }
+
+  fun cacheNode(node: StoredNode) {
+    movesCache[node.positionKey] = node.previousAndNextMoves
+    val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
+    nodesByDay.getOrPut(daysUntil) { mutableListOf() }.add(node)
   }
 
   fun getNodeFromDay(day: Int): StoredNode? {

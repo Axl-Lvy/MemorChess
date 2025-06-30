@@ -20,9 +20,7 @@ fun interface INextDateCalculator {
     val SUCCESS = INextDateCalculator { dates ->
       val today = DateUtil.today()
       val passedDays = dates.getElapseDays()
-      val daysToAdd =
-        if (passedDays == 0) 1
-        else (passedDays * 1.5).toInt() // Increase the interval by 50% on success
+      val daysToAdd = (passedDays * 1.5).toInt() + 1 // Increase the interval by 50% on success
       today.plus(DatePeriod(days = daysToAdd))
     }
 

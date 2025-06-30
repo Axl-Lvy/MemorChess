@@ -31,10 +31,13 @@ fun TrainingBoard(modifier: Modifier = Modifier) {
 @Composable
 private fun Component(modifier: Modifier = Modifier) {
   val reloader = remember { BasicReloader() }
-  var daysFromToday = remember(reloader.getKey()) { 0 }
-  val moveToTrain = remember(reloader.getKey()) { NodeManager.getNextNodeToLearn(daysFromToday) }
+  val daysFromToday = remember { mutableStateOf(0) }
+  val moveToTrain =
+    remember(reloader.getKey(), daysFromToday.value) {
+      NodeManager.getNextNodeToLearn(daysFromToday.value)
+    }
   if (moveToTrain == null) {
-    NoNodeToTrain(modifier = modifier) { daysFromToday++ }
+    NoNodeToTrain(modifier = modifier, daysFromToday = daysFromToday)
   } else {
     NodeToTrain(moveToTrain, reloader, modifier = modifier)
   }
@@ -44,11 +47,10 @@ private fun Component(modifier: Modifier = Modifier) {
  * Composable that displays a message when there are no nodes to train.
  *
  * @param modifier Modifier for styling.
- * @param incrementDays Function to call when the button is clicked to increment the days. This
- *   allows to train with nodes from tomorrow.
+ * @param daysFromToday This allows to train with nodes from tomorrow.
  */
 @Composable
-private fun NoNodeToTrain(modifier: Modifier = Modifier, incrementDays: () -> Unit) {
+private fun NoNodeToTrain(modifier: Modifier = Modifier, daysFromToday: MutableState<Int>) {
   Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
     Column(
       horizontalAlignment = Alignment.CenterHorizontally,
@@ -56,7 +58,7 @@ private fun NoNodeToTrain(modifier: Modifier = Modifier, incrementDays: () -> Un
     ) {
       Icon(
         imageVector = Icons.Default.Done,
-        contentDescription = "Félicitations",
+        contentDescription = "Congratulations",
         tint = Color(0xFF4CAF50),
         modifier = Modifier.size(64.dp),
       )
@@ -68,14 +70,15 @@ private fun NoNodeToTrain(modifier: Modifier = Modifier, incrementDays: () -> Un
       )
       Spacer(modifier = Modifier.height(8.dp))
       Text(
-        text = "Vous avez terminé toutes les positions à apprendre pour aujourd'hui.",
+        text = "You have finished today's training!",
         style = MaterialTheme.typography.bodyLarge,
         color = Color(0xFF666666),
         textAlign = TextAlign.Center,
       )
-      Button(onClick = incrementDays, modifier = Modifier.padding(top = 16.dp)) {
+      Button(onClick = { daysFromToday.value++ }, modifier = Modifier.padding(top = 16.dp)) {
         Text("Increment a day")
       }
+      Text("Days in advance: ${daysFromToday.value}")
     }
   }
 }
