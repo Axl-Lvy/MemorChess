@@ -48,7 +48,18 @@ class TestDatabase private constructor() : ICommonDatabase {
   }
 
   override suspend fun deleteMoveTo(destination: String) {
-    throw NotImplementedError()
+    if (storedNodes[destination] == null) {
+      return
+    }
+    storedNodes[destination] =
+      StoredNode(
+        PositionKey(destination),
+        PreviousAndNextMoves(
+          listOf(),
+          storedNodes[destination]!!.previousAndNextMoves.nextMoves.values,
+        ),
+        storedNodes[destination]!!.previousAndNextTrainingDate,
+      )
   }
 
   override suspend fun deleteMove(origin: String, move: String) {
