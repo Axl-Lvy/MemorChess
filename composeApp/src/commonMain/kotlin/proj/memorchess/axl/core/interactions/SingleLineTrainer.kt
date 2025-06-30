@@ -42,7 +42,7 @@ class SingleLineTrainer(private var node: StoredNode) :
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
-    NodeManager.cacheNode(storedNode)
     storedNode.save()
+    NodeManager.cacheNode(storedNode)
   }
 }
