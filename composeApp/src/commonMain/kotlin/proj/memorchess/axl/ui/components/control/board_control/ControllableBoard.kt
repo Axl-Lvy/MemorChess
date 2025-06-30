@@ -47,6 +47,7 @@ private fun Component(modifier: Modifier = Modifier) {
       onResetClick = { linesExplorer.reset(boardReloader) },
       onForwardClick = { linesExplorer.forward(boardReloader) },
       onBackClick = { linesExplorer.back(boardReloader) },
+      playerTurn = linesExplorer.game.position.playerTurn,
     )
     Board(inverted, linesExplorer, boardReloader, modifier = modifier.fillMaxWidth())
     NextMoveBar(moveList = nextMoves, playMove = { linesExplorer.playMove(it, boardReloader) })

@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import memorchess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.Game
@@ -25,11 +24,11 @@ private fun pieceToResource(piece: IPiece): DrawableResource {
   return drawableResource(
     "piece_${
             when (piece) {
-                is proj.memorchess.axl.core.engine.pieces.vectors.King -> "king"
-                is proj.memorchess.axl.core.engine.pieces.vectors.Knight -> "knight"
+                is King -> "king"
+                is Knight -> "knight"
                 is Bishop -> "bishop"
                 is Queen -> "queen"
-                is proj.memorchess.axl.core.engine.pieces.vectors.Rook -> "rook"
+                is Rook -> "rook"
                 is Pawn -> "pawn"
                 else -> throw IllegalArgumentException("Unknown piece $piece.")
             }
@@ -37,7 +36,6 @@ private fun pieceToResource(piece: IPiece): DrawableResource {
   )
 }
 
-@OptIn(ExperimentalResourceApi::class)
 private fun drawableResource(name: String): DrawableResource {
   return Res.allDrawableResources[name]
     ?: throw IllegalArgumentException("Drawable resource $name not found.")

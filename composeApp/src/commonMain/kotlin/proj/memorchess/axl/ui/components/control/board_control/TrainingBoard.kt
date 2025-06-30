@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleLineTrainer
 import proj.memorchess.axl.core.util.IReloader
@@ -97,6 +98,11 @@ private fun NodeToTrain(
     verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
     modifier = modifier.padding(16.dp),
   ) {
-    Board(false, trainer, reloader, modifier = modifier.fillMaxWidth())
+    Board(
+      trainer.game.position.playerTurn == Game.Player.BLACK,
+      trainer,
+      reloader,
+      modifier = modifier.fillMaxWidth(),
+    )
   }
 }

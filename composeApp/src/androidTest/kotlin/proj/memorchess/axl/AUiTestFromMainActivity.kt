@@ -193,6 +193,13 @@ abstract class AUiTestFromMainActivity {
     return composeTestRule.onNodeWithTag(getNextMoveDescription(move)).assertExists()
   }
 
+  /** Checks if the board is reversed or not. */
+  fun isBoardReversed(): Boolean {
+    val a1y = waitUntilTileAppears("a1").fetchSemanticsNode().positionOnScreen.y
+    val a8y = waitUntilTileAppears("a8").fetchSemanticsNode().positionOnScreen.y
+    return a1y < a8y
+  }
+
   private fun waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
     val matcher = hasClickLabel(getTileDescription(tileName))
     composeTestRule.waitUntilAtLeastOneExists(matcher)
