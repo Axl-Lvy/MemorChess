@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.util
+package proj.memorchess.axl.core.date
 
 import kotlin.math.absoluteValue
 import kotlinx.datetime.Clock

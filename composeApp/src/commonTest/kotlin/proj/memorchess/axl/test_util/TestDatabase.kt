@@ -5,6 +5,7 @@ import proj.memorchess.axl.core.data.IStoredNode
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.game.getLondon
@@ -36,42 +37,53 @@ class TestDatabase private constructor() : ICommonDatabase {
       return
     }
     storedNodes[origin] =
-      StoredNode(PositionKey(origin), storedNodes[origin]!!.previousMoves, mutableListOf())
+      StoredNode(
+        PositionKey(origin),
+        PreviousAndNextMoves(
+          storedNodes[origin]!!.previousAndNextMoves.previousMoves.values,
+          listOf(),
+        ),
+        storedNodes[origin]!!.previousAndNextTrainingDate,
+      )
   }
 
   override suspend fun deleteMoveTo(destination: String) {
-    if (storedNodes[destination] == null) {
-      return
-    }
-    storedNodes[destination] =
-      StoredNode(PositionKey(destination), mutableListOf(), storedNodes[destination]!!.nextMoves)
+    throw NotImplementedError()
   }
 
   override suspend fun deleteMove(origin: String, move: String) {
     if (storedNodes[origin] == null) {
       return
     }
-    val newNextMoves = storedNodes[origin]!!.nextMoves.filter { it.move != move }
+    val storedNode = storedNodes[origin]!!
+    val newNextMoves = storedNode.previousAndNextMoves.nextMoves.values.filter { it.move != move }
     storedNodes[origin] =
       StoredNode(
         PositionKey(origin),
-        PreviousAndNextMoves(storedNodes[origin]!!.previousMoves, newNextMoves),
+        PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
+        storedNode.previousAndNextTrainingDate,
       )
   }
 
   override suspend fun insertMove(move: StoredMove) {
-    storedNodes[move.origin.fenRepresentation]!!.nextMoves.add(move)
-    storedNodes[move.destination.fenRepresentation]!!.previousMoves.add(move)
+    storedNodes[move.origin.fenRepresentation]!!.previousAndNextMoves.nextMoves[move.move] = move
+    storedNodes[move.destination.fenRepresentation]!!
+      .previousAndNextMoves
+      .previousMoves[move.move] = move
   }
 
   override suspend fun getAllMoves(): List<StoredMove> {
-    return storedNodes.values.flatMap { it.nextMoves + it.previousMoves }.distinct()
+    return storedNodes.values
+      .flatMap {
+        it.previousAndNextMoves.nextMoves.values + it.previousAndNextMoves.previousMoves.values
+      }
+      .distinct()
   }
 
   override suspend fun deleteAllMoves() {
     storedNodes.values.forEach {
-      it.nextMoves.clear()
-      it.previousMoves.clear()
+      it.previousAndNextMoves.nextMoves.clear()
+      it.previousAndNextMoves.previousMoves.clear()
     }
   }
 
@@ -135,8 +147,8 @@ class TestDatabase private constructor() : ICommonDatabase {
         val node =
           StoredNode(
             currentPosition,
-            previousMove?.let { mutableListOf(it) } ?: mutableListOf(),
-            mutableListOf(storedMove),
+            PreviousAndNextMoves(previousMove?.let { listOf(it) } ?: listOf(), listOf(storedMove)),
+            PreviousAndNextDate.dummyToday(),
           )
         previousMove = storedMove
         nodes.add(node)
@@ -158,15 +170,15 @@ class TestDatabase private constructor() : ICommonDatabase {
           if (storedNode == null) {
             merged.storedNodes[entry.key] = entry.value
           } else {
-            val newMoves = storedNode.nextMoves.toMutableSet()
-            newMoves.addAll(entry.value.nextMoves)
-            val previousMoves = storedNode.previousMoves.toMutableSet()
-            newMoves.addAll(entry.value.previousMoves)
+            val newMoves = storedNode.previousAndNextMoves.nextMoves.values.toMutableSet()
+            newMoves.addAll(entry.value.previousAndNextMoves.nextMoves.values)
+            val previousMoves = storedNode.previousAndNextMoves.previousMoves.values.toMutableSet()
+            newMoves.addAll(entry.value.previousAndNextMoves.previousMoves.values)
             merged.storedNodes[entry.key] =
               StoredNode(
                 storedNode.positionKey,
-                previousMoves.sortedBy { it.move }.toMutableList(),
-                newMoves.sortedBy { it.move }.toMutableList(),
+                PreviousAndNextMoves(previousMoves, newMoves),
+                PreviousAndNextDate.dummyToday(),
               )
           }
         }

@@ -7,15 +7,17 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleLineTrainer
 import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
-import proj.memorchess.axl.ui.util.DateUtil
 
 class TestSingleLineTrainer {
   private lateinit var singleLineTrainer: SingleLineTrainer
@@ -47,10 +49,8 @@ class TestSingleLineTrainer {
     testNode =
       StoredNode(
         positionKey = startPosition,
-        previousMoves = mutableListOf(),
-        nextMoves = mutableListOf(e4Move, d4Move),
-        lastTrainedDate = DateUtil.dateInDays(-7), // Trained a week ago
-        nextTrainedDate = DateUtil.today(),
+        PreviousAndNextMoves(listOf(), listOf(e4Move, d4Move)),
+        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
 
     runTest { testNode.save() }
@@ -74,12 +74,12 @@ class TestSingleLineTrainer {
       val updatedNode = database.storedNodes[testNode.positionKey.fenRepresentation]
       // The next training date should be further in the future (success case)
       assertTrue(
-        updatedNode!!.nextTrainedDate > DateUtil.tomorrow(),
+        updatedNode!!.previousAndNextTrainingDate.nextDate > DateUtil.tomorrow(),
         "Next training date should be more than 1 day in the future for correct move",
       )
       assertEquals(
         DateUtil.today(),
-        updatedNode.lastTrainedDate,
+        updatedNode.previousAndNextTrainingDate.previousDate,
         "Last trained date should be updated to today",
       )
     }
@@ -99,12 +99,12 @@ class TestSingleLineTrainer {
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
-        updatedNode!!.nextTrainedDate,
+        updatedNode!!.previousAndNextTrainingDate.nextDate,
         "Next training date should be tomorrow for incorrect move",
       )
       assertEquals(
         DateUtil.today(),
-        updatedNode.lastTrainedDate,
+        updatedNode.previousAndNextTrainingDate.previousDate,
         "Last trained date should be updated to today",
       )
     }
@@ -124,12 +124,12 @@ class TestSingleLineTrainer {
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
-        updatedNode!!.nextTrainedDate,
+        updatedNode!!.previousAndNextTrainingDate.nextDate,
         "Next training date should be tomorrow for unknown move",
       )
       assertEquals(
         DateUtil.today(),
-        updatedNode.lastTrainedDate,
+        updatedNode.previousAndNextTrainingDate.previousDate,
         "Last trained date should be updated to today",
       )
     }

@@ -74,7 +74,7 @@ class TestLinesExplorer {
 
     // Verify the move was saved as good
     val storedNode = database.storedNodes[startPosition.fenRepresentation]
-    val savedMove = storedNode?.nextMoves?.find { it.move == "e4" }
+    val savedMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
     assertEquals(true, savedMove?.isGood, "Move should be saved as good")
   }
 
@@ -88,7 +88,7 @@ class TestLinesExplorer {
 
     // Verify the move was saved as bad
     val storedNode = database.storedNodes[startPosition.fenRepresentation]
-    val savedMove = storedNode?.nextMoves?.find { it.move == "e4" }
+    val savedMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
     assertEquals(false, savedMove?.isGood, "Move should be saved as bad")
   }
 
@@ -106,10 +106,12 @@ class TestLinesExplorer {
 
     // Verify the move was saved as bad
     val storedRootNode = database.storedNodes[startPosition.fenRepresentation]
-    val savedBadMove = storedRootNode?.nextMoves?.find { it.move == "e4" }
+    val savedBadMove =
+      storedRootNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
     assertEquals(false, savedBadMove?.isGood, "Move should be saved as bad")
     val storedSecondNode = database.storedNodes[secondPosition.fenRepresentation]
-    val savedGoodMove = storedSecondNode?.nextMoves?.find { it.move == "e5" }
+    val savedGoodMove =
+      storedSecondNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e5" }
     assertEquals(true, savedGoodMove?.isGood, "Move should be saved as good")
   }
 

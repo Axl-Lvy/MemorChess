@@ -31,7 +31,6 @@ import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
-import proj.memorchess.axl.ui.util.DateUtil
 import proj.memorchess.axl.utils.Awaitility
 import proj.memorchess.axl.utils.hasClickLabel
 
@@ -319,23 +318,11 @@ abstract class AUiTestFromMainActivity {
     }
     val viennaNodes =
       TestDatabase.convertStringMovesToNodes(getVienna()).map {
-        StoredNode(
-          it.positionKey,
-          it.previousMoves,
-          it.nextMoves,
-          DateUtil.yesterday(),
-          DateUtil.today(),
-        )
+        StoredNode(it.positionKey, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val scandinavianNodes =
       TestDatabase.convertStringMovesToNodes(getScandinavian()).map {
-        StoredNode(
-          it.positionKey,
-          it.previousMoves,
-          it.nextMoves,
-          DateUtil.dateInDays(-2),
-          DateUtil.tomorrow(),
-        )
+        StoredNode(it.positionKey, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val storedNodes = (viennaNodes + scandinavianNodes)
     for (node in storedNodes) {
