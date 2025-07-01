@@ -44,7 +44,7 @@ fun getPieceDescription(piece: String): String {
  * implementation.
  */
 fun setupConfigForTest() {
-  IAppConfig.set(TestConfig)
+  IAppConfig.replaceConfig(TestConfig)
 }
 
 val TEST_TIMEOUT = 5.seconds

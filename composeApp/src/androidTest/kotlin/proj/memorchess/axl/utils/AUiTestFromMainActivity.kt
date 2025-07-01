@@ -48,7 +48,7 @@ abstract class AUiTestFromMainActivity {
   @BeforeTest
   open fun setUp() {
     composeTestRule.mainClock.autoAdvance = true
-    IAppConfig.set(TestConfig)
+    IAppConfig.replaceConfig(TestConfig)
     runTest { resetDatabase() }
   }
 

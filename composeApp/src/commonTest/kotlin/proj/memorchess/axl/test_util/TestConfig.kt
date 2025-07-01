@@ -5,5 +5,7 @@ import proj.memorchess.axl.core.config.IAppConfig
 
 /** Test configuration with values optimized for testing. */
 object TestConfig : IAppConfig {
-  override val minimumLoadingTime = Duration.ZERO
+  override var minimumLoadingTime = Duration.ZERO
+
+  override var onSuccessDateFactor = 1.5
 }

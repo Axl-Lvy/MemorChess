@@ -11,19 +11,26 @@ interface IAppConfig {
    * The minimum time the loading indicator should be displayed, even if the loading operation
    * completes faster.
    */
-  val minimumLoadingTime: Duration
+  var minimumLoadingTime: Duration
+
+  var onSuccessDateFactor: Double
 
   companion object {
-    private var instance: IAppConfig = StandardAppConfig
+    private var instance: IAppConfig? = null
 
     /** Get the current configuration instance. */
-    fun get(): IAppConfig = instance
+    fun get(): IAppConfig {
+      if (instance == null) {
+        instance = StandardAppConfig
+      }
+      return instance!!
+    }
 
     /**
      * Set the configuration instance. This should only be used for testing or during application
      * initialization.
      */
-    fun set(config: IAppConfig) {
+    fun replaceConfig(config: IAppConfig) {
       instance = config
     }
   }

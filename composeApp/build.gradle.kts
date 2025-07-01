@@ -89,6 +89,7 @@ kotlin {
       implementation(libs.material.icons)
       api(libs.logging)
       implementation(libs.xfeather.z)
+      implementation(libs.multiplatform.settings)
     }
     val desktopTest by getting
     commonTest.dependencies {
