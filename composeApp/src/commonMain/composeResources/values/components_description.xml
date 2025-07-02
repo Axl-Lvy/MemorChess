@@ -12,4 +12,7 @@
   <string name="description_board_piece">Piece %1$s</string>
 
   <!-- Navigation -->
+
+  <!-- Settings -->
+  <string name ="settings_preferences_file">preferences</string>
 </resources>
