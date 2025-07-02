@@ -1,10 +1,12 @@
 package proj.memorchess.axl.utils
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionContains
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -12,12 +14,15 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import com.diamondedge.logging.logging
 import kotlin.test.BeforeTest
+import kotlin.time.Duration
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import proj.memorchess.axl.MainActivity
-import proj.memorchess.axl.core.config.IAppConfig
+import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
@@ -26,7 +31,6 @@ import proj.memorchess.axl.core.engine.pieces.IPiece
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.test_util.TestConfig
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
@@ -48,7 +52,7 @@ abstract class AUiTestFromMainActivity {
   @BeforeTest
   open fun setUp() {
     composeTestRule.mainClock.autoAdvance = true
-    IAppConfig.replaceConfig(TestConfig)
+    MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
     runTest { resetDatabase() }
   }
 
@@ -249,6 +253,31 @@ abstract class AUiTestFromMainActivity {
     composeTestRule.onNodeWithText(text).assertDoesNotExist()
   }
 
+  /**
+   * Slides a slider far to right. Don't reaches the end, but almost.
+   *
+   * @param sliderTestTag The tag of the slider to slide
+   */
+  fun slideToRight(sliderTestTag: String) {
+    slide(sliderTestTag, 0.95f)
+  }
+
+  /**
+   * Slides a slider far to left. Don't reaches the end, but almost.
+   *
+   * @param sliderTestTag The tag of the slider to slide
+   */
+  fun slideToLeft(sliderTestTag: String) {
+    slide(sliderTestTag, 0.05f)
+  }
+
+  private fun slide(sliderTestTag: String, widthFactor: Float) {
+    val node = assertNodeWithTagExists(sliderTestTag)
+    val width = node.fetchSemanticsNode().size.width
+    LOGGER.error { width }
+    node.performTouchInput { click(Offset(width * widthFactor, 0f)) }
+  }
+
   private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
     composeTestRule.waitUntilAtLeastOneExists(matcher)
     return composeTestRule.onNode(matcher).assertExists()
@@ -341,3 +370,5 @@ abstract class AUiTestFromMainActivity {
     }
   }
 }
+
+private val LOGGER = logging()

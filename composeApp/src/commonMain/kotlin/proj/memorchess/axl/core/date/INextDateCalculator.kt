@@ -2,9 +2,8 @@ package proj.memorchess.axl.core.date
 
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import proj.memorchess.axl.core.config.IAppConfig
+import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 
 /** Next date calculator based on the previous date. */
 fun interface INextDateCalculator {
@@ -19,7 +18,7 @@ fun interface INextDateCalculator {
 
   companion object {
     val SUCCESS = INextDateCalculator { dates ->
-      val factor = IAppConfig.get().onSuccessDateFactor
+      val factor = ON_SUCCESS_DATE_FACTOR_SETTING.getValue()
       val today = DateUtil.today()
       val passedDays = dates.getElapseDays()
       val daysToAdd = (passedDays * factor).toInt() + 1 // Increase the interval by 50% on success

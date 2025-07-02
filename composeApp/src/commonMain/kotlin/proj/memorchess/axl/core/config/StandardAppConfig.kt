@@ -1,21 +1,19 @@
 package proj.memorchess.axl.core.config
 
 import com.russhwolf.settings.Settings
-import com.russhwolf.settings.get
-import com.russhwolf.settings.set
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
-object StandardAppConfig : IAppConfig {
-  override var minimumLoadingTime
-    get() = settings["minimumLoadingTime", 500].milliseconds
-    set(value) {
-      settings["minimumLoadingTime"] = value.inWholeMilliseconds
-    }
-  override var onSuccessDateFactor: Double
-    get() = settings["onSuccessDateFactor", 1.5]
-    set(value) {
-      settings["onSuccessDateFactor"] = value
-    }
-}
+val MINIMUM_LOADING_TIME_SETTING =
+  AppConfigItem(
+    "minimumLoadingTime",
+    0.5.seconds,
+    { long -> long.milliseconds },
+    { duration -> duration.inWholeMilliseconds },
+  )
+
+val ON_SUCCESS_DATE_FACTOR_SETTING = AppConfigItem<Double, Double>("onSuccessDateFactor", 1.5)
+
+val ALL_SETTINGS_ITEMS = listOf(MINIMUM_LOADING_TIME_SETTING, ON_SUCCESS_DATE_FACTOR_SETTING)
 
 expect val settings: Settings
