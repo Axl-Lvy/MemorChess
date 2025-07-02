@@ -17,7 +17,7 @@ import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 
 /**
- * Embedded setting item ready to be drown.
+ * Embedded setting item ready to be drawn.
  *
  * @property configItem The corresponding config item
  * @property buttonParams The button parameters
