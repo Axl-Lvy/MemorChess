@@ -2,6 +2,7 @@ package proj.memorchess.axl.ui.components.control.board_control
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -13,99 +14,136 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.interactions.SingleLineTrainer
-import proj.memorchess.axl.core.util.IReloader
+import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.util.BasicReloader
 
 /** Training board */
 @Composable
-fun TrainingBoard(modifier: Modifier = Modifier) {
-  LoadingWidget({ NodeManager.resetCacheFromDataBase() }) { Component(modifier) }
-}
-
-@Composable
-private fun Component(modifier: Modifier = Modifier) {
-  val reloader = remember { BasicReloader() }
-  val daysFromToday = remember { mutableStateOf(0) }
-  val moveToTrain =
-    remember(reloader.getKey(), daysFromToday.value) {
-      NodeManager.getNextNodeToLearn(daysFromToday.value)
-    }
-  if (moveToTrain == null) {
-    NoNodeToTrain(modifier = modifier, daysFromToday = daysFromToday)
-  } else {
-    NodeToTrain(moveToTrain, reloader, modifier = modifier)
+fun TrainingBoardPage(modifier: Modifier = Modifier) {
+  val trainingBoard = remember { TrainingBoard() }
+  LoadingWidget({ NodeManager.resetCacheFromDataBase() }) {
+    trainingBoard.Draw(modifier = modifier)
   }
 }
 
-/**
- * Composable that displays a message when there are no nodes to train.
- *
- * @param modifier Modifier for styling.
- * @param daysFromToday This allows to train with nodes from tomorrow.
- */
-@Composable
-private fun NoNodeToTrain(modifier: Modifier = Modifier, daysFromToday: MutableState<Int>) {
-  Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-    Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center,
-    ) {
-      Icon(
-        imageVector = Icons.Default.Done,
-        contentDescription = "Congratulations",
-        tint = Color(0xFF4CAF50),
-        modifier = Modifier.size(64.dp),
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-      Text(
-        text = "Bravo !",
-        style = MaterialTheme.typography.headlineMedium,
-        color = Color(0xFF333333),
-      )
-      Spacer(modifier = Modifier.height(8.dp))
-      Text(
-        text = "You have finished today's training!",
-        style = MaterialTheme.typography.bodyLarge,
-        color = Color(0xFF666666),
-        textAlign = TextAlign.Center,
-      )
-      Button(onClick = { daysFromToday.value++ }, modifier = Modifier.padding(top = 16.dp)) {
-        Text("Increment a day")
+private class TrainingBoard {
+
+  private val isCorrect = mutableStateOf<Boolean?>(null)
+  private val daysInAdvance = mutableStateOf(0)
+  private val reloader = BasicReloader()
+
+  @Composable
+  fun Draw(modifier: Modifier = Modifier) {
+    val localReloader = remember { BasicReloader() }
+    val moveToTrain =
+      remember(localReloader.getKey(), daysInAdvance.value) {
+        NodeManager.getNextNodeToLearn(daysInAdvance.value)
       }
-      Text("Days in advance: ${daysFromToday.value}")
+    LaunchedEffect(reloader.getKey()) {
+      if (isCorrect.value != null) {
+        delay(1.seconds)
+        if (isCorrect.value == true) {
+          isCorrect.value = null
+        }
+        localReloader.reload()
+      }
+    }
+    if (moveToTrain == null) {
+      NoNodeToTrain(modifier = modifier)
+    } else {
+      NodeToTrain(moveToTrain, modifier = modifier)
     }
   }
-}
 
-/**
- * Composable based on a node to train.
- *
- * @param nodeToLearn The node to learn.
- * @param modifier Modifier for styling.
- * @param reloader The reloader to use for refreshing the board.
- */
-@Composable
-private fun NodeToTrain(
-  nodeToLearn: StoredNode,
-  reloader: IReloader,
-  modifier: Modifier = Modifier,
-) {
-  val trainer = remember(nodeToLearn) { SingleLineTrainer(nodeToLearn) }
-  Column(
-    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-    modifier = modifier.padding(16.dp),
-  ) {
-    Board(
-      trainer.game.position.playerTurn == Game.Player.BLACK,
-      trainer,
-      reloader,
-      modifier = modifier.fillMaxWidth(),
-    )
+  /**
+   * Composable that displays a message when there are no nodes to train.
+   *
+   * @param modifier Modifier for styling.
+   */
+  @Composable
+  private fun NoNodeToTrain(modifier: Modifier = Modifier) {
+    if (isCorrect.value == false && daysInAdvance.value > 0) {
+      daysInAdvance.value = 1
+      return
+    }
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+      ) {
+        Icon(
+          imageVector = Icons.Default.Done,
+          contentDescription = "Congratulations",
+          tint = Color(0xFF4CAF50),
+          modifier = Modifier.size(64.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+          text = "Bravo !",
+          style = MaterialTheme.typography.headlineMedium,
+          color = Color(0xFF333333),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+          text = "You have finished today's training!",
+          style = MaterialTheme.typography.bodyLarge,
+          color = Color(0xFF666666),
+          textAlign = TextAlign.Center,
+        )
+        Button(onClick = { daysInAdvance.value++ }, modifier = Modifier.padding(top = 16.dp)) {
+          Text("Increment a day")
+        }
+        Text("Days in advance: ${daysInAdvance.value}")
+      }
+    }
+  }
+
+  /**
+   * Composable based on a node to train.
+   *
+   * @param nodeToLearn The node to learn.
+   * @param modifier Modifier for styling.
+   */
+  @Composable
+  private fun NodeToTrain(nodeToLearn: StoredNode, modifier: Modifier = Modifier) {
+    val trainer = remember(nodeToLearn) { SingleMoveTrainer(nodeToLearn, isCorrect) }
+    val inverted = remember(nodeToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
+    Column(
+      modifier = modifier.fillMaxSize().padding(16.dp),
+      verticalArrangement = Arrangement.Top,
+      horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+      Board(
+        inverted,
+        trainer,
+        reloader,
+        modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+      )
+      Spacer(modifier = Modifier.height(24.dp))
+      Text(
+        text = "Days in advance: ${daysInAdvance.value}",
+        style = MaterialTheme.typography.bodyMedium,
+        color = Color(0xFF666666),
+        modifier = Modifier.align(Alignment.CenterHorizontally),
+      )
+      // Icon based on isCorrect
+      if (isCorrect.value != null) {
+        val icon = if (isCorrect.value == true) Icons.Default.Done else Icons.Default.Close
+        val tint = if (isCorrect.value == true) Color(0xFF4CAF50) else Color(0xFFF44336)
+        Icon(
+          imageVector = icon,
+          contentDescription = if (isCorrect.value == true) "Correct" else "Incorrect",
+          tint = tint,
+          modifier = Modifier.size(32.dp).align(Alignment.CenterHorizontally),
+        )
+      }
+    }
   }
 }

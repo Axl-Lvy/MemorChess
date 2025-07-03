@@ -14,13 +14,13 @@ import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
-import proj.memorchess.axl.core.interactions.SingleLineTrainer
+import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
 class TestSingleLineTrainer {
-  private lateinit var singleLineTrainer: SingleLineTrainer
+  private lateinit var singleMoveTrainer: SingleMoveTrainer
   private lateinit var moveFactory: SimpleMoveFactory
   private lateinit var checkChecker: DummyCheckChecker
   private lateinit var database: TestDatabase
@@ -56,9 +56,9 @@ class TestSingleLineTrainer {
     runTest { testNode.save() }
 
     ToastRendererHolder.init { _, _ -> }
-    singleLineTrainer = SingleLineTrainer(testNode)
-    moveFactory = SimpleMoveFactory(singleLineTrainer.game.position)
-    checkChecker = DummyCheckChecker(singleLineTrainer.game.position)
+    singleMoveTrainer = SingleMoveTrainer(testNode)
+    moveFactory = SimpleMoveFactory(singleMoveTrainer.game.position)
+    checkChecker = DummyCheckChecker(singleMoveTrainer.game.position)
   }
 
   @Test
@@ -140,6 +140,6 @@ class TestSingleLineTrainer {
   }
 
   private fun clickOnTile(coords: Pair<Int, Int>) {
-    runTest { singleLineTrainer.clickOnTile(coords, NoOpReloader) }
+    runTest { singleMoveTrainer.clickOnTile(coords, NoOpReloader) }
   }
 }
