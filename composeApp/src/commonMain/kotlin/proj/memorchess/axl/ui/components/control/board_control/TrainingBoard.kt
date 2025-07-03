@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
+import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -33,11 +33,16 @@ fun TrainingBoardPage(modifier: Modifier = Modifier) {
   }
 }
 
+/**
+ * TrainingBoard manages the state and logic for the training board UI in the application. It
+ * handles move validation, scheduling, and reloading for the training session.
+ */
 private class TrainingBoard {
 
   private val isCorrect = mutableStateOf<Boolean?>(null)
   private val daysInAdvance = mutableStateOf(0)
   private val reloader = BasicReloader()
+  private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
 
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
@@ -48,7 +53,7 @@ private class TrainingBoard {
       }
     LaunchedEffect(reloader.getKey()) {
       if (isCorrect.value != null) {
-        delay(1.seconds)
+        delay(moveDelay)
         if (isCorrect.value == true) {
           isCorrect.value = null
         }

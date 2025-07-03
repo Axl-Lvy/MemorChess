@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import proj.memorchess.axl.MainActivity
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
+import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
@@ -53,6 +54,7 @@ abstract class AUiTestFromMainActivity {
   open fun setUp() {
     composeTestRule.mainClock.autoAdvance = true
     MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
+    TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     runTest { resetDatabase() }
   }
 
@@ -219,7 +221,7 @@ abstract class AUiTestFromMainActivity {
    * @throws AssertionError if no element with the specified tag exists
    */
   fun assertNodeWithTagExists(tag: String): SemanticsNodeInteraction {
-    return this.waitUntilNodeExists(hasTestTag(tag)).assertExists()
+    return waitUntilNodeExists(hasTestTag(tag)).assertExists()
   }
 
   /**
@@ -240,7 +242,7 @@ abstract class AUiTestFromMainActivity {
    * @throws AssertionError if no element with the specified text exists
    */
   fun assertNodeWithTextExists(text: String): SemanticsNodeInteraction {
-    return composeTestRule.onNodeWithText(text).assertExists()
+    return waitUntilNodeExists(hasText(text)).assertExists()
   }
 
   /**
