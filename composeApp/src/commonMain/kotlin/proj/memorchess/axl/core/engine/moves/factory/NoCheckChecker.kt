@@ -10,6 +10,8 @@ class NoCheckChecker() : ACheckChecker(Position()) {
   }
 
   override fun getTileAtCoords(coords: Pair<Int, Int>): ITile {
-    throw UnsupportedOperationException()
+    throw UnsupportedOperationException(
+      "This is a no-check checker, so it should not try to create moves"
+    )
   }
 }
