@@ -99,4 +99,20 @@ class TestTrainingInteractions : AUiTestFromMainActivity() {
     playMove("e2", "e4")
     assertNodeWithTextExists("Days in advance: 1")
   }
+
+  @Test
+  fun resetDayOnFail() {
+    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+    playMove("e2", "e3")
+    assertNodeWithTextExists(BRAVO_TEXT)
+    assertNodeWithTextExists("Increment a day").performClick()
+    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+    playMove("e2", "e4")
+    assertNodeWithTextExists(BRAVO_TEXT)
+    assertNodeWithTextExists("Days in advance: 1")
+    assertNodeWithTextExists("Increment a day").performClick()
+    assertNodeWithTextExists("Days in advance: 2")
+    playMove("e2", "e3")
+    assertNodeWithTextExists("Days in advance: 1")
+  }
 }
