@@ -18,6 +18,8 @@ abstract class AInteractionsManager(var game: Game) {
   /** Coordinates of the tile that was clicked first. */
   private var firstTile: Pair<Int, Int>? = null
 
+  private var isBlocked = false
+
   /**
    * Clicks on a tile.
    *
@@ -25,6 +27,9 @@ abstract class AInteractionsManager(var game: Game) {
    * @param reloader The reloader to use after the move is played.
    */
   suspend fun clickOnTile(coordinates: Pair<Int, Int>, reloader: IReloader) {
+    if (isBlocked) {
+      return
+    }
     val immutableFirstTile = firstTile
     if (immutableFirstTile != null) {
       try {
@@ -70,5 +75,15 @@ abstract class AInteractionsManager(var game: Game) {
     game = Game(position)
     firstTile = null
     reloader.reload()
+  }
+
+  /** Blocks this object. No move can be played. */
+  fun block() {
+    isBlocked = true
+  }
+
+  /** Unblocks this object. Moves can be played. */
+  fun unblock() {
+    isBlocked = false
   }
 }

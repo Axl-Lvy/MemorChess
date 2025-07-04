@@ -6,7 +6,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import proj.memorchess.axl.ui.components.control.board_control.TrainingBoard
+import proj.memorchess.axl.ui.components.control.board_control.TrainingBoardPage
 import proj.memorchess.axl.ui.pages.navigation.Destination
 
 @Composable
@@ -18,6 +18,6 @@ fun Training() {
         .testTag(Destination.TRAINING.name),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    TrainingBoard(modifier = Modifier.fillMaxSize())
+    TrainingBoardPage(modifier = Modifier.fillMaxSize())
   }
 }
