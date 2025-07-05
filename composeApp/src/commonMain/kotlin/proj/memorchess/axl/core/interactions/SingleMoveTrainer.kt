@@ -22,9 +22,9 @@ class SingleMoveTrainer(private var node: StoredNode, val setIsCorrect: (Boolean
     val correspondingStoredMove =
       node.previousAndNextMoves.nextMoves.values.firstOrNull { it.move == move }
     isCorrect = correspondingStoredMove != null && correspondingStoredMove.isGood == true
-    setIsCorrect(isCorrect)
     saveNode()
     block()
+    setIsCorrect(isCorrect)
     reloader.reload()
   }
 
@@ -44,7 +44,7 @@ class SingleMoveTrainer(private var node: StoredNode, val setIsCorrect: (Boolean
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
-    storedNode.save()
     NodeManager.cacheNode(storedNode)
+    storedNode.save()
   }
 }

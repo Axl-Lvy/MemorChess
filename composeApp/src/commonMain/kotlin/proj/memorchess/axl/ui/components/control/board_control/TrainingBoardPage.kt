@@ -40,7 +40,7 @@ fun TrainingBoardPage(modifier: Modifier = Modifier) {
 private class TrainingBoard {
 
   private var state by mutableStateOf(TrainingBoardState.FROM_CORRECT_MOVE)
-  private val daysInAdvance = mutableStateOf(0)
+  private var daysInAdvance by mutableStateOf(0)
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
 
@@ -48,8 +48,8 @@ private class TrainingBoard {
   fun Draw(modifier: Modifier = Modifier) {
     val localReloader = remember { BasicReloader() }
     val moveToTrain =
-      remember(localReloader.getKey(), daysInAdvance.value) {
-        NodeManager.getNextNodeToLearn(daysInAdvance.value)
+      remember(localReloader.getKey(), daysInAdvance) {
+        NodeManager.getNextNodeToLearn(daysInAdvance)
       }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing) {
@@ -72,8 +72,8 @@ private class TrainingBoard {
    */
   @Composable
   private fun NoNodeToTrain(modifier: Modifier = Modifier) {
-    if (!state.isCorrect) {
-      daysInAdvance.value = 1
+    if (!state.isCorrect && daysInAdvance > 0) {
+      daysInAdvance = 1
       return
     }
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -100,10 +100,10 @@ private class TrainingBoard {
           color = Color(0xFF666666),
           textAlign = TextAlign.Center,
         )
-        Button(onClick = { daysInAdvance.value++ }, modifier = Modifier.padding(top = 16.dp)) {
+        Button(onClick = { daysInAdvance++ }, modifier = Modifier.padding(top = 16.dp)) {
           Text("Increment a day")
         }
-        Text("Days in advance: ${daysInAdvance.value}")
+        Text("Days in advance: $daysInAdvance")
       }
     }
   }
@@ -139,7 +139,7 @@ private class TrainingBoard {
       )
       Spacer(modifier = Modifier.height(24.dp))
       Text(
-        text = "Days in advance: ${daysInAdvance.value}",
+        text = "Days in advance: $daysInAdvance",
         style = MaterialTheme.typography.bodyMedium,
         color = Color(0xFF666666),
         modifier = Modifier.align(Alignment.CenterHorizontally),
