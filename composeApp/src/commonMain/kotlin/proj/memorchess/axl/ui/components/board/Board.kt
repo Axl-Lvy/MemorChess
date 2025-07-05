@@ -1,18 +1,28 @@
 package proj.memorchess.axl.ui.components.board
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.vectors.Bishop
+import proj.memorchess.axl.core.engine.pieces.vectors.Knight
+import proj.memorchess.axl.core.engine.pieces.vectors.Queen
+import proj.memorchess.axl.core.engine.pieces.vectors.Rook
 import proj.memorchess.axl.core.interactions.AInteractionsManager
 import proj.memorchess.axl.core.util.IReloader
 
@@ -23,48 +33,102 @@ fun Board(
   reloader: IReloader,
   modifier: Modifier = Modifier,
 ) {
-  val board = interactionsManager.game.position.board
-  val tileToPiece =
-    remember(reloader.getKey()) {
-      mutableStateMapOf<ITile, IPiece?>().apply {
-        board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
-      }
+  val drawableBoard =
+    remember(interactionsManager.game.position, inverted, reloader.getKey()) {
+      DrawableBoard(inverted, interactionsManager, reloader)
     }
-  val coroutineScope = rememberCoroutineScope()
-  LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = modifier) {
-    items(64) { index ->
-      val coords = squareIndexToBoardTile(index, inverted)
-      val tile = board.getTile(coords)
-      run {
-        Box(
-          modifier =
-            Modifier.clickable(
-                onClick = {
-                  coroutineScope.launch {
-                    interactionsManager.clickOnTile(coords, reloader)
-                    for (boardTile in board.getTilesIterator()) {
-                      if (tileToPiece[boardTile] != boardTile.getSafePiece()) {
-                        tileToPiece[boardTile] = boardTile.getSafePiece()
-                      }
-                    }
-                  }
-                },
-                onClickLabel = stringResource(Res.string.description_board_tile, tile.getName()),
-              )
-              .aspectRatio(1f)
-        ) {
-          Tile(tile)
-          tileToPiece[tile]?.let { Piece(it) }
-        }
+  // Ensure the board area is square and overlays are relative to it
+  Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    drawableBoard.DrawBoard(Modifier.fillMaxSize())
+    if (interactionsManager.needPromotion.value) {
+      // Center the PromotionSelector relative to the board
+      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        drawableBoard.PromotionSelector()
       }
     }
   }
 }
 
-private fun squareIndexToBoardTile(index: Int, inverted: Boolean): Pair<Int, Int> {
-  return if (inverted) {
-    Pair(index / 8, (63 - index) % 8)
-  } else {
-    Pair((63 - index) / 8, index % 8)
+private class DrawableBoard(
+  private val inverted: Boolean,
+  private val interactionsManager: AInteractionsManager,
+  private val reloader: IReloader,
+) {
+  private val board = interactionsManager.game.position.board
+  private val tileToPiece =
+    mutableStateMapOf<ITile, IPiece?>().apply {
+      board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
+    }
+  private val scope = CoroutineScope(Dispatchers.Default)
+
+  @Composable
+  fun DrawBoard(modifier: Modifier) {
+    LazyVerticalGrid(columns = GridCells.Fixed(8), modifier = modifier) {
+      items(64) { index ->
+        val coords = squareIndexToBoardTile(index)
+        val tile = board.getTile(coords)
+        run {
+          Box(
+            modifier =
+              Modifier.clickable(
+                  onClick = {
+                    scope.launch {
+                      interactionsManager.clickOnTile(coords, reloader)
+                      for (boardTile in board.getTilesIterator()) {
+                        if (tileToPiece[boardTile] != boardTile.getSafePiece()) {
+                          tileToPiece[boardTile] = boardTile.getSafePiece()
+                        }
+                      }
+                    }
+                  },
+                  onClickLabel = stringResource(Res.string.description_board_tile, tile.getName()),
+                )
+                .aspectRatio(1f)
+          ) {
+            Tile(tile)
+            tileToPiece[tile]?.let { Piece(it) }
+          }
+        }
+      }
+    }
+  }
+
+  @Composable
+  fun PromotionSelector() {
+    val player = interactionsManager.game.position.playerTurn
+    val possibilities = listOf<IPiece>(Queen(player), Rook(player), Bishop(player), Knight(player))
+    Row(
+      modifier =
+        Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+          .background(Color.Black.copy(alpha = 0.7f))
+          .padding(16.dp)
+    ) {
+      possibilities.forEach { piece ->
+        Box(
+          modifier =
+            Modifier.size(56.dp)
+              .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+              .background(Color.White.copy(alpha = 0.85f))
+              .padding(8.dp)
+              .clickable(
+                onClick = {
+                  scope.launch { interactionsManager.applyPromotion(piece.toString(), reloader) }
+                },
+                onClickLabel = "Promote to ${piece.toString().lowercase()}",
+              )
+        ) {
+          Piece(piece)
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+      }
+    }
+  }
+
+  private fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
+    return if (inverted) {
+      Pair(index / 8, (63 - index) % 8)
+    } else {
+      Pair((63 - index) / 8, index % 8)
+    }
   }
 }

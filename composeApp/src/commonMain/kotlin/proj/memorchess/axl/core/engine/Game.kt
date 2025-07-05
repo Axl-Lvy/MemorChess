@@ -122,9 +122,18 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
   fun applyPromotion(newPieceName: String) {
     check(promoter.needPromotion) { "No promotion to apply." }
     promoter.newPieceName =
-      if (position.playerTurn == Player.WHITE) newPieceName.lowercase()
-      else newPieceName.uppercase()
+      if (position.playerTurn == Player.WHITE) newPieceName.uppercase()
+      else newPieceName.lowercase()
     promoter.applyPromotion()
+    position.playerTurn = position.playerTurn.other()
+    if (position.playerTurn == Player.WHITE) {
+      moveCount++
+    }
+  }
+
+  /** True if this game needs a promotion to continue. */
+  fun needPromotion(): Boolean {
+    return promoter.needPromotion
   }
 
   private fun playMove(move: IMove) {
@@ -148,9 +157,11 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
     updatePossibleCastle()
     updateEnPassant(move)
     promoter.update(move)
-    position.playerTurn = position.playerTurn.other()
-    if (position.playerTurn == Player.WHITE) {
-      moveCount++
+    if (!promoter.needPromotion) {
+      position.playerTurn = position.playerTurn.other()
+      if (position.playerTurn == Player.WHITE) {
+        moveCount++
+      }
     }
   }
 

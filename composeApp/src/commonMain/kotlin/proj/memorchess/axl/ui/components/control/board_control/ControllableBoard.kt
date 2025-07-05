@@ -43,7 +43,10 @@ private fun Component(modifier: Modifier = Modifier) {
   ) {
     ControlBar(
       modifier = Modifier.height(50.dp),
-      onReverseClick = { inverted = !inverted },
+      onReverseClick = {
+        inverted = !inverted
+        boardReloader.reload()
+      },
       onResetClick = { linesExplorer.reset(boardReloader) },
       onForwardClick = { linesExplorer.forward(boardReloader) },
       onBackClick = { linesExplorer.back(boardReloader) },

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.interactions
 
+import androidx.compose.runtime.mutableStateOf
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
@@ -20,6 +21,10 @@ abstract class AInteractionsManager(var game: Game) {
 
   private var isBlocked = false
 
+  val needPromotion = mutableStateOf(false)
+
+  private var moveBeforePromotion: String? = null
+
   /**
    * Clicks on a tile.
    *
@@ -34,7 +39,12 @@ abstract class AInteractionsManager(var game: Game) {
     if (immutableFirstTile != null) {
       try {
         val move = game.playMove(MoveDescription(immutableFirstTile, coordinates))
-        afterPlayMove(move, reloader)
+        needPromotion.value = game.needPromotion()
+        if (game.needPromotion()) {
+          moveBeforePromotion = move
+        } else {
+          afterPlayMove(move, reloader)
+        }
       } catch (e: IllegalMoveException) {
         info(e.message.toString())
       }
@@ -54,7 +64,25 @@ abstract class AInteractionsManager(var game: Game) {
    */
   suspend fun playMove(move: String, reloader: IReloader) {
     game.playMove(move)
-    afterPlayMove(move, reloader)
+    needPromotion.value = game.needPromotion()
+    if (game.needPromotion()) {
+      moveBeforePromotion = move
+    } else {
+      afterPlayMove(move, reloader)
+    }
+  }
+
+  /**
+   * Applies a promotion
+   *
+   * @param newPieceName The chosen piece name
+   * @param reloader The reloader to use after the piece is promoted
+   */
+  suspend fun applyPromotion(newPieceName: String, reloader: IReloader) {
+    game.applyPromotion(newPieceName)
+    needPromotion.value = game.needPromotion()
+    afterPlayMove(moveBeforePromotion!! + "=$newPieceName", reloader)
+    moveBeforePromotion = null
   }
 
   /**
@@ -73,6 +101,7 @@ abstract class AInteractionsManager(var game: Game) {
    */
   fun reset(reloader: IReloader, position: PositionKey) {
     game = Game(position)
+    needPromotion.value = game.needPromotion()
     firstTile = null
     reloader.reload()
   }

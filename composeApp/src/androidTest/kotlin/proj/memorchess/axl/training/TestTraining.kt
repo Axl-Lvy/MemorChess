@@ -3,6 +3,7 @@ package proj.memorchess.axl.training
 import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.StoredMove
@@ -11,6 +12,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.INextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.AUiTestFromMainActivity
@@ -101,7 +103,7 @@ class TestTrainingInteractions : AUiTestFromMainActivity() {
   }
 
   @Test
-  fun resetDayOnFail() {
+  fun testResetDayOnFail() {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
     assertNodeWithTextExists(BRAVO_TEXT)
@@ -114,5 +116,48 @@ class TestTrainingInteractions : AUiTestFromMainActivity() {
     assertNodeWithTextExists("Days in advance: 2")
     playMove("e2", "e3")
     assertNodeWithTextExists("Days in advance: 1")
+  }
+
+  @Test
+  fun testShowNextMove() {
+    // Insert a second move in the database
+    val game = Game()
+    val startPos = game.position.toImmutablePosition()
+
+    game.playMove("e4")
+    val e4Pos = game.position.toImmutablePosition()
+    val e4Move = StoredMove(startPos, e4Pos, "e4", isGood = true)
+    game.playMove("e5")
+    val e5Pos = game.position.toImmutablePosition()
+    val e5Move = StoredMove(e4Pos, e5Pos, "e5", isGood = true)
+
+    // Create the node with the move
+    val testNode =
+      StoredNode(
+        positionKey = e4Pos,
+        PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
+        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+      )
+
+    // Save the node to the database
+    runTest { DatabaseHolder.getDatabase().insertPosition(testNode) }
+
+    // Ensure we rebuild the training page
+    goToExplore()
+    goToTraining()
+    try {
+      assertTileContainsPiece("e4", Pawn.white())
+      playMove("e7", "e5")
+    } catch (_: AssertionError) {
+      playMove("e2", "e4")
+    }
+    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+    try {
+      assertTileContainsPiece("e4", Pawn.white())
+      playMove("e7", "e5")
+    } catch (_: AssertionError) {
+      playMove("e2", "e4")
+    }
+    assertNodeWithTextExists(BRAVO_TEXT)
   }
 }
