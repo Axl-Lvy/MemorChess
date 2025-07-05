@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
@@ -58,8 +60,8 @@ private class DrawableBoard(
     mutableStateMapOf<ITile, IPiece?>().apply {
       board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
     }
-  //  private val scope = CoroutineScope(Dispatchers.Default)
-  private val scope = MainScope()
+
+  private val scope = CoroutineScope(Dispatchers.Default)
 
   @Composable
   fun DrawBoard(modifier: Modifier) {
