@@ -1,6 +1,5 @@
 package proj.memorchess.axl.game
 
-import androidx.compose.runtime.mutableStateOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -57,7 +56,7 @@ class TestSingleLineTrainer {
     runTest { testNode.save() }
 
     ToastRendererHolder.init { _, _ -> }
-    singleMoveTrainer = SingleMoveTrainer(testNode, mutableStateOf(true))
+    singleMoveTrainer = SingleMoveTrainer(testNode) {}
     moveFactory = SimpleMoveFactory(singleMoveTrainer.game.position)
     checkChecker = DummyCheckChecker(singleMoveTrainer.game.position)
   }

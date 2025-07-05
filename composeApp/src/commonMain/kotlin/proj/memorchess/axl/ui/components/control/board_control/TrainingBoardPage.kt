@@ -39,8 +39,8 @@ fun TrainingBoardPage(modifier: Modifier = Modifier) {
  */
 private class TrainingBoard {
 
-  private val isCorrect = mutableStateOf<Boolean?>(null)
-  private val daysInAdvance = mutableStateOf(0)
+  private var state by mutableStateOf(TrainingBoardState.FROM_CORRECT_MOVE)
+  private var daysInAdvance by mutableStateOf(0)
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
 
@@ -48,15 +48,13 @@ private class TrainingBoard {
   fun Draw(modifier: Modifier = Modifier) {
     val localReloader = remember { BasicReloader() }
     val moveToTrain =
-      remember(localReloader.getKey(), daysInAdvance.value) {
-        NodeManager.getNextNodeToLearn(daysInAdvance.value)
+      remember(localReloader.getKey(), daysInAdvance) {
+        NodeManager.getNextNodeToLearn(daysInAdvance)
       }
     LaunchedEffect(reloader.getKey()) {
-      if (isCorrect.value != null) {
+      if (state.isShowing) {
         delay(moveDelay)
-        if (isCorrect.value == true) {
-          isCorrect.value = null
-        }
+        state = state.toPlayableState()
         localReloader.reload()
       }
     }
@@ -74,8 +72,8 @@ private class TrainingBoard {
    */
   @Composable
   private fun NoNodeToTrain(modifier: Modifier = Modifier) {
-    if (isCorrect.value == false && daysInAdvance.value > 0) {
-      daysInAdvance.value = 1
+    if (!state.isCorrect && daysInAdvance > 0) {
+      daysInAdvance = 1
       return
     }
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -102,10 +100,10 @@ private class TrainingBoard {
           color = Color(0xFF666666),
           textAlign = TextAlign.Center,
         )
-        Button(onClick = { daysInAdvance.value++ }, modifier = Modifier.padding(top = 16.dp)) {
+        Button(onClick = { daysInAdvance++ }, modifier = Modifier.padding(top = 16.dp)) {
           Text("Increment a day")
         }
-        Text("Days in advance: ${daysInAdvance.value}")
+        Text("Days in advance: $daysInAdvance")
       }
     }
   }
@@ -118,7 +116,15 @@ private class TrainingBoard {
    */
   @Composable
   private fun NodeToTrain(nodeToLearn: StoredNode, modifier: Modifier = Modifier) {
-    val trainer = remember(nodeToLearn) { SingleMoveTrainer(nodeToLearn, isCorrect) }
+    val trainer by
+      remember(nodeToLearn) {
+        mutableStateOf(
+          SingleMoveTrainer(nodeToLearn) {
+            state =
+              if (it) TrainingBoardState.SHOW_CORRECT_MOVE else TrainingBoardState.SHOW_WRONG_MOVE
+          }
+        )
+      }
     val inverted = remember(nodeToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
     Column(
       modifier = modifier.fillMaxSize().padding(16.dp),
@@ -133,22 +139,37 @@ private class TrainingBoard {
       )
       Spacer(modifier = Modifier.height(24.dp))
       Text(
-        text = "Days in advance: ${daysInAdvance.value}",
+        text = "Days in advance: $daysInAdvance",
         style = MaterialTheme.typography.bodyMedium,
         color = Color(0xFF666666),
         modifier = Modifier.align(Alignment.CenterHorizontally),
       )
       // Icon based on isCorrect
-      if (isCorrect.value != null) {
-        val icon = if (isCorrect.value == true) Icons.Default.Done else Icons.Default.Close
-        val tint = if (isCorrect.value == true) Color(0xFF4CAF50) else Color(0xFFF44336)
+      if (state.isShowing) {
+        val icon = if (state.isCorrect) Icons.Default.Done else Icons.Default.Close
+        val tint = if (state.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
         Icon(
           imageVector = icon,
-          contentDescription = if (isCorrect.value == true) "Correct" else "Incorrect",
+          contentDescription = if (state.isCorrect) "Correct" else "Incorrect",
           tint = tint,
           modifier = Modifier.size(32.dp).align(Alignment.CenterHorizontally),
         )
       }
+    }
+  }
+}
+
+private enum class TrainingBoardState(val isCorrect: Boolean, val isShowing: Boolean) {
+  SHOW_CORRECT_MOVE(true, true),
+  SHOW_WRONG_MOVE(false, true),
+  FROM_CORRECT_MOVE(true, false),
+  FROM_WRONG_MOVE(false, false);
+
+  fun toPlayableState(): TrainingBoardState {
+    return when (this) {
+      SHOW_CORRECT_MOVE -> FROM_CORRECT_MOVE
+      SHOW_WRONG_MOVE -> FROM_WRONG_MOVE
+      else -> error { "$this is already playable" }
     }
   }
 }

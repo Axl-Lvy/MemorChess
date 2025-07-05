@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.interactions
 
-import androidx.compose.runtime.MutableState
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.INextDateCalculator
@@ -14,23 +13,24 @@ import proj.memorchess.axl.core.util.IReloader
  *
  * @property node The node to train on.
  */
-class SingleMoveTrainer(private var node: StoredNode, val isCorrect: MutableState<Boolean?>) :
+class SingleMoveTrainer(private var node: StoredNode, val setIsCorrect: (Boolean) -> Unit) :
   AInteractionsManager(Game(node.positionKey)) {
+
+  private var isCorrect: Boolean = true
 
   override suspend fun afterPlayMove(move: String, reloader: IReloader) {
     val correspondingStoredMove =
       node.previousAndNextMoves.nextMoves.values.firstOrNull { it.move == move }
-    isCorrect.value = correspondingStoredMove != null && correspondingStoredMove.isGood == true
+    isCorrect = correspondingStoredMove != null && correspondingStoredMove.isGood == true
     saveNode()
     block()
+    setIsCorrect(isCorrect)
     reloader.reload()
   }
 
   private suspend fun saveNode() {
-    val isCorrectSnapshot = isCorrect.value
-    checkNotNull(isCorrectSnapshot)
     val calculator =
-      if (isCorrectSnapshot) {
+      if (isCorrect) {
         INextDateCalculator.SUCCESS
       } else {
         INextDateCalculator.FAILURE
@@ -44,7 +44,7 @@ class SingleMoveTrainer(private var node: StoredNode, val isCorrect: MutableStat
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
-    storedNode.save()
     NodeManager.cacheNode(storedNode)
+    storedNode.save()
   }
 }

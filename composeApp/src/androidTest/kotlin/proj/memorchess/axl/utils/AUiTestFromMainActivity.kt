@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import proj.memorchess.axl.MainActivity
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
+import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionKey
@@ -55,6 +56,7 @@ abstract class AUiTestFromMainActivity {
     composeTestRule.mainClock.autoAdvance = true
     MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
+    ON_SUCCESS_DATE_FACTOR_SETTING.reset()
     runTest { resetDatabase() }
   }
 
@@ -129,6 +131,10 @@ abstract class AUiTestFromMainActivity {
   fun playMove(fromTile: String, toTile: String) {
     clickOnTile(fromTile)
     clickOnTile(toTile)
+  }
+
+  fun promoteTo(pieceName: String) {
+    waitUntilNodeExists(hasClickLabel("Promote to ${pieceName.lowercase()}")).performClick()
   }
 
   /** Clicks the button to reverse/flip the chess board orientation. */
@@ -252,7 +258,14 @@ abstract class AUiTestFromMainActivity {
    * @throws AssertionError if an element with the specified text exists
    */
   fun assertNodeWithTextDoesNotExists(text: String) {
-    composeTestRule.onNodeWithText(text).assertDoesNotExist()
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Node with text $text exists") {
+      try {
+        composeTestRule.onNodeWithText(text).assertDoesNotExist()
+        return@awaitUntilTrue true
+      } catch (e: AssertionError) {
+        return@awaitUntilTrue false
+      }
+    }
   }
 
   /**
