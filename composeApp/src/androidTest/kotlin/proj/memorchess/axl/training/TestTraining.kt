@@ -12,6 +12,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.INextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.pieces.IPiece
 import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
@@ -158,6 +159,32 @@ class TestTrainingInteractions : AUiTestFromMainActivity() {
     } catch (_: AssertionError) {
       playMove("e2", "e4")
     }
+    assertNodeWithTextExists(BRAVO_TEXT)
+  }
+
+  @Test
+  fun testPromotion() {
+    runTest {
+      DatabaseHolder.getDatabase().deleteAllNodes()
+      DatabaseHolder.getDatabase().deleteAllMoves()
+    }
+    val game = Game(PositionKey("k7/7P/8/8/8/8/8/7K w KQkq"))
+    val startPosition = game.position.toImmutablePosition()
+    game.playMove("h8=Q+")
+    val endPosition = game.position.toImmutablePosition()
+    val startMove = StoredMove(startPosition, endPosition, "h8=Q", isGood = true)
+    val node =
+      StoredNode(
+        positionKey = startPosition,
+        PreviousAndNextMoves(listOf(), listOf(startMove)),
+        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+      )
+    runTest { DatabaseHolder.getDatabase().insertPosition(node) }
+    goToExplore()
+    goToTraining()
+    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+    playMove("h7", "h8")
+    promoteTo(IPiece.QUEEN)
     assertNodeWithTextExists(BRAVO_TEXT)
   }
 }

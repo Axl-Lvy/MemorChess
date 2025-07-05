@@ -133,6 +133,10 @@ abstract class AUiTestFromMainActivity {
     clickOnTile(toTile)
   }
 
+  fun promoteTo(pieceName: String) {
+    waitUntilNodeExists(hasClickLabel("Promote to ${pieceName.lowercase()}")).performClick()
+  }
+
   /** Clicks the button to reverse/flip the chess board orientation. */
   fun clickOnReverse() {
     this.waitUntilNodeExists(hasTestTag("Reverse board")).assertExists().performClick()
