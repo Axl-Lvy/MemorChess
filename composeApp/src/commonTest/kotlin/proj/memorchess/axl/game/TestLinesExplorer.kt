@@ -3,6 +3,7 @@ package proj.memorchess.axl.game
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.engine.Game
@@ -115,6 +116,27 @@ class TestLinesExplorer {
     assertEquals(true, savedGoodMove?.isGood, "Move should be saved as good")
   }
 
+  private fun testGame(stringMoves: List<String>) {
+    initialize()
+    val refGame = Game()
+    stringMoves.forEach {
+      val move = createMove(it)
+      clickOnTile(move.origin())
+      clickOnTile(move.destination())
+      if (it.contains("=")) {
+        assertTrue { interactionsManager.game.needPromotion() }
+        runTest {
+          interactionsManager.applyPromotion(
+            it.split("=")[1].substring(0, 1).lowercase(),
+            NoOpReloader,
+          )
+        }
+      }
+      refGame.playMove(it)
+      validateGame(refGame)
+    }
+  }
+
   private fun assertPawnOnE4() {
     assertPawnOnTile("e4", "e2")
   }
@@ -128,21 +150,6 @@ class TestLinesExplorer {
       assertEquals("P", it.toString())
     } ?: error("No piece found on $pawnTile")
     assertNull(interactionsManager.game.position.board.getTile(emptyTile).getSafePiece())
-  }
-
-  private fun testGame(stringMoves: List<String>) {
-    initialize()
-    val refGame = Game()
-    stringMoves.forEach {
-      val move = createMove(it)
-      clickOnTile(move.origin())
-      clickOnTile(move.destination())
-      if (it.contains("=")) {
-        interactionsManager.game.applyPromotion(it.split("=")[1].substring(0, 1).lowercase())
-      }
-      refGame.playMove(it)
-      validateGame(refGame)
-    }
   }
 
   private fun createMove(stringMove: String): IMove {

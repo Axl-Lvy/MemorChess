@@ -8,6 +8,8 @@ import proj.memorchess.axl.core.engine.board.Board
 import proj.memorchess.axl.core.engine.board.Position
 import proj.memorchess.axl.core.engine.moves.factory.NoCheckChecker
 import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.vectors.Queen
+import proj.memorchess.axl.core.engine.pieces.vectors.Rook
 
 class TestPawn {
   @Test
@@ -58,8 +60,24 @@ class TestPawn {
   }
 
   @Test
-  fun testPromotion() {
-    // TODO
+  fun testPromotionQueen() {
+    testPromotion(Queen.white())
+  }
+
+  @Test
+  fun testPromotionRook() {
+    testPromotion(Rook.white())
+  }
+
+  private fun testPromotion(piece: IPiece) {
+    val board = Board()
+    board.placePiece("h7", "P")
+    val game = Game(Position(board), NoCheckChecker())
+    game.playMove("h8=$piece")
+    assertEquals(
+      piece.toString().uppercase(),
+      game.position.board.getTile("h8").getSafePiece().toString(),
+    )
   }
 
   @Test

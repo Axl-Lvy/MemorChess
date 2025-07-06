@@ -19,7 +19,7 @@ import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestDatabase
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
-class TestSingleLineTrainer {
+class TestSingleMoveTrainer {
   private lateinit var singleMoveTrainer: SingleMoveTrainer
   private lateinit var moveFactory: SimpleMoveFactory
   private lateinit var checkChecker: DummyCheckChecker
