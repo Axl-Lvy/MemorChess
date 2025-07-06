@@ -9,10 +9,11 @@ import androidx.navigation.compose.rememberNavController
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.pages.navigation.Router
 import proj.memorchess.axl.ui.pages.navigation.bottomBar.BottomBar
+import proj.memorchess.axl.ui.theme.AppTheme
 
 @Composable
 fun App() {
-  MaterialTheme {
+  AppTheme {
     val navController = rememberNavController()
     Scaffold(
       bottomBar = {

@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.config
 import com.russhwolf.settings.Settings
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import proj.memorchess.axl.ui.theme.AppThemeSetting
 
 /** Minimum time to wait before loading page */
 val MINIMUM_LOADING_TIME_SETTING =
@@ -18,6 +19,14 @@ val MINIMUM_LOADING_TIME_SETTING =
  * [INextDateCalculator][proj.memorchess.axl.core.date.INextDateCalculator]
  */
 val ON_SUCCESS_DATE_FACTOR_SETTING = AppConfigItem<Double, Double>("onSuccessDateFactor", 1.5)
+
+val APP_THEME_SETTING =
+  AppConfigItem(
+    "appTheme",
+    AppThemeSetting.SYSTEM,
+    { value -> AppThemeSetting.entries[value] },
+    { entry -> entry.ordinal },
+  )
 
 val ALL_SETTINGS_ITEMS = listOf(MINIMUM_LOADING_TIME_SETTING, ON_SUCCESS_DATE_FACTOR_SETTING)
 
