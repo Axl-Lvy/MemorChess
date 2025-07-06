@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.interactions
 
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.INextDateCalculator
@@ -12,9 +13,13 @@ import proj.memorchess.axl.core.util.IReloader
  * Trainer based on a node.
  *
  * @property node The node to train on.
+ * @property callBackOnCorrect Callback to call after the move is played. The input move is null
+ *   when the played move is incorrect.
  */
-class SingleMoveTrainer(private var node: StoredNode, val setIsCorrect: (Boolean) -> Unit) :
-  AInteractionsManager(Game(node.positionKey)) {
+class SingleMoveTrainer(
+  private var node: StoredNode,
+  val callBackOnCorrect: (StoredMove?) -> Unit,
+) : AInteractionsManager(Game(node.positionKey)) {
 
   private var isCorrect: Boolean = true
 
@@ -24,7 +29,7 @@ class SingleMoveTrainer(private var node: StoredNode, val setIsCorrect: (Boolean
     isCorrect = correspondingStoredMove != null && correspondingStoredMove.isGood == true
     saveNode()
     block()
-    setIsCorrect(isCorrect)
+    callBackOnCorrect(if (isCorrect) correspondingStoredMove else null)
     reloader.reload()
   }
 

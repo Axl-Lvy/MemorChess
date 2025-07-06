@@ -21,7 +21,7 @@ import proj.memorchess.axl.utils.Awaitility
 
 private const val BRAVO_TEXT = "Bravo !"
 
-class TestTrainingInteractions : AUiTestFromMainActivity() {
+class TestTraining : AUiTestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {

@@ -151,14 +151,20 @@ class TestDatabase private constructor() : ICommonDatabase {
       val nodes = mutableListOf<StoredNode>()
       val game = Game()
       var previousMove: StoredMove? = null
+      var depth = 0
       for (move in moves) {
         val currentPosition = game.position.toImmutablePosition()
         game.playMove(move)
-        val storedMove = StoredMove(currentPosition, game.position.toImmutablePosition(), move)
+        val storedMove =
+          StoredMove(currentPosition, game.position.toImmutablePosition(), move, true)
         val node =
           StoredNode(
             currentPosition,
-            PreviousAndNextMoves(previousMove?.let { listOf(it) } ?: listOf(), listOf(storedMove)),
+            PreviousAndNextMoves(
+              previousMove?.let { listOf(it) } ?: listOf(),
+              listOf(storedMove),
+              depth++,
+            ),
             PreviousAndNextDate.dummyToday(),
           )
         previousMove = storedMove

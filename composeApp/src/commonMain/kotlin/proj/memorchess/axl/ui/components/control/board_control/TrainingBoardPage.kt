@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -43,13 +44,14 @@ private class TrainingBoard {
   private var daysInAdvance by mutableStateOf(0)
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
+  private var previousPlayedMove: StoredMove? = null
 
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
     val localReloader = remember { BasicReloader() }
     val moveToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
-        NodeManager.getNextNodeToLearn(daysInAdvance)
+        NodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
       }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing) {
@@ -121,7 +123,9 @@ private class TrainingBoard {
         mutableStateOf(
           SingleMoveTrainer(nodeToLearn) {
             state =
-              if (it) TrainingBoardState.SHOW_CORRECT_MOVE else TrainingBoardState.SHOW_WRONG_MOVE
+              if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
+              else TrainingBoardState.SHOW_WRONG_MOVE
+            previousPlayedMove = it
           }
         )
       }
