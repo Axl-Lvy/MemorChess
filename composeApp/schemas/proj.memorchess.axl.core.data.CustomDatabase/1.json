@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "9fe13c41b14808b7f24b62b18045d28b",
+    "identityHash": "bbaab1eccfe883d2240cc30e0ca992c2",
     "entities": [
       {
         "tableName": "NodeEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fenRepresentation` TEXT NOT NULL, `lastTrainedDate` TEXT NOT NULL, `nextTrainedDate` TEXT NOT NULL, PRIMARY KEY(`fenRepresentation`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fenRepresentation` TEXT NOT NULL, `lastTrainedDate` TEXT NOT NULL, `nextTrainedDate` TEXT NOT NULL, `depth` INTEGER NOT NULL, PRIMARY KEY(`fenRepresentation`))",
         "fields": [
           {
             "fieldPath": "fenRepresentation",
@@ -24,6 +24,12 @@
             "fieldPath": "nextTrainedDate",
             "columnName": "nextTrainedDate",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "depth",
+            "columnName": "depth",
+            "affinity": "INTEGER",
             "notNull": true
           }
         ],
@@ -74,7 +80,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9fe13c41b14808b7f24b62b18045d28b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'bbaab1eccfe883d2240cc30e0ca992c2')"
     ]
   }
 }

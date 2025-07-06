@@ -12,14 +12,14 @@ import proj.memorchess.axl.core.engine.Game
  * and tracks possible moves, previous moves, and links to previous and next nodes in the graph.
  *
  * @property position The unique key representing the chess position (FEN).
- * @property linkedMoves Holds the moves available from this position and the previous moves leading
- *   to it.
+ * @property previousAndNextMoves Holds the moves available from this position and the previous
+ *   moves leading to it.
  * @property previous Reference to the previous node in the graph.
  * @property next Reference to the next node in the graph.
  */
 class Node(
   val position: PositionKey,
-  val linkedMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
+  val previousAndNextMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
   var previous: Node? = null,
   var next: Node? = null,
 ) {
@@ -39,7 +39,7 @@ class Node(
    * @param child The child [Node] resulting from the move.
    */
   fun addChild(move: StoredMove, child: Node) {
-    linkedMoves.addNextMove(move)
+    previousAndNextMoves.addNextMove(move)
     next = child
   }
 
@@ -49,19 +49,19 @@ class Node(
    */
   private suspend fun save() {
     DatabaseHolder.getDatabase()
-      .insertPosition(StoredNode(position, linkedMoves, PreviousAndNextDate.dummyToday()))
+      .insertPosition(StoredNode(position, previousAndNextMoves, PreviousAndNextDate.dummyToday()))
     previous?.save()
   }
 
   /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
   suspend fun saveGood() {
-    linkedMoves.setPreviousMovesAsGood(true)
+    previousAndNextMoves.setPreviousMovesAsGood(true)
     save()
   }
 
   /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
   suspend fun saveBad() {
-    linkedMoves.setPreviousMovesAsGood(false)
+    previousAndNextMoves.setPreviousMovesAsGood(false)
     save()
   }
 
@@ -71,22 +71,24 @@ class Node(
    */
   suspend fun delete() {
     NodeManager.clearNextMoves(position)
-    linkedMoves.nextMoves.values.forEach { move ->
+    previousAndNextMoves.nextMoves.values.forEach { move ->
       val game = createGame()
       game.playMove(move.move)
       val childNode = NodeManager.createNode(game, this, move.move)
       childNode.deleteFromPrevious(move)
     }
     DatabaseHolder.getDatabase().deletePosition(position.fenRepresentation)
-    linkedMoves.nextMoves.clear()
+    previousAndNextMoves.nextMoves.clear()
     next = null
   }
 
   private suspend fun deleteFromPrevious(previousMove: StoredMove) {
     println("Deleting from previous: $previousMove. Position: $position")
     NodeManager.clearPreviousMove(position, previousMove)
-    check(!linkedMoves.previousMoves.contains(previousMove.move)) { "$previousMove not removed." }
-    if (linkedMoves.previousMoves.isEmpty()) {
+    check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
+      "$previousMove not removed."
+    }
+    if (previousAndNextMoves.previousMoves.isEmpty()) {
       delete()
     }
   }

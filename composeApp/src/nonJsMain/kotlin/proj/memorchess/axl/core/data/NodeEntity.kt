@@ -28,6 +28,12 @@ data class NodeEntity(
 
   /** The date when this node should be trained next */
   val nextTrainedDate: LocalDate = DateUtil.today(),
+
+  /**
+   * Depth of the node. Theoretically, a node can have many possible depth. Only the minimum one
+   * should be stored.
+   */
+  val depth: Int,
 ) {
   init {
     check(lastTrainedDate <= nextTrainedDate) {

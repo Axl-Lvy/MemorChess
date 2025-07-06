@@ -40,7 +40,8 @@ class LinesExplorer : AInteractionsManager(Game()) {
   fun forward(reloader: IReloader) {
     val firstChild = node.next
     if (firstChild != null) {
-      val move = node.linkedMoves.nextMoves.values.find { it.destination == firstChild.position }
+      val move =
+        node.previousAndNextMoves.nextMoves.values.find { it.destination == firstChild.position }
       checkNotNull(move) { "No move found to go to ${firstChild.position}" }
       node = firstChild
       game.playMove(move.move)
@@ -56,7 +57,7 @@ class LinesExplorer : AInteractionsManager(Game()) {
    * @return A list of moves that can be played from the current position.
    */
   fun getNextMoves(): List<String> {
-    return node.linkedMoves.nextMoves.keys.sorted()
+    return node.previousAndNextMoves.nextMoves.keys.sorted()
   }
 
   /**
