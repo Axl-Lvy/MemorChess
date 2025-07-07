@@ -5,4 +5,4 @@ import com.russhwolf.settings.Settings
 
 private val delegate = PropertiesLoader.INSTANCE.properties
 
-actual val settings: Settings = PropertiesSettings(delegate)
+actual val SETTINGS: Settings = PropertiesSettings(delegate)

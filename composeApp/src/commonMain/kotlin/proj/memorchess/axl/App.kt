@@ -6,6 +6,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import kotlin.time.Duration
+import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.pages.navigation.Router
 import proj.memorchess.axl.ui.pages.navigation.bottomBar.BottomBar
@@ -13,6 +15,7 @@ import proj.memorchess.axl.ui.theme.AppTheme
 
 @Composable
 fun App() {
+  MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
   AppTheme {
     val navController = rememberNavController()
     Scaffold(

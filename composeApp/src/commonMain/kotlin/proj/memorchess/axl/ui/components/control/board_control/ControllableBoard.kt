@@ -9,10 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
@@ -60,21 +61,23 @@ private fun Component(modifier: Modifier = Modifier) {
     ) {
       Button(
         onClick = { coroutineScope.launch { linesExplorer.saveGood() } },
-        colors = ButtonDefaults.buttonColors(Color.Green),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
         modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Save, contentDescription = "Save Good")
+        Text("Good")
       }
       Button(
         onClick = { coroutineScope.launch { linesExplorer.saveBad() } },
-        colors = ButtonDefaults.buttonColors(Color.Yellow),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
         modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Save, contentDescription = "Save Bad")
+        Text("Bad")
       }
       Button(
         onClick = { coroutineScope.launch { linesExplorer.delete(boardReloader) } },
-        colors = ButtonDefaults.buttonColors(Color.Red),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
         modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Trash, contentDescription = "Delete")
