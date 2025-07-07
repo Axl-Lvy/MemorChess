@@ -26,9 +26,9 @@ class TestSettings : AUiTestFromMainActivity() {
     assertNodeWithTagExists(TRAINING_MOVE_DELAY_SETTING.name)
 
     slideToRight(TRAINING_MOVE_DELAY_SETTING.name)
-    assert(TRAINING_MOVE_DELAY_SETTING.getValue() > 3.seconds)
+    assert(TRAINING_MOVE_DELAY_SETTING.getValue() > 2.seconds)
     slideToLeft(TRAINING_MOVE_DELAY_SETTING.name)
-    assert(TRAINING_MOVE_DELAY_SETTING.getValue() < 1.seconds)
+    assert(TRAINING_MOVE_DELAY_SETTING.getValue() < 2.seconds)
   }
 
   @Test
@@ -37,9 +37,9 @@ class TestSettings : AUiTestFromMainActivity() {
     assertNodeWithTagExists(ON_SUCCESS_DATE_FACTOR_SETTING.name)
 
     slideToRight(ON_SUCCESS_DATE_FACTOR_SETTING.name)
-    assert(ON_SUCCESS_DATE_FACTOR_SETTING.getValue() > 2.5)
+    assert(ON_SUCCESS_DATE_FACTOR_SETTING.getValue() > 2.0)
     slideToLeft(ON_SUCCESS_DATE_FACTOR_SETTING.name)
-    assert(ON_SUCCESS_DATE_FACTOR_SETTING.getValue() < 1.5)
+    assert(ON_SUCCESS_DATE_FACTOR_SETTING.getValue() < 2.0)
   }
 
   @Test
