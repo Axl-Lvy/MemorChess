@@ -80,7 +80,6 @@ enum class EmbeddedSettingItem(val configItem: IConfigItem<*>, val buttonParams:
 
   @Composable
   private fun DrawSlider(reloadKey: Any) {
-    checkNotNull(configItem) { "A slider needs a non-null config item" }
     val sliderParams = buttonParams as SliderParams
     val value =
       remember(reloadKey) { mutableStateOf(sliderParams.convertToUnit(configItem.getValue())) }
