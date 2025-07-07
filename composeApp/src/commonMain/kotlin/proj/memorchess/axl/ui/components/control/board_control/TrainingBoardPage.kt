@@ -93,13 +93,13 @@ private class TrainingBoard {
         Text(
           text = "Bravo !",
           style = MaterialTheme.typography.headlineMedium,
-          color = Color(0xFF333333),
+          color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
           text = "You have finished today's training!",
           style = MaterialTheme.typography.bodyLarge,
-          color = Color(0xFF666666),
+          color = MaterialTheme.colorScheme.onBackground,
           textAlign = TextAlign.Center,
         )
         Button(onClick = { daysInAdvance++ }, modifier = Modifier.padding(top = 16.dp)) {
@@ -145,7 +145,7 @@ private class TrainingBoard {
       Text(
         text = "Days in advance: $daysInAdvance",
         style = MaterialTheme.typography.bodyMedium,
-        color = Color(0xFF666666),
+        color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.align(Alignment.CenterHorizontally),
       )
       // Icon based on isCorrect

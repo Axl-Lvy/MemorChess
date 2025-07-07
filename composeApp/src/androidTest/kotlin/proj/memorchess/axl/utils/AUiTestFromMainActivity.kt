@@ -274,7 +274,7 @@ abstract class AUiTestFromMainActivity {
    * @param sliderTestTag The tag of the slider to slide
    */
   fun slideToRight(sliderTestTag: String) {
-    slide(sliderTestTag, 0.95f)
+    slide(sliderTestTag, 0.80f)
   }
 
   /**
@@ -283,7 +283,7 @@ abstract class AUiTestFromMainActivity {
    * @param sliderTestTag The tag of the slider to slide
    */
   fun slideToLeft(sliderTestTag: String) {
-    slide(sliderTestTag, 0.05f)
+    slide(sliderTestTag, 0.10f)
   }
 
   private fun slide(sliderTestTag: String, widthFactor: Float) {

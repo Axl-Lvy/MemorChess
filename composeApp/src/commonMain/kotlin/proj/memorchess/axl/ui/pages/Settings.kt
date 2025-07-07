@@ -1,12 +1,21 @@
 package proj.memorchess.axl.ui.pages
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -30,43 +39,67 @@ fun Settings() {
   dlg.DrawDialog()
   val reloader = remember { BasicReloader() }
 
-  Column(
-    verticalArrangement = Arrangement.spacedBy(16.dp),
-    modifier = Modifier.testTag(Destination.SETTINGS.name).padding(16.dp).fillMaxWidth(),
+  Box(
+    modifier =
+      Modifier.testTag(Destination.SETTINGS.name)
+        .padding(16.dp)
+        .fillMaxWidth()
+        .verticalScroll(rememberScrollState())
   ) {
-    Text(text = "Settings")
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
+      Text(text = "Settings")
 
-    Spacer(modifier = Modifier.height(16.dp))
+      Spacer(modifier = Modifier.height(16.dp))
 
-    EmbeddedSettingItem.entries.forEach { it.Draw(reloader.getKey()) }
+      EmbeddedSettingItem.entries.forEach {
+        it.Draw(reloader.getKey())
+        Spacer(modifier = Modifier.height(16.dp))
+      }
 
-    // Reset Button
-    Button(
-      onClick = {
-        ALL_SETTINGS_ITEMS.forEach { it.reset() }
-        reloader.reload()
-      },
-      modifier = Modifier.testTag("resetConfigButton"),
-    ) {
-      Text("Reset to Default Values")
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Erase All Data Button
-    Button(
-      onClick = {
-        dlg.show {
-          coroutineScope.launch {
-            getDatabase().deleteAllNodes()
-            getDatabase().deleteAllMoves()
-            NodeManager.resetCacheFromDataBase()
+      // Reset Button
+      Button(
+        onClick = {
+          dlg.show("Are you sure you want to reset all settings?") {
+            ALL_SETTINGS_ITEMS.forEach { it.reset() }
+            reloader.reload()
           }
-        }
-      },
-      modifier = Modifier.testTag("eraseAllDataButton"),
-    ) {
-      Text("Erase All Data")
+        },
+        modifier = Modifier.testTag("resetConfigButton").fillMaxWidth(),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+      ) {
+        Icon(
+          Icons.Filled.Refresh,
+          contentDescription = "Reset",
+          modifier = Modifier.padding(end = 8.dp),
+        )
+        Text("Reset to Default Values")
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // Erase All Data Button
+      Button(
+        onClick = {
+          dlg.show("Are you sure you want to erase all data?") {
+            coroutineScope.launch {
+              getDatabase().deleteAllNodes()
+              getDatabase().deleteAllMoves()
+              NodeManager.resetCacheFromDataBase()
+            }
+          }
+        },
+        modifier = Modifier.testTag("eraseAllDataButton").fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+        shape = ButtonDefaults.shape,
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+      ) {
+        Icon(
+          Icons.Filled.Delete,
+          contentDescription = "Erase",
+          modifier = Modifier.padding(end = 8.dp),
+        )
+        Text("Erase All Data")
+      }
     }
   }
 }

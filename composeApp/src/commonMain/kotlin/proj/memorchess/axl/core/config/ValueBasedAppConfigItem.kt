@@ -5,12 +5,12 @@ import com.russhwolf.settings.set
 
 /** A typed configuration item. */
 @Suppress("UNCHECKED_CAST")
-class AppConfigItem<StoredT : Any, T : Any>(
-  val name: String,
-  val defaultValue: T,
+class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
+  override val name: String,
+  override val defaultValue: T,
   val converter: ((StoredT) -> T),
   val serializer: ((T) -> StoredT),
-) {
+) : IConfigItem<T> {
   constructor(
     name: String,
     defaultValue: T,
@@ -42,21 +42,16 @@ class AppConfigItem<StoredT : Any, T : Any>(
     }
   }
 
-  /**
-   * Gets the value from settings, or the default value if it doesn't exist.
-   *
-   * @return The value from settings, or the default value if it doesn't exist.
-   */
-  fun getValue(): T {
+  override fun getValue(): T {
     val defaultStoredValue = serializer(defaultValue)
     val value =
       when (defaultStoredValue) {
-        is String -> settings[name, defaultStoredValue]
-        is Boolean -> settings[name, defaultStoredValue]
-        is Int -> settings[name, defaultStoredValue]
-        is Long -> settings[name, defaultStoredValue]
-        is Float -> settings[name, defaultStoredValue]
-        is Double -> settings[name, defaultStoredValue]
+        is String -> SETTINGS[name, defaultStoredValue]
+        is Boolean -> SETTINGS[name, defaultStoredValue]
+        is Int -> SETTINGS[name, defaultStoredValue]
+        is Long -> SETTINGS[name, defaultStoredValue]
+        is Float -> SETTINGS[name, defaultStoredValue]
+        is Double -> SETTINGS[name, defaultStoredValue]
         else ->
           throw IllegalArgumentException(
             "Unsupported value type: ${defaultStoredValue::class.simpleName}"
@@ -65,27 +60,21 @@ class AppConfigItem<StoredT : Any, T : Any>(
     return converter(value as StoredT)
   }
 
-  /**
-   * Sets the value to settings.
-   *
-   * @param value The value to set.
-   */
-  fun setValue(value: T) {
+  override fun setValue(value: T) {
     val valueToStore = serializer(value)
     when (valueToStore) {
-      is String -> settings[name] = valueToStore
-      is Boolean -> settings[name] = valueToStore
-      is Int -> settings[name] = valueToStore
-      is Long -> settings[name] = valueToStore
-      is Float -> settings[name] = valueToStore
-      is Double -> settings[name] = valueToStore
+      is String -> SETTINGS[name] = valueToStore
+      is Boolean -> SETTINGS[name] = valueToStore
+      is Int -> SETTINGS[name] = valueToStore
+      is Long -> SETTINGS[name] = valueToStore
+      is Float -> SETTINGS[name] = valueToStore
+      is Double -> SETTINGS[name] = valueToStore
       else ->
         throw IllegalArgumentException("Unsupported value type: ${valueToStore::class.simpleName}")
     }
   }
 
-  /** Resets the value to the default value. */
-  fun reset() {
-    settings.remove(name)
+  override fun reset() {
+    SETTINGS.remove(name)
   }
 }
