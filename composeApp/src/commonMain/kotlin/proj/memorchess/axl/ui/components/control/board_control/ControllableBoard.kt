@@ -1,6 +1,7 @@
 package proj.memorchess.axl.ui.components.control.board_control
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,7 +54,9 @@ private fun Component(modifier: Modifier = Modifier) {
       playerTurn = linesExplorer.game.position.playerTurn,
     )
     Board(inverted, linesExplorer, boardReloader, modifier = modifier.fillMaxWidth())
-    NextMoveBar(moveList = nextMoves, playMove = { linesExplorer.playMove(it, boardReloader) })
+    Box(modifier = Modifier.fillMaxWidth().height(40.dp)) {
+      NextMoveBar(moveList = nextMoves, playMove = { linesExplorer.playMove(it, boardReloader) })
+    }
     Row(
       horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
       modifier = Modifier.fillMaxWidth(),
