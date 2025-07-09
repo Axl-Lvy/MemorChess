@@ -88,4 +88,10 @@ data class PreviousAndNextMoves(
   fun setPreviousMovesAsBad() {
     previousMoves.values.forEach { it.isGood = it.isGood ?: false }
   }
+
+  fun filterValidMoves(): PreviousAndNextMoves {
+    val validPreviousMoves = previousMoves.filter { it.value.isGood != null }
+    val validNextMoves = nextMoves.filter { it.value.isGood != null }
+    return PreviousAndNextMoves(validPreviousMoves.values, validNextMoves.values, depth)
+  }
 }

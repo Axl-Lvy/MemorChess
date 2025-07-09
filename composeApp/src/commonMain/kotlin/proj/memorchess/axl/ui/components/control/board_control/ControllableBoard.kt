@@ -10,7 +10,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,8 +63,7 @@ private fun Component(modifier: Modifier = Modifier) {
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
         modifier = Modifier.weight(1f),
       ) {
-        Icon(FeatherIcons.Save, contentDescription = "Save Good")
-        Text("Good")
+        Icon(FeatherIcons.Save, contentDescription = "Save")
       }
       Button(
         onClick = { coroutineScope.launch { linesExplorer.delete(boardReloader) } },

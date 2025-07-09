@@ -26,7 +26,7 @@ class TestSaveButton : AUiTestFromMainActivity() {
     assertNull(getPosition(afterH3Position))
     var savedPosition: StoredNode? = null
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
-      clickOnSaveGood()
+      clickOnSave()
       savedPosition = getPosition(afterH3Position)
       savedPosition != null
     }
@@ -41,12 +41,12 @@ class TestSaveButton : AUiTestFromMainActivity() {
     var savedLastPosition: StoredNode? = null
     var savedFirstPosition: StoredNode? = null
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testPropagateSave: Positions not saved") {
-      clickOnSaveBad()
+      clickOnSave()
       savedLastPosition = getPosition(afterH6Position)
       savedFirstPosition = getPosition(afterH3Position)
       savedLastPosition != null && savedFirstPosition != null
     }
-    check(savedLastPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood != true })
-    check(savedFirstPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
+    check(savedLastPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
+    check(savedFirstPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == false })
   }
 }

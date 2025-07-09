@@ -27,11 +27,15 @@ data class MoveEntity(
   companion object {
     /** Converts an [StoredMove] to a [MoveEntity]. */
     fun convertToEntity(storedMove: StoredMove): MoveEntity {
+      val isGood = storedMove.isGood
+      checkNotNull(isGood) {
+        "A StoredMove must have a isGood value to be inserted into the database"
+      }
       return MoveEntity(
         storedMove.origin.fenRepresentation,
         storedMove.destination.fenRepresentation,
         storedMove.move,
-        storedMove.isGood ?: true,
+        isGood,
       )
     }
   }

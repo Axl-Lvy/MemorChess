@@ -100,6 +100,22 @@ class TestLinesExplorer {
     verifyStoredNode(thirdPosition, true, "Nc3")
   }
 
+  @Test
+  fun testSideMoveNotSaved() {
+    initialize()
+    val startPosition = interactionsManager.game.position.toImmutablePosition()
+    clickOnTile("e2")
+    clickOnTile("e3")
+    interactionsManager.back(NoOpReloader)
+    clickOnTile("e2")
+    clickOnTile("e4")
+    runTest { interactionsManager.save() }
+    verifyStoredNode(startPosition, true, "e4")
+    val storedNode = database.storedNodes[startPosition.fenRepresentation]
+    val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
+    assertNull(savedBadMove)
+  }
+
   private fun verifyStoredNode(positionKey: PositionKey, isGood: Boolean, move: String) {
     val storedNode = database.storedNodes[positionKey.fenRepresentation]
     val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == move }
