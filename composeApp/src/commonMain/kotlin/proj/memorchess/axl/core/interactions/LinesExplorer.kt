@@ -76,13 +76,8 @@ class LinesExplorer : AInteractionsManager(Game()) {
   }
 
   /** Saves the current node as coming from a good move. */
-  suspend fun saveGood() {
+  suspend fun save() {
     node.saveGood()
-  }
-
-  /** Saves the current node as coming from a bad move. */
-  suspend fun saveBad() {
-    node.saveBad()
   }
 
   /**

@@ -49,20 +49,27 @@ class Node(
    */
   private suspend fun save() {
     DatabaseHolder.getDatabase()
-      .insertPosition(StoredNode(position, previousAndNextMoves, PreviousAndNextDate.dummyToday()))
-    previous?.save()
+      .insertPosition(
+        StoredNode(
+          position,
+          previousAndNextMoves.filterValidMoves(),
+          PreviousAndNextDate.dummyToday(),
+        )
+      )
   }
 
   /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
   suspend fun saveGood() {
-    previousAndNextMoves.setPreviousMovesAsGood(true)
+    previousAndNextMoves.setPreviousMovesAsGood()
     save()
+    previous?.saveBad()
   }
 
   /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
-  suspend fun saveBad() {
-    previousAndNextMoves.setPreviousMovesAsGood(false)
+  private suspend fun saveBad() {
+    previousAndNextMoves.setPreviousMovesAsBadIsNotMarked()
     save()
+    previous?.saveGood()
   }
 
   /**
@@ -70,13 +77,13 @@ class Node(
    * clears the moves.
    */
   suspend fun delete() {
-    NodeManager.clearNextMoves(position)
     previousAndNextMoves.nextMoves.values.forEach { move ->
       val game = createGame()
       game.playMove(move.move)
       val childNode = NodeManager.createNode(game, this, move.move)
       childNode.deleteFromPrevious(move)
     }
+    NodeManager.clearNextMoves(position)
     DatabaseHolder.getDatabase().deletePosition(position.fenRepresentation)
     previousAndNextMoves.nextMoves.clear()
     next = null

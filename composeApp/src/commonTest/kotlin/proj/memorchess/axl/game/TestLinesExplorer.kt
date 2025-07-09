@@ -6,6 +6,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.IMove
@@ -66,12 +67,12 @@ class TestLinesExplorer {
   }
 
   @Test
-  fun testSaveGood() {
+  fun testSave() {
     initialize()
     val startPosition = interactionsManager.game.position.toImmutablePosition()
     clickOnTile("e2")
     clickOnTile("e4")
-    runTest { interactionsManager.saveGood() }
+    runTest { interactionsManager.save() }
 
     // Verify the move was saved as good
     val storedNode = database.storedNodes[startPosition.fenRepresentation]
@@ -80,40 +81,45 @@ class TestLinesExplorer {
   }
 
   @Test
-  fun testSaveBad() {
-    initialize()
-    val startPosition = interactionsManager.game.position.toImmutablePosition()
-    clickOnTile("e2")
-    clickOnTile("e4")
-    runTest { interactionsManager.saveBad() }
-
-    // Verify the move was saved as bad
-    val storedNode = database.storedNodes[startPosition.fenRepresentation]
-    val savedMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
-    assertEquals(false, savedMove?.isGood, "Move should be saved as bad")
-  }
-
-  @Test
   fun testSaveGoodThenBad() {
     initialize()
     val startPosition = interactionsManager.game.position.toImmutablePosition()
     clickOnTile("e2")
     clickOnTile("e4")
-    runTest { interactionsManager.saveBad() }
     val secondPosition = interactionsManager.game.position.toImmutablePosition()
     clickOnTile("e7")
     clickOnTile("e5")
-    runTest { interactionsManager.saveGood() }
+    val thirdPosition = interactionsManager.game.position.toImmutablePosition()
+    clickOnTile("b1")
+    clickOnTile("c3")
+    runTest { interactionsManager.save() }
 
     // Verify the move was saved as bad
-    val storedRootNode = database.storedNodes[startPosition.fenRepresentation]
-    val savedBadMove =
-      storedRootNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
-    assertEquals(false, savedBadMove?.isGood, "Move should be saved as bad")
-    val storedSecondNode = database.storedNodes[secondPosition.fenRepresentation]
-    val savedGoodMove =
-      storedSecondNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e5" }
-    assertEquals(true, savedGoodMove?.isGood, "Move should be saved as good")
+    verifyStoredNode(startPosition, true, "e4")
+    verifyStoredNode(secondPosition, false, "e5")
+    verifyStoredNode(thirdPosition, true, "Nc3")
+  }
+
+  @Test
+  fun testSideMoveNotSaved() {
+    initialize()
+    val startPosition = interactionsManager.game.position.toImmutablePosition()
+    clickOnTile("e2")
+    clickOnTile("e3")
+    interactionsManager.back(NoOpReloader)
+    clickOnTile("e2")
+    clickOnTile("e4")
+    runTest { interactionsManager.save() }
+    verifyStoredNode(startPosition, true, "e4")
+    val storedNode = database.storedNodes[startPosition.fenRepresentation]
+    val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
+    assertNull(savedBadMove)
+  }
+
+  private fun verifyStoredNode(positionKey: PositionKey, isGood: Boolean, move: String) {
+    val storedNode = database.storedNodes[positionKey.fenRepresentation]
+    val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == move }
+    assertEquals(isGood, savedBadMove?.isGood, "Move should be saved as bad")
   }
 
   private fun testGame(stringMoves: List<String>) {
