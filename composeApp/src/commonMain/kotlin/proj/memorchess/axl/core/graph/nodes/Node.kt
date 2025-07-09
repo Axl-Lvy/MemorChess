@@ -67,7 +67,7 @@ class Node(
 
   /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
   private suspend fun saveBad() {
-    previousAndNextMoves.setPreviousMovesAsBad()
+    previousAndNextMoves.setPreviousMovesAsBadIsNotMarked()
     save()
     previous?.saveGood()
   }

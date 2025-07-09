@@ -84,8 +84,12 @@ data class PreviousAndNextMoves(
     previousMoves.values.forEach { it.isGood = true }
   }
 
-  /** Sets the isGood property for all previous moves. */
-  fun setPreviousMovesAsBad() {
+  /**
+   * Sets the isGood property for all previous moves.
+   *
+   * Please note that if a move was already marked as good, it will not be changed.
+   */
+  fun setPreviousMovesAsBadIsNotMarked() {
     previousMoves.values.forEach { it.isGood = it.isGood ?: false }
   }
 
