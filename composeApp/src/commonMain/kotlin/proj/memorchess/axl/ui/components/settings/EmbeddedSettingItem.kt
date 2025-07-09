@@ -68,7 +68,7 @@ enum class EmbeddedSettingItem(val configItem: IConfigItem<*>, val buttonParams:
   fun Draw(reloadKey: Any) {
     when (this.buttonParams) {
       is SliderParams -> DrawSlider(reloadKey)
-      is EnumBasedSelectorParameters<*> -> DrawItemSelector(reloadKey, this.buttonParams)
+      is EnumBasedSelectorParameters<*> -> DrawItemSelector(this.buttonParams)
       else -> throw UnsupportedOperationException("Unsupported button type")
     }
   }
@@ -95,11 +95,7 @@ enum class EmbeddedSettingItem(val configItem: IConfigItem<*>, val buttonParams:
   }
 
   @Composable
-  private fun <T : Enum<T>> DrawItemSelector(
-    reloadKey: Any,
-    buttonParams: EnumBasedSelectorParameters<T>,
-  ) {
-    val selected = remember(reloadKey) { mutableStateOf(buttonParams.config.getValue()) }
+  private fun <T : Enum<T>> DrawItemSelector(buttonParams: EnumBasedSelectorParameters<T>) {
     val children =
       buttonParams.config.getEntries().map {
         WideScrollBarChild(
@@ -120,7 +116,7 @@ enum class EmbeddedSettingItem(val configItem: IConfigItem<*>, val buttonParams:
     WideScrollableRow(
       modifier = Modifier.fillMaxWidth(),
       children = children,
-      selectedInitial = selected.value.ordinal,
+      selectedInitial = buttonParams.config.getValue().ordinal,
     )
   }
 }

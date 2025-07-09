@@ -51,9 +51,7 @@ fun WideScrollableRow(
 ) {
   var selected by remember { mutableStateOf(selectedInitial) }
   val scrollState = rememberScrollState()
-  BoxWithConstraints(
-    modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color.White)
-  ) {
+  BoxWithConstraints(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))) {
     val itemCount = children.size
     val availableWidth = maxWidth
     val calculatedItemWidth = (availableWidth / itemCount).coerceAtLeast(minWidth)
