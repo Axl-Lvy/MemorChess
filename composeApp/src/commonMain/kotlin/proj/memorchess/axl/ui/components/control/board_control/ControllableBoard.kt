@@ -60,20 +60,12 @@ private fun Component(modifier: Modifier = Modifier) {
       modifier = Modifier.fillMaxWidth(),
     ) {
       Button(
-        onClick = { coroutineScope.launch { linesExplorer.saveGood() } },
+        onClick = { coroutineScope.launch { linesExplorer.save() } },
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
         modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Save, contentDescription = "Save Good")
         Text("Good")
-      }
-      Button(
-        onClick = { coroutineScope.launch { linesExplorer.saveBad() } },
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-        modifier = Modifier.weight(1f),
-      ) {
-        Icon(FeatherIcons.Save, contentDescription = "Save Bad")
-        Text("Bad")
       }
       Button(
         onClick = { coroutineScope.launch { linesExplorer.delete(boardReloader) } },

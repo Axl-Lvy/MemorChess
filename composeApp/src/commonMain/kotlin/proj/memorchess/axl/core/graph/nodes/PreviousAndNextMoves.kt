@@ -79,12 +79,13 @@ data class PreviousAndNextMoves(
     return nextMoves.put(move.move, move)
   }
 
-  /**
-   * Sets the isGood property for all previous moves.
-   *
-   * @param isGood The value to set for isGood.
-   */
-  fun setPreviousMovesAsGood(isGood: Boolean) {
-    previousMoves.values.forEach { it.isGood = isGood }
+  /** Sets the isGood property for all previous moves. */
+  fun setPreviousMovesAsGood() {
+    previousMoves.values.forEach { it.isGood = true }
+  }
+
+  /** Sets the isGood property for all previous moves. */
+  fun setPreviousMovesAsBad() {
+    previousMoves.values.forEach { it.isGood = it.isGood ?: false }
   }
 }

@@ -50,19 +50,20 @@ class Node(
   private suspend fun save() {
     DatabaseHolder.getDatabase()
       .insertPosition(StoredNode(position, previousAndNextMoves, PreviousAndNextDate.dummyToday()))
-    previous?.save()
   }
 
   /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
   suspend fun saveGood() {
-    previousAndNextMoves.setPreviousMovesAsGood(true)
+    previousAndNextMoves.setPreviousMovesAsGood()
     save()
+    previous?.saveBad()
   }
 
   /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
-  suspend fun saveBad() {
-    previousAndNextMoves.setPreviousMovesAsGood(false)
+  private suspend fun saveBad() {
+    previousAndNextMoves.setPreviousMovesAsBad()
     save()
+    previous?.saveGood()
   }
 
   /**

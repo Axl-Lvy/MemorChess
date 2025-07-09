@@ -22,18 +22,6 @@ class TestSaveButton : AUiTestFromMainActivity() {
   }
 
   @Test
-  fun testSaveBad() {
-    assertNull(getPosition(afterH3Position))
-    var savedPosition: StoredNode? = null
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
-      clickOnSaveBad()
-      savedPosition = getPosition(afterH3Position)
-      savedPosition != null
-    }
-    check(savedPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood != true })
-  }
-
-  @Test
   fun testSaveGood() {
     assertNull(getPosition(afterH3Position))
     var savedPosition: StoredNode? = null
