@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.graph.nodes
 import com.diamondedge.logging.logging
 import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
@@ -21,7 +21,7 @@ object NodeManager {
    * @return The root node.
    */
   fun createRootNode(): Node {
-    val position = Game().position.toImmutablePosition()
+    val position = Game().position.createIdentifier()
     val rootNodeMoves = nodeCache.getOrCreate(position, 0)
     check(rootNodeMoves.previousMoves.isEmpty()) {
       "Root node should not have previous moves, but found: ${rootNodeMoves.previousMoves}"
@@ -43,11 +43,11 @@ object NodeManager {
       nodeCache.getOrCreate(previous.position, previous.previousAndNextMoves.depth)
     val storedMove =
       previousNodeMoves.nextMoves.getOrPut(move) {
-        StoredMove(previous.position, game.position.toImmutablePosition(), move)
+        StoredMove(previous.position, game.position.createIdentifier(), move)
       }
     val newNodeLinkedMoves =
       nodeCache.getOrCreate(
-        game.position.toImmutablePosition(),
+        game.position.createIdentifier(),
         previous.previousAndNextMoves.depth + 1,
       )
     val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(storedMove)
@@ -56,7 +56,7 @@ object NodeManager {
     }
     val newNode =
       Node(
-        game.position.toImmutablePosition(),
+        game.position.createIdentifier(),
         previous = previous,
         previousAndNextMoves = newNodeLinkedMoves,
       )
@@ -64,12 +64,12 @@ object NodeManager {
     return newNode
   }
 
-  suspend fun clearNextMoves(positionKey: PositionKey) {
-    nodeCache.clearNextMoves(positionKey)
+  suspend fun clearNextMoves(positionIdentifier: PositionIdentifier) {
+    nodeCache.clearNextMoves(positionIdentifier)
   }
 
-  suspend fun clearPreviousMove(positionKey: PositionKey, move: StoredMove) {
-    nodeCache.clearPreviousMove(positionKey, move)
+  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: StoredMove) {
+    nodeCache.clearPreviousMove(positionIdentifier, move)
   }
 
   /** Resets the cache from the database. */
@@ -106,24 +106,24 @@ private object NodeCache {
 
   private var databaseRetrieved = false
 
-  private val nodesByDay = mutableMapOf<Int, MutableMap<PositionKey, StoredNode>>()
+  private val nodesByDay = mutableMapOf<Int, MutableMap<PositionIdentifier, StoredNode>>()
 
   /** Cache to prevent creating a node twice. */
-  private val movesCache = mutableMapOf<PositionKey, PreviousAndNextMoves>()
+  private val movesCache = mutableMapOf<PositionIdentifier, PreviousAndNextMoves>()
 
   /**
    * Gets or creates a PreviousAndNextMoves entry for the given position key.
    *
-   * @param positionKey The position key to get or create an entry for.
+   * @param positionIdentifier The position key to get or create an entry for.
    * @param depth Depth at which the returned value will be at maximum. If necessary, the previous
    *   value will be updated.
    * @return The PreviousAndNextMoves for the given position key.
    */
-  fun getOrCreate(positionKey: PositionKey, depth: Int): PreviousAndNextMoves {
-    val prevValue = movesCache[positionKey]
+  fun getOrCreate(positionIdentifier: PositionIdentifier, depth: Int): PreviousAndNextMoves {
+    val prevValue = movesCache[positionIdentifier]
     if (prevValue == null) {
       val result = PreviousAndNextMoves(depth)
-      movesCache[positionKey] = result
+      movesCache[positionIdentifier] = result
       return result
     }
     if (prevValue.depth > depth) {
@@ -135,34 +135,34 @@ private object NodeCache {
   /**
    * Gets the PreviousAndNextMoves for the given position key.
    *
-   * @param positionKey The position key to get the moves for.
+   * @param positionIdentifier The position key to get the moves for.
    * @return The PreviousAndNextMoves for the given position key, or null if not present.
    */
-  fun get(positionKey: PositionKey): PreviousAndNextMoves? {
-    return movesCache[positionKey]
+  fun get(positionIdentifier: PositionIdentifier): PreviousAndNextMoves? {
+    return movesCache[positionIdentifier]
   }
 
   /**
    * Clears all next moves for the given position key.
    *
-   * @param positionKey The position key to clear next moves for.
+   * @param positionIdentifier The position key to clear next moves for.
    */
-  suspend fun clearNextMoves(positionKey: PositionKey) {
-    movesCache[positionKey]?.nextMoves?.clear()
-    LOGGER.i { "Cleared next moves for position: $positionKey" }
-    DatabaseHolder.getDatabase().deleteMoveFrom(positionKey.fenRepresentation)
+  suspend fun clearNextMoves(positionIdentifier: PositionIdentifier) {
+    movesCache[positionIdentifier]?.nextMoves?.clear()
+    LOGGER.i { "Cleared next moves for position: $positionIdentifier" }
+    DatabaseHolder.getDatabase().deleteMoveFrom(positionIdentifier.fenRepresentation)
   }
 
   /**
    * Clears a specific previous move for the given position key.
    *
-   * @param positionKey The position key to clear the previous move for.
+   * @param positionIdentifier The position key to clear the previous move for.
    * @param move The move to clear.
    */
-  suspend fun clearPreviousMove(positionKey: PositionKey, move: StoredMove) {
-    movesCache[positionKey]?.previousMoves?.remove(move.move)
-    LOGGER.i { "Cleared previous move $move for position: $positionKey" }
-    DatabaseHolder.getDatabase().deleteMove(positionKey.fenRepresentation, move.move)
+  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: StoredMove) {
+    movesCache[positionIdentifier]?.previousMoves?.remove(move.move)
+    LOGGER.i { "Cleared previous move $move for position: $positionIdentifier" }
+    DatabaseHolder.getDatabase().deleteMove(positionIdentifier.fenRepresentation, move.move)
   }
 
   /** Clears the cache and resets the database retrieved flag. */
@@ -172,28 +172,22 @@ private object NodeCache {
   }
 
   fun cacheNode(node: StoredNode) {
-    movesCache[node.positionKey] = node.previousAndNextMoves
+    movesCache[node.positionIdentifier] = node.previousAndNextMoves
     val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
-    nodesByDay.getOrPut(daysUntil) { mutableMapOf() }.put(node.positionKey, node)
+    nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
   }
 
   fun getNodeFromDay(day: Int): StoredNode? {
-    val candidates = nodesByDay[day]
-    if (candidates == null) {
-      return null
-    }
+    val candidates = nodesByDay[day] ?: return null
     val position =
       candidates.entries.minByOrNull { it.value.previousAndNextMoves.depth }?.key ?: return null
     return candidates.remove(position)
   }
 
-  fun getNodeToTrainAfterPosition(day: Int, positionKey: PositionKey): StoredNode? {
-    val todayNodes = nodesByDay[day]
-    if (todayNodes == null) {
-      return null
-    }
+  fun getNodeToTrainAfterPosition(day: Int, positionIdentifier: PositionIdentifier): StoredNode? {
+    val todayNodes = nodesByDay[day] ?: return null
     for (candidatePosition in
-      movesCache[positionKey]?.nextMoves?.values?.map { it.destination } ?: emptyList()) {
+      movesCache[positionIdentifier]?.nextMoves?.values?.map { it.destination } ?: emptyList()) {
       val candidateNode = todayNodes.remove(candidatePosition)
       if (candidateNode != null) {
         return candidateNode
@@ -212,12 +206,12 @@ private object NodeCache {
     todayDate = DateUtil.today()
     val allNodes: List<StoredNode> = DatabaseHolder.getDatabase().getAllPositions()
     allNodes.forEach { node ->
-      movesCache.getOrPut(node.positionKey) { node.previousAndNextMoves }
+      movesCache.getOrPut(node.positionIdentifier) { node.previousAndNextMoves }
       if (node.previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {
         val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
-        nodesByDay.getOrPut(daysUntil) { mutableMapOf() }.put(node.positionKey, node)
+        nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
       }
-      LOGGER.i { "Retrieved node: ${node.positionKey}" }
+      LOGGER.i { "Retrieved node: ${node.positionIdentifier}" }
     }
     databaseRetrieved = true
   }

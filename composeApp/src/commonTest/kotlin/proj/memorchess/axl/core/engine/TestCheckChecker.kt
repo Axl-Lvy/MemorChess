@@ -22,12 +22,12 @@ class TestCheckChecker {
   @Test
   fun checkCannotMove() {
 
-    assertFailsWith<IllegalMoveException>() {
+    assertFailsWith<IllegalMoveException> {
       game.playMove("h6")
       print(game.position.board)
     }
 
-    assertFailsWith<IllegalMoveException>() { game.playMove("Kf3") }
+    assertFailsWith<IllegalMoveException> { game.playMove("Kf3") }
   }
 
   @Test

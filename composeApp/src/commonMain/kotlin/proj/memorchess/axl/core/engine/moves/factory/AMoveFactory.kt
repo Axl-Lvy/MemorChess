@@ -52,7 +52,7 @@ abstract class AMoveFactory(val position: IPosition) {
     }
   }
 
-  private fun extractCastle(moveDescription: MoveDescription): IMove? {
+  private fun extractCastle(moveDescription: MoveDescription): IMove {
     val index =
       if (moveDescription.to.second == 0) {
         if (position.playerTurn == Game.Player.WHITE) {
@@ -240,7 +240,6 @@ abstract class AMoveFactory(val position: IPosition) {
    * @param fromTile Origin.
    * @param moves Moves list where to put the result.
    * @param rawMove Move description.
-   * @param enPassantColumn En passant column.
    */
   private fun extractPawnCapture(
     toTile: ITile,

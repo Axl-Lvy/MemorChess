@@ -50,7 +50,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
           StoredNode(
-            game.position.toImmutablePosition(),
+            game.position.createIdentifier(),
             PreviousAndNextMoves(),
             PreviousAndNextDate.dummyToday(),
           )
@@ -62,8 +62,8 @@ class TestNodeEntitiesDataBase {
     assertNotNull(retrievedNodes.first())
     assertTrue { retrievedNodes.first().nextMoves.isEmpty() }
     assertEquals(
-      game.position.toImmutablePosition(),
-      retrievedNodes.first().toStoredNode().positionKey,
+      game.position.createIdentifier(),
+      retrievedNodes.first().toStoredNode().positionIdentifier,
     )
   }
 
@@ -75,7 +75,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         NodeWithMoves.convertToEntity(
           StoredNode(
-            game.position.toImmutablePosition(),
+            game.position.createIdentifier(),
             PreviousAndNextMoves(),
             PreviousAndNextDate.dummyToday(),
           )
@@ -91,12 +91,12 @@ class TestNodeEntitiesDataBase {
   fun testDeleteSingle() {
     val retrievedNodes: List<NodeWithMoves>
     val game = Game()
-    val rootPositionKey = game.position.toImmutablePosition()
+    val rootPositionKey = game.position.createIdentifier()
     game.playMove("e4")
     val linkMove =
       MoveEntity(
         rootPositionKey.fenRepresentation,
-        game.position.toImmutablePosition().fenRepresentation,
+        game.position.createIdentifier().fenRepresentation,
         "e4",
         true,
       )
@@ -109,18 +109,18 @@ class TestNodeEntitiesDataBase {
       )
     val childNode =
       StoredNode(
-        game.position.toImmutablePosition(),
+        game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(childNode))
-      nodeEntityDao.delete(childNode.positionKey.fenRepresentation)
+      nodeEntityDao.delete(childNode.positionIdentifier.fenRepresentation)
       retrievedNodes = nodeEntityDao.getAllNodes()
     }
     assertEquals(1, retrievedNodes.size)
     assertContains(retrievedNodes.first().nextMoves, linkMove)
-    assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionKey)
+    assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionIdentifier)
   }
 }

@@ -26,7 +26,7 @@ import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.pieces.IPiece
@@ -314,12 +314,12 @@ abstract class AUiTestFromMainActivity {
   /**
    * Retrieves a specific chess position from the database.
    *
-   * @param positionKey The key identifying the position to retrieve
+   * @param positionIdentifier The key identifying the position to retrieve
    * @return The stored node for the position, or null if not found
    */
-  fun getPosition(positionKey: PositionKey): StoredNode? {
+  fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     var position: StoredNode? = null
-    runTest { position = DatabaseHolder.getDatabase().getPosition(positionKey) }
+    runTest { position = DatabaseHolder.getDatabase().getPosition(positionIdentifier) }
     return position
   }
 
@@ -361,11 +361,11 @@ abstract class AUiTestFromMainActivity {
     }
     val viennaNodes =
       TestDatabase.convertStringMovesToNodes(getVienna()).map {
-        StoredNode(it.positionKey, it.previousAndNextMoves, it.previousAndNextTrainingDate)
+        StoredNode(it.positionIdentifier, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val scandinavianNodes =
       TestDatabase.convertStringMovesToNodes(getScandinavian()).map {
-        StoredNode(it.positionKey, it.previousAndNextMoves, it.previousAndNextTrainingDate)
+        StoredNode(it.positionIdentifier, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val storedNodes = (viennaNodes + scandinavianNodes)
     for (node in storedNodes) {
@@ -374,7 +374,7 @@ abstract class AUiTestFromMainActivity {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
       lateinit var allPositions: List<StoredNode>
       runBlocking { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
-      allPositions.size == storedNodes.map { it.positionKey }.distinct().size
+      allPositions.size == storedNodes.map { it.positionIdentifier }.distinct().size
     }
   }
 }

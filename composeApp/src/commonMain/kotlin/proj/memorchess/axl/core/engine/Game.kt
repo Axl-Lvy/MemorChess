@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.engine
 
 import com.diamondedge.logging.logging
 import kotlin.math.abs
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.board.IPosition
 import proj.memorchess.axl.core.engine.board.Position
 import proj.memorchess.axl.core.engine.moves.Castle
@@ -27,7 +27,7 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
   /** Creates a game from the starting position. */
   constructor() : this(Position())
 
-  constructor(positionKey: PositionKey) : this(positionKey.createPosition())
+  constructor(positionIdentifier: PositionIdentifier) : this(positionIdentifier.createPosition())
 
   /** Number of moves. */
   var moveCount = 1

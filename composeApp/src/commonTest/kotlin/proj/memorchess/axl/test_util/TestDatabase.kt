@@ -1,8 +1,7 @@
 package proj.memorchess.axl.test_util
 
 import proj.memorchess.axl.core.data.ICommonDatabase
-import proj.memorchess.axl.core.data.IStoredNode
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -24,8 +23,8 @@ class TestDatabase private constructor() : ICommonDatabase {
     return storedNodes.values.toList()
   }
 
-  override suspend fun getPosition(positionKey: PositionKey): StoredNode? {
-    return storedNodes[positionKey.fenRepresentation]
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
+    return storedNodes[positionIdentifier.fenRepresentation]
   }
 
   override suspend fun deletePosition(fen: String) {
@@ -38,7 +37,7 @@ class TestDatabase private constructor() : ICommonDatabase {
     }
     storedNodes[origin] =
       StoredNode(
-        PositionKey(origin),
+        PositionIdentifier(origin),
         PreviousAndNextMoves(
           storedNodes[origin]!!.previousAndNextMoves.previousMoves.values,
           listOf(),
@@ -53,7 +52,7 @@ class TestDatabase private constructor() : ICommonDatabase {
     }
     storedNodes[destination] =
       StoredNode(
-        PositionKey(destination),
+        PositionIdentifier(destination),
         PreviousAndNextMoves(
           listOf(),
           storedNodes[destination]!!.previousAndNextMoves.nextMoves.values,
@@ -70,7 +69,7 @@ class TestDatabase private constructor() : ICommonDatabase {
     val newNextMoves = storedNode.previousAndNextMoves.nextMoves.values.filter { it.move != move }
     storedNodes[origin] =
       StoredNode(
-        PositionKey(origin),
+        PositionIdentifier(origin),
         PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
         storedNode.previousAndNextTrainingDate,
       )
@@ -98,8 +97,8 @@ class TestDatabase private constructor() : ICommonDatabase {
     }
   }
 
-  override suspend fun insertPosition(position: IStoredNode) {
-    storedNodes[position.positionKey.fenRepresentation] = position as StoredNode
+  override suspend fun insertPosition(position: StoredNode) {
+    storedNodes[position.positionIdentifier.fenRepresentation] = position
   }
 
   override suspend fun deleteAllNodes() {
@@ -142,7 +141,7 @@ class TestDatabase private constructor() : ICommonDatabase {
       val testDataBase = TestDatabase()
       val nodes = convertStringMovesToNodes(moves)
       for (node in nodes) {
-        testDataBase.storedNodes[node.positionKey.fenRepresentation] = node
+        testDataBase.storedNodes[node.positionIdentifier.fenRepresentation] = node
       }
       return testDataBase
     }
@@ -151,19 +150,17 @@ class TestDatabase private constructor() : ICommonDatabase {
       val nodes = mutableListOf<StoredNode>()
       val game = Game()
       var previousMove: StoredMove? = null
-      var depth = 0
-      for (move in moves) {
-        val currentPosition = game.position.toImmutablePosition()
+      for ((depth, move) in moves.withIndex()) {
+        val currentPosition = game.position.createIdentifier()
         game.playMove(move)
-        val storedMove =
-          StoredMove(currentPosition, game.position.toImmutablePosition(), move, true)
+        val storedMove = StoredMove(currentPosition, game.position.createIdentifier(), move, true)
         val node =
           StoredNode(
             currentPosition,
             PreviousAndNextMoves(
               previousMove?.let { listOf(it) } ?: listOf(),
               listOf(storedMove),
-              depth++,
+              depth,
             ),
             PreviousAndNextDate.dummyToday(),
           )
@@ -193,7 +190,7 @@ class TestDatabase private constructor() : ICommonDatabase {
             newMoves.addAll(entry.value.previousAndNextMoves.previousMoves.values)
             merged.storedNodes[entry.key] =
               StoredNode(
-                storedNode.positionKey,
+                storedNode.positionIdentifier,
                 PreviousAndNextMoves(previousMoves, newMoves),
                 PreviousAndNextDate.dummyToday(),
               )

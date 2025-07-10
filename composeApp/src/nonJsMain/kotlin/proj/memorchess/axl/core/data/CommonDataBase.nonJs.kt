@@ -9,8 +9,8 @@ object NonJsCommonDatabase : ICommonDatabase {
     return database.getNodeEntityDao().getAllNodes().map { it.toStoredNode() }
   }
 
-  override suspend fun getPosition(positionKey: PositionKey): StoredNode? {
-    return database.getNodeEntityDao().getNode(positionKey.fenRepresentation)?.toStoredNode()
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
+    return database.getNodeEntityDao().getNode(positionIdentifier.fenRepresentation)?.toStoredNode()
   }
 
   override suspend fun deletePosition(fen: String) {
@@ -45,7 +45,7 @@ object NonJsCommonDatabase : ICommonDatabase {
     database.getNodeEntityDao().deleteAll()
   }
 
-  override suspend fun insertPosition(position: IStoredNode) {
+  override suspend fun insertPosition(position: StoredNode) {
     database.getNodeEntityDao().insertNodeAndMoves(NodeWithMoves.convertToEntity(position))
   }
 }

@@ -5,7 +5,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
@@ -36,16 +36,16 @@ class TestTraining : AUiTestFromMainActivity() {
 
     // Create a test node with e4 as a good move
     val game = Game()
-    val startPos = game.position.toImmutablePosition()
+    val startPos = game.position.createIdentifier()
 
     game.playMove("e4")
-    val e4Pos = game.position.toImmutablePosition()
+    val e4Pos = game.position.createIdentifier()
     val e4Move = StoredMove(startPos, e4Pos, "e4", isGood = true)
 
     // Create the node with the move
     val testNode =
       StoredNode(
-        positionKey = startPos,
+        positionIdentifier = startPos,
         PreviousAndNextMoves(listOf(), listOf(e4Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
@@ -62,7 +62,7 @@ class TestTraining : AUiTestFromMainActivity() {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSucceedOfTraining: Position not saved") {
       val positions = getAllPositions()
       positions.size == 1 &&
-        positions[0].positionKey == PositionKey.START_POSITION &&
+        positions[0].positionIdentifier == PositionIdentifier.START_POSITION &&
         positions[0].previousAndNextTrainingDate.previousDate.dayOfYear ==
           DateUtil.today().dayOfYear &&
         positions[0].previousAndNextTrainingDate.nextDate.dayOfYear ==
@@ -81,7 +81,7 @@ class TestTraining : AUiTestFromMainActivity() {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
       val positions = getAllPositions()
       positions.size == 1 &&
-        positions[0].positionKey == PositionKey.START_POSITION &&
+        positions[0].positionIdentifier == PositionIdentifier.START_POSITION &&
         positions[0].previousAndNextTrainingDate.previousDate.dayOfYear ==
           DateUtil.today().dayOfYear &&
         positions[0].previousAndNextTrainingDate.nextDate.dayOfYear ==
@@ -123,19 +123,19 @@ class TestTraining : AUiTestFromMainActivity() {
   fun testShowNextMove() {
     // Insert a second move in the database
     val game = Game()
-    val startPos = game.position.toImmutablePosition()
+    val startPos = game.position.createIdentifier()
 
     game.playMove("e4")
-    val e4Pos = game.position.toImmutablePosition()
+    val e4Pos = game.position.createIdentifier()
     val e4Move = StoredMove(startPos, e4Pos, "e4", isGood = true)
     game.playMove("e5")
-    val e5Pos = game.position.toImmutablePosition()
+    val e5Pos = game.position.createIdentifier()
     val e5Move = StoredMove(e4Pos, e5Pos, "e5", isGood = true)
 
     // Create the node with the move
     val testNode =
       StoredNode(
-        positionKey = e4Pos,
+        positionIdentifier = e4Pos,
         PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
@@ -168,14 +168,14 @@ class TestTraining : AUiTestFromMainActivity() {
       DatabaseHolder.getDatabase().deleteAllNodes()
       DatabaseHolder.getDatabase().deleteAllMoves()
     }
-    val game = Game(PositionKey("k7/7P/8/8/8/8/8/7K w KQkq"))
-    val startPosition = game.position.toImmutablePosition()
+    val game = Game(PositionIdentifier("k7/7P/8/8/8/8/8/7K w KQkq"))
+    val startPosition = game.position.createIdentifier()
     game.playMove("h8=Q+")
-    val endPosition = game.position.toImmutablePosition()
+    val endPosition = game.position.createIdentifier()
     val startMove = StoredMove(startPosition, endPosition, "h8=Q", isGood = true)
     val node =
       StoredNode(
-        positionKey = startPosition,
+        positionIdentifier = startPosition,
         PreviousAndNextMoves(listOf(), listOf(startMove)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )

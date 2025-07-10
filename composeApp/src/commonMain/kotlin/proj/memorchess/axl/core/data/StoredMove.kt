@@ -5,10 +5,10 @@ import com.diamondedge.logging.logging
 /** Move that can be stored in [ICommonDatabase] */
 data class StoredMove(
   /** Origin position of the move */
-  val origin: PositionKey,
+  val origin: PositionIdentifier,
 
   /** Destination position of the move */
-  val destination: PositionKey,
+  val destination: PositionIdentifier,
 
   /** The move in standard notation */
   val move: String,

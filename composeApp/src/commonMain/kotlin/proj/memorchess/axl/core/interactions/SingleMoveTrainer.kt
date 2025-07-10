@@ -19,7 +19,7 @@ import proj.memorchess.axl.core.util.IReloader
 class SingleMoveTrainer(
   private var node: StoredNode,
   val callBackOnCorrect: (StoredMove?) -> Unit,
-) : AInteractionsManager(Game(node.positionKey)) {
+) : AInteractionsManager(Game(node.positionIdentifier)) {
 
   private var isCorrect: Boolean = true
 
@@ -45,7 +45,7 @@ class SingleMoveTrainer(
 
     val storedNode =
       StoredNode(
-        positionKey = node.positionKey,
+        positionIdentifier = node.positionIdentifier,
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )

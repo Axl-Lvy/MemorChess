@@ -15,17 +15,17 @@ class TestCannotJump {
 
   @Test
   fun testBishop() {
-    assertFailsWith<IllegalMoveException>() { game.playMove("Ba3") }
+    assertFailsWith<IllegalMoveException> { game.playMove("Ba3") }
   }
 
   @Test
   fun testRook() {
-    assertFailsWith<IllegalMoveException>() { game.playMove("Ra3") }
+    assertFailsWith<IllegalMoveException> { game.playMove("Ra3") }
   }
 
   @Test
   fun testQueen() {
-    assertFailsWith<IllegalMoveException>() { game.playMove("Qd3") }
+    assertFailsWith<IllegalMoveException> { game.playMove("Qd3") }
   }
 
   @Test
