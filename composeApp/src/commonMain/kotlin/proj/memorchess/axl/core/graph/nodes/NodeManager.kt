@@ -90,6 +90,10 @@ object NodeManager {
     return nodeCache.getNodeFromDay(day)
   }
 
+  fun getNumberOfNodesToTrain(day: Int): Int {
+    return nodeCache.getNumberOfNodesToTrain(day)
+  }
+
   fun cacheNode(node: StoredNode) {
     NodeCache.cacheNode(node)
   }
@@ -194,6 +198,10 @@ private object NodeCache {
       }
     }
     return null
+  }
+
+  fun getNumberOfNodesToTrain(day: Int): Int {
+    return nodesByDay[day]?.size ?: 0
   }
 
   /** Retrieves the graph from the database and populates the cache. */

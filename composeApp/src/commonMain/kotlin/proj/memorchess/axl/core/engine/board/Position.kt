@@ -22,7 +22,7 @@ class Position(
       return false
     }
 
-    val checkingRow = if (playerTurn == Game.Player.WHITE) 4 else 3
+    val checkingRow = if (playerTurn == Game.Player.WHITE) 3 else 4
     if (enPassantColumn > 0) {
       val piece = board.getTile(checkingRow, enPassantColumn - 1).getSafePiece()
       if (piece is Pawn && piece.player == playerTurn.other()) {

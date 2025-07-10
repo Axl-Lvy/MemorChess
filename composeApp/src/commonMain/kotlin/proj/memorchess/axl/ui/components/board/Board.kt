@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,7 +101,7 @@ private class DrawableBoard(
     val possibilities = listOf<IPiece>(Queen(player), Rook(player), Bishop(player), Knight(player))
     Row(
       modifier =
-        Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))
+        Modifier.clip(RoundedCornerShape(24.dp))
           .background(Color.Black.copy(alpha = 0.7f))
           .padding(16.dp)
     ) {

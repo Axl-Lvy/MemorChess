@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.components.control.board_control
+package proj.memorchess.axl.ui.components.board.control
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row

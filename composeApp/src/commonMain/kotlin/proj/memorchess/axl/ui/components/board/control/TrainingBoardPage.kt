@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.components.control.board_control
+package proj.memorchess.axl.ui.components.board.control
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -22,7 +22,9 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.ui.components.board.Board
+import proj.memorchess.axl.ui.components.board.BoardTopping
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
+import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
 /** Training board */
@@ -53,6 +55,8 @@ private class TrainingBoard {
       remember(localReloader.getKey(), daysInAdvance) {
         NodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
       }
+    val numberOfNodesToTrain =
+      remember(moveToTrain) { NodeManager.getNumberOfNodesToTrain(daysInAdvance) }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing) {
         delay(moveDelay)
@@ -63,7 +67,7 @@ private class TrainingBoard {
     if (moveToTrain == null) {
       NoNodeToTrain(modifier = modifier)
     } else {
-      NodeToTrain(moveToTrain, modifier = modifier)
+      NodeToTrain(moveToTrain, numberOfNodesToTrain, modifier = modifier)
     }
   }
 
@@ -86,7 +90,7 @@ private class TrainingBoard {
         Icon(
           imageVector = Icons.Default.Done,
           contentDescription = "Congratulations",
-          tint = Color(0xFF4CAF50),
+          tint = goodTint,
           modifier = Modifier.size(64.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -117,7 +121,11 @@ private class TrainingBoard {
    * @param modifier Modifier for styling.
    */
   @Composable
-  private fun NodeToTrain(nodeToLearn: StoredNode, modifier: Modifier = Modifier) {
+  private fun NodeToTrain(
+    nodeToLearn: StoredNode,
+    numberOfNodesToTrain: Int,
+    modifier: Modifier = Modifier,
+  ) {
     val trainer by
       remember(nodeToLearn) {
         mutableStateOf(
@@ -135,6 +143,8 @@ private class TrainingBoard {
       verticalArrangement = Arrangement.Top,
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+      NumberOfNodeToTrainIndicator(numberOfNodesToTrain)
+      Spacer(modifier = Modifier.height(16.dp))
       Board(
         inverted,
         trainer,
@@ -175,5 +185,36 @@ private enum class TrainingBoardState(val isCorrect: Boolean, val isShowing: Boo
       SHOW_WRONG_MOVE -> FROM_WRONG_MOVE
       else -> error { "$this is already playable" }
     }
+  }
+}
+
+@Composable
+private fun NumberOfNodeToTrainIndicator(numberOfNodesToTrain: Int, modifier: Modifier = Modifier) {
+  // Color interpolation from ErrorContainer to goodTint
+  val minAlpha = 0.15f
+  val maxAlpha = 0.5f
+  val minNodes = 1 // never 0
+  val maxNodes = 20 // arbitrary upper bound for scaling
+  val clampedNodes = numberOfNodesToTrain.coerceIn(minNodes, maxNodes)
+  val fraction = (clampedNodes - minNodes).toFloat() / (maxNodes - minNodes)
+  val startColor = MaterialTheme.colorScheme.errorContainer
+  val endColor = goodTint
+  fun lerpColor(a: Color, b: Color, t: Float): Color {
+    return Color(
+      red = a.red + (b.red - a.red) * t,
+      green = a.green + (b.green - a.green) * t,
+      blue = a.blue + (b.blue - a.blue) * t,
+      alpha = 1f,
+    )
+  }
+  val baseColor = lerpColor(startColor, endColor, fraction)
+  val alpha = maxAlpha - fraction * (maxAlpha - minAlpha)
+  val color = baseColor.copy(alpha = alpha)
+  BoardTopping(backGroundColor = color, modifier = modifier) {
+    Text(
+      text = "Moves to train: $numberOfNodesToTrain",
+      color = baseColor,
+      style = MaterialTheme.typography.bodyMedium,
+    )
   }
 }

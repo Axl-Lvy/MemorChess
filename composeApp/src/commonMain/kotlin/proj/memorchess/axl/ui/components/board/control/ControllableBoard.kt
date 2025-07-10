@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.components.control.board_control
+package proj.memorchess.axl.ui.components.board.control
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
+import proj.memorchess.axl.ui.components.board.StateIndicator
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.util.BasicReloader
 
@@ -53,6 +54,7 @@ private fun Component(modifier: Modifier = Modifier) {
       onBackClick = { linesExplorer.back(boardReloader) },
       playerTurn = linesExplorer.game.position.playerTurn,
     )
+    StateIndicator(linesExplorer.state)
     Board(inverted, linesExplorer, boardReloader, modifier = modifier.fillMaxWidth())
     Box(modifier = Modifier.fillMaxWidth().height(40.dp)) {
       NextMoveBar(moveList = nextMoves, playMove = { linesExplorer.playMove(it, boardReloader) })

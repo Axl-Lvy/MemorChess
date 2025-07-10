@@ -6,7 +6,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import proj.memorchess.axl.ui.components.control.board_control.TrainingBoardPage
+import proj.memorchess.axl.ui.components.board.control.TrainingBoardPage
 import proj.memorchess.axl.ui.pages.navigation.Destination
 
 @Composable
