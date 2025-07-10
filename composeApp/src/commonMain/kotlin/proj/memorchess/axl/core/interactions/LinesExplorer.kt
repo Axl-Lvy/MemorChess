@@ -78,6 +78,7 @@ class LinesExplorer : AInteractionsManager(Game()) {
   /** Saves the current node as coming from a good move. */
   suspend fun save() {
     node.saveGood()
+    info("Saved")
   }
 
   /**
@@ -87,6 +88,7 @@ class LinesExplorer : AInteractionsManager(Game()) {
    */
   suspend fun delete(reloader: IReloader) {
     node.delete()
+    info("Deleted")
     reloader.reload()
   }
 }

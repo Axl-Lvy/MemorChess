@@ -1,6 +1,7 @@
 package proj.memorchess.axl.explore
 
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import proj.memorchess.axl.core.engine.pieces.Pawn
@@ -42,6 +43,20 @@ class TestNextMoveBar : AUiTestFromMainActivity() {
     assertNextMoveExist("e3")
     assertNextMoveExist("e4").performClick()
     assertPieceMoved("e2", "e4", Pawn.white())
+  }
+
+  @Test
+  fun testScrollToLastNextMove() {
+    clickOnBack()
+    for (col in listOf("a", "b", "c", "d", "e", "f", "g", "h")) {
+      playMove("${col}2", "${col}3")
+      clickOnBack()
+      playMove("${col}2", "${col}4")
+      clickOnBack()
+    }
+    assertNextMoveExist("a3")
+    assertNextMoveExist("h4").performScrollTo().performClick()
+    assertPieceMoved("h2", "h4", Pawn.white())
   }
 
   @Test

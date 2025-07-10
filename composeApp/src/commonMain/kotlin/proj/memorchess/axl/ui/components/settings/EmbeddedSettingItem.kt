@@ -1,21 +1,14 @@
 package proj.memorchess.axl.ui.components.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -26,6 +19,8 @@ import proj.memorchess.axl.core.config.EnumBasedAppConfigItem
 import proj.memorchess.axl.core.config.IConfigItem
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
+import proj.memorchess.axl.ui.components.buttons.WideScrollBarChild
+import proj.memorchess.axl.ui.components.buttons.WideScrollableRow
 
 /**
  * Embedded setting item ready to be drawn.
@@ -73,7 +68,7 @@ enum class EmbeddedSettingItem(val configItem: IConfigItem<*>, val buttonParams:
   fun Draw(reloadKey: Any) {
     when (this.buttonParams) {
       is SliderParams -> DrawSlider(reloadKey)
-      is EnumBasedSelectorParameters<*> -> DrawItemSelector(reloadKey, this.buttonParams)
+      is EnumBasedSelectorParameters<*> -> DrawItemSelector(this.buttonParams)
       else -> throw UnsupportedOperationException("Unsupported button type")
     }
   }
@@ -100,44 +95,28 @@ enum class EmbeddedSettingItem(val configItem: IConfigItem<*>, val buttonParams:
   }
 
   @Composable
-  private fun <T : Enum<T>> DrawItemSelector(
-    reloadKey: Any,
-    buttonParams: EnumBasedSelectorParameters<T>,
-  ) {
-    val options = buttonParams.config.getEntries()
-    val selected = remember(reloadKey) { mutableStateOf(buttonParams.config.getValue()) }
-
-    Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))) {
-      options.forEach { option ->
-        val isSelected = option == selected.value
-        Box(
-          modifier =
-            Modifier.weight(1f)
-              .fillMaxWidth()
-              .then(
-                if (isSelected)
-                  Modifier.background(androidx.compose.material3.MaterialTheme.colorScheme.primary)
-                else
-                  Modifier.background(
-                    androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
-                  )
-              )
-              .testTag("${buttonParams.config.name}_$option")
-              .clickable(enabled = !isSelected) {
-                selected.value = option
-                buttonParams.config.setValue(option)
-              },
-          contentAlignment = Alignment.Center,
-        ) {
-          Text(
-            text = option.name,
-            color =
-              if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
-              else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 12.dp),
-          )
-        }
+  private fun <T : Enum<T>> DrawItemSelector(buttonParams: EnumBasedSelectorParameters<T>) {
+    val children =
+      buttonParams.config.getEntries().map {
+        WideScrollBarChild(
+          "${buttonParams.config.name}_$it",
+          { buttonParams.config.setValue(it) },
+          { isSelected ->
+            Text(
+              text = it.name,
+              color =
+                if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
+                else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.padding(vertical = 12.dp),
+            )
+          },
+        )
       }
-    }
+
+    WideScrollableRow(
+      modifier = Modifier.fillMaxWidth(),
+      children = children,
+      selectedInitial = buttonParams.config.getValue().ordinal,
+    )
   }
 }
