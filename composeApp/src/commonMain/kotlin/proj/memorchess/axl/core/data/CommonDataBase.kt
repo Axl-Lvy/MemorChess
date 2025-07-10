@@ -5,11 +5,11 @@ interface ICommonDatabase {
   /**
    * Retrieves all stored positions.
    *
-   * @return A list of all stored positions as [IStoredNode] objects.
+   * @return A list of all stored positions as [StoredNode] objects.
    */
   suspend fun getAllPositions(): List<StoredNode>
 
-  suspend fun getPosition(positionKey: PositionKey): StoredNode?
+  suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode?
 
   /**
    * Deletes a specific position by its FEN.
@@ -37,9 +37,9 @@ interface ICommonDatabase {
   /**
    * Inserts a new position.
    *
-   * @param position The [IStoredNode] to insert.
+   * @param position The [StoredNode] to insert.
    */
-  suspend fun insertPosition(position: IStoredNode)
+  suspend fun insertPosition(position: StoredNode)
 }
 
 /**

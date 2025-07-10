@@ -33,7 +33,10 @@ import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
  * @property configItem The corresponding config item
  * @property buttonParams The button parameters
  */
-enum class EmbeddedSettingItem(val configItem: IConfigItem<*>, val buttonParams: IButtonParams) {
+enum class EmbeddedSettingItem(
+  private val configItem: IConfigItem<*>,
+  private val buttonParams: IButtonParams,
+) {
   ON_SUCCESS_DATE_FACTOR(
     ON_SUCCESS_DATE_FACTOR_SETTING,
     SliderParams(

@@ -6,7 +6,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.test_util.TestDatabase
 
@@ -21,7 +21,7 @@ class TestTrainingNodeOrder {
   fun testMinimumDepth() {
     val node = NodeManager.getNextNodeToLearn(0, null)
     assertNotNull(node)
-    assertTrue { node.positionKey == PositionKey.START_POSITION }
+    assertTrue { node.positionIdentifier == PositionIdentifier.START_POSITION }
   }
 
   @Test

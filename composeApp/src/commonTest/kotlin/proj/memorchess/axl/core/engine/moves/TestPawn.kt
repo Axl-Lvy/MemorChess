@@ -86,7 +86,7 @@ class TestPawn {
     board.placePiece("a2", "P") // White pawn
     val game = Game(Position(board), NoCheckChecker())
 
-    assertFailsWith<IllegalMoveException>() {
+    assertFailsWith<IllegalMoveException> {
       game.playMove("a5") // Cannot jump two squares from a2 directly to a5
     }
   }

@@ -3,7 +3,7 @@ package proj.memorchess.axl.explore
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertNull
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.AUiTestFromMainActivity
@@ -11,8 +11,10 @@ import proj.memorchess.axl.utils.Awaitility
 
 class TestSaveButton : AUiTestFromMainActivity() {
 
-  private val afterH3Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq")
-  private val afterH6Position = PositionKey("rnbqkbnr/ppppppp1/7p/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq")
+  private val afterH3Position =
+    PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq")
+  private val afterH6Position =
+    PositionIdentifier("rnbqkbnr/ppppppp1/7p/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq")
 
   @BeforeTest
   override fun setUp() {

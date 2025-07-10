@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import proj.memorchess.axl.core.data.DatabaseHolder
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -18,7 +18,7 @@ import proj.memorchess.axl.core.engine.Game
  * @property next Reference to the next node in the graph.
  */
 class Node(
-  val position: PositionKey,
+  val position: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
   var previous: Node? = null,
   var next: Node? = null,

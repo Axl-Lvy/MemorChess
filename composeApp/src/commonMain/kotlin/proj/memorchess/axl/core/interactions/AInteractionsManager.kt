@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.interactions
 
 import androidx.compose.runtime.mutableStateOf
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
@@ -99,7 +99,7 @@ abstract class AInteractionsManager(var game: Game) {
    * @param reloader The reloader.
    * @param position The new position key to reset the game to.
    */
-  fun reset(reloader: IReloader, position: PositionKey) {
+  fun reset(reloader: IReloader, position: PositionIdentifier) {
     game = Game(position)
     needPromotion.value = game.needPromotion()
     firstTile = null

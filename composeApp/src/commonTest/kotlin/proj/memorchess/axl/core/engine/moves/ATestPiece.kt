@@ -67,6 +67,6 @@ abstract class ATestPiece(private val pieceName: String) {
 
   @Test
   fun testImpossibleMove() {
-    assertFailsWith<IllegalMoveException>() { game.playMove(pieceName.uppercase() + "b8") }
+    assertFailsWith<IllegalMoveException> { game.playMove(pieceName.uppercase() + "b8") }
   }
 }

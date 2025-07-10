@@ -10,7 +10,7 @@ import proj.memorchess.axl.core.engine.parser.FenParser
  * @property fenRepresentation The pseudo FEN string representing the chess position. It is not a
  *   full FEN as it does not include the move counts and not always the en passant column.
  */
-data class PositionKey(val fenRepresentation: String) {
+data class PositionIdentifier(val fenRepresentation: String) {
 
   /**
    * Creates an [IPosition] from this key.
@@ -22,6 +22,6 @@ data class PositionKey(val fenRepresentation: String) {
   }
 
   companion object {
-    val START_POSITION = PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq")
+    val START_POSITION = PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq")
   }
 }

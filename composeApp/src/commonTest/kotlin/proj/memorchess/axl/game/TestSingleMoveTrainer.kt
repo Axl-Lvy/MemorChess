@@ -32,23 +32,23 @@ class TestSingleMoveTrainer {
 
     // Create a test node with some moves
     val game = Game()
-    val startPosition = game.position.toImmutablePosition()
+    val startPosition = game.position.createIdentifier()
 
     // Create e4 as a good move
     game.playMove("e4")
-    val e4Position = game.position.toImmutablePosition()
+    val e4Position = game.position.createIdentifier()
     val e4Move = StoredMove(startPosition, e4Position, "e4", isGood = true)
 
     // Create d4 as a bad move
     val game2 = Game()
     game2.playMove("d4")
-    val d4Position = game2.position.toImmutablePosition()
+    val d4Position = game2.position.createIdentifier()
     val d4Move = StoredMove(startPosition, d4Position, "d4", isGood = false)
 
     // Create the node with both moves
     testNode =
       StoredNode(
-        positionKey = startPosition,
+        positionIdentifier = startPosition,
         PreviousAndNextMoves(listOf(), listOf(e4Move, d4Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
@@ -71,7 +71,7 @@ class TestSingleMoveTrainer {
 
     // Verify the move was recognized as correct
     runTest {
-      val updatedNode = database.storedNodes[testNode.positionKey.fenRepresentation]
+      val updatedNode = database.storedNodes[testNode.positionIdentifier.fenRepresentation]
       // The next training date should be further in the future (success case)
       assertTrue(
         updatedNode!!.previousAndNextTrainingDate.nextDate > DateUtil.tomorrow(),
@@ -95,7 +95,7 @@ class TestSingleMoveTrainer {
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.storedNodes[testNode.positionKey.fenRepresentation]
+      val updatedNode = database.storedNodes[testNode.positionIdentifier.fenRepresentation]
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
@@ -120,7 +120,7 @@ class TestSingleMoveTrainer {
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.storedNodes[testNode.positionKey.fenRepresentation]
+      val updatedNode = database.storedNodes[testNode.positionIdentifier.fenRepresentation]
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),

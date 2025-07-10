@@ -19,7 +19,7 @@ class EnumBasedAppConfigItem<T : Enum<T>>(
   val getEntries: () -> Array<T>,
 ) : IConfigItem<T> {
 
-  var localValue by mutableStateOf(valueOf(SETTINGS[name, defaultValue.name]))
+  private var localValue by mutableStateOf(valueOf(SETTINGS[name, defaultValue.name]))
 
   companion object {
     inline fun <reified T : Enum<T>> from(name: String, default: T): EnumBasedAppConfigItem<T> {

@@ -11,7 +11,6 @@ import androidx.room.Entity
  * @property isGood Indicates whether the move has to be learned.
  */
 @Entity(tableName = "MoveEntity", primaryKeys = ["origin", "destination"])
-// TODO: add foreign keys to NodeEntity
 data class MoveEntity(
   val origin: String,
   val destination: String,
@@ -21,7 +20,7 @@ data class MoveEntity(
 
   /** Converts to an [StoredMove]. */
   fun toStoredMove(): StoredMove {
-    return StoredMove(PositionKey(origin), PositionKey(destination), move, isGood)
+    return StoredMove(PositionIdentifier(origin), PositionIdentifier(destination), move, isGood)
   }
 
   companion object {

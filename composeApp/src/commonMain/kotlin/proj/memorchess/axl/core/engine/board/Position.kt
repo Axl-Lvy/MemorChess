@@ -1,10 +1,11 @@
 package proj.memorchess.axl.core.engine.board
 
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.parser.FenParser
 import proj.memorchess.axl.core.engine.pieces.Pawn
 
+/** Main implementation of [IPosition] */
 class Position(
   override val board: IBoard,
   override var playerTurn: Game.Player,
@@ -68,7 +69,7 @@ class Position(
     return result
   }
 
-  override fun toImmutablePosition(): PositionKey {
-    return PositionKey(FenParser.parsePosition(this, isEnpassantNecessary()))
+  override fun createIdentifier(): PositionIdentifier {
+    return PositionIdentifier(FenParser.parsePosition(this, isEnpassantNecessary()))
   }
 }

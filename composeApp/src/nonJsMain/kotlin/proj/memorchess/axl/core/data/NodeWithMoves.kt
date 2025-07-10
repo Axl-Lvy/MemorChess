@@ -15,7 +15,7 @@ data class NodeWithMoves(
 ) {
   fun toStoredNode(): StoredNode {
     return StoredNode(
-      PositionKey(node.fenRepresentation),
+      PositionIdentifier(node.fenRepresentation),
       PreviousAndNextMoves(
         previousMoves.map { it.toStoredMove() },
         nextMoves.map { it.toStoredMove() },
@@ -26,10 +26,10 @@ data class NodeWithMoves(
   }
 
   companion object {
-    fun convertToEntity(storedNode: IStoredNode): NodeWithMoves {
+    fun convertToEntity(storedNode: StoredNode): NodeWithMoves {
       return NodeWithMoves(
         NodeEntity(
-          storedNode.positionKey.fenRepresentation,
+          storedNode.positionIdentifier.fenRepresentation,
           storedNode.previousAndNextTrainingDate.previousDate,
           storedNode.previousAndNextTrainingDate.nextDate,
           storedNode.previousAndNextMoves.depth,

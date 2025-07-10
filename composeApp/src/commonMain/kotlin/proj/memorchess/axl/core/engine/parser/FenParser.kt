@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.engine.parser
 
-import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.Board
 import proj.memorchess.axl.core.engine.board.IBoard
@@ -68,10 +68,10 @@ object FenParser {
   /**
    * Creates an [IPosition] from a string.
    *
-   * @param fen Fen representation of the position.
+   * @param key Fen representation of the position.
    * @return The created position.
    */
-  fun readPosition(key: PositionKey): IPosition {
+  fun readPosition(key: PositionIdentifier): IPosition {
     return readPosition(key.fenRepresentation)
   }
 
