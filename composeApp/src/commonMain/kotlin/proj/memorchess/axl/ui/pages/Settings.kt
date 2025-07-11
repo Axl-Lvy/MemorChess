@@ -113,7 +113,7 @@ fun Settings() {
       // --- Sign In Button ---
       SignInButton(
         isSignedIn = isSignedIn != null,
-        onSignedIn = { isSignedIn = supabase.auth.currentUserOrNull() }
+        onSignedIn = { isSignedIn = supabase.auth.currentUserOrNull() },
       )
     }
   }

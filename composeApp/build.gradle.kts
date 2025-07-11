@@ -89,9 +89,7 @@ kotlin {
       implementation(libs.supabase.auth)
       implementation(libs.ktor.client.core)
     }
-    jvmMain.dependencies {
-      implementation(libs.ktor.client.okhttp)
-    }
+    jvmMain.dependencies { implementation(libs.ktor.client.okhttp) }
     androidMain.dependencies {
       implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
@@ -113,12 +111,8 @@ kotlin {
       }
       configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
     }
-    iosMain.dependencies {
-      implementation(libs.ktor.client.darwin)
-    }
-    wasmJsMain.dependencies {
-      implementation(libs.ktor.client.js)
-    }
+    iosMain.dependencies { implementation(libs.ktor.client.darwin) }
+    wasmJsMain.dependencies { implementation(libs.ktor.client.js) }
   }
 }
 
