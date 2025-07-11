@@ -1,5 +1,8 @@
 package proj.memorchess.axl.core.interactions
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -16,6 +19,8 @@ class LinesExplorer : AInteractionsManager(Game()) {
     node = NodeManager.createRootNode()
   }
 
+  var state by mutableStateOf(node.getState())
+
   /**
    * Moves back in the exploration tree to the previous node.
    *
@@ -26,6 +31,7 @@ class LinesExplorer : AInteractionsManager(Game()) {
     if (parent != null) {
       node = parent
       game = node.createGame()
+      state = node.getState()
       reloader.reload()
     } else {
       info("No previous move.")
@@ -45,6 +51,7 @@ class LinesExplorer : AInteractionsManager(Game()) {
       checkNotNull(move) { "No move found to go to ${firstChild.position}" }
       node = firstChild
       game.playMove(move.move)
+      state = node.getState()
       reloader.reload()
     } else {
       info("No next move.")
@@ -67,17 +74,20 @@ class LinesExplorer : AInteractionsManager(Game()) {
    */
   fun reset(reloader: IReloader) {
     node = NodeManager.createRootNode()
+    state = node.getState()
     super.reset(reloader, node.position)
   }
 
   override suspend fun afterPlayMove(move: String, reloader: IReloader) {
     node = NodeManager.createNode(game, node, move)
+    state = node.getState()
     reloader.reload()
   }
 
   /** Saves the current node as coming from a good move. */
   suspend fun save() {
     node.saveGood()
+    state = node.getState()
     info("Saved")
   }
 
@@ -88,6 +98,7 @@ class LinesExplorer : AInteractionsManager(Game()) {
    */
   suspend fun delete(reloader: IReloader) {
     node.delete()
+    state = node.getState()
     info("Deleted")
     reloader.reload()
   }

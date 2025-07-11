@@ -99,4 +99,98 @@ class Node(
       delete()
     }
   }
+
+  /**
+   * Calculate the [state][NodeState] of this node.
+   *
+   * @return The node state.
+   */
+  fun getState(): NodeState {
+    val previousMoves = previousAndNextMoves.previousMoves
+    if (previousMoves.isEmpty()) {
+      return NodeState.FIRST
+    }
+    var isGood: Boolean? = null
+    var isPreviousMoveGood: Boolean? = null
+    val previousNode = previous
+    previousMoves.forEach {
+      if (it.value.isGood == true) {
+        if (isGood == false) {
+          return NodeState.BAD_STATE
+        }
+        isGood = true
+      } else if (it.value.isGood == false) {
+        if (isGood == true) {
+          return NodeState.BAD_STATE
+        }
+        isGood = false
+      }
+      if (previousNode != null && previousNode.position == it.value.origin) {
+        isPreviousMoveGood = it.value.isGood
+      }
+    }
+    return determineState(isGood, isPreviousMoveGood)
+  }
+
+  private fun determineState(isGood: Boolean?, isPreviousMoveGood: Boolean?): NodeState {
+    return when (isGood) {
+      null ->
+        when (isPreviousMoveGood) {
+          null -> NodeState.UNKNOWN
+          else -> NodeState.BAD_STATE
+        }
+
+      true ->
+        when (isPreviousMoveGood) {
+          null -> NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE
+          true -> NodeState.SAVED_GOOD
+          false -> NodeState.BAD_STATE
+        }
+
+      false ->
+        when (isPreviousMoveGood) {
+          null -> NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE
+          true -> NodeState.BAD_STATE
+          false -> NodeState.SAVED_BAD
+        }
+    }
+  }
+
+  /**
+   * A class that represent the state of a node according to the database.
+   *
+   * @property saved Whether the node has been saved to the database.
+   * @property good Whether the node is good.
+   * @property previousMoveKnown Whether the previous move is known.
+   */
+  enum class NodeState(
+    private val saved: Boolean,
+    private val good: Boolean,
+    private val previousMoveKnown: Boolean,
+  ) {
+    /** This node the first one. */
+    FIRST(true, true, true),
+
+    /** Node not stored */
+    UNKNOWN(false, false, false),
+
+    /** Node stored as good. Its previous move is also stored */
+    SAVED_GOOD(true, true, true),
+
+    /** Node stored as bad. Its previous move is also stored */
+    SAVED_BAD(true, false, true),
+
+    /** Node stored as good but from another move */
+    SAVED_GOOD_BUT_UNKNOWN_MOVE(true, true, false),
+
+    /** Node stored as bad but from another move */
+    SAVED_BAD_BUT_UNKNOWN_MOVE(true, false, false),
+
+    /**
+     * Node in a bad state. For example if a bad move and a good move lead to it.
+     *
+     * It should be removed.
+     */
+    BAD_STATE(true, false, true),
+  }
 }

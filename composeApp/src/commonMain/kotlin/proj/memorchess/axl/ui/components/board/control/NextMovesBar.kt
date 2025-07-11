@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.components.control.board_control
+package proj.memorchess.axl.ui.components.board.control
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
