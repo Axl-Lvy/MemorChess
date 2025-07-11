@@ -18,7 +18,7 @@ import proj.memorchess.axl.ui.theme.goodTint
 /**
  * State indicator
  *
- * This show an indication on the state of the node..
+ * This shows an indication of the node state.
  *
  * @param state The state of the node.
  */
