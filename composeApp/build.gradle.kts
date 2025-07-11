@@ -69,11 +69,6 @@ kotlin {
   }
 
   sourceSets {
-    androidMain.dependencies {
-      implementation(compose.preview)
-      implementation(libs.androidx.activity.compose)
-      implementation(libs.androidx.material3.android)
-    }
     commonMain.dependencies {
       implementation(compose.runtime)
       implementation(compose.foundation)
@@ -90,6 +85,18 @@ kotlin {
       api(libs.logging)
       implementation(libs.xfeather.z)
       implementation(libs.multiplatform.settings)
+      implementation(libs.supabase.database)
+      implementation(libs.supabase.auth)
+      implementation(libs.ktor.client.core)
+    }
+    jvmMain.dependencies {
+      implementation(libs.ktor.client.okhttp)
+    }
+    androidMain.dependencies {
+      implementation(compose.preview)
+      implementation(libs.androidx.activity.compose)
+      implementation(libs.androidx.material3.android)
+      implementation(libs.ktor.client.okhttp)
     }
     val desktopTest by getting
     commonTest.dependencies {
@@ -105,6 +112,12 @@ kotlin {
         implementation(libs.sqlite.bundled)
       }
       configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
+    }
+    iosMain.dependencies {
+      implementation(libs.ktor.client.darwin)
+    }
+    wasmJsMain.dependencies {
+      implementation(libs.ktor.client.js)
     }
   }
 }
