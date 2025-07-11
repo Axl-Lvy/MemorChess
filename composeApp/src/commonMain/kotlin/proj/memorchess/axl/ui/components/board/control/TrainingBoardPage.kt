@@ -198,7 +198,7 @@ private fun NumberOfNodeToTrainIndicator(numberOfNodesToTrain: Int, modifier: Mo
   val minNodes = 1 // never 0
   val maxNodes = 20 // arbitrary upper bound for scaling
   val clampedNodes = numberOfNodesToTrain.coerceIn(minNodes, maxNodes)
-  val fraction = (clampedNodes - minNodes).toFloat() / (maxNodes - minNodes)
+  val fraction = 1 - (clampedNodes - minNodes).toFloat() / (maxNodes - minNodes)
   val startColor = MaterialTheme.colorScheme.errorContainer
   val endColor = goodTint
   fun lerpColor(a: Color, b: Color, t: Float): Color {
