@@ -187,4 +187,9 @@ class TestTraining : AUiTestFromMainActivity() {
     promoteTo(IPiece.QUEEN)
     assertNodeWithTextExists(BRAVO_TEXT)
   }
+
+  @Test
+  fun testShowNumberOfMovesToTrain() {
+    assertNodeWithTextExists("Moves to train: 1")
+  }
 }

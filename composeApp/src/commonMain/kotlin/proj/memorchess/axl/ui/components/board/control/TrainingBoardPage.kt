@@ -51,12 +51,14 @@ private class TrainingBoard {
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
     val localReloader = remember { BasicReloader() }
+    val numberOfNodesToTrain =
+      remember(localReloader.getKey(), daysInAdvance) {
+        NodeManager.getNumberOfNodesToTrain(daysInAdvance)
+      }
     val moveToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
         NodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
       }
-    val numberOfNodesToTrain =
-      remember(moveToTrain) { NodeManager.getNumberOfNodesToTrain(daysInAdvance) }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing) {
         delay(moveDelay)
