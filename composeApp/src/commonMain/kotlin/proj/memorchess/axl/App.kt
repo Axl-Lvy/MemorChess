@@ -6,6 +6,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import org.koin.compose.KoinApplication
+import org.koin.core.KoinApplication
+import org.koin.core.context.startKoin
 import kotlin.time.Duration
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.ui.pages.navigation.Destination
@@ -15,6 +18,9 @@ import proj.memorchess.axl.ui.theme.AppTheme
 
 @Composable
 fun App() {
+  startKoin {
+    modules(*initKoinModules())
+  }
   MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
   AppTheme {
     val navController = rememberNavController()

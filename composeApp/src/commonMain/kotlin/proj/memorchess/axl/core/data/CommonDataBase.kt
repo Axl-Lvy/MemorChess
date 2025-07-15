@@ -1,7 +1,9 @@
 package proj.memorchess.axl.core.data
 
+import kotlinx.datetime.LocalDateTime
+
 /** Interface for the application's database operations on positions. */
-interface ICommonDatabase {
+interface ILocalDatabase {
   /**
    * Retrieves all stored positions.
    *
@@ -40,6 +42,14 @@ interface ICommonDatabase {
    * @param position The [StoredNode] to insert.
    */
   suspend fun insertPosition(position: StoredNode)
+
+  suspend fun getLastMoveUpdate(): LocalDateTime?
+
+  suspend fun getMovesUpdatedAfter(date: LocalDateTime): List<StoredMove>
+
+  suspend fun getLastNodeUpdate(): LocalDateTime?
+
+  suspend fun getNodesUpdatedAfter(date: LocalDateTime): List<UnlinkedStoredNode>
 }
 
 /**
@@ -49,4 +59,4 @@ interface ICommonDatabase {
  *
  * @return The default database.
  */
-expect fun getCommonDatabase(): ICommonDatabase
+expect fun getCommonDatabase(): ILocalDatabase

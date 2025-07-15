@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.data
 
 import com.diamondedge.logging.logging
+import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -16,12 +17,13 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 data class StoredNode(
   val positionIdentifier: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves,
-  val previousAndNextTrainingDate: PreviousAndNextDate,
+  val previousAndNextTrainingDate: PreviousAndNextDate
 ) {
 
   /** Saves this node. */
-  suspend fun save() {
+  suspend fun save(remoteDatabaseManager: RemoteDatabaseManager?) {
     LOGGER.info { "saving $this" }
+    remoteDatabaseManager?.saveStoredNode(this)
     DatabaseHolder.getDatabase().insertPosition(this)
   }
 }

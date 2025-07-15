@@ -4,6 +4,7 @@ import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 
@@ -47,29 +48,26 @@ class Node(
    * Saves this node and its ancestors to the database. Persists the position and moves, then
    * recursively saves the previous node.
    */
-  private suspend fun save() {
-    DatabaseHolder.getDatabase()
-      .insertPosition(
-        StoredNode(
-          position,
-          previousAndNextMoves.filterValidMoves(),
-          PreviousAndNextDate.dummyToday(),
-        )
-      )
+  private suspend fun save(remoteDatabaseManager: RemoteDatabaseManager?) {
+    StoredNode(
+      position,
+      previousAndNextMoves.filterValidMoves(),
+      PreviousAndNextDate.dummyToday(),
+    ).save(remoteDatabaseManager)
   }
 
   /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
-  suspend fun saveGood() {
+  suspend fun saveGood(remoteDatabaseManager: RemoteDatabaseManager?) {
     previousAndNextMoves.setPreviousMovesAsGood()
-    save()
-    previous?.saveBad()
+    save(remoteDatabaseManager)
+    previous?.saveBad(remoteDatabaseManager)
   }
 
   /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
-  private suspend fun saveBad() {
+  private suspend fun saveBad(remoteDatabaseManager: RemoteDatabaseManager?) {
     previousAndNextMoves.setPreviousMovesAsBadIsNotMarked()
-    save()
-    previous?.saveGood()
+    save(remoteDatabaseManager)
+    previous?.saveGood(remoteDatabaseManager)
   }
 
   /**
@@ -85,6 +83,7 @@ class Node(
     }
     NodeManager.clearNextMoves(position)
     DatabaseHolder.getDatabase().deletePosition(position.fenRepresentation)
+    DatabaseHolder.getDatabase().deleteMoveFrom(position.fenRepresentation)
     previousAndNextMoves.nextMoves.clear()
     next = null
   }

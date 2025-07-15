@@ -17,8 +17,8 @@ data class NodeWithMoves(
     return StoredNode(
       PositionIdentifier(node.fenRepresentation),
       PreviousAndNextMoves(
-        previousMoves.map { it.toStoredMove() },
-        nextMoves.map { it.toStoredMove() },
+        previousMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
+        nextMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
         node.depth,
       ),
       PreviousAndNextDate(node.lastTrainedDate, node.nextTrainedDate),

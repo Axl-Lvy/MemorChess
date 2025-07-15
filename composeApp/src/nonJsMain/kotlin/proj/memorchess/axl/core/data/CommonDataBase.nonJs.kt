@@ -1,7 +1,9 @@
 package proj.memorchess.axl.core.data
 
+import kotlinx.datetime.LocalDateTime
+
 /** Database for non-JS platforms */
-object NonJsCommonDatabase : ICommonDatabase {
+object NonJsLocalDatabase : ILocalDatabase {
 
   private val database = getRoomDatabase(databaseBuilder())
 
@@ -42,14 +44,30 @@ object NonJsCommonDatabase : ICommonDatabase {
   }
 
   override suspend fun deleteAllNodes() {
-    database.getNodeEntityDao().deleteAll()
+    database.getNodeEntityDao().deleteAllNodes()
   }
 
   override suspend fun insertPosition(position: StoredNode) {
     database.getNodeEntityDao().insertNodeAndMoves(NodeWithMoves.convertToEntity(position))
   }
+
+  override suspend fun getLastMoveUpdate(): LocalDateTime? {
+    return database.getNodeEntityDao().getLastMoveUpdate()
+  }
+
+  override suspend fun getMovesUpdatedAfter(date: LocalDateTime): List<StoredMove> {
+    return database.getNodeEntityDao().getMovesUpdatedAfter(date).map { it.toStoredMove() }
+  }
+
+  override suspend fun getLastNodeUpdate(): LocalDateTime? {
+    return database.getNodeEntityDao().getLastNodeUpdate()
+  }
+
+  override suspend fun getNodesUpdatedAfter(date: LocalDateTime): List<UnlinkedStoredNode> {
+    return database.getNodeEntityDao().getNodesUpdatedAfter(date).map { it.toUnlinkedStoredNode() }
+  }
 }
 
-actual fun getCommonDatabase(): ICommonDatabase {
-  return NonJsCommonDatabase
+actual fun getCommonDatabase(): ILocalDatabase {
+  return NonJsLocalDatabase
 }

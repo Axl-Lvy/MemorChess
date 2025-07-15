@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.components
+package proj.memorchess.axl.ui.components.buttons
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -7,21 +7,30 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.CheckCircle
 import kotlinx.coroutines.launch
-import proj.memorchess.axl.core.data.online.signIn
+import org.koin.compose.koinInject
+import proj.memorchess.axl.core.data.online.auth.SupabaseAuthManager
+import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 import proj.memorchess.axl.ui.theme.goodTint
 
 @Composable
-fun SignInButton(modifier: Modifier = Modifier, isSignedIn: Boolean, onSignedIn: () -> Unit) {
-  var showDialog by remember { mutableStateOf(false) }
-  var email by remember { mutableStateOf("") }
-  var password by remember { mutableStateOf("") }
-  var signInError by remember { mutableStateOf<String?>(null) }
+fun SignInButton(
+  modifier: Modifier = Modifier,
+  supabaseAuthManager: SupabaseAuthManager = koinInject(),
+  remoteDatabaseManager: RemoteDatabaseManager = koinInject()
+) {
+  var showDialog by rememberSaveable { mutableStateOf(false) }
+  var email by rememberSaveable { mutableStateOf("") }
+  var password by rememberSaveable { mutableStateOf("") }
+  var signInError by rememberSaveable { mutableStateOf<String?>(null) }
   val coroutineScope = rememberCoroutineScope()
+  val isSignedIn = supabaseAuthManager.user != null
 
   val buttonColor =
     if (isSignedIn) goodTint.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary
@@ -74,9 +83,13 @@ fun SignInButton(modifier: Modifier = Modifier, isSignedIn: Boolean, onSignedIn:
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
           )
           if (signInError != null) {
+            if (signInError!!.contains("Invalid login credentials")) {
+              Text("Invalid email or password", color = MaterialTheme.colorScheme.error)
+            }
             Text(signInError!!, color = MaterialTheme.colorScheme.error)
           }
         }
@@ -86,12 +99,14 @@ fun SignInButton(modifier: Modifier = Modifier, isSignedIn: Boolean, onSignedIn:
           onClick = {
             coroutineScope.launch {
               try {
-                signIn(email, password)
-                onSignedIn()
-                showDialog = false
+                supabaseAuthManager.signInFromEmail(email, password)
                 signInError = null
               } catch (e: Exception) {
                 signInError = e.message ?: "Sign in failed"
+              }
+              if (signInError == null) {
+                showDialog = false
+                signInError = null
               }
             }
           }

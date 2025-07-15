@@ -15,9 +15,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
@@ -127,11 +129,12 @@ private class TrainingBoard {
     nodeToLearn: StoredNode,
     numberOfNodesToTrain: Int,
     modifier: Modifier = Modifier,
+    remoteDatabaseManager: RemoteDatabaseManager = koinInject()
   ) {
     val trainer by
       remember(nodeToLearn) {
         mutableStateOf(
-          SingleMoveTrainer(nodeToLearn) {
+          SingleMoveTrainer(nodeToLearn, remoteDatabaseManager) {
             state =
               if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
               else TrainingBoardState.SHOW_WRONG_MOVE

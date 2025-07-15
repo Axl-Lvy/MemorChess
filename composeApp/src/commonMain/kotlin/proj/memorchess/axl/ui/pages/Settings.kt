@@ -18,23 +18,23 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.data.DatabaseHolder.getDatabase
-import proj.memorchess.axl.core.data.online.supabase
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.ui.components.SignInButton
+import proj.memorchess.axl.ui.components.buttons.SignInButton
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
+import proj.memorchess.axl.ui.components.settings.SyncStatusSection
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.util.BasicReloader
 
@@ -44,9 +44,6 @@ fun Settings() {
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
   val reloader = remember { BasicReloader() }
-
-  // --- Sign In State ---
-  var isSignedIn by remember { mutableStateOf(supabase.auth.currentUserOrNull()) }
 
   Box(
     modifier =
@@ -111,10 +108,8 @@ fun Settings() {
       }
 
       // --- Sign In Button ---
-      SignInButton(
-        isSignedIn = isSignedIn != null,
-        onSignedIn = { isSignedIn = supabase.auth.currentUserOrNull() },
-      )
+      SignInButton()
+      SyncStatusSection()
     }
   }
 }

@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "bbaab1eccfe883d2240cc30e0ca992c2",
+    "identityHash": "7779a3b3e186cc4ffaafc08fac52eee8",
     "entities": [
       {
         "tableName": "NodeEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fenRepresentation` TEXT NOT NULL, `lastTrainedDate` TEXT NOT NULL, `nextTrainedDate` TEXT NOT NULL, `depth` INTEGER NOT NULL, PRIMARY KEY(`fenRepresentation`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fenRepresentation` TEXT NOT NULL, `lastTrainedDate` INTEGER NOT NULL, `nextTrainedDate` INTEGER NOT NULL, `depth` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`fenRepresentation`))",
         "fields": [
           {
             "fieldPath": "fenRepresentation",
@@ -17,18 +17,30 @@
           {
             "fieldPath": "lastTrainedDate",
             "columnName": "lastTrainedDate",
-            "affinity": "TEXT",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
             "fieldPath": "nextTrainedDate",
             "columnName": "nextTrainedDate",
-            "affinity": "TEXT",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
             "fieldPath": "depth",
             "columnName": "depth",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -38,11 +50,58 @@
           "columnNames": [
             "fenRepresentation"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_NodeEntity_nextTrainedDate",
+            "unique": false,
+            "columnNames": [
+              "nextTrainedDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_NodeEntity_nextTrainedDate` ON `${TABLE_NAME}` (`nextTrainedDate`)"
+          },
+          {
+            "name": "index_NodeEntity_lastTrainedDate",
+            "unique": false,
+            "columnNames": [
+              "lastTrainedDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_NodeEntity_lastTrainedDate` ON `${TABLE_NAME}` (`lastTrainedDate`)"
+          },
+          {
+            "name": "index_NodeEntity_depth",
+            "unique": false,
+            "columnNames": [
+              "depth"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_NodeEntity_depth` ON `${TABLE_NAME}` (`depth`)"
+          },
+          {
+            "name": "index_NodeEntity_isDeleted",
+            "unique": false,
+            "columnNames": [
+              "isDeleted"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_NodeEntity_isDeleted` ON `${TABLE_NAME}` (`isDeleted`)"
+          },
+          {
+            "name": "index_NodeEntity_updatedAt",
+            "unique": false,
+            "columnNames": [
+              "updatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_NodeEntity_updatedAt` ON `${TABLE_NAME}` (`updatedAt`)"
+          }
+        ]
       },
       {
         "tableName": "MoveEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`origin` TEXT NOT NULL, `destination` TEXT NOT NULL, `move` TEXT NOT NULL, `isGood` INTEGER NOT NULL, PRIMARY KEY(`origin`, `destination`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`origin` TEXT NOT NULL, `destination` TEXT NOT NULL, `move` TEXT NOT NULL, `isGood` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`origin`, `destination`))",
         "fields": [
           {
             "fieldPath": "origin",
@@ -67,6 +126,18 @@
             "columnName": "isGood",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -75,12 +146,59 @@
             "origin",
             "destination"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_MoveEntity_isGood",
+            "unique": false,
+            "columnNames": [
+              "isGood"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MoveEntity_isGood` ON `${TABLE_NAME}` (`isGood`)"
+          },
+          {
+            "name": "index_MoveEntity_origin",
+            "unique": false,
+            "columnNames": [
+              "origin"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MoveEntity_origin` ON `${TABLE_NAME}` (`origin`)"
+          },
+          {
+            "name": "index_MoveEntity_destination",
+            "unique": false,
+            "columnNames": [
+              "destination"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MoveEntity_destination` ON `${TABLE_NAME}` (`destination`)"
+          },
+          {
+            "name": "index_MoveEntity_isDeleted",
+            "unique": false,
+            "columnNames": [
+              "isDeleted"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MoveEntity_isDeleted` ON `${TABLE_NAME}` (`isDeleted`)"
+          },
+          {
+            "name": "index_MoveEntity_updatedAt",
+            "unique": false,
+            "columnNames": [
+              "updatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MoveEntity_updatedAt` ON `${TABLE_NAME}` (`updatedAt`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'bbaab1eccfe883d2240cc30e0ca992c2')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7779a3b3e186cc4ffaafc08fac52eee8')"
     ]
   }
 }

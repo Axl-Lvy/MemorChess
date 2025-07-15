@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.datetime.LocalDateTime
 
 /** DAO for managing [NodeEntity] and [MoveEntity] (linked by [NodeWithMoves]). */
 @Dao
@@ -51,7 +52,9 @@ interface NodeEntityDao {
    * @param origin The move's origin.
    * @param move The move's notation.
    */
-  @Query("DELETE FROM MoveEntity WHERE origin = :origin AND move = :move")
+  @Query(
+    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
+  )
   suspend fun removeMove(origin: String, move: String)
 
   /**
@@ -61,7 +64,10 @@ interface NodeEntityDao {
    *
    * @param origin The FEN string of the origin position.
    */
-  @Query("DELETE FROM MoveEntity WHERE origin = :origin") suspend fun removeMoveFrom(origin: String)
+  @Query(
+    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin"
+  )
+  suspend fun removeMoveFrom(origin: String)
 
   /**
    * Remove all moves to a specific destination in the database.
@@ -70,18 +76,12 @@ interface NodeEntityDao {
    *
    * @param destination The FEN string of the destination position.
    */
-  @Query("DELETE FROM MoveEntity WHERE destination = :destination")
+  @Query(
+    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND destination = :destination"
+  )
   suspend fun removeMoveTo(destination: String)
 
-  /**
-   * Retrieves all nodes with their moves from the database.
-   *
-   * @return A list of [NodeWithMoves] containing nodes and their associated moves.
-   */
-  @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAllNodes(): List<NodeWithMoves>
-
-  @Transaction
-  @Query("SELECT * FROM NodeEntity WHERE fenRepresentation = :fen")
+  @Query("SELECT * FROM NodeEntity WHERE fenRepresentation = :fen AND isDeleted IS FALSE")
   suspend fun getNode(fen: String): NodeWithMoves?
 
   /**
@@ -90,17 +90,43 @@ interface NodeEntityDao {
    * @param fen The FEN representation of the node to retrieve.
    * @return A [NodeWithMoves] containing the node and its associated moves, or null if not found.
    */
-  @Query("DELETE FROM NodeEntity WHERE fenRepresentation = :fen") suspend fun delete(fen: String)
+  @Query(
+    "UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND fenRepresentation = :fen"
+  )
+  suspend fun delete(fen: String)
 
   /**
    * Deletes all nodes and their associated moves from the database.
    *
    * This operation will remove all entries in the NodeEntity and MoveEntity tables.
    */
-  @Query(value = "DELETE FROM NodeEntity") suspend fun deleteAll()
+  @Query(value = "UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE")
+  suspend fun deleteAllNodes()
 
   /** Delete all moves from the database. */
-  @Query(value = "DELETE FROM MoveEntity") suspend fun deleteAllMoves()
+  @Query(value = "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE")
+  suspend fun deleteAllMoves()
 
-  @Query("SELECT * FROM MoveEntity") fun getAllMoves(): List<MoveEntity>
+  /**
+   * Retrieves all nodes with their moves from the database.
+   *
+   * @return A list of [NodeWithMoves] containing nodes and their associated moves.
+   */
+  @Transaction
+  @Query("SELECT * FROM NodeEntity WHERE isDeleted IS FALSE")
+  suspend fun getAllNodes(): List<NodeWithMoves>
+
+  @Query("SELECT * FROM MoveEntity WHERE isDeleted IS FALSE")suspend fun getAllMoves(): List<MoveEntity>
+
+  @Query("SELECT MAX(updatedAt) FROM NodeEntity")
+  suspend fun getLastNodeUpdate(): LocalDateTime?
+
+  @Query("SELECT * FROM NodeEntity WHERE updatedAt > :date")
+  suspend fun getNodesUpdatedAfter(date: LocalDateTime): List<NodeEntity>
+
+  @Query("SELECT MAX(updatedAt) FROM MoveEntity")
+  suspend fun getLastMoveUpdate(): LocalDateTime?
+
+  @Query("SELECT * FROM MoveEntity WHERE updatedAt > :date")
+  suspend fun getMovesUpdatedAfter(date: LocalDateTime): List<MoveEntity>
 }

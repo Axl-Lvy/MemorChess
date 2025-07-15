@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.data
 
 import com.diamondedge.logging.logging
 
-/** Move that can be stored in [ICommonDatabase] */
+/** Move that can be stored in [ILocalDatabase] */
 data class StoredMove(
   /** Origin position of the move */
   val origin: PositionIdentifier,
@@ -21,6 +21,8 @@ data class StoredMove(
    * Bad moves are always isolated: previous and the next moves are good.
    */
   var isGood: Boolean? = null,
+
+  val isDeleted: Boolean = false
 ) {
   /** Saves the move to the database */
   suspend fun save() {
@@ -29,7 +31,7 @@ data class StoredMove(
   }
 
   override fun toString(): String {
-    return "StoredMove(move='$move', isGood=$isGood, origin=$origin, destination=$destination)"
+    return "StoredMove(move='$move', isGood=$isGood, origin=$origin, destination=$destination, isDeleted=$isDeleted)"
   }
 }
 

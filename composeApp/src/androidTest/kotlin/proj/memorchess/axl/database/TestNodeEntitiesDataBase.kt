@@ -81,7 +81,7 @@ class TestNodeEntitiesDataBase {
           )
         )
       )
-      nodeEntityDao.deleteAll()
+      nodeEntityDao.deleteAllNodes()
       retrievedNode = nodeEntityDao.getAllNodes().firstOrNull()
     }
     assertNull(retrievedNode)

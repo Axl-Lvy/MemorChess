@@ -1,9 +1,11 @@
 package proj.memorchess.axl.test_util
 
-import proj.memorchess.axl.core.data.ICommonDatabase
+import kotlinx.datetime.LocalDateTime
+import proj.memorchess.axl.core.data.ILocalDatabase
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.UnlinkedStoredNode
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
@@ -16,7 +18,7 @@ import proj.memorchess.axl.game.getVienna
  *
  * @constructor Creates an empty test database.
  */
-class TestDatabase private constructor() : ICommonDatabase {
+class TestDatabase private constructor() : ILocalDatabase {
   val storedNodes = mutableMapOf<String, StoredNode>()
 
   override suspend fun getAllPositions(): List<StoredNode> {
@@ -99,6 +101,22 @@ class TestDatabase private constructor() : ICommonDatabase {
 
   override suspend fun insertPosition(position: StoredNode) {
     storedNodes[position.positionIdentifier.fenRepresentation] = position
+  }
+
+  override suspend fun getLastMoveUpdate(): LocalDateTime? {
+    throw UnsupportedOperationException("Not yet implemented")
+  }
+
+  override suspend fun getMovesUpdatedAfter(date: LocalDateTime): List<StoredMove> {
+    throw UnsupportedOperationException("Not yet implemented")
+  }
+
+  override suspend fun getLastNodeUpdate(): LocalDateTime? {
+    throw UnsupportedOperationException("Not yet implemented")
+  }
+
+  override suspend fun getNodesUpdatedAfter(date: LocalDateTime): List<UnlinkedStoredNode> {
+    throw UnsupportedOperationException("Not yet implemented")
   }
 
   override suspend fun deleteAllNodes() {

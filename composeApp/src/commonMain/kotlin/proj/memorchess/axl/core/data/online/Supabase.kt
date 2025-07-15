@@ -1,12 +1,15 @@
 package proj.memorchess.axl.core.data.online
 
 import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 
-val supabase =
+/**
+ * Creates the supabase client
+ *
+ * Note that it is ok to store the key in the source code as it is the anon key.
+ */
+fun createSupabaseClient() =
   createSupabaseClient(
     supabaseUrl = "https://hqvnegakqcgltmrzvoxi.supabase.co",
     supabaseKey =
@@ -15,10 +18,3 @@ val supabase =
     install(Auth)
     install(Postgrest)
   }
-
-suspend fun signIn(providedEmail: String, providedPassword: String) {
-  supabase.auth.signInWith(Email) {
-    email = providedEmail
-    password = providedPassword
-  }
-}

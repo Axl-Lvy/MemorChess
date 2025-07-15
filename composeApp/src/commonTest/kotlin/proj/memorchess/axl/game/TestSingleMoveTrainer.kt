@@ -53,7 +53,7 @@ class TestSingleMoveTrainer {
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
 
-    runTest { testNode.save() }
+    runTest { testNode.save(null) }
 
     ToastRendererHolder.init { _, _ -> }
     singleMoveTrainer = SingleMoveTrainer(testNode) {}

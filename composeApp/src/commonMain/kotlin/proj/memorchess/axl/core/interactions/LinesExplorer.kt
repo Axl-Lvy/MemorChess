@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.interactions
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -10,7 +11,7 @@ import proj.memorchess.axl.core.util.IReloader
 import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
-class LinesExplorer : AInteractionsManager(Game()) {
+class LinesExplorer(private val remoteDatabaseManager: RemoteDatabaseManager? = null) : AInteractionsManager(Game()) {
 
   /** The current node in the exploration tree. */
   private var node: Node
@@ -86,7 +87,7 @@ class LinesExplorer : AInteractionsManager(Game()) {
 
   /** Saves the current node as coming from a good move. */
   suspend fun save() {
-    node.saveGood()
+    node.saveGood(remoteDatabaseManager)
     state = node.getState()
     info("Saved")
   }
