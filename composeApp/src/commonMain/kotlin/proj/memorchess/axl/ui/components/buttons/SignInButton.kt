@@ -23,7 +23,7 @@ import proj.memorchess.axl.ui.theme.goodTint
 fun SignInButton(
   modifier: Modifier = Modifier,
   supabaseAuthManager: SupabaseAuthManager = koinInject(),
-  remoteDatabaseManager: RemoteDatabaseManager = koinInject()
+  remoteDatabaseManager: RemoteDatabaseManager = koinInject(),
 ) {
   var showDialog by rememberSaveable { mutableStateOf(false) }
   var email by rememberSaveable { mutableStateOf("") }

@@ -11,7 +11,8 @@ import proj.memorchess.axl.core.util.IReloader
 import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
-class LinesExplorer(private val remoteDatabaseManager: RemoteDatabaseManager? = null) : AInteractionsManager(Game()) {
+class LinesExplorer(private val remoteDatabaseManager: RemoteDatabaseManager? = null) :
+  AInteractionsManager(Game()) {
 
   /** The current node in the exploration tree. */
   private var node: Node

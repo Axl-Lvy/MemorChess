@@ -1,13 +1,9 @@
 package proj.memorchess.axl.core.data.online.database
 
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
-import io.github.jan.supabase.postgrest.query.PostgrestQueryBuilder
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
-import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.DatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
@@ -104,7 +100,7 @@ class RemoteDatabaseManager(
         client
           .from(Table.MOVE)
           .select {
-            filter { isIn("id", remoteUserMoves.map { remoteUserMove -> remoteUserMove.move_id }) }
+            filter { isIn("id", remoteUserMoves.map { remoteUserMove -> remoteUserMove.moveId }) }
           }
           .decodeList<RemoteMove>()
           .associateBy { it.id }
@@ -142,31 +138,31 @@ class RemoteDatabaseManager(
             }
           }
           .decodeList<RemoteUserPosition>()
-          .associateBy { it.position_id }
+          .associateBy { it.positionId }
     remoteUserPositionMap.values
-      .filter { it.is_deleted }
+      .filter { it.isDeleted }
       .forEach {
         DatabaseHolder.getDatabase()
-          .deletePosition(remotePositionsMap[it.position_id]!!.fen_representation)
+          .deletePosition(remotePositionsMap[it.positionId]!!.fenRepresentation)
       }
     remoteUserMoves
-      .filter { it.is_deleted }
+      .filter { it.isDeleted }
       .forEach {
-        val remoteMove = remoteMovesMap[it.move_id]!!
+        val remoteMove = remoteMovesMap[it.moveId]!!
         DatabaseHolder.getDatabase()
-          .deleteMove(remotePositionsMap[remoteMove.origin]!!.fen_representation, remoteMove.name)
+          .deleteMove(remotePositionsMap[remoteMove.origin]!!.fenRepresentation, remoteMove.name)
       }
     val positionToStoredNode = mutableMapOf<PositionIdentifier, StoredNode>()
     remoteUserMoves
-      .filter { !it.is_deleted }
+      .filter { !it.isDeleted }
       .forEach {
-        val originPositionId = remoteMovesMap[it.move_id]!!.origin
-        val origin = PositionIdentifier(remotePositionsMap[originPositionId]!!.fen_representation)
-        val destinationPositionId = remoteMovesMap[it.move_id]!!.destination
+        val originPositionId = remoteMovesMap[it.moveId]!!.origin
+        val origin = PositionIdentifier(remotePositionsMap[originPositionId]!!.fenRepresentation)
+        val destinationPositionId = remoteMovesMap[it.moveId]!!.destination
         val destination =
-          PositionIdentifier(remotePositionsMap[destinationPositionId]!!.fen_representation)
+          PositionIdentifier(remotePositionsMap[destinationPositionId]!!.fenRepresentation)
         val storedMove =
-          StoredMove(origin, destination, remoteMovesMap[it.move_id]!!.name, it.is_good)
+          StoredMove(origin, destination, remoteMovesMap[it.moveId]!!.name, it.isGood)
         positionToStoredNode
           .getOrPut(origin) {
             val originUserPosition = remoteUserPositionMap[originPositionId]!!
@@ -174,8 +170,8 @@ class RemoteDatabaseManager(
               origin,
               PreviousAndNextMoves(originUserPosition.depth),
               PreviousAndNextDate(
-                originUserPosition.last_training_date,
-                originUserPosition.next_training_date,
+                originUserPosition.lastTrainingDate,
+                originUserPosition.nextTrainingDate,
               ),
             )
           }
@@ -188,8 +184,8 @@ class RemoteDatabaseManager(
               destination,
               PreviousAndNextMoves(destinationUserPosition.depth),
               PreviousAndNextDate(
-                destinationUserPosition.last_training_date,
-                destinationUserPosition.next_training_date,
+                destinationUserPosition.lastTrainingDate,
+                destinationUserPosition.nextTrainingDate,
               ),
             )
           }
@@ -207,7 +203,7 @@ class RemoteDatabaseManager(
         limit(1)
       }
       .decodeSingleOrNull<SingleUpdatedAtTime>()
-      ?.updated_at
+      ?.updatedAt
 
   private suspend fun insertUnlinkedStoredNodes(nodes: List<UnlinkedStoredNode>) {
     upsertPositions(nodes.map { it.positionIdentifier })
@@ -222,7 +218,7 @@ class RemoteDatabaseManager(
             }
           }
           .decodeList<RemotePosition>()
-          .associate { Pair(PositionIdentifier(it.fen_representation), it.id) }
+          .associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
     client.from(Table.USER_POSITION).upsert(
       nodes.map {
         RemoteUserPositionToUpload(
@@ -231,9 +227,9 @@ class RemoteDatabaseManager(
           it.depth,
           it.previousAndNextTrainingDate.nextDate,
           it.previousAndNextTrainingDate.previousDate,
-          created_at = DateUtil.now(),
-          is_deleted = it.isDeleted,
-          updated_at = DateUtil.now(),
+          createdAt = DateUtil.now(),
+          isDeleted = it.isDeleted,
+          updatedAt = DateUtil.now(),
         )
       }
     ) {
@@ -265,10 +261,8 @@ class RemoteDatabaseManager(
             filter { isIn("fen_representation", neededPositions.map { it.fenRepresentation }) }
           }
           .decodeList<RemotePosition>()
-    val positionToId =
-      positions.associate { Pair(PositionIdentifier(it.fen_representation), it.id) }
-    val idToPosition =
-      positions.associate { Pair(it.id, PositionIdentifier(it.fen_representation)) }
+    val positionToId = positions.associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
+    val idToPosition = positions.associate { Pair(it.id, PositionIdentifier(it.fenRepresentation)) }
     val remoteMoveList =
       if (moves.isEmpty()) listOf()
       else
@@ -336,7 +330,7 @@ class RemoteDatabaseManager(
             }
           }
           .decodeList<RemotePosition>()
-          .associate { Pair(PositionIdentifier(it.fen_representation), it.id) }
+          .associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
     client.from(Table.MOVE).upsert(
       moves.map {
         RemoteMoveToUpload(positionToId[it.origin]!!, positionToId[it.destination]!!, it.move)
@@ -347,77 +341,3 @@ class RemoteDatabaseManager(
     }
   }
 }
-
-private fun SupabaseClient.from(table: Table): PostgrestQueryBuilder {
-  return this.from(table.tableName)
-}
-
-private enum class Table(val tableName: String) {
-  POSITION("Position"),
-  USER_POSITION("UserPosition"),
-  MOVE("Move"),
-  USER_MOVE("UserMove"),
-}
-
-@Serializable private data class RemotePosition(val id: Long, val fen_representation: String)
-
-@Serializable private data class RemotePositionToUpload(val fen_representation: String)
-
-@Serializable
-private data class RemoteMove(
-  val id: Long,
-  val origin: Long,
-  val destination: Long,
-  val name: String,
-)
-
-@Serializable
-private data class RemoteMoveToUpload(val origin: Long, val destination: Long, val name: String)
-
-@Serializable
-private data class RemoteUserMove(
-  val id: Long,
-  val move_id: Long,
-  val is_good: Boolean,
-  val created_at: LocalDateTime,
-  val user_id: String,
-  val is_deleted: Boolean,
-  val updated_at: LocalDateTime,
-)
-
-@Serializable
-private data class RemoteUserMoveToUpload(
-  val move_id: Long,
-  val is_good: Boolean,
-  val created_at: LocalDateTime,
-  val user_id: String,
-  val is_deleted: Boolean,
-  val updated_at: LocalDateTime,
-)
-
-@Serializable
-private data class RemoteUserPosition(
-  val id: Long,
-  val user_id: String,
-  val position_id: Long,
-  val depth: Int,
-  val next_training_date: LocalDate,
-  val last_training_date: LocalDate,
-  val created_at: LocalDateTime,
-  val is_deleted: Boolean,
-  val updated_at: LocalDateTime,
-)
-
-@Serializable
-private data class RemoteUserPositionToUpload(
-  val user_id: String,
-  val position_id: Long,
-  val depth: Int,
-  val next_training_date: LocalDate,
-  val last_training_date: LocalDate,
-  val created_at: LocalDateTime,
-  val is_deleted: Boolean,
-  val updated_at: LocalDateTime,
-)
-
-@Serializable private data class SingleUpdatedAtTime(val updated_at: LocalDateTime)

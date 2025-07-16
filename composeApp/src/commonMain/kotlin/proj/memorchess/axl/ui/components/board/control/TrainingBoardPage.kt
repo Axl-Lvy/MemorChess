@@ -129,7 +129,7 @@ private class TrainingBoard {
     nodeToLearn: StoredNode,
     numberOfNodesToTrain: Int,
     modifier: Modifier = Modifier,
-    remoteDatabaseManager: RemoteDatabaseManager = koinInject()
+    remoteDatabaseManager: RemoteDatabaseManager = koinInject(),
   ) {
     val trainer by
       remember(nodeToLearn) {

@@ -5,8 +5,8 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import proj.memorchess.axl.core.data.online.auth.SupabaseAuthManager
-import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 import proj.memorchess.axl.core.data.online.createSupabaseClient
+import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 
 /**
  * Initializes koin modules

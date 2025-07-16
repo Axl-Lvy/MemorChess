@@ -49,11 +49,8 @@ class Node(
    * recursively saves the previous node.
    */
   private suspend fun save(remoteDatabaseManager: RemoteDatabaseManager?) {
-    StoredNode(
-      position,
-      previousAndNextMoves.filterValidMoves(),
-      PreviousAndNextDate.dummyToday(),
-    ).save(remoteDatabaseManager)
+    StoredNode(position, previousAndNextMoves.filterValidMoves(), PreviousAndNextDate.dummyToday())
+      .save(remoteDatabaseManager)
   }
 
   /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */

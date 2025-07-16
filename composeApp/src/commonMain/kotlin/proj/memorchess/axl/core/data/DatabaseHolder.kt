@@ -8,8 +8,8 @@ object DatabaseHolder {
   private var database: ILocalDatabase? = null
 
   /**
-   * Initializes the database with a custom [ILocalDatabase]. This should be called before the
-   * first call to [getDatabase].
+   * Initializes the database with a custom [ILocalDatabase]. This should be called before the first
+   * call to [getDatabase].
    */
   fun init(db: ILocalDatabase) {
     database = db

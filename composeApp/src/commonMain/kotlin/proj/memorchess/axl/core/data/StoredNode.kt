@@ -17,7 +17,7 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 data class StoredNode(
   val positionIdentifier: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves,
-  val previousAndNextTrainingDate: PreviousAndNextDate
+  val previousAndNextTrainingDate: PreviousAndNextDate,
 ) {
 
   /** Saves this node. */

@@ -10,8 +10,8 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 /**
  * A singleton class for managing Supabase authentication
  *
- * @constructor Create empty Supabase auth manager
  * @property supabaseClient
+ * @constructor Create empty Supabase auth manager
  */
 class SupabaseAuthManager(private val supabaseClient: SupabaseClient) {
 

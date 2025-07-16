@@ -21,8 +21,7 @@ data class StoredMove(
    * Bad moves are always isolated: previous and the next moves are good.
    */
   var isGood: Boolean? = null,
-
-  val isDeleted: Boolean = false
+  val isDeleted: Boolean = false,
 ) {
   /** Saves the move to the database */
   suspend fun save() {

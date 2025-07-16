@@ -59,7 +59,7 @@ data class NodeEntity(
       PositionIdentifier(fenRepresentation),
       PreviousAndNextDate(lastTrainedDate, nextTrainedDate),
       depth,
-      isDeleted
+      isDeleted,
     )
   }
 

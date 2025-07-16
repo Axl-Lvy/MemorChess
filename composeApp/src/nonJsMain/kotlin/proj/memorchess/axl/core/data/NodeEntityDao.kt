@@ -64,9 +64,7 @@ interface NodeEntityDao {
    *
    * @param origin The FEN string of the origin position.
    */
-  @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin"
-  )
+  @Query("UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin")
   suspend fun removeMoveFrom(origin: String)
 
   /**
@@ -116,16 +114,15 @@ interface NodeEntityDao {
   @Query("SELECT * FROM NodeEntity WHERE isDeleted IS FALSE")
   suspend fun getAllNodes(): List<NodeWithMoves>
 
-  @Query("SELECT * FROM MoveEntity WHERE isDeleted IS FALSE")suspend fun getAllMoves(): List<MoveEntity>
+  @Query("SELECT * FROM MoveEntity WHERE isDeleted IS FALSE")
+  suspend fun getAllMoves(): List<MoveEntity>
 
-  @Query("SELECT MAX(updatedAt) FROM NodeEntity")
-  suspend fun getLastNodeUpdate(): LocalDateTime?
+  @Query("SELECT MAX(updatedAt) FROM NodeEntity") suspend fun getLastNodeUpdate(): LocalDateTime?
 
   @Query("SELECT * FROM NodeEntity WHERE updatedAt > :date")
   suspend fun getNodesUpdatedAfter(date: LocalDateTime): List<NodeEntity>
 
-  @Query("SELECT MAX(updatedAt) FROM MoveEntity")
-  suspend fun getLastMoveUpdate(): LocalDateTime?
+  @Query("SELECT MAX(updatedAt) FROM MoveEntity") suspend fun getLastMoveUpdate(): LocalDateTime?
 
   @Query("SELECT * FROM MoveEntity WHERE updatedAt > :date")
   suspend fun getMovesUpdatedAfter(date: LocalDateTime): List<MoveEntity>

@@ -34,7 +34,10 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Component(modifier: Modifier = Modifier, remoteDatabaseManager: RemoteDatabaseManager = koinInject()) {
+private fun Component(
+  modifier: Modifier = Modifier,
+  remoteDatabaseManager: RemoteDatabaseManager = koinInject(),
+) {
   var inverted by remember { mutableStateOf(false) }
   val boardReloader = remember { BasicReloader() }
   val linesExplorer = remember { LinesExplorer(remoteDatabaseManager) }

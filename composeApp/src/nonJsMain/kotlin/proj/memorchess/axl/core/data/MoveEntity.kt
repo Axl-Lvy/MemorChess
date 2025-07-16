@@ -35,12 +35,18 @@ data class MoveEntity(
   val isDeleted: Boolean = false,
 
   /** The date time of the last update. */
-  val updatedAt: LocalDateTime = DateUtil.now()
+  val updatedAt: LocalDateTime = DateUtil.now(),
 ) {
 
   /** Converts to an [StoredMove]. */
   fun toStoredMove(): StoredMove {
-    return StoredMove(PositionIdentifier(origin), PositionIdentifier(destination), move, isGood, isDeleted)
+    return StoredMove(
+      PositionIdentifier(origin),
+      PositionIdentifier(destination),
+      move,
+      isGood,
+      isDeleted,
+    )
   }
 
   companion object {
