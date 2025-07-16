@@ -181,9 +181,7 @@ kmpExtension.targets.configureEach {
       tasks.register(generateSecretsTaskName) {
         group = "codegen"
         description = "Generate secrets for ${target.name}:${name}"
-        doFirst {
-          generateSecretFile(this)
-        }
+        doFirst { generateSecretFile(this) }
       }
     // 5) Link the generated secrets to compileKotlinTask
     compileTaskProvider.dependsOn(generateSecretsTask)
@@ -203,7 +201,7 @@ private fun String.toCamelCase(): String {
 }
 
 private fun generateSecretFile(task: Task) {
-// 1) Determine which local.properties to use
+  // 1) Determine which local.properties to use
   val moduleProps = file("local.properties")
   val globalProps = rootProject.file("local.properties")
   val propsFile =
