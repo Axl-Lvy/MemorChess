@@ -18,14 +18,12 @@ import compose.icons.feathericons.CheckCircle
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.online.auth.SupabaseAuthManager
-import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
 import proj.memorchess.axl.ui.theme.goodTint
 
 @Composable
 fun SignInButton(
   modifier: Modifier = Modifier,
   supabaseAuthManager: SupabaseAuthManager = koinInject(),
-  remoteDatabaseManager: RemoteDatabaseManager = koinInject(),
 ) {
   var showDialog by rememberSaveable { mutableStateOf(false) }
   var email by rememberSaveable { mutableStateOf("") }

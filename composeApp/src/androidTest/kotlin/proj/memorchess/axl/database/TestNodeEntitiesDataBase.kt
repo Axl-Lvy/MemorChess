@@ -120,7 +120,10 @@ class TestNodeEntitiesDataBase {
       retrievedNodes = nodeEntityDao.getAllNodes()
     }
     assertEquals(1, retrievedNodes.size)
-    assertContains(retrievedNodes.first().nextMoves, linkMove)
+    assertContains(
+      retrievedNodes.first().nextMoves.map { it.toStoredMove() },
+      linkMove.toStoredMove(),
+    )
     assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionIdentifier)
   }
 }

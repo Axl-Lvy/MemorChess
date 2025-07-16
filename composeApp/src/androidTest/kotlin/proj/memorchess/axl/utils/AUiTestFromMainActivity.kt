@@ -16,11 +16,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import com.diamondedge.logging.logging
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.time.Duration
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
+import org.koin.core.context.stopKoin
 import proj.memorchess.axl.MainActivity
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
@@ -58,6 +60,11 @@ abstract class AUiTestFromMainActivity {
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     ON_SUCCESS_DATE_FACTOR_SETTING.reset()
     runTest { resetDatabase() }
+  }
+
+  @AfterTest
+  open fun tearDown() {
+    stopKoin()
   }
 
   // NAVIGATION

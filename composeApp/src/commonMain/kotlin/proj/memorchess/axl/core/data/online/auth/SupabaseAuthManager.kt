@@ -45,4 +45,9 @@ class SupabaseAuthManager(private val supabaseClient: SupabaseClient) {
     }
     refreshUser()
   }
+
+  suspend fun signOut() {
+    supabaseClient.auth.signOut()
+    refreshUser()
+  }
 }
