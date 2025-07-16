@@ -5,14 +5,24 @@ on:
     branches:
       - master
 
+# Setup environment is called first to set up the SUPABASE_ANON_KEY
 jobs:
+  setup:
+    uses: ./.github/workflows/setup_env.yml
+
   sonar-analysis:
+    needs: setup
     name: Sonar analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Set up secrets
+        run: |
+          chmod +x .github/scripts/setup_secrets.sh
+          .github/scripts/setup_secrets.sh
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

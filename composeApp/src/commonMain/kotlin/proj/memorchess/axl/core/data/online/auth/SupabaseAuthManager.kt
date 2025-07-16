@@ -37,4 +37,12 @@ class SupabaseAuthManager(private val supabaseClient: SupabaseClient) {
     }
     refreshUser()
   }
+
+  suspend fun signUpFromEmail(providedEmail: String, providedPassword: String) {
+    supabaseClient.auth.signUpWith(Email) {
+      email = providedEmail
+      password = providedPassword
+    }
+    refreshUser()
+  }
 }

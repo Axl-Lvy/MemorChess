@@ -1,0 +1,27 @@
+name: Setup Environment
+
+# This is the ONLY place where secrets.SUPABASE_ANON_KEY should be referenced
+# All other workflows should call this workflow
+
+on:
+  workflow_call:
+    outputs:
+      env_setup:
+        description: "Indicates that environment setup is complete"
+        value: ${{ jobs.setup.outputs.env_setup }}
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      env_setup: "true"
+    env:
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up secrets file
+        run: |
+          chmod +x .github/scripts/setup_secrets.sh
+          .github/scripts/setup_secrets.sh
