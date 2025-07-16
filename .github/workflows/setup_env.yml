@@ -16,7 +16,7 @@ jobs:
     outputs:
       env_setup: "true"
     env:
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_ANON_KEY: "heyheyhey"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
