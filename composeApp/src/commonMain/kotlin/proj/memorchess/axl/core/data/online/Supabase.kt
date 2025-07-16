@@ -13,7 +13,7 @@ private const val url = "https://hqvnegakqcgltmrzvoxi.supabase.co"
  * Note that it is ok to store the key in the source code as it is the anon key.
  */
 fun createSupabaseClient() =
-  createSupabaseClient(supabaseUrl = url, supabaseKey = Secrets.SUPABASE_ANON_KEY) {
+  createSupabaseClient(supabaseUrl = url, supabaseKey = Secrets.supabaseAnonKey) {
     install(Auth)
     install(Postgrest)
   }
