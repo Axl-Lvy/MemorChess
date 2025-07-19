@@ -6,6 +6,8 @@ import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -13,10 +15,16 @@ import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestTrainingNodeOrder : TestWithKoin() {
+  val database by inject<DatabaseQueryManager>()
+
   @BeforeTest
   fun setup() {
-    LocalDatabaseHolder.init(TestDatabaseQueryManager.vienna())
-    runTest { NodeManager.resetCacheFromDataBase() }
+    runTest {
+      database.deleteAll()
+      LocalDatabaseHolder.init(TestDatabaseQueryManager.vienna())
+      LocalDatabaseHolder.getDatabase().getAllNodes().forEach { database.insertPosition(it)}
+      NodeManager.resetCacheFromDataBase(database)
+    }
   }
 
   @AfterTest

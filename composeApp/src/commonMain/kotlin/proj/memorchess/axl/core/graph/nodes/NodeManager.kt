@@ -80,6 +80,12 @@ object NodeManager {
     nodeCache.retrieveGraphFromDatabase()
   }
 
+  /** Resets the cache from the database. */
+  suspend fun resetCacheFromDataBase(db: DatabaseQueryManager) {
+    nodeCache.clear()
+    nodeCache.retrieveGraphFromDatabase(db)
+  }
+
   fun getNextNodeToLearn(day: Int, previousPlayedMove: StoredMove?): StoredNode? {
     if (previousPlayedMove == null) {
       return nodeCache.getNodeFromDay(day)
@@ -209,14 +215,15 @@ private object NodeCache : KoinComponent {
   }
 
   /** Retrieves the graph from the database and populates the cache. */
-  suspend fun retrieveGraphFromDatabase() {
+  suspend fun retrieveGraphFromDatabase(db: DatabaseQueryManager = database) {
     if (databaseRetrieved) {
       LOGGER.i { "Database already retrieved." }
       return
     }
     nodesByDay.clear()
+    movesCache.clear()
     todayDate = DateUtil.today()
-    val allNodes: List<StoredNode> = database.getAllNodes()
+    val allNodes: List<StoredNode> = db.getAllNodes()
     allNodes.forEach { node ->
       movesCache.getOrPut(node.positionIdentifier) { node.previousAndNextMoves }
       if (node.previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {

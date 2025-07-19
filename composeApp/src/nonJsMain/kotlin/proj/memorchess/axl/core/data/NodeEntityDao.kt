@@ -98,11 +98,11 @@ interface NodeEntityDao {
    *
    * This operation will remove all entries in the NodeEntity and MoveEntity tables.
    */
-  @Query(value = "UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE")
+  @Query(value = "UPDATE NodeEntity SET isDeleted = TRUE")
   suspend fun deleteAllNodes()
 
   /** Delete all moves from the database. */
-  @Query(value = "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE")
+  @Query(value = "UPDATE MoveEntity SET isDeleted = TRUE")
   suspend fun deleteAllMoves()
 
   /**

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.test_util
 
+import org.koin.core.component.KoinComponent
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import org.koin.core.context.startKoin
@@ -12,7 +13,7 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.RemoteDatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
 
-abstract class TestWithKoin {
+abstract class TestWithKoin : KoinComponent {
   @BeforeTest
   fun setupKoin() {
     startKoin { modules(*initKoinModules(), initTestModule()) }
