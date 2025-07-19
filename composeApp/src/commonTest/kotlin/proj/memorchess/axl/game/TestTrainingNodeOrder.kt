@@ -10,8 +10,9 @@ import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestWithKoin
 
-class TestTrainingNodeOrder {
+class TestTrainingNodeOrder : TestWithKoin() {
   @BeforeTest
   fun setup() {
     LocalDatabaseHolder.init(TestDatabaseQueryManager.vienna())
