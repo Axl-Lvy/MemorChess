@@ -70,16 +70,22 @@ class RemoteDatabaseQueryManagerImpl(
     remoteUserMoves
       .filter { !it.isDeleted }
       .forEach {
-        val originPositionId = remoteMovesMap[it.moveId]!!.origin
-        val origin = PositionIdentifier(remotePositionsMap[originPositionId]!!.fenRepresentation)
-        val destinationPositionId = remoteMovesMap[it.moveId]!!.destination
-        val destination =
-          PositionIdentifier(remotePositionsMap[destinationPositionId]!!.fenRepresentation)
-        val storedMove =
-          StoredMove(origin, destination, remoteMovesMap[it.moveId]!!.name, it.isGood)
+        val remoteMove = remoteMovesMap[it.moveId]
+        checkNotNull(remoteMove)
+        val originPositionId = remoteMove.origin
+        val remoteOrigin = remotePositionsMap[originPositionId]
+        checkNotNull(remoteOrigin)
+        val origin = PositionIdentifier(remoteOrigin.fenRepresentation)
+        val destinationPositionId = remoteMove.destination
+        val remoteDestination = remotePositionsMap[destinationPositionId]
+        checkNotNull(remoteDestination)
+        val destination = PositionIdentifier(remoteDestination.fenRepresentation)
+        val storedMove = StoredMove(origin, destination, remoteMove.name, it.isGood)
         positionToStoredNode
           .getOrPut(origin) {
-            val originUserPosition = remoteUserPositionMap[originPositionId]!!
+            val remoteUserOrigin = remoteUserPositionMap[originPositionId]
+            checkNotNull(remoteUserOrigin)
+            val originUserPosition = remoteUserOrigin
             StoredNode(
               origin,
               PreviousAndNextMoves(originUserPosition.depth),
@@ -93,7 +99,9 @@ class RemoteDatabaseQueryManagerImpl(
           .addNextMove(storedMove)
         positionToStoredNode
           .getOrPut(destination) {
-            val destinationUserPosition = remoteUserPositionMap[destinationPositionId]!!
+            val remoteUserDestination = remoteUserPositionMap[destinationPositionId]
+            checkNotNull(remoteUserDestination)
+            val destinationUserPosition = remoteUserDestination
             StoredNode(
               destination,
               PreviousAndNextMoves(destinationUserPosition.depth),
@@ -365,9 +373,13 @@ class RemoteDatabaseQueryManagerImpl(
           .associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
     client.from(Table.USER_POSITION).upsert(
       nodes.map {
+        val user = authManager.user
+        checkNotNull(user)
+        val positionId = positions[it.positionIdentifier]
+        checkNotNull(positionId)
         RemoteUserPositionToUpload(
-          authManager.user!!.id,
-          positions[it.positionIdentifier]!!,
+          user.id,
+          positionId,
           it.depth,
           it.previousAndNextTrainingDate.nextDate,
           it.previousAndNextTrainingDate.previousDate,
@@ -417,8 +429,12 @@ class RemoteDatabaseQueryManagerImpl(
               or {
                 moves.forEach {
                   and {
-                    eq(ORIGIN_FIELD, positionToId[it.origin]!!)
-                    eq(DESTINATION_FIELD, positionToId[it.destination]!!)
+                    val originId = positionToId[it.origin]
+                    checkNotNull(originId)
+                    eq(ORIGIN_FIELD, originId)
+                    val destinationId = positionToId[it.destination]
+                    checkNotNull(destinationId)
+                    eq(DESTINATION_FIELD, destinationId)
                     eq(NAME_FIELD, it.move)
                   }
                 }
@@ -441,11 +457,13 @@ class RemoteDatabaseQueryManagerImpl(
       }
     client.from(Table.USER_MOVE).upsert(
       moveToRemoteMove.map {
+        val user = authManager.user
+        checkNotNull(user)
         RemoteUserMoveToUpload(
           it.value.id,
           it.key.isGood ?: false,
           DateUtil.now(),
-          authManager.user!!.id,
+          user.id,
           it.key.isDeleted,
           DateUtil.now(),
         )
@@ -477,7 +495,11 @@ class RemoteDatabaseQueryManagerImpl(
           .associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
     client.from(Table.MOVE).upsert(
       moves.map {
-        RemoteMoveToUpload(positionToId[it.origin]!!, positionToId[it.destination]!!, it.move)
+        val originId = positionToId[it.origin]
+        checkNotNull(originId)
+        val destination = positionToId[it.destination]
+        checkNotNull(destination)
+        RemoteMoveToUpload(originId, destination, it.move)
       }
     ) {
       onConflict = "$ORIGIN_FIELD, $DESTINATION_FIELD, $NAME_FIELD"
