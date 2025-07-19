@@ -37,7 +37,7 @@ kotlin {
 
   @OptIn(ExperimentalWasmDsl::class)
   wasmJs {
-    moduleName = "composeApp"
+    outputModuleName = "composeApp"
     browser {
       val rootDirPath = project.rootDir.path
       val projectDirPath = project.projectDir.path
@@ -120,7 +120,6 @@ kotlin {
       configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
     }
     iosMain.dependencies { implementation(libs.ktor.client.darwin) }
-    wasmJsMain.dependencies { implementation(libs.ktor.client.js) }
   }
 }
 
