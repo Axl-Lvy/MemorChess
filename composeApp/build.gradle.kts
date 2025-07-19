@@ -33,8 +33,6 @@ kotlin {
     }
   }
 
-  jvm("desktop")
-
   @OptIn(ExperimentalWasmDsl::class)
   wasmJs {
     outputModuleName = "composeApp"
@@ -97,20 +95,16 @@ kotlin {
       implementation(libs.koin.compose.viewmodel)
       implementation(libs.koin.compose.viewmodel.navigation)
     }
-    jvmMain.dependencies { implementation(libs.ktor.client.okhttp) }
     androidMain.dependencies {
       implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.material3.android)
       implementation(libs.ktor.client.okhttp)
     }
-    val desktopTest by getting
     commonTest.dependencies {
       implementation(libs.kotlin.test)
       @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class) implementation(compose.uiTest)
     }
-    // Adds the desktop test dependency
-    desktopTest.dependencies { implementation(compose.desktop.currentOs) }
     val nonJsMain by getting {
       dependencies {
         implementation(libs.androidx.room.runtime)

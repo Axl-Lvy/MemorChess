@@ -12,9 +12,9 @@ if [ ! -z "$ANDROID_SDK_ROOT" ]; then
 fi
 
 # Add Supabase key if it exists in the environment
-if [ ! -z "$SUPABASE_ANON_KEY" ]; then
-  echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> local.properties
-  echo "Added SUPABASE_ANON_KEY to local.properties"
+if [ ! -z "$SUPABASE_API_KEY" ]; then
+  echo "SUPABASE_API_KEY=$SUPABASE_API_KEY" >> local.properties
+  echo "Added SUPABASE_API_KEY to local.properties"
 fi
 
 # Add any other secrets as needed
