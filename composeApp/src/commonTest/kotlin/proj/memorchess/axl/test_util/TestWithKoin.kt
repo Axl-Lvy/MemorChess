@@ -1,8 +1,8 @@
 package proj.memorchess.axl.test_util
 
-import org.koin.core.component.KoinComponent
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import org.koin.core.component.KoinComponent
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.core.module.Module

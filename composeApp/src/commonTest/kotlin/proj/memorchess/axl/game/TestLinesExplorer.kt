@@ -1,6 +1,7 @@
 package proj.memorchess.axl.game
 
 import kotlin.test.AfterTest
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -22,7 +23,6 @@ import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
-import kotlin.test.Ignore
 
 class TestLinesExplorer : TestWithKoin() {
   private lateinit var interactionsManager: LinesExplorer

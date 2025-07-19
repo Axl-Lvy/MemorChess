@@ -22,7 +22,7 @@ class TestTrainingNodeOrder : TestWithKoin() {
     runTest {
       database.deleteAll()
       LocalDatabaseHolder.init(TestDatabaseQueryManager.vienna())
-      LocalDatabaseHolder.getDatabase().getAllNodes().forEach { database.insertPosition(it)}
+      LocalDatabaseHolder.getDatabase().getAllNodes().forEach { database.insertPosition(it) }
       NodeManager.resetCacheFromDataBase(database)
     }
   }
