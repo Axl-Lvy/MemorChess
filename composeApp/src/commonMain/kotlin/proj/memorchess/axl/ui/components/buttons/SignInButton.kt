@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -38,7 +39,7 @@ fun SignInButton(
     if (isSignedIn) goodTint.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary
   Button(
     onClick = { if (!isSignedIn) showDialog = true },
-    modifier = modifier.fillMaxWidth().padding(bottom = 8.dp),
+    modifier = modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("sign_in_button"),
     colors =
       ButtonDefaults.buttonColors(
         containerColor = buttonColor,
@@ -99,6 +100,7 @@ fun SignInButton(
       },
       confirmButton = {
         TextButton(
+          modifier = Modifier.testTag("sign_in_confirmation_button"),
           onClick = {
             coroutineScope.launch {
               try {
@@ -113,7 +115,7 @@ fun SignInButton(
                 signInError = null
               }
             }
-          }
+          },
         ) {
           Text("Sign In")
         }

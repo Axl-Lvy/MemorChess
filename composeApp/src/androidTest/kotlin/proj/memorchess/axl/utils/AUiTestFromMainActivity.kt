@@ -77,7 +77,10 @@ abstract class AUiTestFromMainActivity : KoinComponent {
    */
   fun goToExplore() {
     clickOnDestinationButton(Destination.EXPLORE)
-    composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")))
+    composeTestRule.waitUntilAtLeastOneExists(
+      hasClickLabel(getTileDescription("e2")),
+      TEST_TIMEOUT.inWholeMilliseconds,
+    )
     assertNodeWithTagExists(Destination.EXPLORE.name)
   }
 
@@ -90,7 +93,8 @@ abstract class AUiTestFromMainActivity : KoinComponent {
   fun goToTraining() {
     clickOnDestinationButton(Destination.TRAINING)
     composeTestRule.waitUntilAtLeastOneExists(
-      hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !"))
+      hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
+      TEST_TIMEOUT.inWholeMilliseconds,
     )
     assertNodeWithTagExists(Destination.TRAINING.name)
   }
@@ -220,7 +224,7 @@ abstract class AUiTestFromMainActivity : KoinComponent {
 
   private fun waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
     val matcher = hasClickLabel(getTileDescription(tileName))
-    composeTestRule.waitUntilAtLeastOneExists(matcher)
+    composeTestRule.waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)
     return composeTestRule.onNode(matcher).assertExists()
   }
 
@@ -300,8 +304,8 @@ abstract class AUiTestFromMainActivity : KoinComponent {
     node.performTouchInput { click(Offset(width * widthFactor, 0f)) }
   }
 
-  private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
-    composeTestRule.waitUntilAtLeastOneExists(matcher)
+  fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
+    composeTestRule.waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)
     return composeTestRule.onNode(matcher).assertExists()
   }
 
