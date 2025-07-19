@@ -8,6 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.config.generated.Secrets
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.TestWithAuthentication
 
 @OptIn(ExperimentalTestApi::class)
@@ -49,7 +50,7 @@ class TestAuthentication : TestWithAuthentication() {
     assertNodeWithTagExists("sign_in_confirmation_button").performClick()
 
     // Wait for dialog to close and verify signed in state
-    composeTestRule.waitUntilDoesNotExist(hasText("Email"))
+    composeTestRule.waitUntilDoesNotExist(hasText("Email"), TEST_TIMEOUT.inWholeMilliseconds)
     assertNodeWithTextExists("Signed in")
     assertNodeWithTextDoesNotExists("Sign in")
 
