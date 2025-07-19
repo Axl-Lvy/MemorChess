@@ -17,7 +17,7 @@ package proj.memorchess.axl.core.config
 abstract class SecretsTemplate {
 
   /** Supabase anon key */
-  open val supabaseAnonKey = NOT_FOUND
+  open val supabaseApiKey = NOT_FOUND
 
   /** Mail of the user account used for testing */
   open val testUserMail = NOT_FOUND

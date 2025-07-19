@@ -27,7 +27,7 @@ import proj.memorchess.axl.MainActivity
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
-import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
@@ -35,7 +35,7 @@ import proj.memorchess.axl.core.engine.pieces.IPiece
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.test_util.TestDatabase
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
@@ -314,7 +314,7 @@ abstract class AUiTestFromMainActivity {
    */
   fun getAllPositions(): List<StoredNode> {
     lateinit var allPositions: List<StoredNode>
-    runTest { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
+    runTest { allPositions = LocalDatabaseHolder.getDatabase().getAllNodes() }
     return allPositions
   }
 
@@ -326,7 +326,7 @@ abstract class AUiTestFromMainActivity {
    */
   fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     var position: StoredNode? = null
-    runTest { position = DatabaseHolder.getDatabase().getPosition(positionIdentifier) }
+    runTest { position = LocalDatabaseHolder.getDatabase().getPosition(positionIdentifier) }
     return position
   }
 
@@ -354,33 +354,30 @@ abstract class AUiTestFromMainActivity {
    */
   open suspend fun resetDatabase() {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
-      runTest {
-        DatabaseHolder.getDatabase().deleteAllNodes()
-        DatabaseHolder.getDatabase().deleteAllMoves()
-      }
+      runTest { LocalDatabaseHolder.getDatabase().deleteAll() }
       lateinit var allPositions: List<StoredNode>
       lateinit var allMoves: List<StoredMove>
       runTest {
-        allPositions = DatabaseHolder.getDatabase().getAllPositions()
-        allMoves = DatabaseHolder.getDatabase().getAllMoves()
+        allPositions = LocalDatabaseHolder.getDatabase().getAllNodes()
+        allMoves = LocalDatabaseHolder.getDatabase().getAllMoves()
       }
       allPositions.isEmpty() && allMoves.isEmpty()
     }
     val viennaNodes =
-      TestDatabase.convertStringMovesToNodes(getVienna()).map {
+      TestDatabaseQueryManager.convertStringMovesToNodes(getVienna()).map {
         StoredNode(it.positionIdentifier, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val scandinavianNodes =
-      TestDatabase.convertStringMovesToNodes(getScandinavian()).map {
+      TestDatabaseQueryManager.convertStringMovesToNodes(getScandinavian()).map {
         StoredNode(it.positionIdentifier, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val storedNodes = (viennaNodes + scandinavianNodes)
     for (node in storedNodes) {
-      DatabaseHolder.getDatabase().insertPosition(node)
+      LocalDatabaseHolder.getDatabase().insertPosition(node)
     }
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
       lateinit var allPositions: List<StoredNode>
-      runBlocking { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
+      runBlocking { allPositions = LocalDatabaseHolder.getDatabase().getAllNodes() }
       allPositions.size == storedNodes.map { it.positionIdentifier }.distinct().size
     }
   }

@@ -1,0 +1,491 @@
+package proj.memorchess.axl.core.data.online.database
+
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.datetime.LocalDateTime
+import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.StoredMove
+import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.UnlinkedStoredNode
+import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.date.PreviousAndNextDate
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+
+class RemoteDatabaseQueryManagerImpl(
+  private val client: SupabaseClient,
+  private val authManager: AuthManager,
+) : RemoteDatabaseQueryManager {
+  override suspend fun getAllNodes(): List<StoredNode> {
+    val remoteUserMoves = client.from(Table.USER_MOVE).select().decodeList<RemoteUserMove>()
+    val remoteMovesMap =
+      if (remoteUserMoves.isEmpty()) mapOf()
+      else
+        client
+          .from(Table.MOVE)
+          .select {
+            filter {
+              isIn(ID_FIELD, remoteUserMoves.map { remoteUserMove -> remoteUserMove.moveId })
+            }
+          }
+          .decodeList<RemoteMove>()
+          .associateBy { it.id }
+    val remotePositionsMap =
+      if (remoteMovesMap.isEmpty()) mapOf()
+      else
+        client
+          .from(Table.POSITION)
+          .select {
+            filter {
+              isIn(
+                ID_FIELD,
+                remoteMovesMap.values
+                  .map { remoteMove -> remoteMove.origin }
+                  .union(remoteMovesMap.values.map { remoteMove -> remoteMove.destination })
+                  .toList(),
+              )
+            }
+          }
+          .decodeList<RemotePosition>()
+          .associateBy { it.id }
+    val remoteUserPositionMap =
+      if (remotePositionsMap.isEmpty()) mapOf()
+      else
+        client
+          .from(Table.USER_POSITION)
+          .select {
+            filter {
+              and {
+                isIn(
+                  POSITION_ID_FIELD,
+                  remotePositionsMap.map { remotePosition -> remotePosition.value.id },
+                )
+              }
+            }
+          }
+          .decodeList<RemoteUserPosition>()
+          .associateBy { it.positionId }
+    val positionToStoredNode = mutableMapOf<PositionIdentifier, StoredNode>()
+    remoteUserMoves
+      .filter { !it.isDeleted }
+      .forEach {
+        val originPositionId = remoteMovesMap[it.moveId]!!.origin
+        val origin = PositionIdentifier(remotePositionsMap[originPositionId]!!.fenRepresentation)
+        val destinationPositionId = remoteMovesMap[it.moveId]!!.destination
+        val destination =
+          PositionIdentifier(remotePositionsMap[destinationPositionId]!!.fenRepresentation)
+        val storedMove =
+          StoredMove(origin, destination, remoteMovesMap[it.moveId]!!.name, it.isGood)
+        positionToStoredNode
+          .getOrPut(origin) {
+            val originUserPosition = remoteUserPositionMap[originPositionId]!!
+            StoredNode(
+              origin,
+              PreviousAndNextMoves(originUserPosition.depth),
+              PreviousAndNextDate(
+                originUserPosition.lastTrainingDate,
+                originUserPosition.nextTrainingDate,
+              ),
+            )
+          }
+          .previousAndNextMoves
+          .addNextMove(storedMove)
+        positionToStoredNode
+          .getOrPut(destination) {
+            val destinationUserPosition = remoteUserPositionMap[destinationPositionId]!!
+            StoredNode(
+              destination,
+              PreviousAndNextMoves(destinationUserPosition.depth),
+              PreviousAndNextDate(
+                destinationUserPosition.lastTrainingDate,
+                destinationUserPosition.nextTrainingDate,
+              ),
+            )
+          }
+          .previousAndNextMoves
+          .addPreviousMove(storedMove)
+      }
+    return positionToStoredNode.values.toList()
+  }
+
+  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
+    val userPositions = client.from(Table.USER_POSITION).select().decodeList<RemoteUserPosition>()
+    val idToPosition =
+      client
+        .from(Table.POSITION)
+        .select { filter { isIn(ID_FIELD, userPositions.map { it.positionId }) } }
+        .decodeList<RemotePosition>()
+        .associateBy { it.id }
+    return userPositions.map {
+      val position = idToPosition[it.positionId]
+      checkNotNull(position)
+      UnlinkedStoredNode(
+        PositionIdentifier(position.fenRepresentation),
+        PreviousAndNextDate(it.lastTrainingDate, it.nextTrainingDate),
+        it.depth,
+        it.isDeleted,
+      )
+    }
+  }
+
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
+    val position =
+      client
+        .from(Table.POSITION)
+        .select { filter { eq(FEN_REPRESENTATION_FIELD, positionIdentifier.fenRepresentation) } }
+        .decodeAsOrNull<RemotePosition>()
+    if (position == null) {
+      return null
+    }
+    val userPosition =
+      client
+        .from(Table.USER_POSITION)
+        .select {
+          filter {
+            and {
+              eq(POSITION_ID_FIELD, position.id)
+              eq(IS_DELETED_FIELD, false)
+            }
+          }
+        }
+        .decodeAsOrNull<RemoteUserPosition>()
+    if (userPosition == null) {
+      return null
+    }
+    check(position.fenRepresentation == positionIdentifier.fenRepresentation)
+    val result =
+      StoredNode(
+        PositionIdentifier(position.fenRepresentation),
+        PreviousAndNextMoves(userPosition.depth),
+        PreviousAndNextDate(userPosition.lastTrainingDate, userPosition.nextTrainingDate),
+      )
+    val idToMove =
+      client
+        .from(Table.MOVE)
+        .select {
+          filter {
+            or {
+              eq(ORIGIN_FIELD, position.id)
+              eq(DESTINATION_FIELD, position.id)
+            }
+          }
+        }
+        .decodeList<RemoteMove>()
+        .associateBy { it.id }
+    val idToPosition =
+      client
+        .from(Table.POSITION)
+        .select() {
+          filter {
+            isIn(
+              ID_FIELD,
+              idToMove.values
+                .map { it.origin }
+                .union(idToMove.values.map { it.destination })
+                .toList(),
+            )
+          }
+        }
+        .decodeList<RemotePosition>()
+        .associateBy { it.id }
+    val remoteUserMoves =
+      client
+        .from(Table.USER_MOVE)
+        .select { filter { isIn(MOVE_ID_FIELD, idToMove.keys.toList()) } }
+        .decodeList<RemoteUserMove>()
+    remoteUserMoves
+      .map {
+        val move = idToMove[it.moveId]
+        checkNotNull(move)
+        val origin = idToPosition[move.origin]
+        checkNotNull(origin)
+        val destination = idToPosition[move.destination]
+        checkNotNull(destination)
+        StoredMove(
+          PositionIdentifier(origin.fenRepresentation),
+          PositionIdentifier(destination.fenRepresentation),
+          move.name,
+          it.isGood,
+        )
+      }
+      .forEach {
+        if (it.origin == positionIdentifier) {
+          result.previousAndNextMoves.addNextMove(it)
+        } else {
+          check(it.destination == positionIdentifier)
+          result.previousAndNextMoves.addPreviousMove(it)
+        }
+      }
+    return result
+  }
+
+  override suspend fun deletePosition(fen: String) {
+    val position =
+      client
+        .from(Table.POSITION)
+        .select { filter { eq(FEN_REPRESENTATION_FIELD, fen) } }
+        .decodeAsOrNull<RemotePosition>()
+    if (position == null) {
+      return
+    }
+    client.from(Table.USER_POSITION).update({ set(IS_DELETED_FIELD, true) }) {
+      filter { eq(POSITION_ID_FIELD, position.id) }
+    }
+  }
+
+  override suspend fun deleteMove(origin: String, move: String) {
+    val position =
+      client
+        .from(Table.POSITION)
+        .select { filter { eq(FEN_REPRESENTATION_FIELD, origin) } }
+        .decodeAsOrNull<RemotePosition>()
+    if (position == null) {
+      return
+    }
+    val moves =
+      client
+        .from(Table.MOVE)
+        .select {
+          filter {
+            and { eq(NAME_FIELD, move) }
+            eq(ORIGIN_FIELD, position.id)
+          }
+        }
+        .decodeList<RemoteMove>()
+    if (moves.isEmpty()) {
+      return
+    }
+    client.from(Table.USER_MOVE).update({ set(IS_DELETED_FIELD, true) }) {
+      filter { isIn(MOVE_ID_FIELD, moves.map { it.id }) }
+    }
+  }
+
+  override suspend fun insertMove(move: StoredMove) {
+    insertMoves(listOf(move))
+  }
+
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
+    val userMoves =
+      client
+        .from(Table.USER_MOVE)
+        .select() {
+          if (!withDeletedOnes) {
+            filter { eq(IS_DELETED_FIELD, false) }
+          }
+        }
+        .decodeList<RemoteUserMove>()
+    if (userMoves.isEmpty()) {
+      return listOf()
+    }
+    val idToMove =
+      client
+        .from(Table.MOVE)
+        .select { filter { isIn(ID_FIELD, userMoves.map { it.moveId }) } }
+        .decodeList<RemoteMove>()
+        .associateBy { it.id }
+    val idToPosition =
+      client
+        .from(Table.POSITION)
+        .select {
+          filter {
+            isIn(
+              ID_FIELD,
+              idToMove.values
+                .map { it.origin }
+                .union(idToMove.values.map { it.destination })
+                .toList(),
+            )
+          }
+        }
+        .decodeList<RemotePosition>()
+        .associateBy { it.id }
+    return userMoves.map {
+      val move = idToMove[it.moveId]
+      checkNotNull(move)
+      val origin = idToPosition[move.origin]
+      checkNotNull(origin)
+      val destination = idToPosition[move.destination]
+      checkNotNull(destination)
+      StoredMove(
+        PositionIdentifier(origin.fenRepresentation),
+        PositionIdentifier(destination.fenRepresentation),
+        move.name,
+        it.isGood,
+      )
+    }
+  }
+
+  override suspend fun deleteAll() {
+    client.from(Table.USER_POSITION).update({ set(IS_DELETED_FIELD, true) })
+    client.from(Table.USER_MOVE).update({ set(IS_DELETED_FIELD, true) })
+  }
+
+  override suspend fun insertPosition(position: StoredNode) {
+    insertUnlinkedStoredNodes(
+      listOf(
+        UnlinkedStoredNode(
+          position.positionIdentifier,
+          position.previousAndNextTrainingDate,
+          position.previousAndNextMoves.depth,
+          false,
+        )
+      )
+    )
+    insertMoves(
+      position.previousAndNextMoves.nextMoves.values +
+        position.previousAndNextMoves.previousMoves.values
+    )
+  }
+
+  override suspend fun getLastMoveUpdate(): LocalDateTime? {
+    return client
+      .from(Table.USER_MOVE)
+      .select(Columns.list(UPDATED_AT_FIELD)) {
+        order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
+        limit(1)
+      }
+      .decodeSingleOrNull<SingleUpdatedAtTime>()
+      ?.updatedAt
+  }
+
+  override suspend fun insertUnlinkedStoredNodes(nodes: List<UnlinkedStoredNode>) {
+    upsertPositions(nodes.map { it.positionIdentifier })
+    val positions =
+      if (nodes.isEmpty()) mapOf()
+      else
+        client
+          .from(Table.POSITION)
+          .select() {
+            filter {
+              isIn(FEN_REPRESENTATION_FIELD, nodes.map { it.positionIdentifier.fenRepresentation })
+            }
+          }
+          .decodeList<RemotePosition>()
+          .associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
+    client.from(Table.USER_POSITION).upsert(
+      nodes.map {
+        RemoteUserPositionToUpload(
+          authManager.user!!.id,
+          positions[it.positionIdentifier]!!,
+          it.depth,
+          it.previousAndNextTrainingDate.nextDate,
+          it.previousAndNextTrainingDate.previousDate,
+          createdAt = DateUtil.now(),
+          isDeleted = it.isDeleted,
+          updatedAt = DateUtil.now(),
+        )
+      }
+    ) {
+      onConflict = "$USER_ID_FIELD, $POSITION_ID_FIELD"
+      ignoreDuplicates = false
+    }
+  }
+
+  private suspend fun upsertPositions(positions: Collection<PositionIdentifier>) {
+    client.from(Table.POSITION).upsert(
+      positions.map { RemotePositionToUpload(it.fenRepresentation) }
+    ) {
+      onConflict = FEN_REPRESENTATION_FIELD
+      ignoreDuplicates = true
+    }
+  }
+
+  override suspend fun insertMoves(moves: List<StoredMove>) {
+
+    val neededPositions = moves.map { it.origin }.union(moves.map { it.destination })
+    upsertPositions(neededPositions)
+    upsertMoves(moves)
+    val positions =
+      if (neededPositions.isEmpty()) listOf()
+      else
+        client
+          .from(Table.POSITION)
+          .select {
+            filter { isIn(FEN_REPRESENTATION_FIELD, neededPositions.map { it.fenRepresentation }) }
+          }
+          .decodeList<RemotePosition>()
+    val positionToId = positions.associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
+    val idToPosition = positions.associate { Pair(it.id, PositionIdentifier(it.fenRepresentation)) }
+    val remoteMoveList =
+      if (moves.isEmpty()) listOf()
+      else
+        client
+          .from(Table.MOVE)
+          .select {
+            filter {
+              or {
+                moves.forEach {
+                  and {
+                    eq(ORIGIN_FIELD, positionToId[it.origin]!!)
+                    eq(DESTINATION_FIELD, positionToId[it.destination]!!)
+                    eq(NAME_FIELD, it.move)
+                  }
+                }
+              }
+            }
+          }
+          .decodeList<RemoteMove>()
+    val moveToRemoteMove =
+      remoteMoveList.associateBy {
+        val origin = idToPosition[it.origin]
+        checkNotNull(origin)
+        val destination = idToPosition[it.destination]
+        checkNotNull(destination)
+        val firstOrNull =
+          moves.firstOrNull { move ->
+            move.move == it.name && move.origin == origin && move.destination == destination
+          }
+        checkNotNull(firstOrNull)
+        firstOrNull
+      }
+    client.from(Table.USER_MOVE).upsert(
+      moveToRemoteMove.map {
+        RemoteUserMoveToUpload(
+          it.value.id,
+          it.key.isGood ?: false,
+          DateUtil.now(),
+          authManager.user!!.id,
+          it.key.isDeleted,
+          DateUtil.now(),
+        )
+      }
+    ) {
+      onConflict = "$USER_ID_FIELD, $MOVE_ID_FIELD"
+      ignoreDuplicates = false
+    }
+  }
+
+  private suspend fun upsertMoves(moves: List<StoredMove>) {
+    val positionToId =
+      if (moves.isEmpty()) mapOf()
+      else
+        client
+          .from(Table.POSITION)
+          .select {
+            filter {
+              isIn(
+                FEN_REPRESENTATION_FIELD,
+                moves
+                  .map { it.origin.fenRepresentation }
+                  .union(moves.map { it.destination.fenRepresentation })
+                  .toList(),
+              )
+            }
+          }
+          .decodeList<RemotePosition>()
+          .associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
+    client.from(Table.MOVE).upsert(
+      moves.map {
+        RemoteMoveToUpload(positionToId[it.origin]!!, positionToId[it.destination]!!, it.move)
+      }
+    ) {
+      onConflict = "$ORIGIN_FIELD, $DESTINATION_FIELD, $NAME_FIELD"
+      ignoreDuplicates = true
+    }
+  }
+
+  override fun isActive(): Boolean {
+    return authManager.user != null && isSynced
+  }
+}

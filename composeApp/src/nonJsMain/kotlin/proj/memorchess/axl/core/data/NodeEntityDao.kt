@@ -117,13 +117,11 @@ interface NodeEntityDao {
   @Query("SELECT * FROM MoveEntity WHERE isDeleted IS FALSE")
   suspend fun getAllMoves(): List<MoveEntity>
 
+  @Query("SELECT * FROM MoveEntity") suspend fun getAllMovesWithDeletedOnes(): List<MoveEntity>
+
   @Query("SELECT MAX(updatedAt) FROM NodeEntity") suspend fun getLastNodeUpdate(): LocalDateTime?
 
-  @Query("SELECT * FROM NodeEntity WHERE updatedAt > :date")
-  suspend fun getNodesUpdatedAfter(date: LocalDateTime): List<NodeEntity>
+  @Query("SELECT * FROM NodeEntity") suspend fun getPositions(): List<NodeEntity>
 
   @Query("SELECT MAX(updatedAt) FROM MoveEntity") suspend fun getLastMoveUpdate(): LocalDateTime?
-
-  @Query("SELECT * FROM MoveEntity WHERE updatedAt > :date")
-  suspend fun getMovesUpdatedAfter(date: LocalDateTime): List<MoveEntity>
 }

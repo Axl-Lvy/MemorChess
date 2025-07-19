@@ -1,8 +1,10 @@
 package proj.memorchess.axl.core.data
 
 import com.diamondedge.logging.logging
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
-/** Move that can be stored in [ILocalDatabase] */
+/** Move that can be stored in [DatabaseQueryManager] */
 data class StoredMove(
   /** Origin position of the move */
   val origin: PositionIdentifier,
@@ -22,11 +24,14 @@ data class StoredMove(
    */
   var isGood: Boolean? = null,
   val isDeleted: Boolean = false,
-) {
+) : KoinComponent {
+
+  private val db by inject<DatabaseQueryManager>()
+
   /** Saves the move to the database */
   suspend fun save() {
     LOGGER.info { "Saving $this" }
-    DatabaseHolder.getDatabase().insertMove(this)
+    db.insertMove(this)
   }
 
   override fun toString(): String {

@@ -1,11 +1,12 @@
 package proj.memorchess.axl.game
 
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
@@ -16,23 +17,29 @@ import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.NoOpReloader
-import proj.memorchess.axl.test_util.TestDatabase
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
-class TestLinesExplorer {
+class TestLinesExplorer : TestWithKoin() {
   private lateinit var interactionsManager: LinesExplorer
   private lateinit var moveFactory: SimpleMoveFactory
   private lateinit var checkChecker: ACheckChecker
-  private lateinit var database: TestDatabase
+  private lateinit var database: TestDatabaseQueryManager
 
   private fun initialize() {
-    database = TestDatabase.empty()
-    DatabaseHolder.init(database)
+    database = TestDatabaseQueryManager.empty()
+    LocalDatabaseHolder.init(database)
     runTest { NodeManager.resetCacheFromDataBase() }
     ToastRendererHolder.init { _, _ -> }
     interactionsManager = LinesExplorer()
     moveFactory = SimpleMoveFactory(interactionsManager.game.position)
     checkChecker = DummyCheckChecker(interactionsManager.game.position)
+  }
+
+  @AfterTest
+  fun tearDown() {
+    LocalDatabaseHolder.reset()
   }
 
   @Test

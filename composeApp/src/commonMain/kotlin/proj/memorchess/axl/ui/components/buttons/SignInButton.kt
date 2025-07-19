@@ -17,20 +17,22 @@ import compose.icons.FeatherIcons
 import compose.icons.feathericons.CheckCircle
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.online.auth.SupabaseAuthManager
+import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.ui.theme.goodTint
 
 @Composable
 fun SignInButton(
   modifier: Modifier = Modifier,
-  supabaseAuthManager: SupabaseAuthManager = koinInject(),
+  authManager: AuthManager = koinInject(),
+  databaseSynchronizer: DatabaseSynchronizer = koinInject(),
 ) {
   var showDialog by rememberSaveable { mutableStateOf(false) }
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }
   var signInError by rememberSaveable { mutableStateOf<String?>(null) }
   val coroutineScope = rememberCoroutineScope()
-  val isSignedIn = supabaseAuthManager.user != null
+  val isSignedIn = authManager.user != null
 
   val buttonColor =
     if (isSignedIn) goodTint.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary
@@ -100,7 +102,8 @@ fun SignInButton(
           onClick = {
             coroutineScope.launch {
               try {
-                supabaseAuthManager.signInFromEmail(email, password)
+                authManager.signInFromEmail(email, password)
+                databaseSynchronizer.getLastUpdates()
                 signInError = null
               } catch (e: Exception) {
                 signInError = e.message ?: "Sign in failed"

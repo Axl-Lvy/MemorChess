@@ -1,20 +1,26 @@
 package proj.memorchess.axl.game
 
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.test_util.TestDatabase
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
 class TestTrainingNodeOrder {
   @BeforeTest
   fun setup() {
-    DatabaseHolder.init(TestDatabase.vienna())
+    LocalDatabaseHolder.init(TestDatabaseQueryManager.vienna())
     runTest { NodeManager.resetCacheFromDataBase() }
+  }
+
+  @AfterTest
+  fun tearDown() {
+    LocalDatabaseHolder.reset()
   }
 
   @Test

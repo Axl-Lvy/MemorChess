@@ -19,7 +19,7 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
-import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
+import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
@@ -129,7 +129,7 @@ private class TrainingBoard {
     nodeToLearn: StoredNode,
     numberOfNodesToTrain: Int,
     modifier: Modifier = Modifier,
-    remoteDatabaseManager: RemoteDatabaseManager = koinInject(),
+    remoteDatabaseManager: DatabaseSynchronizer = koinInject(),
   ) {
     val trainer by
       remember(nodeToLearn) {

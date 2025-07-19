@@ -4,7 +4,7 @@ import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
@@ -31,8 +31,7 @@ class TestTraining : AUiTestFromMainActivity() {
 
   override suspend fun resetDatabase() {
     // Delete all existing nodes
-    DatabaseHolder.getDatabase().deleteAllNodes()
-    DatabaseHolder.getDatabase().deleteAllMoves()
+    LocalDatabaseHolder.getDatabase().deleteAll()
 
     // Create a test node with e4 as a good move
     val game = Game()
@@ -51,7 +50,7 @@ class TestTraining : AUiTestFromMainActivity() {
       )
 
     // Save the node to the database
-    DatabaseHolder.getDatabase().insertPosition(testNode)
+    LocalDatabaseHolder.getDatabase().insertPosition(testNode)
   }
 
   @Test
@@ -141,7 +140,7 @@ class TestTraining : AUiTestFromMainActivity() {
       )
 
     // Save the node to the database
-    runTest { DatabaseHolder.getDatabase().insertPosition(testNode) }
+    runTest { LocalDatabaseHolder.getDatabase().insertPosition(testNode) }
 
     // Ensure we rebuild the training page
     goToExplore()
@@ -164,10 +163,7 @@ class TestTraining : AUiTestFromMainActivity() {
 
   @Test
   fun testPromotion() {
-    runTest {
-      DatabaseHolder.getDatabase().deleteAllNodes()
-      DatabaseHolder.getDatabase().deleteAllMoves()
-    }
+    runTest { LocalDatabaseHolder.getDatabase().deleteAll() }
     val game = Game(PositionIdentifier("k7/7P/8/8/8/8/8/7K w KQkq"))
     val startPosition = game.position.createIdentifier()
     game.playMove("h8=Q+")
@@ -179,7 +175,7 @@ class TestTraining : AUiTestFromMainActivity() {
         PreviousAndNextMoves(listOf(), listOf(startMove)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
-    runTest { DatabaseHolder.getDatabase().insertPosition(node) }
+    runTest { LocalDatabaseHolder.getDatabase().insertPosition(node) }
     goToExplore()
     goToTraining()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)

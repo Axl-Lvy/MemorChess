@@ -2,7 +2,9 @@ package proj.memorchess.axl.core.graph.nodes
 
 import com.diamondedge.logging.logging
 import kotlinx.datetime.LocalDate
-import proj.memorchess.axl.core.data.DatabaseHolder
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
@@ -64,7 +66,7 @@ object NodeManager {
     return newNode
   }
 
-  suspend fun clearNextMoves(positionIdentifier: PositionIdentifier) {
+  fun clearNextMoves(positionIdentifier: PositionIdentifier) {
     nodeCache.clearNextMoves(positionIdentifier)
   }
 
@@ -105,7 +107,10 @@ object NodeManager {
  * NodeCache singleton to abstract operations on the moves cache. This class manages the cache of
  * position keys and their associated moves.
  */
-private object NodeCache {
+private object NodeCache : KoinComponent {
+
+  private val database by inject<DatabaseQueryManager>()
+
   private lateinit var todayDate: LocalDate
 
   private var databaseRetrieved = false
@@ -151,10 +156,9 @@ private object NodeCache {
    *
    * @param positionIdentifier The position key to clear next moves for.
    */
-  suspend fun clearNextMoves(positionIdentifier: PositionIdentifier) {
+  fun clearNextMoves(positionIdentifier: PositionIdentifier) {
     movesCache[positionIdentifier]?.nextMoves?.clear()
     LOGGER.i { "Cleared next moves for position: $positionIdentifier" }
-    DatabaseHolder.getDatabase().deleteMoveFrom(positionIdentifier.fenRepresentation)
   }
 
   /**
@@ -166,7 +170,7 @@ private object NodeCache {
   suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: StoredMove) {
     movesCache[positionIdentifier]?.previousMoves?.remove(move.move)
     LOGGER.i { "Cleared previous move $move for position: $positionIdentifier" }
-    DatabaseHolder.getDatabase().deleteMove(positionIdentifier.fenRepresentation, move.move)
+    database.deleteMove(positionIdentifier.fenRepresentation, move.move)
   }
 
   /** Clears the cache and resets the database retrieved flag. */
@@ -212,7 +216,7 @@ private object NodeCache {
     }
     nodesByDay.clear()
     todayDate = DateUtil.today()
-    val allNodes: List<StoredNode> = DatabaseHolder.getDatabase().getAllPositions()
+    val allNodes: List<StoredNode> = database.getAllNodes()
     allNodes.forEach { node ->
       movesCache.getOrPut(node.positionIdentifier) { node.previousAndNextMoves }
       if (node.previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {

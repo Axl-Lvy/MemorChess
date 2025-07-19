@@ -22,13 +22,13 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.online.auth.SupabaseAuthManager
-import proj.memorchess.axl.core.data.online.database.RemoteDatabaseManager
+import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 
 @Composable
 fun SyncStatusSection(
-  supabaseAuthManager: SupabaseAuthManager = koinInject(),
-  remoteDatabaseManager: RemoteDatabaseManager = koinInject(),
+  authManager: AuthManager = koinInject(),
+  databaseSynchronizer: DatabaseSynchronizer = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   var lastLocalUpdate by remember { mutableStateOf<LocalDateTime?>(null) }
@@ -37,12 +37,12 @@ fun SyncStatusSection(
   var error by remember { mutableStateOf<String?>(null) }
   var synced by remember { mutableStateOf(false) }
 
-  LaunchedEffect(supabaseAuthManager.user) {
-    if (supabaseAuthManager.user != null) {
+  LaunchedEffect(authManager.user) {
+    if (authManager.user != null) {
       loading = true
       error = null
       try {
-        val updates = remoteDatabaseManager.getLastUpdates()
+        val updates = databaseSynchronizer.getLastUpdates()
         lastLocalUpdate = updates?.first
         lastRemoteUpdate = updates?.second
         synced = (lastLocalUpdate != null && lastLocalUpdate == lastRemoteUpdate)
@@ -54,7 +54,7 @@ fun SyncStatusSection(
     }
   }
 
-  if (supabaseAuthManager.user != null) {
+  if (authManager.user != null) {
     Spacer(modifier = Modifier.height(16.dp))
     Column(
       modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -79,8 +79,8 @@ fun SyncStatusSection(
                 error = null
                 coroutineScope.launch {
                   try {
-                    remoteDatabaseManager.syncFromLocal()
-                    val updates = remoteDatabaseManager.getLastUpdates()
+                    databaseSynchronizer.syncFromLocal()
+                    val updates = databaseSynchronizer.getLastUpdates()
                     lastLocalUpdate = updates?.first
                     lastRemoteUpdate = updates?.second
                     synced = (lastLocalUpdate != null && lastLocalUpdate == lastRemoteUpdate)
@@ -100,8 +100,8 @@ fun SyncStatusSection(
                 error = null
                 coroutineScope.launch {
                   try {
-                    remoteDatabaseManager.syncFromRemote()
-                    val updates = remoteDatabaseManager.getLastUpdates()
+                    databaseSynchronizer.syncFromRemote()
+                    val updates = databaseSynchronizer.getLastUpdates()
                     lastLocalUpdate = updates?.first
                     lastRemoteUpdate = updates?.second
                     synced = (lastLocalUpdate != null && lastLocalUpdate == lastRemoteUpdate)
