@@ -89,7 +89,7 @@ data class PreviousAndNextMoves(
    *
    * Please note that if a move was already marked as good, it will not be changed.
    */
-  fun setPreviousMovesAsBadIsNotMarked() {
+  fun setPreviousMovesAsBadIfNotMarked() {
     previousMoves.values.forEach { it.isGood = it.isGood ?: false }
   }
 

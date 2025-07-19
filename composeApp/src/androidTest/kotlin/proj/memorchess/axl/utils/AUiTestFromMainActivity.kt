@@ -21,11 +21,13 @@ import kotlin.time.Duration
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import proj.memorchess.axl.MainActivity
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
-import proj.memorchess.axl.core.data.DatabaseHolder
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
@@ -33,7 +35,7 @@ import proj.memorchess.axl.core.engine.pieces.IPiece
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.test_util.TestDatabase
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
@@ -44,12 +46,14 @@ import proj.memorchess.axl.ui.pages.navigation.Destination
  * use them and to create new one if needed. Tests are way more readable this way.
  */
 @OptIn(ExperimentalTestApi::class)
-abstract class AUiTestFromMainActivity {
+abstract class AUiTestFromMainActivity : KoinComponent {
   /**
    * The Compose test rule used to interact with the UI. This is automatically initialized by JUnit
    * before tests are executed.
    */
   @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
+
+  val database by inject<DatabaseQueryManager>()
 
   @BeforeTest
   open fun setUp() {
@@ -57,6 +61,9 @@ abstract class AUiTestFromMainActivity {
     MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     ON_SUCCESS_DATE_FACTOR_SETTING.reset()
+    waitUntilNodeExists(
+      hasContentDescription(getNavigationButtonDescription(Destination.EXPLORE.name))
+    )
     runTest { resetDatabase() }
   }
 
@@ -70,7 +77,10 @@ abstract class AUiTestFromMainActivity {
    */
   fun goToExplore() {
     clickOnDestinationButton(Destination.EXPLORE)
-    composeTestRule.waitUntilAtLeastOneExists(hasClickLabel(getTileDescription("e2")))
+    composeTestRule.waitUntilAtLeastOneExists(
+      hasClickLabel(getTileDescription("e2")),
+      TEST_TIMEOUT.inWholeMilliseconds,
+    )
     assertNodeWithTagExists(Destination.EXPLORE.name)
   }
 
@@ -83,7 +93,8 @@ abstract class AUiTestFromMainActivity {
   fun goToTraining() {
     clickOnDestinationButton(Destination.TRAINING)
     composeTestRule.waitUntilAtLeastOneExists(
-      hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !"))
+      hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
+      TEST_TIMEOUT.inWholeMilliseconds,
     )
     assertNodeWithTagExists(Destination.TRAINING.name)
   }
@@ -213,7 +224,7 @@ abstract class AUiTestFromMainActivity {
 
   private fun waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
     val matcher = hasClickLabel(getTileDescription(tileName))
-    composeTestRule.waitUntilAtLeastOneExists(matcher)
+    composeTestRule.waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)
     return composeTestRule.onNode(matcher).assertExists()
   }
 
@@ -293,8 +304,8 @@ abstract class AUiTestFromMainActivity {
     node.performTouchInput { click(Offset(width * widthFactor, 0f)) }
   }
 
-  private fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
-    composeTestRule.waitUntilAtLeastOneExists(matcher)
+  fun waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
+    composeTestRule.waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)
     return composeTestRule.onNode(matcher).assertExists()
   }
 
@@ -307,7 +318,7 @@ abstract class AUiTestFromMainActivity {
    */
   fun getAllPositions(): List<StoredNode> {
     lateinit var allPositions: List<StoredNode>
-    runTest { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
+    runTest { allPositions = database.getAllNodes() }
     return allPositions
   }
 
@@ -319,7 +330,7 @@ abstract class AUiTestFromMainActivity {
    */
   fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     var position: StoredNode? = null
-    runTest { position = DatabaseHolder.getDatabase().getPosition(positionIdentifier) }
+    runTest { position = database.getPosition(positionIdentifier) }
     return position
   }
 
@@ -347,33 +358,30 @@ abstract class AUiTestFromMainActivity {
    */
   open suspend fun resetDatabase() {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
-      runTest {
-        DatabaseHolder.getDatabase().deleteAllNodes()
-        DatabaseHolder.getDatabase().deleteAllMoves()
-      }
+      runTest { database.deleteAll() }
       lateinit var allPositions: List<StoredNode>
       lateinit var allMoves: List<StoredMove>
       runTest {
-        allPositions = DatabaseHolder.getDatabase().getAllPositions()
-        allMoves = DatabaseHolder.getDatabase().getAllMoves()
+        allPositions = database.getAllNodes()
+        allMoves = database.getAllMoves()
       }
       allPositions.isEmpty() && allMoves.isEmpty()
     }
     val viennaNodes =
-      TestDatabase.convertStringMovesToNodes(getVienna()).map {
+      TestDatabaseQueryManager.convertStringMovesToNodes(getVienna()).map {
         StoredNode(it.positionIdentifier, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val scandinavianNodes =
-      TestDatabase.convertStringMovesToNodes(getScandinavian()).map {
+      TestDatabaseQueryManager.convertStringMovesToNodes(getScandinavian()).map {
         StoredNode(it.positionIdentifier, it.previousAndNextMoves, it.previousAndNextTrainingDate)
       }
     val storedNodes = (viennaNodes + scandinavianNodes)
     for (node in storedNodes) {
-      DatabaseHolder.getDatabase().insertPosition(node)
+      database.insertPosition(node)
     }
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
       lateinit var allPositions: List<StoredNode>
-      runBlocking { allPositions = DatabaseHolder.getDatabase().getAllPositions() }
+      runBlocking { allPositions = database.getAllNodes() }
       allPositions.size == storedNodes.map { it.positionIdentifier }.distinct().size
     }
   }

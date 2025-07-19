@@ -8,13 +8,13 @@ import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 
 /**
- * Test the [TestDatabase], most particularly the utility methods to create prefilled test
- * databases.
+ * Test the [TestDatabaseQueryManager], most particularly the utility methods to create prefilled
+ * test databases.
  */
 class TestTestDatabase {
   @Test
   fun testViennaDatabase() {
-    val viennaDb = TestDatabase.vienna()
+    val viennaDb = TestDatabaseQueryManager.vienna()
     val viennaMoves = getVienna()
 
     // Check that the database has the correct number of positions
@@ -36,7 +36,7 @@ class TestTestDatabase {
 
   @Test
   fun testLondonDatabase() {
-    val londonDb = TestDatabase.london()
+    val londonDb = TestDatabaseQueryManager.london()
     val londonMoves = getLondon()
 
     // Check that the database has the correct number of positions
@@ -58,7 +58,7 @@ class TestTestDatabase {
 
   @Test
   fun testScandinavianDatabase() {
-    val scandinavianDb = TestDatabase.scandinavian()
+    val scandinavianDb = TestDatabaseQueryManager.scandinavian()
     val scandinavianMoves = getScandinavian()
 
     // Check that the database has the correct number of positions
@@ -80,12 +80,12 @@ class TestTestDatabase {
 
   @Test
   fun testMergeFunction() {
-    val viennaDb = TestDatabase.vienna()
-    val londonDb = TestDatabase.london()
-    val scandinavianDb = TestDatabase.scandinavian()
+    val viennaDb = TestDatabaseQueryManager.vienna()
+    val londonDb = TestDatabaseQueryManager.london()
+    val scandinavianDb = TestDatabaseQueryManager.scandinavian()
 
     // Merge all databases
-    val mergedDb = TestDatabase.merge(viennaDb, londonDb, scandinavianDb)
+    val mergedDb = TestDatabaseQueryManager.merge(viennaDb, londonDb, scandinavianDb)
 
     // Check that the merged database contains all positions from individual databases
     val uniquePositions =

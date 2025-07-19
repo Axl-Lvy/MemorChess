@@ -1,20 +1,35 @@
 package proj.memorchess.axl.game
 
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.DatabaseHolder
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.test_util.TestDatabase
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestWithKoin
 
-class TestTrainingNodeOrder {
+class TestTrainingNodeOrder : TestWithKoin() {
+  val database by inject<DatabaseQueryManager>()
+
   @BeforeTest
   fun setup() {
-    DatabaseHolder.init(TestDatabase.vienna())
-    runTest { NodeManager.resetCacheFromDataBase() }
+    runTest {
+      database.deleteAll()
+      LocalDatabaseHolder.init(TestDatabaseQueryManager.vienna())
+      LocalDatabaseHolder.getDatabase().getAllNodes().forEach { database.insertPosition(it) }
+      NodeManager.resetCacheFromDataBase(database)
+    }
+  }
+
+  @AfterTest
+  fun tearDown() {
+    LocalDatabaseHolder.reset()
   }
 
   @Test

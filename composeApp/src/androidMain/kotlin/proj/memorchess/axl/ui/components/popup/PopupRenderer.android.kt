@@ -8,7 +8,7 @@ private var currentToast: Toast? = null
 actual fun getToastRenderer() = IToastRenderer { message, _ ->
   MAIN_ACTIVITY.runOnUiThread {
     currentToast?.cancel()
-    val newToast = Toast.makeText(MAIN_ACTIVITY, message, Toast.LENGTH_SHORT)
+    val newToast = Toast.makeText(MAIN_ACTIVITY, message, Toast.LENGTH_LONG)
     newToast.show()
     currentToast = newToast
   }

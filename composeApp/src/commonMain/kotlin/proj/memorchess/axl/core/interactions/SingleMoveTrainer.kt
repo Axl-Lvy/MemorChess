@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.interactions
 
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.INextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -18,6 +19,7 @@ import proj.memorchess.axl.core.util.IReloader
  */
 class SingleMoveTrainer(
   private var node: StoredNode,
+  private val remoteDatabaseManager: DatabaseSynchronizer? = null,
   val callBackOnCorrect: (StoredMove?) -> Unit,
 ) : AInteractionsManager(Game(node.positionIdentifier)) {
 
@@ -50,6 +52,6 @@ class SingleMoveTrainer(
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
     NodeManager.cacheNode(storedNode)
-    storedNode.save()
+    storedNode.save(remoteDatabaseManager)
   }
 }

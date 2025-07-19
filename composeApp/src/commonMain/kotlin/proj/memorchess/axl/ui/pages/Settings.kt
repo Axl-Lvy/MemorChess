@@ -24,16 +24,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
-import proj.memorchess.axl.core.data.DatabaseHolder.getDatabase
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.ui.components.buttons.SignInButton
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
+import proj.memorchess.axl.ui.components.settings.SyncStatusSection
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
-fun Settings() {
+fun Settings(database: DatabaseQueryManager = koinInject()) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
@@ -82,8 +85,7 @@ fun Settings() {
         onClick = {
           dlg.show("Are you sure you want to erase all data?") {
             coroutineScope.launch {
-              getDatabase().deleteAllNodes()
-              getDatabase().deleteAllMoves()
+              database.deleteAll()
               NodeManager.resetCacheFromDataBase()
             }
           }
@@ -100,6 +102,10 @@ fun Settings() {
         )
         Text("Erase All Data")
       }
+
+      // --- Sign In Button ---
+      SignInButton()
+      SyncStatusSection()
     }
   }
 }

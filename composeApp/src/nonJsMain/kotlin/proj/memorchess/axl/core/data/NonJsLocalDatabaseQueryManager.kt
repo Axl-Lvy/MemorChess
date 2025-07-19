@@ -1,12 +1,18 @@
 package proj.memorchess.axl.core.data
 
+import kotlinx.datetime.LocalDateTime
+
 /** Database for non-JS platforms */
-object NonJsCommonDatabase : ICommonDatabase {
+object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private val database = getRoomDatabase(databaseBuilder())
 
-  override suspend fun getAllPositions(): List<StoredNode> {
+  override suspend fun getAllNodes(): List<StoredNode> {
     return database.getNodeEntityDao().getAllNodes().map { it.toStoredNode() }
+  }
+
+  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
+    return database.getNodeEntityDao().getPositions().map { it.toUnlinkedStoredNode() }
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
@@ -15,14 +21,7 @@ object NonJsCommonDatabase : ICommonDatabase {
 
   override suspend fun deletePosition(fen: String) {
     database.getNodeEntityDao().delete(fen)
-  }
-
-  override suspend fun deleteMoveFrom(origin: String) {
-    database.getNodeEntityDao().removeMoveFrom(origin)
-  }
-
-  override suspend fun deleteMoveTo(destination: String) {
-    database.getNodeEntityDao().removeMoveTo(destination)
+    database.getNodeEntityDao().removeMoveFrom(fen)
   }
 
   override suspend fun deleteMove(origin: String, move: String) {
@@ -33,23 +32,30 @@ object NonJsCommonDatabase : ICommonDatabase {
     database.getNodeEntityDao().insertMoves(listOf(MoveEntity.convertToEntity(move)))
   }
 
-  override suspend fun getAllMoves(): List<StoredMove> {
-    return database.getNodeEntityDao().getAllMoves().map { it.toStoredMove() }
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
+    return (if (withDeletedOnes) database.getNodeEntityDao().getAllMovesWithDeletedOnes()
+      else database.getNodeEntityDao().getAllMoves())
+      .map { it.toStoredMove() }
   }
 
-  override suspend fun deleteAllMoves() {
+  override suspend fun deleteAll() {
+    database.getNodeEntityDao().deleteAllNodes()
     database.getNodeEntityDao().deleteAllMoves()
-  }
-
-  override suspend fun deleteAllNodes() {
-    database.getNodeEntityDao().deleteAll()
   }
 
   override suspend fun insertPosition(position: StoredNode) {
     database.getNodeEntityDao().insertNodeAndMoves(NodeWithMoves.convertToEntity(position))
   }
+
+  override suspend fun getLastMoveUpdate(): LocalDateTime? {
+    return database.getNodeEntityDao().getLastMoveUpdate()
+  }
+
+  override fun isActive(): Boolean {
+    return true
+  }
 }
 
-actual fun getCommonDatabase(): ICommonDatabase {
-  return NonJsCommonDatabase
+actual fun getLocalDatabase(): DatabaseQueryManager {
+  return NonJsLocalDatabaseQueryManager
 }

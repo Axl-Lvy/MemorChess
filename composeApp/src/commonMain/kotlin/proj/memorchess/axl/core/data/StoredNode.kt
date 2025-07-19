@@ -1,6 +1,9 @@
 package proj.memorchess.axl.core.data
 
 import com.diamondedge.logging.logging
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -17,12 +20,15 @@ data class StoredNode(
   val positionIdentifier: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves,
   val previousAndNextTrainingDate: PreviousAndNextDate,
-) {
+) : KoinComponent {
+
+  private val db by inject<DatabaseQueryManager>()
 
   /** Saves this node. */
-  suspend fun save() {
+  suspend fun save(remoteDatabaseManager: DatabaseSynchronizer?) {
     LOGGER.info { "saving $this" }
-    DatabaseHolder.getDatabase().insertPosition(this)
+    remoteDatabaseManager?.saveStoredNode(this)
+    db.insertPosition(this)
   }
 }
 

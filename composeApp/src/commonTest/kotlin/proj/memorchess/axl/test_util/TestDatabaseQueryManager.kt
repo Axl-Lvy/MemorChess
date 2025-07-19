@@ -1,9 +1,11 @@
 package proj.memorchess.axl.test_util
 
-import proj.memorchess.axl.core.data.ICommonDatabase
+import kotlinx.datetime.LocalDateTime
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.UnlinkedStoredNode
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
@@ -16,11 +18,15 @@ import proj.memorchess.axl.game.getVienna
  *
  * @constructor Creates an empty test database.
  */
-class TestDatabase private constructor() : ICommonDatabase {
+class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   val storedNodes = mutableMapOf<String, StoredNode>()
 
-  override suspend fun getAllPositions(): List<StoredNode> {
+  override suspend fun getAllNodes(): List<StoredNode> {
     return storedNodes.values.toList()
+  }
+
+  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
+    TODO("Not yet implemented")
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
@@ -29,36 +35,6 @@ class TestDatabase private constructor() : ICommonDatabase {
 
   override suspend fun deletePosition(fen: String) {
     storedNodes.remove(fen)
-  }
-
-  override suspend fun deleteMoveFrom(origin: String) {
-    if (storedNodes[origin] == null) {
-      return
-    }
-    storedNodes[origin] =
-      StoredNode(
-        PositionIdentifier(origin),
-        PreviousAndNextMoves(
-          storedNodes[origin]!!.previousAndNextMoves.previousMoves.values,
-          listOf(),
-        ),
-        storedNodes[origin]!!.previousAndNextTrainingDate,
-      )
-  }
-
-  override suspend fun deleteMoveTo(destination: String) {
-    if (storedNodes[destination] == null) {
-      return
-    }
-    storedNodes[destination] =
-      StoredNode(
-        PositionIdentifier(destination),
-        PreviousAndNextMoves(
-          listOf(),
-          storedNodes[destination]!!.previousAndNextMoves.nextMoves.values,
-        ),
-        storedNodes[destination]!!.previousAndNextTrainingDate,
-      )
   }
 
   override suspend fun deleteMove(origin: String, move: String) {
@@ -82,7 +58,7 @@ class TestDatabase private constructor() : ICommonDatabase {
       .previousMoves[move.move] = move
   }
 
-  override suspend fun getAllMoves(): List<StoredMove> {
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
     return storedNodes.values
       .flatMap {
         it.previousAndNextMoves.nextMoves.values + it.previousAndNextMoves.previousMoves.values
@@ -90,19 +66,20 @@ class TestDatabase private constructor() : ICommonDatabase {
       .distinct()
   }
 
-  override suspend fun deleteAllMoves() {
-    storedNodes.values.forEach {
-      it.previousAndNextMoves.nextMoves.clear()
-      it.previousAndNextMoves.previousMoves.clear()
-    }
+  override suspend fun deleteAll() {
+    storedNodes.clear()
   }
 
   override suspend fun insertPosition(position: StoredNode) {
     storedNodes[position.positionIdentifier.fenRepresentation] = position
   }
 
-  override suspend fun deleteAllNodes() {
-    storedNodes.clear()
+  override suspend fun getLastMoveUpdate(): LocalDateTime? {
+    throw UnsupportedOperationException("Not yet implemented")
+  }
+
+  override fun isActive(): Boolean {
+    return true
   }
 
   /**
@@ -112,33 +89,33 @@ class TestDatabase private constructor() : ICommonDatabase {
   companion object {
 
     /** A database with the Vienna opening. */
-    fun vienna(): TestDatabase {
+    fun vienna(): TestDatabaseQueryManager {
       return createDataBaseFromMoves(getVienna())
     }
 
     /** A database with the London opening. */
-    fun london(): TestDatabase {
+    fun london(): TestDatabaseQueryManager {
       return createDataBaseFromMoves(getLondon())
     }
 
     /** A database with the Scandinavian opening. */
-    fun scandinavian(): TestDatabase {
+    fun scandinavian(): TestDatabaseQueryManager {
       return createDataBaseFromMoves(getScandinavian())
     }
 
     /** An empty database. */
-    fun empty(): TestDatabase {
-      return TestDatabase()
+    fun empty(): TestDatabaseQueryManager {
+      return TestDatabaseQueryManager()
     }
 
     /**
      * A database with the given moves.
      *
      * @param moves The moves to create the database from.
-     * @return A [TestDatabase] with the given moves.
+     * @return A [TestDatabaseQueryManager] with the given moves.
      */
-    private fun createDataBaseFromMoves(moves: List<String>): TestDatabase {
-      val testDataBase = TestDatabase()
+    private fun createDataBaseFromMoves(moves: List<String>): TestDatabaseQueryManager {
+      val testDataBase = TestDatabaseQueryManager()
       val nodes = convertStringMovesToNodes(moves)
       for (node in nodes) {
         testDataBase.storedNodes[node.positionIdentifier.fenRepresentation] = node
@@ -171,13 +148,13 @@ class TestDatabase private constructor() : ICommonDatabase {
     }
 
     /**
-     * Merges multiple [TestDatabase] instances into one.
+     * Merges multiple [TestDatabaseQueryManager] instances into one.
      *
      * @param testDataBases The databases to merge.
-     * @return A new [TestDatabase] containing all positions and their moves.
+     * @return A new [TestDatabaseQueryManager] containing all positions and their moves.
      */
-    fun merge(vararg testDataBases: TestDatabase): TestDatabase {
-      val merged = TestDatabase()
+    fun merge(vararg testDataBases: TestDatabaseQueryManager): TestDatabaseQueryManager {
+      val merged = TestDatabaseQueryManager()
       for (dataBase in testDataBases) {
         for (entry in dataBase.storedNodes) {
           val storedNode = merged.storedNodes[entry.key]
