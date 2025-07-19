@@ -3,31 +3,15 @@ package proj.memorchess.axl.online
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
-import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.utils.AUiTestFromMainActivity
+import proj.memorchess.axl.utils.TestWithAuthentication
 
 @OptIn(ExperimentalTestApi::class)
-class TestAuthentication : AUiTestFromMainActivity() {
-
-  private val authManager by inject<AuthManager>()
-
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
-    // Ensure user is signed out before each test
-    runTest { authManager.signOut() }
-    goToSettings()
-    assertNodeWithTagExists("sign_in_button").performScrollTo()
-    assertTrue(authManager.user == null)
-  }
+class TestAuthentication : TestWithAuthentication() {
 
   @Test
   fun testSignInButtonShowsCorrectStateWhenSignedOut() {

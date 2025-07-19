@@ -1,8 +1,12 @@
 package proj.memorchess.axl.core.data.online.database
 
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.PostgrestFilterDSL
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.query.PostgrestQueryBuilder
+import io.github.jan.supabase.postgrest.query.PostgrestUpdate
+import io.github.jan.supabase.postgrest.query.filter.PostgrestFilterBuilder
 import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
@@ -17,8 +21,34 @@ class RemoteDatabaseQueryManagerImpl(
   private val client: SupabaseClient,
   private val authManager: AuthManager,
 ) : RemoteDatabaseQueryManager {
+  // Helper extension functions to automatically apply user ID filter
+  private suspend fun PostgrestQueryBuilder.selectWithUserFilter(
+    block: @PostgrestFilterDSL (PostgrestFilterBuilder.() -> Unit) = {}
+  ) = select {
+    filter {
+      and {
+        eq(USER_ID_FIELD, authManager.user!!.id)
+        block()
+      }
+    }
+  }
+
+  private suspend fun PostgrestQueryBuilder.updateWithUserFilter(
+    update: PostgrestUpdate.() -> Unit,
+    block: @PostgrestFilterDSL (PostgrestFilterBuilder.() -> Unit) = {},
+  ) =
+    update(update) {
+      filter {
+        and {
+          eq(USER_ID_FIELD, authManager.user!!.id)
+          block()
+        }
+      }
+    }
+
   override suspend fun getAllNodes(): List<StoredNode> {
-    val remoteUserMoves = client.from(Table.USER_MOVE).select().decodeList<RemoteUserMove>()
+    val remoteUserMoves =
+      client.from(Table.USER_MOVE).selectWithUserFilter().decodeList<RemoteUserMove>()
     val remoteMovesMap =
       if (remoteUserMoves.isEmpty()) mapOf()
       else
@@ -54,15 +84,11 @@ class RemoteDatabaseQueryManagerImpl(
       else
         client
           .from(Table.USER_POSITION)
-          .select {
-            filter {
-              and {
-                isIn(
-                  POSITION_ID_FIELD,
-                  remotePositionsMap.map { remotePosition -> remotePosition.value.id },
-                )
-              }
-            }
+          .selectWithUserFilter {
+            isIn(
+              POSITION_ID_FIELD,
+              remotePositionsMap.map { remotePosition -> remotePosition.value.id },
+            )
           }
           .decodeList<RemoteUserPosition>()
           .associateBy { it.positionId }
@@ -81,44 +107,47 @@ class RemoteDatabaseQueryManagerImpl(
         checkNotNull(remoteDestination)
         val destination = PositionIdentifier(remoteDestination.fenRepresentation)
         val storedMove = StoredMove(origin, destination, remoteMove.name, it.isGood)
-        positionToStoredNode
-          .getOrPut(origin) {
-            val remoteUserOrigin = remoteUserPositionMap[originPositionId]
-            checkNotNull(remoteUserOrigin)
-            val originUserPosition = remoteUserOrigin
-            StoredNode(
-              origin,
-              PreviousAndNextMoves(originUserPosition.depth),
-              PreviousAndNextDate(
-                originUserPosition.lastTrainingDate,
-                originUserPosition.nextTrainingDate,
-              ),
-            )
-          }
-          .previousAndNextMoves
-          .addNextMove(storedMove)
-        positionToStoredNode
-          .getOrPut(destination) {
-            val remoteUserDestination = remoteUserPositionMap[destinationPositionId]
-            checkNotNull(remoteUserDestination)
-            val destinationUserPosition = remoteUserDestination
-            StoredNode(
-              destination,
-              PreviousAndNextMoves(destinationUserPosition.depth),
-              PreviousAndNextDate(
-                destinationUserPosition.lastTrainingDate,
-                destinationUserPosition.nextTrainingDate,
-              ),
-            )
-          }
-          .previousAndNextMoves
-          .addPreviousMove(storedMove)
+        val remoteUserOrigin = remoteUserPositionMap[originPositionId]
+        if (remoteUserOrigin != null) {
+          positionToStoredNode
+            .getOrPut(origin) {
+              val originUserPosition = remoteUserOrigin
+              StoredNode(
+                origin,
+                PreviousAndNextMoves(originUserPosition.depth),
+                PreviousAndNextDate(
+                  originUserPosition.lastTrainingDate,
+                  originUserPosition.nextTrainingDate,
+                ),
+              )
+            }
+            .previousAndNextMoves
+            .addNextMove(storedMove)
+        }
+        val remoteUserDestination = remoteUserPositionMap[destinationPositionId]
+        if (remoteUserDestination != null) {
+          positionToStoredNode
+            .getOrPut(destination) {
+              val destinationUserPosition = remoteUserDestination
+              StoredNode(
+                destination,
+                PreviousAndNextMoves(destinationUserPosition.depth),
+                PreviousAndNextDate(
+                  destinationUserPosition.lastTrainingDate,
+                  destinationUserPosition.nextTrainingDate,
+                ),
+              )
+            }
+            .previousAndNextMoves
+            .addPreviousMove(storedMove)
+        }
       }
     return positionToStoredNode.values.toList()
   }
 
   override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
-    val userPositions = client.from(Table.USER_POSITION).select().decodeList<RemoteUserPosition>()
+    val userPositions =
+      client.from(Table.USER_POSITION).selectWithUserFilter().decodeList<RemoteUserPosition>()
     val idToPosition =
       client
         .from(Table.POSITION)
@@ -149,12 +178,10 @@ class RemoteDatabaseQueryManagerImpl(
     val userPosition =
       client
         .from(Table.USER_POSITION)
-        .select {
-          filter {
-            and {
-              eq(POSITION_ID_FIELD, position.id)
-              eq(IS_DELETED_FIELD, false)
-            }
+        .selectWithUserFilter {
+          and {
+            eq(POSITION_ID_FIELD, position.id)
+            eq(IS_DELETED_FIELD, false)
           }
         }
         .decodeAsOrNull<RemoteUserPosition>()
@@ -200,7 +227,12 @@ class RemoteDatabaseQueryManagerImpl(
     val remoteUserMoves =
       client
         .from(Table.USER_MOVE)
-        .select { filter { isIn(MOVE_ID_FIELD, idToMove.keys.toList()) } }
+        .selectWithUserFilter {
+          and {
+            eq(USER_ID_FIELD, authManager.user!!.id)
+            isIn(MOVE_ID_FIELD, idToMove.keys.toList())
+          }
+        }
         .decodeList<RemoteUserMove>()
     remoteUserMoves
       .map {
@@ -237,8 +269,8 @@ class RemoteDatabaseQueryManagerImpl(
     if (position == null) {
       return
     }
-    client.from(Table.USER_POSITION).update({ set(IS_DELETED_FIELD, true) }) {
-      filter { eq(POSITION_ID_FIELD, position.id) }
+    client.from(Table.USER_POSITION).updateWithUserFilter({ set(IS_DELETED_FIELD, true) }) {
+      eq(POSITION_ID_FIELD, position.id)
     }
   }
 
@@ -264,8 +296,8 @@ class RemoteDatabaseQueryManagerImpl(
     if (moves.isEmpty()) {
       return
     }
-    client.from(Table.USER_MOVE).update({ set(IS_DELETED_FIELD, true) }) {
-      filter { isIn(MOVE_ID_FIELD, moves.map { it.id }) }
+    client.from(Table.USER_MOVE).updateWithUserFilter({ set(IS_DELETED_FIELD, true) }) {
+      isIn(MOVE_ID_FIELD, moves.map { it.id })
     }
   }
 
@@ -277,9 +309,9 @@ class RemoteDatabaseQueryManagerImpl(
     val userMoves =
       client
         .from(Table.USER_MOVE)
-        .select() {
+        .selectWithUserFilter() {
           if (!withDeletedOnes) {
-            filter { eq(IS_DELETED_FIELD, false) }
+            eq(IS_DELETED_FIELD, false)
           }
         }
         .decodeList<RemoteUserMove>()
@@ -325,8 +357,8 @@ class RemoteDatabaseQueryManagerImpl(
   }
 
   override suspend fun deleteAll() {
-    client.from(Table.USER_POSITION).update({ set(IS_DELETED_FIELD, true) })
-    client.from(Table.USER_MOVE).update({ set(IS_DELETED_FIELD, true) })
+    client.from(Table.USER_POSITION).updateWithUserFilter({ set(IS_DELETED_FIELD, true) })
+    client.from(Table.USER_MOVE).updateWithUserFilter({ set(IS_DELETED_FIELD, true) })
   }
 
   override suspend fun insertPosition(position: StoredNode) {
@@ -350,6 +382,11 @@ class RemoteDatabaseQueryManagerImpl(
     return client
       .from(Table.USER_MOVE)
       .select(Columns.list(UPDATED_AT_FIELD)) {
+        filter {
+          val user = authManager.user
+          checkNotNull(user)
+          eq(USER_ID_FIELD, user.id)
+        }
         order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
         limit(1)
       }

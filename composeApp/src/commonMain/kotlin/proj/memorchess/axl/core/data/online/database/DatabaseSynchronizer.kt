@@ -51,6 +51,7 @@ class DatabaseSynchronizer(
 
   /** Uploads the database from local and overrides the remote one */
   suspend fun syncFromLocal() {
+    remoteDatabase.deleteAll()
     uploadNodes()
     uploadMoves()
     isSynced = true
@@ -68,14 +69,10 @@ class DatabaseSynchronizer(
 
   /** Download the database from remote and overrides the local one. */
   suspend fun syncFromRemote() {
-    updateLocalDatabase()
-    isSynced = true
-  }
-
-  private suspend fun updateLocalDatabase() {
     localDatabase.deleteAll()
     val positionToStoredNode = remoteDatabase.getAllNodes()
     positionToStoredNode.forEach { localDatabase.insertPosition(it) }
+    isSynced = true
   }
 }
 

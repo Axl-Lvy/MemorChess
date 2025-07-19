@@ -17,10 +17,16 @@ if [ ! -z "$SUPABASE_API_KEY" ]; then
   echo "Added SUPABASE_API_KEY to local.properties"
 fi
 
-# Add any other secrets as needed
-# if [ ! -z "$OTHER_SECRET" ]; then
-#   echo "OTHER_SECRET=$OTHER_SECRET" >> local.properties
-#   echo "Added OTHER_SECRET to local.properties"
-# fi
+# Add Supabase key if it exists in the environment
+if [ ! -z "$TEST_USER_MAIL" ]; then
+  echo "TEST_USER_MAIL=$TEST_USER_MAIL" >> local.properties
+  echo "Added TEST_USER_MAIL to local.properties"
+fi
+
+# Add Supabase key if it exists in the environment
+if [ ! -z "$TEST_USER_PASSWORD" ]; then
+  echo "TEST_USER_PASSWORD=$TEST_USER_PASSWORD" >> local.properties
+  echo "Added TEST_USER_PASSWORD to local.properties"
+fi
 
 echo "local.properties updated successfully"
