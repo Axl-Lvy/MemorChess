@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
  *
  * @property authManager Authentication manager
  * @property remoteDatabase Remote database
+ * @property localDatabase Local database
  */
 class DatabaseSynchronizer(
   private val authManager: AuthManager,
@@ -78,5 +79,6 @@ class DatabaseSynchronizer(
   }
 }
 
+/** Synced state of the database */
 var isSynced by mutableStateOf(false)
   private set

@@ -23,6 +23,8 @@ data class StoredMove(
    * Bad moves are always isolated: previous and the next moves are good.
    */
   var isGood: Boolean? = null,
+
+  /** Whether the move has been deleted. */
   val isDeleted: Boolean = false,
 ) : KoinComponent {
 
