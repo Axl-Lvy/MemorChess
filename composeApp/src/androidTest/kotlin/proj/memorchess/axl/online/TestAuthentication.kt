@@ -3,12 +3,17 @@ package proj.memorchess.axl.online
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
+import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
+import proj.memorchess.axl.utils.Awaitility
 import proj.memorchess.axl.utils.TestWithAuthentication
 
 @OptIn(ExperimentalTestApi::class)
@@ -53,9 +58,39 @@ class TestAuthentication : TestWithAuthentication() {
     composeTestRule.waitUntilDoesNotExist(hasText("Email"), TEST_TIMEOUT.inWholeMilliseconds)
     assertNodeWithTextExists("Signed in")
     assertNodeWithTextDoesNotExists("Sign in")
+    assertFalse { KEEP_LOGGED_IN_SETTING.getValue() }
 
     // Verify user is actually signed in through AuthManager
     assertTrue(authManager.user != null)
+  }
+
+  @Test
+  fun testKeepSession() {
+    testSuccessfulSignInWithValidCredentials()
+    assertNodeWithTextExists("Stay signed in?")
+    assertNodeWithTextExists("Yes").performClick()
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isNotEmpty() }
+  }
+
+  @Test
+  fun testDoNotKeepSession() {
+    testSuccessfulSignInWithValidCredentials()
+    assertNodeWithTextExists("Stay signed in?")
+    assertNodeWithTextExists("No").performClick()
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { !KEEP_LOGGED_IN_SETTING.getValue() }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isEmpty() }
+  }
+
+  @Test
+  fun testKeepSessionDialogNotReopens() {
+    testSuccessfulSignInWithValidCredentials()
+    assertNodeWithTextExists("Stay signed in?")
+    assertNodeWithTextExists("Yes").performClick()
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
+    assertNodeWithTextExists("DARK").performClick()
+    assertNodeWithTextExists("LIGHT").performClick()
+    assertNodeWithTextDoesNotExists("Stay signed in?")
   }
 
   @Test
@@ -83,19 +118,21 @@ class TestAuthentication : TestWithAuthentication() {
 
   @Test
   fun testSignOut() {
-    testSuccessfulSignInWithValidCredentials()
-    runTest { authManager.signOut() }
-    assert(authManager.user == null)
-  }
-
-  @Test
-  fun testSignInButtonIsDisabledWhenSignedIn() {
     // First sign in
-    testSuccessfulSignInWithValidCredentials()
+    runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
 
     // Navigate away and back to refresh the UI
     goToExplore()
     goToSettings()
+
+    // Verify we still see "Signed in" and try to click it
+    assertNodeWithTagExists("sign_in_button").performScrollTo().performClick()
+
+    // Verify dialog does not appear (button should be disabled)
+    assertNodeWithTextDoesNotExists("Email")
+    assertNodeWithTextDoesNotExists("Password")
+    assertNodeWithTextExists("Are you sure you want to sign out?")
+    assertNodeWithTextExists("Cancel").performClick()
 
     // Verify we still see "Signed in" and try to click it
     assertNodeWithTagExists("sign_in_button").performClick()
@@ -103,6 +140,8 @@ class TestAuthentication : TestWithAuthentication() {
     // Verify dialog does not appear (button should be disabled)
     assertNodeWithTextDoesNotExists("Email")
     assertNodeWithTextDoesNotExists("Password")
-    assertTrue(authManager.user != null)
+    assertNodeWithTextExists("Are you sure you want to sign out?")
+    assertNodeWithTextExists("Sign Out").performClick()
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { authManager.user == null }
   }
 }

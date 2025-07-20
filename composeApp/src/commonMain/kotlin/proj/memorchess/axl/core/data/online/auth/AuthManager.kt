@@ -18,4 +18,6 @@ interface AuthManager {
   suspend fun confirmEmail(email: String, token: String)
 
   suspend fun signOut()
+
+  fun updateSavedTokens()
 }

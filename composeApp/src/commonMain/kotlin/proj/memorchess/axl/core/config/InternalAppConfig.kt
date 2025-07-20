@@ -11,3 +11,7 @@ val MINIMUM_LOADING_TIME_SETTING =
     { long -> long.milliseconds },
     { duration -> duration.inWholeMilliseconds },
   )
+
+val AUTH_REFRESH_TOKEN_SETTINGS = ValueBasedAppConfigItem<String, String>("authRefreshToken", "")
+
+val AUTH_ACCESS_TOKEN_SETTINGS = ValueBasedAppConfigItem<String, String>("authAccessToken", "")

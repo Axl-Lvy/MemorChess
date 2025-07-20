@@ -4,7 +4,6 @@ import androidx.compose.ui.test.performClick
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
@@ -31,7 +30,7 @@ class TestTraining : AUiTestFromMainActivity() {
 
   override suspend fun resetDatabase() {
     // Delete all existing nodes
-    LocalDatabaseHolder.getDatabase().deleteAll()
+    database.deleteAll()
 
     // Create a test node with e4 as a good move
     val game = Game()
@@ -50,7 +49,7 @@ class TestTraining : AUiTestFromMainActivity() {
       )
 
     // Save the node to the database
-    LocalDatabaseHolder.getDatabase().insertPosition(testNode)
+    database.insertPosition(testNode)
   }
 
   @Test
@@ -140,7 +139,7 @@ class TestTraining : AUiTestFromMainActivity() {
       )
 
     // Save the node to the database
-    runTest { LocalDatabaseHolder.getDatabase().insertPosition(testNode) }
+    runTest { database.insertPosition(testNode) }
 
     // Ensure we rebuild the training page
     goToExplore()
@@ -163,7 +162,7 @@ class TestTraining : AUiTestFromMainActivity() {
 
   @Test
   fun testPromotion() {
-    runTest { LocalDatabaseHolder.getDatabase().deleteAll() }
+    runTest { database.deleteAll() }
     val game = Game(PositionIdentifier("k7/7P/8/8/8/8/8/7K w KQkq"))
     val startPosition = game.position.createIdentifier()
     game.playMove("h8=Q+")
@@ -175,7 +174,7 @@ class TestTraining : AUiTestFromMainActivity() {
         PreviousAndNextMoves(listOf(), listOf(startMove)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
-    runTest { LocalDatabaseHolder.getDatabase().insertPosition(node) }
+    runTest { database.insertPosition(node) }
     goToExplore()
     goToTraining()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)

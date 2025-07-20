@@ -7,6 +7,7 @@ import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.PostgrestQueryBuilder
 import io.github.jan.supabase.postgrest.query.PostgrestUpdate
 import io.github.jan.supabase.postgrest.query.filter.PostgrestFilterBuilder
+import io.github.jan.supabase.postgrest.result.PostgrestResult
 import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
@@ -24,11 +25,15 @@ class RemoteDatabaseQueryManagerImpl(
   // Helper extension functions to automatically apply user ID filter
   private suspend fun PostgrestQueryBuilder.selectWithUserFilter(
     block: @PostgrestFilterDSL (PostgrestFilterBuilder.() -> Unit) = {}
-  ) = select {
-    filter {
-      and {
-        eq(USER_ID_FIELD, authManager.user!!.id)
-        block()
+  ): PostgrestResult {
+    val user = authManager.user
+    checkNotNull(user) { "User must be logged in to select" }
+    return select {
+      filter {
+        and {
+          eq(USER_ID_FIELD, user.id)
+          block()
+        }
       }
     }
   }
@@ -36,15 +41,18 @@ class RemoteDatabaseQueryManagerImpl(
   private suspend fun PostgrestQueryBuilder.updateWithUserFilter(
     update: PostgrestUpdate.() -> Unit,
     block: @PostgrestFilterDSL (PostgrestFilterBuilder.() -> Unit) = {},
-  ) =
-    update(update) {
+  ): PostgrestResult {
+    val user = authManager.user
+    checkNotNull(user) { "User must be logged in to update database" }
+    return update(update) {
       filter {
         and {
-          eq(USER_ID_FIELD, authManager.user!!.id)
+          eq(USER_ID_FIELD, user.id)
           block()
         }
       }
     }
+  }
 
   override suspend fun getAllNodes(): List<StoredNode> {
     val remoteUserMoves =

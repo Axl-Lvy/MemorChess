@@ -46,10 +46,10 @@ private fun Component(
   val nextMoves = remember(boardReloader.getKey()) { linesExplorer.getNextMoves() }
   Column(
     verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-    modifier = modifier.padding(16.dp),
+    modifier = modifier.padding(horizontal = 2.dp),
   ) {
     ControlBar(
-      modifier = Modifier.height(50.dp),
+      modifier = Modifier.height(42.dp),
       onReverseClick = {
         inverted = !inverted
         boardReloader.reload()
