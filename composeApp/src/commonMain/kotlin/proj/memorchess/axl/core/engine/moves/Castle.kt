@@ -10,7 +10,7 @@ class Castle(
   private val king: Pair<Int, Int>,
   private val rookDestination: Pair<Int, Int>,
   private val kingDestination: Pair<Int, Int>,
-) : IMove {
+) : Move {
 
   override fun destination(): Pair<Int, Int> {
     return rook

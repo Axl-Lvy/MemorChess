@@ -15,8 +15,8 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.core.config.APP_THEME_SETTING
+import proj.memorchess.axl.core.config.ConfigItem
 import proj.memorchess.axl.core.config.EnumBasedAppConfigItem
-import proj.memorchess.axl.core.config.IConfigItem
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.ui.components.buttons.WideScrollBarChild
@@ -29,12 +29,12 @@ import proj.memorchess.axl.ui.components.buttons.WideScrollableRow
  * @property buttonParams The button parameters
  */
 enum class EmbeddedSettingItem(
-  private val configItem: IConfigItem<*>,
-  private val buttonParams: IButtonParams,
+  private val configItem: ConfigItem<*>,
+  private val buttonParams: ButtonParameters,
 ) {
   ON_SUCCESS_DATE_FACTOR(
     ON_SUCCESS_DATE_FACTOR_SETTING,
-    SliderParams(
+    SliderParameters(
       1f,
       5f,
       7,
@@ -46,7 +46,7 @@ enum class EmbeddedSettingItem(
   ),
   TRAINING_MOVE_DELAY(
     TRAINING_MOVE_DELAY_SETTING,
-    SliderParams(
+    SliderParameters(
       0f,
       5f,
       49,
@@ -70,7 +70,7 @@ enum class EmbeddedSettingItem(
   @Composable
   fun Draw(reloadKey: Any) {
     when (this.buttonParams) {
-      is SliderParams -> DrawSlider(reloadKey)
+      is SliderParameters -> DrawSlider(reloadKey)
       is EnumBasedSelectorParameters<*> -> DrawItemSelector(this.buttonParams)
       else -> throw UnsupportedOperationException("Unsupported button type")
     }
@@ -78,7 +78,7 @@ enum class EmbeddedSettingItem(
 
   @Composable
   private fun DrawSlider(reloadKey: Any) {
-    val sliderParams = buttonParams as SliderParams
+    val sliderParams = buttonParams as SliderParameters
     val value =
       remember(reloadKey) { mutableStateOf(sliderParams.convertToUnit(configItem.getValue())) }
 

@@ -1,13 +1,13 @@
 package proj.memorchess.axl.ui.components.popup
 
 object ToastRendererHolder {
-  private var toastRenderer: IToastRenderer? = null
+  private var toastRenderer: ToastRenderer? = null
 
-  fun init(renderer: IToastRenderer) {
+  fun init(renderer: ToastRenderer) {
     toastRenderer = renderer
   }
 
-  fun get(): IToastRenderer {
+  fun get(): ToastRenderer {
     val finalToastRenderer = toastRenderer
     if (finalToastRenderer != null) {
       return finalToastRenderer

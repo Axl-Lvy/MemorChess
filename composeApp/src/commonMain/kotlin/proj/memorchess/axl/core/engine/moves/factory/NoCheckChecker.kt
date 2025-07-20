@@ -2,10 +2,10 @@ package proj.memorchess.axl.core.engine.moves.factory
 
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.board.Position
-import proj.memorchess.axl.core.engine.moves.IMove
+import proj.memorchess.axl.core.engine.moves.Move
 
-class NoCheckChecker : ACheckChecker(Position()) {
-  override fun isPossible(move: IMove): Boolean {
+class NoCheckChecker : CheckChecker(Position()) {
+  override fun isPossible(move: Move): Boolean {
     return true
   }
 

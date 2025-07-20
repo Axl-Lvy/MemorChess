@@ -5,9 +5,9 @@ import androidx.compose.ui.test.performScrollTo
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import proj.memorchess.axl.core.engine.pieces.Pawn
-import proj.memorchess.axl.utils.AUiTestFromMainActivity
+import proj.memorchess.axl.utils.UiTestFromMainActivity
 
-class TestNextMoveBar : AUiTestFromMainActivity() {
+class TestNextMoveBar : UiTestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {

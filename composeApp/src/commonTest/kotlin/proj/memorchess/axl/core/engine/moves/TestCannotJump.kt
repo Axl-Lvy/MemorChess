@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.engine.moves
 
 import kotlin.test.*
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 
 class TestCannotJump {
 
@@ -33,7 +33,7 @@ class TestCannotJump {
     game.playMove("Nf3")
     assertNull(game.position.board.getTile("g1").getSafePiece())
     assertEquals(
-      IPiece.KNIGHT.uppercase(),
+      Piece.KNIGHT.uppercase(),
       game.position.board.getTile("f3").getSafePiece().toString(),
     )
   }

@@ -7,19 +7,19 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.pieces.IPiece
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.engine.pieces.vectors.*
 
 @Composable
-fun Piece(piece: IPiece) {
+fun Piece(piece: Piece) {
   Image(
     painter = painterResource(pieceToResource(piece)),
     contentDescription = stringResource(Res.string.description_board_piece, piece.toString()),
   )
 }
 
-private fun pieceToResource(piece: IPiece): DrawableResource {
+private fun pieceToResource(piece: Piece): DrawableResource {
   val resourceSuffix = if (piece.player == Game.Player.WHITE) "w" else "b"
   return drawableResource(
     "piece_${

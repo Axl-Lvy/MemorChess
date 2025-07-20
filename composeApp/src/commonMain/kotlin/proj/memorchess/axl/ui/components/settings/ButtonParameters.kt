@@ -5,4 +5,4 @@ package proj.memorchess.axl.ui.components.settings
  *
  * The only way to use it is through pattern matching over its implementations.
  */
-interface IButtonParams
+interface ButtonParameters

@@ -7,7 +7,7 @@ import proj.memorchess.axl.ui.theme.AppThemeSetting
 
 /**
  * Factor to apply to calculate the next training date. See
- * [INextDateCalculator][proj.memorchess.axl.core.date.INextDateCalculator]
+ * [NextDateCalculator][proj.memorchess.axl.core.date.NextDateCalculator]
  */
 val ON_SUCCESS_DATE_FACTOR_SETTING =
   ValueBasedAppConfigItem<Double, Double>("onSuccessDateFactor", 1.5)

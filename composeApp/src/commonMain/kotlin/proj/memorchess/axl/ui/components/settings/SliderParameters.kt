@@ -1,7 +1,7 @@
 package proj.memorchess.axl.ui.components.settings
 
 /**
- * [IButtonParams] representing a slider button.
+ * [ButtonParameters] representing a slider button.
  *
  * @property min Minimum value of the slider
  * @property max Maximum value of the slider
@@ -10,11 +10,11 @@ package proj.memorchess.axl.ui.components.settings
  * @property convertToUnit Function to convert the value from settings to float
  * @property displayText Function to generate the text to display based on the value
  */
-class SliderParams(
+class SliderParameters(
   val min: Float,
   val max: Float,
   val steps: Int,
   val setCallBack: (Float) -> Unit,
   val convertToUnit: (Any) -> Float,
   val displayText: (Float) -> String,
-) : IButtonParams
+) : ButtonParameters

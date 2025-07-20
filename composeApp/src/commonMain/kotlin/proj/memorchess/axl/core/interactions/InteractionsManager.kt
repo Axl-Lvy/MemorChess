@@ -5,7 +5,7 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
-import proj.memorchess.axl.core.util.IReloader
+import proj.memorchess.axl.core.util.Reloader
 import proj.memorchess.axl.ui.components.popup.info
 
 /**
@@ -14,7 +14,7 @@ import proj.memorchess.axl.ui.components.popup.info
  * @param game The game that is being played.
  * @constructor Creates an interaction manager from a game.
  */
-abstract class AInteractionsManager(var game: Game) {
+abstract class InteractionsManager(var game: Game) {
 
   /** Coordinates of the tile that was clicked first. */
   private var firstTile: Pair<Int, Int>? = null
@@ -31,7 +31,7 @@ abstract class AInteractionsManager(var game: Game) {
    * @param coordinates The clicked tile's coordinates.
    * @param reloader The reloader to use after the move is played.
    */
-  suspend fun clickOnTile(coordinates: Pair<Int, Int>, reloader: IReloader) {
+  suspend fun clickOnTile(coordinates: Pair<Int, Int>, reloader: Reloader) {
     if (isBlocked) {
       return
     }
@@ -62,7 +62,7 @@ abstract class AInteractionsManager(var game: Game) {
    * @param move the move to play
    * @param reloader the reloader
    */
-  suspend fun playMove(move: String, reloader: IReloader) {
+  suspend fun playMove(move: String, reloader: Reloader) {
     game.playMove(move)
     needPromotion.value = game.needPromotion()
     if (game.needPromotion()) {
@@ -78,7 +78,7 @@ abstract class AInteractionsManager(var game: Game) {
    * @param newPieceName The chosen piece name
    * @param reloader The reloader to use after the piece is promoted
    */
-  suspend fun applyPromotion(newPieceName: String, reloader: IReloader) {
+  suspend fun applyPromotion(newPieceName: String, reloader: Reloader) {
     game.applyPromotion(newPieceName)
     needPromotion.value = game.needPromotion()
     afterPlayMove(moveBeforePromotion!! + "=$newPieceName", reloader)
@@ -91,7 +91,7 @@ abstract class AInteractionsManager(var game: Game) {
    * @param move The move that was played.
    * @param reloader The reloader to use after the move is played.
    */
-  abstract suspend fun afterPlayMove(move: String, reloader: IReloader)
+  abstract suspend fun afterPlayMove(move: String, reloader: Reloader)
 
   /**
    * Resets the game to a new position.
@@ -99,7 +99,7 @@ abstract class AInteractionsManager(var game: Game) {
    * @param reloader The reloader.
    * @param position The new position key to reset the game to.
    */
-  fun reset(reloader: IReloader, position: PositionIdentifier) {
+  fun reset(reloader: Reloader, position: PositionIdentifier) {
     game = Game(position)
     needPromotion.value = game.needPromotion()
     firstTile = null

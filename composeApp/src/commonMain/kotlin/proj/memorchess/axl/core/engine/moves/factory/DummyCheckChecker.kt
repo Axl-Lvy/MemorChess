@@ -4,31 +4,31 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IPosition
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.board.Tile
-import proj.memorchess.axl.core.engine.moves.IMove
+import proj.memorchess.axl.core.engine.moves.Move
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 
-class DummyCheckChecker(position: IPosition) : ACheckChecker(position) {
+class DummyCheckChecker(position: IPosition) : CheckChecker(position) {
 
   private var changes = mapOf<Pair<Int, Int>, Pair<Int, Int>?>()
 
-  override fun isPossible(move: IMove): Boolean {
+  override fun isPossible(move: Move): Boolean {
     changes = move.generateChanges()
     val player = position.board.getTile(move.origin()).getSafePiece()?.player ?: return false
     val kingPosition =
       if (
-        position.board.getTile(move.origin()).getSafePiece()?.toString()?.lowercase() == IPiece.KING
+        position.board.getTile(move.origin()).getSafePiece()?.toString()?.lowercase() == Piece.KING
       ) {
         move.destination()
       } else {
         position.board.piecePositionsCache[
-            if (player == Game.Player.WHITE) IPiece.KING.uppercase() else IPiece.KING]
+            if (player == Game.Player.WHITE) Piece.KING.uppercase() else Piece.KING]
           ?.firstOrNull()
       }
     if (kingPosition == null) {
       return false
     }
-    IPiece.PIECES.map { if (player == Game.Player.WHITE) it else it.uppercase() }
+    Piece.PIECES.map { if (player == Game.Player.WHITE) it else it.uppercase() }
       .forEach {
         position.board.piecePositionsCache
           .getOrElse(it) { emptySet() }

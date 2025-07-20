@@ -4,16 +4,16 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.vectors.*
 
 object PieceFactory {
-  fun createPiece(stringPiece: String): IPiece {
+  fun createPiece(stringPiece: String): Piece {
     val player =
       if (stringPiece.uppercase() == stringPiece) Game.Player.WHITE else Game.Player.BLACK
     return when (stringPiece.lowercase()) {
-      IPiece.ROOK -> Rook(player)
-      IPiece.QUEEN -> Queen(player)
-      IPiece.KING -> King(player)
-      IPiece.BISHOP -> Bishop(player)
-      IPiece.KNIGHT -> Knight(player)
-      IPiece.PAWN -> Pawn(player)
+      Piece.ROOK -> Rook(player)
+      Piece.QUEEN -> Queen(player)
+      Piece.KING -> King(player)
+      Piece.BISHOP -> Bishop(player)
+      Piece.KNIGHT -> Knight(player)
+      Piece.PAWN -> Pawn(player)
       else -> throw IllegalArgumentException("Invalid piece: $stringPiece")
     }
   }

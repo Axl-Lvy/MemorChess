@@ -8,19 +8,19 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.INextDateCalculator
+import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.pieces.IPiece
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.utils.AUiTestFromMainActivity
 import proj.memorchess.axl.utils.Awaitility
+import proj.memorchess.axl.utils.UiTestFromMainActivity
 
 private const val BRAVO_TEXT = "Bravo !"
 
-class TestTraining : AUiTestFromMainActivity() {
+class TestTraining : UiTestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {
@@ -64,7 +64,7 @@ class TestTraining : AUiTestFromMainActivity() {
         positions[0].previousAndNextTrainingDate.previousDate.dayOfYear ==
           DateUtil.today().dayOfYear &&
         positions[0].previousAndNextTrainingDate.nextDate.dayOfYear ==
-          INextDateCalculator.SUCCESS.calculateNextDate(
+          NextDateCalculator.SUCCESS.calculateNextDate(
               PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today())
             )
             .dayOfYear
@@ -83,7 +83,7 @@ class TestTraining : AUiTestFromMainActivity() {
         positions[0].previousAndNextTrainingDate.previousDate.dayOfYear ==
           DateUtil.today().dayOfYear &&
         positions[0].previousAndNextTrainingDate.nextDate.dayOfYear ==
-          INextDateCalculator.FAILURE.calculateNextDate(
+          NextDateCalculator.FAILURE.calculateNextDate(
               PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today())
             )
             .dayOfYear
@@ -179,7 +179,7 @@ class TestTraining : AUiTestFromMainActivity() {
     goToTraining()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("h7", "h8")
-    promoteTo(IPiece.QUEEN)
+    promoteTo(Piece.QUEEN)
     assertNodeWithTextExists(BRAVO_TEXT)
   }
 

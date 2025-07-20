@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.engine.board
 
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 
 /**
  * Tile.
@@ -11,7 +11,7 @@ import proj.memorchess.axl.core.engine.pieces.IPiece
  * @property getSafePiece Piece on this tile.
  * @constructor Create empty Tile.
  */
-class Tile(private val row: Int, private val col: Int, var piece: IPiece?) : ITile {
+class Tile(private val row: Int, private val col: Int, var piece: Piece?) : ITile {
 
   constructor(row: Int, col: Int) : this(row, col, null)
 
@@ -23,7 +23,7 @@ class Tile(private val row: Int, private val col: Int, var piece: IPiece?) : ITi
     piece = null
   }
 
-  override fun getSafePiece(): IPiece? {
+  override fun getSafePiece(): Piece? {
     return piece
   }
 

@@ -9,10 +9,10 @@ import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.utils.AUiTestFromMainActivity
 import proj.memorchess.axl.utils.Awaitility
+import proj.memorchess.axl.utils.UiTestFromMainActivity
 
-class TestSettings : AUiTestFromMainActivity() {
+class TestSettings : UiTestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {

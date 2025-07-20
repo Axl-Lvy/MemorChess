@@ -5,9 +5,9 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import proj.memorchess.axl.core.engine.pieces.Pawn
-import proj.memorchess.axl.utils.AUiTestFromMainActivity
+import proj.memorchess.axl.utils.UiTestFromMainActivity
 
-class TestControlBar : AUiTestFromMainActivity() {
+class TestControlBar : UiTestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {

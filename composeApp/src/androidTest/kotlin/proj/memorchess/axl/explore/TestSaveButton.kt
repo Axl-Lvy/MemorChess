@@ -6,10 +6,10 @@ import kotlin.test.assertNull
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.utils.AUiTestFromMainActivity
 import proj.memorchess.axl.utils.Awaitility
+import proj.memorchess.axl.utils.UiTestFromMainActivity
 
-class TestSaveButton : AUiTestFromMainActivity() {
+class TestSaveButton : UiTestFromMainActivity() {
 
   private val afterH3Position =
     PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq")

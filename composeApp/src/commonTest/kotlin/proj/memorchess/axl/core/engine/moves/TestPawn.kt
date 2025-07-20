@@ -7,7 +7,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.Board
 import proj.memorchess.axl.core.engine.board.Position
 import proj.memorchess.axl.core.engine.moves.factory.NoCheckChecker
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.engine.pieces.vectors.Queen
 import proj.memorchess.axl.core.engine.pieces.vectors.Rook
 
@@ -22,12 +22,12 @@ class TestPawn {
     game.playMove("a3")
     println(game.position.board)
     assertEquals(
-      IPiece.PAWN.uppercase(),
+      Piece.PAWN.uppercase(),
       game.position.board.getTile("a3").getSafePiece().toString(),
     )
 
     game.playMove("b5")
-    assertEquals(IPiece.PAWN, game.position.board.getTile("b5").getSafePiece().toString())
+    assertEquals(Piece.PAWN, game.position.board.getTile("b5").getSafePiece().toString())
   }
 
   @Test
@@ -39,7 +39,7 @@ class TestPawn {
 
     game.playMove("a4")
     game.playMove("bxa3")
-    assertEquals(IPiece.PAWN, game.position.board.getTile("a3").getSafePiece().toString())
+    assertEquals(Piece.PAWN, game.position.board.getTile("a3").getSafePiece().toString())
     assertEquals(null, game.position.board.getTile("a4").getSafePiece())
     assertEquals(null, game.position.board.getTile("b4").getSafePiece())
   }
@@ -53,7 +53,7 @@ class TestPawn {
 
     game.playMove("exd6")
     assertEquals(
-      IPiece.PAWN.uppercase(),
+      Piece.PAWN.uppercase(),
       game.position.board.getTile("d6").getSafePiece().toString(),
     )
     assertEquals(null, game.position.board.getTile("d5").getSafePiece())
@@ -69,7 +69,7 @@ class TestPawn {
     testPromotion(Rook.white())
   }
 
-  private fun testPromotion(piece: IPiece) {
+  private fun testPromotion(piece: Piece) {
     val board = Board()
     board.placePiece("h7", "P")
     val game = Game(Position(board), NoCheckChecker())

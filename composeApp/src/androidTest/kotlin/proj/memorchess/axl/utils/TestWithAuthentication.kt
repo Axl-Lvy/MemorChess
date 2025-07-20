@@ -9,7 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 
-abstract class TestWithAuthentication : AUiTestFromMainActivity() {
+abstract class TestWithAuthentication : UiTestFromMainActivity() {
 
   val authManager by inject<AuthManager>()
 

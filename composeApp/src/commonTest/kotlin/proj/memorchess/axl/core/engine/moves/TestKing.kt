@@ -5,9 +5,9 @@ import kotlin.test.assertEquals
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.Board
 import proj.memorchess.axl.core.engine.board.Position
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 
-class TestKing : ATestPiece(IPiece.KING) {
+class TestKing : PieceTester(Piece.KING) {
 
   override fun getTiles(): List<String> {
     return listOf("a2", "h7", "a3", "h6", "b4", "g5", "c3", "f4")
@@ -21,11 +21,11 @@ class TestKing : ATestPiece(IPiece.KING) {
     val game = Game(Position(board))
     game.playMove("O-O-O")
     assertEquals(
-      IPiece.ROOK.uppercase(),
+      Piece.ROOK.uppercase(),
       game.position.board.getTile("d1").getSafePiece().toString(),
     )
     assertEquals(
-      IPiece.KING.uppercase(),
+      Piece.KING.uppercase(),
       game.position.board.getTile("c1").getSafePiece().toString(),
     )
   }
@@ -38,11 +38,11 @@ class TestKing : ATestPiece(IPiece.KING) {
     val game = Game(Position(board))
     game.playMove("O-O")
     assertEquals(
-      IPiece.ROOK.uppercase(),
+      Piece.ROOK.uppercase(),
       game.position.board.getTile("f1").getSafePiece().toString(),
     )
     assertEquals(
-      IPiece.KING.uppercase(),
+      Piece.KING.uppercase(),
       game.position.board.getTile("g1").getSafePiece().toString(),
     )
   }

@@ -5,10 +5,10 @@ import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.board.IPosition
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.moves.*
-import proj.memorchess.axl.core.engine.moves.IMove
+import proj.memorchess.axl.core.engine.moves.Move
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
-import proj.memorchess.axl.core.engine.pieces.IPiece
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.engine.pieces.vectors.Rook
 import proj.memorchess.axl.core.engine.pieces.vectors.VectorUtils
@@ -17,9 +17,8 @@ import proj.memorchess.axl.core.engine.pieces.vectors.VectorUtils
  * Move factory.
  *
  * @property position The position.
- * @constructor Creates a Move factory from a board.
  */
-abstract class AMoveFactory(val position: IPosition) {
+abstract class MoveFactory(val position: IPosition) {
 
   /**
    * Creates one move.
@@ -27,7 +26,7 @@ abstract class AMoveFactory(val position: IPosition) {
    * @param moveDescription The move we want to check
    * @return
    */
-  fun createMoveFrom(moveDescription: MoveDescription): IMove? {
+  fun createMoveFrom(moveDescription: MoveDescription): Move? {
     if (
       position.board.getTile(moveDescription.from).getSafePiece() is King &&
         position.board.getTile(moveDescription.to).getSafePiece() is Rook &&
@@ -52,7 +51,7 @@ abstract class AMoveFactory(val position: IPosition) {
     }
   }
 
-  private fun extractCastle(moveDescription: MoveDescription): IMove {
+  private fun extractCastle(moveDescription: MoveDescription): Move {
     val index =
       if (moveDescription.to.second == 0) {
         if (position.playerTurn == Game.Player.WHITE) {
@@ -73,7 +72,7 @@ abstract class AMoveFactory(val position: IPosition) {
     return castle
   }
 
-  fun stringifyMove(move: IMove): String {
+  fun stringifyMove(move: Move): String {
 
     (move as? Castle)?.let {
       return if (move.isLong()) Castle.LONG_CASTLE_STRING else Castle.SHORT_CASTLE_STRING
@@ -112,13 +111,13 @@ abstract class AMoveFactory(val position: IPosition) {
    * @param originalMoves
    * @return
    */
-  fun extractMoves(originalMoves: List<List<MoveDescription>>): List<IMove> {
+  fun extractMoves(originalMoves: List<List<MoveDescription>>): List<Move> {
     if (originalMoves.isEmpty() || originalMoves[0].isEmpty()) {
       return listOf()
     }
     return if (
       (getTileAtCoords(originalMoves[0][0].from).getSafePiece()?.toString()?.lowercase() ?: "") ==
-        IPiece.PAWN.lowercase()
+        Piece.PAWN.lowercase()
     ) {
       extractPawnMoves(originalMoves)
     } else {
@@ -133,7 +132,7 @@ abstract class AMoveFactory(val position: IPosition) {
    * @return The move.
    * @throws IllegalMoveException if the move is not possible.
    */
-  fun parseMove(stringMove: String, checkChecker: ACheckChecker): IMove {
+  fun parseMove(stringMove: String, checkChecker: CheckChecker): Move {
     val cleanMove =
       if (stringMove.endsWith('+') || stringMove.endsWith('#')) {
         stringMove.substring(0, stringMove.length - 1).split("=")[0]
@@ -184,8 +183,8 @@ abstract class AMoveFactory(val position: IPosition) {
    * @param originalMoves Move descriptions computed by the piece.
    * @return The available moves.
    */
-  private fun extractPieceMoves(originalMoves: List<List<MoveDescription>>): List<IMove> {
-    val moves = mutableListOf<IMove>()
+  private fun extractPieceMoves(originalMoves: List<List<MoveDescription>>): List<Move> {
+    val moves = mutableListOf<Move>()
     for (rawMoveList in originalMoves) {
       for (rawMove in rawMoveList) {
         val coords = rawMove.from
@@ -210,8 +209,8 @@ abstract class AMoveFactory(val position: IPosition) {
    * @param originalMoves Move descriptions computed by the pawn.
    * @return The available moves.
    */
-  private fun extractPawnMoves(originalMoves: List<List<MoveDescription>>): List<IMove> {
-    val moves = mutableListOf<IMove>()
+  private fun extractPawnMoves(originalMoves: List<List<MoveDescription>>): List<Move> {
+    val moves = mutableListOf<Move>()
     for (rawMoveList in originalMoves) {
       for (rawMove in rawMoveList) {
         val fromTile = getTileAtCoords(rawMove.from)
@@ -244,7 +243,7 @@ abstract class AMoveFactory(val position: IPosition) {
   private fun extractPawnCapture(
     toTile: ITile,
     fromTile: ITile,
-    moves: MutableList<IMove>,
+    moves: MutableList<Move>,
     rawMove: MoveDescription,
   ) {
     if (toTile.getSafePiece() != null) {
@@ -269,7 +268,7 @@ abstract class AMoveFactory(val position: IPosition) {
     }
   }
 
-  private fun parsePawnMove(stringMove: String): IMove {
+  private fun parsePawnMove(stringMove: String): Move {
     val destination: Pair<Int, Int>
     val desc =
       if (!stringMove.contains('x')) {
@@ -293,7 +292,7 @@ abstract class AMoveFactory(val position: IPosition) {
       ?: throw IllegalMoveException("No pawn can go to " + IBoard.getTileName(destination) + ".")
   }
 
-  private fun parseGenericPieceMove(stringMove: String, checkChecker: ACheckChecker): IMove {
+  private fun parseGenericPieceMove(stringMove: String, checkChecker: CheckChecker): Move {
     val destination = IBoard.getCoords(stringMove.substring(stringMove.length - 2))
     val pieceString =
       stringMove[0].toString().let {
@@ -346,7 +345,7 @@ abstract class AMoveFactory(val position: IPosition) {
 
   abstract fun getTileAtCoords(coords: Pair<Int, Int>): ITile
 
-  private fun ambiguityClue(movingPiece: IPiece, move: IMove): String {
+  private fun ambiguityClue(movingPiece: Piece, move: Move): String {
     val samePiecePosition = position.board.piecePositionsCache[movingPiece.toString()]
     checkNotNull(samePiecePosition) {
       "Cache is not up to date. Couldn't find any position for $movingPiece"

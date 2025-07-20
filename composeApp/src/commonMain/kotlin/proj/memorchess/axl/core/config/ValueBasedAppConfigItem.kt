@@ -10,7 +10,7 @@ class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
   override val defaultValue: T,
   val converter: ((StoredT) -> T),
   val serializer: ((T) -> StoredT),
-) : IConfigItem<T> {
+) : ConfigItem<T> {
   constructor(
     name: String,
     defaultValue: T,

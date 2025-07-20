@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.engine.moves
 
-open class ClassicMove(val from: Pair<Int, Int>, val to: Pair<Int, Int>) : IMove {
+open class ClassicMove(val from: Pair<Int, Int>, val to: Pair<Int, Int>) : Move {
 
   override fun destination(): Pair<Int, Int> {
     return to

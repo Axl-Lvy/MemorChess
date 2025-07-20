@@ -1,9 +1,9 @@
 package proj.memorchess.axl.core.engine.board
 
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 
 interface ITile {
-  fun getSafePiece(): IPiece?
+  fun getSafePiece(): Piece?
 
   fun getCoords(): Pair<Int, Int>
 

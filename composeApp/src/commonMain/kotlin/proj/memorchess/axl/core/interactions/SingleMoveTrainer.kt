@@ -3,11 +3,11 @@ package proj.memorchess.axl.core.interactions
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.INextDateCalculator
+import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.util.IReloader
+import proj.memorchess.axl.core.util.Reloader
 
 /**
  * Trainer based on a node.
@@ -19,11 +19,11 @@ import proj.memorchess.axl.core.util.IReloader
 class SingleMoveTrainer(
   private var node: StoredNode,
   val callBackOnCorrect: (StoredMove?) -> Unit,
-) : AInteractionsManager(Game(node.positionIdentifier)) {
+) : InteractionsManager(Game(node.positionIdentifier)) {
 
   private var isCorrect: Boolean = true
 
-  override suspend fun afterPlayMove(move: String, reloader: IReloader) {
+  override suspend fun afterPlayMove(move: String, reloader: Reloader) {
     val correspondingStoredMove =
       node.previousAndNextMoves.nextMoves.values.firstOrNull { it.move == move }
     isCorrect = correspondingStoredMove != null && correspondingStoredMove.isGood == true
@@ -36,9 +36,9 @@ class SingleMoveTrainer(
   private suspend fun saveNode() {
     val calculator =
       if (isCorrect) {
-        INextDateCalculator.SUCCESS
+        NextDateCalculator.SUCCESS
       } else {
-        INextDateCalculator.FAILURE
+        NextDateCalculator.FAILURE
       }
 
     val nextTrainingDate = calculator.calculateNextDate(node.previousAndNextTrainingDate)

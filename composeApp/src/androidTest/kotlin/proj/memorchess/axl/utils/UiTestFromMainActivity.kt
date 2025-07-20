@@ -31,7 +31,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
@@ -46,7 +46,7 @@ import proj.memorchess.axl.ui.pages.navigation.Destination
  * use them and to create new one if needed. Tests are way more readable this way.
  */
 @OptIn(ExperimentalTestApi::class)
-abstract class AUiTestFromMainActivity : KoinComponent {
+abstract class UiTestFromMainActivity : KoinComponent {
   /**
    * The Compose test rule used to interact with the UI. This is automatically initialized by JUnit
    * before tests are executed.
@@ -186,7 +186,7 @@ abstract class AUiTestFromMainActivity : KoinComponent {
    * @param tileName The algebraic notation of the tile to check (e.g., "e4")
    * @param piece The chess piece that should be on the tile
    */
-  fun assertTileContainsPiece(tileName: String, piece: IPiece) {
+  fun assertTileContainsPiece(tileName: String, piece: Piece) {
     waitUntilTileAppears(tileName).assertContentDescriptionContains("Piece $piece")
   }
 
@@ -198,7 +198,7 @@ abstract class AUiTestFromMainActivity : KoinComponent {
    * @param toTile The algebraic notation of the destination tile (e.g., "e4")
    * @param piece The chess piece that should have moved
    */
-  fun assertPieceMoved(fromTile: String, toTile: String, piece: IPiece) {
+  fun assertPieceMoved(fromTile: String, toTile: String, piece: Piece) {
     waitUntilTileAppears(fromTile)
     assertTileIsEmpty(fromTile)
     waitUntilTileAppears(toTile)
