@@ -33,7 +33,6 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
 import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.theme.goodTint
 
@@ -117,11 +116,7 @@ fun SignInButton(modifier: Modifier = Modifier, authManager: AuthManager = koinI
 }
 
 @Composable
-private fun SignInDialog(
-  dismiss: () -> Unit,
-  authManager: AuthManager = koinInject(),
-  databaseSynchronizer: DatabaseSynchronizer = koinInject(),
-) {
+private fun SignInDialog(dismiss: () -> Unit, authManager: AuthManager = koinInject()) {
   val coroutineScope = rememberCoroutineScope()
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }
