@@ -1,6 +1,7 @@
 package proj.memorchess.axl.utils
 
 import kotlin.time.Duration
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 
 /**
  * Utility class for handling asynchronous waiting in tests.
@@ -29,7 +30,11 @@ object Awaitility {
    * @param condition A function that returns a boolean indicating if the condition is met
    * @throws AssertionError if the condition doesn't become true within the timeout period
    */
-  fun awaitUntilTrue(timeout: Duration, failingMessage: String? = null, condition: () -> Boolean) {
+  fun awaitUntilTrue(
+    timeout: Duration = TEST_TIMEOUT,
+    failingMessage: String? = null,
+    condition: () -> Boolean,
+  ) {
     val timeOutNano = timeout.inWholeNanoseconds
     val startTime = System.nanoTime()
     while (!condition()) {

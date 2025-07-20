@@ -1,7 +1,6 @@
 package proj.memorchess.axl.game
 
 import kotlin.test.AfterTest
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -47,7 +46,6 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
-  @Ignore
   fun testManyGames() {
     val gameList = getGames()
     gameList.forEach { testGame(it) }
@@ -70,7 +68,6 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
-  @Ignore
   fun testDelete() {
     testManyGames()
     testPrevious()

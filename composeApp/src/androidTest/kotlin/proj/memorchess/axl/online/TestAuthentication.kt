@@ -3,6 +3,7 @@ package proj.memorchess.axl.online
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -125,7 +126,7 @@ class TestAuthentication : TestWithAuthentication() {
     goToSettings()
 
     // Verify we still see "Signed in" and try to click it
-    assertNodeWithTagExists("sign_in_button").performClick()
+    assertNodeWithTagExists("sign_in_button").performScrollTo().performClick()
 
     // Verify dialog does not appear (button should be disabled)
     assertNodeWithTextDoesNotExists("Email")
