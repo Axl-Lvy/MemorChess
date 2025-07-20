@@ -28,6 +28,7 @@ class BasicAuthManager(private val supabaseClient: SupabaseClient) : AuthManager
   private val authListeningScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
   init {
+
     authListeningScope.launch {
       supabaseClient.auth.sessionStatus.collect {
         when (it) {
@@ -67,11 +68,16 @@ class BasicAuthManager(private val supabaseClient: SupabaseClient) : AuthManager
   /** Refresh [user] */
   private fun refreshUser() {
     user = supabaseClient.auth.currentUserOrNull()
+    updateSavedTokens()
+  }
+
+  override fun updateSavedTokens() {
     val session = supabaseClient.auth.currentSessionOrNull()
-    if (session != null) {
+    if (session != null && KEEP_LOGGED_IN_SETTING.getValue()) {
       AUTH_REFRESH_TOKEN_SETTINGS.setValue(session.refreshToken)
       AUTH_ACCESS_TOKEN_SETTINGS.setValue(session.accessToken)
     } else {
+      KEEP_LOGGED_IN_SETTING.reset()
       AUTH_REFRESH_TOKEN_SETTINGS.reset()
       AUTH_ACCESS_TOKEN_SETTINGS.reset()
     }

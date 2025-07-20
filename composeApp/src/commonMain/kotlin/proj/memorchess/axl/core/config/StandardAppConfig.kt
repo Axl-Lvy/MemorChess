@@ -1,9 +1,9 @@
 package proj.memorchess.axl.core.config
 
 import com.russhwolf.settings.Settings
-import proj.memorchess.axl.ui.theme.AppThemeSetting
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import proj.memorchess.axl.ui.theme.AppThemeSetting
 
 /**
  * Factor to apply to calculate the next training date. See
@@ -23,7 +23,7 @@ val TRAINING_MOVE_DELAY_SETTING =
 
 val APP_THEME_SETTING = EnumBasedAppConfigItem.from("appTheme", AppThemeSetting.SYSTEM)
 
-val KEEP_LOGGED_IN_SETTING = ValueBasedAppConfigItem<Boolean, Boolean>("keepLoggedIn", true)
+val KEEP_LOGGED_IN_SETTING = ValueBasedAppConfigItem<Boolean, Boolean>("keepLoggedIn", false)
 
 val ALL_SETTINGS_ITEMS =
   listOf(ON_SUCCESS_DATE_FACTOR_SETTING, TRAINING_MOVE_DELAY_SETTING, APP_THEME_SETTING)

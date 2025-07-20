@@ -20,4 +20,8 @@ class NoOpAuthManager : AuthManager {
   override suspend fun signOut() {
     // Do nothing
   }
+
+  override fun updateSavedTokens() {
+    // Do nothing
+  }
 }

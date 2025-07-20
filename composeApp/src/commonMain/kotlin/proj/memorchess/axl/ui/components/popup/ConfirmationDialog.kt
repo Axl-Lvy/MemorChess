@@ -11,7 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 
 /** A confirmation dialog that can be shown with a confirmation action. */
-class ConfirmationDialog {
+class ConfirmationDialog(
+  private val okText: String = "OK",
+  private val cancelText: String = "Cancel",
+) {
   private var show by mutableStateOf(false)
   private var dialogText = ""
   private var onConfirm = {}
@@ -42,7 +45,7 @@ class ConfirmationDialog {
               show = false
             }
           ) {
-            Text("OK")
+            Text(okText)
           }
         },
         dismissButton = {
@@ -52,7 +55,7 @@ class ConfirmationDialog {
               show = false
             }
           ) {
-            Text("Cancel")
+            Text(cancelText)
           }
         },
         title = { Text(dialogText) },
