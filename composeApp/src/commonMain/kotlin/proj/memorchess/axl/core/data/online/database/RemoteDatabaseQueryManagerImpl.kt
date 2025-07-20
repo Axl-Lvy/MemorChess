@@ -8,7 +8,6 @@ import io.github.jan.supabase.postgrest.query.PostgrestQueryBuilder
 import io.github.jan.supabase.postgrest.query.PostgrestUpdate
 import io.github.jan.supabase.postgrest.query.filter.PostgrestFilterBuilder
 import io.github.jan.supabase.postgrest.result.PostgrestResult
-import kotlinx.coroutines.selects.select
 import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove

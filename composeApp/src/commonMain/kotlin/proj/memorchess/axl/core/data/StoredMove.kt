@@ -28,6 +28,8 @@ data class StoredMove(
 
   /** Whether the move has been deleted. */
   val isDeleted: Boolean = false,
+
+  /** Date at which this move was updated */
   val updatedAt: LocalDateTime = DateUtil.now(),
 ) : KoinComponent {
 
