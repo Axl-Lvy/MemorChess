@@ -46,6 +46,7 @@ data class MoveEntity(
       move,
       isGood,
       isDeleted,
+      updatedAt,
     )
   }
 
@@ -61,6 +62,8 @@ data class MoveEntity(
         storedMove.destination.fenRepresentation,
         storedMove.move,
         isGood,
+        storedMove.isDeleted,
+        storedMove.updatedAt,
       )
     }
   }

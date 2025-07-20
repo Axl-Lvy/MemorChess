@@ -20,7 +20,7 @@ class TestTrainingNodeOrder : TestWithKoin() {
   @BeforeTest
   fun setup() {
     runTest {
-      database.deleteAll()
+      database.deleteAll(null)
       LocalDatabaseHolder.init(TestDatabaseQueryManager.vienna())
       LocalDatabaseHolder.getDatabase().getAllNodes().forEach { database.insertPosition(it) }
       NodeManager.resetCacheFromDataBase(database)

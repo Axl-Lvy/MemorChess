@@ -31,7 +31,7 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     return emptyList()
   }
 
-  override suspend fun deleteAll() {
+  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     // Nothing to do
   }
 
@@ -39,7 +39,7 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun getLastMoveUpdate(): LocalDateTime? {
+  override suspend fun getLastUpdate(): LocalDateTime? {
     return null
   }
 

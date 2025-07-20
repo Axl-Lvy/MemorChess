@@ -157,7 +157,6 @@ private fun SignInDialog(
             isSigningIn = true
             try {
               authManager.signInFromEmail(email, password)
-              databaseSynchronizer.getLastUpdates()
               signInError = null
             } catch (e: Exception) {
               signInError = e.message ?: "Sign in failed"

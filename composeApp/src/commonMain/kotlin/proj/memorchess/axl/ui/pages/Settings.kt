@@ -85,7 +85,7 @@ fun Settings(database: DatabaseQueryManager = koinInject()) {
         onClick = {
           dlg.show("Are you sure you want to erase all data?") {
             coroutineScope.launch {
-              database.deleteAll()
+              database.deleteAll(null)
               NodeManager.resetCacheFromDataBase()
             }
           }

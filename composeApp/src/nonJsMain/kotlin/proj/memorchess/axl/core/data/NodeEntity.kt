@@ -60,6 +60,7 @@ data class NodeEntity(
       PreviousAndNextDate(lastTrainedDate, nextTrainedDate),
       depth,
       isDeleted,
+      updatedAt,
     )
   }
 

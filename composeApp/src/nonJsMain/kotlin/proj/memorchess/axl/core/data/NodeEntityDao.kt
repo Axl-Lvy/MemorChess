@@ -93,15 +93,19 @@ interface NodeEntityDao {
   )
   suspend fun delete(fen: String)
 
-  /**
-   * Deletes all nodes and their associated moves from the database.
-   *
-   * This operation will remove all entries in the NodeEntity and MoveEntity tables.
-   */
+  /** Marks all nodes as deleted. */
   @Query(value = "UPDATE NodeEntity SET isDeleted = TRUE") suspend fun deleteAllNodes()
 
-  /** Delete all moves from the database. */
+  /** Delete all nodes that where updated after a specific date. */
+  @Query(value = "DELETE FROM NodeEntity WHERE updatedAt >= :date")
+  suspend fun deleteNewerNodes(date: LocalDateTime)
+
+  /** Marks all moves as deleted. */
   @Query(value = "UPDATE MoveEntity SET isDeleted = TRUE") suspend fun deleteAllMoves()
+
+  /** Delete all moves that where updated after a specific date. */
+  @Query(value = "DELETE FROM MoveEntity WHERE updatedAt >= :date")
+  suspend fun deleteNewerMoves(date: LocalDateTime)
 
   /**
    * Retrieves all nodes with their moves from the database.

@@ -66,7 +66,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       .distinct()
   }
 
-  override suspend fun deleteAll() {
+  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     storedNodes.clear()
   }
 
@@ -74,7 +74,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     storedNodes[position.positionIdentifier.fenRepresentation] = position
   }
 
-  override suspend fun getLastMoveUpdate(): LocalDateTime? {
+  override suspend fun getLastUpdate(): LocalDateTime? {
     throw UnsupportedOperationException("Not yet implemented")
   }
 

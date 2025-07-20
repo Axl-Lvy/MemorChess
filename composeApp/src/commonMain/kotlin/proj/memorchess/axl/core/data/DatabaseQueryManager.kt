@@ -51,8 +51,13 @@ interface DatabaseQueryManager {
    */
   suspend fun getAllMoves(withDeletedOnes: Boolean = false): List<StoredMove>
 
-  /** Deletes all positions and moves. */
-  suspend fun deleteAll()
+  /**
+   * Deletes all positions and moves.
+   *
+   * @param hardFrom Everything is not entirely deleted, but marked as deleted. Except for entities
+   *   that where updated after this date.
+   */
+  suspend fun deleteAll(hardFrom: LocalDateTime?)
 
   /**
    * Inserts a new position.
@@ -62,7 +67,7 @@ interface DatabaseQueryManager {
   suspend fun insertPosition(position: StoredNode)
 
   /** Retrieves the last move update time. */
-  suspend fun getLastMoveUpdate(): LocalDateTime?
+  suspend fun getLastUpdate(): LocalDateTime?
 
   /** Checks if the database is can be used. */
   fun isActive(): Boolean

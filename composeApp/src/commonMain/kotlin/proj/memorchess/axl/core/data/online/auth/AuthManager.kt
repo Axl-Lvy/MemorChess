@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.online.auth
 
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.auth.user.UserInfo
 
 interface AuthManager {
@@ -20,4 +21,6 @@ interface AuthManager {
   suspend fun signOut()
 
   fun updateSavedTokens()
+
+  fun registerListener(listener: suspend (SessionStatus) -> Unit)
 }

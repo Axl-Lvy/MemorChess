@@ -4,6 +4,7 @@ import com.diamondedge.logging.logging
 import kotlinx.datetime.LocalDateTime
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.date.DateUtil
 
 /** Move that can be stored in [DatabaseQueryManager] */
 data class StoredMove(
@@ -27,9 +28,7 @@ data class StoredMove(
 
   /** Whether the move has been deleted. */
   val isDeleted: Boolean = false,
-
-  /** Date at which this move was updated */
-  val updatedAt: LocalDateTime? = null,
+  val updatedAt: LocalDateTime = DateUtil.now(),
 ) : KoinComponent {
 
   private val db by inject<DatabaseQueryManager>()

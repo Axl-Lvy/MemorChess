@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data
 
+import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 
 /**
@@ -15,4 +16,5 @@ data class UnlinkedStoredNode(
   val previousAndNextTrainingDate: PreviousAndNextDate,
   val depth: Int,
   val isDeleted: Boolean,
+  val updatedAt: LocalDateTime,
 )

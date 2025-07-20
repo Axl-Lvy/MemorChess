@@ -19,8 +19,6 @@ import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
@@ -34,13 +32,10 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Component(
-  modifier: Modifier = Modifier,
-  databaseSynchronizer: DatabaseSynchronizer = koinInject(),
-) {
+private fun Component(modifier: Modifier = Modifier) {
   var inverted by remember { mutableStateOf(false) }
   val boardReloader = remember { BasicReloader() }
-  val linesExplorer = remember { LinesExplorer(databaseSynchronizer) }
+  val linesExplorer = remember { LinesExplorer() }
   val coroutineScope = rememberCoroutineScope()
 
   val nextMoves = remember(boardReloader.getKey()) { linesExplorer.getNextMoves() }
