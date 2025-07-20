@@ -377,7 +377,7 @@ abstract class UiTestFromMainActivity : KoinComponent {
       }
     val storedNodes = (viennaNodes + scandinavianNodes)
     for (node in storedNodes) {
-      database.insertPosition(node)
+      database.insertNodes(node)
     }
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not populated") {
       lateinit var allPositions: List<StoredNode>

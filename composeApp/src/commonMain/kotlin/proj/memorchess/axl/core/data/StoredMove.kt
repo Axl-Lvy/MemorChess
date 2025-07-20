@@ -1,9 +1,7 @@
 package proj.memorchess.axl.core.data
 
-import com.diamondedge.logging.logging
 import kotlinx.datetime.LocalDateTime
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import proj.memorchess.axl.core.date.DateUtil
 
 /** Move that can be stored in [DatabaseQueryManager] */
@@ -33,14 +31,6 @@ data class StoredMove(
   val updatedAt: LocalDateTime = DateUtil.now(),
 ) : KoinComponent {
 
-  private val db by inject<DatabaseQueryManager>()
-
-  /** Saves the move to the database */
-  suspend fun save() {
-    LOGGER.info { "Saving $this" }
-    db.insertMove(this)
-  }
-
   override fun equals(other: Any?) =
     other is StoredMove && EssentialData(this) == EssentialData(other)
 
@@ -67,5 +57,3 @@ data class StoredMove(
     )
   }
 }
-
-private val LOGGER = logging()

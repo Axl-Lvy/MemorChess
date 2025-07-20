@@ -8,6 +8,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.StoredMove
+import proj.memorchess.axl.core.data.StoredNode
 
 // Fields name
 internal const val POSITION_ID_FIELD = "position_id"
@@ -123,6 +124,32 @@ internal data class MoveToUpload(
 internal data class InsertMoveFunctionArg(
   @SerialName("user_id_input") val userId: String,
   @SerialName("stored_moves") val moves: List<MoveToUpload>,
+)
+
+@Serializable
+internal data class PositionToUpload(
+  val positionIdentifier: String,
+  @SerialName("linked_moves") val linkedMoves: List<MoveToUpload>,
+  @SerialName(LAST_TRAINING_DATE_FIELD) val lastTrainingDate: LocalDate,
+  @SerialName(NEXT_TRAINING_DATE_FIELD) val nextTrainingDate: LocalDate,
+  @SerialName(UPDATED_AT_FIELD) val updatedAt: LocalDateTime,
+) {
+  constructor(
+    storedNode: StoredNode
+  ) : this(
+    storedNode.positionIdentifier.fenRepresentation,
+    storedNode.previousAndNextMoves.nextMoves.map { MoveToUpload(it.value) } +
+      storedNode.previousAndNextMoves.previousMoves.map { MoveToUpload(it.value) },
+    storedNode.previousAndNextTrainingDate.previousDate,
+    storedNode.previousAndNextTrainingDate.nextDate,
+    storedNode.updatedAt,
+  )
+}
+
+@Serializable
+internal data class InsertPositionFunctionArg(
+  @SerialName("user_id_input") val userId: String,
+  @SerialName("stored_nodes") val positions: List<PositionToUpload>,
 )
 
 @Serializable

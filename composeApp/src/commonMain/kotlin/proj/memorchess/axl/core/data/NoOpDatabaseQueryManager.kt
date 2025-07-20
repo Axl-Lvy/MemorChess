@@ -7,10 +7,6 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     return emptyList()
   }
 
-  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
-    return emptyList()
-  }
-
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     return null
   }
@@ -23,10 +19,6 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun insertMove(move: StoredMove) {
-    // Nothing to do
-  }
-
   override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
     return emptyList()
   }
@@ -35,7 +27,7 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun insertPosition(position: StoredNode) {
+  override suspend fun insertNodes(vararg positions: StoredNode) {
     // Nothing to do
   }
 

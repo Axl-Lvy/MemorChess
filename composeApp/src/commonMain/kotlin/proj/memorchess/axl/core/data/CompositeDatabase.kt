@@ -23,14 +23,6 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
-    return if (localDatabase.isActive()) {
-      localDatabase.getAllPositions()
-    } else {
-      remoteDatabase.getAllPositions()
-    }
-  }
-
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     return if (localDatabase.isActive()) {
       localDatabase.getPosition(positionIdentifier)
@@ -55,14 +47,6 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun insertMove(move: StoredMove) {
-    for (db in listOf(localDatabase, remoteDatabase)) {
-      if (db.isActive()) {
-        db.insertMove(move)
-      }
-    }
-  }
-
   override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
     return if (localDatabase.isActive()) {
       localDatabase.getAllMoves(withDeletedOnes)
@@ -79,10 +63,10 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun insertPosition(position: StoredNode) {
+  override suspend fun insertNodes(vararg positions: StoredNode) {
     for (db in listOf(localDatabase, remoteDatabase)) {
       if (db.isActive()) {
-        db.insertPosition(position)
+        db.insertNodes(*positions)
       }
     }
   }

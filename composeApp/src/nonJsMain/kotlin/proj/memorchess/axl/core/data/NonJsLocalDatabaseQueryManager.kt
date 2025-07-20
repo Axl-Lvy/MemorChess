@@ -12,10 +12,6 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     return database.getNodeEntityDao().getAllNodes().map { it.toStoredNode() }
   }
 
-  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
-    return database.getNodeEntityDao().getPositions().map { it.toUnlinkedStoredNode() }
-  }
-
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     return database.getNodeEntityDao().getNode(positionIdentifier.fenRepresentation)?.toStoredNode()
   }
@@ -27,10 +23,6 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun deleteMove(origin: String, move: String) {
     database.getNodeEntityDao().removeMove(origin, move)
-  }
-
-  override suspend fun insertMove(move: StoredMove) {
-    database.getNodeEntityDao().insertMoves(listOf(MoveEntity.convertToEntity(move)))
   }
 
   override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
@@ -46,8 +38,10 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     hardFrom?.let { database.getNodeEntityDao().deleteNewerMoves(it) }
   }
 
-  override suspend fun insertPosition(position: StoredNode) {
-    database.getNodeEntityDao().insertNodeAndMoves(NodeWithMoves.convertToEntity(position))
+  override suspend fun insertNodes(vararg positions: StoredNode) {
+    database
+      .getNodeEntityDao()
+      .insertNodeAndMoves(positions.map { NodeWithMoves.convertToEntity(it) })
   }
 
   override suspend fun getLastUpdate(): LocalDateTime? {

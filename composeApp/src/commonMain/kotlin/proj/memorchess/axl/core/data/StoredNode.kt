@@ -29,7 +29,7 @@ data class StoredNode(
   /** Saves this node. */
   suspend fun save() {
     LOGGER.info { "saving $this" }
-    db.insertPosition(this)
+    db.insertNodes(this)
   }
 
   override fun equals(other: Any?) =

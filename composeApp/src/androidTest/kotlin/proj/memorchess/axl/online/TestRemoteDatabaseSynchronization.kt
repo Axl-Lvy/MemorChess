@@ -39,7 +39,7 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   @Test
   fun testSyncFromLocal() = runTest {
     // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { localDatabase.insertPosition(it) }
+    refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
 
     // Verify local has data, remote is empty
     val remoteNodesBefore = remoteDatabase.getAllNodes()
@@ -56,7 +56,7 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   @Test
   fun testSyncFromRemote() = runTest {
     // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { remoteDatabase.insertPosition(it) }
+    refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
 
     // Verify local has data, remote is empty
     val remoteNodesBefore = localDatabase.getAllNodes()
@@ -73,10 +73,10 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   @Test
   fun testSyncNonEmptyFromLocal() = runTest {
     // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { localDatabase.insertPosition(it) }
+    refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
 
     // Verify local has data, remote is empty
-    TestDatabaseQueryManager.london().getAllNodes().forEach { remoteDatabase.insertPosition(it) }
+    TestDatabaseQueryManager.london().getAllNodes().forEach { remoteDatabase.insertNodes(it) }
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromLocal()
@@ -89,10 +89,10 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   @Test
   fun testSyncNonEmptyFromRemote() = runTest {
     // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { remoteDatabase.insertPosition(it) }
+    refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
 
     // Verify local has data, remote is empty
-    TestDatabaseQueryManager.london().getAllNodes().forEach { localDatabase.insertPosition(it) }
+    TestDatabaseQueryManager.london().getAllNodes().forEach { localDatabase.insertNodes(it) }
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromRemote()
@@ -107,7 +107,7 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
     databaseSynchronizer.syncFromLocal()
     assertTrue(isSynced)
 
-    refDatabase.getAllNodes().forEach { globalDatabase.insertPosition(it) }
+    refDatabase.getAllNodes().forEach { globalDatabase.insertNodes(it) }
     assertTrue(isSynced)
     assertDatabaseAreSame()
   }

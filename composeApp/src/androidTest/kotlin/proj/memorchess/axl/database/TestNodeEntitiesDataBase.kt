@@ -46,11 +46,13 @@ class TestNodeEntitiesDataBase {
     val game = Game()
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
-        NodeWithMoves.convertToEntity(
-          StoredNode(
-            game.position.createIdentifier(),
-            PreviousAndNextMoves(),
-            PreviousAndNextDate.dummyToday(),
+        listOf(
+          NodeWithMoves.convertToEntity(
+            StoredNode(
+              game.position.createIdentifier(),
+              PreviousAndNextMoves(),
+              PreviousAndNextDate.dummyToday(),
+            )
           )
         )
       )
@@ -71,11 +73,13 @@ class TestNodeEntitiesDataBase {
     val game = Game()
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
-        NodeWithMoves.convertToEntity(
-          StoredNode(
-            game.position.createIdentifier(),
-            PreviousAndNextMoves(),
-            PreviousAndNextDate.dummyToday(),
+        listOf(
+          NodeWithMoves.convertToEntity(
+            StoredNode(
+              game.position.createIdentifier(),
+              PreviousAndNextMoves(),
+              PreviousAndNextDate.dummyToday(),
+            )
           )
         )
       )
@@ -114,8 +118,8 @@ class TestNodeEntitiesDataBase {
         now,
       )
     runBlocking {
-      nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
-      nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(childNode))
+      nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
+      nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))
       nodeEntityDao.delete(childNode.positionIdentifier.fenRepresentation)
       retrievedNodes = nodeEntityDao.getAllNodes()
     }

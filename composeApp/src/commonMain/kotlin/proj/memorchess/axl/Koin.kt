@@ -14,7 +14,6 @@ import proj.memorchess.axl.core.data.online.auth.BasicAuthManager
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.RemoteDatabaseQueryManager
-import proj.memorchess.axl.core.data.online.database.RemoteDatabaseQueryManagerImpl
 
 /**
  * Initializes koin modules
@@ -26,7 +25,7 @@ fun initKoinModules(): Array<Module> {
     single<SupabaseClient> { createSupabaseClient() }
     singleOf(::BasicAuthManager) bind AuthManager::class
     single<DatabaseQueryManager>(named("local")) { LocalDatabaseHolder.getDatabase() }
-    single<RemoteDatabaseQueryManager> { RemoteDatabaseQueryManagerImpl(get(), get()) }
+    single<RemoteDatabaseQueryManager> { RemoteDatabaseQueryManager(get(), get()) }
     single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local"))) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
   }

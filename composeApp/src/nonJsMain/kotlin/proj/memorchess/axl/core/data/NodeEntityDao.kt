@@ -16,13 +16,15 @@ interface NodeEntityDao {
    *
    * If the node already exists, it will be replaced. Same for the moves.
    *
-   * @param node The node with its next and previous moves to insert.
+   * @param nodes The node with its next and previous moves to insert.
    */
   @Transaction
-  suspend fun insertNodeAndMoves(node: NodeWithMoves) {
-    insertNode(node.node)
-    insertMoves(node.nextMoves)
-    insertMoves(node.previousMoves)
+  suspend fun insertNodeAndMoves(nodes: Collection<NodeWithMoves>) {
+    nodes.forEach {
+      insertNode(it.node)
+      insertMoves(it.nextMoves)
+      insertMoves(it.previousMoves)
+    }
   }
 
   /**
