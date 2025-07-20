@@ -4,6 +4,9 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
@@ -11,9 +14,6 @@ import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.Awaitility
 import proj.memorchess.axl.utils.TestWithAuthentication
-import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class TestAuthentication : TestWithAuthentication() {
