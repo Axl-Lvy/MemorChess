@@ -98,4 +98,10 @@ data class PreviousAndNextMoves(
     val validNextMoves = nextMoves.filter { it.value.isGood != null }
     return PreviousAndNextMoves(validPreviousMoves.values, validNextMoves.values, depth)
   }
+
+  fun filterNotDeleted(): PreviousAndNextMoves {
+    val validPreviousMoves = previousMoves.filter { !it.value.isDeleted }
+    val validNextMoves = nextMoves.filter { !it.value.isDeleted }
+    return PreviousAndNextMoves(validPreviousMoves.values, validNextMoves.values, depth)
+  }
 }

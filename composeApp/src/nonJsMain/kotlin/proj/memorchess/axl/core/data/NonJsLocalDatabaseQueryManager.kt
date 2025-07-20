@@ -8,8 +8,11 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private val database = getRoomDatabase(databaseBuilder())
 
-  override suspend fun getAllNodes(): List<StoredNode> {
-    return database.getNodeEntityDao().getAllNodes().map { it.toStoredNode() }
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
+    val allNodes = database.getNodeEntityDao().getAllNodes()
+    return (if (withDeletedOnes) allNodes else allNodes.filter { !it.node.isDeleted }).map {
+      it.toStoredNode()
+    }
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {

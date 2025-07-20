@@ -15,11 +15,11 @@ class CompositeDatabase(
   private val remoteDatabase: RemoteDatabaseQueryManager,
   private val localDatabase: DatabaseQueryManager,
 ) : DatabaseQueryManager {
-  override suspend fun getAllNodes(): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
     return if (localDatabase.isActive()) {
-      localDatabase.getAllNodes()
+      localDatabase.getAllNodes(withDeletedOnes)
     } else {
-      remoteDatabase.getAllNodes()
+      remoteDatabase.getAllNodes(withDeletedOnes)
     }
   }
 

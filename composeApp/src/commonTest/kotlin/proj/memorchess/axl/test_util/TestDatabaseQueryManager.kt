@@ -20,7 +20,7 @@ import proj.memorchess.axl.game.getVienna
 class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   val storedNodes = mutableMapOf<String, StoredNode>()
 
-  override suspend fun getAllNodes(): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
     return storedNodes.values.toList()
   }
 

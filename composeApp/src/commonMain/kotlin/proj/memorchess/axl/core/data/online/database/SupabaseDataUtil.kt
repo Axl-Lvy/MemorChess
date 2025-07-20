@@ -7,8 +7,11 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.date.PreviousAndNextDate
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 // Fields name
 internal const val POSITION_ID_FIELD = "position_id"
@@ -118,6 +121,17 @@ internal data class MoveToUpload(
     storedMove.isDeleted,
     storedMove.updatedAt,
   )
+
+  fun toStoredMove(): StoredMove {
+    return StoredMove(
+      PositionIdentifier(origin),
+      PositionIdentifier(destination),
+      move,
+      isGood,
+      isDeleted,
+      updatedAt,
+    )
+  }
 }
 
 @Serializable
@@ -133,6 +147,7 @@ internal data class PositionToUpload(
   @SerialName(LAST_TRAINING_DATE_FIELD) val lastTrainingDate: LocalDate,
   @SerialName(NEXT_TRAINING_DATE_FIELD) val nextTrainingDate: LocalDate,
   @SerialName(UPDATED_AT_FIELD) val updatedAt: LocalDateTime,
+  @SerialName(IS_DELETED_FIELD) val isDeleted: Boolean,
 ) {
   constructor(
     storedNode: StoredNode
@@ -143,7 +158,20 @@ internal data class PositionToUpload(
     storedNode.previousAndNextTrainingDate.previousDate,
     storedNode.previousAndNextTrainingDate.nextDate,
     storedNode.updatedAt,
+    false,
   )
+
+  fun toStoredNode(): StoredNode {
+    return StoredNode(
+      PositionIdentifier(positionIdentifier),
+      PreviousAndNextMoves(
+        linkedMoves.filter { it.destination == positionIdentifier }.map { it.toStoredMove() },
+        linkedMoves.filter { it.origin == positionIdentifier }.map { it.toStoredMove() },
+      ),
+      PreviousAndNextDate(lastTrainingDate, nextTrainingDate),
+      updatedAt,
+    )
+  }
 }
 
 @Serializable
@@ -151,6 +179,9 @@ internal data class InsertPositionFunctionArg(
   @SerialName("user_id_input") val userId: String,
   @SerialName("stored_nodes") val positions: List<PositionToUpload>,
 )
+
+@Serializable
+internal data class SingleUserIdInput(@SerialName("user_id_input") val userId: String)
 
 @Serializable
 internal data class SingleUpdatedAtTime(@SerialName(UPDATED_AT_FIELD) val updatedAt: LocalDateTime)

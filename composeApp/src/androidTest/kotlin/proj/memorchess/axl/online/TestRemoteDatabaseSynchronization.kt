@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.RemoteDatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.isSynced
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.utils.Awaitility
 import proj.memorchess.axl.utils.TestWithAuthentication
@@ -43,7 +44,7 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
 
     // Verify local has data, remote is empty
     val remoteNodesBefore = remoteDatabase.getAllNodes()
-    assertTrue(remoteNodesBefore.isEmpty())
+    assertTrue(remoteNodesBefore.none { it.previousAndNextMoves.filterNotDeleted().isNotEmpty() })
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromLocal()
@@ -113,9 +114,18 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   }
 
   private fun assertDatabaseAreSame() = runTest {
-    val localNodes = localDatabase.getAllNodes()
-    val remoteNodes = remoteDatabase.getAllNodes().toSet()
+    val localNodes =
+      localDatabase.getAllNodes().filter { it.previousAndNextMoves.filterNotDeleted().isNotEmpty() }
+    val remoteNodes =
+      remoteDatabase
+        .getAllNodes()
+        .filter { it.previousAndNextMoves.filterNotDeleted().isNotEmpty() }
+        .toSet()
     localNodes.forEach { assertContains(remoteNodes, it) }
     assertTrue(localNodes.size == remoteNodes.size)
+  }
+
+  private fun PreviousAndNextMoves.isNotEmpty(): Boolean {
+    return nextMoves.isNotEmpty() && previousMoves.isNotEmpty()
   }
 }

@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.data
 import kotlinx.datetime.LocalDateTime
 
 open class NoOpDatabaseQueryManager : DatabaseQueryManager {
-  override suspend fun getAllNodes(): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
     return emptyList()
   }
 

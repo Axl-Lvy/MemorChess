@@ -57,106 +57,18 @@ class RemoteDatabaseQueryManager(
     }
   }
 
-  override suspend fun getAllNodes(): List<StoredNode> {
-    val remoteUserMoves =
-      client.from(Table.USER_MOVE).selectWithUserFilter().decodeList<RemoteUserMove>()
-    val remoteMovesMap =
-      if (remoteUserMoves.isEmpty()) mapOf()
-      else
-        client
-          .from(Table.MOVE)
-          .select {
-            filter {
-              isIn(ID_FIELD, remoteUserMoves.map { remoteUserMove -> remoteUserMove.moveId })
-            }
-          }
-          .decodeList<RemoteMove>()
-          .associateBy { it.id }
-    val remotePositionsMap =
-      if (remoteMovesMap.isEmpty()) mapOf()
-      else
-        client
-          .from(Table.POSITION)
-          .select {
-            filter {
-              isIn(
-                ID_FIELD,
-                remoteMovesMap.values
-                  .map { remoteMove -> remoteMove.origin }
-                  .union(remoteMovesMap.values.map { remoteMove -> remoteMove.destination })
-                  .toList(),
-              )
-            }
-          }
-          .decodeList<RemotePosition>()
-          .associateBy { it.id }
-    val remoteUserPositionMap =
-      if (remotePositionsMap.isEmpty()) mapOf()
-      else
-        client
-          .from(Table.USER_POSITION)
-          .selectWithUserFilter {
-            isIn(
-              POSITION_ID_FIELD,
-              remotePositionsMap.map { remotePosition -> remotePosition.value.id },
-            )
-          }
-          .decodeList<RemoteUserPosition>()
-          .associateBy { it.positionId }
-    val positionToStoredNode = mutableMapOf<PositionIdentifier, StoredNode>()
-    remoteUserMoves
-      .filter { !it.isDeleted }
-      .forEach {
-        val remoteMove = remoteMovesMap[it.moveId]
-        checkNotNull(remoteMove)
-        val originPositionId = remoteMove.origin
-        val remoteOrigin = remotePositionsMap[originPositionId]
-        checkNotNull(remoteOrigin)
-        val origin = PositionIdentifier(remoteOrigin.fenRepresentation)
-        val destinationPositionId = remoteMove.destination
-        val remoteDestination = remotePositionsMap[destinationPositionId]
-        checkNotNull(remoteDestination)
-        val destination = PositionIdentifier(remoteDestination.fenRepresentation)
-        val storedMove =
-          StoredMove(origin, destination, remoteMove.name, it.isGood, it.isDeleted, it.updatedAt)
-        val remoteUserOrigin = remoteUserPositionMap[originPositionId]
-        if (remoteUserOrigin != null) {
-          positionToStoredNode
-            .getOrPut(origin) {
-              val originUserPosition = remoteUserOrigin
-              StoredNode(
-                origin,
-                PreviousAndNextMoves(originUserPosition.depth),
-                PreviousAndNextDate(
-                  originUserPosition.lastTrainingDate,
-                  originUserPosition.nextTrainingDate,
-                ),
-                originUserPosition.updatedAt,
-              )
-            }
-            .previousAndNextMoves
-            .addNextMove(storedMove)
-        }
-        val remoteUserDestination = remoteUserPositionMap[destinationPositionId]
-        if (remoteUserDestination != null) {
-          positionToStoredNode
-            .getOrPut(destination) {
-              val destinationUserPosition = remoteUserDestination
-              StoredNode(
-                destination,
-                PreviousAndNextMoves(destinationUserPosition.depth),
-                PreviousAndNextDate(
-                  destinationUserPosition.lastTrainingDate,
-                  destinationUserPosition.nextTrainingDate,
-                ),
-                destinationUserPosition.updatedAt,
-              )
-            }
-            .previousAndNextMoves
-            .addPreviousMove(storedMove)
-        }
-      }
-    return positionToStoredNode.values.toList()
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
+    val user = authManager.user
+    checkNotNull(user) { "User must be logged in to update database" }
+    val result =
+      client.postgrest
+        .rpc("fetch_user_positions", SingleUserIdInput(user.id))
+        .decodeList<PositionToUpload>()
+
+    LOGGER.error { "fetched ${result.size} nodes: $result" }
+    return (if (withDeletedOnes) result else result.filter { !it.isDeleted }).map {
+      it.toStoredNode()
+    }
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {

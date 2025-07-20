@@ -10,7 +10,7 @@ interface DatabaseQueryManager {
    *
    * @return A list of all stored positions as [StoredNode] objects.
    */
-  suspend fun getAllNodes(): List<StoredNode>
+  suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<StoredNode>
 
   /** Retrieves a specific position. */
   suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode?
