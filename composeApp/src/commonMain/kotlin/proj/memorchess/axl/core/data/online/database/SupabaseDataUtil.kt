@@ -7,6 +7,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import proj.memorchess.axl.core.data.StoredMove
 
 // Fields name
 internal const val POSITION_ID_FIELD = "position_id"
@@ -62,25 +63,8 @@ internal data class RemoteMove(
 )
 
 @Serializable
-internal data class RemoteMoveToUpload(
-  @SerialName(ORIGIN_FIELD) val origin: Long,
-  @SerialName(DESTINATION_FIELD) val destination: Long,
-  @SerialName(NAME_FIELD) val name: String,
-)
-
-@Serializable
 internal data class RemoteUserMove(
   @SerialName(ID_FIELD) val id: Long,
-  @SerialName(MOVE_ID_FIELD) val moveId: Long,
-  @SerialName(IS_GOOD_FIELD) val isGood: Boolean,
-  @SerialName(CREATED_AT_FIELD) val createdAt: LocalDateTime,
-  @SerialName(USER_ID_FIELD) val userId: String,
-  @SerialName(IS_DELETED_FIELD) val isDeleted: Boolean,
-  @SerialName(UPDATED_AT_FIELD) val updatedAt: LocalDateTime,
-)
-
-@Serializable
-internal data class RemoteUserMoveToUpload(
   @SerialName(MOVE_ID_FIELD) val moveId: Long,
   @SerialName(IS_GOOD_FIELD) val isGood: Boolean,
   @SerialName(CREATED_AT_FIELD) val createdAt: LocalDateTime,
@@ -112,6 +96,33 @@ internal data class RemoteUserPositionToUpload(
   @SerialName(CREATED_AT_FIELD) val createdAt: LocalDateTime,
   @SerialName(IS_DELETED_FIELD) val isDeleted: Boolean,
   @SerialName(UPDATED_AT_FIELD) val updatedAt: LocalDateTime,
+)
+
+@Serializable
+internal data class MoveToUpload(
+  val origin: String,
+  val destination: String,
+  val move: String,
+  var isGood: Boolean?,
+  val isDeleted: Boolean,
+  val updatedAt: LocalDateTime,
+) {
+  constructor(
+    storedMove: StoredMove
+  ) : this(
+    storedMove.origin.fenRepresentation,
+    storedMove.destination.fenRepresentation,
+    storedMove.move,
+    storedMove.isGood,
+    storedMove.isDeleted,
+    storedMove.updatedAt,
+  )
+}
+
+@Serializable
+internal data class InsertMoveFunctionArg(
+  @SerialName("user_id_input") val userId: String,
+  @SerialName("stored_moves") val moves: List<MoveToUpload>,
 )
 
 @Serializable

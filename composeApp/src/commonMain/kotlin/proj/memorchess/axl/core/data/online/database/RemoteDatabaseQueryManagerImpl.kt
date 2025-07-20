@@ -1,13 +1,16 @@
 package proj.memorchess.axl.core.data.online.database
 
+import com.diamondedge.logging.logging
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.PostgrestFilterDSL
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.PostgrestQueryBuilder
 import io.github.jan.supabase.postgrest.query.PostgrestUpdate
 import io.github.jan.supabase.postgrest.query.filter.PostgrestFilterBuilder
 import io.github.jan.supabase.postgrest.result.PostgrestResult
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
@@ -486,110 +489,18 @@ class RemoteDatabaseQueryManagerImpl(
   }
 
   override suspend fun insertMoves(moves: List<StoredMove>) {
-
-    val neededPositions = moves.map { it.origin }.union(moves.map { it.destination })
-    upsertPositions(neededPositions)
-    upsertMoves(moves)
-    val positions =
-      if (neededPositions.isEmpty()) listOf()
-      else
-        client
-          .from(Table.POSITION)
-          .select {
-            filter { isIn(FEN_REPRESENTATION_FIELD, neededPositions.map { it.fenRepresentation }) }
-          }
-          .decodeList<RemotePosition>()
-    val positionToId = positions.associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
-    val idToPosition = positions.associate { Pair(it.id, PositionIdentifier(it.fenRepresentation)) }
-    val remoteMoveList =
-      if (moves.isEmpty()) listOf()
-      else
-        client
-          .from(Table.MOVE)
-          .select {
-            filter {
-              or {
-                moves.forEach {
-                  and {
-                    val originId = positionToId[it.origin]
-                    checkNotNull(originId)
-                    eq(ORIGIN_FIELD, originId)
-                    val destinationId = positionToId[it.destination]
-                    checkNotNull(destinationId)
-                    eq(DESTINATION_FIELD, destinationId)
-                    eq(NAME_FIELD, it.move)
-                  }
-                }
-              }
-            }
-          }
-          .decodeList<RemoteMove>()
-    val moveToRemoteMove =
-      remoteMoveList.associateBy {
-        val origin = idToPosition[it.origin]
-        checkNotNull(origin)
-        val destination = idToPosition[it.destination]
-        checkNotNull(destination)
-        val firstOrNull =
-          moves.firstOrNull { move ->
-            move.move == it.name && move.origin == origin && move.destination == destination
-          }
-        checkNotNull(firstOrNull)
-        firstOrNull
-      }
-    client.from(Table.USER_MOVE).upsert(
-      moveToRemoteMove.map {
-        val user = authManager.user
-        checkNotNull(user)
-        RemoteUserMoveToUpload(
-          it.value.id,
-          it.key.isGood ?: false,
-          DateUtil.now(),
-          user.id,
-          it.key.isDeleted,
-          it.key.updatedAt,
-        )
-      }
-    ) {
-      onConflict = "$USER_ID_FIELD, $MOVE_ID_FIELD"
-      ignoreDuplicates = false
-    }
-  }
-
-  private suspend fun upsertMoves(moves: List<StoredMove>) {
-    val positionToId =
-      if (moves.isEmpty()) mapOf()
-      else
-        client
-          .from(Table.POSITION)
-          .select {
-            filter {
-              isIn(
-                FEN_REPRESENTATION_FIELD,
-                moves
-                  .map { it.origin.fenRepresentation }
-                  .union(moves.map { it.destination.fenRepresentation })
-                  .toList(),
-              )
-            }
-          }
-          .decodeList<RemotePosition>()
-          .associate { Pair(PositionIdentifier(it.fenRepresentation), it.id) }
-    client.from(Table.MOVE).upsert(
-      moves.map {
-        val originId = positionToId[it.origin]
-        checkNotNull(originId)
-        val destination = positionToId[it.destination]
-        checkNotNull(destination)
-        RemoteMoveToUpload(originId, destination, it.move)
-      }
-    ) {
-      onConflict = "$ORIGIN_FIELD, $DESTINATION_FIELD, $NAME_FIELD"
-      ignoreDuplicates = true
-    }
+    LOGGER.error { "inserting ${moves.size} moves" }
+    val user = authManager.user
+    checkNotNull(user)
+    client.postgrest.rpc(
+      "insert_user_moves",
+      InsertMoveFunctionArg(user.id, moves.map { MoveToUpload(it) }),
+    )
   }
 
   override fun isActive(): Boolean {
     return authManager.user != null && isSynced
   }
 }
+
+private val LOGGER = logging()
