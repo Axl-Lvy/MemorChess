@@ -15,6 +15,7 @@ import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.data.UnlinkedStoredNode
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -114,7 +115,8 @@ class RemoteDatabaseQueryManagerImpl(
         val remoteDestination = remotePositionsMap[destinationPositionId]
         checkNotNull(remoteDestination)
         val destination = PositionIdentifier(remoteDestination.fenRepresentation)
-        val storedMove = StoredMove(origin, destination, remoteMove.name, it.isGood)
+        val storedMove =
+          StoredMove(origin, destination, remoteMove.name, it.isGood, it.isDeleted, it.updatedAt)
         val remoteUserOrigin = remoteUserPositionMap[originPositionId]
         if (remoteUserOrigin != null) {
           positionToStoredNode
@@ -127,6 +129,7 @@ class RemoteDatabaseQueryManagerImpl(
                   originUserPosition.lastTrainingDate,
                   originUserPosition.nextTrainingDate,
                 ),
+                originUserPosition.updatedAt,
               )
             }
             .previousAndNextMoves
@@ -144,6 +147,7 @@ class RemoteDatabaseQueryManagerImpl(
                   destinationUserPosition.lastTrainingDate,
                   destinationUserPosition.nextTrainingDate,
                 ),
+                destinationUserPosition.updatedAt,
               )
             }
             .previousAndNextMoves
@@ -170,6 +174,7 @@ class RemoteDatabaseQueryManagerImpl(
         PreviousAndNextDate(it.lastTrainingDate, it.nextTrainingDate),
         it.depth,
         it.isDeleted,
+        it.updatedAt,
       )
     }
   }
@@ -202,6 +207,7 @@ class RemoteDatabaseQueryManagerImpl(
         PositionIdentifier(position.fenRepresentation),
         PreviousAndNextMoves(userPosition.depth),
         PreviousAndNextDate(userPosition.lastTrainingDate, userPosition.nextTrainingDate),
+        userPosition.updatedAt,
       )
     val idToMove =
       client
@@ -255,6 +261,8 @@ class RemoteDatabaseQueryManagerImpl(
           PositionIdentifier(destination.fenRepresentation),
           move.name,
           it.isGood,
+          it.isDeleted,
+          it.updatedAt,
         )
       }
       .forEach {
@@ -360,13 +368,19 @@ class RemoteDatabaseQueryManagerImpl(
         PositionIdentifier(destination.fenRepresentation),
         move.name,
         it.isGood,
+        it.isDeleted,
+        it.updatedAt,
       )
     }
   }
 
-  override suspend fun deleteAll() {
+  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     client.from(Table.USER_POSITION).updateWithUserFilter({ set(IS_DELETED_FIELD, true) })
     client.from(Table.USER_MOVE).updateWithUserFilter({ set(IS_DELETED_FIELD, true) })
+    hardFrom?.let {
+      client.from(Table.USER_POSITION).delete { filter { gt(UPDATED_AT_FIELD, it) } }
+      client.from(Table.USER_MOVE).delete { filter { gt(UPDATED_AT_FIELD, it) } }
+    }
   }
 
   override suspend fun insertPosition(position: StoredNode) {
@@ -377,6 +391,7 @@ class RemoteDatabaseQueryManagerImpl(
           position.previousAndNextTrainingDate,
           position.previousAndNextMoves.depth,
           false,
+          position.updatedAt,
         )
       )
     )
@@ -386,20 +401,42 @@ class RemoteDatabaseQueryManagerImpl(
     )
   }
 
-  override suspend fun getLastMoveUpdate(): LocalDateTime? {
-    return client
-      .from(Table.USER_MOVE)
-      .select(Columns.list(UPDATED_AT_FIELD)) {
-        filter {
-          val user = authManager.user
-          checkNotNull(user)
-          eq(USER_ID_FIELD, user.id)
+  override suspend fun getLastUpdate(): LocalDateTime? {
+    val moveUpdate =
+      client
+        .from(Table.USER_MOVE)
+        .select(Columns.list(UPDATED_AT_FIELD)) {
+          filter {
+            val user = authManager.user
+            checkNotNull(user)
+            eq(USER_ID_FIELD, user.id)
+          }
+          order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
+          limit(1)
         }
-        order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
-        limit(1)
-      }
-      .decodeSingleOrNull<SingleUpdatedAtTime>()
-      ?.updatedAt
+        .decodeSingleOrNull<SingleUpdatedAtTime>()
+        ?.updatedAt
+
+    val positionUpdate =
+      client
+        .from(Table.USER_POSITION)
+        .select(Columns.list(UPDATED_AT_FIELD)) {
+          filter {
+            val user = authManager.user
+            checkNotNull(user)
+            eq(USER_ID_FIELD, user.id)
+          }
+          order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
+          limit(1)
+        }
+        .decodeSingleOrNull<SingleUpdatedAtTime>()
+        ?.updatedAt
+    return (if (moveUpdate != null && positionUpdate != null) {
+        moveUpdate.coerceAtLeast(positionUpdate)
+      } else {
+        moveUpdate ?: positionUpdate
+      })
+      ?.truncateToSeconds()
   }
 
   override suspend fun insertUnlinkedStoredNodes(nodes: List<UnlinkedStoredNode>) {
@@ -430,7 +467,7 @@ class RemoteDatabaseQueryManagerImpl(
           it.previousAndNextTrainingDate.previousDate,
           createdAt = DateUtil.now(),
           isDeleted = it.isDeleted,
-          updatedAt = DateUtil.now(),
+          updatedAt = it.updatedAt,
         )
       }
     ) {
@@ -510,7 +547,7 @@ class RemoteDatabaseQueryManagerImpl(
           DateUtil.now(),
           user.id,
           it.key.isDeleted,
-          DateUtil.now(),
+          it.key.updatedAt,
         )
       }
     ) {

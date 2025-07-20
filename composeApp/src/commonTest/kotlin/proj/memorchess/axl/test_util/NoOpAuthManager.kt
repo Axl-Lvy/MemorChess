@@ -1,5 +1,6 @@
 package proj.memorchess.axl.test_util
 
+import io.github.jan.supabase.auth.status.SessionStatus
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 
 class NoOpAuthManager : AuthManager {
@@ -22,6 +23,10 @@ class NoOpAuthManager : AuthManager {
   }
 
   override fun updateSavedTokens() {
+    // Do nothing
+  }
+
+  override fun registerListener(listener: suspend (SessionStatus) -> Unit) {
     // Do nothing
   }
 }

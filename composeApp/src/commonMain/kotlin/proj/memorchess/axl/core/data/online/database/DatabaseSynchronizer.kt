@@ -3,9 +3,9 @@ package proj.memorchess.axl.core.data.online.database
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 
 /**
@@ -21,37 +21,36 @@ class DatabaseSynchronizer(
   private val localDatabase: DatabaseQueryManager,
 ) {
 
+  val lastUpdates = mutableStateOf<Pair<LocalDateTime?, LocalDateTime?>?>(null)
+
+  init {
+    authManager.registerListener {
+      if (it is SessionStatus.Authenticated) {
+        lastUpdates.value = getLastUpdates() ?: Pair(null, null)
+      }
+    }
+  }
+
   /**
    * Retrieve the last updates date from local and remote database.
    *
    * @return Pair(local, remote)
    */
-  suspend fun getLastUpdates(): Pair<LocalDateTime?, LocalDateTime?>? {
+  private suspend fun getLastUpdates(): Pair<LocalDateTime?, LocalDateTime?>? {
     if (authManager.user == null) {
       return null
     }
-    val lastLocalMoveUpdate = localDatabase.getLastMoveUpdate()
+    val lastLocalUpdate = localDatabase.getLastUpdate()
 
-    val lastRemoteMoveUpdate = remoteDatabase.getLastMoveUpdate()
-    isSynced = lastLocalMoveUpdate == lastRemoteMoveUpdate
-    return Pair(lastLocalMoveUpdate, lastRemoteMoveUpdate)
-  }
-
-  /**
-   * Saves a [StoredNode] to the remote database
-   *
-   * @param storedNode The node to upload
-   */
-  suspend fun saveStoredNode(storedNode: StoredNode) {
-    if (authManager.user == null) {
-      return
-    }
-    remoteDatabase.insertPosition(storedNode)
+    val lastRemoteUpdate = remoteDatabase.getLastUpdate()
+    isSynced = lastLocalUpdate == lastRemoteUpdate
+    return Pair(lastLocalUpdate, lastRemoteUpdate)
   }
 
   /** Uploads the database from local and overrides the remote one */
   suspend fun syncFromLocal() {
-    remoteDatabase.deleteAll()
+    val hardDeleteDate = lastUpdates.value?.first
+    remoteDatabase.deleteAll(hardDeleteDate)
     uploadNodes()
     uploadMoves()
     isSynced = true
@@ -69,7 +68,8 @@ class DatabaseSynchronizer(
 
   /** Download the database from remote and overrides the local one. */
   suspend fun syncFromRemote() {
-    localDatabase.deleteAll()
+    val hardDeleteDate = lastUpdates.value?.second
+    localDatabase.deleteAll(hardDeleteDate)
     val positionToStoredNode = remoteDatabase.getAllNodes()
     positionToStoredNode.forEach { localDatabase.insertPosition(it) }
     isSynced = true

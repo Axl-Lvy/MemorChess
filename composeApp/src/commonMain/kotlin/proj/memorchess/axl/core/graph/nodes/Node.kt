@@ -6,7 +6,6 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
-import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 
@@ -53,23 +52,23 @@ class Node(
    * Saves this node and its ancestors to the database. Persists the position and moves, then
    * recursively saves the previous node.
    */
-  private suspend fun save(remoteDatabaseManager: DatabaseSynchronizer?) {
+  private suspend fun save() {
     StoredNode(position, previousAndNextMoves.filterValidMoves(), PreviousAndNextDate.dummyToday())
-      .save(remoteDatabaseManager)
+      .save()
   }
 
   /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
-  suspend fun saveGood(remoteDatabaseManager: DatabaseSynchronizer?) {
+  suspend fun saveGood() {
     previousAndNextMoves.setPreviousMovesAsGood()
-    save(remoteDatabaseManager)
-    previous?.saveBad(remoteDatabaseManager)
+    save()
+    previous?.saveBad()
   }
 
   /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
-  private suspend fun saveBad(remoteDatabaseManager: DatabaseSynchronizer?) {
+  private suspend fun saveBad() {
     previousAndNextMoves.setPreviousMovesAsBadIfNotMarked()
-    save(remoteDatabaseManager)
-    previous?.saveGood(remoteDatabaseManager)
+    save()
+    previous?.saveGood()
   }
 
   /**

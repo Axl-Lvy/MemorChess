@@ -30,7 +30,7 @@ class TestTraining : AUiTestFromMainActivity() {
 
   override suspend fun resetDatabase() {
     // Delete all existing nodes
-    database.deleteAll()
+    database.deleteAll(null)
 
     // Create a test node with e4 as a good move
     val game = Game()
@@ -162,7 +162,7 @@ class TestTraining : AUiTestFromMainActivity() {
 
   @Test
   fun testPromotion() {
-    runTest { database.deleteAll() }
+    runTest { database.deleteAll(null) }
     val game = Game(PositionIdentifier("k7/7P/8/8/8/8/8/7K w KQkq"))
     val startPosition = game.position.createIdentifier()
     game.playMove("h8=Q+")

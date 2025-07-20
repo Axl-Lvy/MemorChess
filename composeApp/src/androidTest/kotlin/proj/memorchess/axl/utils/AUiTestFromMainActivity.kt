@@ -358,7 +358,7 @@ abstract class AUiTestFromMainActivity : KoinComponent {
    */
   open suspend fun resetDatabase() {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
-      runTest { database.deleteAll() }
+      runTest { database.deleteAll(null) }
       lateinit var allPositions: List<StoredNode>
       lateinit var allMoves: List<StoredMove>
       runTest {

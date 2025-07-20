@@ -117,6 +117,15 @@ class BasicAuthManager(private val supabaseClient: SupabaseClient) : AuthManager
   override suspend fun signOut() {
     supabaseClient.auth.signOut()
   }
+
+  override fun registerListener(listener: suspend (SessionStatus) -> Unit) {
+    authListeningScope.launch {
+      supabaseClient.auth.sessionStatus.collect {
+        refreshUser()
+        listener(it)
+      }
+    }
+  }
 }
 
 private val LOGGER = logging()

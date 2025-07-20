@@ -31,8 +31,8 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
       authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
       Awaitility.awaitUntilTrue { authManager.user != null }
       // Clear remote database to start with clean state
-      remoteDatabase.deleteAll()
-      localDatabase.deleteAll()
+      remoteDatabase.deleteAll(null)
+      localDatabase.deleteAll(null)
     }
   }
 

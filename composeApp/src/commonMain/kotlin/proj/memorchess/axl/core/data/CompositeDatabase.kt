@@ -71,10 +71,10 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun deleteAll() {
+  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     for (db in listOf(localDatabase, remoteDatabase)) {
       if (db.isActive()) {
-        db.deleteAll()
+        db.deleteAll(hardFrom)
       }
     }
   }
@@ -87,12 +87,13 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun getLastMoveUpdate(): LocalDateTime? {
-    return if (localDatabase.isActive()) {
-      localDatabase.getLastMoveUpdate()
-    } else {
-      remoteDatabase.getLastMoveUpdate()
+  override suspend fun getLastUpdate(): LocalDateTime? {
+    val local = if (localDatabase.isActive()) localDatabase.getLastUpdate() else null
+    val remote = if (remoteDatabase.isActive()) remoteDatabase.getLastUpdate() else null
+    if (local != null && remote != null) {
+      check(local == remote)
     }
+    return local ?: remote
   }
 
   override fun isActive(): Boolean {

@@ -31,7 +31,7 @@ class TestLinesExplorer : TestWithKoin() {
 
   private fun initialize() {
     runTest {
-      database.deleteAll()
+      database.deleteAll(null)
       NodeManager.resetCacheFromDataBase()
     }
     ToastRendererHolder.init { _, _ -> }

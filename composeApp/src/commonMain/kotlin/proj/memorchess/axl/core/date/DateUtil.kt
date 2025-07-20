@@ -37,4 +37,8 @@ object DateUtil {
     val today = today()
     return today.daysUntil(to).absoluteValue
   }
+
+  fun LocalDateTime.truncateToSeconds(): LocalDateTime {
+    return LocalDateTime(year, monthNumber, dayOfMonth, hour, minute, second, 0)
+  }
 }

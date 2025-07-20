@@ -4,6 +4,7 @@ import com.diamondedge.logging.logging
 import kotlinx.datetime.LocalDateTime
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.date.DateUtil
 
 /** Move that can be stored in [DatabaseQueryManager] */
 data class StoredMove(
@@ -29,7 +30,7 @@ data class StoredMove(
   val isDeleted: Boolean = false,
 
   /** Date at which this move was updated */
-  val updatedAt: LocalDateTime? = null,
+  val updatedAt: LocalDateTime = DateUtil.now(),
 ) : KoinComponent {
 
   private val db by inject<DatabaseQueryManager>()
@@ -40,8 +41,30 @@ data class StoredMove(
     db.insertMove(this)
   }
 
-  override fun toString(): String {
-    return "StoredMove(move='$move', isGood=$isGood, origin=$origin, destination=$destination, isDeleted=$isDeleted)"
+  override fun equals(other: Any?) =
+    other is StoredMove && EssentialData(this) == EssentialData(other)
+
+  override fun hashCode() = EssentialData(this).hashCode()
+
+  override fun toString() =
+    EssentialData(this).toString().replaceFirst("EssentialData", "StoredMove")
+
+  private data class EssentialData(
+    val origin: PositionIdentifier,
+    val destination: PositionIdentifier,
+    val move: String,
+    var isGood: Boolean?,
+    val isDeleted: Boolean,
+  ) {
+    constructor(
+      storedNode: StoredMove
+    ) : this(
+      storedNode.origin,
+      storedNode.destination,
+      storedNode.move,
+      storedNode.isGood,
+      storedNode.isDeleted,
+    )
   }
 }
 
