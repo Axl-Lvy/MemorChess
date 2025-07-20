@@ -82,6 +82,17 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
+  fun testKeepSessionDialogNotReopens() {
+    testSuccessfulSignInWithValidCredentials()
+    assertNodeWithTextExists("Stay signed in?")
+    assertNodeWithTextExists("Yes").performClick()
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
+    assertNodeWithTextExists("DARK").performClick()
+    assertNodeWithTextExists("LIGHT").performClick()
+    assertNodeWithTextDoesNotExists("Stay signed in?")
+  }
+
+  @Test
   fun testFailedSignInWithInvalidCredentials() {
     // Open sign in dialog
     assertNodeWithTagExists("sign_in_button").performClick()
