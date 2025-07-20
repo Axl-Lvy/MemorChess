@@ -79,6 +79,7 @@ interface NodeEntityDao {
   )
   suspend fun removeMoveTo(destination: String)
 
+  @Transaction
   @Query("SELECT * FROM NodeEntity WHERE fenRepresentation = :fen AND isDeleted IS FALSE")
   suspend fun getNode(fen: String): NodeWithMoves?
 
