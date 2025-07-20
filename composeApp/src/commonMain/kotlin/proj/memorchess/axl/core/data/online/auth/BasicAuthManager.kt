@@ -7,6 +7,7 @@ import com.diamondedge.logging.logging
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.CoroutineScope
@@ -57,7 +58,13 @@ class BasicAuthManager(private val supabaseClient: SupabaseClient) : AuthManager
   private suspend fun tryRestoreSession() {
     val refreshToken = AUTH_REFRESH_TOKEN_SETTINGS.getValue()
     if (refreshToken.isNotEmpty()) {
-      supabaseClient.auth.refreshSession(refreshToken = refreshToken)
+      try {
+        supabaseClient.auth.refreshSession(refreshToken = refreshToken)
+      } catch (e: AuthRestException) {
+        KEEP_LOGGED_IN_SETTING.reset()
+        LOGGER.warn { "Failed to restore session: ${e.message}" }
+        updateSavedTokens()
+      }
     }
   }
 
