@@ -96,14 +96,14 @@ interface NodeEntityDao {
   /** Marks all nodes as deleted. */
   @Query(value = "UPDATE NodeEntity SET isDeleted = TRUE") suspend fun deleteAllNodes()
 
-  /** Delete all nodes that where updated after a specific date. */
+  /** Delete all nodes that were updated after a specific date. */
   @Query(value = "DELETE FROM NodeEntity WHERE updatedAt >= :date")
   suspend fun deleteNewerNodes(date: LocalDateTime)
 
   /** Marks all moves as deleted. */
   @Query(value = "UPDATE MoveEntity SET isDeleted = TRUE") suspend fun deleteAllMoves()
 
-  /** Delete all moves that where updated after a specific date. */
+  /** Delete all moves that were updated after a specific date. */
   @Query(value = "DELETE FROM MoveEntity WHERE updatedAt >= :date")
   suspend fun deleteNewerMoves(date: LocalDateTime)
 
