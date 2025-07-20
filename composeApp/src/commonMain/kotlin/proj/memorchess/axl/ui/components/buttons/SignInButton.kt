@@ -6,9 +6,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,7 +40,8 @@ fun SignInButton(
   authManager: AuthManager = koinInject(),
   databaseSynchronizer: DatabaseSynchronizer = koinInject(),
 ) {
-  var showDialog by rememberSaveable { mutableStateOf(false) }
+  var showSignInDialog by rememberSaveable { mutableStateOf(false) }
+  var showSignOutDialog by rememberSaveable { mutableStateOf(false) }
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }
   var signInError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -38,14 +51,20 @@ fun SignInButton(
   val buttonColor =
     if (isSignedIn) goodTint.copy(alpha = 0.15f) else MaterialTheme.colorScheme.primary
   Button(
-    onClick = { if (!isSignedIn) showDialog = true },
+    onClick = {
+      if (!isSignedIn) {
+        showSignInDialog = true
+      } else {
+        showSignOutDialog = true
+      }
+    },
     modifier = modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("sign_in_button"),
     colors =
       ButtonDefaults.buttonColors(
         containerColor = buttonColor,
         disabledContainerColor = buttonColor,
       ),
-    enabled = !isSignedIn,
+    enabled = true,
     shape = ButtonDefaults.shape,
     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
   ) {
@@ -70,9 +89,10 @@ fun SignInButton(
     }
   }
 
-  if (showDialog) {
+  if (showSignInDialog) {
+    var isSigningIn by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
-      onDismissRequest = { showDialog = false },
+      onDismissRequest = { showSignInDialog = false },
       title = { Text("Sign In") },
       text = {
         Column {
@@ -103,6 +123,7 @@ fun SignInButton(
           modifier = Modifier.testTag("sign_in_confirmation_button"),
           onClick = {
             coroutineScope.launch {
+              isSigningIn = true
               try {
                 authManager.signInFromEmail(email, password)
                 databaseSynchronizer.getLastUpdates()
@@ -111,16 +132,44 @@ fun SignInButton(
                 signInError = e.message ?: "Sign in failed"
               }
               if (signInError == null) {
-                showDialog = false
+                showSignInDialog = false
                 signInError = null
               }
+              isSigningIn = false
+            }
+          },
+          enabled = !isSigningIn,
+        ) {
+          if (isSigningIn) CircularProgressIndicator() else Text("Sign In")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showSignInDialog = false }, enabled = !isSigningIn) {
+          Text("Cancel")
+        }
+      },
+    )
+  }
+
+  if (showSignOutDialog) {
+    AlertDialog(
+      onDismissRequest = { showSignOutDialog = false },
+      title = { Text("Sign Out") },
+      text = { Text("Are you sure you want to sign out?") },
+      confirmButton = {
+        TextButton(
+          modifier = Modifier.testTag("sign_out_confirmation_button"),
+          onClick = {
+            coroutineScope.launch {
+              authManager.signOut()
+              showSignOutDialog = false
             }
           },
         ) {
-          Text("Sign In")
+          Text("Sign Out")
         }
       },
-      dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancel") } },
+      dismissButton = { TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") } },
     )
   }
 }
