@@ -6,13 +6,13 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.board.IPosition
 import proj.memorchess.axl.core.engine.board.Position
 import proj.memorchess.axl.core.engine.moves.Castle
-import proj.memorchess.axl.core.engine.moves.IMove
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
+import proj.memorchess.axl.core.engine.moves.Move
 import proj.memorchess.axl.core.engine.moves.Promoter
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
-import proj.memorchess.axl.core.engine.moves.factory.ACheckChecker
+import proj.memorchess.axl.core.engine.moves.factory.CheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
-import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
+import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.engine.parser.FenParser
 import proj.memorchess.axl.core.engine.pieces.Pawn
 
@@ -21,7 +21,7 @@ import proj.memorchess.axl.core.engine.pieces.Pawn
  *
  * @constructor Creates a game from a given position.
  */
-class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
+class Game(val position: IPosition, private val checkChecker: CheckChecker) {
   constructor(position: IPosition) : this(position, DummyCheckChecker(position))
 
   /** Creates a game from the starting position. */
@@ -38,7 +38,7 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
   private val promoter = Promoter(position.board)
 
   /** Move factory. */
-  private val moveFactory = SimpleMoveFactory(position)
+  private val moveFactory = RealMoveFactory(position)
 
   /** White and black player. */
   enum class Player {
@@ -55,13 +55,13 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
    * @param y Column.
    * @return Possible moves.
    */
-  fun availableMoves(x: Int, y: Int): Collection<IMove> {
+  fun availableMoves(x: Int, y: Int): Collection<Move> {
     val tile = position.board.getTile(x, y)
     if (tile.getSafePiece()?.player != position.playerTurn) {
       return emptyList()
     }
 
-    val moveList = mutableListOf<IMove>()
+    val moveList = mutableListOf<Move>()
 
     moveList.addAll(
       moveFactory.extractMoves(tile.getSafePiece()?.availableMoves(Pair(x, y)) ?: emptyList())
@@ -136,7 +136,7 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
     return promoter.needPromotion
   }
 
-  private fun playMove(move: IMove) {
+  private fun playMove(move: Move) {
     if (checkChecker.isPossible(move)) {
       LOGGER.info { "Playing ${moveFactory.stringifyMove(move)}." }
       beforePlayMove()
@@ -153,7 +153,7 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
     }
   }
 
-  private fun afterPlayMove(move: IMove) {
+  private fun afterPlayMove(move: Move) {
     updatePossibleCastle()
     updateEnPassant(move)
     promoter.update(move)
@@ -172,7 +172,7 @@ class Game(val position: IPosition, private val checkChecker: ACheckChecker) {
     }
   }
 
-  private fun updateEnPassant(move: IMove) {
+  private fun updateEnPassant(move: Move) {
     position.enPassantColumn =
       if (
         position.board.getTile(move.destination()).getSafePiece() is Pawn &&

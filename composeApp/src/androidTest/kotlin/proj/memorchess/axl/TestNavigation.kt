@@ -1,9 +1,9 @@
 package proj.memorchess.axl
 
 import kotlin.test.Test
-import proj.memorchess.axl.utils.AUiTestFromMainActivity
+import proj.memorchess.axl.utils.UiTestFromMainActivity
 
-class TestNavigation : AUiTestFromMainActivity() {
+class TestNavigation : UiTestFromMainActivity() {
 
   @Test
   fun testGoToExplore() {

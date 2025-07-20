@@ -17,7 +17,7 @@ class EnumBasedAppConfigItem<T : Enum<T>>(
   override val defaultValue: T,
   valueOf: (String) -> T,
   val getEntries: () -> Array<T>,
-) : IConfigItem<T> {
+) : ConfigItem<T> {
 
   private var localValue by mutableStateOf(valueOf(SETTINGS[name, defaultValue.name]))
 

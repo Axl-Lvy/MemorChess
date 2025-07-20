@@ -1,8 +1,8 @@
 package proj.memorchess.axl.test_util
 
-import proj.memorchess.axl.core.util.IReloader
+import proj.memorchess.axl.core.util.Reloader
 
-object NoOpReloader : IReloader {
+object NoOpReloader : Reloader {
   override fun reload() {
     // No operation
   }

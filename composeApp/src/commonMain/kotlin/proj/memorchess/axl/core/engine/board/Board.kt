@@ -2,9 +2,9 @@ package proj.memorchess.axl.core.engine.board
 
 import proj.memorchess.axl.core.engine.Game.Player
 import proj.memorchess.axl.core.engine.board.IBoard.Companion.getCoords
-import proj.memorchess.axl.core.engine.moves.IMove
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.moves.Move
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.engine.pieces.PieceFactory
 import proj.memorchess.axl.core.engine.pieces.vectors.Bishop
 import proj.memorchess.axl.core.engine.pieces.vectors.King
@@ -15,7 +15,7 @@ import proj.memorchess.axl.core.engine.pieces.vectors.Rook
 /** Main implementation of [IBoard]. */
 class Board(
   override val piecePositionsCache: Map<String, MutableSet<Pair<Int, Int>>> =
-    IPiece.PIECES.flatMap { listOf(it, it.uppercase()) }.associateWith { mutableSetOf() },
+    Piece.PIECES.flatMap { listOf(it, it.uppercase()) }.associateWith { mutableSetOf() },
   private val array: Array<Array<Tile>> = createEmptyArray(),
 ) : IBoard {
 
@@ -113,13 +113,13 @@ class Board(
     placePiece(Pair(x, y), PieceFactory.createPiece(p))
   }
 
-  override fun placePiece(coords: Pair<Int, Int>, p: IPiece) {
+  override fun placePiece(coords: Pair<Int, Int>, p: Piece) {
     val tile = array[coords.first][coords.second]
     tile.piece = p
     addPositionToCache(tile)
   }
 
-  override fun playMove(move: IMove) {
+  override fun playMove(move: Move) {
     move.generateChanges().forEach { (changingTileCoords, ref) ->
       run {
         val changingTile = array[changingTileCoords.first][changingTileCoords.second]

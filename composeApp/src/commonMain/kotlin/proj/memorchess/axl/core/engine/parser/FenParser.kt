@@ -6,7 +6,7 @@ import proj.memorchess.axl.core.engine.board.Board
 import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.board.IPosition
 import proj.memorchess.axl.core.engine.board.Position
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 
 /**
  * Fen parser to create or read [games][Game].
@@ -133,10 +133,10 @@ object FenParser {
     }
     for (c in castleString) {
       when (c.toString()) {
-        IPiece.KING.uppercase() -> resultArray[0] = true
-        IPiece.QUEEN.uppercase() -> resultArray[1] = true
-        IPiece.KING -> resultArray[2] = true
-        IPiece.QUEEN -> resultArray[3] = true
+        Piece.KING.uppercase() -> resultArray[0] = true
+        Piece.QUEEN.uppercase() -> resultArray[1] = true
+        Piece.KING -> resultArray[2] = true
+        Piece.QUEEN -> resultArray[3] = true
       }
     }
     return resultArray
@@ -215,10 +215,10 @@ object FenParser {
       if (isCastlePossible) {
         builder.append(
           when (index) {
-            0 -> IPiece.KING.uppercase()
-            1 -> IPiece.QUEEN.uppercase()
-            2 -> IPiece.KING
-            3 -> IPiece.QUEEN
+            0 -> Piece.KING.uppercase()
+            1 -> Piece.QUEEN.uppercase()
+            2 -> Piece.KING
+            3 -> Piece.QUEEN
             else -> error("Array should be of size 4.")
           }
         )

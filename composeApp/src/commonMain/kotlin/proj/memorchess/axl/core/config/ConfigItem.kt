@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.config
 
 /** A configuration item. */
-interface IConfigItem<T : Any> {
+interface ConfigItem<T : Any> {
 
   /** Name of the item. It will be used to store the value in settings. */
   val name: String

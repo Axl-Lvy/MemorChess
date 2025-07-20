@@ -4,7 +4,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 
 /** A piece represents a real chess piece. */
-interface IPiece {
+interface Piece {
 
   companion object {
     const val ROOK = "r"

@@ -6,11 +6,11 @@ import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.util.IReloader
+import proj.memorchess.axl.core.util.Reloader
 import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
-class LinesExplorer() : AInteractionsManager(Game()) {
+class LinesExplorer() : InteractionsManager(Game()) {
 
   /** The current node in the exploration tree. */
   private var node: Node
@@ -26,7 +26,7 @@ class LinesExplorer() : AInteractionsManager(Game()) {
    *
    * @param reloader The reloader to refresh the UI after moving back.
    */
-  fun back(reloader: IReloader) {
+  fun back(reloader: Reloader) {
     val parent = node.previous
     if (parent != null) {
       node = parent
@@ -43,7 +43,7 @@ class LinesExplorer() : AInteractionsManager(Game()) {
    *
    * @param reloader The reloader to refresh the UI after moving forward.
    */
-  fun forward(reloader: IReloader) {
+  fun forward(reloader: Reloader) {
     val firstChild = node.next
     if (firstChild != null) {
       val move =
@@ -72,13 +72,13 @@ class LinesExplorer() : AInteractionsManager(Game()) {
    *
    * @param reloader The reloader.
    */
-  fun reset(reloader: IReloader) {
+  fun reset(reloader: Reloader) {
     node = NodeManager.createRootNode()
     state = node.getState()
     super.reset(reloader, node.position)
   }
 
-  override suspend fun afterPlayMove(move: String, reloader: IReloader) {
+  override suspend fun afterPlayMove(move: String, reloader: Reloader) {
     node = NodeManager.createNode(game, node, move)
     state = node.getState()
     reloader.reload()
@@ -96,7 +96,7 @@ class LinesExplorer() : AInteractionsManager(Game()) {
    *
    * @param reloader The reloader to refresh the UI after deletion.
    */
-  suspend fun delete(reloader: IReloader) {
+  suspend fun delete(reloader: Reloader) {
     node.delete()
     state = node.getState()
     info("Deleted")

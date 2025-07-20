@@ -29,7 +29,7 @@ class Promoter(val board: IBoard) {
       }
   }
 
-  fun update(move: IMove) {
+  fun update(move: Move) {
     val piece = board.getTile(move.destination()).getSafePiece()
     if (isAtTheEdge(move.destination()) && piece is Pawn) {
       newPieceName =

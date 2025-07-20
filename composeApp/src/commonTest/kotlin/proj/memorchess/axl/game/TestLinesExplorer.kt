@@ -13,10 +13,10 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
-import proj.memorchess.axl.core.engine.moves.IMove
-import proj.memorchess.axl.core.engine.moves.factory.ACheckChecker
+import proj.memorchess.axl.core.engine.moves.Move
+import proj.memorchess.axl.core.engine.moves.factory.CheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
-import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
+import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.NoOpReloader
@@ -25,8 +25,8 @@ import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
 class TestLinesExplorer : TestWithKoin() {
   private lateinit var interactionsManager: LinesExplorer
-  private lateinit var moveFactory: SimpleMoveFactory
-  private lateinit var checkChecker: ACheckChecker
+  private lateinit var moveFactory: RealMoveFactory
+  private lateinit var checkChecker: CheckChecker
   private val database by inject<DatabaseQueryManager>()
 
   private fun initialize() {
@@ -36,7 +36,7 @@ class TestLinesExplorer : TestWithKoin() {
     }
     ToastRendererHolder.init { _, _ -> }
     interactionsManager = LinesExplorer()
-    moveFactory = SimpleMoveFactory(interactionsManager.game.position)
+    moveFactory = RealMoveFactory(interactionsManager.game.position)
     checkChecker = DummyCheckChecker(interactionsManager.game.position)
   }
 
@@ -176,7 +176,7 @@ class TestLinesExplorer : TestWithKoin() {
     assertNull(interactionsManager.game.position.board.getTile(emptyTile).getSafePiece())
   }
 
-  private fun createMove(stringMove: String): IMove {
+  private fun createMove(stringMove: String): Move {
     return moveFactory.parseMove(stringMove, checkChecker)
   }
 

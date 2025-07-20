@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.engine.moves
 
-interface IMove {
+interface Move {
 
   fun destination(): Pair<Int, Int>
 

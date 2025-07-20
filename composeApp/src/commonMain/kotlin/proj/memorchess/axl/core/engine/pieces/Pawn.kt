@@ -5,7 +5,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 
 /** Pawn. */
-class Pawn(player: Game.Player) : APiece(player) {
+class Pawn(player: Game.Player) : PieceImpl(player) {
 
   override fun availableMoves(coords: Pair<Int, Int>): List<List<MoveDescription>> {
     val moveList = mutableListOf<List<MoveDescription>>()
@@ -44,7 +44,7 @@ class Pawn(player: Game.Player) : APiece(player) {
   }
 
   override fun baseChar(): String {
-    return IPiece.PAWN
+    return Piece.PAWN
   }
 
   companion object {

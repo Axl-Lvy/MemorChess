@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.engine.board
 
-import proj.memorchess.axl.core.engine.moves.IMove
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.moves.Move
+import proj.memorchess.axl.core.engine.pieces.Piece
 
 /** Chess board. */
 interface IBoard {
@@ -110,14 +110,14 @@ interface IBoard {
    * @param coords The coordinates of the tile (e.g., (0, 0) for "a1").
    * @param p The piece to place.
    */
-  fun placePiece(coords: Pair<Int, Int>, p: IPiece)
+  fun placePiece(coords: Pair<Int, Int>, p: Piece)
 
   /**
    * Plays a move and updates the board.
    *
    * @param move The move to play.
    */
-  fun playMove(move: IMove)
+  fun playMove(move: Move)
 
   fun copy(): IBoard
 }

@@ -16,7 +16,7 @@ import proj.memorchess.axl.core.engine.moves.factory.NoCheckChecker
  *
  * @property pieceName The name of the piece.
  */
-abstract class ATestPiece(private val pieceName: String) {
+abstract class PieceTester(private val pieceName: String) {
 
   /** Moves of both black and white piece. White starts in a1 and black in h8. */
   abstract fun getTiles(): List<String>

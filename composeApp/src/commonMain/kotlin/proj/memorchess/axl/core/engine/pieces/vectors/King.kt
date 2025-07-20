@@ -3,16 +3,16 @@ package proj.memorchess.axl.core.engine.pieces.vectors
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.Castle
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 
 /** King. */
-class King(player: Game.Player) : AFiniteMovers(player) {
+class King(player: Game.Player) : FiniteMovers(player) {
   override fun getVectors(): Set<Pair<Int, Int>> {
     return VectorUtils.ALL_VECTORS
   }
 
   override fun baseChar(): String {
-    return IPiece.KING
+    return Piece.KING
   }
 
   override fun isMovePossible(move: MoveDescription): Boolean {

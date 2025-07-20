@@ -4,7 +4,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 
 /** Piece that can move infinitely by adding multiple times [its vectors][getVectors]. */
-abstract class AInfiniteMovers(player: Game.Player) : AVectorizedMovers(player) {
+abstract class InfiniteMovers(player: Game.Player) : VectorizedMovers(player) {
   override fun availableMoves(coords: Pair<Int, Int>): List<List<MoveDescription>> {
     val vectors = getVectors()
     val moves = mutableListOf<List<MoveDescription>>()

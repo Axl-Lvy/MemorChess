@@ -19,19 +19,19 @@ import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.board.ITile
-import proj.memorchess.axl.core.engine.pieces.IPiece
+import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.engine.pieces.vectors.Bishop
 import proj.memorchess.axl.core.engine.pieces.vectors.Knight
 import proj.memorchess.axl.core.engine.pieces.vectors.Queen
 import proj.memorchess.axl.core.engine.pieces.vectors.Rook
-import proj.memorchess.axl.core.interactions.AInteractionsManager
-import proj.memorchess.axl.core.util.IReloader
+import proj.memorchess.axl.core.interactions.InteractionsManager
+import proj.memorchess.axl.core.util.Reloader
 
 @Composable
 fun Board(
   inverted: Boolean = false,
-  interactionsManager: AInteractionsManager,
-  reloader: IReloader,
+  interactionsManager: InteractionsManager,
+  reloader: Reloader,
   modifier: Modifier = Modifier,
 ) {
   val drawableBoard =
@@ -52,12 +52,12 @@ fun Board(
 
 private class DrawableBoard(
   private val inverted: Boolean,
-  private val interactionsManager: AInteractionsManager,
-  private val reloader: IReloader,
+  private val interactionsManager: InteractionsManager,
+  private val reloader: Reloader,
 ) {
   private val board = interactionsManager.game.position.board
   private val tileToPiece =
-    mutableStateMapOf<ITile, IPiece?>().apply {
+    mutableStateMapOf<ITile, Piece?>().apply {
       board.getTilesIterator().forEach { put(it, it.getSafePiece()) }
     }
 
@@ -98,7 +98,7 @@ private class DrawableBoard(
   @Composable
   fun PromotionSelector() {
     val player = interactionsManager.game.position.playerTurn
-    val possibilities = listOf<IPiece>(Queen(player), Rook(player), Bishop(player), Knight(player))
+    val possibilities = listOf<Piece>(Queen(player), Rook(player), Bishop(player), Knight(player))
     Row(
       modifier =
         Modifier.clip(RoundedCornerShape(24.dp))

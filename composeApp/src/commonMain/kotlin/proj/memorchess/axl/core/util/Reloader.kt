@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.util
 
 /** Reloader. */
-interface IReloader {
+interface Reloader {
 
   /** Reloads. */
   fun reload()

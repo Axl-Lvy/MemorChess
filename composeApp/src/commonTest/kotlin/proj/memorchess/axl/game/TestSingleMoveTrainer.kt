@@ -14,7 +14,7 @@ import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
-import proj.memorchess.axl.core.engine.moves.factory.SimpleMoveFactory
+import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.test_util.NoOpReloader
@@ -24,7 +24,7 @@ import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
 class TestSingleMoveTrainer : TestWithKoin() {
   private lateinit var singleMoveTrainer: SingleMoveTrainer
-  private lateinit var moveFactory: SimpleMoveFactory
+  private lateinit var moveFactory: RealMoveFactory
   private lateinit var checkChecker: DummyCheckChecker
   private lateinit var database: TestDatabaseQueryManager
   private lateinit var testNode: StoredNode
@@ -64,7 +64,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
 
     ToastRendererHolder.init { _, _ -> }
     singleMoveTrainer = SingleMoveTrainer(testNode) {}
-    moveFactory = SimpleMoveFactory(singleMoveTrainer.game.position)
+    moveFactory = RealMoveFactory(singleMoveTrainer.game.position)
     checkChecker = DummyCheckChecker(singleMoveTrainer.game.position)
   }
 
