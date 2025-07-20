@@ -49,7 +49,6 @@ class DatabaseSynchronizer(
 
   /** Uploads the database from local and overrides the remote one */
   suspend fun syncFromLocal() {
-    checkNotNull(lastUpdates.value)
     val hardDeleteDate = lastUpdates.value?.first
     remoteDatabase.deleteAll(hardDeleteDate)
     uploadNodes()
@@ -69,10 +68,8 @@ class DatabaseSynchronizer(
 
   /** Download the database from remote and overrides the local one. */
   suspend fun syncFromRemote() {
-    checkNotNull(lastUpdates.value)
     val hardDeleteDate = lastUpdates.value?.second
     localDatabase.deleteAll(hardDeleteDate)
-    check(localDatabase.getLastUpdate()?.compareTo(hardDeleteDate!!)?.let { it <= 0 } ?: false)
     val positionToStoredNode = remoteDatabase.getAllNodes()
     positionToStoredNode.forEach { localDatabase.insertPosition(it) }
     isSynced = true

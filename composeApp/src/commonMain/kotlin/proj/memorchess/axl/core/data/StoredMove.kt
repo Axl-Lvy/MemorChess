@@ -41,8 +41,30 @@ data class StoredMove(
     db.insertMove(this)
   }
 
-  override fun toString(): String {
-    return "StoredMove(move='$move', isGood=$isGood, origin=$origin, destination=$destination, isDeleted=$isDeleted)"
+  override fun equals(other: Any?) =
+    other is StoredMove && EssentialData(this) == EssentialData(other)
+
+  override fun hashCode() = EssentialData(this).hashCode()
+
+  override fun toString() =
+    EssentialData(this).toString().replaceFirst("EssentialData", "StoredMove")
+
+  private data class EssentialData(
+    val origin: PositionIdentifier,
+    val destination: PositionIdentifier,
+    val move: String,
+    var isGood: Boolean?,
+    val isDeleted: Boolean,
+  ) {
+    constructor(
+      storedNode: StoredMove
+    ) : this(
+      storedNode.origin,
+      storedNode.destination,
+      storedNode.move,
+      storedNode.isGood,
+      storedNode.isDeleted,
+    )
   }
 }
 

@@ -2,6 +2,7 @@ package proj.memorchess.axl.utils
 
 import androidx.compose.ui.test.performScrollTo
 import kotlin.getValue
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -20,5 +21,10 @@ abstract class TestWithAuthentication : AUiTestFromMainActivity() {
     goToSettings()
     assertNodeWithTagExists("sign_in_button").performScrollTo()
     assertTrue(authManager.user == null)
+  }
+
+  @AfterTest
+  fun signOut() {
+    runTest { authManager.signOut() }
   }
 }

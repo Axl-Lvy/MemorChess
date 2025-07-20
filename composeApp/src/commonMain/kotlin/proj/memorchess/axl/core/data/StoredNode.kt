@@ -31,6 +31,28 @@ data class StoredNode(
     LOGGER.info { "saving $this" }
     db.insertPosition(this)
   }
+
+  override fun equals(other: Any?) =
+    other is StoredNode && EssentialData(this) == EssentialData(other)
+
+  override fun hashCode() = EssentialData(this).hashCode()
+
+  override fun toString() =
+    EssentialData(this).toString().replaceFirst("EssentialData", "StoredNode")
+
+  private data class EssentialData(
+    val positionIdentifier: PositionIdentifier,
+    val previousAndNextMoves: PreviousAndNextMoves,
+    val previousAndNextTrainingDate: PreviousAndNextDate,
+  ) {
+    constructor(
+      storedNode: StoredNode
+    ) : this(
+      storedNode.positionIdentifier,
+      storedNode.previousAndNextMoves,
+      storedNode.previousAndNextTrainingDate,
+    )
+  }
 }
 
 private val LOGGER = logging()

@@ -11,9 +11,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import org.junit.After
 import org.junit.Before
 import proj.memorchess.axl.core.data.CustomDatabase
@@ -21,6 +18,7 @@ import proj.memorchess.axl.core.data.MoveEntity
 import proj.memorchess.axl.core.data.NodeEntityDao
 import proj.memorchess.axl.core.data.NodeWithMoves
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
@@ -100,18 +98,20 @@ class TestNodeEntitiesDataBase {
         "e4",
         true,
       )
-    val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val now = DateUtil.now()
     val rootNode =
       StoredNode(
         rootPositionKey,
         PreviousAndNextMoves(listOf(), listOf(linkMove.toStoredMove())),
         PreviousAndNextDate.dummyToday(),
+        now,
       )
     val childNode =
       StoredNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
+        now,
       )
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(NodeWithMoves.convertToEntity(rootNode))
