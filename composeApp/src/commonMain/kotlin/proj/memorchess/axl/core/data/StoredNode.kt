@@ -22,6 +22,7 @@ data class StoredNode(
   val previousAndNextMoves: PreviousAndNextMoves,
   val previousAndNextTrainingDate: PreviousAndNextDate,
   val updatedAt: LocalDateTime = DateUtil.now(),
+  val isDeleted: Boolean = false,
 ) : KoinComponent {
 
   private val db by inject<DatabaseQueryManager>()

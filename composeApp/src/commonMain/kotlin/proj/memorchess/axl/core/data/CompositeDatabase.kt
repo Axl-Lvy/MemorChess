@@ -47,14 +47,6 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return if (localDatabase.isActive()) {
-      localDatabase.getAllMoves(withDeletedOnes)
-    } else {
-      remoteDatabase.getAllMoves(withDeletedOnes)
-    }
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     for (db in listOf(localDatabase, remoteDatabase)) {
       if (db.isActive()) {

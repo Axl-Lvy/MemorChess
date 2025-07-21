@@ -19,10 +19,6 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return emptyList()
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     // Nothing to do
   }

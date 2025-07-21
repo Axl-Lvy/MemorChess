@@ -135,15 +135,10 @@ internal data class MoveToUpload(
 }
 
 @Serializable
-internal data class InsertMoveFunctionArg(
-  @SerialName("user_id_input") val userId: String,
-  @SerialName("stored_moves") val moves: List<MoveToUpload>,
-)
-
-@Serializable
 internal data class PositionToUpload(
   val positionIdentifier: String,
   @SerialName("linked_moves") val linkedMoves: List<MoveToUpload>,
+  @SerialName(DEPTH_FIELD) val depth: Int,
   @SerialName(LAST_TRAINING_DATE_FIELD) val lastTrainingDate: LocalDate,
   @SerialName(NEXT_TRAINING_DATE_FIELD) val nextTrainingDate: LocalDate,
   @SerialName(UPDATED_AT_FIELD) val updatedAt: LocalDateTime,
@@ -155,24 +150,36 @@ internal data class PositionToUpload(
     storedNode.positionIdentifier.fenRepresentation,
     storedNode.previousAndNextMoves.nextMoves.map { MoveToUpload(it.value) } +
       storedNode.previousAndNextMoves.previousMoves.map { MoveToUpload(it.value) },
+    storedNode.previousAndNextMoves.depth,
     storedNode.previousAndNextTrainingDate.previousDate,
     storedNode.previousAndNextTrainingDate.nextDate,
     storedNode.updatedAt,
     false,
   )
 
-  fun toStoredNode(): StoredNode {
+  fun toStoredNode(withDeletedOnes: Boolean = false): StoredNode {
     return StoredNode(
       PositionIdentifier(positionIdentifier),
       PreviousAndNextMoves(
-        linkedMoves.filter { it.destination == positionIdentifier }.map { it.toStoredMove() },
-        linkedMoves.filter { it.origin == positionIdentifier }.map { it.toStoredMove() },
+        linkedMoves
+          .filter { it.destination == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
+          .map { it.toStoredMove() },
+        linkedMoves
+          .filter { it.origin == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
+          .map { it.toStoredMove() },
+        depth,
       ),
       PreviousAndNextDate(lastTrainingDate, nextTrainingDate),
       updatedAt,
     )
   }
 }
+
+@Serializable
+internal data class FetchSinglePositionFunctionArg(
+  @SerialName("user_id_input") val userId: String,
+  @SerialName(FEN_REPRESENTATION_FIELD) val fen: String,
+)
 
 @Serializable
 internal data class InsertPositionFunctionArg(

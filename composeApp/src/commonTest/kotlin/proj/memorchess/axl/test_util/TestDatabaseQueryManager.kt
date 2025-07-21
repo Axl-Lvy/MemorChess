@@ -46,14 +46,6 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       )
   }
 
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return storedNodes.values
-      .flatMap {
-        it.previousAndNextMoves.nextMoves.values + it.previousAndNextMoves.previousMoves.values
-      }
-      .distinct()
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     storedNodes.clear()
   }

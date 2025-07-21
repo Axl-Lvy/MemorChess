@@ -28,12 +28,6 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     database.getNodeEntityDao().removeMove(origin, move)
   }
 
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return (if (withDeletedOnes) database.getNodeEntityDao().getAllMovesWithDeletedOnes()
-      else database.getNodeEntityDao().getAllMoves())
-      .map { it.toStoredMove() }
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     database.getNodeEntityDao().deleteAllNodes()
     hardFrom?.let { database.getNodeEntityDao().deleteNewerNodes(it) }

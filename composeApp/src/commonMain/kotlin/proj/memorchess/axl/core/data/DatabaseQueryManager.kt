@@ -31,13 +31,6 @@ interface DatabaseQueryManager {
   suspend fun deleteMove(origin: String, move: String)
 
   /**
-   * Get all moves
-   *
-   * @param withDeletedOnes Whether to include deleted moves or not
-   */
-  suspend fun getAllMoves(withDeletedOnes: Boolean = false): List<StoredMove>
-
-  /**
    * Deletes all positions and moves.
    *
    * @param hardFrom Everything is not entirely deleted, but marked as deleted. Except for entities

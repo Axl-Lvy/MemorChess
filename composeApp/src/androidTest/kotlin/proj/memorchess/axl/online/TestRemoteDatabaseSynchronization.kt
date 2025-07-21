@@ -43,8 +43,8 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
     refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
 
     // Verify local has data, remote is empty
-    val remoteNodesBefore = remoteDatabase.getAllNodes()
-    assertTrue(remoteNodesBefore.none { it.previousAndNextMoves.filterNotDeleted().isNotEmpty() })
+    val remoteNodesBefore = remoteDatabase.getAllNodes(false)
+    assertTrue(remoteNodesBefore.isEmpty())
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromLocal()
@@ -114,14 +114,15 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   }
 
   private fun assertDatabaseAreSame() = runTest {
-    val localNodes =
-      localDatabase.getAllNodes().filter { it.previousAndNextMoves.filterNotDeleted().isNotEmpty() }
-    val remoteNodes =
-      remoteDatabase
-        .getAllNodes()
-        .filter { it.previousAndNextMoves.filterNotDeleted().isNotEmpty() }
-        .toSet()
-    localNodes.forEach { assertContains(remoteNodes, it) }
+    val localNodes = localDatabase.getAllNodes(false)
+    val remoteNodes = remoteDatabase.getAllNodes(false).toSet()
+    localNodes.forEach {
+      assertContains(
+        remoteNodes,
+        it,
+        "Local node: $it\nRemote node: ${remoteNodes.find { remoteIt -> remoteIt.positionIdentifier == it.positionIdentifier }}",
+      )
+    }
     assertTrue(localNodes.size == remoteNodes.size)
   }
 

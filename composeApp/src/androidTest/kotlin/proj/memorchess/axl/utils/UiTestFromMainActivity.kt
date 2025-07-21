@@ -29,7 +29,6 @@ import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.game.getScandinavian
@@ -360,12 +359,8 @@ abstract class UiTestFromMainActivity : KoinComponent {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Database not empty") {
       runTest { database.deleteAll(null) }
       lateinit var allPositions: List<StoredNode>
-      lateinit var allMoves: List<StoredMove>
-      runTest {
-        allPositions = database.getAllNodes()
-        allMoves = database.getAllMoves()
-      }
-      allPositions.isEmpty() && allMoves.isEmpty()
+      runTest { allPositions = database.getAllNodes() }
+      allPositions.isEmpty()
     }
     val viennaNodes =
       TestDatabaseQueryManager.convertStringMovesToNodes(getVienna()).map {
