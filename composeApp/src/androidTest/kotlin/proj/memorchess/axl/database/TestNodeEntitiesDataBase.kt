@@ -84,7 +84,7 @@ class TestNodeEntitiesDataBase {
         )
       )
       nodeEntityDao.deleteAllNodes()
-      retrievedNode = nodeEntityDao.getAllNodes().firstOrNull()
+      retrievedNode = nodeEntityDao.getAllNodes().firstOrNull { !it.node.isDeleted }
     }
     assertNull(retrievedNode)
   }
@@ -121,7 +121,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))
       nodeEntityDao.delete(childNode.positionIdentifier.fenRepresentation)
-      retrievedNodes = nodeEntityDao.getAllNodes()
+      retrievedNodes = nodeEntityDao.getAllNodes().filter { !it.node.isDeleted }
     }
     assertEquals(1, retrievedNodes.size)
     assertContains(

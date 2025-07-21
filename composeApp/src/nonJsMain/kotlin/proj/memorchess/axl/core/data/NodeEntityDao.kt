@@ -22,8 +22,7 @@ interface NodeEntityDao {
   suspend fun insertNodeAndMoves(nodes: Collection<NodeWithMoves>) {
     nodes.forEach {
       insertNode(it.node)
-      insertMoves(it.nextMoves)
-      insertMoves(it.previousMoves)
+      insertMoves(it.nextMoves + it.previousMoves)
     }
   }
 

@@ -154,7 +154,7 @@ internal data class PositionToUpload(
     storedNode.previousAndNextTrainingDate.previousDate,
     storedNode.previousAndNextTrainingDate.nextDate,
     storedNode.updatedAt,
-    false,
+    storedNode.isDeleted,
   )
 
   fun toStoredNode(withDeletedOnes: Boolean = false): StoredNode {
