@@ -1,4 +1,6 @@
 import com.ncorti.ktfmt.gradle.tasks.KtfmtBaseTask
+import java.util.Properties
+import kotlin.apply
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -175,3 +177,77 @@ dependencies {
   androidTestImplementation(libs.androidx.ui.test.junit4.android)
   debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+val applySupabaseFunctions by
+  tasks.registering {
+    val supabaseDbLink = createSupabaseDbLink()
+    if (supabaseDbLink.isEmpty()) {
+      logger.error(
+        "Could not create Supabase database link. Please check your local.properties file."
+      )
+      return@registering
+    }
+
+    val sqlDir = file("../supabase/functions")
+    val sqlFiles = sqlDir.listFiles()?.sortedBy { it.name } ?: emptyList()
+
+    if (sqlFiles.isEmpty()) {
+      logger.lifecycle("No SQL files found in the directory: ${sqlDir.absolutePath}")
+      return@registering
+    }
+
+    doFirst {
+      logger.lifecycle("Applying ${sqlFiles.size} SQL functions to Supabase database...")
+      sqlFiles.forEach { file -> logger.lifecycle("  - ${file.name}") }
+    }
+
+    doLast {
+      sqlFiles.forEach { sqlFile ->
+        val execResult = exec {
+          workingDir = sqlDir
+          commandLine("psql", "-f", sqlFile.absolutePath, supabaseDbLink)
+          isIgnoreExitValue = true
+        }
+
+        if (execResult.exitValue == 0) {
+          logger.lifecycle("Successfully applied: ${sqlFile.name}")
+        } else {
+          logger.warn("Failed to apply: ${sqlFile.name} (exit code: ${execResult.exitValue})")
+        }
+      }
+      logger.lifecycle("Finished applying SQL functions to database.")
+    }
+  }
+
+private fun createSupabaseDbLink(): String {
+  val localProperties =
+    Properties().apply {
+      val file = rootProject.file("local.properties")
+      if (file.exists()) {
+        file.inputStream().use { load(it) }
+      } else {
+        logger.error("local.properties file not found.")
+        return ""
+      }
+    }
+  val host = localProperties.getProperty(".supabase_db_host")
+  val port = localProperties.getProperty(".supabase_db_port")
+  val dbName = localProperties.getProperty(".supabase_db_name")
+  val user = localProperties.getProperty(".supabase_db_user")
+  val password = localProperties.getProperty(".supabase_db_password")
+  if (
+    host.isNullOrEmpty() ||
+      port.isNullOrEmpty() ||
+      dbName.isNullOrEmpty() ||
+      user.isNullOrEmpty() ||
+      password.isNullOrEmpty()
+  ) {
+    logger.error("One or more Supabase database properties are missing in local.properties.")
+    return ""
+  }
+  return "postgresql://$user:$password@$host:$port/$dbName"
+}
+
+tasks
+  .matching { it.name.contains("compile", ignoreCase = true) }
+  .configureEach { dependsOn(applySupabaseFunctions) }

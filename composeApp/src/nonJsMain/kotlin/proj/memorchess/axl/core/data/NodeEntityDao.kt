@@ -16,13 +16,14 @@ interface NodeEntityDao {
    *
    * If the node already exists, it will be replaced. Same for the moves.
    *
-   * @param node The node with its next and previous moves to insert.
+   * @param nodes The node with its next and previous moves to insert.
    */
   @Transaction
-  suspend fun insertNodeAndMoves(node: NodeWithMoves) {
-    insertNode(node.node)
-    insertMoves(node.nextMoves)
-    insertMoves(node.previousMoves)
+  suspend fun insertNodeAndMoves(nodes: Collection<NodeWithMoves>) {
+    nodes.forEach {
+      insertNode(it.node)
+      insertMoves(it.nextMoves + it.previousMoves)
+    }
   }
 
   /**
@@ -113,9 +114,7 @@ interface NodeEntityDao {
    *
    * @return A list of [NodeWithMoves] containing nodes and their associated moves.
    */
-  @Transaction
-  @Query("SELECT * FROM NodeEntity WHERE isDeleted IS FALSE")
-  suspend fun getAllNodes(): List<NodeWithMoves>
+  @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAllNodes(): List<NodeWithMoves>
 
   @Query("SELECT * FROM MoveEntity WHERE isDeleted IS FALSE")
   suspend fun getAllMoves(): List<MoveEntity>

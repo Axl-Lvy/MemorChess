@@ -10,14 +10,7 @@ interface DatabaseQueryManager {
    *
    * @return A list of all stored positions as [StoredNode] objects.
    */
-  suspend fun getAllNodes(): List<StoredNode>
-
-  /**
-   * Retrieves all stored positions without any move.
-   *
-   * @return A list of all stored positions as [UnlinkedStoredNode] objects.
-   */
-  suspend fun getAllPositions(): List<UnlinkedStoredNode>
+  suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<StoredNode>
 
   /** Retrieves a specific position. */
   suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode?
@@ -38,20 +31,6 @@ interface DatabaseQueryManager {
   suspend fun deleteMove(origin: String, move: String)
 
   /**
-   * Inserts a new move.
-   *
-   * @param move The [StoredMove] to insert.
-   */
-  suspend fun insertMove(move: StoredMove)
-
-  /**
-   * Get all moves
-   *
-   * @param withDeletedOnes Whether to include deleted moves or not
-   */
-  suspend fun getAllMoves(withDeletedOnes: Boolean = false): List<StoredMove>
-
-  /**
    * Deletes all positions and moves.
    *
    * @param hardFrom Everything is not entirely deleted, but marked as deleted. Except for entities
@@ -62,9 +41,9 @@ interface DatabaseQueryManager {
   /**
    * Inserts a new position.
    *
-   * @param position The [StoredNode] to insert.
+   * @param positions The [StoredNode] to insert.
    */
-  suspend fun insertPosition(position: StoredNode)
+  suspend fun insertNodes(vararg positions: StoredNode)
 
   /** Retrieves the last move update time. */
   suspend fun getLastUpdate(): LocalDateTime?

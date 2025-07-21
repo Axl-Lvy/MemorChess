@@ -225,8 +225,9 @@ private object NodeCache : KoinComponent {
     todayDate = DateUtil.today()
     val allNodes: List<StoredNode> = db.getAllNodes()
     allNodes.forEach { node ->
-      movesCache.getOrPut(node.positionIdentifier) { node.previousAndNextMoves }
-      if (node.previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {
+      val previousAndNextMoves = node.previousAndNextMoves.filterNotDeleted()
+      movesCache.getOrPut(node.positionIdentifier) { previousAndNextMoves }
+      if (previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {
         val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
         nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
       }

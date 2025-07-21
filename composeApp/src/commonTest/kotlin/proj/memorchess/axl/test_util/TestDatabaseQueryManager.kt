@@ -5,7 +5,6 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
-import proj.memorchess.axl.core.data.UnlinkedStoredNode
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
@@ -21,12 +20,8 @@ import proj.memorchess.axl.game.getVienna
 class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   val storedNodes = mutableMapOf<String, StoredNode>()
 
-  override suspend fun getAllNodes(): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
     return storedNodes.values.toList()
-  }
-
-  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
-    TODO("Not yet implemented")
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
@@ -51,27 +46,12 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       )
   }
 
-  override suspend fun insertMove(move: StoredMove) {
-    storedNodes[move.origin.fenRepresentation]!!.previousAndNextMoves.nextMoves[move.move] = move
-    storedNodes[move.destination.fenRepresentation]!!
-      .previousAndNextMoves
-      .previousMoves[move.move] = move
-  }
-
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return storedNodes.values
-      .flatMap {
-        it.previousAndNextMoves.nextMoves.values + it.previousAndNextMoves.previousMoves.values
-      }
-      .distinct()
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     storedNodes.clear()
   }
 
-  override suspend fun insertPosition(position: StoredNode) {
-    storedNodes[position.positionIdentifier.fenRepresentation] = position
+  override suspend fun insertNodes(vararg positions: StoredNode) {
+    positions.forEach { storedNodes[it.positionIdentifier.fenRepresentation] = it }
   }
 
   override suspend fun getLastUpdate(): LocalDateTime? {

@@ -22,6 +22,7 @@ data class StoredNode(
   val previousAndNextMoves: PreviousAndNextMoves,
   val previousAndNextTrainingDate: PreviousAndNextDate,
   val updatedAt: LocalDateTime = DateUtil.now(),
+  val isDeleted: Boolean = false,
 ) : KoinComponent {
 
   private val db by inject<DatabaseQueryManager>()
@@ -29,7 +30,7 @@ data class StoredNode(
   /** Saves this node. */
   suspend fun save() {
     LOGGER.info { "saving $this" }
-    db.insertPosition(this)
+    db.insertNodes(this)
   }
 
   override fun equals(other: Any?) =

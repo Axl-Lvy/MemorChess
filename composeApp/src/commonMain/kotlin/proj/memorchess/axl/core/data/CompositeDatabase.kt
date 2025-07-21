@@ -15,19 +15,11 @@ class CompositeDatabase(
   private val remoteDatabase: RemoteDatabaseQueryManager,
   private val localDatabase: DatabaseQueryManager,
 ) : DatabaseQueryManager {
-  override suspend fun getAllNodes(): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
     return if (localDatabase.isActive()) {
-      localDatabase.getAllNodes()
+      localDatabase.getAllNodes(withDeletedOnes)
     } else {
-      remoteDatabase.getAllNodes()
-    }
-  }
-
-  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
-    return if (localDatabase.isActive()) {
-      localDatabase.getAllPositions()
-    } else {
-      remoteDatabase.getAllPositions()
+      remoteDatabase.getAllNodes(withDeletedOnes)
     }
   }
 
@@ -55,22 +47,6 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun insertMove(move: StoredMove) {
-    for (db in listOf(localDatabase, remoteDatabase)) {
-      if (db.isActive()) {
-        db.insertMove(move)
-      }
-    }
-  }
-
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return if (localDatabase.isActive()) {
-      localDatabase.getAllMoves(withDeletedOnes)
-    } else {
-      remoteDatabase.getAllMoves(withDeletedOnes)
-    }
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     for (db in listOf(localDatabase, remoteDatabase)) {
       if (db.isActive()) {
@@ -79,10 +55,10 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun insertPosition(position: StoredNode) {
+  override suspend fun insertNodes(vararg positions: StoredNode) {
     for (db in listOf(localDatabase, remoteDatabase)) {
       if (db.isActive()) {
-        db.insertPosition(position)
+        db.insertNodes(*positions)
       }
     }
   }

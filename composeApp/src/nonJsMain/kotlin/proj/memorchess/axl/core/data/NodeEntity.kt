@@ -6,7 +6,6 @@ import androidx.room.PrimaryKey
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 
 /**
  * Entity representing an [StoredNode] ready to be stored in the database.
@@ -54,15 +53,6 @@ data class NodeEntity(
   /** The date time of the last update. */
   val updatedAt: LocalDateTime = DateUtil.now(),
 ) {
-  fun toUnlinkedStoredNode(): UnlinkedStoredNode {
-    return UnlinkedStoredNode(
-      PositionIdentifier(fenRepresentation),
-      PreviousAndNextDate(lastTrainedDate, nextTrainedDate),
-      depth,
-      isDeleted,
-      updatedAt,
-    )
-  }
 
   init {
     check(lastTrainedDate <= nextTrainedDate) {

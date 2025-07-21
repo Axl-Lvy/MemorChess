@@ -8,12 +8,11 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private val database = getRoomDatabase(databaseBuilder())
 
-  override suspend fun getAllNodes(): List<StoredNode> {
-    return database.getNodeEntityDao().getAllNodes().map { it.toStoredNode() }
-  }
-
-  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
-    return database.getNodeEntityDao().getPositions().map { it.toUnlinkedStoredNode() }
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
+    val allNodes = database.getNodeEntityDao().getAllNodes()
+    return (if (withDeletedOnes) allNodes else allNodes.filter { !it.node.isDeleted }).map {
+      it.toStoredNode()
+    }
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
@@ -29,16 +28,6 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     database.getNodeEntityDao().removeMove(origin, move)
   }
 
-  override suspend fun insertMove(move: StoredMove) {
-    database.getNodeEntityDao().insertMoves(listOf(MoveEntity.convertToEntity(move)))
-  }
-
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return (if (withDeletedOnes) database.getNodeEntityDao().getAllMovesWithDeletedOnes()
-      else database.getNodeEntityDao().getAllMoves())
-      .map { it.toStoredMove() }
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     database.getNodeEntityDao().deleteAllNodes()
     hardFrom?.let { database.getNodeEntityDao().deleteNewerNodes(it) }
@@ -46,8 +35,10 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     hardFrom?.let { database.getNodeEntityDao().deleteNewerMoves(it) }
   }
 
-  override suspend fun insertPosition(position: StoredNode) {
-    database.getNodeEntityDao().insertNodeAndMoves(NodeWithMoves.convertToEntity(position))
+  override suspend fun insertNodes(vararg positions: StoredNode) {
+    database
+      .getNodeEntityDao()
+      .insertNodeAndMoves(positions.map { NodeWithMoves.convertToEntity(it) })
   }
 
   override suspend fun getLastUpdate(): LocalDateTime? {

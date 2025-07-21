@@ -3,11 +3,7 @@ package proj.memorchess.axl.core.data
 import kotlinx.datetime.LocalDateTime
 
 open class NoOpDatabaseQueryManager : DatabaseQueryManager {
-  override suspend fun getAllNodes(): List<StoredNode> {
-    return emptyList()
-  }
-
-  override suspend fun getAllPositions(): List<UnlinkedStoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
     return emptyList()
   }
 
@@ -23,19 +19,11 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun insertMove(move: StoredMove) {
-    // Nothing to do
-  }
-
-  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<StoredMove> {
-    return emptyList()
-  }
-
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     // Nothing to do
   }
 
-  override suspend fun insertPosition(position: StoredNode) {
+  override suspend fun insertNodes(vararg positions: StoredNode) {
     // Nothing to do
   }
 

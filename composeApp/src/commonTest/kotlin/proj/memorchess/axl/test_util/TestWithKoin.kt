@@ -10,7 +10,6 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.database.RemoteDatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
 
 abstract class TestWithKoin : KoinComponent {
@@ -25,9 +24,6 @@ abstract class TestWithKoin : KoinComponent {
   }
 
   fun initTestModule(): Module {
-    return module {
-      singleOf(::NoOpAuthManager) bind AuthManager::class
-      singleOf(::NoOpRemoteDatabaseQueryManager) bind RemoteDatabaseQueryManager::class
-    }
+    return module { singleOf(::NoOpAuthManager) bind AuthManager::class }
   }
 }

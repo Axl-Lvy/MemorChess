@@ -49,7 +49,7 @@ class TestTraining : UiTestFromMainActivity() {
       )
 
     // Save the node to the database
-    database.insertPosition(testNode)
+    database.insertNodes(testNode)
   }
 
   @Test
@@ -139,7 +139,7 @@ class TestTraining : UiTestFromMainActivity() {
       )
 
     // Save the node to the database
-    runTest { database.insertPosition(testNode) }
+    runTest { database.insertNodes(testNode) }
 
     // Ensure we rebuild the training page
     goToExplore()
@@ -174,7 +174,7 @@ class TestTraining : UiTestFromMainActivity() {
         PreviousAndNextMoves(listOf(), listOf(startMove)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
-    runTest { database.insertPosition(node) }
+    runTest { database.insertNodes(node) }
     goToExplore()
     goToTraining()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)

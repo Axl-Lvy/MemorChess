@@ -23,6 +23,7 @@ data class NodeWithMoves(
       ),
       PreviousAndNextDate(node.lastTrainedDate, node.nextTrainedDate),
       node.updatedAt,
+      node.isDeleted,
     )
   }
 
@@ -34,7 +35,7 @@ data class NodeWithMoves(
           storedNode.previousAndNextTrainingDate.previousDate,
           storedNode.previousAndNextTrainingDate.nextDate,
           storedNode.previousAndNextMoves.depth,
-          false,
+          storedNode.isDeleted,
           storedNode.updatedAt,
         ),
         storedNode.previousAndNextMoves.previousMoves.map { MoveEntity.convertToEntity(it.value) },
