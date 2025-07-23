@@ -1,5 +1,7 @@
 package proj.memorchess.axl
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,28 +11,46 @@ import androidx.navigation.compose.rememberNavController
 import kotlin.time.Duration
 import org.koin.compose.KoinApplication
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
+import proj.memorchess.axl.ui.components.navigation.BottomNavigationBar
+import proj.memorchess.axl.ui.components.navigation.NavigationBarItemContent
+import proj.memorchess.axl.ui.components.navigation.SideNavigationBar
+import proj.memorchess.axl.ui.layout.MainLayout
 import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.pages.navigation.Router
-import proj.memorchess.axl.ui.pages.navigation.bottomBar.BottomBar
 import proj.memorchess.axl.ui.theme.AppTheme
 
 @Composable
+fun KoinStarterApp() {
+  KoinApplication(application = { modules(*initKoinModules()) }) { App() }
+}
+
+@Composable
 fun App() {
-  KoinApplication(application = { modules(*initKoinModules()) }) {
-    MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
-    AppTheme {
-      val navController = rememberNavController()
-      Scaffold(
-        bottomBar = {
-          val navBackStackEntry by navController.currentBackStackEntryAsState()
-          val currentRoute =
-            navBackStackEntry?.destination?.route?.substringBefore("?") ?: Destination.EXPLORE.name
-          BottomBar(currentRoute, navController)
-        },
-        floatingActionButtonPosition = FabPosition.Center,
-      ) { innerPadding ->
-        Router(navController = navController, modifier = Modifier.padding(innerPadding))
-      }
+  MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
+  AppTheme {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute =
+      navBackStackEntry?.destination?.route?.substringBefore("?") ?: Destination.EXPLORE.name
+    MainLayout(
+      sideBar = {
+        SideNavigationBar(
+          currentRoute,
+          navController,
+          NavigationBarItemContent.entries,
+          modifier = Modifier.fillMaxHeight(),
+        )
+      },
+      bottomBar = {
+        BottomNavigationBar(
+          currentRoute,
+          navController,
+          NavigationBarItemContent.entries,
+          modifier = Modifier.fillMaxWidth(),
+        )
+      },
+    ) { innerPadding ->
+      Router(navController = navController, modifier = Modifier.padding(innerPadding))
     }
   }
 }

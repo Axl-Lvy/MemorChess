@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.pages.navigation.bottomBar
+package proj.memorchess.axl.ui.components.navigation
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -15,7 +15,7 @@ import proj.memorchess.axl.ui.pages.navigation.Destination
 
 private const val BUTTON_SUFFIX = " button"
 
-enum class BottomBarItem(
+enum class NavigationBarItemContent(
   val destination: Destination,
   val index: Int,
   val icon: @Composable () -> Unit,
