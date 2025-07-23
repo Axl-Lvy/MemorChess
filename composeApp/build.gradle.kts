@@ -91,6 +91,7 @@ kotlin {
       implementation(libs.navigation.compose)
       implementation(libs.material.icons)
       implementation(libs.xfeather.z)
+      implementation(libs.material3.adaptive)
 
       // Utilities
       api(libs.logging)
@@ -120,6 +121,7 @@ kotlin {
       @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class) implementation(compose.uiTest)
     }
 
+    @SuppressWarnings("unused")
     val nonJsMain by getting {
       dependencies {
         implementation(libs.androidx.room.runtime)
