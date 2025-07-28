@@ -10,6 +10,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavHostController
 
 /** Bottom navigation bar */
@@ -31,6 +32,7 @@ fun BottomNavigationBar(
           icon = item.icon,
           label = { Text(item.destination.label) },
           onClick = { navController.navigate(item.destination.name) },
+          modifier = Modifier.testTag("bottom_navigation_bar_item_${item.destination.label}")
         )
       }
   }

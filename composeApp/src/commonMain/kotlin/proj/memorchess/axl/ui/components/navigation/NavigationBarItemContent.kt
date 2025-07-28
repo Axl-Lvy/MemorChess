@@ -24,7 +24,7 @@ enum class NavigationBarItemContent(
     destination = Destination.EXPLORE,
     index = 0,
     icon = {
-      Icon(Icons.Rounded.Search, contentDescription = Destination.EXPLORE.name + BUTTON_SUFFIX)
+      Icon(Icons.Rounded.Search, contentDescription = Destination.EXPLORE.label + BUTTON_SUFFIX)
     },
   ),
   Training(
@@ -33,7 +33,7 @@ enum class NavigationBarItemContent(
     icon = {
       Icon(
         painterResource(Res.drawable.icon_main),
-        contentDescription = Destination.TRAINING.name + BUTTON_SUFFIX,
+        contentDescription = Destination.TRAINING.label + BUTTON_SUFFIX,
         modifier = Modifier.size(32.dp),
       )
     },
@@ -42,7 +42,7 @@ enum class NavigationBarItemContent(
     destination = Destination.SETTINGS,
     index = 2,
     icon = {
-      Icon(Icons.Rounded.Settings, contentDescription = Destination.SETTINGS.name + BUTTON_SUFFIX)
+      Icon(Icons.Rounded.Settings, contentDescription = Destination.SETTINGS.label + BUTTON_SUFFIX)
     },
   ),
 }

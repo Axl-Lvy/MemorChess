@@ -35,7 +35,6 @@ import proj.memorchess.axl.game.getScandinavian
 import proj.memorchess.axl.game.getVienna
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
-import proj.memorchess.axl.test_util.getNavigationButtonDescription
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.pages.navigation.Destination
@@ -61,7 +60,7 @@ abstract class UiTestFromMainActivity : KoinComponent {
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     ON_SUCCESS_DATE_FACTOR_SETTING.reset()
     waitUntilNodeExists(
-      hasContentDescription(getNavigationButtonDescription(Destination.EXPLORE.name))
+      hasTestTag("bottom_navigation_bar_item_${Destination.EXPLORE.label}")
     )
     runTest { resetDatabase() }
   }
@@ -80,7 +79,7 @@ abstract class UiTestFromMainActivity : KoinComponent {
       hasClickLabel(getTileDescription("e2")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists(Destination.EXPLORE.name)
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.EXPLORE.label}")
   }
 
   /**
@@ -95,7 +94,7 @@ abstract class UiTestFromMainActivity : KoinComponent {
       hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists(Destination.TRAINING.name)
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.TRAINING.label}")
   }
 
   /**
@@ -106,7 +105,7 @@ abstract class UiTestFromMainActivity : KoinComponent {
    */
   fun goToSettings() {
     clickOnDestinationButton(Destination.SETTINGS)
-    assertNodeWithTagExists(Destination.SETTINGS.name)
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.SETTINGS.label}")
   }
 
   /**
@@ -117,7 +116,7 @@ abstract class UiTestFromMainActivity : KoinComponent {
    * @param destination The destination to navigate to
    */
   private fun clickOnDestinationButton(destination: Destination) {
-    waitUntilNodeExists(hasContentDescription(getNavigationButtonDescription(destination.name)))
+    waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${destination.label}"))
       .performClick()
   }
 
