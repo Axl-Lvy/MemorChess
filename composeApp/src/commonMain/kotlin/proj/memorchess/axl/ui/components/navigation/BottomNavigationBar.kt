@@ -32,7 +32,7 @@ fun BottomNavigationBar(
           icon = item.icon,
           label = { Text(item.destination.label) },
           onClick = { navController.navigate(item.destination.name) },
-          modifier = Modifier.testTag("bottom_navigation_bar_item_${item.destination.label}")
+          modifier = Modifier.testTag("bottom_navigation_bar_item_${item.destination.label}"),
         )
       }
   }

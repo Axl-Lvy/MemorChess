@@ -59,9 +59,7 @@ abstract class UiTestFromMainActivity : KoinComponent {
     MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     ON_SUCCESS_DATE_FACTOR_SETTING.reset()
-    waitUntilNodeExists(
-      hasTestTag("bottom_navigation_bar_item_${Destination.EXPLORE.label}")
-    )
+    waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${Destination.EXPLORE.label}"))
     runTest { resetDatabase() }
   }
 
