@@ -37,7 +37,7 @@ jobs:
 
       # 4. Build the WasmJS App
       - name: "🛠️ Build WasmJS App"
-        run: gradle :example:composeApp:wasmJsBrowserDistribution
+        run: gradle :composeApp:wasmJsBrowserDistribution
 
       # 5. Set up GitHub Pages
       - name: "📄 Configure GitHub Pages"
@@ -47,7 +47,7 @@ jobs:
       - name: "📤 Upload GitHub Pages artifact"
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./memorchess/composeApp/build/dist/wasmJs/productionExecutable
+          path: ./composeApp/build/dist/wasmJs/productionExecutable
 
       # 7. Deploy to GitHub Pages
       - name: "🚀 Deploy to GitHub Pages"

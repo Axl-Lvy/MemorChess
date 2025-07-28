@@ -84,7 +84,7 @@ private fun BoxWithConstraintsScope.DrawScrollIndicators(
   scrollState: ScrollState,
 ) {
   if (isScrollable) {
-    // Left gradient
+    // Top gradient
     if (scrollState.canScrollBackward) {
       Box(
         modifier =
@@ -98,7 +98,7 @@ private fun BoxWithConstraintsScope.DrawScrollIndicators(
             )
       )
     }
-    // Right gradient
+    // Bottom gradient
     if (scrollState.canScrollForward) {
       Box(
         modifier =
