@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main  # Trigger the workflow on pushes to the main branch
+      - ci/deploy-wasm
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
@@ -31,6 +32,13 @@ jobs:
       # 3. Set up Gradle
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Update local.properties
+        run: |
+          chmod +x .github/scripts/update_properties.sh
+          .github/scripts/update_properties.sh
+        env:
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
 
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
