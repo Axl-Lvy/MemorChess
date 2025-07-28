@@ -1,6 +1,7 @@
 package proj.memorchess.axl.ui.components.navigation
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
@@ -19,7 +20,7 @@ fun BottomNavigationBar(
   items: Collection<NavigationBarItemContent>,
   modifier: Modifier = Modifier,
 ) {
-  NavigationBar(modifier = modifier, windowInsets = WindowInsets(0, 0, 0, 0)) {
+  NavigationBar(modifier = modifier.fillMaxWidth(), windowInsets = WindowInsets(0, 0, 0, 0)) {
     items
       .sortedBy { it.index }
       .forEach { item ->

@@ -21,9 +21,13 @@ import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
+import proj.memorchess.axl.core.util.Reloader
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.BoardTopping
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
+import proj.memorchess.axl.ui.layout.training.LandscapeTrainingLayout
+import proj.memorchess.axl.ui.layout.training.PortraitTrainingLayout
+import proj.memorchess.axl.ui.layout.training.TrainingLayoutContent
 import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
@@ -51,6 +55,7 @@ private class TrainingBoard {
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
     val localReloader = remember { BasicReloader() }
+    val trainerReloader = remember { BasicReloader() }
     val numberOfNodesToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
         NodeManager.getNumberOfNodesToTrain(daysInAdvance)
@@ -64,12 +69,18 @@ private class TrainingBoard {
         delay(moveDelay)
         state = state.toPlayableState()
         localReloader.reload()
+        trainerReloader.reload()
       }
     }
     if (moveToTrain == null) {
       NoNodeToTrain(modifier = modifier)
     } else {
-      NodeToTrain(moveToTrain, numberOfNodesToTrain, modifier = modifier)
+      NodeToTrain(
+        moveToTrain,
+        numberOfNodesToTrain,
+        modifier = modifier,
+        trainerReloader = trainerReloader,
+      )
     }
   }
 
@@ -126,10 +137,11 @@ private class TrainingBoard {
   private fun NodeToTrain(
     nodeToLearn: StoredNode,
     numberOfNodesToTrain: Int,
+    trainerReloader: Reloader,
     modifier: Modifier = Modifier,
   ) {
     val trainer by
-      remember(nodeToLearn) {
+      remember(nodeToLearn, trainerReloader.getKey()) {
         mutableStateOf(
           SingleMoveTrainer(nodeToLearn) {
             state =
@@ -140,36 +152,35 @@ private class TrainingBoard {
         )
       }
     val inverted = remember(nodeToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
-    Column(
-      modifier = modifier.fillMaxSize().padding(16.dp),
-      verticalArrangement = Arrangement.Top,
-      horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-      NumberOfNodeToTrainIndicator(numberOfNodesToTrain)
-      Spacer(modifier = Modifier.height(16.dp))
-      Board(
-        inverted,
-        trainer,
-        reloader,
-        modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-      )
-      Spacer(modifier = Modifier.height(24.dp))
-      Text(
-        text = "Days in advance: $daysInAdvance",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier.align(Alignment.CenterHorizontally),
-      )
-      // Icon based on isCorrect
-      if (state.isShowing) {
-        val icon = if (state.isCorrect) Icons.Default.Done else Icons.Default.Close
-        val tint = if (state.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
-        Icon(
-          imageVector = icon,
-          contentDescription = if (state.isCorrect) "Correct" else "Incorrect",
-          tint = tint,
-          modifier = Modifier.size(32.dp).align(Alignment.CenterHorizontally),
+    fun TrainingLayoutContent.builder() {
+      this.board = { Board(inverted, trainer, reloader) }
+      this.daysInAdvance = {
+        Text(
+          text = "Days in advance: ${this@TrainingBoard.daysInAdvance}",
+          style = MaterialTheme.typography.bodyMedium,
+          color = MaterialTheme.colorScheme.onBackground,
+          modifier = it,
         )
+      }
+      this.successIndicator = {
+        if (state.isShowing) {
+          val icon = if (state.isCorrect) Icons.Default.Done else Icons.Default.Close
+          val tint = if (state.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
+          Icon(
+            imageVector = icon,
+            contentDescription = if (state.isCorrect) "Correct" else "Incorrect",
+            tint = tint,
+            modifier = it,
+          )
+        }
+      }
+      this.movesToTrain = { NumberOfNodeToTrainIndicator(numberOfNodesToTrain, it) }
+    }
+    BoxWithConstraints {
+      if (maxHeight > maxWidth) {
+        PortraitTrainingLayout(builder = { builder() })
+      } else {
+        LandscapeTrainingLayout(builder = { builder() })
       }
     }
   }

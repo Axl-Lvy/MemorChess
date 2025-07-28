@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.components.navigation
 
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
@@ -16,9 +17,9 @@ fun SideNavigationBar(
   currentRoute: String,
   navController: NavHostController,
   items: Collection<NavigationBarItemContent>,
-  modifier: Modifier,
+  modifier: Modifier = Modifier,
 ) {
-  NavigationRail(modifier = modifier) {
+  NavigationRail(modifier = modifier.fillMaxHeight()) {
     items.forEach { item ->
       val isSelected by
         remember(currentRoute) { derivedStateOf { currentRoute == item.destination.name } }

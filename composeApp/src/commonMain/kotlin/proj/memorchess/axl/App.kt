@@ -1,9 +1,6 @@
 package proj.memorchess.axl
 
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -34,20 +31,10 @@ fun App() {
       navBackStackEntry?.destination?.route?.substringBefore("?") ?: Destination.EXPLORE.name
     MainLayout(
       sideBar = {
-        SideNavigationBar(
-          currentRoute,
-          navController,
-          NavigationBarItemContent.entries,
-          modifier = Modifier.fillMaxHeight(),
-        )
+        SideNavigationBar(currentRoute, navController, NavigationBarItemContent.entries)
       },
       bottomBar = {
-        BottomNavigationBar(
-          currentRoute,
-          navController,
-          NavigationBarItemContent.entries,
-          modifier = Modifier.fillMaxWidth(),
-        )
+        BottomNavigationBar(currentRoute, navController, NavigationBarItemContent.entries)
       },
     ) { innerPadding ->
       Router(navController = navController, modifier = Modifier.padding(innerPadding))
