@@ -23,7 +23,7 @@ import proj.memorchess.axl.ui.theme.goodTint
  * @param state The state of the node.
  */
 @Composable
-fun StateIndicator(state: Node.NodeState) {
+fun StateIndicator(modifier: Modifier = Modifier, state: Node.NodeState) {
   val unknownColor = MaterialTheme.colorScheme.outline
   val (color, icon, label) =
     when (state) {
@@ -38,7 +38,7 @@ fun StateIndicator(state: Node.NodeState) {
       Node.NodeState.BAD_STATE ->
         Triple(MaterialTheme.colorScheme.error, FeatherIcons.AlertCircle, "Bad State")
     }
-  BoardTopping(backGroundColor = color.copy(alpha = 0.15f)) {
+  BoardTopping(modifier = modifier, backGroundColor = color.copy(alpha = 0.15f)) {
     Icon(icon, contentDescription = label, tint = color)
     Text(
       text = label,

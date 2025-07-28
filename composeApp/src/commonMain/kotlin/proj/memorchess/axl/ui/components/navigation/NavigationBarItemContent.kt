@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.pages.navigation.bottomBar
+package proj.memorchess.axl.ui.components.navigation
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -15,7 +15,7 @@ import proj.memorchess.axl.ui.pages.navigation.Destination
 
 private const val BUTTON_SUFFIX = " button"
 
-enum class BottomBarItem(
+enum class NavigationBarItemContent(
   val destination: Destination,
   val index: Int,
   val icon: @Composable () -> Unit,
@@ -24,7 +24,7 @@ enum class BottomBarItem(
     destination = Destination.EXPLORE,
     index = 0,
     icon = {
-      Icon(Icons.Rounded.Search, contentDescription = Destination.EXPLORE.name + BUTTON_SUFFIX)
+      Icon(Icons.Rounded.Search, contentDescription = Destination.EXPLORE.label + BUTTON_SUFFIX)
     },
   ),
   Training(
@@ -33,7 +33,7 @@ enum class BottomBarItem(
     icon = {
       Icon(
         painterResource(Res.drawable.icon_main),
-        contentDescription = Destination.TRAINING.name + BUTTON_SUFFIX,
+        contentDescription = Destination.TRAINING.label + BUTTON_SUFFIX,
         modifier = Modifier.size(32.dp),
       )
     },
@@ -42,7 +42,7 @@ enum class BottomBarItem(
     destination = Destination.SETTINGS,
     index = 2,
     icon = {
-      Icon(Icons.Rounded.Settings, contentDescription = Destination.SETTINGS.name + BUTTON_SUFFIX)
+      Icon(Icons.Rounded.Settings, contentDescription = Destination.SETTINGS.label + BUTTON_SUFFIX)
     },
   ),
 }

@@ -8,10 +8,10 @@ import proj.memorchess.axl.core.util.Reloader
 /** Basic implementation of [Reloader]. */
 class BasicReloader : Reloader {
 
-  private var key by mutableStateOf(false)
+  private var key by mutableStateOf(1)
 
   override fun reload() {
-    key = !key
+    key = key + 1
   }
 
   override fun getKey(): Any {

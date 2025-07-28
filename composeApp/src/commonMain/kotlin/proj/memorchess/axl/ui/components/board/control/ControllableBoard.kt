@@ -1,29 +1,37 @@
 package proj.memorchess.axl.ui.components.board.control
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.description_board_next_move
+import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
+import proj.memorchess.axl.ui.components.board.Piece
 import proj.memorchess.axl.ui.components.board.StateIndicator
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
+import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
+import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
+import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
@@ -38,45 +46,90 @@ private fun Component(modifier: Modifier = Modifier) {
   val linesExplorer = remember { LinesExplorer() }
   val coroutineScope = rememberCoroutineScope()
 
-  val nextMoves = remember(boardReloader.getKey()) { linesExplorer.getNextMoves() }
-  Column(
-    verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-    modifier = modifier.padding(horizontal = 2.dp),
-  ) {
-    ControlBar(
-      modifier = Modifier.height(42.dp),
-      onReverseClick = {
+  val nextMoves by
+    remember(boardReloader.getKey(), linesExplorer.game.position) {
+      mutableStateOf(linesExplorer.getNextMoves())
+    }
+  fun ExploreLayoutContent.build() {
+    resetButton = { ControlButton.RESET.render(it) { linesExplorer.reset(boardReloader) } }
+    reverseButton = {
+      ControlButton.REVERSE.render(it) {
         inverted = !inverted
         boardReloader.reload()
-      },
-      onResetClick = { linesExplorer.reset(boardReloader) },
-      onForwardClick = { linesExplorer.forward(boardReloader) },
-      onBackClick = { linesExplorer.back(boardReloader) },
-      playerTurn = linesExplorer.game.position.playerTurn,
-    )
-    StateIndicator(linesExplorer.state)
-    Board(inverted, linesExplorer, boardReloader, modifier = modifier.fillMaxWidth())
-    Box(modifier = Modifier.fillMaxWidth().height(40.dp)) {
-      NextMoveBar(moveList = nextMoves, playMove = { linesExplorer.playMove(it, boardReloader) })
+      }
     }
-    Row(
-      horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-      modifier = Modifier.fillMaxWidth(),
-    ) {
+    backButton = { ControlButton.BACK.render(it) { linesExplorer.back(boardReloader) } }
+    forwardButton = { ControlButton.FORWARD.render(it) { linesExplorer.forward(boardReloader) } }
+    this.nextMoves =
+      if (nextMoves.isEmpty()) listOf({ NoNextMove() })
+      else
+        nextMoves.map {
+          {
+            NextMoveButton(it) {
+              coroutineScope.launch { linesExplorer.playMove(it, boardReloader) }
+            }
+          }
+        }
+
+    playerTurnIndicator = {
+      Piece(
+        if (linesExplorer.game.position.playerTurn == Game.Player.WHITE) King.white()
+        else King.black()
+      )
+    }
+    stateIndicators = { StateIndicator(it, linesExplorer.state) }
+
+    saveButton = {
       Button(
         onClick = { coroutineScope.launch { linesExplorer.save() } },
+        it,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-        modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Save, contentDescription = "Save")
       }
+    }
+    deleteButton = {
       Button(
         onClick = { coroutineScope.launch { linesExplorer.delete(boardReloader) } },
+        it,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-        modifier = Modifier.weight(1f),
       ) {
         Icon(FeatherIcons.Trash, contentDescription = "Delete")
       }
     }
+
+    board = { Board(inverted, linesExplorer, boardReloader, it) }
+  }
+  BoxWithConstraints {
+    if (maxHeight > maxWidth) PortraitExploreLayout(modifier) { build() }
+    else LandscapeExploreLayout(modifier) { build() }
+  }
+}
+
+@Composable
+private fun NextMoveButton(move: String, playMove: () -> Unit) {
+  Box(
+    modifier =
+      Modifier.fillMaxSize()
+        .background(MaterialTheme.colorScheme.primaryContainer)
+        .testTag(stringResource(Res.string.description_board_next_move, move))
+        .clickable { playMove() },
+    contentAlignment = Alignment.Center,
+  ) {
+    Text(move)
+  }
+}
+
+@Composable
+private fun NoNextMove() {
+  Box(
+    modifier =
+      Modifier.fillMaxSize()
+        .background(MaterialTheme.colorScheme.primaryContainer)
+        .testTag("No next move")
+        .clickable {},
+    contentAlignment = Alignment.Center,
+  ) {
+    Text("No next move")
   }
 }

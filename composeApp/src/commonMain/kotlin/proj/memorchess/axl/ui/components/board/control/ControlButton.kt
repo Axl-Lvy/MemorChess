@@ -1,12 +1,11 @@
 package proj.memorchess.axl.ui.components.board.control
 
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ArrowLeft
 import compose.icons.feathericons.ArrowRight
@@ -30,8 +29,11 @@ enum class ControlButton(
   FORWARD(icon = FeatherIcons.ArrowRight, contentDescription = Res.string.description_board_next);
 
   @Composable
-  fun render(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Button(onClick = onClick, contentPadding = PaddingValues(2.dp), modifier = modifier) {
+  fun render(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    FilledTonalIconButton(
+      onClick = onClick,
+      modifier = modifier.testTag(stringResource(contentDescription)),
+    ) {
       Icon(imageVector = icon, contentDescription = stringResource(contentDescription))
     }
   }
