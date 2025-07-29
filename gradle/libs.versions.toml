@@ -13,6 +13,7 @@ androidx-material = "1.12.0"
 androidx-test-junit = "1.2.1"
 coilSvg = "3.1.0"
 compose-multiplatform = "1.8.2"
+hotpreview = "0.2.0"
 junit = "4.13.2"
 kotlin = "2.2.0"
 kotlinxCoroutinesCore = "1.10.2"
@@ -42,6 +43,7 @@ composeHotReload = "1.0.0-beta04"
 [libraries]
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestJunit4Android" }
+hotpreview = { module = "de.drick.compose:hotpreview", version.ref = "hotpreview" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

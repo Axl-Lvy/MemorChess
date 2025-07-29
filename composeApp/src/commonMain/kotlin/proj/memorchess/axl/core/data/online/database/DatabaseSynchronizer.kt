@@ -42,9 +42,14 @@ class DatabaseSynchronizer(
     }
     val lastLocalUpdate = localDatabase.getLastUpdate()
 
-    val lastRemoteUpdate = remoteDatabase.getLastUpdate()
-    isSynced = lastLocalUpdate == lastRemoteUpdate
-    return Pair(lastLocalUpdate, lastRemoteUpdate)
+    try {
+      val lastRemoteUpdate = remoteDatabase.getLastUpdate()
+      isSynced = lastLocalUpdate == lastRemoteUpdate
+      return Pair(lastLocalUpdate, lastRemoteUpdate)
+    } catch (e: IllegalStateException) {
+      // If the user is not connected, we cannot retrieve the remote last update.
+      return Pair(lastLocalUpdate, null)
+    }
   }
 
   /** Uploads the database from local and overrides the remote one */
