@@ -1,6 +1,7 @@
 import com.ncorti.ktfmt.gradle.tasks.KtfmtBaseTask
 import java.util.Properties
 import kotlin.apply
+import org.jetbrains.compose.reload.gradle.ComposeHotRun
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -16,6 +17,7 @@ plugins {
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.room)
   alias(libs.plugins.ksp)
+  alias(libs.plugins.composeHotReload)
   id("secrets-generation")
 }
 
@@ -26,6 +28,9 @@ kotlin {
     instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
     compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
   }
+
+  // JVM/Desktop configuration
+  jvm()
 
   // iOS configuration
   listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
@@ -107,6 +112,9 @@ kotlin {
       implementation(libs.koin.compose)
       implementation(libs.koin.compose.viewmodel)
       implementation(libs.koin.compose.viewmodel.navigation)
+
+      // Hot Preview
+      implementation(libs.hotpreview)
     }
 
     androidMain.dependencies {
@@ -114,6 +122,11 @@ kotlin {
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.material3.android)
       implementation(libs.ktor.client.okhttp)
+    }
+
+    jvmMain.dependencies {
+      implementation(compose.desktop.currentOs)
+      implementation(libs.ktor.client.java)
     }
 
     commonTest.dependencies {
@@ -174,6 +187,7 @@ dependencies {
   add("kspIosSimulatorArm64", libs.androidx.room.compiler)
   add("kspIosX64", libs.androidx.room.compiler)
   add("kspIosArm64", libs.androidx.room.compiler)
+  add("kspJvm", libs.androidx.room.compiler)
 
   // Test dependencies
   androidTestImplementation(libs.androidx.ui.test.junit4.android)
@@ -253,3 +267,5 @@ private fun createSupabaseDbLink(): String {
 tasks
   .matching { it.name.contains("compile", ignoreCase = true) }
   .configureEach { dependsOn(applySupabaseFunctions) }
+
+tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }

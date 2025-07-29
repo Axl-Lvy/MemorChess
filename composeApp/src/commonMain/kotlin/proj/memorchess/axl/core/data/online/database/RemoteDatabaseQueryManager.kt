@@ -129,35 +129,9 @@ class RemoteDatabaseQueryManager(
   }
 
   override suspend fun getLastUpdate(): LocalDateTime? {
-    val moveUpdate =
-      client
-        .from(Table.USER_MOVE)
-        .select(Columns.list(UPDATED_AT_FIELD)) {
-          filter {
-            val user = authManager.user
-            checkNotNull(user)
-            eq(USER_ID_FIELD, user.id)
-          }
-          order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
-          limit(1)
-        }
-        .decodeSingleOrNull<SingleUpdatedAtTime>()
-        ?.updatedAt
+    val moveUpdate = getLastTableUpdate(Table.USER_MOVE)
 
-    val positionUpdate =
-      client
-        .from(Table.USER_POSITION)
-        .select(Columns.list(UPDATED_AT_FIELD)) {
-          filter {
-            val user = authManager.user
-            checkNotNull(user)
-            eq(USER_ID_FIELD, user.id)
-          }
-          order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
-          limit(1)
-        }
-        .decodeSingleOrNull<SingleUpdatedAtTime>()
-        ?.updatedAt
+    val positionUpdate = getLastTableUpdate(Table.USER_POSITION)
     return (if (moveUpdate != null && positionUpdate != null) {
         moveUpdate.coerceAtLeast(positionUpdate)
       } else {
@@ -165,6 +139,21 @@ class RemoteDatabaseQueryManager(
       })
       ?.truncateToSeconds()
   }
+
+  private suspend fun getLastTableUpdate(table: Table): LocalDateTime? =
+    client
+      .from(table)
+      .select(Columns.list(UPDATED_AT_FIELD)) {
+        filter {
+          val user = authManager.user
+          checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
+          eq(USER_ID_FIELD, user.id)
+        }
+        order(column = UPDATED_AT_FIELD, order = Order.DESCENDING)
+        limit(1)
+      }
+      .decodeSingleOrNull<SingleUpdatedAtTime>()
+      ?.updatedAt
 
   override fun isActive(): Boolean {
     return authManager.user != null && isSynced

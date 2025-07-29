@@ -16,4 +16,4 @@ fun info(message: String) {
   popup(message, ToastType.INFO)
 }
 
-val noOpToastRenderer = ToastRenderer { _, _ -> }
+val NO_OP_RENDERER = ToastRenderer { _, _ -> }

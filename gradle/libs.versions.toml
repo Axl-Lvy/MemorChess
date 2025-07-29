@@ -13,6 +13,7 @@ androidx-material = "1.12.0"
 androidx-test-junit = "1.2.1"
 coilSvg = "3.1.0"
 compose-multiplatform = "1.8.2"
+hotpreview = "0.2.0"
 junit = "4.13.2"
 kotlin = "2.2.0"
 kotlinxCoroutinesCore = "1.10.2"
@@ -37,10 +38,12 @@ multiplatform-settings = "1.3.0"
 supabase = "3.2.0"
 ktor = "3.2.0"
 material3-adaptive = "1.1.2"
+composeHotReload = "1.0.0-beta04"
 
 [libraries]
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestJunit4Android" }
+hotpreview = { module = "de.drick.compose:hotpreview", version.ref = "hotpreview" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -79,6 +82,7 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -91,3 +95,4 @@ ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}
 room = { id = "androidx.room", version.ref = "androidx-room" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 sonar = { id = "org.sonarqube", version.ref = "sonar" }
+composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload"}
