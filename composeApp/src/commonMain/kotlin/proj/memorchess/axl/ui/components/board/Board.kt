@@ -19,11 +19,9 @@ import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
-import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.engine.pieces.vectors.Bishop
-import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.engine.pieces.vectors.Knight
 import proj.memorchess.axl.core.engine.pieces.vectors.Queen
 import proj.memorchess.axl.core.engine.pieces.vectors.Rook
@@ -143,9 +141,5 @@ private class DrawableBoard(
 @HotPreview(density = 1.0f, widthDp = 4000, heightDp = 2000, captionBar = true)
 @Composable
 private fun BoardHotPreview() {
-  Board(
-    inverted = false,
-    interactionsManager = LinesExplorer(),
-    reloader = BasicReloader()
-  )
+  Board(inverted = false, interactionsManager = LinesExplorer(), reloader = BasicReloader())
 }
