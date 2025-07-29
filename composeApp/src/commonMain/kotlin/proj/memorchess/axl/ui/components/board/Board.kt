@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import de.drick.compose.hotpreview.HotPreview
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,7 +26,9 @@ import proj.memorchess.axl.core.engine.pieces.vectors.Knight
 import proj.memorchess.axl.core.engine.pieces.vectors.Queen
 import proj.memorchess.axl.core.engine.pieces.vectors.Rook
 import proj.memorchess.axl.core.interactions.InteractionsManager
+import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.core.util.Reloader
+import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
 fun Board(
@@ -88,7 +91,7 @@ private class DrawableBoard(
                 .aspectRatio(1f)
           ) {
             Tile(tile)
-            tileToPiece[tile]?.let { Piece(it) }
+            tileToPiece[tile]?.let { Piece(it, Modifier.fillMaxSize()) }
           }
         }
       }
@@ -119,7 +122,7 @@ private class DrawableBoard(
                 onClickLabel = "Promote to ${piece.toString().lowercase()}",
               )
         ) {
-          Piece(piece)
+          Piece(piece, Modifier.fillMaxSize())
         }
         Spacer(modifier = Modifier.width(12.dp))
       }
@@ -133,4 +136,10 @@ private class DrawableBoard(
       Pair((63 - index) / 8, index % 8)
     }
   }
+}
+
+@HotPreview(density = 1.0f, widthDp = 4000, heightDp = 2000, captionBar = true)
+@Composable
+private fun BoardHotPreview() {
+  Board(inverted = false, interactionsManager = LinesExplorer(), reloader = BasicReloader())
 }
