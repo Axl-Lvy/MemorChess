@@ -2,6 +2,8 @@ package proj.memorchess.axl.ui.components.board
 
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import memorchess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -12,10 +14,12 @@ import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.engine.pieces.vectors.*
 
 @Composable
-fun Piece(piece: Piece) {
+fun Piece(piece: Piece, modifier: Modifier = Modifier) {
   Image(
     painter = painterResource(pieceToResource(piece)),
     contentDescription = stringResource(Res.string.description_board_piece, piece.toString()),
+    contentScale = ContentScale.FillBounds,
+    modifier = modifier
   )
 }
 
