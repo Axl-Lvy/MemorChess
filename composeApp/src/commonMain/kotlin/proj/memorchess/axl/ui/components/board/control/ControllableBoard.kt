@@ -45,64 +45,59 @@ private fun Component(modifier: Modifier = Modifier) {
   val boardReloader = remember { BasicReloader() }
   val linesExplorer = remember { LinesExplorer() }
   val coroutineScope = rememberCoroutineScope()
+  val nextMoves = remember { mutableStateListOf(*linesExplorer.getNextMoves().toTypedArray()) }
+  linesExplorer.registerCallBack {
+    nextMoves.clear()
+    nextMoves.addAll(linesExplorer.getNextMoves())
+  }
 
-  val nextMoves by
-    remember(boardReloader.getKey(), linesExplorer.game.position) {
-      mutableStateOf(linesExplorer.getNextMoves())
-    }
-  fun ExploreLayoutContent.build() {
-    resetButton = { ControlButton.RESET.render(it) { linesExplorer.reset(boardReloader) } }
-    reverseButton = {
-      ControlButton.REVERSE.render(it) {
-        inverted = !inverted
-        boardReloader.reload()
-      }
-    }
-    backButton = { ControlButton.BACK.render(it) { linesExplorer.back(boardReloader) } }
-    forwardButton = { ControlButton.FORWARD.render(it) { linesExplorer.forward(boardReloader) } }
-    this.nextMoves =
-      if (nextMoves.isEmpty()) listOf({ NoNextMove() })
-      else
-        nextMoves.map {
-          {
-            NextMoveButton(it) {
-              coroutineScope.launch { linesExplorer.playMove(it, boardReloader) }
-            }
+  val content = remember {
+    ExploreLayoutContent(
+      resetButton = { ControlButton.RESET.render(it) { linesExplorer.reset(boardReloader) } },
+      reverseButton = { ControlButton.REVERSE.render(it) { inverted = !inverted } },
+      backButton = { ControlButton.BACK.render(it) { linesExplorer.back() } },
+      forwardButton = { ControlButton.FORWARD.render(it) { linesExplorer.forward() } },
+      nextMoveButtons = {
+        if (nextMoves.isEmpty()) listOf({ NoNextMove() })
+        else
+          nextMoves.map {
+            { NextMoveButton(it) { coroutineScope.launch { linesExplorer.playMove(it) } } }
           }
+      },
+      playerTurnIndicator = {
+        var playerTurn by remember {
+          mutableStateOf(linesExplorer.game.position.playerTurn == Game.Player.WHITE)
         }
-
-    playerTurnIndicator = {
-      Piece(
-        if (linesExplorer.game.position.playerTurn == Game.Player.WHITE) King.white()
-        else King.black()
-      )
-    }
-    stateIndicators = { StateIndicator(it, linesExplorer.state) }
-
-    saveButton = {
-      Button(
-        onClick = { coroutineScope.launch { linesExplorer.save() } },
-        it,
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-      ) {
-        Icon(FeatherIcons.Save, contentDescription = "Save")
-      }
-    }
-    deleteButton = {
-      Button(
-        onClick = { coroutineScope.launch { linesExplorer.delete(boardReloader) } },
-        it,
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-      ) {
-        Icon(FeatherIcons.Trash, contentDescription = "Delete")
-      }
-    }
-
-    board = { Board(inverted, linesExplorer, boardReloader, it) }
+        linesExplorer.registerCallBack {
+          playerTurn = linesExplorer.game.position.playerTurn == Game.Player.WHITE
+        }
+        Piece(if (playerTurn) King.white() else King.black())
+      },
+      stateIndicators = { StateIndicator(it, linesExplorer.state) },
+      saveButton = {
+        Button(
+          onClick = { coroutineScope.launch { linesExplorer.save() } },
+          it,
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        ) {
+          Icon(FeatherIcons.Save, contentDescription = "Save")
+        }
+      },
+      deleteButton = {
+        Button(
+          onClick = { coroutineScope.launch { linesExplorer.delete() } },
+          it,
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+        ) {
+          Icon(FeatherIcons.Trash, contentDescription = "Delete")
+        }
+      },
+      board = { Board(inverted, linesExplorer, it) },
+    )
   }
   BoxWithConstraints {
-    if (maxHeight > maxWidth) PortraitExploreLayout(modifier) { build() }
-    else LandscapeExploreLayout(modifier) { build() }
+    if (maxHeight > maxWidth) PortraitExploreLayout(modifier, content)
+    else LandscapeExploreLayout(modifier, content)
   }
 }
 

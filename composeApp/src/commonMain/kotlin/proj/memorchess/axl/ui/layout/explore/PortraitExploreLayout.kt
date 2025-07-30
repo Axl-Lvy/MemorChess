@@ -13,11 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.drick.compose.hotpreview.HotPreview
+import proj.memorchess.axl.ui.util.previewExploreLayoutContent
 
 @Composable
-fun PortraitExploreLayout(modifier: Modifier = Modifier, builder: ExploreLayoutContent.() -> Unit) {
-  val content = ExploreLayoutContent()
-  builder.invoke(content)
+fun PortraitExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
   Column(
     verticalArrangement = Arrangement.spacedBy(5.dp, alignment = Alignment.CenterVertically),
     modifier = modifier.fillMaxHeight(),
@@ -44,7 +44,7 @@ fun PortraitExploreLayout(modifier: Modifier = Modifier, builder: ExploreLayoutC
     Box(modifier = Modifier.weight(1f)) {
       Column(verticalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxSize()) {
         HorizontalScrollableRow(
-          children = content.nextMoves,
+          children = content.nextMoveButtons(),
           modifier = Modifier.heightIn(max = 32.dp),
         )
         Row(
@@ -57,4 +57,10 @@ fun PortraitExploreLayout(modifier: Modifier = Modifier, builder: ExploreLayoutC
       }
     }
   }
+}
+
+@HotPreview(widthDp = 411, heightDp = 891, density = 2.625f)
+@Composable
+private fun PortraitExploreLayoutPreview() {
+  PortraitExploreLayout(content = previewExploreLayoutContent)
 }

@@ -21,29 +21,21 @@ class LinesExplorer() : InteractionsManager(Game()) {
 
   var state by mutableStateOf(node.getState())
 
-  /**
-   * Moves back in the exploration tree to the previous node.
-   *
-   * @param reloader The reloader to refresh the UI after moving back.
-   */
-  fun back(reloader: Reloader) {
+  /** Moves back in the exploration tree to the previous node. */
+  fun back() {
     val parent = node.previous
     if (parent != null) {
       node = parent
       game = node.createGame()
       state = node.getState()
-      reloader.reload()
+      callCallBacks()
     } else {
       info("No previous move.")
     }
   }
 
-  /**
-   * Moves forward in the exploration tree to the next child node.
-   *
-   * @param reloader The reloader to refresh the UI after moving forward.
-   */
-  fun forward(reloader: Reloader) {
+  /** Moves forward in the exploration tree to the next child node. */
+  fun forward() {
     val firstChild = node.next
     if (firstChild != null) {
       val move =
@@ -52,7 +44,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
       node = firstChild
       game.playMove(move.move)
       state = node.getState()
-      reloader.reload()
+      callCallBacks()
     } else {
       info("No next move.")
     }
@@ -78,10 +70,10 @@ class LinesExplorer() : InteractionsManager(Game()) {
     super.reset(reloader, node.position)
   }
 
-  override suspend fun afterPlayMove(move: String, reloader: Reloader) {
+  override suspend fun afterPlayMove(move: String) {
     node = NodeManager.createNode(game, node, move)
     state = node.getState()
-    reloader.reload()
+    callCallBacks()
   }
 
   /** Saves the current node as coming from a good move. */
@@ -91,15 +83,11 @@ class LinesExplorer() : InteractionsManager(Game()) {
     info("Saved")
   }
 
-  /**
-   * Deletes the current node and reloads the explorer.
-   *
-   * @param reloader The reloader to refresh the UI after deletion.
-   */
-  suspend fun delete(reloader: Reloader) {
+  /** Deletes the current node and reloads the explorer. */
+  suspend fun delete() {
     node.delete()
     state = node.getState()
     info("Deleted")
-    reloader.reload()
+    callCallBacks()
   }
 }

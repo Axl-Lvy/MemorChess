@@ -19,7 +19,6 @@ import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
-import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
@@ -56,14 +55,14 @@ class TestLinesExplorer : TestWithKoin() {
     initialize()
     clickOnTile("e2")
     clickOnTile("e4")
-    interactionsManager.back(NoOpReloader)
+    interactionsManager.back()
     assertPawnOnE2()
   }
 
   @Test
   fun testForward() {
     testPrevious()
-    interactionsManager.forward(NoOpReloader)
+    interactionsManager.forward()
     assertPawnOnE4()
   }
 
@@ -71,8 +70,8 @@ class TestLinesExplorer : TestWithKoin() {
   fun testDelete() {
     testManyGames()
     testPrevious()
-    runTest { interactionsManager.delete(NoOpReloader) }
-    interactionsManager.forward(NoOpReloader)
+    runTest { interactionsManager.delete() }
+    interactionsManager.forward()
     assertPawnOnE2()
   }
 
@@ -118,7 +117,7 @@ class TestLinesExplorer : TestWithKoin() {
     val startPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("e2")
     clickOnTile("e3")
-    interactionsManager.back(NoOpReloader)
+    interactionsManager.back()
     clickOnTile("e2")
     clickOnTile("e4")
     runTest { interactionsManager.save() }
@@ -149,12 +148,7 @@ class TestLinesExplorer : TestWithKoin() {
       clickOnTile(move.destination())
       if (it.contains("=")) {
         assertTrue { interactionsManager.game.needPromotion() }
-        runTest {
-          interactionsManager.applyPromotion(
-            it.split("=")[1].substring(0, 1).lowercase(),
-            NoOpReloader,
-          )
-        }
+        runTest { interactionsManager.applyPromotion(it.split("=")[1].substring(0, 1).lowercase()) }
       }
       refGame.playMove(it)
       validateGame(refGame)
@@ -189,6 +183,6 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   private fun clickOnTile(coords: Pair<Int, Int>) {
-    runTest { interactionsManager.clickOnTile(coords, NoOpReloader) }
+    runTest { interactionsManager.clickOnTile(coords) }
   }
 }

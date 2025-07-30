@@ -11,6 +11,8 @@ interface ITile {
 
   fun getName(): String
 
+  val gridItem: GridItem
+
   enum class TileColor {
     WHITE,
     BLACK,

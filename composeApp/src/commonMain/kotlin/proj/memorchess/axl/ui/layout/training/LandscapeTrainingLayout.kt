@@ -16,12 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun LandscapeTrainingLayout(
-  modifier: Modifier = Modifier,
-  builder: TrainingLayoutContent.() -> Unit,
-) {
-  val content = TrainingLayoutContent()
-  builder.invoke(content)
+fun LandscapeTrainingLayout(modifier: Modifier = Modifier, content: TrainingLayoutContent) {
 
   Row(
     horizontalArrangement = Arrangement.spacedBy(5.dp, alignment = Alignment.CenterHorizontally),

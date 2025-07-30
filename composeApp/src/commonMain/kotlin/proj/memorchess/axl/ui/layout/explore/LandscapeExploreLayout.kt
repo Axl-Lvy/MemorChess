@@ -14,14 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import de.drick.compose.hotpreview.HotPreview
+import proj.memorchess.axl.ui.util.previewExploreLayoutContent
 
 @Composable
-fun LandscapeExploreLayout(
-  modifier: Modifier = Modifier,
-  builder: ExploreLayoutContent.() -> Unit,
-) {
-  val content = ExploreLayoutContent()
-  builder.invoke(content)
+fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
   Row(
     horizontalArrangement = Arrangement.spacedBy(10.dp, alignment = Alignment.CenterHorizontally),
     modifier = modifier.fillMaxWidth(),
@@ -69,9 +66,15 @@ fun LandscapeExploreLayout(
     }
     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
       VerticalDoubleScrollableRow(
-        children = content.nextMoves,
+        children = content.nextMoveButtons(),
         modifier = Modifier.fillMaxHeight().widthIn(max = 100.dp),
       )
     }
   }
+}
+
+@HotPreview(widthDp = 1920, heightDp = 1080, captionBar = true)
+@Composable
+private fun LandscapeExploreLayoutPreview() {
+  LandscapeExploreLayout(content = previewExploreLayoutContent)
 }

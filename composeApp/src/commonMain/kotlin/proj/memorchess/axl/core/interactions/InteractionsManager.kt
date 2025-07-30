@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.interactions
 
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
@@ -25,13 +26,23 @@ abstract class InteractionsManager(var game: Game) {
 
   private var moveBeforePromotion: String? = null
 
+  private val callBacks = mutableStateListOf<() -> Unit>()
+
+  /** Register a new callback that will be triggered on each tile change. */
+  fun registerCallBack(callBack: () -> Unit) {
+    callBacks.add(callBack)
+  }
+
+  internal fun callCallBacks() {
+    callBacks.forEach { it() }
+  }
+
   /**
    * Clicks on a tile.
    *
    * @param coordinates The clicked tile's coordinates.
-   * @param reloader The reloader to use after the move is played.
    */
-  suspend fun clickOnTile(coordinates: Pair<Int, Int>, reloader: Reloader) {
+  suspend fun clickOnTile(coordinates: Pair<Int, Int>) {
     if (isBlocked) {
       return
     }
@@ -43,7 +54,7 @@ abstract class InteractionsManager(var game: Game) {
         if (game.needPromotion()) {
           moveBeforePromotion = move
         } else {
-          afterPlayMove(move, reloader)
+          afterPlayMove(move)
         }
       } catch (e: IllegalMoveException) {
         info(e.message.toString())
@@ -60,15 +71,14 @@ abstract class InteractionsManager(var game: Game) {
    * Plays a move directly.
    *
    * @param move the move to play
-   * @param reloader the reloader
    */
-  suspend fun playMove(move: String, reloader: Reloader) {
+  suspend fun playMove(move: String) {
     game.playMove(move)
     needPromotion.value = game.needPromotion()
     if (game.needPromotion()) {
       moveBeforePromotion = move
     } else {
-      afterPlayMove(move, reloader)
+      afterPlayMove(move)
     }
   }
 
@@ -76,12 +86,11 @@ abstract class InteractionsManager(var game: Game) {
    * Applies a promotion
    *
    * @param newPieceName The chosen piece name
-   * @param reloader The reloader to use after the piece is promoted
    */
-  suspend fun applyPromotion(newPieceName: String, reloader: Reloader) {
+  suspend fun applyPromotion(newPieceName: String) {
     game.applyPromotion(newPieceName)
     needPromotion.value = game.needPromotion()
-    afterPlayMove(moveBeforePromotion!! + "=$newPieceName", reloader)
+    afterPlayMove(moveBeforePromotion!! + "=$newPieceName")
     moveBeforePromotion = null
   }
 
@@ -89,9 +98,8 @@ abstract class InteractionsManager(var game: Game) {
    * Called after a move is played.
    *
    * @param move The move that was played.
-   * @param reloader The reloader to use after the move is played.
    */
-  abstract suspend fun afterPlayMove(move: String, reloader: Reloader)
+  abstract suspend fun afterPlayMove(move: String)
 
   /**
    * Resets the game to a new position.
@@ -103,6 +111,7 @@ abstract class InteractionsManager(var game: Game) {
     game = Game(position)
     needPromotion.value = game.needPromotion()
     firstTile = null
+    callCallBacks()
     reloader.reload()
   }
 

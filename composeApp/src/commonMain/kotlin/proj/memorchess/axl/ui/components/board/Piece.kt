@@ -18,7 +18,7 @@ fun Piece(piece: Piece, modifier: Modifier = Modifier) {
   Image(
     painter = painterResource(pieceToResource(piece)),
     contentDescription = stringResource(Res.string.description_board_piece, piece.toString()),
-    contentScale = ContentScale.FillBounds,
+    contentScale = ContentScale.Fit,
     modifier = modifier,
   )
 }
