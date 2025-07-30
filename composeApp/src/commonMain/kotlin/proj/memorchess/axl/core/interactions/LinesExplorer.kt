@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.util.Reloader
 import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
@@ -59,15 +58,11 @@ class LinesExplorer() : InteractionsManager(Game()) {
     return node.previousAndNextMoves.nextMoves.keys.sorted()
   }
 
-  /**
-   * Resets the LinesExplorer to the root node.
-   *
-   * @param reloader The reloader.
-   */
-  fun reset(reloader: Reloader) {
+  /** Resets the LinesExplorer to the root node. */
+  fun reset() {
     node = NodeManager.createRootNode()
     state = node.getState()
-    super.reset(reloader, node.position)
+    super.reset(node.position)
   }
 
   override suspend fun afterPlayMove(move: String) {

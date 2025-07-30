@@ -6,7 +6,6 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
-import proj.memorchess.axl.core.util.Reloader
 import proj.memorchess.axl.ui.components.popup.info
 
 /**
@@ -104,15 +103,13 @@ abstract class InteractionsManager(var game: Game) {
   /**
    * Resets the game to a new position.
    *
-   * @param reloader The reloader.
    * @param position The new position key to reset the game to.
    */
-  fun reset(reloader: Reloader, position: PositionIdentifier) {
+  fun reset(position: PositionIdentifier) {
     game = Game(position)
     needPromotion.value = game.needPromotion()
     firstTile = null
     callCallBacks()
-    reloader.reload()
   }
 
   /** Blocks this object. No move can be played. */
