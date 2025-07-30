@@ -1,7 +1,6 @@
 package proj.memorchess.axl.ui.components.board
 
 import androidx.compose.runtime.mutableStateMapOf
-import kotlin.collections.forEach
 import proj.memorchess.axl.core.engine.board.GridItem
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.pieces.Piece
