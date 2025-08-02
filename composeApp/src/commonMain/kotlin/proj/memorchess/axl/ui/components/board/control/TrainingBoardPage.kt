@@ -2,7 +2,6 @@ package proj.memorchess.axl.ui.components.board.control
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -21,9 +20,12 @@ import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
-import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.BoardTopping
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
+import proj.memorchess.axl.ui.components.training.BoardContainer
+import proj.memorchess.axl.ui.components.training.DaysInAdvanceCard
+import proj.memorchess.axl.ui.components.training.MovesToTrainCard
+import proj.memorchess.axl.ui.components.training.SuccessIndicatorCard
 import proj.memorchess.axl.ui.layout.training.LandscapeTrainingLayout
 import proj.memorchess.axl.ui.layout.training.PortraitTrainingLayout
 import proj.memorchess.axl.ui.layout.training.TrainingLayoutContent
@@ -148,28 +150,10 @@ private class TrainingBoard {
     val inverted = remember(nodeToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
     val content =
       TrainingLayoutContent(
-        board = { Board(inverted, trainer) },
-        daysInAdvance = {
-          Text(
-            text = "Days in advance: ${this@TrainingBoard.daysInAdvance}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = it,
-          )
-        },
-        successIndicator = {
-          if (state.isShowing) {
-            val icon = if (state.isCorrect) Icons.Default.Done else Icons.Default.Close
-            val tint = if (state.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
-            Icon(
-              imageVector = icon,
-              contentDescription = if (state.isCorrect) "Correct" else "Incorrect",
-              tint = tint,
-              modifier = it,
-            )
-          }
-        },
-        movesToTrain = { NumberOfNodeToTrainIndicator(numberOfNodesToTrain, it) },
+        board = { BoardContainer(inverted, trainer, it) },
+        daysInAdvance = { DaysInAdvanceCard(this@TrainingBoard.daysInAdvance, it) },
+        successIndicator = { SuccessIndicatorCard(state.isCorrect, state.isShowing, it) },
+        movesToTrain = { MovesToTrainCard(numberOfNodesToTrain, it) },
       )
     BoxWithConstraints {
       if (maxHeight > maxWidth) {
