@@ -33,7 +33,10 @@ class SingleMoveTrainer(
   }
 
   fun updateNode(newNode: StoredNode) {
-    if (newNode.positionIdentifier != game.position.createIdentifier()) {
+    if (
+      newNode.positionIdentifier != node.positionIdentifier ||
+        newNode.positionIdentifier != game.position.createIdentifier()
+    ) {
       node = newNode
       game = Game(node.positionIdentifier)
       isCorrect = true
