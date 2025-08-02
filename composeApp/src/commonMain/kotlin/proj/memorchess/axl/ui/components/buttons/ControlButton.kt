@@ -1,4 +1,4 @@
-package proj.memorchess.axl.ui.components.board.control
+package proj.memorchess.axl.ui.components.buttons
 
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -29,7 +29,7 @@ enum class ControlButton(
   FORWARD(icon = FeatherIcons.ArrowRight, contentDescription = Res.string.description_board_next);
 
   @Composable
-  fun render(modifier: Modifier = Modifier, onClick: () -> Unit) {
+  fun render(modifier: Modifier = Modifier.Companion, onClick: () -> Unit) {
     FilledTonalIconButton(
       onClick = onClick,
       modifier = modifier.testTag(stringResource(contentDescription)),

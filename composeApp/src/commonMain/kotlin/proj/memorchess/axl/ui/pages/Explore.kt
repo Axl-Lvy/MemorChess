@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.pages
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,7 +31,7 @@ import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
 import proj.memorchess.axl.ui.components.board.StateIndicator
-import proj.memorchess.axl.ui.components.board.control.ControlButton
+import proj.memorchess.axl.ui.components.buttons.ControlButton
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
 import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
@@ -69,11 +68,9 @@ fun Explore() {
           backButton = { ControlButton.BACK.render(it) { linesExplorer.back() } },
           forwardButton = { ControlButton.FORWARD.render(it) { linesExplorer.forward() } },
           nextMoveButtons = {
-            if (nextMoves.isEmpty()) listOf<@Composable (() -> Unit)>({ NoNextMove() })
-            else
-              nextMoves.map<String, @Composable (() -> Unit)> {
-                { NextMoveButton(it) { coroutineScope.launch { linesExplorer.playMove(it) } } }
-              }
+            nextMoves.map<String, @Composable (() -> Unit)> {
+              { NextMoveButton(it) { coroutineScope.launch { linesExplorer.playMove(it) } } }
+            }
           },
           playerTurnIndicator = {
             var playerTurn by remember {
@@ -120,25 +117,10 @@ private fun NextMoveButton(move: String, playMove: () -> Unit) {
   Box(
     modifier =
       Modifier.fillMaxSize()
-        .background(MaterialTheme.colorScheme.primaryContainer)
         .testTag(stringResource(Res.string.description_board_next_move, move))
         .clickable { playMove() },
     contentAlignment = Alignment.Center,
   ) {
     Text(move)
-  }
-}
-
-@Composable
-private fun NoNextMove() {
-  Box(
-    modifier =
-      Modifier.fillMaxSize()
-        .background(MaterialTheme.colorScheme.primaryContainer)
-        .testTag("No next move")
-        .clickable {},
-    contentAlignment = Alignment.Center,
-  ) {
-    Text("No next move")
   }
 }

@@ -1,79 +1,73 @@
 package proj.memorchess.axl.ui.layout.explore
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import de.drick.compose.hotpreview.HotPreview
+import proj.memorchess.axl.ui.components.explore.ExploreActionButtons
+import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
+import proj.memorchess.axl.ui.components.explore.ExploreHeader
+import proj.memorchess.axl.ui.components.explore.ExploreNextMovesSection
+import proj.memorchess.axl.ui.components.explore.ExploreStateIndicators
 import proj.memorchess.axl.ui.util.previewExploreLayoutContent
 
 @Composable
 fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
   Row(
-    horizontalArrangement = Arrangement.spacedBy(10.dp, alignment = Alignment.CenterHorizontally),
-    modifier = modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+    verticalAlignment = Alignment.CenterVertically,
+    modifier = modifier.fillMaxSize().padding(16.dp),
   ) {
-    Box(modifier = Modifier.weight(1f)) {
-      Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp, alignment = Alignment.CenterVertically),
-        modifier = Modifier.fillMaxSize(),
-      ) {
-        Box(modifier = Modifier.weight(0.5f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-          content.playerTurnIndicator(Modifier.fillMaxHeight())
-        }
-        Box(
-          modifier = Modifier.weight(0.5f).widthIn(min = 24.dp),
-          contentAlignment = Alignment.Center,
-        ) {
-          content.stateIndicators(Modifier.fillMaxHeight())
-        }
-        Box(modifier = Modifier.weight(1f)) {
-          Row(modifier = Modifier.fillMaxSize()) {
-            content.resetButton(Modifier.weight(1f))
-            content.reverseButton(Modifier.weight(1f))
-          }
-        }
-        Box(modifier = Modifier.weight(1f)) {
-          Row(modifier = Modifier.fillMaxSize()) {
-            content.backButton(Modifier.weight(1f))
-            content.forwardButton(Modifier.weight(1f))
-          }
-        }
-        Box(modifier = Modifier.weight(1f)) {
-          Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            modifier = Modifier.fillMaxWidth().heightIn(max = 48.dp),
-          ) {
-            content.saveButton(Modifier.weight(1f).fillMaxWidth())
-            content.deleteButton(Modifier.weight(1f).fillMaxWidth())
-          }
-        }
-      }
-    }
-    BoxWithConstraints {
-      if (maxHeight > maxWidth) content.board(Modifier.fillMaxWidth())
-      else content.board(Modifier.fillMaxHeight())
-    }
-    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-      VerticalDoubleScrollableRow(
-        children = content.nextMoveButtons(),
-        modifier = Modifier.fillMaxHeight().widthIn(max = 100.dp),
+    // Left side: Board section (takes up most space but constrained by ratio)
+    ExploreBoardSection(
+      board = content.board,
+      modifier =
+        Modifier.fillMaxHeight() // Use 90% of available height to determine max size
+          .aspectRatio(1f)
+          .weight(2f, fill = false),
+    )
+
+    // Right side: All controls in a scrollable column with ratio-based constraint
+    Column(
+      verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Top),
+      modifier =
+        Modifier.weight(1f, fill = false)
+          .fillMaxHeight()
+          .aspectRatio(1f)
+          .verticalScroll(rememberScrollState()),
+    ) {
+      // Header with control buttons and player turn indicator
+      ExploreHeader(
+        reverseButton = content.reverseButton,
+        resetButton = content.resetButton,
+        playerTurnIndicator = content.playerTurnIndicator,
+        backButton = content.backButton,
+        forwardButton = content.forwardButton,
       )
+
+      // State indicators section
+      ExploreStateIndicators(stateIndicators = content.stateIndicators)
+
+      // Next moves section with horizontal scrolling
+      ExploreNextMovesSection(nextMoveButtons = content.nextMoveButtons)
+
+      // Action buttons section (save/delete)
+      ExploreActionButtons(saveButton = content.saveButton, deleteButton = content.deleteButton)
     }
   }
 }
 
-@HotPreview(widthDp = 1920, heightDp = 1080, captionBar = true)
+@HotPreview(widthDp = 5500, heightDp = 1100, density = 2.625f)
 @Composable
 private fun LandscapeExploreLayoutPreview() {
   LandscapeExploreLayout(content = previewExploreLayoutContent)
