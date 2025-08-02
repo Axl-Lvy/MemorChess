@@ -127,6 +127,7 @@ private class TrainingBoard {
    * Composable based on a node to train.
    *
    * @param nodeToLearn The node to learn.
+   * @param numberOfNodesToTrain The number of nodes to train.
    * @param modifier Modifier for styling.
    */
   @Composable
@@ -157,9 +158,9 @@ private class TrainingBoard {
       )
     BoxWithConstraints {
       if (maxHeight > maxWidth) {
-        PortraitTrainingLayout(content = content)
+        PortraitTrainingLayout(content = content, modifier = modifier)
       } else {
-        LandscapeTrainingLayout(content = content)
+        LandscapeTrainingLayout(content = content, modifier = modifier)
       }
     }
   }
