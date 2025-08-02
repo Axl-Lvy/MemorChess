@@ -7,7 +7,6 @@ import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.util.Reloader
 
 /**
  * Trainer based on a node.
@@ -23,14 +22,24 @@ class SingleMoveTrainer(
 
   private var isCorrect: Boolean = true
 
-  override suspend fun afterPlayMove(move: String, reloader: Reloader) {
+  override suspend fun afterPlayMove(move: String) {
     val correspondingStoredMove =
       node.previousAndNextMoves.nextMoves.values.firstOrNull { it.move == move }
     isCorrect = correspondingStoredMove != null && correspondingStoredMove.isGood == true
     block()
     callBackOnCorrect(if (isCorrect) correspondingStoredMove else null)
     saveNode()
-    reloader.reload()
+    callCallBacks()
+  }
+
+  fun updateNode(newNode: StoredNode) {
+    if (newNode.positionIdentifier != node.positionIdentifier) {
+      node = newNode
+      game = Game(node.positionIdentifier)
+      isCorrect = true
+      unblock()
+      callCallBacks()
+    }
   }
 
   private suspend fun saveNode() {

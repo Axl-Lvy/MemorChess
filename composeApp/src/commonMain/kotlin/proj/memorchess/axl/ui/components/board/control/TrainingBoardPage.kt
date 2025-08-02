@@ -21,7 +21,6 @@ import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
-import proj.memorchess.axl.core.util.Reloader
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.BoardTopping
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
@@ -75,12 +74,7 @@ private class TrainingBoard {
     if (moveToTrain == null) {
       NoNodeToTrain(modifier = modifier)
     } else {
-      NodeToTrain(
-        moveToTrain,
-        numberOfNodesToTrain,
-        modifier = modifier,
-        trainerReloader = trainerReloader,
-      )
+      NodeToTrain(moveToTrain, numberOfNodesToTrain, modifier = modifier)
     }
   }
 
@@ -137,50 +131,51 @@ private class TrainingBoard {
   private fun NodeToTrain(
     nodeToLearn: StoredNode,
     numberOfNodesToTrain: Int,
-    trainerReloader: Reloader,
     modifier: Modifier = Modifier,
   ) {
-    val trainer by
-      remember(nodeToLearn, trainerReloader.getKey()) {
-        mutableStateOf(
-          SingleMoveTrainer(nodeToLearn) {
-            state =
-              if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
-              else TrainingBoardState.SHOW_WRONG_MOVE
-            previousPlayedMove = it
-          }
-        )
-      }
+    val trainer = remember {
+      val trainer =
+        SingleMoveTrainer(nodeToLearn) {
+          state =
+            if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
+            else TrainingBoardState.SHOW_WRONG_MOVE
+          previousPlayedMove = it
+        }
+      trainer.registerCallBack { reloader.reload() }
+      trainer
+    }
+    trainer.updateNode(nodeToLearn)
     val inverted = remember(nodeToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
-    fun TrainingLayoutContent.builder() {
-      this.board = { Board(inverted, trainer, reloader) }
-      this.daysInAdvance = {
-        Text(
-          text = "Days in advance: ${this@TrainingBoard.daysInAdvance}",
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onBackground,
-          modifier = it,
-        )
-      }
-      this.successIndicator = {
-        if (state.isShowing) {
-          val icon = if (state.isCorrect) Icons.Default.Done else Icons.Default.Close
-          val tint = if (state.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
-          Icon(
-            imageVector = icon,
-            contentDescription = if (state.isCorrect) "Correct" else "Incorrect",
-            tint = tint,
+    val content =
+      TrainingLayoutContent(
+        board = { Board(inverted, trainer) },
+        daysInAdvance = {
+          Text(
+            text = "Days in advance: ${this@TrainingBoard.daysInAdvance}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = it,
           )
-        }
-      }
-      this.movesToTrain = { NumberOfNodeToTrainIndicator(numberOfNodesToTrain, it) }
-    }
+        },
+        successIndicator = {
+          if (state.isShowing) {
+            val icon = if (state.isCorrect) Icons.Default.Done else Icons.Default.Close
+            val tint = if (state.isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
+            Icon(
+              imageVector = icon,
+              contentDescription = if (state.isCorrect) "Correct" else "Incorrect",
+              tint = tint,
+              modifier = it,
+            )
+          }
+        },
+        movesToTrain = { NumberOfNodeToTrainIndicator(numberOfNodesToTrain, it) },
+      )
     BoxWithConstraints {
       if (maxHeight > maxWidth) {
-        PortraitTrainingLayout(builder = { builder() })
+        PortraitTrainingLayout(content = content)
       } else {
-        LandscapeTrainingLayout(builder = { builder() })
+        LandscapeTrainingLayout(content = content)
       }
     }
   }

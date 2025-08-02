@@ -13,12 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun PortraitTrainingLayout(
-  modifier: Modifier = Modifier,
-  builder: TrainingLayoutContent.() -> Unit,
-) {
-  val content = TrainingLayoutContent()
-  builder.invoke(content)
+fun PortraitTrainingLayout(modifier: Modifier = Modifier, content: TrainingLayoutContent) {
 
   Column(
     verticalArrangement = Arrangement.spacedBy(5.dp, alignment = Alignment.CenterVertically),

@@ -17,7 +17,6 @@ import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
-import proj.memorchess.axl.test_util.NoOpReloader
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
@@ -149,6 +148,6 @@ class TestSingleMoveTrainer : TestWithKoin() {
   }
 
   private fun clickOnTile(coords: Pair<Int, Int>) {
-    runTest { singleMoveTrainer.clickOnTile(coords, NoOpReloader) }
+    runTest { singleMoveTrainer.clickOnTile(coords) }
   }
 }

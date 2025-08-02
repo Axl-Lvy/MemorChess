@@ -5,11 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +28,6 @@ import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
 import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
-import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
 fun ControllableBoard(modifier: Modifier = Modifier) {
@@ -42,67 +37,63 @@ fun ControllableBoard(modifier: Modifier = Modifier) {
 @Composable
 private fun Component(modifier: Modifier = Modifier) {
   var inverted by remember { mutableStateOf(false) }
-  val boardReloader = remember { BasicReloader() }
   val linesExplorer = remember { LinesExplorer() }
   val coroutineScope = rememberCoroutineScope()
+  val nextMoves = remember { mutableStateListOf(*linesExplorer.getNextMoves().toTypedArray()) }
+  remember {
+    linesExplorer.registerCallBack {
+      nextMoves.clear()
+      nextMoves.addAll(linesExplorer.getNextMoves())
+    }
+  }
 
-  val nextMoves by
-    remember(boardReloader.getKey(), linesExplorer.game.position) {
-      mutableStateOf(linesExplorer.getNextMoves())
-    }
-  fun ExploreLayoutContent.build() {
-    resetButton = { ControlButton.RESET.render(it) { linesExplorer.reset(boardReloader) } }
-    reverseButton = {
-      ControlButton.REVERSE.render(it) {
-        inverted = !inverted
-        boardReloader.reload()
-      }
-    }
-    backButton = { ControlButton.BACK.render(it) { linesExplorer.back(boardReloader) } }
-    forwardButton = { ControlButton.FORWARD.render(it) { linesExplorer.forward(boardReloader) } }
-    this.nextMoves =
-      if (nextMoves.isEmpty()) listOf({ NoNextMove() })
-      else
-        nextMoves.map {
-          {
-            NextMoveButton(it) {
-              coroutineScope.launch { linesExplorer.playMove(it, boardReloader) }
-            }
+  val content = remember {
+    ExploreLayoutContent(
+      resetButton = { ControlButton.RESET.render(it) { linesExplorer.reset() } },
+      reverseButton = { ControlButton.REVERSE.render(it) { inverted = !inverted } },
+      backButton = { ControlButton.BACK.render(it) { linesExplorer.back() } },
+      forwardButton = { ControlButton.FORWARD.render(it) { linesExplorer.forward() } },
+      nextMoveButtons = {
+        if (nextMoves.isEmpty()) listOf({ NoNextMove() })
+        else
+          nextMoves.map {
+            { NextMoveButton(it) { coroutineScope.launch { linesExplorer.playMove(it) } } }
           }
+      },
+      playerTurnIndicator = {
+        var playerTurn by remember {
+          mutableStateOf(linesExplorer.game.position.playerTurn == Game.Player.WHITE)
         }
-
-    playerTurnIndicator = {
-      Piece(
-        if (linesExplorer.game.position.playerTurn == Game.Player.WHITE) King.white()
-        else King.black()
-      )
-    }
-    stateIndicators = { StateIndicator(it, linesExplorer.state) }
-
-    saveButton = {
-      Button(
-        onClick = { coroutineScope.launch { linesExplorer.save() } },
-        it,
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-      ) {
-        Icon(FeatherIcons.Save, contentDescription = "Save")
-      }
-    }
-    deleteButton = {
-      Button(
-        onClick = { coroutineScope.launch { linesExplorer.delete(boardReloader) } },
-        it,
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-      ) {
-        Icon(FeatherIcons.Trash, contentDescription = "Delete")
-      }
-    }
-
-    board = { Board(inverted, linesExplorer, boardReloader, it) }
+        linesExplorer.registerCallBack {
+          playerTurn = linesExplorer.game.position.playerTurn == Game.Player.WHITE
+        }
+        Piece(if (playerTurn) King.white() else King.black())
+      },
+      stateIndicators = { StateIndicator(it, linesExplorer.state) },
+      saveButton = {
+        Button(
+          onClick = { coroutineScope.launch { linesExplorer.save() } },
+          it,
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        ) {
+          Icon(FeatherIcons.Save, contentDescription = "Save")
+        }
+      },
+      deleteButton = {
+        Button(
+          onClick = { coroutineScope.launch { linesExplorer.delete() } },
+          it,
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+        ) {
+          Icon(FeatherIcons.Trash, contentDescription = "Delete")
+        }
+      },
+      board = { Board(inverted, linesExplorer, it) },
+    )
   }
   BoxWithConstraints {
-    if (maxHeight > maxWidth) PortraitExploreLayout(modifier) { build() }
-    else LandscapeExploreLayout(modifier) { build() }
+    if (maxHeight > maxWidth) PortraitExploreLayout(modifier, content)
+    else LandscapeExploreLayout(modifier, content)
   }
 }
 
