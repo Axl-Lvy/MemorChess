@@ -110,11 +110,10 @@ class TestTraining : UiTestFromMainActivity() {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e4")
     assertNodeWithTextExists(BRAVO_TEXT)
-    assertNodeWithTextExists("Days in advance: 1")
     assertNodeWithTextExists("Increment a day").performClick()
-    assertNodeWithTextExists("Days in advance: 2")
+    assertNodeWithTextExists("2")
     playMove("e2", "e3")
-    assertNodeWithTextExists("Days in advance: 1")
+    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
   }
 
   @Test
@@ -181,10 +180,5 @@ class TestTraining : UiTestFromMainActivity() {
     playMove("h7", "h8")
     promoteTo(Piece.QUEEN)
     assertNodeWithTextExists(BRAVO_TEXT)
-  }
-
-  @Test
-  fun testShowNumberOfMovesToTrain() {
-    assertNodeWithTextExists("Moves to train: 1")
   }
 }

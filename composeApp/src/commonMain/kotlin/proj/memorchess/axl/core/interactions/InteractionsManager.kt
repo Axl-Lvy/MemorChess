@@ -2,8 +2,10 @@ package proj.memorchess.axl.core.interactions
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import com.diamondedge.logging.logging
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 import proj.memorchess.axl.ui.components.popup.info
@@ -43,8 +45,10 @@ abstract class InteractionsManager(var game: Game) {
    */
   suspend fun clickOnTile(coordinates: Pair<Int, Int>) {
     if (isBlocked) {
+      LOGGER.warn { "Clicked on tile ${IBoard.getTileName(coordinates)} but the game is blocked" }
       return
     }
+    LOGGER.info { "Clicked on tile ${IBoard.getTileName(coordinates)}" }
     val immutableFirstTile = firstTile
     if (immutableFirstTile != null) {
       try {
@@ -122,3 +126,5 @@ abstract class InteractionsManager(var game: Game) {
     isBlocked = false
   }
 }
+
+private val LOGGER = logging()

@@ -16,7 +16,7 @@ import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
 import proj.memorchess.axl.ui.components.board.StateIndicator
-import proj.memorchess.axl.ui.components.board.control.ControlButton
+import proj.memorchess.axl.ui.components.buttons.ControlButton
 import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
 
 val previewExploreLayoutContent =
