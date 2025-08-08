@@ -3,6 +3,7 @@ package proj.memorchess.axl.ui.components.settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,10 +16,12 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.core.config.APP_THEME_SETTING
+import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.ConfigItem
 import proj.memorchess.axl.core.config.EnumBasedAppConfigItem
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
+import proj.memorchess.axl.core.util.CanDisplayName
 import proj.memorchess.axl.ui.components.buttons.WideScrollBarChild
 import proj.memorchess.axl.ui.components.buttons.WideScrollableRow
 
@@ -56,7 +59,8 @@ enum class EmbeddedSettingItem(
       "Delay before next move: ${(it * 100).roundToInt() / 100.0}s"
     },
   ),
-  APP_THEME(APP_THEME_SETTING);
+  APP_THEME(APP_THEME_SETTING),
+  CHESS_BOARD_COLOR(CHESS_BOARD_COLOR_SETTING);
 
   constructor(
     enumItem: EnumBasedAppConfigItem<*>
@@ -98,7 +102,9 @@ enum class EmbeddedSettingItem(
   }
 
   @Composable
-  private fun <T : Enum<T>> DrawItemSelector(buttonParams: EnumBasedSelectorParameters<T>) {
+  private fun <T> DrawItemSelector(buttonParams: EnumBasedSelectorParameters<T>) where
+  T : Enum<T>,
+  T : CanDisplayName {
     val children =
       buttonParams.config.getEntries().map {
         WideScrollBarChild(
@@ -106,10 +112,10 @@ enum class EmbeddedSettingItem(
           { buttonParams.config.setValue(it) },
           { isSelected ->
             Text(
-              text = it.name,
+              text = it.displayName,
               color =
-                if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
-                else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                if (isSelected) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
               modifier = Modifier.padding(vertical = 12.dp),
             )
           },
