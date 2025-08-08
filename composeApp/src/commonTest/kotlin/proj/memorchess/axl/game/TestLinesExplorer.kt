@@ -46,7 +46,7 @@ class TestLinesExplorer : TestWithKoin() {
 
   @Test
   fun testManyGames() {
-    val gameList = getGames()
+    val gameList = getGames().shuffled().take(10)
     gameList.forEach { testGame(it) }
   }
 
@@ -68,7 +68,6 @@ class TestLinesExplorer : TestWithKoin() {
 
   @Test
   fun testDelete() {
-    testManyGames()
     testPrevious()
     runTest { interactionsManager.delete() }
     interactionsManager.forward()

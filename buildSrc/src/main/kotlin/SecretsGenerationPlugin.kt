@@ -1,6 +1,9 @@
-
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
+import org.gradle.api.DefaultTask
 import java.io.File
 import java.util.Properties
 
@@ -16,17 +19,19 @@ class SecretsPlugin : Plugin<Project> {
 
   private fun Project.configureSecretsGeneration() {
     val generateSecretsTask =
-      tasks.register("generateSecrets") {
+      tasks.register("generateSecrets", GenerateSecretsTask::class.java) {
         group = "codegen"
         description = "Generate secrets from local.properties"
-        doLast { generateSecretFile(this@configureSecretsGeneration) }
+        projectDir.set(project.projectDir)
+        rootProjectDir.set(project.rootProject.projectDir)
+        projectName.set(project.name)
       }
 
     val cleanSecretsTask =
-      tasks.register("cleanSecrets") {
+      tasks.register("cleanSecrets", CleanSecretsTask::class.java) {
         group = "codegen"
         description = "Delete generated secrets file"
-        doLast { cleanGeneratedSecrets(this@configureSecretsGeneration) }
+        projectDir.set(project.projectDir)
       }
 
     // Hook into compile tasks
@@ -37,34 +42,32 @@ class SecretsPlugin : Plugin<Project> {
     // Hook into clean task
     tasks.matching { it.name == "clean" }.configureEach { dependsOn(cleanSecretsTask) }
   }
+}
 
-  /** Converts a snake_case string to camelCase. */
-  private fun String.toCamelCase(): String {
-    return split('_')
-      .mapIndexed { index, part ->
-        if (index == 0) {
-          part.lowercase()
-        } else {
-          part.lowercase().replaceFirstChar { it.uppercase() }
-        }
-      }
-      .joinToString("")
-  }
+abstract class GenerateSecretsTask : DefaultTask() {
+  @get:Input
+  abstract val projectDir: Property<File>
 
-  /**
-   * Generates a Secrets.kt file containing values from local.properties.
-   *
-   * @param project The project context
-   */
-  private fun generateSecretFile(project: Project) {
+  @get:Input
+  abstract val rootProjectDir: Property<File>
+
+  @get:Input
+  abstract val projectName: Property<String>
+
+  @TaskAction
+  fun generateSecrets() {
+    val projectDirValue = projectDir.get()
+    val rootProjectDirValue = rootProjectDir.get()
+    val projectNameValue = projectName.get()
+
     // Determine which local.properties file to use
-    val moduleProps = project.file("local.properties")
-    val globalProps = project.rootProject.file("local.properties")
+    val moduleProps = File(projectDirValue, "local.properties")
+    val globalProps = File(rootProjectDirValue, "local.properties")
     val propsFile =
       when {
         moduleProps.exists() -> moduleProps
         globalProps.exists() -> globalProps
-        else -> error("❌ No local.properties found for module: ${project.name}")
+        else -> error("❌ No local.properties found for module: $projectNameValue")
       }
 
     if (!propsFile.exists()) {
@@ -75,7 +78,7 @@ class SecretsPlugin : Plugin<Project> {
     val properties = Properties().apply { load(propsFile.inputStream()) }
 
     // Create target directory and file
-    val (secretsPackageDir, secretsFile) = getGeneratedFileName(project)
+    val (secretsPackageDir, secretsFile) = getGeneratedFileName(projectDirValue)
 
     if (!secretsPackageDir.exists()) {
       secretsPackageDir.mkdirs()
@@ -110,40 +113,20 @@ class SecretsPlugin : Plugin<Project> {
     secretsFile.writeText(content)
 
     // Add Secrets.kt to .gitignore
-    addToGitIgnore(project, secretsFile)
+    addToGitIgnore(projectDirValue, secretsFile)
   }
 
-  /**
-   * Cleans up the generated Secrets.kt file.
-   *
-   * @param project The project context
-   */
-  private fun cleanGeneratedSecrets(project: Project) {
-    val (secretsPackageDir, secretsFile) = getGeneratedFileName(project)
-
-    if (secretsFile.exists()) {
-      secretsFile.delete()
-      project.logger.info("🧹 Deleted generated Secrets.kt file")
-    }
-
-    // Also remove the directory if it's empty and only contains generated files
-    if (secretsPackageDir.exists() && secretsPackageDir.listFiles()?.isEmpty() == true) {
-      secretsPackageDir.delete()
-      project.logger.info("🧹 Removed empty generated directory")
-    }
-  }
-
-  private fun getGeneratedFileName(project: Project): Pair<File, File> {
+  private fun getGeneratedFileName(projectDir: File): Pair<File, File> {
     val secretsPackageDir =
-      File("${project.projectDir}/src/commonMain/kotlin/proj/memorchess/axl/core/config/generated")
+      File("$projectDir/src/commonMain/kotlin/proj/memorchess/axl/core/config/generated")
     val secretsFile = File(secretsPackageDir, "Secrets.kt")
     return Pair(secretsPackageDir, secretsFile)
   }
 
   /** Adds the generated Secrets.kt file to .gitignore if not already present. */
-  private fun addToGitIgnore(project: Project, secretsFile: File) {
-    val gitIgnoreFile = project.file(".gitignore")
-    val relativePath = secretsFile.relativeTo(project.projectDir).path.replace("\\", "/")
+  private fun addToGitIgnore(projectDir: File, secretsFile: File) {
+    val gitIgnoreFile = File(projectDir, ".gitignore")
+    val relativePath = secretsFile.relativeTo(projectDir).path.replace("\\", "/")
 
     if (!gitIgnoreFile.exists()) {
       gitIgnoreFile.writeText("# Auto-generated .gitignore\n$relativePath\n")
@@ -153,5 +136,47 @@ class SecretsPlugin : Plugin<Project> {
         gitIgnoreFile.appendText("\n$relativePath\n")
       }
     }
+  }
+
+  /** Converts a snake_case string to camelCase. */
+  private fun String.toCamelCase(): String {
+    return split('_')
+      .mapIndexed { index, part ->
+        if (index == 0) {
+          part.lowercase()
+        } else {
+          part.lowercase().replaceFirstChar { it.uppercase() }
+        }
+      }
+      .joinToString("")
+  }
+}
+
+abstract class CleanSecretsTask : DefaultTask() {
+  @get:Input
+  abstract val projectDir: Property<File>
+
+  @TaskAction
+  fun cleanSecrets() {
+    val projectDirValue = projectDir.get()
+    val (secretsPackageDir, secretsFile) = getGeneratedFileName(projectDirValue)
+
+    if (secretsFile.exists()) {
+      secretsFile.delete()
+      logger.info("🧹 Deleted generated Secrets.kt file")
+    }
+
+    // Also remove the directory if it's empty and only contains generated files
+    if (secretsPackageDir.exists() && secretsPackageDir.listFiles()?.isEmpty() == true) {
+      secretsPackageDir.delete()
+      logger.info("🧹 Removed empty generated directory")
+    }
+  }
+
+  private fun getGeneratedFileName(projectDir: File): Pair<File, File> {
+    val secretsPackageDir =
+      File("$projectDir/src/commonMain/kotlin/proj/memorchess/axl/core/config/generated")
+    val secretsFile = File(secretsPackageDir, "Secrets.kt")
+    return Pair(secretsPackageDir, secretsFile)
   }
 }
