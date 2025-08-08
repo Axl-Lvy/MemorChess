@@ -219,16 +219,18 @@ val applySupabaseFunctions by
 
     doLast {
       sqlFiles.forEach { sqlFile ->
-        val execResult = exec {
-          workingDir = sqlDir
-          commandLine("psql", "-f", sqlFile.absolutePath, supabaseDbLink)
-          isIgnoreExitValue = true
-        }
+        val processBuilder =
+          ProcessBuilder("psql", "-f", sqlFile.absolutePath, supabaseDbLink).apply {
+            directory(sqlDir)
+            redirectErrorStream(false)
+          }
+        val process = processBuilder.start()
+        val exitCode = process.waitFor()
 
-        if (execResult.exitValue == 0) {
+        if (exitCode == 0) {
           logger.lifecycle("Successfully applied: ${sqlFile.name}")
         } else {
-          logger.warn("Failed to apply: ${sqlFile.name} (exit code: ${execResult.exitValue})")
+          logger.warn("Failed to apply: ${sqlFile.name} (exit code: $exitCode)")
         }
       }
       logger.lifecycle("Finished applying SQL functions to database.")
