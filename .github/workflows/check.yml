@@ -48,8 +48,50 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Cache Gradle wrapper
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-wrapper-
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/daemon
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Cache Kotlin compilation
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.kotlin
+            composeApp/build/kotlin
+            buildSrc/build/kotlin
+          key: ${{ runner.os }}-kotlin-${{ hashFiles('**/*.kt', '**/*.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-kotlin-
+
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}
+            ${{ env.ANDROID_SDK_ROOT }}
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('composeApp/build.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-android-sdk-
+
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+          gradle-home-cache-cleanup: true
 
       - name: AVD cache
         uses: actions/cache@v4
