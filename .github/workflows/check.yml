@@ -189,4 +189,4 @@ jobs:
       - name: Analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: gradle sonar
+        run: ./gradlew sonar --no-configuration-cache
