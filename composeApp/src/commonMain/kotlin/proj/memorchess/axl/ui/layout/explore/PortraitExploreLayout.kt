@@ -21,7 +21,7 @@ import proj.memorchess.axl.ui.util.previewExploreLayoutContent
 fun PortraitExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
   Column(
     verticalArrangement = Arrangement.spacedBy(12.dp),
-    modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+    modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(2.dp),
   ) {
     // Header with control buttons and player turn indicator
     ExploreHeader(
