@@ -33,11 +33,11 @@ enum class ChessBoardColorScheme(
   BLACK_AND_WHITE(
     lightSquareColor = Color(0xFFFFFFFF),
     darkSquareColor = Color(0xFF333333),
-    displayName = "Black and White",
+    displayName = "Black",
   ),
   CLASSIC(
     lightSquareColor = Color(0xFFF0D9B5),
     darkSquareColor = Color(0xff75543c),
-    displayName = "Classic",
+    displayName = "Wood",
   ),
 }

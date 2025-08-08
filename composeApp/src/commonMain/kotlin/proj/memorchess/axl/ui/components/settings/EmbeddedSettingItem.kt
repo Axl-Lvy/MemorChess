@@ -126,6 +126,7 @@ enum class EmbeddedSettingItem(
       modifier = Modifier.fillMaxWidth(),
       children = children,
       selectedInitial = buttonParams.config.getValue().ordinal,
+      minWidth = 124.dp,
     )
   }
 }
