@@ -77,16 +77,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-kotlin-
 
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.ANDROID_HOME }}
-            ${{ env.ANDROID_SDK_ROOT }}
-          key: ${{ runner.os }}-android-sdk-${{ hashFiles('composeApp/build.gradle.kts') }}
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-
-
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v4
         with:
