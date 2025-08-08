@@ -7,7 +7,8 @@
     - Describe what is being used and why.
     - Include any relevant information that might be useful for understanding the change in the future.
     - Reference any related issues or pull requests at the end of the long description.
-- If the long description is not needed, simply use a short description.
+- Only add a long description if the change is significant or complex and cannot be resumed in few words.
+
 ## Example
 
 ### Commit Message Example
