@@ -50,7 +50,7 @@ class TestSettings : UiTestFromMainActivity() {
     ON_SUCCESS_DATE_FACTOR_SETTING.setValue(2.5)
 
     // Click the reset button
-    assertNodeWithTagExists("resetConfigButton").performClick()
+    assertNodeWithTagExists("resetConfigButton").performScrollTo().performClick()
     assertNodeWithTagExists("confirmDialog")
     assertNodeWithTextExists("OK").performClick()
 
