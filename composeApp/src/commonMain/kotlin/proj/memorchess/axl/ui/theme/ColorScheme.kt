@@ -3,6 +3,7 @@ package proj.memorchess.axl.ui.theme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import proj.memorchess.axl.core.util.CanDisplayName
 
 @Composable
 fun getColorScheme(darkTheme: Boolean): ColorScheme {
@@ -11,8 +12,10 @@ fun getColorScheme(darkTheme: Boolean): ColorScheme {
 
 val goodTint = Color(0xFF4CAF50)
 
-enum class AppThemeSetting {
+enum class AppThemeSetting() : CanDisplayName {
   SYSTEM,
   LIGHT,
-  DARK,
+  DARK;
+
+  override val displayName = this.name
 }

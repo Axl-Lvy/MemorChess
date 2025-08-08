@@ -4,6 +4,7 @@ import com.russhwolf.settings.Settings
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.ui.theme.AppThemeSetting
+import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 
 /**
  * Factor to apply to calculate the next training date. See
@@ -23,9 +24,17 @@ val TRAINING_MOVE_DELAY_SETTING =
 
 val APP_THEME_SETTING = EnumBasedAppConfigItem.from("appTheme", AppThemeSetting.SYSTEM)
 
+val CHESS_BOARD_COLOR_SETTING =
+  EnumBasedAppConfigItem.from("chessBoardColor", ChessBoardColorScheme.CLASSIC)
+
 val KEEP_LOGGED_IN_SETTING = ValueBasedAppConfigItem<Boolean, Boolean>("keepLoggedIn", false)
 
 val ALL_SETTINGS_ITEMS =
-  listOf(ON_SUCCESS_DATE_FACTOR_SETTING, TRAINING_MOVE_DELAY_SETTING, APP_THEME_SETTING)
+  listOf(
+    ON_SUCCESS_DATE_FACTOR_SETTING,
+    TRAINING_MOVE_DELAY_SETTING,
+    APP_THEME_SETTING,
+    CHESS_BOARD_COLOR_SETTING,
+  )
 
 expect val SETTINGS: Settings
