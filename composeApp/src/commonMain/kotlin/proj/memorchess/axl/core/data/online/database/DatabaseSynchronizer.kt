@@ -17,7 +17,7 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
  */
 class DatabaseSynchronizer(
   private val authManager: AuthManager,
-  private val remoteDatabase: RemoteDatabaseQueryManager,
+  private val remoteDatabase: SupabaseQueryManager,
   private val localDatabase: DatabaseQueryManager,
 ) {
 

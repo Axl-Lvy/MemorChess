@@ -135,7 +135,7 @@ internal data class PositionToUpload(
 @Serializable
 internal data class FetchSinglePositionFunctionArg(
   @SerialName("user_id_input") val userId: String,
-  @SerialName(FEN_REPRESENTATION_FIELD) val fen: String,
+  @SerialName("fen_representation_input") val fen: String,
 )
 
 @Serializable

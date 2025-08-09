@@ -19,7 +19,7 @@ import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 
 private const val USER_NOT_CONNECTED_MESSAGE = "User must be logged in to update database"
 
-class RemoteDatabaseQueryManager(
+class SupabaseQueryManager(
   private val client: SupabaseClient,
   private val authManager: AuthManager,
 ) : DatabaseQueryManager {
