@@ -39,6 +39,7 @@ supabase = "3.2.0"
 ktor = "3.2.0"
 material3-adaptive = "1.1.2"
 composeHotReload = "1.0.0-beta04"
+jacoco = "0.8.11"
 
 [libraries]
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
@@ -96,3 +97,4 @@ room = { id = "androidx.room", version.ref = "androidx-room" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 sonar = { id = "org.sonarqube", version.ref = "sonar" }
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload"}
+jacoco = { id = "org.jacoco", version.ref = "jacoco" }
