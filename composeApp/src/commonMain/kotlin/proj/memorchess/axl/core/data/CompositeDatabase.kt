@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.data
 
 import kotlinx.datetime.LocalDateTime
-import proj.memorchess.axl.core.data.online.database.RemoteDatabaseQueryManager
+import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 
 /**
  * A composite database that queries multiple databases.
@@ -12,7 +12,7 @@ import proj.memorchess.axl.core.data.online.database.RemoteDatabaseQueryManager
  * @property localDatabase Local database
  */
 class CompositeDatabase(
-  private val remoteDatabase: RemoteDatabaseQueryManager,
+  private val remoteDatabase: SupabaseQueryManager,
   private val localDatabase: DatabaseQueryManager,
 ) : DatabaseQueryManager {
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
