@@ -25,9 +25,5 @@ sonar {
         // Source directories
         property("sonar.sources", "composeApp/src/commonMain,composeApp/src/androidMain")
         property("sonar.tests", "composeApp/src/commonTest,composeApp/src/androidTest")
-
-        // Exclusions
-        property("sonar.exclusions", "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java")
-        property("sonar.test.exclusions", "**/build/**,**/generated/**")
     }
 }
