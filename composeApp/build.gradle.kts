@@ -18,6 +18,7 @@ plugins {
   alias(libs.plugins.room)
   alias(libs.plugins.ksp)
   alias(libs.plugins.composeHotReload)
+  id("jacoco")
   id("secrets-generation")
 }
 
@@ -163,14 +164,20 @@ android {
 
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 
-  buildTypes { getByName("release") { isMinifyEnabled = false } }
+  buildTypes {
+    getByName("release") { isMinifyEnabled = false }
+    getByName("debug") { enableAndroidTestCoverage = true }
+  }
 
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
   }
 
-  testOptions { unitTests.isReturnDefaultValues = true }
+  testOptions {
+    unitTests.isReturnDefaultValues = true
+    unitTests.isIncludeAndroidResources = true
+  }
 }
 
 // Code formatting configuration
@@ -271,3 +278,51 @@ tasks
   .configureEach { dependsOn(applySupabaseFunctions) }
 
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
+
+// Test coverage configuration
+tasks.register<JacocoReport>("jacocoTestReport") {
+  group = "verification"
+  description = "Generate test coverage reports for Android instrumented tests"
+
+  // Don't automatically run tests - only generate report from existing coverage data
+  mustRunAfter("connectedDebugAndroidTest", "createDebugAndroidTestCoverageReport")
+
+  reports {
+    xml.required.set(true)
+    html.required.set(true)
+  }
+
+  val fileFilter =
+    listOf(
+      "**/R.class",
+      "**/R$*.class",
+      "**/BuildConfig.*",
+      "**/Manifest*.*",
+      "**/*Test*.*",
+      "android/**/*.*",
+      "**/generated/**",
+      "**/build/**",
+      "**/tmp/**",
+    )
+
+  val debugTree =
+    fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") { exclude(fileFilter) }
+
+  val mainSrc = "${project.projectDir}/src/commonMain/kotlin"
+  val androidSrc = "${project.projectDir}/src/androidMain/kotlin"
+
+  sourceDirectories.setFrom(files(listOf(mainSrc, androidSrc)))
+  classDirectories.setFrom(files(listOf(debugTree)))
+
+  // Use both possible locations for coverage execution data
+  executionData.setFrom(
+    fileTree(layout.buildDirectory.get()) {
+      include("outputs/code_coverage/debugAndroidTest/connected/**/*.ec")
+      include("jacoco/testDebugUnitTest.exec")
+      include("coverage-report/androidTest/debug/connected/**/*.ec")
+    }
+  )
+
+  // Only run if coverage data exists
+  onlyIf { executionData.files.any { it.exists() } }
+}

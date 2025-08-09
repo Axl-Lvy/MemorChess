@@ -3,6 +3,8 @@ name: Check code
 on:
   pull_request:
     types: [ opened, synchronize, reopened, edited ]
+  push:
+    branches: [ master ]
 
 jobs:
   android-tests:
@@ -10,6 +12,7 @@ jobs:
 
     steps:
       - name: Ensure tests checkbox is checked
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -99,7 +102,7 @@ jobs:
           api-level: 35
           target: default
           arch: x86_64
-          profile: Nexus 6
+          profile: pixel_8_pro
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
@@ -114,16 +117,32 @@ jobs:
           api-level: 35
           target: default
           arch: x86_64
-          profile: Nexus 6
+          profile: pixel_8_pro
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: ./gradlew connectedCheck
 
+      - name: Generate test coverage report
+        run: ./gradlew jacocoTestReport
+
+      - name: Upload coverage to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            composeApp/build/reports/jacoco/
+            composeApp/build/reports/androidTests/
+            composeApp/build/reports/coverage/
+            composeApp/build/outputs/code_coverage/
+            composeApp/build/tmp/kotlin-classes/debug/
+          retention-days: 30
+
   format-check:
     runs-on: ubuntu-latest
     steps:
       - name: Ensure tests checkbox is checked
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -153,8 +172,10 @@ jobs:
   sonar-analysis:
     name: Sonar analysis
     runs-on: ubuntu-latest
+    needs: android-tests  # Wait for tests to complete and generate coverage
     steps:
       - name: Ensure sonar checkbox is checked
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -172,23 +193,51 @@ jobs:
         with:
           java-version: 17
           distribution: 'zulu'
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
+
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
           path: ~/.gradle/caches
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
+
+      # Download coverage artifacts from android-tests job
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: ./
+
+      - name: Verify coverage file exists
+        run: |
+          echo "=== Downloaded artifact structure ==="
+          find . -name "*.xml" -path "*/jacoco/*" -type f
+          echo ""
+          echo "=== Checking specific locations ==="
+          if [ -f "reports/jacoco/jacocoTestReport/jacocoTestReport.xml" ]; then
+            echo "✅ Found JaCoCo XML report at: reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
+            ls -la reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          else
+            echo "❌ JaCoCo XML report not found at expected location"
+          fi
+          echo ""
+          echo "=== All JaCoCo-related files ==="
+          find . -name "*jacoco*" -type f
+
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
-      - name: Analyze
+
+      - name: Analyze with coverage
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon

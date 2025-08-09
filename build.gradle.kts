@@ -16,5 +16,11 @@ sonar {
         property("sonar.projectKey", "Axl-Lvy_MemorChess")
         property("sonar.organization", "axl-lvy")
         property("sonar.host.url", "https://sonarcloud.io")
+
+        // Coverage configuration - using absolute path from project root
+        property("sonar.coverage.jacoco.xmlReportPaths", "${projectDir}/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+
+        // Exclusions for source files - exclude generated files but NOT test directories (already handled by sonar.tests)
+        property("sonar.exclusions", "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/Manifest*.xml")
     }
 }
