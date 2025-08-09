@@ -324,7 +324,5 @@ tasks.register<JacocoReport>("jacocoTestReport") {
   )
 
   // Only run if coverage data exists
-  onlyIf {
-    executionData.files.any { it.exists() }
-  }
+  onlyIf { executionData.files.any { it.exists() } }
 }
