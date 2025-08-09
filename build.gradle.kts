@@ -17,8 +17,8 @@ sonar {
         property("sonar.organization", "axl-lvy")
         property("sonar.host.url", "https://sonarcloud.io")
 
-        // Coverage configuration
-        property("sonar.coverage.jacoco.xmlReportPaths", "composeApp/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        // Coverage configuration - using the actual path where the file is found
+        property("sonar.coverage.jacoco.xmlReportPaths", "reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
         property("sonar.androidLint.reportPaths", "composeApp/build/reports/lint-results.xml")
         property("sonar.kotlin.detekt.reportPaths", "composeApp/build/reports/detekt/detekt.xml")
     }

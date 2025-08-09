@@ -215,9 +215,19 @@ jobs:
 
       - name: Verify coverage file exists
         run: |
-          echo "Checking for coverage files..."
-          find . -name "jacocoTestReport.xml" -type f
-          ls -la composeApp/build/reports/jacoco/jacocoTestReport/ || echo "JaCoCo report directory not found"
+          echo "=== Downloaded artifact structure ==="
+          find . -name "*.xml" -path "*/jacoco/*" -type f
+          echo ""
+          echo "=== Checking specific locations ==="
+          if [ -f "reports/jacoco/jacocoTestReport/jacocoTestReport.xml" ]; then
+            echo "✅ Found JaCoCo XML report at: reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
+            ls -la reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          else
+            echo "❌ JaCoCo XML report not found at expected location"
+          fi
+          echo ""
+          echo "=== All JaCoCo-related files ==="
+          find . -name "*jacoco*" -type f
 
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
