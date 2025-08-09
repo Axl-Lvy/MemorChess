@@ -291,7 +291,7 @@ tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl
 
 // Disable configuration cache for all tasks involving wasmJs
 tasks.withType<KotlinWebpack>().configureEach {
-    notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")
+  notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")
 }
 
 // Test coverage configuration
