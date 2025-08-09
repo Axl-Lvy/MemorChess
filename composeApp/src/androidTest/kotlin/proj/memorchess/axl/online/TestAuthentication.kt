@@ -5,7 +5,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -21,7 +20,6 @@ import proj.memorchess.axl.utils.TestWithAuthentication
 class TestAuthentication : TestWithAuthentication() {
 
   @Test
-  @Ignore
   fun testSignInButtonShowsCorrectStateWhenSignedOut() {
     // Initially user should be signed out
     assertNodeWithTagExists("sign_in_button")
@@ -29,7 +27,6 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testSignInDialogCanBeCanceled() {
     // Open the dialog
     assertNodeWithTagExists("sign_in_button").performClick()
@@ -46,7 +43,6 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testSuccessfulSignInWithValidCredentials() {
     // Open sign in dialog
     assertNodeWithTagExists("sign_in_button").performClick()
@@ -69,7 +65,6 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testKeepSession() {
     testSuccessfulSignInWithValidCredentials()
     assertNodeWithTextExists("Stay signed in?")
@@ -79,7 +74,6 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testDoNotKeepSession() {
     testSuccessfulSignInWithValidCredentials()
     assertNodeWithTextExists("Stay signed in?")
@@ -89,7 +83,6 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testKeepSessionDialogNotReopens() {
     testSuccessfulSignInWithValidCredentials()
     assertNodeWithTextExists("Stay signed in?")
@@ -101,7 +94,6 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testFailedSignInWithInvalidCredentials() {
     // Open sign in dialog
     assertNodeWithTagExists("sign_in_button").performClick()
@@ -125,7 +117,6 @@ class TestAuthentication : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testSignOut() {
     // First sign in
     runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }

@@ -1,6 +1,5 @@
 package proj.memorchess.axl.online
 
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertTrue
@@ -39,7 +38,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testSyncFromLocal() = runTest {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
@@ -57,7 +55,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testSyncFromRemote() = runTest {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
@@ -75,7 +72,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testSyncNonEmptyFromLocal() = runTest {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
@@ -92,7 +88,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testSyncNonEmptyFromRemote() = runTest {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
@@ -109,7 +104,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   }
 
   @Test
-  @Ignore
   fun testBothDatabasesUpdatedWhenSynced() = runTest {
     databaseSynchronizer.syncFromLocal()
     assertTrue(isSynced)

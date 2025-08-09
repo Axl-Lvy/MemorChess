@@ -22,9 +22,5 @@ sonar {
 
         // Exclusions for source files - exclude generated files but NOT test directories (already handled by sonar.tests)
         property("sonar.exclusions", "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/Manifest*.xml")
-
-        // Additional report paths
-        property("sonar.androidLint.reportPaths", "composeApp/build/reports/lint-results.xml")
-        property("sonar.kotlin.detekt.reportPaths", "composeApp/build/reports/detekt/detekt.xml")
     }
 }
