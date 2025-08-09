@@ -17,8 +17,13 @@ sonar {
         property("sonar.organization", "axl-lvy")
         property("sonar.host.url", "https://sonarcloud.io")
 
-        // Coverage configuration - using the actual path where the file is found
-        property("sonar.coverage.jacoco.xmlReportPaths", "reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        // Coverage configuration - using absolute path from project root
+        property("sonar.coverage.jacoco.xmlReportPaths", "${projectDir}/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+
+        // Exclusions for source files - exclude generated files but NOT test directories (already handled by sonar.tests)
+        property("sonar.exclusions", "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/Manifest*.xml")
+
+        // Additional report paths
         property("sonar.androidLint.reportPaths", "composeApp/build/reports/lint-results.xml")
         property("sonar.kotlin.detekt.reportPaths", "composeApp/build/reports/detekt/detekt.xml")
     }
