@@ -226,4 +226,18 @@ jobs:
           echo "=== Checking specific locations ==="
           if [ -f "reports/jacoco/jacocoTestReport/jacocoTestReport.xml" ]; then
             echo "✅ Found JaCoCo XML report at: reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
-            ls -la reports/jacoco/jacaco
+            ls -la reports/jacoco/jacocoTestReport/jacocoTestReport.xml
+          else
+            echo "❌ JaCoCo XML report not found at expected location"
+          fi
+          echo ""
+          echo "=== All JaCoCo-related files ==="
+          find . -name "*jacoco*" -type f
+
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+
+      - name: Analyze with coverage
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
