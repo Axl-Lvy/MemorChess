@@ -189,32 +189,40 @@ jobs:
           java-version: 17
           distribution: 'zulu'
 
-      - name: Update local.properties
-        run: |
-          chmod +x .github/scripts/update_properties.sh
-          .github/scripts/update_properties.sh
-        env:
-          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          TEST_USER_MAIL: ${{ secrets.TEST_USER_MAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
+
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
           path: ~/.gradle/caches
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
+
+      # Download coverage artifacts from android-tests job
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: ./
+
+      - name: Verify coverage file exists
+        run: |
+          echo "Checking for coverage files..."
+          find . -name "jacocoTestReport.xml" -type f
+          ls -la composeApp/build/reports/jacoco/jacocoTestReport/ || echo "JaCoCo report directory not found"
+
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
-      - name: Analyze (without coverage)
+
+      - name: Analyze with coverage
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
