@@ -310,7 +310,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
   val fileFilter =
     listOf(
       "**/R.class",
-      "**/R$*.class",
+      "**/Res.class",
       "**/BuildConfig.*",
       "**/Manifest*.*",
       "**/*Test*.*",
