@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
+import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
@@ -287,6 +288,11 @@ tasks
   .configureEach { dependsOn(applySupabaseFunctions) }
 
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
+
+// Disable configuration cache for all tasks involving wasmJs
+tasks.withType<KotlinWebpack>().configureEach {
+  notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")
+}
 
 // Test coverage configuration
 tasks.register<JacocoReport>("jacocoTestReport") {
