@@ -14,10 +14,6 @@ interface AuthManager {
    */
   suspend fun signInFromEmail(providedEmail: String, providedPassword: String)
 
-  suspend fun signUpFromEmail(providedEmail: String, providedPassword: String)
-
-  suspend fun confirmEmail(email: String, token: String)
-
   suspend fun signOut()
 
   fun updateSavedTokens()

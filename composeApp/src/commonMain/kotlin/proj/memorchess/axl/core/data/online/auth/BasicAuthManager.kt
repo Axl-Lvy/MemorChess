@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.diamondedge.logging.logging
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.builtin.Email
@@ -101,17 +100,6 @@ class BasicAuthManager(private val supabaseClient: SupabaseClient) : AuthManager
       email = providedEmail
       password = providedPassword
     }
-  }
-
-  override suspend fun signUpFromEmail(providedEmail: String, providedPassword: String) {
-    supabaseClient.auth.signUpWith(Email) {
-      email = providedEmail
-      password = providedPassword
-    }
-  }
-
-  override suspend fun confirmEmail(email: String, token: String) {
-    supabaseClient.auth.verifyEmailOtp(OtpType.Email.MAGIC_LINK, token)
   }
 
   override suspend fun signOut() {
