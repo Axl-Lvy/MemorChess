@@ -6,9 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import de.drick.compose.hotpreview.HotPreview
 import proj.memorchess.axl.core.interactions.InteractionsManager
-import proj.memorchess.axl.core.interactions.LinesExplorer
 
 @Composable
 fun Board(
@@ -27,10 +25,4 @@ fun Board(
       }
     }
   }
-}
-
-@HotPreview(density = 1.0f, widthDp = 4000, heightDp = 4000, captionBar = true)
-@Composable
-private fun BoardPreview() {
-  Board(inverted = false, interactionsManager = LinesExplorer())
 }

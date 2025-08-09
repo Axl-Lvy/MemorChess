@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import de.drick.compose.hotpreview.HotPreview
 
 @Composable
 fun DaysInAdvanceCard(days: Int, modifier: Modifier = Modifier) {
@@ -57,10 +56,4 @@ fun DaysInAdvanceCard(days: Int, modifier: Modifier = Modifier) {
       }
     }
   }
-}
-
-@Composable
-@HotPreview
-private fun DaysInAdvanceCardPreview() {
-  DaysInAdvanceCard(days = 5)
 }

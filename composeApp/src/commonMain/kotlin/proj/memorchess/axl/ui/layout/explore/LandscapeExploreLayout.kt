@@ -13,13 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import de.drick.compose.hotpreview.HotPreview
 import proj.memorchess.axl.ui.components.explore.ExploreActionButtons
 import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
 import proj.memorchess.axl.ui.components.explore.ExploreHeader
 import proj.memorchess.axl.ui.components.explore.ExploreNextMovesSection
 import proj.memorchess.axl.ui.components.explore.ExploreStateIndicators
-import proj.memorchess.axl.ui.util.previewExploreLayoutContent
 
 @Composable
 fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
@@ -65,10 +63,4 @@ fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayout
       ExploreActionButtons(saveButton = content.saveButton, deleteButton = content.deleteButton)
     }
   }
-}
-
-@HotPreview(widthDp = 5500, heightDp = 1100, density = 2.625f)
-@Composable
-private fun LandscapeExploreLayoutPreview() {
-  LandscapeExploreLayout(content = previewExploreLayoutContent)
 }

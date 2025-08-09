@@ -21,6 +21,6 @@ sonar {
         property("sonar.coverage.jacoco.xmlReportPaths", "${projectDir}/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
 
         // Exclusions for source files - exclude generated files but NOT test directories (already handled by sonar.tests)
-        property("sonar.exclusions", "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/Manifest*.xml")
+        property("sonar.exclusions", "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/Manifest*.xml,**/debugMain/**")
     }
 }
