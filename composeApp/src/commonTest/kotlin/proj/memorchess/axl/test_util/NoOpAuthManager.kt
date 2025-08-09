@@ -10,14 +10,6 @@ class NoOpAuthManager : AuthManager {
     // Do nothing
   }
 
-  override suspend fun signUpFromEmail(providedEmail: String, providedPassword: String) {
-    // Do nothing
-  }
-
-  override suspend fun confirmEmail(email: String, token: String) {
-    // Do nothing
-  }
-
   override suspend fun signOut() {
     // Do nothing
   }
