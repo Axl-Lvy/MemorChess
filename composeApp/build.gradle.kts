@@ -284,6 +284,9 @@ tasks.register<JacocoReport>("jacocoTestReport") {
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
 
+  // Don't automatically run tests - only generate report from existing coverage data
+  mustRunAfter("connectedDebugAndroidTest", "createDebugAndroidTestCoverageReport")
+
   reports {
     xml.required.set(true)
     html.required.set(true)
@@ -319,4 +322,9 @@ tasks.register<JacocoReport>("jacocoTestReport") {
       include("coverage-report/androidTest/debug/connected/**/*.ec")
     }
   )
+
+  // Only run if coverage data exists
+  onlyIf {
+    executionData.files.any { it.exists() }
+  }
 }

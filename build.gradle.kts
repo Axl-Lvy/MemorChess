@@ -21,9 +21,5 @@ sonar {
         property("sonar.coverage.jacoco.xmlReportPaths", "composeApp/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
         property("sonar.androidLint.reportPaths", "composeApp/build/reports/lint-results.xml")
         property("sonar.kotlin.detekt.reportPaths", "composeApp/build/reports/detekt/detekt.xml")
-
-        // Source directories
-        property("sonar.sources", "composeApp/src/commonMain,composeApp/src/androidMain")
-        property("sonar.tests", "composeApp/src/commonTest,composeApp/src/androidTest")
     }
 }
