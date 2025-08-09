@@ -3,6 +3,8 @@ name: Check code
 on:
   pull_request:
     types: [ opened, synchronize, reopened, edited ]
+  push:
+    branches: [ master ]
 
 jobs:
   android-tests:
@@ -10,6 +12,7 @@ jobs:
 
     steps:
       - name: Ensure tests checkbox is checked
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -139,6 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ensure tests checkbox is checked
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -171,6 +175,7 @@ jobs:
     needs: android-tests  # Wait for tests to complete and generate coverage
     steps:
       - name: Ensure sonar checkbox is checked
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -221,18 +226,4 @@ jobs:
           echo "=== Checking specific locations ==="
           if [ -f "reports/jacoco/jacocoTestReport/jacocoTestReport.xml" ]; then
             echo "✅ Found JaCoCo XML report at: reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
-            ls -la reports/jacoco/jacocoTestReport/jacocoTestReport.xml
-          else
-            echo "❌ JaCoCo XML report not found at expected location"
-          fi
-          echo ""
-          echo "=== All JaCoCo-related files ==="
-          find . -name "*jacoco*" -type f
-
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
-
-      - name: Analyze with coverage
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
+            ls -la reports/jacoco/jacaco
