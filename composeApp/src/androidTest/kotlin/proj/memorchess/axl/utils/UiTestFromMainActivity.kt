@@ -17,7 +17,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import com.diamondedge.logging.logging
 import kotlin.test.BeforeTest
-import kotlin.test.Ignore
 import kotlin.time.Duration
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -44,7 +43,6 @@ import proj.memorchess.axl.ui.pages.navigation.Destination
  * This class contains a lot of ready-to-use methods for common UI interactions, do not hesitate to
  * use them and to create new one if needed. Tests are way more readable this way.
  */
-@Ignore
 @OptIn(ExperimentalTestApi::class)
 abstract class UiTestFromMainActivity : KoinComponent {
   /**
