@@ -242,4 +242,10 @@ jobs:
       - name: Analyze with coverage
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "master" ]]; then
+            ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon \
+              -Dsonar.branch.name=master
+          else
+            ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
+          fi
