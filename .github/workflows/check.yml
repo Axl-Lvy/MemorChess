@@ -102,7 +102,7 @@ jobs:
           api-level: 35
           target: default
           arch: x86_64
-          profile: 40
+          profile: 40 # Pixel 7 pro
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
@@ -117,7 +117,7 @@ jobs:
           api-level: 35
           target: default
           arch: x86_64
-          profile: 40
+          profile: 40 # Pixel 7 pro
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
