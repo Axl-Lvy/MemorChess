@@ -283,7 +283,6 @@ tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl
 tasks.register<JacocoReport>("jacocoTestReport") {
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
-  dependsOn("connectedDebugAndroidTest")
 
   reports {
     xml.required.set(true)
@@ -311,9 +310,13 @@ tasks.register<JacocoReport>("jacocoTestReport") {
 
   sourceDirectories.setFrom(files(listOf(mainSrc, androidSrc)))
   classDirectories.setFrom(files(listOf(debugTree)))
+
+  // Use both possible locations for coverage execution data
   executionData.setFrom(
     fileTree(layout.buildDirectory.get()) {
       include("outputs/code_coverage/debugAndroidTest/connected/**/*.ec")
+      include("jacoco/testDebugUnitTest.exec")
+      include("coverage-report/androidTest/debug/connected/**/*.ec")
     }
   )
 }
