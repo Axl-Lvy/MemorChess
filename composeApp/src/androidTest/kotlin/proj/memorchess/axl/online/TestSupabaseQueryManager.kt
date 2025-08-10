@@ -1,6 +1,5 @@
 package proj.memorchess.axl.online
 
-import kotlin.test.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
@@ -15,6 +14,7 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.utils.Awaitility
 import proj.memorchess.axl.utils.TestWithAuthentication
+import kotlin.test.*
 
 class TestSupabaseQueryManager : TestWithAuthentication() {
 
@@ -291,5 +291,33 @@ class TestSupabaseQueryManager : TestWithAuthentication() {
     assertTrue(emptyNodes.isEmpty(), "Empty database should return no nodes")
     assertNull(nonExistentPosition, "Non-existent position should return null")
     assertNull(lastUpdate, "Empty database should have no last update")
+  }
+
+  @Test
+  fun testThrowOnSignOut() = runTest {
+    // Arrange
+    authManager.signOut()
+    Awaitility.awaitUntilTrue { authManager.user == null }
+
+    val game = Game()
+    val node =
+      StoredNode(
+        game.position.createIdentifier(),
+        PreviousAndNextMoves(),
+        PreviousAndNextDate.dummyToday(),
+      )
+
+    // Act & Assert
+    assertFailsWith<IllegalStateException> { remoteDatabase.deleteAll(null) }
+    assertFailsWith<IllegalStateException> {
+      remoteDatabase.deletePosition(node.positionIdentifier)
+    }
+    assertFailsWith<IllegalStateException> { remoteDatabase.getAllNodes(false) }
+    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(node.positionIdentifier) }
+    assertFailsWith<IllegalStateException> { remoteDatabase.getLastUpdate() }
+    assertFailsWith<IllegalStateException> {
+      remoteDatabase.deleteMove(node.positionIdentifier, "e4")
+    }
+    assertFailsWith<IllegalStateException> { remoteDatabase.insertNodes(node) }
   }
 }
