@@ -1,6 +1,7 @@
 # GitHub Copilot Instructions
 
-These instructions define how GitHub Copilot should assist with this project. The goal is to ensure consistent, high-quality code generation aligned with our conventions, stack, and best practices.
+These instructions define how GitHub Copilot should assist with this project. The goal is to ensure consistent,
+high-quality code generation aligned with our conventions, stack, and best practices.
 
 ## 🧠 Context
 
@@ -70,6 +71,7 @@ src/
 - Use `Kotest` for unit and integration tests.
 - Never mock objects.
 - Use Coroutines test utilities for suspending functions.
-- Structure tests by feature and follow the AAA (Arrange-Act-Assert) pattern.
+- Structure tests by feature and follow the AAA (Arrange-Act-Assert) pattern. No need to specify comments with
+  `// Arrange`, `// Act`, `// Assert` as the structure should be clear.
 - Test state flows and edge/error conditions.
 - Extend `UiTestFromMainActivity` for UI tests.

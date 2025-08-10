@@ -7,9 +7,9 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.test_util.getNextMoveDescription
-import proj.memorchess.axl.utils.UiTestFromMainActivity
+import proj.memorchess.axl.utils.TestFromMainActivity
 
-class TestNextMoveBar : UiTestFromMainActivity() {
+class TestNextMoveBar : TestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {

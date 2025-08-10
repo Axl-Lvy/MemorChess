@@ -1,5 +1,6 @@
 package proj.memorchess.axl.online
 
+import kotlin.test.assertTrue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -7,10 +8,9 @@ import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.online.auth.BasicAuthManager
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
-import proj.memorchess.axl.utils.UiTestFromMainActivity
-import kotlin.test.assertTrue
+import proj.memorchess.axl.utils.TestFromMainActivity
 
-class TestRemoteDatabaseQueryManager: UiTestFromMainActivity() {
+class TestRemoteDatabaseQueryManager : TestFromMainActivity() {
   @Test
   fun testThings() {
     runBlocking {
@@ -18,10 +18,8 @@ class TestRemoteDatabaseQueryManager: UiTestFromMainActivity() {
       val authManager = BasicAuthManager(supabaseClient)
       authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
       delay(1000)
-      val remoteDatabaseQueryManager = SupabaseQueryManager(
-        supabaseClient,
-        authManager = authManager,
-        )
+      val remoteDatabaseQueryManager =
+        SupabaseQueryManager(supabaseClient, authManager = authManager)
       val nodes = remoteDatabaseQueryManager.getAllNodes(true)
       val lastupdate = remoteDatabaseQueryManager.getLastUpdate()
       assertTrue { nodes.isNotEmpty() }

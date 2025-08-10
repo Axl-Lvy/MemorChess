@@ -15,17 +15,17 @@ begin
     for node_item in select * from jsonb_array_elements(stored_nodes)
         loop
             -- 1. Ensure position exists
-            insert into "Position"(fen_representation)
+            insert into positions(fen_representation)
             values (node_item ->> 'positionIdentifier')
             on conflict(fen_representation) do nothing;
 
             select id
             into position_id_input
-            from "Position"
+            from positions
             where fen_representation = node_item ->> 'positionIdentifier';
 
             -- 2. Upsert UserPosition
-            insert into "UserPosition"(user_id,
+            insert into user_positions(user_id,
                                        position_id,
                                        depth,
                                        last_training_date,

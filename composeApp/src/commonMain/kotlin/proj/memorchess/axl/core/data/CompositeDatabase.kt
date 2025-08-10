@@ -31,15 +31,15 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun deletePosition(fen: String) {
+  override suspend fun deletePosition(position: PositionIdentifier) {
     for (db in listOf(localDatabase, remoteDatabase)) {
       if (db.isActive()) {
-        db.deletePosition(fen)
+        db.deletePosition(position)
       }
     }
   }
 
-  override suspend fun deleteMove(origin: String, move: String) {
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
     for (db in listOf(localDatabase, remoteDatabase)) {
       if (db.isActive()) {
         db.deleteMove(origin, move)

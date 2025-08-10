@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.isSynced
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.utils.Awaitility
@@ -32,8 +33,8 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
       authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
       Awaitility.awaitUntilTrue { authManager.user != null }
       // Clear remote database to start with clean state
-      remoteDatabase.deleteAll(null)
-      localDatabase.deleteAll(null)
+      remoteDatabase.deleteAll(DateUtil.farInThePast())
+      localDatabase.deleteAll(DateUtil.farInThePast())
     }
   }
 

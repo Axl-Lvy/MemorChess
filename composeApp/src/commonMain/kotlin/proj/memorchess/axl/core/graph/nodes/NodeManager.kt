@@ -176,7 +176,7 @@ private object NodeCache : KoinComponent {
   suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: StoredMove) {
     movesCache[positionIdentifier]?.previousMoves?.remove(move.move)
     LOGGER.i { "Cleared previous move $move for position: $positionIdentifier" }
-    database.deleteMove(positionIdentifier.fenRepresentation, move.move)
+    database.deleteMove(positionIdentifier, move.move)
   }
 
   /** Clears the cache and resets the database retrieved flag. */

@@ -44,7 +44,7 @@ import proj.memorchess.axl.ui.pages.navigation.Destination
  * use them and to create new one if needed. Tests are way more readable this way.
  */
 @OptIn(ExperimentalTestApi::class)
-abstract class UiTestFromMainActivity : KoinComponent {
+abstract class TestFromMainActivity : KoinComponent {
   /**
    * The Compose test rule used to interact with the UI. This is automatically initialized by JUnit
    * before tests are executed.
