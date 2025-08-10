@@ -133,14 +133,14 @@ jobs:
 
       - name: Rename coverage report
         run: |
-          mv composeApp/build/outputs/code-coverage/ \
-          composeApp/build/outputs/code-coverage/${{ matrix.shard_index }}/
+          mv composeApp/build/outputs/code_coverage/ \
+          composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/
 
       - name: Upload coverage to GitHub
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report-${{ matrix.shard_index }}
-          path: composeApp/build/outputs/code-coverage/
+          path: composeApp/build/outputs/code_coverage/
           retention-days: 1
 
   merge-coverage:
@@ -150,7 +150,7 @@ jobs:
       - name: Download all coverage reports
         uses: actions/download-artifact@v4
         with:
-          path: composeApp/build/outputs/code-coverage
+          path: composeApp/build/outputs/code_coverage
 
       - name: Compile debug
         run: ./gradlew composeApp:compileDebugAndroidTestSources
@@ -163,7 +163,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report-merged
-          path: build/reports/jacoco/
+          path: composeApp/build/reports/jacoco/
 
   sonar-analysis:
     name: Sonar analysis
