@@ -12,22 +12,22 @@ jobs:
   generate-matrix:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrix-json: ${{ steps.set-matrix.outputs.matrix-json }}
     steps:
-      - name: Set up matrix
-        id: set-matrix
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const matrix = [0, 1, 2, 3];
-            return { matrix: JSON.stringify(matrix) };
+      - id: set-matrix
+        run: |
+          # Generate JSON array [1,2,...,10]
+          matrix_json=$(seq -s, 0 19)
+          matrix_json="[$matrix_json]"
+          echo "matrix-json=$matrix_json" >> $GITHUB_OUTPUT
+  
 
   android-tests:
     needs: generate-matrix
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard_index: ${{fromJSON(needs.generate-matrix.outputs.matrix)}}
+        shard_index: ${{ fromJSON(needs.generate-matrix.outputs.matrix-json) }}
 
     steps:
       - name: Ensure tests checkbox is checked
