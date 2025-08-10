@@ -100,7 +100,7 @@ jobs:
 
   # Run Android tests in parallel using the generated matrix
   android-tests:
-    needs: [generate-matrix]
+    needs: [generate-matrix, compile]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -120,6 +120,13 @@ jobs:
           SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
           TEST_USER_MAIL: "testuser${{matrix.shard_index}}@axl.com"
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+      # Download pre-compiled base outputs
+      - name: Download compiled outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-output-base
+          path: ./
 
       - name: Enable KVM
         run: |
@@ -220,7 +227,7 @@ jobs:
   # Generate the coverage report using JaCoCo
   merge-coverage:
     runs-on: ubuntu-latest
-    needs: [android-tests, compile]
+    needs: [android-tests]
     steps:
       - uses: actions/checkout@v4
 
