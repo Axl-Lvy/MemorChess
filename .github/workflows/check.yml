@@ -9,11 +9,25 @@ on:
     - cron: 0 0 * * 1,4
 
 jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set up matrix
+        id: set-matrix
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const matrix = [0, 1, 2, 3];
+            return { matrix: JSON.stringify(matrix) };
+
   android-tests:
+    needs: generate-matrix
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard_index: [ 0,1,2,3 ]
+        shard_index: ${{fromJSON(needs.generate-matrix.outputs.matrix)}}
 
     steps:
       - name: Ensure tests checkbox is checked
@@ -133,7 +147,7 @@ jobs:
 
       - name: Rename coverage report
         run: |
-          mv composeApp/build/outputs/code_coverage/ \
+          mv composeApp/build/outputs/code_coverage/* \
           composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/
 
       - name: Upload coverage to GitHub
