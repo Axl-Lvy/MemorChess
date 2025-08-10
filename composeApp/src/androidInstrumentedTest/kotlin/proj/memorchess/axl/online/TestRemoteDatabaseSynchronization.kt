@@ -2,6 +2,7 @@ package proj.memorchess.axl.online
 
 import kotlin.test.Test
 import kotlin.test.assertContains
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
@@ -10,7 +11,6 @@ import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
-import proj.memorchess.axl.core.data.online.database.isSynced
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
@@ -103,10 +103,10 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   @Test
   fun testBothDatabasesUpdatedWhenSynced() = runTest {
     databaseSynchronizer.syncFromLocal()
-    assertTrue(isSynced)
+    assertTrue(databaseSynchronizer.isSynced)
 
     refDatabase.getAllNodes().forEach { globalDatabase.insertNodes(it) }
-    assertTrue(isSynced)
+    assertTrue(databaseSynchronizer.isSynced)
     assertDatabaseAreSame()
   }
 
@@ -120,7 +120,7 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
         "Local node: $it\nRemote node: ${remoteNodes.find { remoteIt -> remoteIt.positionIdentifier == it.positionIdentifier }}",
       )
     }
-    assertTrue(localNodes.size == remoteNodes.size)
+    assertEquals(localNodes.size, remoteNodes.size)
   }
 
   private fun PreviousAndNextMoves.isNotEmpty(): Boolean {

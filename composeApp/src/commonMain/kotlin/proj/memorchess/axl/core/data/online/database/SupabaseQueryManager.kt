@@ -96,6 +96,6 @@ class SupabaseQueryManager(
   }
 
   override fun isActive(): Boolean {
-    return authManager.user != null && isSynced
+    return authManager.user != null
   }
 }

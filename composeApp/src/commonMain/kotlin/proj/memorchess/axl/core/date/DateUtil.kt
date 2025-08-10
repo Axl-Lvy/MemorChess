@@ -8,6 +8,7 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.todayIn
 
@@ -90,5 +91,26 @@ object DateUtil {
    */
   fun LocalDateTime.truncateToSeconds(): LocalDateTime {
     return LocalDateTime(year, monthNumber, dayOfMonth, hour, minute, second, 0)
+  }
+
+  /**
+   * Compares this [LocalDateTime] with another [LocalDateTime] to check if they are almost equal.
+   *
+   * Two [LocalDateTime] instances are considered almost equal if their difference is less than or
+   * equal to the specified [tolerance] in seconds.
+   *
+   * @param other The [LocalDateTime] to compare with.
+   * @param tolerance The maximum difference in seconds for the two instances to be considered
+   *   almost equal. Default is 1 second.
+   * @return `true` if the difference between the two instances is within the [tolerance], `false`
+   *   otherwise.
+   */
+  fun LocalDateTime.isAlmostEqual(other: LocalDateTime?, tolerance: Long = 5): Boolean {
+    if (other == null) {
+      return false
+    }
+    val difference =
+      this.toInstant(TimeZone.UTC).epochSeconds - other.toInstant(TimeZone.UTC).epochSeconds
+    return difference.absoluteValue <= tolerance
   }
 }

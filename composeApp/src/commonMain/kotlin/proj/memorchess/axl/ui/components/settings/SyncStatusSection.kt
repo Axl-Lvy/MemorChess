@@ -22,7 +22,6 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
-import proj.memorchess.axl.core.data.online.database.isSynced
 
 @Composable
 fun SyncStatusSection(
@@ -49,11 +48,11 @@ fun SyncStatusSection(
       } else if (error != null) {
         Text("Error: $error", color = MaterialTheme.colorScheme.error)
       } else {
-        if (!isSynced) {
+        if (!databaseSynchronizer.isSynced) {
           Text("Local last update: " + (lastLocalUpdate?.toString() ?: "N/A"))
           Text("Remote last update: " + (lastRemoteUpdate?.toString() ?: "N/A"))
         }
-        if (isSynced) {
+        if (databaseSynchronizer.isSynced) {
           Text("Databases are synced", color = MaterialTheme.colorScheme.primary)
         } else {
           Text("Databases are NOT synced", color = MaterialTheme.colorScheme.error)

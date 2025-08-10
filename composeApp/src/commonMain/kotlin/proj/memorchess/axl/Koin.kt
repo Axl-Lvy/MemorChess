@@ -26,8 +26,8 @@ fun initKoinModules(): Array<Module> {
     singleOf(::BasicAuthManager) bind AuthManager::class
     single<DatabaseQueryManager>(named("local")) { LocalDatabaseHolder.getDatabase() }
     single<SupabaseQueryManager> { SupabaseQueryManager(get(), get()) }
-    single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local"))) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
+    single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local")), get()) }
   }
   return arrayOf(dataModule)
 }

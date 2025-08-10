@@ -9,6 +9,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.ComposeViewport
+import androidx.navigation.ExperimentalBrowserHistoryApi
+import androidx.navigation.bindToBrowserNavigation
 import kotlinx.browser.document
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
@@ -17,11 +19,12 @@ import proj.memorchess.axl.ui.components.buttons.SignInButton
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
-  ComposeViewport(document.body!!) {
+  ComposeViewport(document.body ?: return) {
     KoinApplication(application = { modules(*initKoinModules()) }) { NoAccountProtection() }
   }
 }
 
+@OptIn(ExperimentalBrowserHistoryApi::class)
 @Composable
 private fun NoAccountProtection(authManager: AuthManager = koinInject()) {
   if (authManager.user == null) {
@@ -29,6 +32,6 @@ private fun NoAccountProtection(authManager: AuthManager = koinInject()) {
       Box(contentAlignment = Alignment.Center) { SignInButton() }
     }
   } else {
-    App()
+    App { it.bindToBrowserNavigation() }
   }
 }

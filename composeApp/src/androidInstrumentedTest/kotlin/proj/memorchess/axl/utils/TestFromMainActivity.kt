@@ -37,7 +37,7 @@ import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
-import proj.memorchess.axl.ui.pages.navigation.Destination
+import proj.memorchess.axl.ui.pages.navigation.Route
 
 /**
  * This class contains a lot of ready-to-use methods for common UI interactions, do not hesitate to
@@ -59,7 +59,9 @@ abstract class TestFromMainActivity : KoinComponent {
     MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     ON_SUCCESS_DATE_FACTOR_SETTING.reset()
-    waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${Destination.EXPLORE.label}"))
+    waitUntilNodeExists(
+      hasTestTag("bottom_navigation_bar_item_${Route.ExploreRoute.DEFAULT.getLabel()}")
+    )
     runTest { resetDatabase() }
   }
 
@@ -72,12 +74,12 @@ abstract class TestFromMainActivity : KoinComponent {
    * displayed before returning.
    */
   fun goToExplore() {
-    clickOnDestinationButton(Destination.EXPLORE)
+    clickOnDestinationButton(Route.ExploreRoute.DEFAULT)
     composeTestRule.waitUntilAtLeastOneExists(
       hasClickLabel(getTileDescription("e2")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.EXPLORE.label}")
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.ExploreRoute.DEFAULT.getLabel()}")
   }
 
   /**
@@ -87,12 +89,12 @@ abstract class TestFromMainActivity : KoinComponent {
    * displayed before returning.
    */
   fun goToTraining() {
-    clickOnDestinationButton(Destination.TRAINING)
+    clickOnDestinationButton(Route.TrainingRoute)
     composeTestRule.waitUntilAtLeastOneExists(
       hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.TRAINING.label}")
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TrainingRoute.getLabel()}")
   }
 
   /**
@@ -102,8 +104,8 @@ abstract class TestFromMainActivity : KoinComponent {
    * displayed before returning.
    */
   fun goToSettings() {
-    clickOnDestinationButton(Destination.SETTINGS)
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.SETTINGS.label}")
+    clickOnDestinationButton(Route.SettingsRoute)
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.SettingsRoute.getLabel()}")
   }
 
   /**
@@ -113,8 +115,8 @@ abstract class TestFromMainActivity : KoinComponent {
    *
    * @param destination The destination to navigate to
    */
-  private fun clickOnDestinationButton(destination: Destination) {
-    waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${destination.label}"))
+  private fun clickOnDestinationButton(destination: Route) {
+    waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${destination.getLabel()}"))
       .performClick()
   }
 

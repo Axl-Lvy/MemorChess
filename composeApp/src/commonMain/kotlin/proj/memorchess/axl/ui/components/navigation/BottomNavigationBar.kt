@@ -26,13 +26,13 @@ fun BottomNavigationBar(
       .sortedBy { it.index }
       .forEach { item ->
         val isSelected by
-          remember(currentRoute) { derivedStateOf { currentRoute == item.destination.name } }
+          remember(currentRoute) { derivedStateOf { currentRoute == item.destination.getLabel() } }
         NavigationBarItem(
           selected = isSelected,
           icon = item.icon,
-          label = { Text(item.destination.label) },
-          onClick = { navController.navigate(item.destination.name) },
-          modifier = Modifier.testTag("bottom_navigation_bar_item_${item.destination.label}"),
+          label = { Text(item.destination.getLabel()) },
+          onClick = { navController.navigate(item.destination) },
+          modifier = Modifier.testTag("bottom_navigation_bar_item_${item.destination.getLabel()}"),
         )
       }
   }
