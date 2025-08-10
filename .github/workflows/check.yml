@@ -133,7 +133,7 @@ jobs:
 
       - name: Rename coverage report
         run: |
-          mv composeApp/build/outputs/code-coverage/ 
+          mv composeApp/build/outputs/code-coverage/ \
           composeApp/build/outputs/code-coverage/${{ matrix.shard_index }}/
 
       - name: Upload coverage to GitHub
