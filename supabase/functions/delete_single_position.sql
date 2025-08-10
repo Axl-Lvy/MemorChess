@@ -18,7 +18,7 @@ begin
              join positions p on up.position_id = p.id
     where up.user_id = user_id_input
       and p.fen_representation = fen_representation_input
-      and up.is_deleted = false;
+      and not up.is_deleted;
 
     -- If position not found or already deleted, return false
     if pos_record is null then
