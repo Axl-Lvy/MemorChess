@@ -67,15 +67,18 @@ abstract class GenerateSecretsTask : DefaultTask() {
       when {
         moduleProps.exists() -> moduleProps
         globalProps.exists() -> globalProps
-        else -> error("❌ No local.properties found for module: $projectNameValue")
+        else -> null
       }
 
-    if (!propsFile.exists()) {
-      error("local.properties file not found at ${propsFile.absolutePath}")
+    // If no local.properties file is found, properties will be empty
+    val properties = if (propsFile == null) {
+      Properties()
+    } else {
+      if (!propsFile.exists()) {
+        error("local.properties file not found at ${propsFile.absolutePath}")
+      }
+      Properties().apply { load(propsFile.inputStream()) }
     }
-
-    // Load properties from file
-    val properties = Properties().apply { load(propsFile.inputStream()) }
 
     // Create target directory and file
     val (secretsPackageDir, secretsFile) = getGeneratedFileName(projectDirValue)
