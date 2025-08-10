@@ -24,8 +24,8 @@ begin
     from user_positions up
              join positions p on up.position_id = p.id
     where up.user_id = user_id_input
-      and up.is_deleted = false
-      and p.fen_representation = fen_representation_input;
+      and p.fen_representation = fen_representation_input
+      and !up.is_deleted;
 
     if pos_record is null then
         return null;
@@ -46,7 +46,7 @@ begin
              join user_moves um on um.move_id = m.id
     where m.destination = pos_record.position_id
       and um.user_id = user_id_input
-      and um.is_deleted = false;
+      and !um.is_deleted;
 
     -- nextMoves
     select coalesce(jsonb_agg(jsonb_build_object(
@@ -63,7 +63,7 @@ begin
              join user_moves um on um.move_id = m.id
     where m.origin = pos_record.position_id
       and um.user_id = user_id_input
-      and um.is_deleted = false;
+      and !um.is_deleted;
 
     -- combine moves
     linked_moves := previous_moves || next_moves;
