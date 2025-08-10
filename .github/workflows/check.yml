@@ -12,8 +12,8 @@ jobs:
   generate-matrix:
     runs-on: ubuntu-latest
     outputs:
-      matrix-json: ${{ steps.set-matrix.outputs.matrix-json }}
-      num-processes: ${{ steps.set-num-processes.outputs.num_processes }}
+      matrix_json: ${{ steps.set-matrix.outputs.matrix_json }}
+      num_processes: ${{ steps.set-num-processes.outputs.num_processes }}
     steps:
       - id: set-num-processes
         run: |
@@ -25,7 +25,7 @@ jobs:
           # Create JSON array [0,1,...,N-1]
           matrix_json=$(seq 0 $((N - 1)) | paste -sd, -)
           matrix_json="[$matrix_json]"
-          echo "matrix-json=$matrix_json" >> $GITHUB_OUTPUT
+          echo "matrix_json=$matrix_json" >> $GITHUB_OUTPUT
   
 
   android-tests:
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard_index: ${{ fromJSON(needs.generate-matrix.outputs.matrix-json) }}
+        shard_index: ${{ fromJSON(needs.generate-matrix.outputs.matrix_json) }}
 
     steps:
       - name: Ensure tests checkbox is checked
@@ -134,7 +134,7 @@ jobs:
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          NUM_PROCESSES: ${{ needs.generate-matrix.outputs.num_processes }}
+          NUM_PROCESSES: ${{ needs.generate-matrix.outputs.num-processes }}
         with:
           api-level: 35
           target: default
