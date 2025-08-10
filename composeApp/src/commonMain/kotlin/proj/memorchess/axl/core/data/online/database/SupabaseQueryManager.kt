@@ -35,14 +35,12 @@ class SupabaseQueryManager(
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    val rpc = client.postgrest
-      .rpc<SinglePositionFunctionArg>(
+    val rpc =
+      client.postgrest.rpc<SinglePositionFunctionArg>(
         "fetch_single_position",
         SinglePositionFunctionArg(user.id, positionIdentifier.fenRepresentation),
       )
-    val result =
-      rpc
-        .decodeAsOrNull<PositionFetched>()
+    val result = rpc.decodeAsOrNull<PositionFetched>()
     return if (result == null || result.isDeleted) {
       null
     } else {
@@ -71,7 +69,10 @@ class SupabaseQueryManager(
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    client.postgrest.rpc("delete_all", SingleDateTimeFunctionArg(user.id, hardFrom?.toInstant(TimeZone.currentSystemDefault())))
+    client.postgrest.rpc(
+      "delete_all",
+      SingleDateTimeFunctionArg(user.id, hardFrom?.toInstant(TimeZone.currentSystemDefault())),
+    )
   }
 
   override suspend fun insertNodes(vararg positions: StoredNode) {
@@ -86,10 +87,12 @@ class SupabaseQueryManager(
   override suspend fun getLastUpdate(): LocalDateTime? {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    val rpc = client.postgrest
-      .rpc<SingleUserIdFunctionArg>("fetch_last_update", SingleUserIdFunctionArg(user.id))
-    return rpc
-      .decodeAsOrNull<Instant>()?.toLocalDateTime(TimeZone.currentSystemDefault())
+    val rpc =
+      client.postgrest.rpc<SingleUserIdFunctionArg>(
+        "fetch_last_update",
+        SingleUserIdFunctionArg(user.id),
+      )
+    return rpc.decodeAsOrNull<Instant>()?.toLocalDateTime(TimeZone.currentSystemDefault())
   }
 
   override fun isActive(): Boolean {
