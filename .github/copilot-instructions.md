@@ -74,4 +74,4 @@ src/
 - Structure tests by feature and follow the AAA (Arrange-Act-Assert) pattern. No need to specify comments with
   `// Arrange`, `// Act`, `// Assert` as the structure should be clear.
 - Test state flows and edge/error conditions.
-- Extend `UiTestFromMainActivity` for UI tests.
+- Extend `TestFromMainActivity` for UI tests.
