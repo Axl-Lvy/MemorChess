@@ -13,11 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix-json: ${{ steps.set-matrix.outputs.matrix-json }}
+      num-processes: ${{ steps.set-num-processes.outputs.num_processes }}
     steps:
+      - id: set-num-processes
+        run: |
+          echo "num_processes=10" >> $GITHUB_OUTPUT
+
       - id: set-matrix
         run: |
-          # Generate JSON array [1,2,...,10]
-          matrix_json=$(seq -s, 0 19)
+          N=${{ steps.set-num-processes.outputs.num_processes }}
+          # Create JSON array [0,1,...,N-1]
+          matrix_json=$(seq 0 $((N - 1)) | paste -sd, -)
           matrix_json="[$matrix_json]"
           echo "matrix-json=$matrix_json" >> $GITHUB_OUTPUT
   
@@ -52,11 +58,6 @@ jobs:
           SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
           TEST_USER_MAIL: "testuser${{matrix.shard_index}}@axl.com"
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-      #   SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
-      #   SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
-      #   SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
-      #   SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
-      #   SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
       - name: Enable KVM
         run: |
@@ -132,6 +133,8 @@ jobs:
 
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          NUM_PROCESSES: ${{ needs.generate-matrix.outputs.num_processes }}
         with:
           api-level: 35
           target: default
@@ -140,7 +143,7 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedCheck -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
+          script: ./gradlew connectedCheck -PshardIndex=${{ matrix.shard_index }} -PnumShards=$NUM_PROCESSES
 
       - name: Generate test coverage report
         run: ./gradlew jacocoTestReport
