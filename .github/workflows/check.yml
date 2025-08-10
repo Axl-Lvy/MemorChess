@@ -22,6 +22,7 @@ jobs:
             if (!body.includes('- [x] Run Android tests')) {
               core.setFailed('The "Run Android tests" box must be checked in the PR description.');
             }
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-java@v4
@@ -64,7 +65,7 @@ jobs:
 
       # Compile app without generating secrets
       - name: Compile common sources
-        run: ./gradlew --build-cache compileCommonMainKotlin compileKotlin compileJavaWithJavac
+        run: ./gradlew --build-cache compileDebugKotlinAndroid compileJavaWithJavac
 
       # Upload the partially compiled buildSrc and project
       - name: Upload compiled outputs
