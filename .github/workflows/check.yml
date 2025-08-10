@@ -65,7 +65,7 @@ jobs:
 
       # Compile app without generating secrets
       - name: Compile common sources
-        run: ./gradlew --build-cache compileDebugKotlinAndroid compileJavaWithJavac
+        run: ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac
 
       # Upload the partially compiled buildSrc and project
       - name: Upload compiled outputs
