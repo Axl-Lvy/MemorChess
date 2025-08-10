@@ -36,7 +36,7 @@ jobs:
           .github/scripts/update_properties.sh
         env:
           SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          TEST_USER_MAIL: ${{ secrets.TEST_USER_MAIL }}
+          TEST_USER_MAIL: "testuser${{matrix.shard_index}}@axl.com"
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
       #   SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
       #   SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
