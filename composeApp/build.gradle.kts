@@ -128,6 +128,16 @@ kotlin {
       }
     }
 
+    @SuppressWarnings("unused")
+    val nonJsMain by getting {
+      dependencies {
+        implementation(libs.androidx.room.runtime)
+        implementation(libs.androidx.room.compiler)
+        implementation(libs.sqlite.bundled)
+      }
+      configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
+    }
+
     androidMain.dependencies {
       implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
@@ -140,22 +150,12 @@ kotlin {
       implementation(libs.ktor.client.java)
     }
 
+    iosMain.dependencies { implementation(libs.ktor.client.darwin) }
+
     commonTest.dependencies {
       implementation(libs.kotlin.test)
       @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class) implementation(compose.uiTest)
     }
-
-    @SuppressWarnings("unused")
-    val nonJsMain by getting {
-      dependencies {
-        implementation(libs.androidx.room.runtime)
-        implementation(libs.androidx.room.compiler)
-        implementation(libs.sqlite.bundled)
-      }
-      configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
-    }
-
-    iosMain.dependencies { implementation(libs.ktor.client.darwin) }
   }
 }
 
@@ -170,6 +170,10 @@ android {
     versionCode = 1
     versionName = "1.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    testInstrumentationRunnerArguments["numShards"] =
+      project.findProperty("numShards")?.toString() ?: "1"
+    testInstrumentationRunnerArguments["shardIndex"] =
+      project.findProperty("shardIndex")?.toString() ?: "0"
   }
 
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
@@ -211,46 +215,59 @@ dependencies {
   debugImplementation(libs.androidx.ui.test.manifest)
 }
 
+// Task to apply Supabase SQL functions
+// Gradle cache is used to avoid reapplying functions if they haven't changed
 val applySupabaseFunctions by
   tasks.registering {
-    val supabaseDbLink = createSupabaseDbLink()
-    if (supabaseDbLink.isEmpty()) {
-      logger.error(
-        "Could not create Supabase database link. Please check your local.properties file."
-      )
-      return@registering
-    }
-
     val sqlDir = file("../supabase/functions")
-    val sqlFiles = sqlDir.listFiles()?.sortedBy { it.name } ?: emptyList()
 
-    if (sqlFiles.isEmpty()) {
-      logger.lifecycle("No SQL files found in the directory: ${sqlDir.absolutePath}")
-      return@registering
-    }
+    // Tell Gradle: these files are inputs
+    inputs.files(sqlDir.listFiles() ?: emptyArray<File>())
 
-    doFirst {
-      logger.lifecycle("Applying ${sqlFiles.size} SQL functions to Supabase database...")
-      sqlFiles.forEach { file -> logger.lifecycle("  - ${file.name}") }
-    }
+    // Tell Gradle: this file is the "result" marker
+    val outputMarker = layout.buildDirectory.file(".supabaseFunctionsApplied")
+    outputs.file(outputMarker)
+    val supabaseDbLink = createSupabaseDbLink()
 
     doLast {
+      if (supabaseDbLink.isEmpty()) {
+        logger.error(
+          "Could not create Supabase database link. Please check your local.properties file."
+        )
+        return@doLast
+      }
+
+      val sqlFiles = sqlDir.listFiles()?.sortedBy { it.name } ?: emptyList()
+
+      if (sqlFiles.isEmpty()) {
+        logger.lifecycle("No SQL files found in the directory: ${sqlDir.absolutePath}")
+        return@doLast
+      }
+
+      var allSucceeded = true
+
       sqlFiles.forEach { sqlFile ->
         val processBuilder =
           ProcessBuilder("psql", "-f", sqlFile.absolutePath, supabaseDbLink).apply {
             directory(sqlDir)
             redirectErrorStream(false)
           }
+
         val process = processBuilder.start()
         val exitCode = process.waitFor()
 
-        if (exitCode == 0) {
-          logger.lifecycle("Successfully applied: ${sqlFile.name}")
-        } else {
+        if (exitCode != 0) {
           logger.warn("Failed to apply: ${sqlFile.name} (exit code: $exitCode)")
+          allSucceeded = false
         }
       }
-      logger.lifecycle("Finished applying SQL functions to database.")
+
+      if (allSucceeded) {
+        outputMarker.get().asFile.writeText("Last applied at ${System.currentTimeMillis()}")
+        logger.lifecycle("Finished applying SQL functions to database.")
+      } else {
+        logger.warn("Some SQL files failed to apply.")
+      }
     }
   }
 
@@ -295,7 +312,7 @@ tasks.withType<KotlinWebpack>().configureEach {
 }
 
 // Test coverage configuration
-tasks.register<JacocoReport>("jacocoTestReport") {
+tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
 
@@ -331,11 +348,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
 
   // Use both possible locations for coverage execution data
   executionData.setFrom(
-    fileTree(layout.buildDirectory.get()) {
-      include("outputs/code_coverage/debugAndroidTest/connected/**/*.ec")
-      include("jacoco/testDebugUnitTest.exec")
-      include("coverage-report/androidTest/debug/connected/**/*.ec")
-    }
+    fileTree(layout.buildDirectory.get()) { include("outputs/code_coverage/**/*.ec") }
   )
 
   // Only run if coverage data exists

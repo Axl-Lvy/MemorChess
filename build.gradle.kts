@@ -27,7 +27,7 @@ sonar {
     // Coverage configuration - using absolute path from project root
     property(
       "sonar.coverage.jacoco.xmlReportPaths",
-      "${projectDir}/reports/jacoco/jacocoTestReport/jacocoTestReport.xml",
+      "${projectDir}/composeApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml",
     )
 
     property(

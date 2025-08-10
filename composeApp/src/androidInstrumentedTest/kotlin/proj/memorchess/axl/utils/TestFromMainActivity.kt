@@ -125,7 +125,7 @@ abstract class TestFromMainActivity : KoinComponent {
    *
    * @param tileName The algebraic notation of the tile (e.g., "e4", "h8")
    */
-  fun clickOnTile(tileName: String) {
+  open fun clickOnTile(tileName: String) {
     waitUntilTileAppears(tileName).performClick()
   }
 

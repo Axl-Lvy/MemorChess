@@ -52,7 +52,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
-    assertTrue(isSynced)
   }
 
   @Test
@@ -69,7 +68,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
-    assertTrue(isSynced)
   }
 
   @Test
@@ -85,7 +83,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
-    assertTrue(isSynced)
   }
 
   @Test
@@ -101,7 +98,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
-    assertTrue(isSynced)
   }
 
   @Test

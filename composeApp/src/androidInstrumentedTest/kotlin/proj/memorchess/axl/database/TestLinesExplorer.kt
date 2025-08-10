@@ -1,4 +1,4 @@
-package proj.memorchess.axl.game
+package proj.memorchess.axl.database
 
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -6,8 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredNode
@@ -19,14 +17,14 @@ import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
-import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.game.getGames
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
+import proj.memorchess.axl.utils.TestFromMainActivity
 
-class TestLinesExplorer : TestWithKoin() {
+class TestLinesExplorer : TestFromMainActivity() {
   private lateinit var interactionsManager: LinesExplorer
   private lateinit var moveFactory: RealMoveFactory
   private lateinit var checkChecker: CheckChecker
-  private val database by inject<DatabaseQueryManager>()
 
   private fun initialize() {
     runTest {
@@ -177,7 +175,7 @@ class TestLinesExplorer : TestWithKoin() {
     assertEquals(refGame.toString(), interactionsManager.game.toString())
   }
 
-  private fun clickOnTile(tile: String) {
+  override fun clickOnTile(tile: String) {
     clickOnTile(IBoard.getCoords(tile))
   }
 

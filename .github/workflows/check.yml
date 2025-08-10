@@ -9,8 +9,95 @@ on:
     - cron: 0 0 * * 1,4
 
 jobs:
-  android-tests:
+  compile:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+
+      - name: Cache Gradle wrapper
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-wrapper-
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/daemon
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Cache Kotlin compilation
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.kotlin
+            composeApp/build/kotlin
+            buildSrc/build/kotlin
+          key: ${{ runner.os }}-kotlin-${{ hashFiles('**/*.kt', '**/*.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-kotlin-
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+          gradle-home-cache-cleanup: true
+
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+      - name: Compile sources
+        run: ./gradlew assembleDebug compileDebugAndroidTestSources
+      - name: Upload compiled outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: composeApp-compiled-build
+          path: |
+            composeApp/build
+      - name: Upload compiled outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildSrc-compiled-build
+          path: |
+            buildSrc/build
+  # This job generates a matrix of shard indices for parallel execution.
+  # Github allows a maximum of 20 jobs to run in parallel.
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix_json: ${{ steps.set-matrix.outputs.matrix_json }}
+      num_processes: ${{ steps.set-num-processes.outputs.num_processes }}
+    steps:
+      - id: set-num-processes
+        run: |
+          echo "num_processes=15" >> $GITHUB_OUTPUT
+
+      - id: set-matrix
+        run: |
+          N=${{ steps.set-num-processes.outputs.num_processes }}
+          # Create JSON array [0,1,...,N-1]
+          matrix_json=$(seq 0 $((N - 1)) | paste -sd, -)
+          matrix_json="[$matrix_json]"
+          echo "matrix_json=$matrix_json" >> $GITHUB_OUTPUT
+  
+
+  android-tests:
+    needs: [generate-matrix, compile]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard_index: ${{ fromJSON(needs.generate-matrix.outputs.matrix_json) }}
 
     steps:
       - name: Ensure tests checkbox is checked
@@ -27,19 +114,26 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
+      - name: Download composeApp compiled outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: composeApp-compiled-build
+          path: composeApp/build
+
+      - name: Download buildSrc compiled outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: buildSrc-compiled-build
+          path: composeApp/build
+
       - name: Update local.properties
         run: |
           chmod +x .github/scripts/update_properties.sh
           .github/scripts/update_properties.sh
         env:
           SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          TEST_USER_MAIL: ${{ secrets.TEST_USER_MAIL }}
+          TEST_USER_MAIL: "testuser${{matrix.shard_index}}@axl.com"
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-      #   SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
-      #   SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
-      #   SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
-      #   SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
-      #   SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
       - name: Enable KVM
         run: |
@@ -115,6 +209,8 @@ jobs:
 
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          NUM_PROCESSES: ${{ needs.generate-matrix.outputs.num_processes }}
         with:
           api-level: 35
           target: default
@@ -123,22 +219,135 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedCheck
+          script: ./gradlew connectedCheck -PshardIndex=${{ matrix.shard_index }} -PnumShards=$NUM_PROCESSES
 
       - name: Generate test coverage report
         run: ./gradlew jacocoTestReport
 
+      - name: Rename coverage report
+        run: |
+          mv composeApp/build/outputs/code_coverage/* \
+          composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/
+
       - name: Upload coverage to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: |
-            composeApp/build/reports/jacoco/
-            composeApp/build/reports/androidTests/
-            composeApp/build/reports/coverage/
-            composeApp/build/outputs/code_coverage/
-            composeApp/build/tmp/kotlin-classes/debug/
-          retention-days: 30
+          name: coverage-report-${{ matrix.shard_index }}
+          path: composeApp/build/outputs/code_coverage/
+          retention-days: 1
+
+  merge-coverage:
+    runs-on: ubuntu-latest
+    needs: [android-tests, compile]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download composeApp compiled outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: composeApp-compiled-build
+          path: composeApp/build
+
+      - name: Download buildSrc compiled outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: buildSrc-compiled-build
+          path: composeApp/build
+
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          path: composeApp/build/outputs/code_coverage
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+
+      - name: Generate JaCoCo XML reports
+        run: |
+          ./gradlew jacocoAndroidTestReport
+
+      - name: Upload merged coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-merged
+          path: composeApp/build/reports/jacoco/
+
+  sonar-analysis:
+    name: Sonar analysis
+    runs-on: ubuntu-latest
+    needs: merge-coverage
+    steps:
+      - name: Ensure sonar checkbox is checked
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const body = pr.body || "";
+            if (!body.includes('- [x] Run Sonar analysis')) {
+              core.setFailed('The "Run Sonar analysis" box must be checked in the PR description.');
+            }
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+
+      # Download coverage artifacts from android-tests job
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report-merged
+          path: ./composeApp/build/reports/jacoco
+
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+
+      - name: Analyze with coverage
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "master" ]]; then
+            ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon \
+              -Dsonar.branch.name=master
+          else
+            ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
+          fi
 
   format-check:
     runs-on: ubuntu-latest
@@ -170,82 +379,3 @@ jobs:
 
       - name: Run formatter check
         run: ./gradlew ktfmtCheck
-
-  sonar-analysis:
-    name: Sonar analysis
-    runs-on: ubuntu-latest
-    needs: android-tests  # Wait for tests to complete and generate coverage
-    steps:
-      - name: Ensure sonar checkbox is checked
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const body = pr.body || "";
-            if (!body.includes('- [x] Run Sonar analysis')) {
-              core.setFailed('The "Run Sonar analysis" box must be checked in the PR description.');
-            }
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: 'zulu'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-          restore-keys: ${{ runner.os }}-gradle
-
-      # Download coverage artifacts from android-tests job
-      - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: ./
-
-      - name: Verify coverage file exists
-        run: |
-          echo "=== Downloaded artifact structure ==="
-          find . -name "*.xml" -path "*/jacoco/*" -type f
-          echo ""
-          echo "=== Checking specific locations ==="
-          if [ -f "reports/jacoco/jacocoTestReport/jacocoTestReport.xml" ]; then
-            echo "✅ Found JaCoCo XML report at: reports/jacoco/jacocoTestReport/jacocoTestReport.xml"
-            ls -la reports/jacoco/jacocoTestReport/jacocoTestReport.xml
-          else
-            echo "❌ JaCoCo XML report not found at expected location"
-          fi
-          echo ""
-          echo "=== All JaCoCo-related files ==="
-          find . -name "*jacoco*" -type f
-
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
-
-      - name: Analyze with coverage
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          if [[ "${GITHUB_REF_NAME}" == "master" ]]; then
-            ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon \
-              -Dsonar.branch.name=master
-          else
-            ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
-          fi
