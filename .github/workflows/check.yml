@@ -100,7 +100,7 @@ jobs:
 
   # Run Android tests in parallel using the generated matrix
   android-tests:
-    needs: [generate-matrix, compile]
+    needs: [generate-matrix]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -110,13 +110,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      # Download pre-compiled base outputs
-      - name: Download compiled outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-output-base
-          path: ./
 
       # Update secrets with the specific TEST_USER_MAIL for this shard
       - name: Update local.properties for this shard
@@ -319,6 +312,13 @@ jobs:
         with:
           name: coverage-report-merged
           path: ./composeApp/build/reports/jacoco
+
+      # Download pre-compiled base outputs
+      - name: Download compiled outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-output-base
+          path: ./
 
       - name: Cache buildSrc
         uses: actions/cache@v4
