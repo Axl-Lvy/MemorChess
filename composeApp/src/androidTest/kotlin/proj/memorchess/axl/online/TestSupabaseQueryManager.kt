@@ -1,5 +1,6 @@
 package proj.memorchess.axl.online
 
+import kotlin.test.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
@@ -14,7 +15,6 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.utils.Awaitility
 import proj.memorchess.axl.utils.TestWithAuthentication
-import kotlin.test.*
 
 class TestSupabaseQueryManager : TestWithAuthentication() {
 
