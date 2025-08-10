@@ -261,16 +261,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: merge-coverage
     steps:
-      - name: Ensure sonar checkbox is checked
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            const body = pr.body || "";
-            if (!body.includes('- [x] Run Sonar analysis')) {
-              core.setFailed('The "Run Sonar analysis" box must be checked in the PR description.');
-            }
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
