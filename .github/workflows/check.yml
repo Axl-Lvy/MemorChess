@@ -9,6 +9,7 @@ on:
     - cron: 0 0 * * 1,4
 
 jobs:
+  # Pre compile the project, but without secrets.
   compile:
     runs-on: ubuntu-latest
     steps:
@@ -95,6 +96,7 @@ jobs:
           matrix_json="[$matrix_json]"
           echo "matrix_json=$matrix_json" >> $GITHUB_OUTPUT
 
+  # Run Android tests in parallel using the generated matrix
   android-tests:
     needs: [generate-matrix, compile]
     runs-on: ubuntu-latest
@@ -210,6 +212,7 @@ jobs:
           path: composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/
           retention-days: 1
 
+  # Generate the coverage report using JaCoCo
   merge-coverage:
     runs-on: ubuntu-latest
     needs: [android-tests, compile]
@@ -257,6 +260,7 @@ jobs:
           name: coverage-report-merged
           path: composeApp/build/reports/jacoco/
 
+  # Perform SonarQube analysis with the coverage report
   sonar-analysis:
     name: Sonar analysis
     runs-on: ubuntu-latest
@@ -308,6 +312,7 @@ jobs:
             ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
           fi
 
+  # Check code formatting using ktfmt
   format-check:
     runs-on: ubuntu-latest
     steps:
