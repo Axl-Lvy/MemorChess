@@ -28,19 +28,19 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     return storedNodes[positionIdentifier.fenRepresentation]
   }
 
-  override suspend fun deletePosition(fen: String) {
-    storedNodes.remove(fen)
+  override suspend fun deletePosition(position: PositionIdentifier) {
+    storedNodes.remove(position.fenRepresentation)
   }
 
-  override suspend fun deleteMove(origin: String, move: String) {
-    if (storedNodes[origin] == null) {
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+    if (storedNodes[origin.fenRepresentation] == null) {
       return
     }
-    val storedNode = storedNodes[origin]!!
+    val storedNode = storedNodes[origin.fenRepresentation]!!
     val newNextMoves = storedNode.previousAndNextMoves.nextMoves.values.filter { it.move != move }
-    storedNodes[origin] =
+    storedNodes[origin.fenRepresentation] =
       StoredNode(
-        PositionIdentifier(origin),
+        PositionIdentifier(origin.fenRepresentation),
         PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
         storedNode.previousAndNextTrainingDate,
       )

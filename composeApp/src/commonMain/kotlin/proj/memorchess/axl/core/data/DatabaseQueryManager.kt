@@ -18,9 +18,9 @@ interface DatabaseQueryManager {
   /**
    * Deletes a specific position by its FEN.
    *
-   * @param fen The FEN identifying the position to delete.
+   * @param position The position to delete.
    */
-  suspend fun deletePosition(fen: String)
+  suspend fun deletePosition(position: PositionIdentifier)
 
   /**
    * Deletes a node
@@ -28,7 +28,7 @@ interface DatabaseQueryManager {
    * @param origin The origin of the move
    * @param move The name of move to delete
    */
-  suspend fun deleteMove(origin: String, move: String)
+  suspend fun deleteMove(origin: PositionIdentifier, move: String)
 
   /**
    * Deletes all positions and moves.

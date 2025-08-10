@@ -21,10 +21,11 @@ begin
            up.is_deleted,
            up.depth
     into pos_record
-    from "UserPosition" up
-             join "Position" p on up.position_id = p.id
+    from user_positions up
+             join positions p on up.position_id = p.id
     where up.user_id = user_id_input
-      and p.fen_representation = fen_representation_input;
+      and p.fen_representation = fen_representation_input
+      and not up.is_deleted;
 
     if pos_record is null then
         return null;
@@ -40,11 +41,12 @@ begin
             'updatedAt', um.updated_at
                               )), '[]'::jsonb)
     into previous_moves
-    from "Move" m
-             join "Position" po on po.id = m.origin
-             join "UserMove" um on um.move_id = m.id
+    from moves m
+             join positions po on po.id = m.origin
+             join user_moves um on um.move_id = m.id
     where m.destination = pos_record.position_id
-      and um.user_id = user_id_input;
+      and um.user_id = user_id_input
+      and not um.is_deleted;
 
     -- nextMoves
     select coalesce(jsonb_agg(jsonb_build_object(
@@ -56,11 +58,12 @@ begin
             'updatedAt', um.updated_at
                               )), '[]'::jsonb)
     into next_moves
-    from "Move" m
-             join "Position" pd on pd.id = m.destination
-             join "UserMove" um on um.move_id = m.id
+    from moves m
+             join positions pd on pd.id = m.destination
+             join user_moves um on um.move_id = m.id
     where m.origin = pos_record.position_id
-      and um.user_id = user_id_input;
+      and um.user_id = user_id_input
+      and not um.is_deleted;
 
     -- combine moves
     linked_moves := previous_moves || next_moves;

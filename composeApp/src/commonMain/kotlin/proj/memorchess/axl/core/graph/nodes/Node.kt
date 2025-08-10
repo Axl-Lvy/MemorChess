@@ -83,7 +83,7 @@ class Node(
       childNode.deleteFromPrevious(move)
     }
     NodeManager.clearNextMoves(position)
-    database.deletePosition(position.fenRepresentation)
+    database.deletePosition(position)
     previousAndNextMoves.nextMoves.clear()
     next = null
   }

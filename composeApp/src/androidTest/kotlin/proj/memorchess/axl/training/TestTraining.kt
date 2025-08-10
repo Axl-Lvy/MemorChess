@@ -16,11 +16,11 @@ import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.utils.Awaitility
-import proj.memorchess.axl.utils.UiTestFromMainActivity
+import proj.memorchess.axl.utils.TestFromMainActivity
 
 private const val BRAVO_TEXT = "Bravo !"
 
-class TestTraining : UiTestFromMainActivity() {
+class TestTraining : TestFromMainActivity() {
 
   @BeforeTest
   override fun setUp() {
