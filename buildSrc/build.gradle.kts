@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.daemon.common.configureDaemonJVMOptions
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `kotlin-dsl`
@@ -12,6 +13,24 @@ repositories {
 
 tasks.withType<JavaCompile>().configureEach {
   options.isIncremental = true
+}
+
+// Improve up-to-date checking
+tasks.withType<Copy>().configureEach {
+  includeEmptyDirs = false
+}
+
+// Optimize caching for buildSrc
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+
+// Update to use compilerOptions instead of kotlinOptions (fix for deprecation)
+tasks.withType<KotlinCompile>().configureEach {
+  compilerOptions {
+    jvmTarget.set(JvmTarget.JVM_17)
+  }
 }
 
 dependencies {
