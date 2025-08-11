@@ -70,14 +70,14 @@ jobs:
       - name: Compile common sources
         run: ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac
 
-      # Upload the partially compiled buildSrc and project
+      # Upload the partially compiled files
       - name: Upload compiled outputs
         uses: actions/upload-artifact@v4
         with:
           name: compiled-output-base
           path: |
             composeApp/build/
-            buildSrc/build
+            buildSrc/build/
           retention-days: 1
 
   # Generate the matrix for parallel test execution
