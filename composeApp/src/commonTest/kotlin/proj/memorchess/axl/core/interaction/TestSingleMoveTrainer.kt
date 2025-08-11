@@ -52,7 +52,7 @@ class TestSingleMoveTrainer : TestWithKoin {
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
 
-    runTest { testNode.save() }
+    testNode.save()
 
     ToastRendererHolder.init { _, _ -> }
     singleMoveTrainer = SingleMoveTrainer(testNode) {}

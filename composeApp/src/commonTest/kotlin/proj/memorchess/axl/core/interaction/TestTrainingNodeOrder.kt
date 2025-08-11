@@ -24,6 +24,7 @@ class TestTrainingNodeOrder : TestWithKoin {
     runTest {
       database.deleteAll(DateUtil.farInThePast())
       database.insertNodes(*TestDatabaseQueryManager.vienna().getAllNodes(true).toTypedArray())
+      nodeManager.resetCacheFromDataBase()
     }
   }
 

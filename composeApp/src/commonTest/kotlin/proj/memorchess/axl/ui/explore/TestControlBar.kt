@@ -21,17 +21,11 @@ import proj.memorchess.axl.ui.playMove
 @OptIn(ExperimentalTestApi::class)
 class TestControlBar : TestWithKoin {
 
-  private fun ComposeUiTest.setUp() {
-    setContent {
-      initializeApp { Explore() }
+  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+    runComposeUiTest {
+      setContent { initializeApp { Explore() } }
       playMove("e2", "e4")
       assertPieceMoved("e2", "e4", Pawn.white())
-    }
-  }
-
-  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runComposeUiTest {
-      setUp()
       block()
     }
   }
