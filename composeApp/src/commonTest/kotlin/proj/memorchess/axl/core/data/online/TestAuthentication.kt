@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.data.online
 
 import androidx.compose.ui.test.*
+import kotlin.test.*
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
@@ -15,7 +16,6 @@ import proj.memorchess.axl.ui.assertNodeWithTextDoesNotExists
 import proj.memorchess.axl.ui.assertNodeWithTextExists
 import proj.memorchess.axl.ui.pages.Settings
 import proj.memorchess.axl.ui.waitUntilNodeExists
-import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class TestAuthentication : TestWithKoin {
