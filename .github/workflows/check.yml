@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: 0 0 * * 1,4
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Pre compile the project, but without secrets.
   compile:
@@ -62,22 +66,18 @@ jobs:
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
 
-      # Compile just the non-secrets-dependent parts
-      - name: Pre-compile buildSrc
-        run: ./gradlew --build-cache :buildSrc:assemble
-
       # Compile app without generating secrets
       - name: Compile common sources
         run: ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac
 
-      # Upload the partially compiled buildSrc and project
+      # Upload the partially compiled files
       - name: Upload compiled outputs
         uses: actions/upload-artifact@v4
         with:
           name: compiled-output-base
           path: |
             composeApp/build/
-            buildSrc/build
+            buildSrc/build/
           retention-days: 1
 
   # Generate the matrix for parallel test execution
@@ -89,7 +89,7 @@ jobs:
     steps:
       - id: set-num-processes
         run: |
-          echo "num_processes=15" >> $GITHUB_OUTPUT
+          echo "num_processes=8" >> $GITHUB_OUTPUT
 
       - id: set-matrix
         run: |
@@ -169,9 +169,9 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-35-pixel-7-pro-${{ matrix.shard_index }}
+          key: avd-35-pixel-7-pro
           restore-keys: |
-            avd-35-pixel-7-pro-
+            avd-35-pixel-7-pro
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

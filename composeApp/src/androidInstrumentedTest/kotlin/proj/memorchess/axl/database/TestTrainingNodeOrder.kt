@@ -1,4 +1,4 @@
-package proj.memorchess.axl.game
+package proj.memorchess.axl.database
 
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -6,16 +6,13 @@ import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.LocalDatabaseHolder
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
-import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.utils.TestFromMainActivity
 
-class TestTrainingNodeOrder : TestWithKoin() {
-  val database by inject<DatabaseQueryManager>()
+class TestTrainingNodeOrder : TestFromMainActivity() {
 
   @BeforeTest
   fun setup() {
