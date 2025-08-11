@@ -69,6 +69,7 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
 
   /** The authenticated user. This class ensures this state is always up to date. */
   var user by mutableStateOf(supabaseClient.auth.currentUserOrNull())
+    private set
 
   /** Refresh [user] */
   private fun refreshUser() {
