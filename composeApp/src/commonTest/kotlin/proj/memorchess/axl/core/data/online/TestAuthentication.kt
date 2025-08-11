@@ -11,11 +11,8 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.ui.assertNodeWithTagExists
-import proj.memorchess.axl.ui.assertNodeWithTextDoesNotExists
-import proj.memorchess.axl.ui.assertNodeWithTextExists
+import proj.memorchess.axl.ui.*
 import proj.memorchess.axl.ui.pages.Settings
-import proj.memorchess.axl.ui.waitUntilNodeExists
 
 @OptIn(ExperimentalTestApi::class)
 class TestAuthentication : TestWithKoin {
@@ -24,7 +21,7 @@ class TestAuthentication : TestWithKoin {
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runComposeUiTest {
-      setContent { initializeApp { Settings() } }
+      setContent { initializeApp { ClassicScreen { Settings() } } }
       assertNodeWithTagExists("sign_in_button").performScrollTo()
       block()
     }

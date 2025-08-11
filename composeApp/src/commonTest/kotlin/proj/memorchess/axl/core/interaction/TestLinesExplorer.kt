@@ -20,7 +20,6 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.getGames
-import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
 class TestLinesExplorer : TestWithKoin {
   private lateinit var interactionsManager: LinesExplorer
@@ -34,7 +33,6 @@ class TestLinesExplorer : TestWithKoin {
       database.deleteAll(null)
       nodeManager.resetCacheFromDataBase()
     }
-    ToastRendererHolder.init { _, _ -> }
     interactionsManager = LinesExplorer()
     moveFactory = RealMoveFactory(interactionsManager.game.position)
     checkChecker = DummyCheckChecker(interactionsManager.game.position)

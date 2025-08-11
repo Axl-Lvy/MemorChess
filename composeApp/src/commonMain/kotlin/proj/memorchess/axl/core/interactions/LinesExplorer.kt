@@ -36,6 +36,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
   fun forward() {
     val firstChild = node.next
     if (firstChild != null) {
+      print("forward called on node: ${node.position}")
       val move =
         node.previousAndNextMoves.nextMoves.values.find { it.destination == firstChild.position }
       checkNotNull(move) { "No move found to go to ${firstChild.position}" }
