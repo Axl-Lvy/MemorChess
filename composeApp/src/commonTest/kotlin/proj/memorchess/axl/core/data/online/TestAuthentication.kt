@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.data.online
 
 import androidx.compose.ui.test.*
-import kotlin.test.*
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
@@ -11,8 +10,12 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.ui.*
+import proj.memorchess.axl.ui.assertNodeWithTagExists
+import proj.memorchess.axl.ui.assertNodeWithTextDoesNotExists
+import proj.memorchess.axl.ui.assertNodeWithTextExists
 import proj.memorchess.axl.ui.pages.Settings
+import proj.memorchess.axl.ui.waitUntilNodeExists
+import kotlin.test.*
 
 @OptIn(ExperimentalTestApi::class)
 class TestAuthentication : TestWithKoin {
@@ -45,10 +48,8 @@ class TestAuthentication : TestWithKoin {
 
   private fun signOut() {
     runTest {
-      if (authManager.user != null) {
-        authManager.signOut()
-        Awaitility.awaitUntilTrue { authManager.user == null }
-      }
+      authManager.signOut()
+      Awaitility.awaitUntilTrue { authManager.user == null }
     }
   }
 
