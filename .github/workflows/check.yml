@@ -222,7 +222,8 @@ jobs:
           retention-days: 1
 
   # Generate the coverage report using JaCoCo
-  merge-coverage:
+  sonar-analysis:
+    name: Sonar analysis
     runs-on: ubuntu-latest
     needs: [android-tests]
     steps:
@@ -273,18 +274,6 @@ jobs:
         run: |
           ./gradlew jacocoAndroidTestReport
 
-      - name: Upload merged coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report-merged
-          path: composeApp/build/reports/jacoco/
-
-  # Perform SonarQube analysis with the coverage report
-  sonar-analysis:
-    name: Sonar analysis
-    runs-on: ubuntu-latest
-    needs: merge-coverage
-    steps:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
