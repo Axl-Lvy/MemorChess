@@ -20,7 +20,6 @@ plugins {
   alias(libs.plugins.ksp)
   alias(libs.plugins.composeHotReload)
   id("jacoco")
-  id("secrets-generation")
 }
 
 kotlin {
@@ -300,10 +299,6 @@ private fun createSupabaseDbLink(): String {
   return "postgresql://$user:$password@$host:$port/$dbName"
 }
 
-tasks
-  .matching { it.name.contains("compile", ignoreCase = true) }
-  .configureEach { dependsOn(applySupabaseFunctions) }
-
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
 
 // Disable configuration cache for all tasks involving wasmJs
@@ -354,3 +349,9 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   // Only run if coverage data exists
   onlyIf { executionData.files.any { it.exists() } }
 }
+
+tasks
+  .matching { it.name.contains("compile", ignoreCase = true) }
+  .configureEach { dependsOn(applySupabaseFunctions) }
+
+apply(from = "secrets.gradle.kts")
