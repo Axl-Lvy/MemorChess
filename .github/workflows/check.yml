@@ -216,7 +216,7 @@ jobs:
       - name: Download all coverage reports
         uses: actions/download-artifact@v4
         with:
-          name: coverage-report-*
+          pattern: coverage-report-*
           path: composeApp/build/outputs/code_coverage/
 
       - name: Set up JDK 17
