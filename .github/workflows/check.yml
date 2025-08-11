@@ -140,7 +140,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Cache Gradle and AVD separately
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
         with:
@@ -170,8 +169,6 @@ jobs:
             ~/.android/avd/*
             ~/.android/adb*
           key: avd-35-pixel-7-pro
-          restore-keys: |
-            avd-35-pixel-7-pro
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
