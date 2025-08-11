@@ -195,7 +195,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report-${{ matrix.shard_index }}
-          path: composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/
+          path: composeApp/build/outputs/code_coverage/
           retention-days: 1
 
   # Generate the coverage report using JaCoCo
@@ -212,6 +212,12 @@ jobs:
         with:
           name: compiled-output-base
           path: ./composeApp/build/
+
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report-*
+          path: composeApp/build/outputs/code_coverage/
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
