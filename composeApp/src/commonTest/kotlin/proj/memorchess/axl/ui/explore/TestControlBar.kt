@@ -44,18 +44,19 @@ class TestControlBar : TestWithKoin {
     assertFalse { isBoardReversed() }
   }
 
-  @Test
-  fun testBack() = runTestFromSetup {
-    clickOnBack()
-    assertPieceMoved("e4", "e2", Pawn.white())
-    assertNextMoveExist("e4")
-  }
+  @Test fun testBack() = runTestFromSetup { playThenBack() }
 
   @Test
   fun testForward() = runTestFromSetup {
-    testBack()
+    playThenBack()
     clickOnNext()
     assertPieceMoved("e2", "e4", Pawn.white())
+  }
+
+  private fun ComposeUiTest.playThenBack() {
+    clickOnBack()
+    assertPieceMoved("e4", "e2", Pawn.white())
+    assertNextMoveExist("e4")
   }
 
   @Test
