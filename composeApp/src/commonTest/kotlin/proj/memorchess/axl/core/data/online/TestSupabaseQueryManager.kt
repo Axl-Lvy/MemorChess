@@ -1,22 +1,21 @@
-package proj.memorchess.axl.online
+package proj.memorchess.axl.core.data.online
 
 import kotlin.test.*
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
-import proj.memorchess.axl.utils.Awaitility
-import proj.memorchess.axl.utils.TestWithAuthentication
 
-class TestSupabaseQueryManager : TestWithAuthentication() {
+class TestSupabaseQueryManager : TestAuthenticated() {
 
   private val remoteDatabase by inject<SupabaseQueryManager>()
   private val refDatabase = TestDatabaseQueryManager.vienna()
@@ -24,8 +23,6 @@ class TestSupabaseQueryManager : TestWithAuthentication() {
   override fun setUp() {
     super.setUp()
     runTest {
-      authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
-      Awaitility.awaitUntilTrue { authManager.user != null }
       // Clear remote database to start with clean state
       remoteDatabase.deleteAll(DateUtil.farInThePast())
     }
@@ -133,10 +130,7 @@ class TestSupabaseQueryManager : TestWithAuthentication() {
         rootPosition,
         PreviousAndNextMoves(
           previousMoves = emptyList(),
-          nextMoves =
-            listOf(
-              proj.memorchess.axl.core.data.StoredMove(rootPosition, childPosition, "e4", true)
-            ),
+          nextMoves = listOf(StoredMove(rootPosition, childPosition, "e4", true)),
         ),
         PreviousAndNextDate.dummyToday(),
       )
@@ -201,7 +195,7 @@ class TestSupabaseQueryManager : TestWithAuthentication() {
   }
 
   @Test
-  fun testGetLastUpdate() = runBlocking {
+  fun testGetLastUpdate() = runTest {
     // Arrange
     val game = Game()
     val node =

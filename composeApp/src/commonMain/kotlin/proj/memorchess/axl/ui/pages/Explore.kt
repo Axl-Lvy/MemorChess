@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -39,7 +40,7 @@ import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.pages.navigation.Destination
 
 @Composable
-fun Explore() {
+fun Explore(nodeManager: NodeManager = koinInject()) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -47,7 +48,7 @@ fun Explore() {
         .testTag(Destination.EXPLORE.name),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    LoadingWidget({ NodeManager.resetCacheFromDataBase() }) {
+    LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
       val modifier = Modifier.fillMaxWidth()
       var inverted by remember { mutableStateOf(false) }
       val linesExplorer = remember { LinesExplorer() }

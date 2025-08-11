@@ -13,6 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
@@ -32,9 +35,9 @@ import proj.memorchess.axl.ui.util.BasicReloader
 
 /** Training board */
 @Composable
-fun TrainingBoardPage(modifier: Modifier = Modifier) {
+fun TrainingBoardPage(modifier: Modifier = Modifier, nodeManager: NodeManager = koinInject()) {
   val trainingBoard = remember { TrainingBoard() }
-  LoadingWidget({ NodeManager.resetCacheFromDataBase() }) {
+  LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
     trainingBoard.Draw(modifier = modifier)
   }
 }
@@ -43,13 +46,14 @@ fun TrainingBoardPage(modifier: Modifier = Modifier) {
  * TrainingBoard manages the state and logic for the training board UI in the application. It
  * handles move validation, scheduling, and reloading for the training session.
  */
-private class TrainingBoard {
+private class TrainingBoard : KoinComponent {
 
   private var state by mutableStateOf(TrainingBoardState.FROM_CORRECT_MOVE)
   private var daysInAdvance by mutableStateOf(0)
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
   private var previousPlayedMove: StoredMove? = null
+  private val nodeManager: NodeManager by inject()
 
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
@@ -57,11 +61,11 @@ private class TrainingBoard {
     val trainerReloader = remember { BasicReloader() }
     val numberOfNodesToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
-        NodeManager.getNumberOfNodesToTrain(daysInAdvance)
+        nodeManager.getNumberOfNodesToTrain(daysInAdvance)
       }
     val moveToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
-        NodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
+        nodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
       }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing) {

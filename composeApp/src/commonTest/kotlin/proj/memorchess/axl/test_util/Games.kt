@@ -1,4 +1,4 @@
-package proj.memorchess.axl.game
+package proj.memorchess.axl.test_util
 
 /** Retrieves a list of games defined by moves. */
 fun getGames(): List<List<String>> {

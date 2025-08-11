@@ -21,14 +21,14 @@ object LocalDatabaseHolder {
 
   /**
    * Retrieves the database. If it has not been initialized yet, it will be initialized with the
-   * default [getLocalDatabase] implementation.
+   * default [getPlatformSpecificLocalDatabase] implementation.
    */
   fun getDatabase(): DatabaseQueryManager {
     val finalDataBase = database
     if (finalDataBase != null) {
       return finalDataBase
     }
-    val newDataBase = getLocalDatabase()
+    val newDataBase = getPlatformSpecificLocalDatabase()
     database = newDataBase
     return newDataBase
   }

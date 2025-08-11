@@ -3,9 +3,6 @@ package proj.memorchess.axl.test_util
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import proj.memorchess.axl.game.getLondon
-import proj.memorchess.axl.game.getScandinavian
-import proj.memorchess.axl.game.getVienna
 
 /**
  * Test the [TestDatabaseQueryManager], most particularly the utility methods to create prefilled

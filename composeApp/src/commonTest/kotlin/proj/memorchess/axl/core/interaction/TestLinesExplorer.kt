@@ -1,12 +1,13 @@
-package proj.memorchess.axl.database
+package proj.memorchess.axl.core.interaction
 
-import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.LocalDatabaseHolder
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
@@ -17,19 +18,21 @@ import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
-import proj.memorchess.axl.game.getGames
+import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.getGames
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
-import proj.memorchess.axl.utils.TestFromMainActivity
 
-class TestLinesExplorer : TestFromMainActivity() {
+class TestLinesExplorer : TestWithKoin {
   private lateinit var interactionsManager: LinesExplorer
   private lateinit var moveFactory: RealMoveFactory
   private lateinit var checkChecker: CheckChecker
+  private val nodeManager: NodeManager by inject()
+  private val database: DatabaseQueryManager by inject()
 
   private fun initialize() {
     runTest {
       database.deleteAll(null)
-      NodeManager.resetCacheFromDataBase()
+      nodeManager.resetCacheFromDataBase()
     }
     ToastRendererHolder.init { _, _ -> }
     interactionsManager = LinesExplorer()
@@ -37,9 +40,10 @@ class TestLinesExplorer : TestFromMainActivity() {
     checkChecker = DummyCheckChecker(interactionsManager.game.position)
   }
 
-  @AfterTest
-  fun tearDown() {
-    LocalDatabaseHolder.reset()
+  @BeforeTest
+  override fun setUp() {
+    super.setUp()
+    initialize()
   }
 
   @Test
@@ -50,7 +54,6 @@ class TestLinesExplorer : TestFromMainActivity() {
 
   @Test
   fun testPrevious() {
-    initialize()
     clickOnTile("e2")
     clickOnTile("e4")
     interactionsManager.back()
@@ -74,7 +77,6 @@ class TestLinesExplorer : TestFromMainActivity() {
 
   @Test
   fun testSave() {
-    initialize()
     val startPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("e2")
     clickOnTile("e4")
@@ -90,7 +92,6 @@ class TestLinesExplorer : TestFromMainActivity() {
 
   @Test
   fun testSaveGoodThenBad() {
-    initialize()
     val startPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("e2")
     clickOnTile("e4")
@@ -110,7 +111,6 @@ class TestLinesExplorer : TestFromMainActivity() {
 
   @Test
   fun testSideMoveNotSaved() {
-    initialize()
     val startPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("e2")
     clickOnTile("e3")
@@ -175,7 +175,7 @@ class TestLinesExplorer : TestFromMainActivity() {
     assertEquals(refGame.toString(), interactionsManager.game.toString())
   }
 
-  override fun clickOnTile(tile: String) {
+  private fun clickOnTile(tile: String) {
     clickOnTile(IBoard.getCoords(tile))
   }
 

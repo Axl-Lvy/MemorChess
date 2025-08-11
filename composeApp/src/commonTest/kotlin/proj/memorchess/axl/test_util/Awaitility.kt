@@ -1,7 +1,7 @@
-package proj.memorchess.axl.utils
+package proj.memorchess.axl.test_util
 
 import kotlin.time.Duration
-import proj.memorchess.axl.test_util.TEST_TIMEOUT
+import proj.memorchess.axl.core.date.DateUtil
 
 /**
  * Utility class for handling asynchronous waiting in tests.
@@ -36,12 +36,11 @@ object Awaitility {
     condition: () -> Boolean,
   ) {
     val timeOutNano = timeout.inWholeNanoseconds
-    val startTime = System.nanoTime()
+    val startTime = DateUtil.now().nanosecond
     while (!condition()) {
-      if (System.nanoTime() - startTime > timeOutNano) {
+      if (DateUtil.now().nanosecond - startTime > timeOutNano) {
         throw AssertionError(failingMessage ?: "Timed out waiting for condition")
       }
-      Thread.sleep(100)
     }
   }
 }

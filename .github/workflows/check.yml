@@ -76,7 +76,7 @@ jobs:
     steps:
       - id: set-num-processes
         run: |
-          echo "num_processes=8" >> $GITHUB_OUTPUT
+          echo "num_processes=2" >> $GITHUB_OUTPUT
 
       - id: set-matrix
         run: |

@@ -1,4 +1,4 @@
-package proj.memorchess.axl.online
+package proj.memorchess.axl.core.data.online
 
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -6,18 +6,16 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
-import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.isSynced
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
-import proj.memorchess.axl.utils.Awaitility
-import proj.memorchess.axl.utils.TestWithAuthentication
 
-class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
+class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
   private val databaseSynchronizer by inject<DatabaseSynchronizer>()
   private val localDatabase by inject<DatabaseQueryManager>(named("local"))
@@ -30,8 +28,6 @@ class TestRemoteDatabaseSynchronization : TestWithAuthentication() {
   override fun setUp() {
     super.setUp()
     runTest {
-      authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
-      Awaitility.awaitUntilTrue { authManager.user != null }
       // Clear remote database to start with clean state
       remoteDatabase.deleteAll(DateUtil.farInThePast())
       localDatabase.deleteAll(DateUtil.farInThePast())

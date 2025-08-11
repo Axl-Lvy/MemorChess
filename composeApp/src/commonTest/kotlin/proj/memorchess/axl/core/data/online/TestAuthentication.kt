@@ -1,39 +1,52 @@
-package proj.memorchess.axl.online
+package proj.memorchess.axl.core.data.online
 
-import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextInput
-import kotlin.getValue
-import kotlin.test.AfterTest
-import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import androidx.compose.ui.test.*
+import kotlin.test.*
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.utils.Awaitility
-import proj.memorchess.axl.utils.TestFromMainActivity
+import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.assertNodeWithTagExists
+import proj.memorchess.axl.ui.assertNodeWithTextDoesNotExists
+import proj.memorchess.axl.ui.assertNodeWithTextExists
+import proj.memorchess.axl.ui.pages.Settings
+import proj.memorchess.axl.ui.waitUntilNodeExists
 
 @OptIn(ExperimentalTestApi::class)
-class TestAuthentication : TestFromMainActivity() {
+class TestAuthentication : TestWithKoin {
 
   val authManager by inject<AuthManager>()
 
+  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+    runComposeUiTest {
+      setContent { initializeApp { Settings() } }
+      assertNodeWithTagExists("sign_in_button").performScrollTo()
+      block()
+    }
+  }
+
+  @BeforeTest
   override fun setUp() {
     super.setUp()
-    signOut()
-    goToSettings()
-    assertNodeWithTagExists("sign_in_button").performScrollTo()
+    runTest {
+      signOut() // Ensure we start with a clean state
+    }
   }
 
   @AfterTest
-  fun signOut() {
+  override fun tearDown() {
+    super.tearDown()
+    runTest {
+      signOut() // Clean up after tests
+    }
+  }
+
+  private fun signOut() {
     runTest {
       if (authManager.user != null) {
         authManager.signOut()
@@ -43,14 +56,14 @@ class TestAuthentication : TestFromMainActivity() {
   }
 
   @Test
-  fun testSignInButtonShowsCorrectStateWhenSignedOut() {
+  fun testSignInButtonShowsCorrectStateWhenSignedOut() = runTestFromSetup {
     // Initially user should be signed out
     assertNodeWithTagExists("sign_in_button")
     assertNodeWithTextDoesNotExists("Signed in")
   }
 
   @Test
-  fun testSignInDialogCanBeCanceled() {
+  fun testSignInDialogCanBeCanceled() = runTestFromSetup {
     // Open the dialog
     assertNodeWithTagExists("sign_in_button").performClick()
     assertNodeWithTagExists("sign_in_confirmation_button")
@@ -62,11 +75,12 @@ class TestAuthentication : TestFromMainActivity() {
     assertNodeWithTextDoesNotExists("Email")
     assertNodeWithTextDoesNotExists("Password")
     assertNodeWithTextExists("Sign in")
-    assertTrue(authManager.user == null)
+    assertNull(authManager.user)
   }
 
-  @Test
-  fun testSuccessfulSignInWithValidCredentials() {
+  @Test fun testSuccessfulSignInWithValidCredentials() = runTestFromSetup { signInWorkflow() }
+
+  private fun ComposeUiTest.signInWorkflow() {
     // Open sign in dialog
     assertNodeWithTagExists("sign_in_button").performClick()
 
@@ -78,18 +92,18 @@ class TestAuthentication : TestFromMainActivity() {
     assertNodeWithTagExists("sign_in_confirmation_button").performClick()
 
     // Wait for dialog to close and verify signed in state
-    composeTestRule.waitUntilDoesNotExist(hasText("Email"), TEST_TIMEOUT.inWholeMilliseconds)
+    waitUntilDoesNotExist(hasText("Email"), TEST_TIMEOUT.inWholeMilliseconds)
     assertNodeWithTextExists("Signed in")
     assertNodeWithTextDoesNotExists("Sign in")
     assertFalse { KEEP_LOGGED_IN_SETTING.getValue() }
 
     // Verify user is actually signed in through AuthManager
-    assertTrue(authManager.user != null)
+    assertNotNull(authManager.user)
   }
 
   @Test
-  fun testKeepSession() {
-    testSuccessfulSignInWithValidCredentials()
+  fun testKeepSession() = runTestFromSetup {
+    signInWorkflow()
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("Yes").performClick()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
@@ -97,8 +111,8 @@ class TestAuthentication : TestFromMainActivity() {
   }
 
   @Test
-  fun testDoNotKeepSession() {
-    testSuccessfulSignInWithValidCredentials()
+  fun testDoNotKeepSession() = runTestFromSetup {
+    signInWorkflow()
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("No").performClick()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { !KEEP_LOGGED_IN_SETTING.getValue() }
@@ -106,8 +120,8 @@ class TestAuthentication : TestFromMainActivity() {
   }
 
   @Test
-  fun testKeepSessionDialogNotReopens() {
-    testSuccessfulSignInWithValidCredentials()
+  fun testKeepSessionDialogNotReopens() = runTestFromSetup {
+    signInWorkflow()
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("Yes").performClick()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
@@ -117,7 +131,7 @@ class TestAuthentication : TestFromMainActivity() {
   }
 
   @Test
-  fun testFailedSignInWithInvalidCredentials() {
+  fun testFailedSignInWithInvalidCredentials() = runTestFromSetup {
     // Open sign in dialog
     assertNodeWithTagExists("sign_in_button").performClick()
 
@@ -136,17 +150,13 @@ class TestAuthentication : TestFromMainActivity() {
     assertNodeWithTextExists("Password")
 
     // Verify user is still signed out
-    assertTrue(authManager.user == null)
+    assertNull(authManager.user)
   }
 
   @Test
-  fun testSignOut() {
+  fun testSignOut() = runTestFromSetup {
     // First sign in
     runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
-
-    // Navigate away and back to refresh the UI
-    goToExplore()
-    goToSettings()
 
     // Verify we still see "Signed in" and try to click it
     assertNodeWithTagExists("sign_in_button").performScrollTo().performClick()

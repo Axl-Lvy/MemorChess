@@ -3,11 +3,14 @@ package proj.memorchess.axl.core.interactions
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import com.diamondedge.logging.logging
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.ui.components.popup.info
 
 /**
@@ -16,7 +19,9 @@ import proj.memorchess.axl.ui.components.popup.info
  * @param game The game that is being played.
  * @constructor Creates an interaction manager from a game.
  */
-abstract class InteractionsManager(var game: Game) {
+abstract class InteractionsManager(var game: Game) : KoinComponent {
+
+  val nodeManager: NodeManager by inject()
 
   /** Coordinates of the tile that was clicked first. */
   private var firstTile: Pair<Int, Int>? = null

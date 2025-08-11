@@ -1,9 +1,14 @@
-package proj.memorchess.axl.training
+package proj.memorchess.axl.ui
 
+import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
@@ -14,21 +19,32 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.utils.Awaitility
-import proj.memorchess.axl.utils.TestFromMainActivity
+import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.pages.Training
 
 private const val BRAVO_TEXT = "Bravo !"
 
-class TestTraining : TestFromMainActivity() {
+@OptIn(ExperimentalTestApi::class)
+class TestTraining : TestWithKoin {
+
+  private val database: DatabaseQueryManager by inject()
 
   @BeforeTest
   override fun setUp() {
     super.setUp()
-    goToTraining()
+    runTest { resetDatabase() }
   }
 
-  override suspend fun resetDatabase() {
+  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+    runComposeUiTest {
+      setContent { initializeApp { Training() } }
+      block()
+    }
+  }
+
+  suspend fun resetDatabase() {
     // Delete all existing nodes
     database.deleteAll(null)
 
@@ -53,7 +69,7 @@ class TestTraining : TestFromMainActivity() {
   }
 
   @Test
-  fun testSucceedOfTraining() {
+  fun testSucceedOfTraining() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e4")
     assertNodeWithTextExists(BRAVO_TEXT)
@@ -71,8 +87,15 @@ class TestTraining : TestFromMainActivity() {
     }
   }
 
+  private fun getAllPositions(): List<StoredNode> {
+    var positions: List<StoredNode>? = null
+    runTest { positions = database.getAllNodes(false) }
+    checkNotNull(positions)
+    return positions
+  }
+
   @Test
-  fun testFailTraining() {
+  fun testFailTraining() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
     assertNodeWithTextExists(BRAVO_TEXT)
@@ -91,7 +114,7 @@ class TestTraining : TestFromMainActivity() {
   }
 
   @Test
-  fun testIncrementDay() {
+  fun testIncrementDay() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
     assertNodeWithTextExists(BRAVO_TEXT)
@@ -102,7 +125,7 @@ class TestTraining : TestFromMainActivity() {
   }
 
   @Test
-  fun testResetDayOnFail() {
+  fun testResetDayOnFail() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
     assertNodeWithTextExists(BRAVO_TEXT)
@@ -117,7 +140,7 @@ class TestTraining : TestFromMainActivity() {
   }
 
   @Test
-  fun testShowNextMove() {
+  fun testShowNextMove() = runTestFromSetup {
     // Insert a second move in the database
     val game = Game()
     val startPos = game.position.createIdentifier()
@@ -137,12 +160,6 @@ class TestTraining : TestFromMainActivity() {
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
 
-    // Save the node to the database
-    runTest { database.insertNodes(testNode) }
-
-    // Ensure we rebuild the training page
-    goToExplore()
-    goToTraining()
     try {
       assertTileContainsPiece("e4", Pawn.white())
       playMove("e7", "e5")
@@ -160,7 +177,7 @@ class TestTraining : TestFromMainActivity() {
   }
 
   @Test
-  fun testPromotion() {
+  fun testPromotion() = runComposeUiTest {
     runTest { database.deleteAll(null) }
     val game = Game(PositionIdentifier("k7/7P/8/8/8/8/8/7K w KQkq"))
     val startPosition = game.position.createIdentifier()
@@ -174,8 +191,7 @@ class TestTraining : TestFromMainActivity() {
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
     runTest { database.insertNodes(node) }
-    goToExplore()
-    goToTraining()
+    setContent { initializeApp { Training() } }
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("h7", "h8")
     promoteTo(Piece.QUEEN)

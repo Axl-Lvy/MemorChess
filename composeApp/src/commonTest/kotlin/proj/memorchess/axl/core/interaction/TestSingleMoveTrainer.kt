@@ -1,12 +1,12 @@
-package proj.memorchess.axl.game
+package proj.memorchess.axl.core.interaction
 
-import kotlin.test.AfterTest
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.LocalDatabaseHolder
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
@@ -17,25 +17,18 @@ import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
-import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
-class TestSingleMoveTrainer : TestWithKoin() {
+class TestSingleMoveTrainer : TestWithKoin {
   private lateinit var singleMoveTrainer: SingleMoveTrainer
   private lateinit var moveFactory: RealMoveFactory
   private lateinit var checkChecker: DummyCheckChecker
-  private lateinit var database: TestDatabaseQueryManager
+  private val database: DatabaseQueryManager by inject()
   private lateinit var testNode: StoredNode
 
-  @AfterTest
-  fun tearDown() {
-    LocalDatabaseHolder.reset()
-  }
-
-  private fun initialize() {
-    database = TestDatabaseQueryManager.empty()
-    LocalDatabaseHolder.init(database)
+  private fun initialize() = runTest {
+    database.deleteAll(DateUtil.farInThePast())
     // Create a test node with some moves
     val game = Game()
     val startPosition = game.position.createIdentifier()
@@ -79,7 +72,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
 
     // Verify the move was recognized as correct
     runTest {
-      val updatedNode = database.storedNodes[testNode.positionIdentifier.fenRepresentation]
+      val updatedNode = database.getPosition(testNode.positionIdentifier)
       // The next training date should be further in the future (success case)
       assertTrue(
         updatedNode!!.previousAndNextTrainingDate.nextDate > DateUtil.tomorrow(),
@@ -103,7 +96,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.storedNodes[testNode.positionIdentifier.fenRepresentation]
+      val updatedNode = database.getPosition(testNode.positionIdentifier)
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
@@ -128,7 +121,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.storedNodes[testNode.positionIdentifier.fenRepresentation]
+      val updatedNode = database.getPosition(testNode.positionIdentifier)
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
@@ -144,7 +137,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
   }
 
   private fun clickOnTile(tile: String) {
-    clickOnTile(IBoard.getCoords(tile))
+    clickOnTile(IBoard.Companion.getCoords(tile))
   }
 
   private fun clickOnTile(coords: Pair<Int, Int>) {

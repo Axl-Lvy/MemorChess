@@ -5,12 +5,10 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
-import proj.memorchess.axl.game.getLondon
-import proj.memorchess.axl.game.getScandinavian
-import proj.memorchess.axl.game.getVienna
 
 /**
  * A test in-memory database.
@@ -55,7 +53,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   }
 
   override suspend fun getLastUpdate(): LocalDateTime? {
-    throw UnsupportedOperationException("Not yet implemented")
+    return DateUtil.now()
   }
 
   override fun isActive(): Boolean {

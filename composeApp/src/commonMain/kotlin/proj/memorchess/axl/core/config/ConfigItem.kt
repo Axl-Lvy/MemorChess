@@ -1,7 +1,9 @@
 package proj.memorchess.axl.core.config
 
+import org.koin.core.component.KoinComponent
+
 /** A configuration item. */
-interface ConfigItem<T : Any> {
+interface ConfigItem<T : Any> : KoinComponent {
 
   /** Name of the item. It will be used to store the value in settings. */
   val name: String
