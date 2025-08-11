@@ -21,7 +21,7 @@ class TestAuthentication : TestWithKoin {
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runComposeUiTest {
-      setContent { initializeApp { ClassicScreen { Settings() } } }
+      setContent { initializeApp { Settings() } }
       assertNodeWithTagExists("sign_in_button").performScrollTo()
       block()
     }
@@ -77,27 +77,6 @@ class TestAuthentication : TestWithKoin {
 
   @Test fun testSuccessfulSignInWithValidCredentials() = runTestFromSetup { signInWorkflow() }
 
-  private fun ComposeUiTest.signInWorkflow() {
-    // Open sign in dialog
-    assertNodeWithTagExists("sign_in_button").performClick()
-
-    // Enter valid credentials from Secrets
-    waitUntilNodeExists(hasText("Email")).performTextInput(Secrets.testUserMail)
-    waitUntilNodeExists(hasText("Password")).performTextInput(Secrets.testUserPassword)
-
-    // Submit the form
-    assertNodeWithTagExists("sign_in_confirmation_button").performClick()
-
-    // Wait for dialog to close and verify signed in state
-    waitUntilDoesNotExist(hasText("Email"), TEST_TIMEOUT.inWholeMilliseconds)
-    assertNodeWithTextExists("Signed in")
-    assertNodeWithTextDoesNotExists("Sign in")
-    assertFalse { KEEP_LOGGED_IN_SETTING.getValue() }
-
-    // Verify user is actually signed in through AuthManager
-    assertNotNull(authManager.user)
-  }
-
   @Test
   fun testKeepSession() = runTestFromSetup {
     signInWorkflow()
@@ -125,6 +104,27 @@ class TestAuthentication : TestWithKoin {
     assertNodeWithTextExists("DARK").performClick()
     assertNodeWithTextExists("LIGHT").performClick()
     assertNodeWithTextDoesNotExists("Stay signed in?")
+  }
+
+  private fun ComposeUiTest.signInWorkflow() {
+    // Open sign in dialog
+    assertNodeWithTagExists("sign_in_button").performClick()
+
+    // Enter valid credentials from Secrets
+    waitUntilNodeExists(hasText("Email")).performTextInput(Secrets.testUserMail)
+    waitUntilNodeExists(hasText("Password")).performTextInput(Secrets.testUserPassword)
+
+    // Submit the form
+    assertNodeWithTagExists("sign_in_confirmation_button").performClick()
+
+    // Wait for dialog to close and verify signed in state
+    waitUntilDoesNotExist(hasText("Email"), TEST_TIMEOUT.inWholeMilliseconds)
+    assertNodeWithTextExists("Signed in")
+    assertNodeWithTextDoesNotExists("Sign in")
+    assertFalse { KEEP_LOGGED_IN_SETTING.getValue() }
+
+    // Verify user is actually signed in through AuthManager
+    assertNotNull(authManager.user)
   }
 
   @Test

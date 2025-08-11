@@ -54,6 +54,7 @@ class TestLinesExplorer : TestWithKoin {
   fun testPrevious() {
     clickOnTile("e2")
     clickOnTile("e4")
+    assertPawnOnE4()
     interactionsManager.back()
     assertPawnOnE2()
   }
