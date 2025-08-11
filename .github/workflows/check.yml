@@ -261,13 +261,6 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
 
-      # Download coverage artifacts from android-tests job
-      - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report-merged
-          path: ./composeApp/build/reports/jacoco
-
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
 
