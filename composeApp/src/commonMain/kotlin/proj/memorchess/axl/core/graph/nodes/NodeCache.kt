@@ -2,7 +2,6 @@ package proj.memorchess.axl.core.graph.nodes
 
 import com.diamondedge.logging.logging
 import kotlin.collections.set
-import kotlin.getValue
 import kotlinx.datetime.LocalDate
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
