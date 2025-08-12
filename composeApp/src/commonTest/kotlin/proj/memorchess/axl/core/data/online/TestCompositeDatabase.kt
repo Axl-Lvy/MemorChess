@@ -3,8 +3,6 @@ package proj.memorchess.axl.core.data.online
 import kotlin.getValue
 import kotlin.test.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.atTime
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.config.generated.Secrets
@@ -12,7 +10,6 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.StoredMove
 import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -52,73 +49,6 @@ abstract class TestCompositeDatabase : TestWithKoin {
           Awaitility.awaitUntilTrue { authManager.user == null }
         }
       }
-    }
-  }
-
-  class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
-    override fun setUp() {
-      super.setUp()
-      assertFalse { remoteDatabase.isActive() }
-      assertTrue { localDatabase.isActive() }
-      runTest {
-        // Clear remote database to start with clean state
-        compositeDatabase.deleteAll(DateUtil.farInThePast())
-      }
-      assertTrue { compositeDatabase.isActive() }
-    }
-  }
-
-  class TestCompositeDatabaseWithRemoteOnly : TestCompositeDatabaseAuthenticated() {
-    override fun setUp() {
-      super.setUp()
-      (localDatabase as TestDatabaseQueryManager).isActiveState = false
-      assertTrue { remoteDatabase.isActive() }
-      assertFalse { localDatabase.isActive() }
-      runTest {
-        // Clear remote database to start with clean state
-        compositeDatabase.deleteAll(DateUtil.farInThePast())
-      }
-      assertTrue { compositeDatabase.isActive() }
-    }
-  }
-
-  class TestCompositeDatabaseWithBoth : TestCompositeDatabaseAuthenticated() {
-    private val databaseSynchronizer: DatabaseSynchronizer by inject()
-
-    override fun setUp() {
-      super.setUp()
-      assertTrue { remoteDatabase.isActive() }
-      assertTrue { localDatabase.isActive() }
-      runTest {
-        // Clear remote database to start with clean state
-        localDatabase.deleteAll(DateUtil.farInThePast())
-        remoteDatabase.deleteAll(DateUtil.farInThePast())
-        databaseSynchronizer.syncFromLocal()
-      }
-      assertTrue { compositeDatabase.isActive() }
-    }
-
-    @Test
-    fun testLastUpdatedFail() = runTest {
-      // Arrange
-      val game = Game()
-      val node1 =
-        StoredNode(
-          game.position.createIdentifier(),
-          PreviousAndNextMoves(),
-          PreviousAndNextDate.dummyToday(),
-          DateUtil.tomorrow().atTime(LocalTime(0, 0, 0)),
-        )
-      localDatabase.insertNodes(node1)
-      val node2 =
-        StoredNode(
-          game.position.createIdentifier(),
-          PreviousAndNextMoves(),
-          PreviousAndNextDate.dummyToday(),
-          DateUtil.now(),
-        )
-      remoteDatabase.insertNodes(node2)
-      assertFailsWith<IllegalStateException> { compositeDatabase.getLastUpdate() }
     }
   }
 

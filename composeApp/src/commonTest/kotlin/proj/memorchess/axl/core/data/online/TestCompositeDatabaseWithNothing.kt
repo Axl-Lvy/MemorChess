@@ -18,7 +18,7 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 
-class TestNoOpCompositeDatabase : TestWithKoin {
+class TestCompositeDatabaseWithNothing : TestWithKoin {
 
   val compositeDatabase by inject<DatabaseQueryManager>()
   val localDatabase by inject<DatabaseQueryManager>(named("local"))

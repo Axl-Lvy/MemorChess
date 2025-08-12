@@ -1,4 +1,4 @@
-package proj.memorchess.axl
+package proj.memorchess.axl.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import kotlin.time.Duration
 import org.koin.compose.KoinApplication
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
+import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.navigation.BottomNavigationBar
 import proj.memorchess.axl.ui.components.navigation.NavigationBarItemContent
 import proj.memorchess.axl.ui.components.navigation.SideNavigationBar
