@@ -25,7 +25,7 @@ abstract class TestAuthenticated : TestWithKoin {
     super.tearDown()
   }
 
-  private fun ensureSignedOut() {
+  fun ensureSignedOut() {
     runTest {
       if (authManager.user != null) {
         authManager.signOut()

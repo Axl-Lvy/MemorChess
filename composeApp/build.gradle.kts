@@ -148,6 +148,8 @@ kotlin {
     jvmMain.dependencies {
       implementation(compose.desktop.currentOs)
       implementation(libs.ktor.client.java)
+      implementation(libs.slf4j.api)
+      implementation(libs.logback.classic)
     }
 
     iosMain.dependencies { implementation(libs.ktor.client.darwin) }

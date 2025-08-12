@@ -11,38 +11,44 @@ import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.icon_main
 import org.jetbrains.compose.resources.painterResource
-import proj.memorchess.axl.ui.pages.navigation.Destination
+import proj.memorchess.axl.ui.pages.navigation.Route
 
 private const val BUTTON_SUFFIX = " button"
 
 enum class NavigationBarItemContent(
-  val destination: Destination,
+  val destination: Route,
   val index: Int,
   val icon: @Composable () -> Unit,
 ) {
   Explore(
-    destination = Destination.EXPLORE,
+    destination = Route.ExploreRoute.DEFAULT,
     index = 0,
     icon = {
-      Icon(Icons.Rounded.Search, contentDescription = Destination.EXPLORE.label + BUTTON_SUFFIX)
+      Icon(
+        Icons.Rounded.Search,
+        contentDescription = Route.ExploreRoute.DEFAULT.getLabel() + BUTTON_SUFFIX,
+      )
     },
   ),
   Training(
-    destination = Destination.TRAINING,
+    destination = Route.TrainingRoute,
     index = 1,
     icon = {
       Icon(
         painterResource(Res.drawable.icon_main),
-        contentDescription = Destination.TRAINING.label + BUTTON_SUFFIX,
+        contentDescription = Route.TrainingRoute.getLabel() + BUTTON_SUFFIX,
         modifier = Modifier.size(32.dp),
       )
     },
   ),
   Settings(
-    destination = Destination.SETTINGS,
+    destination = Route.SettingsRoute,
     index = 2,
     icon = {
-      Icon(Icons.Rounded.Settings, contentDescription = Destination.SETTINGS.label + BUTTON_SUFFIX)
+      Icon(
+        Icons.Rounded.Settings,
+        contentDescription = Route.SettingsRoute.getLabel() + BUTTON_SUFFIX,
+      )
     },
   ),
 }

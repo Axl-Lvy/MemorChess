@@ -32,7 +32,7 @@ import proj.memorchess.axl.ui.components.buttons.SignInButton
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
 import proj.memorchess.axl.ui.components.settings.SyncStatusSection
-import proj.memorchess.axl.ui.pages.navigation.Destination
+import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
@@ -47,7 +47,7 @@ fun Settings(
 
   Box(
     modifier =
-      Modifier.testTag(Destination.SETTINGS.name)
+      Modifier.testTag(Route.SettingsRoute.getLabel())
         .padding(16.dp)
         .fillMaxWidth()
         .verticalScroll(rememberScrollState())

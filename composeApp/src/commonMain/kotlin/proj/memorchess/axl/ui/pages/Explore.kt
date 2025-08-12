@@ -25,6 +25,7 @@ import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -37,15 +38,15 @@ import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
 import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
-import proj.memorchess.axl.ui.pages.navigation.Destination
+import proj.memorchess.axl.ui.pages.navigation.Route
 
 @Composable
-fun Explore(nodeManager: NodeManager = koinInject()) {
+fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koinInject()) {
   Column(
     modifier =
       Modifier.fillMaxSize()
         .padding(horizontal = 2.dp, vertical = 8.dp)
-        .testTag(Destination.EXPLORE.name),
+        .testTag(Route.ExploreRoute.DEFAULT.getLabel()),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {

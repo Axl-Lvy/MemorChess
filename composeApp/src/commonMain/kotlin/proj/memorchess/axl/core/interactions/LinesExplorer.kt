@@ -3,11 +3,12 @@ package proj.memorchess.axl.core.interactions
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
-class LinesExplorer() : InteractionsManager(Game()) {
+class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(Game()) {
 
   /** The current node in the exploration tree. */
   private var node: Node

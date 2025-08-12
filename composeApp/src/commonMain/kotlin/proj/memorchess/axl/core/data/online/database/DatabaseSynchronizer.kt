@@ -7,6 +7,7 @@ import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
 
 /**
  * Class that manages the remote database, and help linking its structure with the local one.
@@ -21,9 +22,16 @@ class DatabaseSynchronizer(
   private val localDatabase: DatabaseQueryManager,
 ) {
 
+  /** Synced state of the database */
+  var isSynced by mutableStateOf(false)
+    private set
+
   val lastUpdates = mutableStateOf<Pair<LocalDateTime?, LocalDateTime?>?>(null)
 
   init {
+    if (!localDatabase.isActive()) {
+      isSynced = true
+    }
     authManager.registerListener {
       if (it is SessionStatus.Authenticated) {
         lastUpdates.value = getLastUpdates() ?: Pair(null, null)
@@ -40,11 +48,15 @@ class DatabaseSynchronizer(
     if (authManager.user == null) {
       return null
     }
+    if (!localDatabase.isActive()) {
+      isSynced = true
+      return Pair(null, remoteDatabase.getLastUpdate())
+    }
     val lastLocalUpdate = localDatabase.getLastUpdate()
 
     try {
       val lastRemoteUpdate = remoteDatabase.getLastUpdate()
-      isSynced = lastLocalUpdate == lastRemoteUpdate
+      isSynced = lastLocalUpdate?.isAlmostEqual(lastRemoteUpdate) ?: false
       return Pair(lastLocalUpdate, lastRemoteUpdate)
     } catch (e: IllegalStateException) {
       // If the user is not connected, we cannot retrieve the remote last update.
@@ -69,7 +81,3 @@ class DatabaseSynchronizer(
     isSynced = true
   }
 }
-
-/** Synced state of the database */
-var isSynced by mutableStateOf(false)
-  private set

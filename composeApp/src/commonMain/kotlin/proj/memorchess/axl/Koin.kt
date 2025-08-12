@@ -33,8 +33,8 @@ fun initKoinModules(): Array<Module> {
   val dataModule = module {
     single<DatabaseQueryManager>(named("local")) { getPlatformSpecificLocalDatabase() }
     single<SupabaseQueryManager> { SupabaseQueryManager(get(), get()) }
-    single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local"))) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
+    single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local")), get()) }
     single<Settings> { getPlatformSpecificSettings() }
   }
 

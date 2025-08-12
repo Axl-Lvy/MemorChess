@@ -1,7 +1,9 @@
 package proj.memorchess.axl.core.data
 
 import kotlinx.datetime.LocalDateTime
+import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
 
 /**
  * A composite database that queries multiple databases.
@@ -14,65 +16,80 @@ import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 class CompositeDatabase(
   private val remoteDatabase: SupabaseQueryManager,
   private val localDatabase: DatabaseQueryManager,
+  private val databaseSynchronizer: DatabaseSynchronizer,
 ) : DatabaseQueryManager {
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
     return if (localDatabase.isActive()) {
       localDatabase.getAllNodes(withDeletedOnes)
-    } else {
+    } else if (remoteDatabase.isActive()) {
       remoteDatabase.getAllNodes(withDeletedOnes)
+    } else {
+      throwNoActiveDatabaseException()
     }
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
     return if (localDatabase.isActive()) {
       localDatabase.getPosition(positionIdentifier)
-    } else {
+    } else if (remoteDatabase.isActive()) {
       remoteDatabase.getPosition(positionIdentifier)
+    } else {
+      throwNoActiveDatabaseException()
     }
   }
 
   override suspend fun deletePosition(position: PositionIdentifier) {
-    for (db in listOf(localDatabase, remoteDatabase)) {
-      if (db.isActive()) {
-        db.deletePosition(position)
-      }
+    if (localDatabase.isActive()) {
+      localDatabase.deletePosition(position)
+    }
+    if (remoteDatabase.isActive() && databaseSynchronizer.isSynced) {
+      remoteDatabase.deletePosition(position)
     }
   }
 
   override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
-    for (db in listOf(localDatabase, remoteDatabase)) {
-      if (db.isActive()) {
-        db.deleteMove(origin, move)
-      }
+    if (localDatabase.isActive()) {
+      localDatabase.deleteMove(origin, move)
+    }
+    if (remoteDatabase.isActive() && databaseSynchronizer.isSynced) {
+      remoteDatabase.deleteMove(origin, move)
     }
   }
 
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
-    for (db in listOf(localDatabase, remoteDatabase)) {
-      if (db.isActive()) {
-        db.deleteAll(hardFrom)
-      }
+    if (localDatabase.isActive()) {
+      localDatabase.deleteAll(hardFrom)
+    }
+    if (remoteDatabase.isActive() && databaseSynchronizer.isSynced) {
+      remoteDatabase.deleteAll(hardFrom)
     }
   }
 
   override suspend fun insertNodes(vararg positions: StoredNode) {
-    for (db in listOf(localDatabase, remoteDatabase)) {
-      if (db.isActive()) {
-        db.insertNodes(*positions)
-      }
+    if (localDatabase.isActive()) {
+      localDatabase.insertNodes(*positions)
+    }
+    if (remoteDatabase.isActive() && databaseSynchronizer.isSynced) {
+      remoteDatabase.insertNodes(*positions)
     }
   }
 
   override suspend fun getLastUpdate(): LocalDateTime? {
     val local = if (localDatabase.isActive()) localDatabase.getLastUpdate() else null
-    val remote = if (remoteDatabase.isActive()) remoteDatabase.getLastUpdate() else null
+    val remote =
+      if (remoteDatabase.isActive() && databaseSynchronizer.isSynced) remoteDatabase.getLastUpdate()
+      else null
     if (local != null && remote != null) {
-      check(local == remote)
+      check(local.isAlmostEqual(remote))
     }
     return local ?: remote
   }
 
   override fun isActive(): Boolean {
     return remoteDatabase.isActive() || localDatabase.isActive()
+  }
+
+  private fun throwNoActiveDatabaseException(): Nothing {
+    throw IllegalStateException("No active database found.")
   }
 }

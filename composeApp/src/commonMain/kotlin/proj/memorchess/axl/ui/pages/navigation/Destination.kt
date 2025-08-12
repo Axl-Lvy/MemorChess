@@ -1,26 +1,40 @@
 package proj.memorchess.axl.ui.pages.navigation
 
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.runtime.Composable
-import androidx.navigation.NavBackStackEntry
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import proj.memorchess.axl.ui.pages.Explore
-import proj.memorchess.axl.ui.pages.Settings
-import proj.memorchess.axl.ui.pages.Training
 
-/**
- * Represents a route.
- *
- * @property label How it should be displayed in the navigation bar
- * @property content Content of the destination
- */
-@Serializable
-enum class Destination(
-  val label: String,
-  val content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit,
-) {
-  @SerialName("Training") TRAINING("Training", { Training() }),
-  @SerialName("Explore") EXPLORE("Explore", { Explore() }),
-  @SerialName("Settings") SETTINGS("Settings", { Settings() }),
+/** Possible routes in the application. */
+sealed interface Route {
+
+  /** Returns the label for the route, used in navigation bars. */
+  fun getLabel(): String
+
+  /** Training route. */
+  @Serializable
+  @SerialName("training")
+  data object TrainingRoute : Route {
+    override fun getLabel(): String = "Training"
+  }
+
+  /**
+   * Explore route
+   *
+   * @property position Optional starting position.
+   */
+  @Serializable
+  @SerialName("explore")
+  data class ExploreRoute(@SerialName("position") val position: String? = null) : Route {
+    companion object {
+      val DEFAULT = ExploreRoute()
+    }
+
+    override fun getLabel(): String = "Explore"
+  }
+
+  /** Settings route. */
+  @Serializable
+  @SerialName("settings")
+  data object SettingsRoute : Route {
+    override fun getLabel(): String = "Settings"
+  }
 }

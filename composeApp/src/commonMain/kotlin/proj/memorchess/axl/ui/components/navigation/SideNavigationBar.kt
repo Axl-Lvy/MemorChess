@@ -22,12 +22,12 @@ fun SideNavigationBar(
   NavigationRail(modifier = modifier.fillMaxHeight()) {
     items.forEach { item ->
       val isSelected by
-        remember(currentRoute) { derivedStateOf { currentRoute == item.destination.name } }
+        remember(currentRoute) { derivedStateOf { currentRoute == item.destination.getLabel() } }
       NavigationRailItem(
         selected = isSelected,
         icon = item.icon,
-        label = { Text(item.destination.label) },
-        onClick = { navController.navigate(item.destination.name) },
+        label = { Text(item.destination.getLabel()) },
+        onClick = { navController.navigate(item.destination) },
       )
     }
   }
