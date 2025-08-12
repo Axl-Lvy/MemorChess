@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
-import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
 class LinesExplorer() : InteractionsManager(Game()) {
@@ -28,7 +27,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
       state = node.getState()
       callCallBacks()
     } else {
-      info("No previous move.")
+      toastRenderer.info("No previous move.")
     }
   }
 
@@ -45,7 +44,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
       state = node.getState()
       callCallBacks()
     } else {
-      info("No next move.")
+      toastRenderer.info("No next move.")
     }
   }
 
@@ -75,14 +74,14 @@ class LinesExplorer() : InteractionsManager(Game()) {
   suspend fun save() {
     node.saveGood()
     state = node.getState()
-    info("Saved")
+    toastRenderer.info("Saved")
   }
 
   /** Deletes the current node and reloads the explorer. */
   suspend fun delete() {
     node.delete()
     state = node.getState()
-    info("Deleted")
+    toastRenderer.info("Deleted")
     callCallBacks()
   }
 }

@@ -52,25 +52,29 @@ class TestLinesExplorer : TestWithKoin {
 
   @Test
   fun testPrevious() {
-    clickOnTile("e2")
-    clickOnTile("e4")
-    assertPawnOnE4()
-    interactionsManager.back()
-    assertPawnOnE2()
+    previousWorkflow()
   }
 
   @Test
   fun testForward() {
-    testPrevious()
+    previousWorkflow()
     interactionsManager.forward()
     assertPawnOnE4()
   }
 
   @Test
   fun testDelete() {
-    testPrevious()
+    previousWorkflow()
     runTest { interactionsManager.delete() }
     interactionsManager.forward()
+    assertPawnOnE2()
+  }
+
+  private fun previousWorkflow() {
+    clickOnTile("e2")
+    clickOnTile("e4")
+    assertPawnOnE4()
+    interactionsManager.back()
     assertPawnOnE2()
   }
 

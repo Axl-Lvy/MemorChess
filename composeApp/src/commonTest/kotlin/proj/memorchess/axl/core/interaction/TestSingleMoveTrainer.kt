@@ -18,7 +18,6 @@ import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.ui.components.popup.ToastRendererHolder
 
 class TestSingleMoveTrainer : TestWithKoin {
   private lateinit var singleMoveTrainer: SingleMoveTrainer
@@ -54,7 +53,6 @@ class TestSingleMoveTrainer : TestWithKoin {
 
     testNode.save()
 
-    ToastRendererHolder.init { _, _ -> }
     singleMoveTrainer = SingleMoveTrainer(testNode) {}
     moveFactory = RealMoveFactory(singleMoveTrainer.game.position)
     checkChecker = DummyCheckChecker(singleMoveTrainer.game.position)

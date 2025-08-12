@@ -3,17 +3,13 @@ package proj.memorchess.axl.ui.components.popup
 /** Popup renderer. */
 fun interface ToastRenderer {
   fun toast(message: String, type: ToastType)
+
+  fun info(message: String) {
+    toast(message, ToastType.INFO)
+  }
 }
 
 /** Retrieves the platform specific [ToastRenderer]. */
-expect fun getToastRenderer(): ToastRenderer
-
-fun popup(message: String, type: ToastType) {
-  ToastRendererHolder.get().toast(message, type)
-}
-
-fun info(message: String) {
-  popup(message, ToastType.INFO)
-}
+expect fun getPlatformSpecificToastRenderer(): ToastRenderer
 
 val NO_OP_RENDERER = ToastRenderer { _, _ -> }

@@ -17,6 +17,8 @@ import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
+import proj.memorchess.axl.ui.components.popup.NO_OP_RENDERER
+import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
 interface TestWithKoin : KoinComponent {
 
@@ -34,6 +36,7 @@ interface TestWithKoin : KoinComponent {
     return module {
       single<Settings> { TestSettings() }
       single<DatabaseQueryManager>(named("local")) { TestDatabaseQueryManager.empty() }
+      single<ToastRenderer> { NO_OP_RENDERER }
     }
   }
 

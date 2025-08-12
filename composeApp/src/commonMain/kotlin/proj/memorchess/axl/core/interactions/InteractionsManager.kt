@@ -11,7 +11,7 @@ import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.ui.components.popup.info
+import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
 /**
  * Class that handles clicks on the chess board.
@@ -22,6 +22,8 @@ import proj.memorchess.axl.ui.components.popup.info
 abstract class InteractionsManager(var game: Game) : KoinComponent {
 
   val nodeManager: NodeManager by inject()
+
+  val toastRenderer: ToastRenderer by inject()
 
   /** Coordinates of the tile that was clicked first. */
   private var firstTile: Pair<Int, Int>? = null
@@ -65,7 +67,7 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
           afterPlayMove(move)
         }
       } catch (e: IllegalMoveException) {
-        info(e.message.toString())
+        toastRenderer.info(e.message.toString())
       }
       firstTile = null
     } else if (
