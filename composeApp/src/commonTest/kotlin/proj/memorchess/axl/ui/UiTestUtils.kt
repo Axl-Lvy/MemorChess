@@ -32,62 +32,7 @@ import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
-import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.util.hasClickLabel
-
-// NAVIGATION
-
-/**
- * Navigates to the Explore screen.
- *
- * This method clicks on the Explore navigation button and verifies that the Explore screen is
- * displayed before returning.
- */
-fun ComposeUiTest.goToExplore() {
-  clickOnDestinationButton(Destination.EXPLORE)
-  waitUntilAtLeastOneExists(
-    hasClickLabel(getTileDescription("e2")),
-    TEST_TIMEOUT.inWholeMilliseconds,
-  )
-  assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.EXPLORE.label}")
-}
-
-/**
- * Navigates to the Training screen.
- *
- * This method clicks on the Training navigation button and verifies that the Training screen is
- * displayed before returning.
- */
-fun ComposeUiTest.goToTraining() {
-  clickOnDestinationButton(Destination.TRAINING)
-  waitUntilAtLeastOneExists(
-    hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
-    TEST_TIMEOUT.inWholeMilliseconds,
-  )
-  assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.TRAINING.label}")
-}
-
-/**
- * Navigates to the Settings screen.
- *
- * This method clicks on the Settings navigation button and verifies that the Settings screen is
- * displayed before returning.
- */
-fun ComposeUiTest.goToSettings() {
-  clickOnDestinationButton(Destination.SETTINGS)
-  assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.SETTINGS.label}")
-}
-
-/**
- * Clicks on a navigation button for the specified destination.
- *
- * This method waits for the navigation button to be visible, then clicks on it.
- *
- * @param destination The destination to navigate to
- */
-private fun ComposeUiTest.clickOnDestinationButton(destination: Destination) {
-  waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${destination.label}")).performClick()
-}
 
 // BOARD
 

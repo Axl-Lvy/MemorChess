@@ -73,7 +73,13 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
 
   /** Refresh [user] */
   private fun refreshUser() {
+    val wasNull = user == null
     user = supabaseClient.auth.currentUserOrNull()
+    if (user != null && wasNull) {
+      LOGGER.i { "User signed in: ${user?.email}" }
+    } else if (user == null && !wasNull) {
+      LOGGER.i { "User signed out" }
+    }
     updateSavedTokens()
   }
 

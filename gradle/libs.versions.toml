@@ -27,7 +27,8 @@ supabase = "3.2.0"
 ktor = "3.2.0"
 material3-adaptive = "1.1.2"
 composeHotReload = "1.0.0-beta04"
-mockative = "3.0.1"
+logback = "1.5.16"
+slf4jApi = "2.0.16"
 
 [libraries]
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
@@ -60,7 +61,8 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
-mockative = {module = "io.mockative:mockative", version.ref = "mockative"}
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4jApi" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -74,4 +76,3 @@ room = { id = "androidx.room", version.ref = "androidx-room" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 sonar = { id = "org.sonarqube", version.ref = "sonar" }
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload"}
-mockative = { id = "io.mockative", version.ref = "mockative"}

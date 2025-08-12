@@ -11,7 +11,7 @@ import kotlin.test.Test
 import org.junit.Rule
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getTileDescription
-import proj.memorchess.axl.ui.pages.navigation.Destination
+import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.util.hasClickLabel
 
 @OptIn(ExperimentalTestApi::class)
@@ -24,28 +24,28 @@ class TestNavigation {
 
   @Test
   fun testGoToExplore() {
-    this.clickOnDestinationButton(Destination.EXPLORE)
+    this.clickOnDestinationButton(Route.ExploreRoute.DEFAULT)
     composeTestRule.waitUntilAtLeastOneExists(
       hasClickLabel(getTileDescription("e2")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.EXPLORE.label}")
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.ExploreRoute.DEFAULT.getLabel()}")
   }
 
   @Test
   fun testGoToTraining() {
-    this.clickOnDestinationButton(Destination.TRAINING)
+    this.clickOnDestinationButton(Route.TrainingRoute)
     composeTestRule.waitUntilAtLeastOneExists(
       hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.TRAINING.label}")
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TrainingRoute.getLabel()}")
   }
 
   @Test
   fun testGoToSettings() {
-    this.clickOnDestinationButton(Destination.SETTINGS)
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Destination.SETTINGS.label}")
+    this.clickOnDestinationButton(Route.SettingsRoute)
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.SettingsRoute.getLabel()}")
   }
 
   /**
@@ -55,8 +55,8 @@ class TestNavigation {
    *
    * @param destination The destination to navigate to
    */
-  private fun clickOnDestinationButton(destination: Destination) {
-    waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${destination.label}"))
+  private fun clickOnDestinationButton(destination: Route) {
+    waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${destination.getLabel()}"))
       .performClick()
   }
 

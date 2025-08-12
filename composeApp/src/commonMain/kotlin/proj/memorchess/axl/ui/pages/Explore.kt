@@ -24,8 +24,8 @@ import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import org.jetbrains.compose.resources.stringResource
-import proj.memorchess.axl.core.data.PositionIdentifier
 import org.koin.compose.koinInject
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.NodeManager

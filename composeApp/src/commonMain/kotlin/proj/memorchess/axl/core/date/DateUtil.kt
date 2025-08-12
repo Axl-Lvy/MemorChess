@@ -113,4 +113,24 @@ object DateUtil {
       this.toInstant(TimeZone.UTC).epochSeconds - other.toInstant(TimeZone.UTC).epochSeconds
     return difference.absoluteValue <= tolerance
   }
+
+  /**
+   * Returns the maximum of two [LocalDateTime] instances.
+   *
+   * If one of the instances is `null`, it returns the other instance. If both are `null`, it
+   * returns `null`. If both are non-null, it returns the later date.
+   *
+   * @param a First [LocalDateTime] instance
+   * @param b Second [LocalDateTime] instance
+   * @return The later [LocalDateTime], or `null` if both are `null`
+   */
+  fun maxOf(a: LocalDateTime?, b: LocalDateTime?): LocalDateTime? {
+    return if (a == null) {
+      b
+    } else if (b == null) {
+      a
+    } else {
+      if (a > b) a else b
+    }
+  }
 }

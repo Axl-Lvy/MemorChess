@@ -17,17 +17,33 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
  */
 class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   val storedNodes = mutableMapOf<String, StoredNode>()
+  var isActiveState = true
 
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
-    return storedNodes.values.toList()
+    return storedNodes.values.filter { withDeletedOnes || !it.isDeleted }.toList()
   }
 
   override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
-    return storedNodes[positionIdentifier.fenRepresentation]
+    val node = storedNodes[positionIdentifier.fenRepresentation]
+    return if (node?.isDeleted == false) {
+      node
+    } else {
+      null
+    }
   }
 
   override suspend fun deletePosition(position: PositionIdentifier) {
-    storedNodes.remove(position.fenRepresentation)
+    val node = storedNodes[position.fenRepresentation]
+    if (node != null) {
+      storedNodes[position.fenRepresentation] =
+        StoredNode(
+          node.positionIdentifier,
+          node.previousAndNextMoves,
+          node.previousAndNextTrainingDate,
+          DateUtil.now(),
+          true,
+        )
+    }
   }
 
   override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
@@ -35,13 +51,44 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       return
     }
     val storedNode = storedNodes[origin.fenRepresentation]!!
-    val newNextMoves = storedNode.previousAndNextMoves.nextMoves.values.filter { it.move != move }
+    var destination: PositionIdentifier? = null
+    val newNextMoves =
+      storedNode.previousAndNextMoves.nextMoves.values.filter {
+        return@filter if (it.move == move) {
+          destination = it.destination
+          false
+        } else {
+          true
+        }
+      }
     storedNodes[origin.fenRepresentation] =
       StoredNode(
         PositionIdentifier(origin.fenRepresentation),
         PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
         storedNode.previousAndNextTrainingDate,
+        storedNode.updatedAt,
       )
+    if (destination != null) {
+      val destinationNode = storedNodes[destination.fenRepresentation]
+      if (destinationNode != null) {
+        val newPreviousMoves =
+          destinationNode.previousAndNextMoves.previousMoves.values.filter { it.move != move }
+        if (newPreviousMoves.isEmpty()) {
+          storedNodes.remove(destination.fenRepresentation)
+        } else {
+          storedNodes[destination.fenRepresentation] =
+            StoredNode(
+              destinationNode.positionIdentifier,
+              PreviousAndNextMoves(
+                newPreviousMoves,
+                destinationNode.previousAndNextMoves.nextMoves.values,
+              ),
+              destinationNode.previousAndNextTrainingDate,
+              destinationNode.updatedAt,
+            )
+        }
+      }
+    }
   }
 
   override suspend fun deleteAll(hardFrom: LocalDateTime?) {
@@ -53,11 +100,17 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   }
 
   override suspend fun getLastUpdate(): LocalDateTime? {
-    return DateUtil.now()
+    val node = storedNodes.values.maxOfOrNull { it.updatedAt }
+    val move =
+      storedNodes.values
+        .map { (it.previousAndNextMoves.previousMoves + it.previousAndNextMoves.nextMoves).values }
+        .flatten()
+        .maxOfOrNull { it.updatedAt }
+    return DateUtil.maxOf(node, move)
   }
 
   override fun isActive(): Boolean {
-    return true
+    return isActiveState
   }
 
   /**

@@ -1,7 +1,19 @@
-package proj.memorchess.axl.core.data.online
+package proj.memorchess.axl.ui
 
-import androidx.compose.ui.test.*
-import kotlin.test.*
+import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.waitUntilDoesNotExist
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
@@ -11,11 +23,7 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.ui.assertNodeWithTagExists
-import proj.memorchess.axl.ui.assertNodeWithTextDoesNotExists
-import proj.memorchess.axl.ui.assertNodeWithTextExists
 import proj.memorchess.axl.ui.pages.Settings
-import proj.memorchess.axl.ui.waitUntilNodeExists
 
 @OptIn(ExperimentalTestApi::class)
 class TestAuthentication : TestWithKoin {
@@ -84,7 +92,9 @@ class TestAuthentication : TestWithKoin {
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("Yes").performClick()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isNotEmpty() }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
+      AUTH_REFRESH_TOKEN_SETTINGS.getValue().isNotEmpty()
+    }
   }
 
   @Test
@@ -93,7 +103,9 @@ class TestAuthentication : TestWithKoin {
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("No").performClick()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { !KEEP_LOGGED_IN_SETTING.getValue() }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isEmpty() }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
+      AUTH_REFRESH_TOKEN_SETTINGS.getValue().isEmpty()
+    }
   }
 
   @Test
