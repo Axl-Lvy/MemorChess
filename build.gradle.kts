@@ -14,6 +14,7 @@ plugins {
 // Load properties from local.properties
 val localProperties = java.util.Properties()
 val localPropertiesFile = rootProject.file("local.properties")
+
 if (localPropertiesFile.exists()) {
   localProperties.load(localPropertiesFile.inputStream())
 }
@@ -27,7 +28,8 @@ sonar {
     // Coverage configuration - using absolute path from project root
     property(
       "sonar.coverage.jacoco.xmlReportPaths",
-      "${projectDir}/composeApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml",
+      "${projectDir}/composeApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml," +
+        "${projectDir}/composeApp/build/reports/kover/reportJvm.xml",
     )
 
     property(
