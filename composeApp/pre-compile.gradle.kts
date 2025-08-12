@@ -131,62 +131,61 @@ tasks
 
 tasks.matching { it.name == "clean" }.configureEach { dependsOn(cleanSecretsTask) }
 
-
 // Task to apply Supabase SQL functions
 // Gradle cache is used to avoid reapplying functions if they haven't changed
 val applySupabaseFunctions by
-tasks.registering {
-  val sqlDir = file("../supabase/functions")
+  tasks.registering {
+    val sqlDir = file("../supabase/functions")
 
-  // Tell Gradle: these files are inputs
-  inputs.files(sqlDir.listFiles() ?: emptyArray<File>())
+    // Tell Gradle: these files are inputs
+    inputs.files(sqlDir.listFiles() ?: emptyArray<File>())
 
-  // Tell Gradle: this file is the "result" marker
-  val outputMarker = layout.buildDirectory.file(".supabaseFunctionsApplied")
-  outputs.file(outputMarker)
-  val supabaseDbLink = createSupabaseDbLink()
+    // Tell Gradle: this file is the "result" marker
+    val outputMarker = layout.buildDirectory.file(".supabaseFunctionsApplied")
+    outputs.file(outputMarker)
+    val supabaseDbLink = createSupabaseDbLink()
 
-  doLast {
-    if (supabaseDbLink.isEmpty()) {
-      logger.error(
-        "Could not create Supabase database link. Please check your local.properties file."
-      )
-      return@doLast
-    }
+    doLast {
+      if (supabaseDbLink.isEmpty()) {
+        logger.error(
+          "Could not create Supabase database link. Please check your local.properties file."
+        )
+        return@doLast
+      }
 
-    val sqlFiles = sqlDir.listFiles()?.sortedBy { it.name } ?: emptyList()
+      val sqlFiles = sqlDir.listFiles()?.sortedBy { it.name } ?: emptyList()
 
-    if (sqlFiles.isEmpty()) {
-      logger.lifecycle("No SQL files found in the directory: ${sqlDir.absolutePath}")
-      return@doLast
-    }
+      if (sqlFiles.isEmpty()) {
+        logger.lifecycle("No SQL files found in the directory: ${sqlDir.absolutePath}")
+        return@doLast
+      }
 
-    var allSucceeded = true
+      var allSucceeded = true
 
-    sqlFiles.forEach { sqlFile ->
-      val processBuilder =
-        ProcessBuilder("psql", "-f", sqlFile.absolutePath, supabaseDbLink).apply {
-          directory(sqlDir)
-          redirectErrorStream(false)
+      sqlFiles.forEach { sqlFile ->
+        val processBuilder =
+          ProcessBuilder("psql", "-f", sqlFile.absolutePath, supabaseDbLink).apply {
+            directory(sqlDir)
+            redirectErrorStream(false)
+          }
+
+        val process = processBuilder.start()
+        val exitCode = process.waitFor()
+
+        if (exitCode != 0) {
+          logger.warn("Failed to apply: ${sqlFile.name} (exit code: $exitCode)")
+          allSucceeded = false
         }
+      }
 
-      val process = processBuilder.start()
-      val exitCode = process.waitFor()
-
-      if (exitCode != 0) {
-        logger.warn("Failed to apply: ${sqlFile.name} (exit code: $exitCode)")
-        allSucceeded = false
+      if (allSucceeded) {
+        outputMarker.get().asFile.writeText("Last applied at ${System.currentTimeMillis()}")
+        logger.lifecycle("Finished applying SQL functions to database.")
+      } else {
+        logger.warn("Some SQL files failed to apply.")
       }
     }
-
-    if (allSucceeded) {
-      outputMarker.get().asFile.writeText("Last applied at ${System.currentTimeMillis()}")
-      logger.lifecycle("Finished applying SQL functions to database.")
-    } else {
-      logger.warn("Some SQL files failed to apply.")
-    }
   }
-}
 
 private fun createSupabaseDbLink(): String {
   val localProperties =
@@ -206,10 +205,10 @@ private fun createSupabaseDbLink(): String {
   val password = localProperties.getProperty(".supabase_db_password")
   if (
     host.isNullOrEmpty() ||
-    port.isNullOrEmpty() ||
-    dbName.isNullOrEmpty() ||
-    user.isNullOrEmpty() ||
-    password.isNullOrEmpty()
+      port.isNullOrEmpty() ||
+      dbName.isNullOrEmpty() ||
+      user.isNullOrEmpty() ||
+      password.isNullOrEmpty()
   ) {
     logger.error("One or more Supabase database properties are missing in local.properties.")
     return ""
