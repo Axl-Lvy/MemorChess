@@ -6,7 +6,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
-class TestNoOpDatabaseQueryManage {
+class TestNoOpDatabaseQueryManager {
 
     private val noOpDatabaseQueryManager = NoOpDatabaseQueryManager()
 
