@@ -159,7 +159,6 @@ class TestAuthentication : TestWithKoin {
 
     // Verify user is still signed out
     assertNull(authManager.user)
-    error("/")
   }
 
   @Test
