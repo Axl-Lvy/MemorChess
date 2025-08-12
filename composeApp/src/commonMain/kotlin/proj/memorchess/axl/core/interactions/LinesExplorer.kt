@@ -5,8 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
-import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
 class LinesExplorer() : InteractionsManager(Game()) {
@@ -15,7 +13,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
   private var node: Node
 
   init {
-    node = NodeManager.createRootNode()
+    node = nodeManager.createRootNode()
   }
 
   var state by mutableStateOf(node.getState())
@@ -29,7 +27,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
       state = node.getState()
       callCallBacks()
     } else {
-      info("No previous move.")
+      toastRenderer.info("No previous move.")
     }
   }
 
@@ -37,6 +35,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
   fun forward() {
     val firstChild = node.next
     if (firstChild != null) {
+      print("forward called on node: ${node.position}")
       val move =
         node.previousAndNextMoves.nextMoves.values.find { it.destination == firstChild.position }
       checkNotNull(move) { "No move found to go to ${firstChild.position}" }
@@ -45,7 +44,7 @@ class LinesExplorer() : InteractionsManager(Game()) {
       state = node.getState()
       callCallBacks()
     } else {
-      info("No next move.")
+      toastRenderer.info("No next move.")
     }
   }
 
@@ -60,13 +59,13 @@ class LinesExplorer() : InteractionsManager(Game()) {
 
   /** Resets the LinesExplorer to the root node. */
   fun reset() {
-    node = NodeManager.createRootNode()
+    node = nodeManager.createRootNode()
     state = node.getState()
     super.reset(node.position)
   }
 
   override suspend fun afterPlayMove(move: String) {
-    node = NodeManager.createNode(game, node, move)
+    node = nodeManager.createNode(game, node, move)
     state = node.getState()
     callCallBacks()
   }
@@ -75,14 +74,14 @@ class LinesExplorer() : InteractionsManager(Game()) {
   suspend fun save() {
     node.saveGood()
     state = node.getState()
-    info("Saved")
+    toastRenderer.info("Saved")
   }
 
   /** Deletes the current node and reloads the explorer. */
   suspend fun delete() {
     node.delete()
     state = node.getState()
-    info("Deleted")
+    toastRenderer.info("Deleted")
     callCallBacks()
   }
 }

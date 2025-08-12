@@ -16,7 +16,7 @@ class ConfirmationDialog(
   private val cancelText: String = "Cancel",
 ) {
   private var show by mutableStateOf(false)
-  private var dialogText = ""
+  private var dialogText by mutableStateOf("")
   private var onConfirm = {}
 
   /**

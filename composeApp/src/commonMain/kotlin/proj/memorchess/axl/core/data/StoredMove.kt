@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.data
 
 import kotlinx.datetime.LocalDateTime
-import org.koin.core.component.KoinComponent
 import proj.memorchess.axl.core.date.DateUtil
 
 /** Move that can be stored in [DatabaseQueryManager] */
@@ -29,7 +28,7 @@ data class StoredMove(
 
   /** Date at which this move was updated */
   val updatedAt: LocalDateTime = DateUtil.now(),
-) : KoinComponent {
+) {
 
   override fun equals(other: Any?) =
     other is StoredMove && EssentialData(this) == EssentialData(other)

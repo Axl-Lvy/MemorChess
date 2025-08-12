@@ -74,11 +74,10 @@ val cleanSecretsTask by
   tasks.registering {
     group = "codegen"
     description = "Clean generated Secrets.kt file"
+    val projectDirValue = projectDir
+    val (secretsPackageDir, secretsFile) = getGeneratedFileName(projectDirValue)
 
     doLast {
-      val projectDirValue = projectDir
-      val (secretsPackageDir, secretsFile) = getGeneratedFileName(projectDirValue)
-
       if (secretsFile.exists()) {
         secretsFile.delete()
         logger.info("🧹 Deleted generated Secrets.kt file")

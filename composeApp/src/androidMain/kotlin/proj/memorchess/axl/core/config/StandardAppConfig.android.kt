@@ -7,4 +7,4 @@ import proj.memorchess.axl.MAIN_ACTIVITY
 
 private val delegate = MAIN_ACTIVITY.getPreferences(Context.MODE_PRIVATE)
 
-actual val SETTINGS: Settings = SharedPreferencesSettings(delegate)
+actual fun getPlatformSpecificSettings(): Settings = SharedPreferencesSettings(delegate)

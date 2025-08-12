@@ -4,7 +4,7 @@ import com.diamondedge.logging.KmLogging
 import com.diamondedge.logging.LogLevel
 import kotlin.test.Test
 import proj.memorchess.axl.core.engine.board.TestFenParser
-import proj.memorchess.axl.game.getGames
+import proj.memorchess.axl.test_util.getGames
 
 class TestManyGames {
   @Test

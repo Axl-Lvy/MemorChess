@@ -37,4 +37,4 @@ val ALL_SETTINGS_ITEMS =
     CHESS_BOARD_COLOR_SETTING,
   )
 
-expect val SETTINGS: Settings
+internal expect fun getPlatformSpecificSettings(): Settings

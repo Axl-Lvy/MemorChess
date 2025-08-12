@@ -1,3 +1,3 @@
 package proj.memorchess.axl.ui.components.popup
 
-actual fun getToastRenderer() = NO_OP_RENDERER
+actual fun getPlatformSpecificToastRenderer() = NO_OP_RENDERER

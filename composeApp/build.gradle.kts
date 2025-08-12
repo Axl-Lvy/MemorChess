@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
+import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
@@ -306,13 +307,16 @@ tasks.withType<KotlinWebpack>().configureEach {
   notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")
 }
 
+tasks.withType<KotlinJsTest>().configureEach {
+  notCompatibleWithConfigurationCache(
+    "Kotlin/JS testing tasks store Project references and use non-serializable types."
+  )
+}
+
 // Test coverage configuration
 tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
-
-  // Don't automatically run tests - only generate report from existing coverage data
-  mustRunAfter("connectedDebugAndroidTest", "createDebugAndroidTestCoverageReport")
 
   reports {
     xml.required.set(true)
@@ -337,8 +341,10 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
 
   val mainSrc = "${project.projectDir}/src/commonMain/kotlin"
   val androidSrc = "${project.projectDir}/src/androidMain/kotlin"
+  val nonJsSrc = "${project.projectDir}/src/jsMain/kotlin"
+  val jvmSrc = "${project.projectDir}/src/jvmMain/kotlin"
 
-  sourceDirectories.setFrom(files(listOf(mainSrc, androidSrc)))
+  sourceDirectories.setFrom(files(listOf(mainSrc, androidSrc, nonJsSrc, jvmSrc)))
   classDirectories.setFrom(files(listOf(debugTree)))
 
   // Use both possible locations for coverage execution data

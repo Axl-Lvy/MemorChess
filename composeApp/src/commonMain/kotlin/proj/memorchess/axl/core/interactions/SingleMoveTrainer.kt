@@ -6,7 +6,6 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.graph.nodes.NodeManager
 
 /**
  * Trainer based on a node.
@@ -61,7 +60,7 @@ class SingleMoveTrainer(
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
-    NodeManager.cacheNode(storedNode)
+    nodeManager.cacheNode(storedNode)
     storedNode.save()
   }
 }

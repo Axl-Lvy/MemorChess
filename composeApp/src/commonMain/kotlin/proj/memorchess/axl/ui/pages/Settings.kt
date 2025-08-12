@@ -36,7 +36,10 @@ import proj.memorchess.axl.ui.pages.navigation.Destination
 import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
-fun Settings(database: DatabaseQueryManager = koinInject()) {
+fun Settings(
+  database: DatabaseQueryManager = koinInject(),
+  nodeManager: NodeManager = koinInject(),
+) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
@@ -86,7 +89,7 @@ fun Settings(database: DatabaseQueryManager = koinInject()) {
           dlg.show("Are you sure you want to erase all data?") {
             coroutineScope.launch {
               database.deleteAll(null)
-              NodeManager.resetCacheFromDataBase()
+              nodeManager.resetCacheFromDataBase()
             }
           }
         },

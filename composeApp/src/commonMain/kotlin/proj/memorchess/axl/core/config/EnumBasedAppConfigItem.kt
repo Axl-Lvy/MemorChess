@@ -3,8 +3,10 @@ package proj.memorchess.axl.core.config
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import com.russhwolf.settings.set
+import org.koin.core.component.inject
 import proj.memorchess.axl.core.util.CanDisplayName
 
 /**
@@ -20,7 +22,9 @@ class EnumBasedAppConfigItem<T>(
   val getEntries: () -> Array<T>,
 ) : ConfigItem<T> where T : Enum<T>, T : CanDisplayName {
 
-  private var localValue by mutableStateOf(valueOf(SETTINGS[name, defaultValue.name]))
+  private val settings: Settings by inject()
+
+  private var localValue by mutableStateOf(valueOf(settings[name, defaultValue.name]))
 
   companion object {
     inline fun <reified T> from(name: String, default: T): EnumBasedAppConfigItem<T> where
@@ -36,11 +40,11 @@ class EnumBasedAppConfigItem<T>(
 
   override fun setValue(value: T) {
     this.localValue = value
-    SETTINGS[name] = value.name
+    settings[name] = value.name
   }
 
   override fun reset() {
-    SETTINGS.remove(name)
+    settings.remove(name)
     localValue = defaultValue
   }
 }

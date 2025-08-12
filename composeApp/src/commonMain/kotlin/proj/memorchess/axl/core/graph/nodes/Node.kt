@@ -28,6 +28,8 @@ class Node(
 
   private val database by inject<DatabaseQueryManager>()
 
+  private val nodeManager by inject<NodeManager>()
+
   /**
    * Creates a new [Game] instance from this node's position.
    *
@@ -79,10 +81,10 @@ class Node(
     previousAndNextMoves.nextMoves.values.forEach { move ->
       val game = createGame()
       game.playMove(move.move)
-      val childNode = NodeManager.createNode(game, this, move.move)
+      val childNode = nodeManager.createNode(game, this, move.move)
       childNode.deleteFromPrevious(move)
     }
-    NodeManager.clearNextMoves(position)
+    nodeManager.clearNextMoves(position)
     database.deletePosition(position)
     previousAndNextMoves.nextMoves.clear()
     next = null
@@ -90,7 +92,7 @@ class Node(
 
   private suspend fun deleteFromPrevious(previousMove: StoredMove) {
     println("Deleting from previous: $previousMove. Position: $position")
-    NodeManager.clearPreviousMove(position, previousMove)
+    nodeManager.clearPreviousMove(position, previousMove)
     check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
       "$previousMove not removed."
     }
