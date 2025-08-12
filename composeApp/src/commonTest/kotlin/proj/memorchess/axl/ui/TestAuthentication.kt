@@ -92,9 +92,7 @@ class TestAuthentication : TestWithKoin {
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("Yes").performClick()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
-      AUTH_REFRESH_TOKEN_SETTINGS.getValue().isNotEmpty()
-    }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isNotEmpty() }
   }
 
   @Test
@@ -103,9 +101,7 @@ class TestAuthentication : TestWithKoin {
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("No").performClick()
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { !KEEP_LOGGED_IN_SETTING.getValue() }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) {
-      AUTH_REFRESH_TOKEN_SETTINGS.getValue().isEmpty()
-    }
+    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isEmpty() }
   }
 
   @Test
