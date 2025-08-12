@@ -58,6 +58,6 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 }
 
-actual fun getLocalDatabase(): DatabaseQueryManager {
+actual fun getPlatformSpecificLocalDatabase(): DatabaseQueryManager {
   return NonJsLocalDatabaseQueryManager
 }

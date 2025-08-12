@@ -1,7 +1,10 @@
 package proj.memorchess.axl.core.config
 
+import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import com.russhwolf.settings.set
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
 /** A typed configuration item. */
 @Suppress("UNCHECKED_CAST")
@@ -10,13 +13,15 @@ class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
   override val defaultValue: T,
   val converter: ((StoredT) -> T),
   val serializer: ((T) -> StoredT),
-) : ConfigItem<T> {
+) : ConfigItem<T>, KoinComponent {
   constructor(
     name: String,
     defaultValue: T,
   ) : this(name, defaultValue, { it as T }, { it as StoredT })
 
   private val needConversion: Boolean
+
+  private val settings: Settings by inject()
 
   /** Checks if the default value type is supported. */
   init {
@@ -43,15 +48,14 @@ class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
   }
 
   override fun getValue(): T {
-    val defaultStoredValue = serializer(defaultValue)
     val value =
-      when (defaultStoredValue) {
-        is String -> SETTINGS[name, defaultStoredValue]
-        is Boolean -> SETTINGS[name, defaultStoredValue]
-        is Int -> SETTINGS[name, defaultStoredValue]
-        is Long -> SETTINGS[name, defaultStoredValue]
-        is Float -> SETTINGS[name, defaultStoredValue]
-        is Double -> SETTINGS[name, defaultStoredValue]
+      when (val defaultStoredValue = serializer(defaultValue)) {
+        is String -> settings[name, defaultStoredValue]
+        is Boolean -> settings[name, defaultStoredValue]
+        is Int -> settings[name, defaultStoredValue]
+        is Long -> settings[name, defaultStoredValue]
+        is Float -> settings[name, defaultStoredValue]
+        is Double -> settings[name, defaultStoredValue]
         else ->
           throw IllegalArgumentException(
             "Unsupported value type: ${defaultStoredValue::class.simpleName}"
@@ -61,20 +65,19 @@ class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
   }
 
   override fun setValue(value: T) {
-    val valueToStore = serializer(value)
-    when (valueToStore) {
-      is String -> SETTINGS[name] = valueToStore
-      is Boolean -> SETTINGS[name] = valueToStore
-      is Int -> SETTINGS[name] = valueToStore
-      is Long -> SETTINGS[name] = valueToStore
-      is Float -> SETTINGS[name] = valueToStore
-      is Double -> SETTINGS[name] = valueToStore
+    when (val valueToStore = serializer(value)) {
+      is String -> settings[name] = valueToStore
+      is Boolean -> settings[name] = valueToStore
+      is Int -> settings[name] = valueToStore
+      is Long -> settings[name] = valueToStore
+      is Float -> settings[name] = valueToStore
+      is Double -> settings[name] = valueToStore
       else ->
         throw IllegalArgumentException("Unsupported value type: ${valueToStore::class.simpleName}")
     }
   }
 
   override fun reset() {
-    SETTINGS.remove(name)
+    settings.remove(name)
   }
 }

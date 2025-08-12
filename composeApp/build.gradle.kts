@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
+import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
@@ -20,7 +21,6 @@ plugins {
   alias(libs.plugins.ksp)
   alias(libs.plugins.composeHotReload)
   id("jacoco")
-  id("secrets-generation")
 }
 
 kotlin {
@@ -300,10 +300,6 @@ private fun createSupabaseDbLink(): String {
   return "postgresql://$user:$password@$host:$port/$dbName"
 }
 
-tasks
-  .matching { it.name.contains("compile", ignoreCase = true) }
-  .configureEach { dependsOn(applySupabaseFunctions) }
-
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
 
 // Disable configuration cache for all tasks involving wasmJs
@@ -311,13 +307,16 @@ tasks.withType<KotlinWebpack>().configureEach {
   notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")
 }
 
+tasks.withType<KotlinJsTest>().configureEach {
+  notCompatibleWithConfigurationCache(
+    "Kotlin/JS testing tasks store Project references and use non-serializable types."
+  )
+}
+
 // Test coverage configuration
 tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
-
-  // Don't automatically run tests - only generate report from existing coverage data
-  mustRunAfter("connectedDebugAndroidTest", "createDebugAndroidTestCoverageReport")
 
   reports {
     xml.required.set(true)
@@ -342,8 +341,10 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
 
   val mainSrc = "${project.projectDir}/src/commonMain/kotlin"
   val androidSrc = "${project.projectDir}/src/androidMain/kotlin"
+  val nonJsSrc = "${project.projectDir}/src/jsMain/kotlin"
+  val jvmSrc = "${project.projectDir}/src/jvmMain/kotlin"
 
-  sourceDirectories.setFrom(files(listOf(mainSrc, androidSrc)))
+  sourceDirectories.setFrom(files(listOf(mainSrc, androidSrc, nonJsSrc, jvmSrc)))
   classDirectories.setFrom(files(listOf(debugTree)))
 
   // Use both possible locations for coverage execution data
@@ -354,3 +355,9 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   // Only run if coverage data exists
   onlyIf { executionData.files.any { it.exists() } }
 }
+
+tasks
+  .matching { it.name.contains("compile", ignoreCase = true) }
+  .configureEach { dependsOn(applySupabaseFunctions) }
+
+apply(from = "secrets.gradle.kts")

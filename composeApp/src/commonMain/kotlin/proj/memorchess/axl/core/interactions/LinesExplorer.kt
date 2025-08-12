@@ -6,8 +6,6 @@ import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
-import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.ui.components.popup.info
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
 class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(Game()) {
@@ -16,7 +14,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
   private var node: Node
 
   init {
-    node = NodeManager.createRootNode()
+    node = nodeManager.createRootNode()
   }
 
   var state by mutableStateOf(node.getState())
@@ -30,7 +28,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
       state = node.getState()
       callCallBacks()
     } else {
-      info("No previous move.")
+      toastRenderer.info("No previous move.")
     }
   }
 
@@ -38,6 +36,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
   fun forward() {
     val firstChild = node.next
     if (firstChild != null) {
+      print("forward called on node: ${node.position}")
       val move =
         node.previousAndNextMoves.nextMoves.values.find { it.destination == firstChild.position }
       checkNotNull(move) { "No move found to go to ${firstChild.position}" }
@@ -46,7 +45,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
       state = node.getState()
       callCallBacks()
     } else {
-      info("No next move.")
+      toastRenderer.info("No next move.")
     }
   }
 
@@ -61,13 +60,13 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
 
   /** Resets the LinesExplorer to the root node. */
   fun reset() {
-    node = NodeManager.createRootNode()
+    node = nodeManager.createRootNode()
     state = node.getState()
     super.reset(node.position)
   }
 
   override suspend fun afterPlayMove(move: String) {
-    node = NodeManager.createNode(game, node, move)
+    node = nodeManager.createNode(game, node, move)
     state = node.getState()
     callCallBacks()
   }
@@ -76,14 +75,14 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
   suspend fun save() {
     node.saveGood()
     state = node.getState()
-    info("Saved")
+    toastRenderer.info("Saved")
   }
 
   /** Deletes the current node and reloads the explorer. */
   suspend fun delete() {
     node.delete()
     state = node.getState()
-    info("Deleted")
+    toastRenderer.info("Deleted")
     callCallBacks()
   }
 }

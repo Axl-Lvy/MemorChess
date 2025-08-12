@@ -5,7 +5,7 @@ import proj.memorchess.axl.MAIN_ACTIVITY
 
 private var currentToast: Toast? = null
 
-actual fun getToastRenderer() = ToastRenderer { message, _ ->
+actual fun getPlatformSpecificToastRenderer() = ToastRenderer { message, _ ->
   MAIN_ACTIVITY.runOnUiThread {
     currentToast?.cancel()
     val newToast = Toast.makeText(MAIN_ACTIVITY, message, Toast.LENGTH_LONG)

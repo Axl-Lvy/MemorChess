@@ -1,19 +1,23 @@
 package proj.memorchess.axl
 
+import com.russhwolf.settings.Settings
 import io.github.jan.supabase.SupabaseClient
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
-import org.koin.dsl.bind
 import org.koin.dsl.module
+import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 import proj.memorchess.axl.core.data.CompositeDatabase
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.LocalDatabaseHolder
+import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.auth.BasicAuthManager
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.graph.nodes.NodeCache
+import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.ui.components.popup.ToastRenderer
+import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
 /**
  * Initializes koin modules
@@ -21,13 +25,25 @@ import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
  * @return An array of all koin modules
  */
 fun initKoinModules(): Array<Module> {
-  val dataModule = module {
+  val authModule = module {
     single<SupabaseClient> { createSupabaseClient() }
-    singleOf(::BasicAuthManager) bind AuthManager::class
-    single<DatabaseQueryManager>(named("local")) { LocalDatabaseHolder.getDatabase() }
+    singleOf(::AuthManager)
+  }
+
+  val dataModule = module {
+    single<DatabaseQueryManager>(named("local")) { getPlatformSpecificLocalDatabase() }
     single<SupabaseQueryManager> { SupabaseQueryManager(get(), get()) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
     single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local")), get()) }
+    single<Settings> { getPlatformSpecificSettings() }
   }
-  return arrayOf(dataModule)
+
+  val nodeModule = module {
+    singleOf(::NodeCache)
+    singleOf(::NodeManager)
+  }
+
+  val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
+
+  return arrayOf(authModule, dataModule, nodeModule, otherModule)
 }

@@ -1,3 +1,3 @@
 package proj.memorchess.axl.core.data
 
-expect fun getLocalDatabase(): DatabaseQueryManager
+expect fun getPlatformSpecificLocalDatabase(): DatabaseQueryManager
