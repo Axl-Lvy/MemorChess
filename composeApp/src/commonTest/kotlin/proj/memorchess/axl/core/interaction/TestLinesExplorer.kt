@@ -117,8 +117,7 @@ class TestLinesExplorer : TestWithKoin {
     clickOnTile("e4")
     interactionsManager.save()
     verifyStoredNode(startPosition, true, "e4")
-    var storedNode: StoredNode? = null
-    storedNode = database.getPosition(startPosition)
+    val storedNode: StoredNode? = database.getPosition(startPosition)
     val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
     assertNull(savedBadMove)
   }

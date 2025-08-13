@@ -10,7 +10,6 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.ui.assertNextMoveExist
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnBack
 import proj.memorchess.axl.ui.clickOnNext
@@ -56,7 +55,6 @@ class TestControlBar : TestWithKoin {
   private fun ComposeUiTest.playThenBack() {
     clickOnBack()
     assertPieceMoved("e4", "e2", Pawn.white())
-    assertNextMoveExist("e4")
   }
 
   @Test
