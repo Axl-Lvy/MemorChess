@@ -2,12 +2,6 @@
 
 package proj.memorchess.axl.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -24,7 +18,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
-import androidx.compose.ui.unit.dp
 import com.diamondedge.logging.logging
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.engine.pieces.Piece
@@ -228,11 +221,6 @@ fun ComposeUiTest.clickOnSave() {
   waitUntilNodeExists(hasContentDescription("Save", ignoreCase = true))
     .assertExists()
     .performClick()
-}
-
-@Composable
-fun ClassicScreen(content: @Composable () -> Unit) {
-  Scaffold { Box(Modifier.height(1900.dp).width(900.dp)) { content() } }
 }
 
 private val LOGGER = logging()
