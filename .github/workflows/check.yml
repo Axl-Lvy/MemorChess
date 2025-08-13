@@ -108,70 +108,14 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run JVM tests
-        run: ./gradlew jvmTest
+        run: ./gradlew koverXmlReportJvm
 
       - name: Upload JVM test results
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-jvm
-          path: composeApp/build/outputs/code_coverage/
+          name: kover-report-jvm
+          path: composeApp/build/reports/
           retention-days: 1
-
-  # Run wasmJs tests
-  #  wasmjs-tests:
-  #    needs: [ compile ]
-  #    runs-on: ubuntu-latest
-  #    steps:
-  #      - name: Checkout
-  #        uses: actions/checkout@v4
-  #
-  #      - name: Set up JDK 17
-  #        uses: actions/setup-java@v4
-  #        with:
-  #          java-version: '17'
-  #          distribution: 'temurin'
-  #
-  #      - name: Setup Node.js
-  #        uses: actions/setup-node@v4
-  #        with:
-  #          node-version: '18'
-  #          cache: 'yarn'
-  #
-  #      # Download pre-compiled base outputs
-  #      - name: Download compiled outputs
-  #        uses: actions/download-artifact@v4
-  #        with:
-  #          name: compiled-output-base
-  #          path: ./composeApp/build/
-  #
-  #      # Update secrets with the specific TEST_USER_MAIL for this shard
-  #      - name: Update local.properties for this shard
-  #        run: |
-  #          chmod +x .github/scripts/update_properties.sh
-  #          .github/scripts/update_properties.sh
-  #        env:
-  #          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-  #          TEST_USER_MAIL: "testuser18@axl.com"
-  #          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-  #
-  #      - name: Setup Gradle
-  #        uses: gradle/actions/setup-gradle@v4
-  #        with:
-  #          cache-read-only: false
-  #          gradle-home-cache-cleanup: false
-  #
-  #      - name: Change wrapper permissions
-  #        run: chmod +x ./gradlew
-  #
-  #      - name: Run wasmJs tests
-  #        run: ./gradlew wasmJsTest
-  #
-  #      - name: Upload wasmJs test results
-  #        uses: actions/upload-artifact@v4
-  #        with:
-  #          name: coverage-report-wasmJs
-  #          path: composeApp/build/outputs/code_coverage/
-  #          retention-days: 1
 
   # Generate the matrix for parallel test execution
   generate-matrix:
@@ -324,6 +268,11 @@ jobs:
         with:
           pattern: coverage-report-*
           path: composeApp/build/outputs/code_coverage/
+
+      - name: Download JVM test results
+        uses: actions/download-artifact@v4
+        with:
+          name: kover-report-jvm
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4

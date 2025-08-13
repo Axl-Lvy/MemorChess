@@ -1,6 +1,4 @@
 import com.ncorti.ktfmt.gradle.tasks.KtfmtBaseTask
-import java.util.Properties
-import kotlin.apply
 import org.jetbrains.compose.reload.gradle.ComposeHotRun
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -20,6 +18,7 @@ plugins {
   alias(libs.plugins.room)
   alias(libs.plugins.ksp)
   alias(libs.plugins.composeHotReload)
+  alias(libs.plugins.kover)
   id("jacoco")
 }
 
@@ -217,91 +216,6 @@ dependencies {
   debugImplementation(libs.androidx.ui.test.manifest)
 }
 
-// Task to apply Supabase SQL functions
-// Gradle cache is used to avoid reapplying functions if they haven't changed
-val applySupabaseFunctions by
-  tasks.registering {
-    val sqlDir = file("../supabase/functions")
-
-    // Tell Gradle: these files are inputs
-    inputs.files(sqlDir.listFiles() ?: emptyArray<File>())
-
-    // Tell Gradle: this file is the "result" marker
-    val outputMarker = layout.buildDirectory.file(".supabaseFunctionsApplied")
-    outputs.file(outputMarker)
-    val supabaseDbLink = createSupabaseDbLink()
-
-    doLast {
-      if (supabaseDbLink.isEmpty()) {
-        logger.error(
-          "Could not create Supabase database link. Please check your local.properties file."
-        )
-        return@doLast
-      }
-
-      val sqlFiles = sqlDir.listFiles()?.sortedBy { it.name } ?: emptyList()
-
-      if (sqlFiles.isEmpty()) {
-        logger.lifecycle("No SQL files found in the directory: ${sqlDir.absolutePath}")
-        return@doLast
-      }
-
-      var allSucceeded = true
-
-      sqlFiles.forEach { sqlFile ->
-        val processBuilder =
-          ProcessBuilder("psql", "-f", sqlFile.absolutePath, supabaseDbLink).apply {
-            directory(sqlDir)
-            redirectErrorStream(false)
-          }
-
-        val process = processBuilder.start()
-        val exitCode = process.waitFor()
-
-        if (exitCode != 0) {
-          logger.warn("Failed to apply: ${sqlFile.name} (exit code: $exitCode)")
-          allSucceeded = false
-        }
-      }
-
-      if (allSucceeded) {
-        outputMarker.get().asFile.writeText("Last applied at ${System.currentTimeMillis()}")
-        logger.lifecycle("Finished applying SQL functions to database.")
-      } else {
-        logger.warn("Some SQL files failed to apply.")
-      }
-    }
-  }
-
-private fun createSupabaseDbLink(): String {
-  val localProperties =
-    Properties().apply {
-      val file = rootProject.file("local.properties")
-      if (file.exists()) {
-        file.inputStream().use { load(it) }
-      } else {
-        logger.error("local.properties file not found.")
-        return ""
-      }
-    }
-  val host = localProperties.getProperty(".supabase_db_host")
-  val port = localProperties.getProperty(".supabase_db_port")
-  val dbName = localProperties.getProperty(".supabase_db_name")
-  val user = localProperties.getProperty(".supabase_db_user")
-  val password = localProperties.getProperty(".supabase_db_password")
-  if (
-    host.isNullOrEmpty() ||
-      port.isNullOrEmpty() ||
-      dbName.isNullOrEmpty() ||
-      user.isNullOrEmpty() ||
-      password.isNullOrEmpty()
-  ) {
-    logger.error("One or more Supabase database properties are missing in local.properties.")
-    return ""
-  }
-  return "postgresql://$user:$password@$host:$port/$dbName"
-}
-
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
 
 // Disable configuration cache for all tasks involving wasmJs
@@ -315,7 +229,6 @@ tasks.withType<KotlinJsTest>().configureEach {
   )
 }
 
-// Test coverage configuration
 tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
@@ -358,8 +271,23 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   onlyIf { executionData.files.any { it.exists() } }
 }
 
-tasks
-  .matching { it.name.contains("compile", ignoreCase = true) }
-  .configureEach { dependsOn(applySupabaseFunctions) }
+kover {
+  reports {
+    filters {
+      excludes {
+        files(
+          "**/R.class",
+          "**/Res.class",
+          "**/BuildConfig.*",
+          "**/Manifest*.*",
+          "**/*Test*.*",
+          "**/di/**",
+          "**/generated/**",
+          "**/ui/**",
+        )
+      }
+    }
+  }
+}
 
-apply(from = "secrets.gradle.kts")
+apply(from = "pre-compile.gradle.kts")
