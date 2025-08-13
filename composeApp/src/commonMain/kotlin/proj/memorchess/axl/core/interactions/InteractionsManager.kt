@@ -1,7 +1,9 @@
 package proj.memorchess.axl.core.interactions
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import com.diamondedge.logging.logging
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -26,7 +28,8 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
   val toastRenderer: ToastRenderer by inject()
 
   /** Coordinates of the tile that was clicked first. */
-  private var firstTile: Pair<Int, Int>? = null
+  var selectedTile by mutableStateOf<Pair<Int, Int>?>(null)
+    private set
 
   private var isBlocked = false
 
@@ -56,7 +59,7 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
       return
     }
     LOGGER.info { "Clicked on tile ${IBoard.getTileName(coordinates)}" }
-    val immutableFirstTile = firstTile
+    val immutableFirstTile = selectedTile
     if (immutableFirstTile != null) {
       try {
         val move = game.playMove(MoveDescription(immutableFirstTile, coordinates))
@@ -67,15 +70,25 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
           afterPlayMove(move)
         }
       } catch (e: IllegalMoveException) {
-        toastRenderer.info(e.message.toString())
+        if (getPlayerAt(coordinates) == getPlayerAt(immutableFirstTile)) {
+          selectedTile = coordinates
+          return
+        }
       }
-      firstTile = null
-    } else if (
-      game.position.board.getTile(coordinates).getSafePiece()?.player == game.position.playerTurn
-    ) {
-      firstTile = coordinates
+      selectedTile = null
+    } else if (getPlayerAt(coordinates) == game.position.playerTurn) {
+      selectedTile = coordinates
     }
   }
+
+  /**
+   * Gets the player of the piece on the given coordinates.
+   *
+   * @param coordinates The coordinates of the tile to check.
+   * @return The player of the piece on the tile, or null if there is no piece.
+   */
+  private fun getPlayerAt(coordinates: Pair<Int, Int>): Game.Player? =
+    game.position.board.getTile(coordinates).getSafePiece()?.player
 
   /**
    * Plays a move directly.
@@ -119,7 +132,7 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
   fun reset(position: PositionIdentifier) {
     game = Game(position)
     needPromotion.value = game.needPromotion()
-    firstTile = null
+    selectedTile = null
     callCallBacks()
   }
 

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.components.board
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,10 +11,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 
 @Composable
 fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
@@ -29,6 +32,7 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
             val coords = tile.getCoords()
             val clickLabel = stringResource(Res.string.description_board_tile, tile.getName())
 
+            val isSelected = state.selectedTile == coords
             Box(
               modifier =
                 Modifier.clickable(
@@ -37,6 +41,14 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
                   )
                   .aspectRatio(1f)
                   .weight(1f)
+                  .then(
+                    if (isSelected)
+                      Modifier.border(
+                        3.dp,
+                        CHESS_BOARD_COLOR_SETTING.getValue().selectedBorderColor,
+                      )
+                    else Modifier
+                  )
             ) {
               Tile(tile)
               state.tileToPiece[tile.gridItem]?.let { Piece(it, Modifier.fillMaxSize()) }
