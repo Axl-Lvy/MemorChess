@@ -45,32 +45,29 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testManyGames() {
+  fun testManyGames() = runTest {
     val gameList = getGames().shuffled().take(10)
     gameList.forEach { testGame(it) }
   }
 
-  @Test
-  fun testPrevious() {
-    previousWorkflow()
-  }
+  @Test fun testPrevious() = runTest { previousWorkflow() }
 
   @Test
-  fun testForward() {
+  fun testForward() = runTest {
     previousWorkflow()
     interactionsManager.forward()
     assertPawnOnE4()
   }
 
   @Test
-  fun testDelete() {
+  fun testDelete() = runTest {
     previousWorkflow()
-    runTest { interactionsManager.delete() }
+    interactionsManager.delete()
     interactionsManager.forward()
     assertPawnOnE2()
   }
 
-  private fun previousWorkflow() {
+  private suspend fun previousWorkflow() {
     clickOnTile("e2")
     clickOnTile("e4")
     assertPawnOnE4()
@@ -79,22 +76,20 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSave() {
+  fun testSave() = runTest {
     val startPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("e2")
     clickOnTile("e4")
-    runTest {
-      interactionsManager.save()
+    interactionsManager.save()
 
-      // Verify the move was saved as good
-      val storedNode = database.getPosition(startPosition)
-      val savedMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
-      assertEquals(true, savedMove?.isGood, "Move should be saved as good")
-    }
+    // Verify the move was saved as good
+    val storedNode = database.getPosition(startPosition)
+    val savedMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
+    assertEquals(true, savedMove?.isGood, "Move should be saved as good")
   }
 
   @Test
-  fun testSaveGoodThenBad() {
+  fun testSaveGoodThenBad() = runTest {
     val startPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("e2")
     clickOnTile("e4")
@@ -104,7 +99,7 @@ class TestLinesExplorer : TestWithKoin {
     val thirdPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("b1")
     clickOnTile("c3")
-    runTest { interactionsManager.save() }
+    interactionsManager.save()
 
     // Verify the move was saved as bad
     verifyStoredNode(startPosition, true, "e4")
@@ -113,17 +108,17 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSideMoveNotSaved() {
+  fun testSideMoveNotSaved() = runTest {
     val startPosition = interactionsManager.game.position.createIdentifier()
     clickOnTile("e2")
     clickOnTile("e3")
     interactionsManager.back()
     clickOnTile("e2")
     clickOnTile("e4")
-    runTest { interactionsManager.save() }
+    interactionsManager.save()
     verifyStoredNode(startPosition, true, "e4")
     var storedNode: StoredNode? = null
-    runTest { storedNode = database.getPosition(startPosition) }
+    storedNode = database.getPosition(startPosition)
     val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
     assertNull(savedBadMove)
   }
@@ -139,7 +134,7 @@ class TestLinesExplorer : TestWithKoin {
     assertEquals(isGood, savedBadMove?.isGood, "Move should be saved as bad")
   }
 
-  private fun testGame(stringMoves: List<String>) {
+  private fun testGame(stringMoves: List<String>) = runTest {
     initialize()
     val refGame = Game()
     stringMoves.forEach {
@@ -148,7 +143,7 @@ class TestLinesExplorer : TestWithKoin {
       clickOnTile(move.destination())
       if (it.contains("=")) {
         assertTrue { interactionsManager.game.needPromotion() }
-        runTest { interactionsManager.applyPromotion(it.split("=")[1].substring(0, 1).lowercase()) }
+        interactionsManager.applyPromotion(it.split("=")[1][0].lowercase())
       }
       refGame.playMove(it)
       validateGame(refGame)
@@ -178,11 +173,39 @@ class TestLinesExplorer : TestWithKoin {
     assertEquals(refGame.toString(), interactionsManager.game.toString())
   }
 
-  private fun clickOnTile(tile: String) {
+  private suspend fun clickOnTile(tile: String) {
     clickOnTile(IBoard.getCoords(tile))
   }
 
-  private fun clickOnTile(coords: Pair<Int, Int>) {
-    runTest { interactionsManager.clickOnTile(coords) }
+  private suspend fun clickOnTile(coords: Pair<Int, Int>) {
+    interactionsManager.clickOnTile(coords)
+  }
+
+  @Test
+  fun testCalculateNumberOfNodeToDelete_SimpleLine() = runTest {
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("Nf3")
+    interactionsManager.back()
+    val count = interactionsManager.calculateNumberOfNodeToDelete()
+    assertEquals(2, count)
+  }
+
+  @Test
+  fun testCalculateNumberOfNodeToDelete_ConvergingNodes() = runTest {
+    // Line 1
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("Nf3")
+    interactionsManager.reset()
+    // Line 2
+    interactionsManager.playMove("Nf3")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("e4")
+    interactionsManager.back()
+    // Now, both lines should converge to the same position
+    // Deleting here should not delete the converged node if still reachable from the other path
+    val count1 = interactionsManager.calculateNumberOfNodeToDelete()
+    assertEquals(1, count1, "Should only delete the current node, the next one is still reachable")
   }
 }
