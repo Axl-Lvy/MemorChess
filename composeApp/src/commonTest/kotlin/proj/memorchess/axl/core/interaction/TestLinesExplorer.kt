@@ -1,10 +1,6 @@
 package proj.memorchess.axl.core.interaction
 
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -126,6 +122,28 @@ class TestLinesExplorer : TestWithKoin {
     runTest { storedNode = database.getPosition(startPosition) }
     val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
     assertNull(savedBadMove)
+  }
+
+  @Test
+  fun testSelectTile() {
+    clickOnTile("e3")
+    assertNull(interactionsManager.selectedTile, "No piece should be selected on an empty tile.")
+    clickOnTile("e2")
+    assertEquals(interactionsManager.selectedTile, IBoard.getCoords("e2"))
+    clickOnTile("d2")
+    assertEquals(
+      IBoard.getCoords("d2"),
+      interactionsManager.selectedTile,
+      "Piece from the same player has been selected. Selected tile should be updated.",
+    )
+    clickOnTile("d4")
+    assertNull(interactionsManager.selectedTile, "After a move, the selected tile should be null.")
+    clickOnTile("d2")
+    assertNull(interactionsManager.selectedTile, "Selected a tile from the wrong player.")
+    clickOnTile("e7")
+    assertEquals(IBoard.getCoords("e7"), interactionsManager.selectedTile)
+    clickOnTile("d5")
+    assertNull(interactionsManager.selectedTile, "Invalid move should reset selected tile.")
   }
 
   private fun verifyStoredNode(

@@ -10,6 +10,10 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
   val tileToPiece = mutableStateMapOf<GridItem, Piece?>()
   var board = interactionsManager.game.position.board
 
+  /** Returns the currently selected tile coordinates, or null if none is selected. */
+  val selectedTile: Pair<Int, Int>?
+    get() = interactionsManager.selectedTile
+
   init {
     board.getTilesIterator().forEach { tile -> tileToPiece[tile.gridItem] = tile.getSafePiece() }
     interactionsManager.registerCallBack { updateTiles() }

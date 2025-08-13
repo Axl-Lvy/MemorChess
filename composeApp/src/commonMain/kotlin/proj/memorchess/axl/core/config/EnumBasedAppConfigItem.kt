@@ -24,7 +24,14 @@ class EnumBasedAppConfigItem<T>(
 
   private val settings: Settings by inject()
 
-  private var localValue by mutableStateOf(valueOf(settings[name, defaultValue.name]))
+  private var localValue by
+    mutableStateOf(
+      try {
+        valueOf(settings[name, defaultValue.name])
+      } catch (_: IllegalArgumentException) {
+        defaultValue
+      }
+    )
 
   companion object {
     inline fun <reified T> from(name: String, default: T): EnumBasedAppConfigItem<T> where
