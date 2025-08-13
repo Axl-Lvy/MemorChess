@@ -55,7 +55,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
    * @return A list of moves that can be played from the current position.
    */
   fun getNextMoves(): List<String> {
-    return node.previousAndNextMoves.nextMoves.keys.sorted()
+    return node.previousAndNextMoves.nextMoves.filter { it.value.isGood != null }.keys.sorted()
   }
 
   /** Resets the LinesExplorer to the root node. */

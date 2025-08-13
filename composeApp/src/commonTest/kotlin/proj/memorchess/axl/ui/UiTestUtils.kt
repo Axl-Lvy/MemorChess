@@ -117,6 +117,7 @@ fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, piece: Piec
  * @return The SemanticsNodeInteraction representing the move suggestion
  */
 fun ComposeUiTest.assertNextMoveExist(move: String): SemanticsNodeInteraction {
+  waitUntilNodeExists(hasTestTag(getNextMoveDescription(move)))
   return onNodeWithTag(getNextMoveDescription(move)).assertExists()
 }
 
