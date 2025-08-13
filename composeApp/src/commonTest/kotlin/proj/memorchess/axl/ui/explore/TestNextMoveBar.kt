@@ -9,7 +9,12 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
+import kotlinx.coroutines.test.runTest
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.ui.assertNextMoveExist
@@ -17,16 +22,26 @@ import proj.memorchess.axl.ui.assertNodeWithTagExists
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnBack
 import proj.memorchess.axl.ui.clickOnReset
+import proj.memorchess.axl.ui.clickOnSave
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
 
 @OptIn(ExperimentalTestApi::class)
 class TestNextMoveBar : TestWithKoin {
 
+  private val database: DatabaseQueryManager by inject()
+
   private fun ComposeUiTest.setUp() {
+    runTest { database.deleteAll(DateUtil.farInThePast()) }
     setContent { initializeApp { Explore() } }
     playMove("e2", "e4")
     assertPieceMoved("e2", "e4", Pawn.white())
+    clickOnSave()
+    Awaitility.awaitUntilTrue {
+      var size = 0
+      runTest { size = database.getAllNodes(false).size }
+      size == 2
+    }
   }
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
@@ -54,6 +69,7 @@ class TestNextMoveBar : TestWithKoin {
     clickOnBack()
     playMove("e2", "e3")
     assertPieceMoved("e2", "e3", Pawn.white())
+    clickOnSave()
     clickOnBack()
     assertNextMoveExist("e4")
     assertNextMoveExist("e3").performClick()
@@ -69,8 +85,10 @@ class TestNextMoveBar : TestWithKoin {
     clickOnBack()
     for (col in listOf("a", "b", "c", "d", "e", "f", "g", "h")) {
       playMove("${col}2", "${col}3")
+      clickOnSave()
       clickOnBack()
       playMove("${col}2", "${col}4")
+      clickOnSave()
       clickOnBack()
     }
     assertNextMoveExist("a3")
