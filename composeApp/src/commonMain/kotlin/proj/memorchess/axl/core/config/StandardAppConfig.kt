@@ -25,7 +25,7 @@ val TRAINING_MOVE_DELAY_SETTING =
 val APP_THEME_SETTING = EnumBasedAppConfigItem.from("appTheme", AppThemeSetting.SYSTEM)
 
 val CHESS_BOARD_COLOR_SETTING =
-  EnumBasedAppConfigItem.from("chessBoardColor", ChessBoardColorScheme.CLASSIC)
+  EnumBasedAppConfigItem.from("chessBoardColor", ChessBoardColorScheme.WOOD)
 
 val KEEP_LOGGED_IN_SETTING = ValueBasedAppConfigItem<Boolean, Boolean>("keepLoggedIn", false)
 
