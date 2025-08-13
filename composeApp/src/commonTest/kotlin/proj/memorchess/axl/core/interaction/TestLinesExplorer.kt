@@ -120,7 +120,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSelectTile() {
+  fun testSelectTile() = runTest {
     clickOnTile("e3")
     assertNull(interactionsManager.selectedTile, "No piece should be selected on an empty tile.")
     clickOnTile("e2")
