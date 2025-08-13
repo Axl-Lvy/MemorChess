@@ -85,4 +85,13 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
     toastRenderer.info("Deleted")
     callCallBacks()
   }
+
+  /**
+   * Calculates the number of nodes that would be deleted if the current node is deleted.
+   *
+   * @return The number of nodes that would be deleted.
+   */
+  fun calculateNumberOfNodeToDelete(): Int {
+    return node.calculateNumberOfNodesToDelete()
+  }
 }

@@ -102,6 +102,33 @@ class Node(
   }
 
   /**
+   * Calculates the number of nodes to delete starting from this node.
+   *
+   * Previous moves can be null, which means that the node is the first one in the deletion chain
+   * (it must be deleted)
+   *
+   * @param previousMove The previous move to consider for deletion.
+   * @return The number of nodes that would be deleted.
+   */
+  fun calculateNumberOfNodesToDelete(previousMove: StoredMove? = null): Int {
+    return if (
+      previousMove != null &&
+        previousAndNextMoves.previousMoves.values.any { it.move != previousMove.move }
+    ) {
+      0
+    } else {
+      var count = 1
+      previousAndNextMoves.nextMoves.values.forEach { move ->
+        val game = createGame()
+        game.playMove(move.move)
+        val childNode = nodeManager.createNode(game, this, move.move)
+        count += childNode.calculateNumberOfNodesToDelete(move)
+      }
+      count
+    }
+  }
+
+  /**
    * Calculate the [state][NodeState] of this node.
    *
    * @return The node state.

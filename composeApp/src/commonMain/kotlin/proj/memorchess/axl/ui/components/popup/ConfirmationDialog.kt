@@ -16,7 +16,7 @@ class ConfirmationDialog(
   private val cancelText: String = "Cancel",
 ) {
   private var show by mutableStateOf(false)
-  private var dialogText by mutableStateOf("")
+  private var content by mutableStateOf<@Composable () -> Unit>({})
   private var onConfirm = {}
 
   /**
@@ -26,8 +26,18 @@ class ConfirmationDialog(
    * @param confirm The action to perform when the user confirms.
    */
   fun show(text: String, confirm: () -> Unit) {
+    show(confirm, content = { Text(text) })
+  }
+
+  /**
+   * Show the confirmation dialog with the given confirmation action and content.
+   *
+   * @param confirm The action to perform when the user confirms.
+   * @param content The composable content to show in the dialog.
+   */
+  fun show(confirm: () -> Unit, content: @Composable () -> Unit) {
     onConfirm = confirm
-    dialogText = text
+    this.content = content
     show = true
   }
 
@@ -58,7 +68,7 @@ class ConfirmationDialog(
             Text(cancelText)
           }
         },
-        title = { Text(dialogText) },
+        title = { content() },
       )
     }
   }
