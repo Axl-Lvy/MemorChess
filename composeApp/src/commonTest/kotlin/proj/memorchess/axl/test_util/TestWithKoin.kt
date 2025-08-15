@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.russhwolf.settings.Settings
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import kotlin.time.Duration
 import org.koin.compose.LocalKoinApplication
 import org.koin.compose.LocalKoinScope
 import org.koin.core.annotation.KoinInternalApi
@@ -20,7 +21,6 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.NO_OP_RENDERER
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
-import kotlin.time.Duration
 
 interface TestWithKoin : KoinComponent {
 
