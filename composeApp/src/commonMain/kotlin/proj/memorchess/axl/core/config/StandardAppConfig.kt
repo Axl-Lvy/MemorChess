@@ -22,6 +22,14 @@ val TRAINING_MOVE_DELAY_SETTING =
     { duration -> duration.inWholeMilliseconds },
   )
 
+val MOVE_ANIMATION_DURATION_SETTING =
+  ValueBasedAppConfigItem(
+    "moveAnimationDuration",
+    500.milliseconds,
+    { long -> long.milliseconds },
+    { duration -> duration.inWholeMilliseconds },
+  )
+
 val APP_THEME_SETTING = EnumBasedAppConfigItem.from("appTheme", AppThemeSetting.SYSTEM)
 
 val CHESS_BOARD_COLOR_SETTING =
@@ -33,6 +41,7 @@ val ALL_SETTINGS_ITEMS =
   listOf(
     ON_SUCCESS_DATE_FACTOR_SETTING,
     TRAINING_MOVE_DELAY_SETTING,
+    MOVE_ANIMATION_DURATION_SETTING,
     APP_THEME_SETTING,
     CHESS_BOARD_COLOR_SETTING,
   )

@@ -37,15 +37,15 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
 
   private var moveBeforePromotion: String? = null
 
-  private val callBacks = mutableStateListOf<() -> Unit>()
+  private val callBacks = mutableStateListOf<(Boolean) -> Unit>()
 
   /** Register a new callback that will be triggered on each tile change. */
-  fun registerCallBack(callBack: () -> Unit) {
+  fun registerCallBack(callBack: (Boolean) -> Unit) {
     callBacks.add(callBack)
   }
 
-  internal fun callCallBacks() {
-    callBacks.forEach { it() }
+  internal fun callCallBacks(withAnimation: Boolean = true) {
+    callBacks.forEach { it(withAnimation) }
   }
 
   /**
@@ -133,7 +133,7 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
     game = Game(position)
     needPromotion.value = game.needPromotion()
     selectedTile = null
-    callCallBacks()
+    callCallBacks(false)
   }
 
   /** Blocks this object. No move can be played. */

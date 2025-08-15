@@ -19,6 +19,7 @@ import proj.memorchess.axl.core.config.APP_THEME_SETTING
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.ConfigItem
 import proj.memorchess.axl.core.config.EnumBasedAppConfigItem
+import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.util.CanDisplayName
@@ -57,6 +58,18 @@ enum class EmbeddedSettingItem(
       { (it as Duration).inWholeMilliseconds.toFloat() / 1_000 },
     ) {
       "Delay before next move: ${(it * 100).roundToInt() / 100.0}s"
+    },
+  ),
+  MOVE_ANIMATION_DURATION(
+    MOVE_ANIMATION_DURATION_SETTING,
+    SliderParameters(
+      0f,
+      2f,
+      19,
+      { MOVE_ANIMATION_DURATION_SETTING.setValue(it.toDouble().seconds) },
+      { (it as Duration).inWholeMilliseconds.toFloat() / 1_000 },
+    ) {
+      "Move Animation Duration: ${(it * 100).roundToInt() / 100.0}s"
     },
   ),
   APP_THEME(APP_THEME_SETTING),
