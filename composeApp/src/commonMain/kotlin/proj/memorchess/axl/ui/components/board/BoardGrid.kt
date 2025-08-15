@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -26,7 +27,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.diamondedge.logging.logging
+import kotlin.collections.set
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
@@ -45,50 +46,52 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
   var tileV by remember { mutableStateOf<Dp?>(null) }
 
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-    Column {
-      for (rowIndex in 0..7) {
-        Row(modifier = Modifier.fillMaxSize().weight(1f)) {
-          for (colIndex in 0..7) {
-            val index = rowIndex * 8 + colIndex
-            val tile = state.getTileAt(index)
-            val coords = tile.getCoords()
-            val clickLabel = stringResource(Res.string.description_board_tile, tile.getName())
-            val isSelected = state.selectedTile == coords
-
-            Box(
-              modifier =
-                Modifier.clickable(
-                    onClickLabel = clickLabel,
-                    onClick = { scope.launch { state.onTileClick(coords) } },
-                  )
-                  .aspectRatio(1f)
-                  .weight(1f)
-                  .then(
-                    if (isSelected)
-                      Modifier.border(
-                        3.dp,
-                        CHESS_BOARD_COLOR_SETTING.getValue().selectedBorderColor,
-                      )
-                    else Modifier
-                  )
-            ) {
-              BoxWithConstraints {
-                if (tileH == null) {
-                  tileH = maxWidth
-                }
-                if (tileV == null) {
-                  tileV = maxHeight
-                }
-              }
-              Tile(
-                tile,
-                modifier =
-                  Modifier.onGloballyPositioned { layoutCoordinates ->
-                    tilePositions[tile.gridItem] = layoutCoordinates.positionInRoot()
-                  },
-              )
-            }
-          }
+    DrawGrid(
+      boxModifier = {
+        val tile = state.getTileAt(it)
+        val coords = tile.getCoords()
+        val isSelected = state.selectedTile == coords
+        val clickLabel = stringResource(Res.string.description_board_tile, tile.getName())
+        clickable(
+            onClickLabel = clickLabel,
+            onClick = { scope.launch { state.onTileClick(coords) } },
+          )
+          .then(
+            if (isSelected)
+              Modifier.border(3.dp, CHESS_BOARD_COLOR_SETTING.getValue().selectedBorderColor)
+            else Modifier
+          )
+      }
+    ) {
+      val tile = state.getTileAt(it)
+      BoxWithConstraints {
+        if (tileH == null) {
+          tileH = maxWidth
+        }
+        if (tileV == null) {
+          tileV = maxHeight
+        }
+      }
+      Tile(
+        tile,
+        modifier =
+          Modifier.onGloballyPositioned { layoutCoordinates ->
+            tilePositions[tile.gridItem] = layoutCoordinates.positionInRoot()
+          },
+      )
+    }
+    DrawGrid({ this }) {
+      val tile = state.getTileAt(it)
+      Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
+        val piece = state.tileToPiece[tile.gridItem]
+        if (
+          piece != null &&
+            !state.piecesToMove.contains(tile.gridItem) &&
+            !state.piecesToMove.values.contains(tile.gridItem)
+        ) {
+          Piece(piece, Modifier.fillMaxSize())
+        } else if (state.piecesToMove.contains(tile.gridItem)) {
+          AnimatedPiece(state, tile, tilePositions)
         }
       }
     }
@@ -110,6 +113,25 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
                 AnimatedPiece(state, tile, tilePositions)
               }
             }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun DrawGrid(
+  boxModifier: @Composable Modifier.(Int) -> Modifier,
+  boxContent: @Composable (RowScope.(Int) -> Unit),
+) {
+  Column {
+    for (rowIndex in 0..7) {
+      Row(modifier = Modifier.fillMaxSize().weight(1f)) {
+        for (colIndex in 0..7) {
+          val index = rowIndex * 8 + colIndex
+          Box(modifier = Modifier.aspectRatio(1f).weight(1f).boxModifier(index)) {
+            this@Row.boxContent(index)
           }
         }
       }
