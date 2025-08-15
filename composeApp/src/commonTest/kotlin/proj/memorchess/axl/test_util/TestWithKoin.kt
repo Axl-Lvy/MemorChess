@@ -15,16 +15,19 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
+import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.NO_OP_RENDERER
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
+import kotlin.time.Duration
 
 interface TestWithKoin : KoinComponent {
 
   @BeforeTest
   fun setUp() {
     startKoin { modules(*initKoinModules(), initTestModule()) }
+    MOVE_ANIMATION_DURATION_SETTING.setValue(Duration.ZERO)
   }
 
   @AfterTest
