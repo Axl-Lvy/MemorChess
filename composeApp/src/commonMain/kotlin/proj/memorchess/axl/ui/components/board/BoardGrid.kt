@@ -26,7 +26,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import kotlin.collections.set
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -38,6 +37,15 @@ import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.engine.board.GridItem
 import proj.memorchess.axl.core.engine.board.ITile
 
+/**
+ * Displays the chess board grid with interactive tiles and animated pieces.
+ *
+ * Renders the board tiles and pieces, handles tile selection, and animates piece movement. Uses
+ * Compose for UI and coroutines for click handling and animation.
+ *
+ * @param state The board state containing tile, piece, and move information.
+ * @param modifier Modifier for customizing the board layout.
+ */
 @Composable
 fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
   val scope = rememberCoroutineScope()
@@ -46,6 +54,7 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
   var tileV by remember { mutableStateOf<Dp?>(null) }
 
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    // Draw tile grid
     DrawGrid(
       boxModifier = {
         val tile = state.getTileAt(it)
@@ -80,6 +89,8 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
           },
       )
     }
+
+    // Draw piece grid
     DrawGrid({ this }) {
       val tile = state.getTileAt(it)
       Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
@@ -95,31 +106,17 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
         }
       }
     }
-    Column {
-      for (rowIndex in 0..7) {
-        Row(modifier = Modifier.fillMaxSize().weight(1f)) {
-          for (colIndex in 0..7) {
-            val index = rowIndex * 8 + colIndex
-            val tile = state.getTileAt(index)
-            Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
-              val piece = state.tileToPiece[tile.gridItem]
-              if (
-                piece != null &&
-                  !state.piecesToMove.contains(tile.gridItem) &&
-                  !state.piecesToMove.values.contains(tile.gridItem)
-              ) {
-                Piece(piece, Modifier.fillMaxSize())
-              } else if (state.piecesToMove.contains(tile.gridItem)) {
-                AnimatedPiece(state, tile, tilePositions)
-              }
-            }
-          }
-        }
-      }
-    }
   }
 }
 
+/**
+ * Composable for drawing an 8x8 grid structure for the chess board.
+ *
+ * Iterates over rows and columns, applying the provided boxModifier and boxContent for each tile.
+ *
+ * @param boxModifier Modifier applied to each grid tile, can be used for click handling or styling.
+ * @param boxContent Content composable for each grid tile, typically used to render tile or piece.
+ */
 @Composable
 private fun DrawGrid(
   boxModifier: @Composable Modifier.(Int) -> Modifier,
@@ -139,6 +136,16 @@ private fun DrawGrid(
   }
 }
 
+/**
+ * Composable for animating a chess piece movement on the board grid.
+ *
+ * Animates the piece from its current position to the destination tile using an offset animation.
+ * Removes the piece from the move list after the animation completes.
+ *
+ * @param state The current board grid state containing piece and move information.
+ * @param tile The tile representing the piece to animate.
+ * @param tilePositions Map of grid items to their pixel offsets on the board.
+ */
 @Composable
 private fun AnimatedPiece(
   state: BoardGridState,
@@ -167,12 +174,9 @@ private fun AnimatedPiece(
     )
   val pieceToMove = state.tileToPiece[destinationGridItem]
   checkNotNull(pieceToMove) { "No piece at $destinationGridItem" }
-  Piece(pieceToMove, Modifier.fillMaxSize().offset(offset.x.dp, offset.y.dp).zIndex(2f))
+  Piece(pieceToMove, Modifier.fillMaxSize().offset(offset.x.dp, offset.y.dp))
   LaunchedEffect(Unit) {
-    delay(10)
     moved = true
-  }
-  LaunchedEffect(Unit) {
     delay(animationDuration)
     state.piecesToMove.remove(tile.gridItem)
   }
