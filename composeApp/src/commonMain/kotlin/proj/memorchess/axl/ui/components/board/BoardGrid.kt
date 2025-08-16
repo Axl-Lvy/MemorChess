@@ -27,7 +27,6 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.collections.set
 import kotlin.time.Duration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
