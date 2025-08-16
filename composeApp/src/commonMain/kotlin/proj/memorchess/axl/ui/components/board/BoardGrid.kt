@@ -24,9 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.collections.set
+import kotlin.time.Duration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
@@ -34,7 +36,7 @@ import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
-import proj.memorchess.axl.core.engine.board.GridItem
+import proj.memorchess.axl.core.engine.board.BoardLocation
 import proj.memorchess.axl.core.engine.board.ITile
 
 /**
@@ -49,10 +51,11 @@ import proj.memorchess.axl.core.engine.board.ITile
 @Composable
 fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
   val scope = rememberCoroutineScope()
-  val tilePositions = remember { mutableMapOf<GridItem, Offset>() }
+  val tilePositions = remember { mutableMapOf<BoardLocation, Offset>() }
   var tileH by remember { mutableStateOf<Dp?>(null) }
   var tileV by remember { mutableStateOf<Dp?>(null) }
 
+  val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
     // Draw tile grid
     DrawGrid(
@@ -85,7 +88,7 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
         tile,
         modifier =
           Modifier.onGloballyPositioned { layoutCoordinates ->
-            tilePositions[tile.gridItem] = layoutCoordinates.positionInRoot()
+            tilePositions[tile.boardLocation] = layoutCoordinates.positionInRoot()
           },
       )
     }
@@ -94,14 +97,17 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
     DrawGrid({ this }) {
       val tile = state.getTileAt(it)
       Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
-        val piece = state.tileToPiece[tile.gridItem]
+        val piece = state.tileToPiece[tile.boardLocation]
         if (
           piece != null &&
-            !state.piecesToMove.contains(tile.gridItem) &&
-            !state.piecesToMove.values.contains(tile.gridItem)
+            (animationDuration == Duration.ZERO ||
+              (!state.piecesToMove.contains(tile.boardLocation) &&
+                !state.piecesToMove.values.contains(tile.boardLocation)))
         ) {
-          Piece(piece, Modifier.fillMaxSize())
-        } else if (state.piecesToMove.contains(tile.gridItem)) {
+          Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at ${tile.getName()}"))
+        } else if (
+          animationDuration != Duration.ZERO && state.piecesToMove.contains(tile.boardLocation)
+        ) {
           AnimatedPiece(state, tile, tilePositions)
         }
       }
@@ -150,12 +156,12 @@ private fun DrawGrid(
 private fun AnimatedPiece(
   state: BoardGridState,
   tile: ITile,
-  tilePositions: MutableMap<GridItem, Offset>,
+  tilePositions: MutableMap<BoardLocation, Offset>,
 ) {
   val animationDuration = remember { MOVE_ANIMATION_DURATION_SETTING.getValue() }
-  val destinationGridItem = state.piecesToMove[tile.gridItem]
-  val startPos = tilePositions[tile.gridItem]
-  checkNotNull(startPos) { "Tile at ${tile.gridItem} not positioned yet" }
+  val destinationGridItem = state.piecesToMove[tile.boardLocation]
+  val startPos = tilePositions[tile.boardLocation]
+  checkNotNull(startPos) { "Tile at ${tile.boardLocation} not positioned yet" }
   val endPos = tilePositions[destinationGridItem]
   checkNotNull(endPos) { "Tile at $destinationGridItem not positioned yet" }
   val targetOffset = endPos - startPos
@@ -178,6 +184,6 @@ private fun AnimatedPiece(
   LaunchedEffect(Unit) {
     moved = true
     delay(animationDuration)
-    state.piecesToMove.remove(tile.gridItem)
+    state.piecesToMove.remove(tile.boardLocation)
   }
 }

@@ -45,7 +45,7 @@ interface TestWithKoin : KoinComponent {
 
   @OptIn(KoinInternalApi::class)
   @Composable
-  fun initializeApp(block: @Composable () -> Unit) {
+  fun InitializeApp(block: @Composable () -> Unit) {
     CompositionLocalProvider(
       LocalKoinScope provides KoinPlatformTools.defaultContext().get().scopeRegistry.rootScope,
       LocalKoinApplication provides KoinPlatformTools.defaultContext().get(),

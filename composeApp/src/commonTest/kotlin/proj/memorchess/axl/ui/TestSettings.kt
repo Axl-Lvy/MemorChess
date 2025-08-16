@@ -26,7 +26,7 @@ class TestSettings : TestWithKoin {
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runComposeUiTest {
-      setContent { initializeApp { Settings() } }
+      setContent { InitializeApp { Settings() } }
       block()
     }
   }

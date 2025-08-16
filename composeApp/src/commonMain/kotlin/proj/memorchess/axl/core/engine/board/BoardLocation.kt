@@ -6,7 +6,7 @@ package proj.memorchess.axl.core.engine.board
  * @property row row of the grid item
  * @property col column of the grid item
  */
-data class GridItem(val row: Int, val col: Int) {
+data class BoardLocation(val row: Int, val col: Int) {
   val color: ITile.TileColor =
     if ((row + col) % 2 == 0) ITile.TileColor.BLACK else ITile.TileColor.WHITE
 }

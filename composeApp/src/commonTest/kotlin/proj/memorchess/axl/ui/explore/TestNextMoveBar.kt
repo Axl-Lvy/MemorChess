@@ -1,7 +1,5 @@
 package proj.memorchess.axl.ui.explore
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasTestTag
@@ -33,7 +31,7 @@ class TestNextMoveBar : TestWithKoin {
 
   private fun ComposeUiTest.setUp() {
     runTest { database.deleteAll(DateUtil.farInThePast()) }
-    setContent { initializeApp { Explore() } }
+    setContent { InitializeApp { Explore() } }
     playMove("e2", "e4")
     assertPieceMoved("e2", "e4", Pawn.white())
     clickOnSave()

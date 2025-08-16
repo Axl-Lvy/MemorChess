@@ -1,14 +1,14 @@
 package proj.memorchess.axl.ui.components.board
 
 import androidx.compose.runtime.mutableStateMapOf
-import proj.memorchess.axl.core.engine.board.GridItem
+import proj.memorchess.axl.core.engine.board.BoardLocation
 import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.interactions.InteractionsManager
 
 class BoardGridState(val inverted: Boolean, val interactionsManager: InteractionsManager) {
-  val tileToPiece = mutableStateMapOf<GridItem, Piece?>()
-  val piecesToMove = mutableStateMapOf<GridItem, GridItem>()
+  val tileToPiece = mutableStateMapOf<BoardLocation, Piece?>()
+  val piecesToMove = mutableStateMapOf<BoardLocation, BoardLocation>()
   var board = interactionsManager.game.position.board
 
   /** Returns the currently selected tile coordinates, or null if none is selected. */
@@ -16,7 +16,9 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
     get() = interactionsManager.selectedTile
 
   init {
-    board.getTilesIterator().forEach { tile -> tileToPiece[tile.gridItem] = tile.getSafePiece() }
+    board.getTilesIterator().forEach { tile ->
+      tileToPiece[tile.boardLocation] = tile.getSafePiece()
+    }
     interactionsManager.registerCallBack {
       if (it) {
         updateTilesWithAnimation()
@@ -38,8 +40,8 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
     board = interactionsManager.game.position.board
     for (tile in board.getTilesIterator()) {
       val newPiece = tile.getSafePiece()
-      if (tileToPiece[tile.gridItem] != newPiece) {
-        tileToPiece[tile.gridItem] = newPiece
+      if (tileToPiece[tile.boardLocation] != newPiece) {
+        tileToPiece[tile.boardLocation] = newPiece
       }
     }
   }
@@ -47,18 +49,18 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
   private fun updateTilesWithAnimation() {
     piecesToMove.clear()
     board = interactionsManager.game.position.board
-    val previousPiecePositions = mutableMapOf<Piece, GridItem>()
-    val newPiecePositions = mutableMapOf<Piece, GridItem>()
+    val previousPiecePositions = mutableMapOf<Piece, BoardLocation>()
+    val newPiecePositions = mutableMapOf<Piece, BoardLocation>()
     for (tile in board.getTilesIterator()) {
       val newPiece = tile.getSafePiece()
-      val previousPiece = tileToPiece[tile.gridItem]
+      val previousPiece = tileToPiece[tile.boardLocation]
       if (previousPiece != newPiece) {
         if (newPiece != null) {
-          newPiecePositions[newPiece] = tile.gridItem
+          newPiecePositions[newPiece] = tile.boardLocation
         } else if (previousPiece != null) {
-          previousPiecePositions[previousPiece] = tile.gridItem
+          previousPiecePositions[previousPiece] = tile.boardLocation
         }
-        tileToPiece[tile.gridItem] = newPiece
+        tileToPiece[tile.boardLocation] = newPiece
       }
     }
     previousPiecePositions.forEach { (piece, previousPosition) ->

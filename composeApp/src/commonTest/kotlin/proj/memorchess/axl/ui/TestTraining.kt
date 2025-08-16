@@ -39,7 +39,7 @@ class TestTraining : TestWithKoin {
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runComposeUiTest {
-      setContent { initializeApp { Training() } }
+      setContent { InitializeApp { Training() } }
       block()
     }
   }
@@ -191,7 +191,7 @@ class TestTraining : TestWithKoin {
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
     runTest { database.insertNodes(node) }
-    setContent { initializeApp { Training() } }
+    setContent { InitializeApp { Training() } }
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("h7", "h8")
     promoteTo(Piece.QUEEN)

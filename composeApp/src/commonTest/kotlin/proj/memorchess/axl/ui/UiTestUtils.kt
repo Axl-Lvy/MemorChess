@@ -8,7 +8,6 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertContentDescriptionContains
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -92,7 +91,7 @@ fun ComposeUiTest.assertTileIsEmpty(tileName: String) {
  * @param piece The chess piece that should be on the tile
  */
 fun ComposeUiTest.assertTileContainsPiece(tileName: String, piece: Piece) {
-  waitUntilTileAppears(tileName).assertContentDescriptionContains("Piece $piece")
+  waitUntilNodeExists(hasTestTag("Piece $piece at $tileName"))
 }
 
 /**

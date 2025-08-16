@@ -33,7 +33,7 @@ class TestAuthentication : TestWithKoin {
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runComposeUiTest {
-      setContent { initializeApp { Settings() } }
+      setContent { InitializeApp { Settings() } }
       assertNodeWithTagExists("sign_in_button").performScrollTo()
       block()
     }
