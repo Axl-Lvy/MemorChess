@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -25,10 +24,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.collections.set
 import kotlin.time.Duration
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
@@ -52,66 +50,71 @@ import proj.memorchess.axl.core.engine.board.ITile
 fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
   val scope = rememberCoroutineScope()
   val tilePositions = remember { mutableMapOf<BoardLocation, Offset>() }
-  var tileH by remember { mutableStateOf<Dp?>(null) }
-  var tileV by remember { mutableStateOf<Dp?>(null) }
 
   val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
     // Draw tile grid
-    DrawGrid(
-      boxModifier = {
-        val tile = state.getTileAt(it)
-        val coords = tile.getCoords()
-        val isSelected = state.selectedTile == coords
-        val clickLabel = stringResource(Res.string.description_board_tile, tile.getName())
-        clickable(
-            onClickLabel = clickLabel,
-            onClick = { scope.launch { state.onTileClick(coords) } },
-          )
-          .then(
-            if (isSelected)
-              Modifier.border(3.dp, CHESS_BOARD_COLOR_SETTING.getValue().selectedBorderColor)
-            else Modifier
-          )
-      }
-    ) {
-      val tile = state.getTileAt(it)
-      BoxWithConstraints {
-        if (tileH == null) {
-          tileH = maxWidth
-        }
-        if (tileV == null) {
-          tileV = maxHeight
-        }
-      }
-      Tile(
-        tile,
-        modifier =
-          Modifier.onGloballyPositioned { layoutCoordinates ->
-            tilePositions[tile.boardLocation] = layoutCoordinates.positionInRoot()
-          },
-      )
-    }
+    DrawTileGrid(state, scope, tilePositions)
 
     // Draw piece grid
-    DrawGrid({ this }) {
-      val tile = state.getTileAt(it)
-      Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
-        val piece = state.tileToPiece[tile.boardLocation]
-        if (
-          piece != null &&
-            (animationDuration == Duration.ZERO ||
-              (!state.piecesToMove.contains(tile.boardLocation) &&
-                !state.piecesToMove.values.contains(tile.boardLocation)))
-        ) {
-          Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at ${tile.getName()}"))
-        } else if (
-          animationDuration != Duration.ZERO && state.piecesToMove.contains(tile.boardLocation)
-        ) {
-          AnimatedPiece(state, tile, tilePositions)
-        }
+    DrawPieceGrid(state, animationDuration, tilePositions)
+  }
+}
+
+@Composable
+private fun DrawPieceGrid(
+  state: BoardGridState,
+  animationDuration: Duration,
+  tilePositions: MutableMap<BoardLocation, Offset>,
+) {
+  DrawGrid({ this }) {
+    val tile = state.getTileAt(it)
+    Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
+      val piece = state.tileToPiece[tile.boardLocation]
+      if (
+        piece != null &&
+          (animationDuration == Duration.ZERO ||
+            (!state.piecesToMove.contains(tile.boardLocation) &&
+              !state.piecesToMove.values.contains(tile.boardLocation)))
+      ) {
+        Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at ${tile.getName()}"))
+      } else if (
+        animationDuration != Duration.ZERO && state.piecesToMove.contains(tile.boardLocation)
+      ) {
+        AnimatedPiece(state, tile, tilePositions)
       }
     }
+  }
+}
+
+@Composable
+private fun DrawTileGrid(
+  state: BoardGridState,
+  scope: CoroutineScope,
+  tilePositions: MutableMap<BoardLocation, Offset>,
+) {
+  DrawGrid(
+    boxModifier = {
+      val tile = state.getTileAt(it)
+      val coords = tile.getCoords()
+      val isSelected = state.selectedTile == coords
+      val clickLabel = stringResource(Res.string.description_board_tile, tile.getName())
+      clickable(onClickLabel = clickLabel, onClick = { scope.launch { state.onTileClick(coords) } })
+        .then(
+          if (isSelected)
+            Modifier.border(3.dp, CHESS_BOARD_COLOR_SETTING.getValue().selectedBorderColor)
+          else Modifier
+        )
+    }
+  ) {
+    val tile = state.getTileAt(it)
+    Tile(
+      tile,
+      modifier =
+        Modifier.onGloballyPositioned { layoutCoordinates ->
+          tilePositions[tile.boardLocation] = layoutCoordinates.positionInRoot()
+        },
+    )
   }
 }
 
@@ -156,7 +159,7 @@ private fun DrawGrid(
 private fun AnimatedPiece(
   state: BoardGridState,
   tile: ITile,
-  tilePositions: MutableMap<BoardLocation, Offset>,
+  tilePositions: Map<BoardLocation, Offset>,
 ) {
   val animationDuration = remember { MOVE_ANIMATION_DURATION_SETTING.getValue() }
   val destinationGridItem = state.piecesToMove[tile.boardLocation]
