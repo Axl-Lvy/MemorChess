@@ -62,32 +62,6 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun DrawPieceGrid(
-  state: BoardGridState,
-  animationDuration: Duration,
-  tilePositions: MutableMap<BoardLocation, Offset>,
-) {
-  DrawGrid({ this }) {
-    val tile = state.getTileAt(it)
-    Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
-      val piece = state.tileToPiece[tile.boardLocation]
-      if (
-        piece != null &&
-          (animationDuration == Duration.ZERO ||
-            (!state.piecesToMove.contains(tile.boardLocation) &&
-              !state.piecesToMove.values.contains(tile.boardLocation)))
-      ) {
-        Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at ${tile.getName()}"))
-      } else if (
-        animationDuration != Duration.ZERO && state.piecesToMove.contains(tile.boardLocation)
-      ) {
-        AnimatedPiece(state, tile, tilePositions)
-      }
-    }
-  }
-}
-
-@Composable
 private fun DrawTileGrid(
   state: BoardGridState,
   scope: CoroutineScope,
@@ -115,6 +89,32 @@ private fun DrawTileGrid(
           tilePositions[tile.boardLocation] = layoutCoordinates.positionInRoot()
         },
     )
+  }
+}
+
+@Composable
+private fun DrawPieceGrid(
+  state: BoardGridState,
+  animationDuration: Duration,
+  tilePositions: MutableMap<BoardLocation, Offset>,
+) {
+  DrawGrid({ this }) {
+    val tile = state.getTileAt(it)
+    Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
+      val piece = state.tileToPiece[tile.boardLocation]
+      if (
+        piece != null &&
+          (animationDuration == Duration.ZERO ||
+            (!state.piecesToMove.contains(tile.boardLocation) &&
+              !state.piecesToMove.values.contains(tile.boardLocation)))
+      ) {
+        Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at ${tile.getName()}"))
+      } else if (
+        animationDuration != Duration.ZERO && state.piecesToMove.contains(tile.boardLocation)
+      ) {
+        AnimatedPiece(state, tile, tilePositions)
+      }
+    }
   }
 }
 
@@ -183,7 +183,7 @@ private fun AnimatedPiece(
     )
   val pieceToMove = state.tileToPiece[destinationGridItem]
   checkNotNull(pieceToMove) { "No piece at $destinationGridItem" }
-  Piece(pieceToMove, Modifier.fillMaxSize().offset(offset.x.dp, offset.y.dp))
+  Piece(pieceToMove, Modifier.offset(offset.x.dp, offset.y.dp).fillMaxSize())
   LaunchedEffect(Unit) {
     moved = true
     delay(animationDuration)
