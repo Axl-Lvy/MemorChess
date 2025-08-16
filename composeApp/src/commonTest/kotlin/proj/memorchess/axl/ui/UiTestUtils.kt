@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import com.diamondedge.logging.logging
+import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.test_util.Awaitility
@@ -89,9 +90,14 @@ fun ComposeUiTest.assertTileIsEmpty(tileName: String) {
  *
  * @param tileName The algebraic notation of the tile to check (e.g., "e4")
  * @param piece The chess piece that should be on the tile
+ * @param timeOut The maximum time to wait for the tile to appear
  */
-fun ComposeUiTest.assertTileContainsPiece(tileName: String, piece: Piece) {
-  waitUntilNodeExists(hasTestTag("Piece $piece at $tileName"))
+fun ComposeUiTest.assertTileContainsPiece(
+  tileName: String,
+  piece: Piece,
+  timeOut: Duration = TEST_TIMEOUT,
+) {
+  waitUntilNodeExists(hasTestTag("Piece $piece at $tileName"), timeOut)
 }
 
 /**
@@ -178,7 +184,7 @@ fun ComposeUiTest.assertNodeWithTextDoesNotExists(text: String) {
     try {
       onNodeWithText(text).assertDoesNotExist()
       return@awaitUntilTrue true
-    } catch (e: AssertionError) {
+    } catch (_: AssertionError) {
       return@awaitUntilTrue false
     }
   }
@@ -209,8 +215,18 @@ private fun ComposeUiTest.slide(sliderTestTag: String, widthFactor: Float) {
   node.performTouchInput { click(Offset(width * widthFactor, 0f)) }
 }
 
-fun ComposeUiTest.waitUntilNodeExists(matcher: SemanticsMatcher): SemanticsNodeInteraction {
-  waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)
+/**
+ * Waits until a UI element with the specified matcher exists and returns it.
+ *
+ * @param matcher The matcher used to identify the UI element
+ * @param timeOut The maximum time to wait for the element to appear
+ * @return The SemanticsNodeInteraction representing the found element
+ */
+fun ComposeUiTest.waitUntilNodeExists(
+  matcher: SemanticsMatcher,
+  timeOut: Duration = TEST_TIMEOUT,
+): SemanticsNodeInteraction {
+  waitUntilAtLeastOneExists(matcher, timeOut.inWholeMilliseconds)
   return onNode(matcher).assertExists()
 }
 

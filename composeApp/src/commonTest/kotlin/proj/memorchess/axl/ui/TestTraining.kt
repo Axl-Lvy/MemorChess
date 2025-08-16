@@ -6,8 +6,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.StoredMove
@@ -140,7 +142,8 @@ class TestTraining : TestWithKoin {
   }
 
   @Test
-  fun testShowNextMove() = runTestFromSetup {
+  fun testShowNextMove() = runComposeUiTest {
+    TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     // Insert a second move in the database
     val game = Game()
     val startPos = game.position.createIdentifier()
@@ -159,18 +162,20 @@ class TestTraining : TestWithKoin {
         PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
+    runTest { database.insertNodes(testNode) }
+    setContent { InitializeApp { Training() } }
 
     try {
-      assertTileContainsPiece("e4", Pawn.white())
+      assertTileContainsPiece("e4", Pawn.white(), Duration.ZERO)
       playMove("e7", "e5")
-    } catch (_: AssertionError) {
+    } catch (_: Throwable) {
       playMove("e2", "e4")
     }
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     try {
-      assertTileContainsPiece("e4", Pawn.white())
+      assertTileContainsPiece("e4", Pawn.white(), Duration.ZERO)
       playMove("e7", "e5")
-    } catch (_: AssertionError) {
+    } catch (_: Throwable) {
       playMove("e2", "e4")
     }
     assertNodeWithTextExists(BRAVO_TEXT)
