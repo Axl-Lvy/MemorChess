@@ -53,14 +53,22 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
 
   val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-    // Draw tile grid
     DrawTileGrid(state, scope, tilePositions)
-
-    // Draw piece grid
     DrawPieceGrid(state, animationDuration, tilePositions)
   }
 }
 
+/**
+ * Composable function that draws the grid of tiles on the chessboard.
+ *
+ * Iterates over all board locations, rendering each tile and handling click events. Highlights the
+ * selected tile and updates tile positions for piece animation.
+ *
+ * @param state The board state containing tile information and selection.
+ * @param scope Coroutine scope for handling tile click events asynchronously.
+ * @param tilePositions (out) Mutable map to store the positions of each tile for animation
+ *   purposes.
+ */
 @Composable
 private fun DrawTileGrid(
   state: BoardGridState,
@@ -92,11 +100,21 @@ private fun DrawTileGrid(
   }
 }
 
+/**
+ * Composable function that draws the grid of chess pieces on the board.
+ *
+ * Renders each piece at its corresponding tile location. Handles piece animation when a move
+ * occurs, and displays the piece at its destination after the animation completes.
+ *
+ * @param state The board state containing piece and move information.
+ * @param animationDuration Duration for animating piece movement between tiles.
+ * @param tilePositions Map of board locations to their pixel positions for animation.
+ */
 @Composable
 private fun DrawPieceGrid(
   state: BoardGridState,
   animationDuration: Duration,
-  tilePositions: MutableMap<BoardLocation, Offset>,
+  tilePositions: Map<BoardLocation, Offset>,
 ) {
   DrawGrid({ this }) {
     val tile = state.getTileAt(it)
