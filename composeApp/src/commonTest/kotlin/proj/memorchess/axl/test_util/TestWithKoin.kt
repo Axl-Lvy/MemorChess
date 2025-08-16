@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.russhwolf.settings.Settings
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import kotlin.time.Duration
 import org.koin.compose.LocalKoinApplication
 import org.koin.compose.LocalKoinScope
 import org.koin.core.annotation.KoinInternalApi
@@ -15,6 +16,7 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
+import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.NO_OP_RENDERER
@@ -25,6 +27,7 @@ interface TestWithKoin : KoinComponent {
   @BeforeTest
   fun setUp() {
     startKoin { modules(*initKoinModules(), initTestModule()) }
+    MOVE_ANIMATION_DURATION_SETTING.setValue(Duration.ZERO)
   }
 
   @AfterTest
@@ -42,7 +45,7 @@ interface TestWithKoin : KoinComponent {
 
   @OptIn(KoinInternalApi::class)
   @Composable
-  fun initializeApp(block: @Composable () -> Unit) {
+  fun InitializeApp(block: @Composable () -> Unit) {
     CompositionLocalProvider(
       LocalKoinScope provides KoinPlatformTools.defaultContext().get().scopeRegistry.rootScope,
       LocalKoinApplication provides KoinPlatformTools.defaultContext().get(),

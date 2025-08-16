@@ -6,13 +6,13 @@ import proj.memorchess.axl.core.engine.pieces.Piece
 /**
  * Mutable representation of a tile.
  *
- * @property gridItem GridItem of this tile.
+ * @property boardLocation GridItem of this tile.
  * @property getSafePiece Piece on this tile.
  * @constructor Create empty Tile.
  */
-class Tile(override val gridItem: GridItem, var piece: Piece?) : ITile {
+class Tile(override val boardLocation: BoardLocation, var piece: Piece?) : ITile {
 
-  constructor(row: Int, col: Int) : this(GridItem(row, col), null)
+  constructor(row: Int, col: Int) : this(BoardLocation(row, col), null)
 
   /** Remove the piece on this tile. */
   fun reset() {
@@ -24,11 +24,11 @@ class Tile(override val gridItem: GridItem, var piece: Piece?) : ITile {
   }
 
   override fun getCoords(): Pair<Int, Int> {
-    return Pair(gridItem.row, gridItem.col)
+    return Pair(boardLocation.row, boardLocation.col)
   }
 
   override fun getColor(): ITile.TileColor {
-    return gridItem.color
+    return boardLocation.color
   }
 
   override fun getName(): String {
@@ -44,14 +44,14 @@ class Tile(override val gridItem: GridItem, var piece: Piece?) : ITile {
     if (this === other) return true
     if (other !is Tile) return false
 
-    if (gridItem != other.gridItem) return false
+    if (boardLocation != other.boardLocation) return false
     if (piece != other.piece) return false
 
     return true
   }
 
   override fun hashCode(): Int {
-    var result = gridItem.hashCode()
+    var result = boardLocation.hashCode()
     result = 31 * result + (piece?.hashCode() ?: 0)
     return result
   }

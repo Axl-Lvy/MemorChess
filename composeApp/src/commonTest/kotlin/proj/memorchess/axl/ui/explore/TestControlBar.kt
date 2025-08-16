@@ -27,7 +27,7 @@ class TestControlBar : TestWithKoin {
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runTest { nodeManager.resetCacheFromDataBase() }
     runComposeUiTest {
-      setContent { initializeApp { Explore() } }
+      setContent { InitializeApp { Explore() } }
       playMove("e2", "e4")
       assertPieceMoved("e2", "e4", Pawn.white())
       block()

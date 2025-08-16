@@ -26,7 +26,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
       node = parent
       game = node.createGame()
       state = node.getState()
-      callCallBacks()
+      callCallBacks(false)
     } else {
       toastRenderer.info("No previous move.")
     }
@@ -43,7 +43,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
       node = firstChild
       game.playMove(move.move)
       state = node.getState()
-      callCallBacks()
+      callCallBacks(false)
     } else {
       toastRenderer.info("No next move.")
     }

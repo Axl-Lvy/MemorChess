@@ -32,7 +32,7 @@ class TestSaveButton : TestWithKoin {
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runTest { database.deleteAll(DateUtil.farInThePast()) }
     runComposeUiTest {
-      setContent { initializeApp { Explore() } }
+      setContent { InitializeApp { Explore() } }
       playMove("h2", "h3")
       assertPieceMoved("h2", "h3", Pawn.white())
       block()

@@ -10,11 +10,12 @@ import proj.memorchess.axl.core.engine.board.ITile
 import proj.memorchess.axl.core.engine.board.ITile.TileColor
 
 @Composable
-fun Tile(tile: ITile) {
+fun Tile(tile: ITile, modifier: Modifier = Modifier) {
   val colors = CHESS_BOARD_COLOR_SETTING.getValue()
   Box(
     modifier =
-      Modifier.background(
+      modifier
+        .background(
           if (tile.getColor() == TileColor.BLACK) colors.darkSquareColor
           else colors.lightSquareColor
         )

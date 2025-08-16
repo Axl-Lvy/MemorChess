@@ -38,4 +38,4 @@ fun getPieceDescription(piece: String): String {
   return "Piece $piece"
 }
 
-val TEST_TIMEOUT = 15.seconds
+val TEST_TIMEOUT = 10.seconds
