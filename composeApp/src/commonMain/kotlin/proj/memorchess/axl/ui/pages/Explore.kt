@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.diamondedge.logging.logging
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
@@ -31,6 +32,9 @@ import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
 import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.pages.navigation.Route
+import proj.memorchess.axl.core.stockfish.StockfishEvaluator
+
+private val LOGGER = logging()
 
 @Composable
 fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koinInject()) {
@@ -42,6 +46,7 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
+      val evaluator = remember { StockfishEvaluator() }
       val modifier = Modifier.fillMaxWidth()
       var inverted by remember { mutableStateOf(false) }
       val linesExplorer = remember { LinesExplorer() }
@@ -53,6 +58,9 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
         linesExplorer.registerCallBack {
           nextMoves.clear()
           nextMoves.addAll(linesExplorer.getNextMoves())
+          coroutineScope.launch {
+            evaluator.evaluate(linesExplorer.game.position.createIdentifier())
+          }
         }
       }
       val deletionConfirmationDialog = remember { ConfirmationDialog(okText = "Delete") }
@@ -77,7 +85,15 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
             }
             Piece(if (playerTurn) King.white() else King.black())
           },
-          stateIndicators = { StateIndicator(it, linesExplorer.state) },
+          stateIndicators = {
+            Row(it) {
+              StateIndicator(Modifier.weight(1f), linesExplorer.state)
+              Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f)) {
+                val eval by evaluator.evaluation.collectAsState()
+                Text("$eval")
+              }
+            }
+                            },
           saveButton = {
             Button(
               onClick = { coroutineScope.launch { linesExplorer.save() } },

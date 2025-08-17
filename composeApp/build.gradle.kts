@@ -66,13 +66,21 @@ kotlin {
   @OptIn(ExperimentalKotlinGradlePluginApi::class)
   applyDefaultHierarchyTemplate {
     common {
-      group("debug") {
+      group("commonAndroidJvm") {
         withAndroidTarget()
         withJvm()
       }
+      group("debug") {
+        group("commonAndroidJvm") {
+          withAndroidTarget()
+          withJvm()
+        }
+      }
       group("nonJs") {
-        withAndroidTarget()
-        withJvm()
+        group("commonAndroidJvm") {
+          withAndroidTarget()
+          withJvm()
+        }
         group("ios") { withIos() }
       }
     }
@@ -175,6 +183,12 @@ android {
       project.findProperty("numShards")?.toString() ?: "1"
     testInstrumentationRunnerArguments["shardIndex"] =
       project.findProperty("shardIndex")?.toString() ?: "0"
+    ndk {
+      abiFilters.add("armeabi-v7a")
+      abiFilters.add("arm64-v8a")
+      abiFilters.add("x86")
+      abiFilters.add("x86_64")
+    }
   }
 
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
@@ -182,6 +196,12 @@ android {
   buildTypes {
     getByName("release") { isMinifyEnabled = false }
     getByName("debug") { enableAndroidTestCoverage = true }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path = file("src/commonAndroidJvmMain/jni/chess-engine/CMakeLists.txt")
+    }
   }
 
   compileOptions {
