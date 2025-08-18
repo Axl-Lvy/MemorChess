@@ -213,10 +213,10 @@ private fun AnimatedPiece(
     )
   val pieceToMove = state.tileToPiece[destinationGridItem]
   checkNotNull(pieceToMove) { "No piece at $destinationGridItem" }
-  val offsetMultiplicator = if (state.inverted) -1 else 1
+  val offsetMultiplier = if (state.inverted) -1 else 1
   Piece(
     pieceToMove,
-    Modifier.offset(x * offsetMultiplicator, y * offsetMultiplicator).fillMaxSize(),
+    Modifier.offset(x * offsetMultiplier, y * offsetMultiplier).fillMaxSize(),
   )
   LaunchedEffect(Unit) {
     moved = true
