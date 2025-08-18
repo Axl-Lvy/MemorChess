@@ -18,7 +18,7 @@ class ExploreLayoutContent(
   var nextMoveButtons: @Composable () -> List<@Composable () -> Unit>,
 
   // INDICATORS
-  var stateIndicators: @Composable (Modifier) -> Unit,
+  var boardTopping: @Composable (Modifier) -> Unit,
   var playerTurnIndicator: @Composable (Modifier) -> Unit,
 
   // DATABASE ACTIONS

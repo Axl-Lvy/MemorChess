@@ -1,11 +1,15 @@
 package proj.memorchess.axl.ui.components.board
 
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.AlertCircle
@@ -38,13 +42,23 @@ fun StateIndicator(modifier: Modifier = Modifier, state: Node.NodeState) {
       Node.NodeState.BAD_STATE ->
         Triple(MaterialTheme.colorScheme.error, FeatherIcons.AlertCircle, "Bad State")
     }
-  BoardTopping(modifier = modifier, backGroundColor = color.copy(alpha = 0.15f)) {
-    Icon(icon, contentDescription = label, tint = color)
-    Text(
-      text = label,
-      color = color,
-      style = MaterialTheme.typography.bodyMedium,
-      modifier = Modifier.padding(start = 8.dp),
-    )
+  Box(
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(8.dp))
+        .background(color = color.copy(alpha = 0.15f))
+        .padding(vertical = 8.dp),
+    contentAlignment = Alignment.Center,
+  ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      Icon(icon, contentDescription = label, tint = color)
+      Text(
+        text = label,
+        color = color,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.padding(start = 8.dp),
+      )
+    }
   }
 }

@@ -183,11 +183,14 @@ android {
       project.findProperty("numShards")?.toString() ?: "1"
     testInstrumentationRunnerArguments["shardIndex"] =
       project.findProperty("shardIndex")?.toString() ?: "0"
-    ndk {
-      abiFilters.add("armeabi-v7a")
-      abiFilters.add("arm64-v8a")
-      abiFilters.add("x86")
-      abiFilters.add("x86_64")
+  }
+
+  splits {
+    abi {
+      isEnable = true
+      reset()
+      include("arm64-v8a", "armeabi-v7a", "riscv64", "x86", "x86_64")
+      isUniversalApk = false
     }
   }
 
@@ -199,9 +202,7 @@ android {
   }
 
   externalNativeBuild {
-    cmake {
-      path = file("src/commonAndroidJvmMain/jni/chess-engine/CMakeLists.txt")
-    }
+    cmake { path = file("src/commonAndroidJvmMain/jni/chess-engine/CMakeLists.txt") }
   }
 
   compileOptions {
