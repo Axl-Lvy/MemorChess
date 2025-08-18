@@ -17,45 +17,53 @@ actual class StockfishEvaluator {
   actual suspend fun evaluate(position: PositionIdentifier) {
     val realFen = position.toRealFen()
     LOGGER.info { "Evaluating $realFen" }
-    mutableEvaluation.value = 0.0
+    mutableEvaluation.value = "0.0"
     UCI.stop()
     UCI.newGame()
     delay(1.seconds)
-    if (UCI.position("fen " + realFen)) {
+    if (UCI.position("fen $realFen")) {
       LOGGER.info { "Evaluating..." }
       val evaluationOnNewDepth = EvaluationOnNewDepth(mutableEvaluation)
       UCI.setOutputListener(evaluationOnNewDepth)
-      UCI.go("depth 10")
+      UCI.go("depth 20")
     } else {
       LOGGER.error { "Failed to set position: $realFen" }
     }
   }
 
-  private val mutableEvaluation = MutableStateFlow(0.0)
-  actual val evaluation: StateFlow<Double> get() = mutableEvaluation
+  private val mutableEvaluation = MutableStateFlow("0.0")
+  actual val evaluation: StateFlow<String>
+    get() = mutableEvaluation
 }
 
-private class EvaluationOnNewDepth(private val mutableEvaluation: MutableStateFlow<Double>) :
+private class EvaluationOnNewDepth(private val mutableEvaluation: MutableStateFlow<String>) :
   OutputListener {
-  private var currentDepth = 0
 
   override fun onOutput(output: String) {
-    LOGGER.info {output}
-    if (output.startsWith("bestmove")) {
-      evaluate()
-    } else {
-      val splitLog = output.split(" ")
-      if (splitLog.size < 3 || splitLog[2].any { !it.isDigit() }) {
-        return
-      }
-      val depth = splitLog[2].toIntOrNull() ?: return
-      if (depth > currentDepth) {
-        evaluate()
+    LOGGER.info { output }
+
+    if (output.startsWith("info") && output.contains("score")) {
+      val parts = output.split(" ")
+
+      val scoreIndex = parts.indexOf("cp")
+      val mateIndex = parts.indexOf("mate")
+
+      val eval: String? =
+        when {
+          scoreIndex != -1 && scoreIndex + 1 < parts.size -> {
+            val cp = parts[scoreIndex + 1].toIntOrNull()
+            cp?.let { "%.2f".format(it / 100.0) } // e.g. "0.34"
+          }
+          mateIndex != -1 && mateIndex + 1 < parts.size -> {
+            val mate = parts[mateIndex + 1].toIntOrNull()
+            mate?.let { "M$it" } // e.g. "M3" or "M-2"
+          }
+          else -> null
+        }
+
+      if (eval != null) {
+        mutableEvaluation.value = eval
       }
     }
-  }
-
-  private fun evaluate() {
-    mutableEvaluation.value = UCI.scores().total
   }
 }

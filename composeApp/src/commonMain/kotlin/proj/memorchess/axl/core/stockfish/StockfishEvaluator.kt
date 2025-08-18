@@ -13,5 +13,5 @@ expect class StockfishEvaluator() {
    */
   suspend fun evaluate(position: PositionIdentifier)
 
-  val evaluation: StateFlow<Double>
+  val evaluation: StateFlow<String>
 }

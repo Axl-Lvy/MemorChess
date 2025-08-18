@@ -75,12 +75,12 @@ object FenParser {
     return readPosition(key.fenRepresentation)
   }
 
-    /**
-     * Returns the real FEN of a position.
-     *
-     * @param key The position identifier.
-     * @return The FEN of the position.
-     */
+  /**
+   * Returns the real FEN of a position.
+   *
+   * @param key The position identifier.
+   * @return The FEN of the position.
+   */
   fun realFen(key: PositionIdentifier): String {
     return key.fenRepresentation +
       " " +

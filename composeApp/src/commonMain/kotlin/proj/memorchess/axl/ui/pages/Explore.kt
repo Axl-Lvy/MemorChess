@@ -22,6 +22,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
+import proj.memorchess.axl.core.stockfish.StockfishEvaluator
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
 import proj.memorchess.axl.ui.components.board.StateIndicator
@@ -32,7 +33,6 @@ import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
 import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.pages.navigation.Route
-import proj.memorchess.axl.core.stockfish.StockfishEvaluator
 
 private val LOGGER = logging()
 
@@ -90,10 +90,10 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
               StateIndicator(Modifier.weight(1f), linesExplorer.state)
               Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f)) {
                 val eval by evaluator.evaluation.collectAsState()
-                Text("$eval")
+                Text(eval.adjustToPlayer(linesExplorer.game.position.playerTurn, inverted))
               }
             }
-                            },
+          },
           saveButton = {
             Button(
               onClick = { coroutineScope.launch { linesExplorer.save() } },
@@ -151,5 +151,22 @@ private fun NextMoveButton(move: String, playMove: () -> Unit) {
     contentAlignment = Alignment.Center,
   ) {
     Text(move)
+  }
+}
+
+private fun String.adjustToPlayer(player: Game.Player, inverted: Boolean): String {
+  if (this == "0.0") {
+    return this
+  }
+  val shouldReverse =
+    (player == Game.Player.WHITE && inverted) || (player == Game.Player.BLACK && !inverted)
+  return if (shouldReverse) {
+    when {
+      this.startsWith("-") -> this.substring(1)
+      this.isNotEmpty() -> "-${this}"
+      else -> this
+    }
+  } else {
+    this
   }
 }
