@@ -68,16 +68,6 @@ private class EvaluationOutputListener(private val mutableEvaluation: MutableSta
               }
               else -> null
             }
-
-          if (eval != null) {
-            val now = System.nanoTime()
-            val last = lastUpdateTime.get()
-            if (now - last >= updateIntervalNs) {
-              if (lastUpdateTime.compareAndSet(last, now)) {
-                mutableEvaluation.value = eval
-              }
-            }
-          }
           if (eval != null) {
             mutableEvaluation.value = eval
           }

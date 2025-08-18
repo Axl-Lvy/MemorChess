@@ -186,7 +186,6 @@ private fun EvaluationBar(
       ((numericEval.coerceIn(-maxEval, maxEval) + maxEval) / (2 * maxEval)).coerceIn(0f, 1f)
     }
 
-  LOGGER.info { percentWhite.toString() }
   Box(modifier = modifier, contentAlignment = Alignment.Center) {
     Row(modifier = Modifier.fillMaxSize()) {
       if (percentWhite > 0f) {
