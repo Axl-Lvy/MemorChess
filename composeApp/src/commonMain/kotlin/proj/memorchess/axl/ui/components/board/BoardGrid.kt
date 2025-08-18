@@ -1,29 +1,17 @@
 package proj.memorchess.axl.ui.components.board
 
-import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
@@ -49,7 +37,7 @@ import proj.memorchess.axl.core.engine.board.ITile
 @Composable
 fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
   val scope = rememberCoroutineScope()
-  val tilePositions = remember { mutableMapOf<BoardLocation, Offset>() }
+  val tilePositions = remember { mutableMapOf<BoardLocation, DpOffset>() }
 
   val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
@@ -73,8 +61,10 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
 private fun DrawTileGrid(
   state: BoardGridState,
   scope: CoroutineScope,
-  tilePositions: MutableMap<BoardLocation, Offset>,
+  tilePositions: MutableMap<BoardLocation, DpOffset>,
 ) {
+  var tileWidth = remember<Dp?> { null }
+  var tileHeight = remember<Dp?> { null }
   DrawGrid(
     boxModifier = {
       val tile = state.getTileAt(it)
@@ -90,13 +80,15 @@ private fun DrawTileGrid(
     }
   ) {
     val tile = state.getTileAt(it)
-    Tile(
-      tile,
-      modifier =
-        Modifier.onGloballyPositioned { layoutCoordinates ->
-          tilePositions[tile.boardLocation] = layoutCoordinates.positionInRoot()
-        },
-    )
+    BoxWithConstraints {
+      if (tileWidth == null || tileHeight == null) {
+        tileWidth = maxWidth
+        tileHeight = maxHeight
+      }
+      tilePositions[tile.boardLocation] =
+        DpOffset(tileWidth * tile.getCoords().second, -tileHeight * tile.getCoords().first)
+    }
+    Tile(tile)
   }
 }
 
@@ -114,7 +106,7 @@ private fun DrawTileGrid(
 private fun DrawPieceGrid(
   state: BoardGridState,
   animationDuration: Duration,
-  tilePositions: Map<BoardLocation, Offset>,
+  tilePositions: Map<BoardLocation, DpOffset>,
 ) {
   DrawGrid({ this }) {
     val tile = state.getTileAt(it)
@@ -177,7 +169,7 @@ private fun DrawGrid(
 private fun AnimatedPiece(
   state: BoardGridState,
   tile: ITile,
-  tilePositions: Map<BoardLocation, Offset>,
+  tilePositions: Map<BoardLocation, DpOffset>,
 ) {
   val animationDuration = remember { MOVE_ANIMATION_DURATION_SETTING.getValue() }
   val destinationGridItem = state.piecesToMove[tile.boardLocation]
@@ -187,21 +179,42 @@ private fun AnimatedPiece(
   checkNotNull(endPos) { "Tile at $destinationGridItem not positioned yet" }
   val targetOffset = endPos - startPos
   var moved by remember { mutableStateOf(false) }
-  val offset by
-    animateOffsetAsState(
+  val x by
+    animateDpAsState(
       targetValue =
         if (moved) {
-          targetOffset
+          targetOffset.x
         } else {
-          Offset.Zero
+          0.dp
         },
-      label = "offset",
+      label = "x offset",
       animationSpec =
-        tween(durationMillis = animationDuration.inWholeMilliseconds.toInt(), delayMillis = 0),
+        tween(
+          durationMillis = animationDuration.inWholeMilliseconds.toInt(),
+          delayMillis = 0,
+          easing = LinearEasing,
+        ),
+    )
+  val y by
+    animateDpAsState(
+      targetValue =
+        if (moved) {
+          targetOffset.y
+        } else {
+          0.dp
+        },
+      label = "y offset",
+      animationSpec =
+        tween(
+          durationMillis = animationDuration.inWholeMilliseconds.toInt(),
+          delayMillis = 0,
+          easing = LinearEasing,
+        ),
     )
   val pieceToMove = state.tileToPiece[destinationGridItem]
   checkNotNull(pieceToMove) { "No piece at $destinationGridItem" }
-  Piece(pieceToMove, Modifier.offset(offset.x.dp, offset.y.dp).fillMaxSize())
+  val offsetMultiplier = if (state.inverted) -1 else 1
+  Piece(pieceToMove, Modifier.offset(x * offsetMultiplier, y * offsetMultiplier).fillMaxSize())
   LaunchedEffect(Unit) {
     moved = true
     delay(animationDuration)
