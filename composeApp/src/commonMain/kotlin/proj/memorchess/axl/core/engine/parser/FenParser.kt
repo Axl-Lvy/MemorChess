@@ -76,6 +76,18 @@ object FenParser {
   }
 
   /**
+   * Returns the real FEN of a position.
+   *
+   * @param key The position identifier.
+   * @return The FEN of the position.
+   */
+  fun realFen(key: PositionIdentifier): String {
+    return key.fenRepresentation +
+      " " +
+      if (key.fenRepresentation.last().isDigit()) "" else "- " + "0 1"
+  }
+
+  /**
    * Creates an [IPosition] from a string.
    *
    * @param fen Fen representation of the position.
