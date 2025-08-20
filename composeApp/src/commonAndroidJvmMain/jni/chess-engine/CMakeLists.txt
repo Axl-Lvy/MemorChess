@@ -1,27 +1,58 @@
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.10)
+project(jstockfish)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Include directories for header files
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # Collect all source files
-file(GLOB_RECURSE SOURCE_FILES
+file(GLOB_RECURSE shared_library_sources
         "*.cpp"
         "jstockfish/*.cpp"
         "jstockfish/syzygy/*.cpp"
 )
 
-# Set the library name to match what's loaded in the Kotlin code
-add_library(jstockfish SHARED ${SOURCE_FILES})
+file(GLOB_RECURSE shared_library_headers
+        "*.h"
+        "jstockfish/*.h"
+        "jstockfish/syzygy/*.h"
+)
 
-# Set any compiler flags if needed
+list(FILTER shared_library_sources EXCLUDE REGEX "(main\\.cpp|CMakeCXXCompilerId\\.cpp)")
+
+# Platform-specific configurations
 if(ANDROID)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fexceptions")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3")
+elseif(APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -fPIC")
+    set(CMAKE_SHARED_LIBRARY_SUFFIX ".dylib")
+elseif(WIN32)
+    # MSVC uses different flags than GCC/Clang
+    if(MSVC)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++11 /O2")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3")
+    endif()
+else() # Linux and others
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -fPIC")
 endif()
 
-# Link against required libraries
-target_link_libraries(jstockfish)
+# Add library with platform-appropriate naming
+add_library(jstockfish SHARED ${shared_library_sources} ${shared_library_headers})
 
-# Make sure output name matches what's loaded in System.loadLibrary()
-set_target_properties(jstockfish PROPERTIES OUTPUT_NAME "jstockfish")
+# Add JNI if needed
+find_package(JNI REQUIRED)
+include_directories(${JNI_INCLUDE_DIRS})
+
+# Link against required libraries
+target_link_libraries(jstockfish ${JNI_LIBRARIES})
+
+# Make sure output name matches what's loaded
+set_target_properties(jstockfish PROPERTIES
+    OUTPUT_NAME "jstockfish"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+)

@@ -13,7 +13,7 @@ package proj.memorchess.axl.core.stockfish
 class UCI {
   companion object {
     init {
-      System.loadLibrary("jstockfish")
+      StockfishNativeLoader.load()
     }
 
     // By default, just print to stdout

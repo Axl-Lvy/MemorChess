@@ -46,11 +46,14 @@ void uci_out(string output) {
   // Should another thread need to access the Java VM, it must first call
   // AttachCurrentThread() to attach itself to the VM and obtain a JNI interface pointer
   JNIEnv *env = nullptr;
+  #ifdef _WIN32
+  if (jvm->AttachCurrentThread((void**)&env, NULL) != 0) {
+  #else
   if (jvm->AttachCurrentThread(&env, NULL) != 0) {
+  #endif
     cout << "[JNI] Could not AttachCurrentThread" << endl;
     return;
   }
-
 
   jstring js = env->NewStringUTF(output.c_str());
   env->CallStaticVoidMethod(globalUciClass, onOutput, js);

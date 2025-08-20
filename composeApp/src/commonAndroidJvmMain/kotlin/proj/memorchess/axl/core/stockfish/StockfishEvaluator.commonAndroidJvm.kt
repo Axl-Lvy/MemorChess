@@ -81,7 +81,11 @@ private fun Int.reservedForStockfish(): Int {
   return when (this) {
     1 -> 1
     2 -> 1
-    3 -> 2
-    else -> this - 2
+    3 -> 1
+    4 -> 2
+    5 -> 2
+    6 -> 3
+    7 -> 3
+    else -> this - 4
   }
 }

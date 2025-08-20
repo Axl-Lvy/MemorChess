@@ -12,7 +12,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.diamondedge.logging.logging
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
@@ -38,10 +37,12 @@ import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.pages.navigation.Route
 
-private val LOGGER = logging()
-
 @Composable
-fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koinInject()) {
+fun Explore(
+  position: PositionIdentifier? = null,
+  nodeManager: NodeManager = koinInject(),
+  evaluator: StockfishEvaluator = koinInject(),
+) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -50,7 +51,6 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
-      val evaluator = remember { StockfishEvaluator() }
       val modifier = Modifier.fillMaxWidth()
       var inverted by remember { mutableStateOf(false) }
       val linesExplorer = remember { LinesExplorer() }
@@ -98,7 +98,10 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(4.dp)),
               ) {
                 val eval by evaluator.evaluation.collectAsState()
-                EvaluationBar(eval = eval, modifier = Modifier.fillMaxSize())
+                EvaluationBar(
+                  eval = eval.adjustToPlayer(linesExplorer.game.position.playerTurn),
+                  modifier = Modifier.fillMaxSize(),
+                )
               }
             }
           },
@@ -212,5 +215,21 @@ private fun EvaluationBar(
       color = MaterialTheme.colorScheme.onSurface,
       modifier = Modifier.align(Alignment.Center),
     )
+  }
+}
+
+private fun String.adjustToPlayer(player: Game.Player): String {
+  if (this == "0.0") {
+    return this
+  }
+  val shouldReverse = player == Game.Player.BLACK
+  return if (shouldReverse) {
+    when {
+      this.startsWith("-") -> this.substring(1)
+      this.isNotEmpty() -> "-${this}"
+      else -> this
+    }
+  } else {
+    this
   }
 }

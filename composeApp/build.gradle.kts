@@ -1,4 +1,5 @@
 import com.ncorti.ktfmt.gradle.tasks.KtfmtBaseTask
+import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.compose.reload.gradle.ComposeHotRun
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -312,3 +313,54 @@ kover {
 }
 
 apply(from = "pre-compile.gradle.kts")
+
+val jstockfishBuildDir = "${projectDir}/build/jstockfish"
+val jstockfishSourceDir = "${projectDir}/src/commonAndroidJvmMain/jni/chess-engine"
+val jstockfishLibName =
+  when {
+    OperatingSystem.current().isWindows -> "jstockfish.dll"
+    OperatingSystem.current().isLinux -> "libjstockfish.so"
+    OperatingSystem.current().isMacOsX -> "libjstockfish.dylib"
+    else -> "jstockfish"
+  }
+
+val prepareBuildStockfish by
+  tasks.registering(Exec::class) {
+    notCompatibleWithConfigurationCache("CMake tasks are not compatible with configuration cache")
+    group = "build"
+    description = "Builds the jstockfish native library using CMake."
+    workingDir(jstockfishBuildDir)
+    doFirst { file(jstockfishBuildDir).mkdirs() }
+    commandLine("cmake", "-B", "$jstockfishBuildDir", "-S", jstockfishSourceDir)
+    outputs.file("$jstockfishBuildDir/CMakeCache.txt")
+  }
+
+// Task: Build native library using CMake
+val buildJStockfish by
+  tasks.registering(Exec::class) {
+    notCompatibleWithConfigurationCache("CMake tasks are not compatible with configuration cache")
+    group = "build"
+    description = "Builds the jstockfish native library using CMake."
+    dependsOn(prepareBuildStockfish)
+    workingDir(jstockfishBuildDir)
+    commandLine("cmake", "--build", "$jstockfishBuildDir", "--config", "Release")
+    // Only run if output does not exist or source changed
+  }
+
+// Task: Copy native library to JVM output
+val copyJStockfishNative by
+  tasks.registering(Copy::class) {
+    notCompatibleWithConfigurationCache("CMake tasks are not compatible with configuration cache")
+    group = "build"
+    description = "Copies the jstockfish native library to the JVM output directory."
+    dependsOn(buildJStockfish)
+    from("$jstockfishBuildDir/lib/Release/$jstockfishLibName")
+    into("$buildDir/libs/")
+  }
+
+// Ensure JVM run task depends on native build and sets java.library.path
+// (You may need to adjust the run task name if different)
+tasks.withType<JavaExec>().configureEach {
+  dependsOn(copyJStockfishNative)
+  systemProperty("java.library.path", "$buildDir/libs/")
+}
