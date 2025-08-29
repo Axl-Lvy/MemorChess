@@ -18,16 +18,19 @@ class NodeManager : KoinComponent {
   /**
    * Creates the root node.
    *
+   * @param startPosition The position identifier to start from. If null, the standard starting
+   *   position will be used.
    * @return The root node.
    */
-  fun createRootNode(): Node {
-    val position = PositionIdentifier.START_POSITION
-    val rootNodeMoves = nodeCache.getOrCreate(position, 0)
-    check(rootNodeMoves.previousMoves.isEmpty()) {
-      "Root node should not have previous moves, but found: ${rootNodeMoves.previousMoves}"
+  fun createInitialNode(startPosition: PositionIdentifier? = null): Node {
+    return if (startPosition == null) {
+      val moves = nodeCache.getOrCreate(PositionIdentifier.START_POSITION, 0)
+      Node(PositionIdentifier.START_POSITION, moves)
+    } else {
+      val moves = nodeCache.get(startPosition)
+      checkNotNull(moves) { "Position $startPosition not known." }
+      Node(startPosition, moves)
     }
-    val rootNode = Node(position, rootNodeMoves)
-    return rootNode
   }
 
   /**
@@ -100,6 +103,10 @@ class NodeManager : KoinComponent {
 
   fun cacheNode(node: StoredNode) {
     nodeCache.cacheNode(node)
+  }
+
+  fun isKnown(position: PositionIdentifier): Boolean {
+    return nodeCache.get(position) != null
   }
 }
 

@@ -25,17 +25,17 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
   }
 }
 
-fun NavGraphBuilder.trainingRoute() {
+private fun NavGraphBuilder.trainingRoute() {
   composable<Route.TrainingRoute> { Training() }
 }
 
-fun NavGraphBuilder.settingsRoute() {
+private fun NavGraphBuilder.settingsRoute() {
   composable<Route.SettingsRoute> { Settings() }
 }
 
-fun NavGraphBuilder.exploreRoute() {
+private fun NavGraphBuilder.exploreRoute() {
   composable<Route.ExploreRoute> {
     val position = it.toRoute<Route.ExploreRoute>().position
-    Explore(position?.let { p -> PositionIdentifier(p) })
+    Explore(position?.let { p -> PositionIdentifier.validateAndCreateOrNull(p) })
   }
 }
