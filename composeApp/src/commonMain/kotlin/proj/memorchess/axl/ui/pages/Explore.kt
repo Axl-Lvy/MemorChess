@@ -133,7 +133,6 @@ private fun extractInitialPosition(
   position: PositionIdentifier?,
   nodeManager: NodeManager,
 ): PositionIdentifier? {
-  println("Extracting initial position: $position")
   return if (position == null) {
     null
   } else if (!nodeManager.isKnown(position)) {

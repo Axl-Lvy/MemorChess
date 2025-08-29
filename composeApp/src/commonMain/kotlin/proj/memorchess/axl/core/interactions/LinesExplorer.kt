@@ -32,7 +32,7 @@ class LinesExplorer(position: PositionIdentifier? = null) :
     if (parent != null) {
       node = parent
     } else {
-      // If there is no parent node, we create a new node from the a previous move arbitrarily
+      // If there is no parent node, we create a new node from a previous move arbitrarily
       // chosen.
       val previousMove = node.previousAndNextMoves.previousMoves.values.firstOrNull()
       if (previousMove == null) {
