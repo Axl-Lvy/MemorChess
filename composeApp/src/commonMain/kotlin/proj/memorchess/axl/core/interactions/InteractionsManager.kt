@@ -23,7 +23,7 @@ import proj.memorchess.axl.ui.components.popup.ToastRenderer
  */
 abstract class InteractionsManager(var game: Game) : KoinComponent {
 
-  val nodeManager: NodeManager by inject()
+  protected val nodeManager: NodeManager by inject()
 
   val toastRenderer: ToastRenderer by inject()
 

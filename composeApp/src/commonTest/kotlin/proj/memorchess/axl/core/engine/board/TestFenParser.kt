@@ -1,7 +1,10 @@
 package proj.memorchess.axl.core.engine.board
 
+import kotlin.test.DefaultAsserter.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.parser.FenParser
 
@@ -71,6 +74,36 @@ class TestFenParser {
   companion object {
     fun testOnGame(game: Game) {
       assertEquals(game.position, FenParser.read(FenParser.parse(game)).position)
+    }
+  }
+
+  @Test
+  fun `cannot create a position with invalid FEN`() {
+    val invalidFens =
+      listOf(
+        "hey", // Missing parts
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1", // Invalid player
+      )
+    for (fen in invalidFens) {
+      assertNull(PositionIdentifier.validateAndCreateOrNull(fen), "FEN should be invalid: $fen")
+    }
+  }
+
+  @Test
+  fun `create a position with valid FEN`() {
+    val validFens =
+      listOf(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq",
+        "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq",
+      )
+    for (fen in validFens) {
+      assertEquals(
+        fen,
+        PositionIdentifier.validateAndCreateOrNull(fen)
+          ?.createPosition()
+          ?.createIdentifier()
+          ?.fenRepresentation,
+      )
     }
   }
 }

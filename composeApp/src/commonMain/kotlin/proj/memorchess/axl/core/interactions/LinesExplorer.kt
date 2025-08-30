@@ -21,7 +21,7 @@ class LinesExplorer(position: PositionIdentifier? = null) :
   private var node: Node
 
   init {
-    node = nodeManager.createInitialNode()
+    node = nodeManager.createInitialNode(position)
   }
 
   var state by mutableStateOf(node.getState())
