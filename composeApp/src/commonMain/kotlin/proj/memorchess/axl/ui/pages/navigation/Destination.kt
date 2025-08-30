@@ -2,6 +2,7 @@ package proj.memorchess.axl.ui.pages.navigation
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import proj.memorchess.axl.core.data.PositionIdentifier
 
 /** Possible routes in the application. */
 sealed interface Route {
@@ -23,7 +24,10 @@ sealed interface Route {
    */
   @Serializable
   @SerialName("explore")
-  data class ExploreRoute(@SerialName("position") val position: String? = null) : Route {
+  data class ExploreRoute(
+    @SerialName("position")
+    val position: String? = PositionIdentifier.START_POSITION.fenRepresentation
+  ) : Route {
     companion object {
       val DEFAULT = ExploreRoute()
     }

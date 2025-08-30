@@ -225,4 +225,45 @@ class TestLinesExplorer : TestWithKoin {
     val count1 = interactionsManager.calculateNumberOfNodeToDelete()
     assertEquals(1, count1, "Should only delete the current node, the next one is still reachable")
   }
+
+  @Test
+  fun testCreateLinesExplorerFromCustomPosition() = runTest {
+    // Arrange: create a custom position by playing some moves
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.save()
+    val customPosition = interactionsManager.game.position.createIdentifier()
+
+    // Act: create a new LinesExplorer from this position
+    val explorerFromCustom = LinesExplorer(customPosition)
+    // Assert: explorer's game should be at the custom position
+    assertEquals(customPosition, explorerFromCustom.game.position.createIdentifier())
+  }
+
+  @Test
+  fun `can go back even if started from custom position`() = runTest {
+    // Arrange: create a custom position by playing some moves
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.save()
+    val customPosition = interactionsManager.game.position.createIdentifier()
+
+    // Act: create a new LinesExplorer from this position
+    val explorerFromCustom = LinesExplorer(customPosition)
+    // Assert: explorer's game should be at the custom position
+    assertEquals(customPosition, explorerFromCustom.game.position.createIdentifier())
+    explorerFromCustom.back()
+    interactionsManager.back()
+    // After going back, the position should be the one before "e5"
+    assertEquals(explorerFromCustom.game.position, interactionsManager.game.position)
+  }
+
+  @Test
+  fun testNoPreviousMove() = runTest {
+    interactionsManager.back()
+    assertEquals(
+      PositionIdentifier.START_POSITION,
+      interactionsManager.game.position.createIdentifier(),
+    )
+  }
 }

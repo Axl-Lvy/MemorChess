@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.diamondedge.logging.logging
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
@@ -32,6 +33,8 @@ import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.pages.navigation.Route
 
+private val LOGGER = logging()
+
 @Composable
 fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koinInject()) {
   Column(
@@ -42,9 +45,10 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
+      val initialPosition = extractInitialPosition(position, nodeManager)
       val modifier = Modifier.fillMaxWidth()
       var inverted by remember { mutableStateOf(false) }
-      val linesExplorer = remember { LinesExplorer() }
+      val linesExplorer = remember { LinesExplorer(initialPosition) }
       val coroutineScope = rememberCoroutineScope()
       val nextMoves = remember {
         mutableStateListOf(*linesExplorer.getNextMoves().toTypedArray<String>())
@@ -122,6 +126,22 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
         else LandscapeExploreLayout(modifier, content)
       }
     }
+  }
+}
+
+private fun extractInitialPosition(
+  position: PositionIdentifier?,
+  nodeManager: NodeManager,
+): PositionIdentifier? {
+  return if (position == null) {
+    null
+  } else if (!nodeManager.isKnown(position)) {
+    LOGGER.warn {
+      "Position $position is not stored yet. You must first store it to integrate it in your position tree."
+    }
+    null
+  } else {
+    position
   }
 }
 

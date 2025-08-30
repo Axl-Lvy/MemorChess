@@ -8,13 +8,20 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
-class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(Game()) {
+class LinesExplorer(position: PositionIdentifier? = null) :
+  InteractionsManager(
+    if (position == null) {
+      Game()
+    } else {
+      Game(position)
+    }
+  ) {
 
   /** The current node in the exploration tree. */
   private var node: Node
 
   init {
-    node = nodeManager.createRootNode()
+    node = nodeManager.createInitialNode(position)
   }
 
   var state by mutableStateOf(node.getState())
@@ -24,12 +31,19 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
     val parent = node.previous
     if (parent != null) {
       node = parent
-      game = node.createGame()
-      state = node.getState()
-      callCallBacks(false)
     } else {
-      toastRenderer.info("No previous move.")
+      // If there is no parent node, we create a new node from a previous move arbitrarily
+      // chosen.
+      val previousMove = node.previousAndNextMoves.previousMoves.values.firstOrNull()
+      if (previousMove == null) {
+        toastRenderer.info("No previous move.")
+        return
+      }
+      node = nodeManager.createInitialNode(previousMove.origin)
     }
+    game = node.createGame()
+    state = node.getState()
+    callCallBacks(false)
   }
 
   /** Moves forward in the exploration tree to the next child node. */
@@ -60,7 +74,7 @@ class LinesExplorer(position: PositionIdentifier? = null) : InteractionsManager(
 
   /** Resets the LinesExplorer to the root node. */
   fun reset() {
-    node = nodeManager.createRootNode()
+    node = nodeManager.createInitialNode()
     state = node.getState()
     super.reset(node.position)
   }
