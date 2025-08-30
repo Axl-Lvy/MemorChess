@@ -257,4 +257,13 @@ class TestLinesExplorer : TestWithKoin {
     // After going back, the position should be the one before "e5"
     assertEquals(explorerFromCustom.game.position, interactionsManager.game.position)
   }
+
+  @Test
+  fun testNoPreviousMove() = runTest {
+    interactionsManager.back()
+    assertEquals(
+      PositionIdentifier.START_POSITION,
+      interactionsManager.game.position.createIdentifier(),
+    )
+  }
 }
