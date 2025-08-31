@@ -17,6 +17,7 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.ui.App
 import proj.memorchess.axl.ui.components.buttons.SignInButton
+import proj.memorchess.axl.ui.initComposableModules
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
