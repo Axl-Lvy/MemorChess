@@ -6,6 +6,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
@@ -22,9 +23,12 @@ import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.core.engine.pieces.Piece
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.RememberLastRouteNavigator
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Training
+import proj.memorchess.axl.ui.pages.navigation.Navigator
+import proj.memorchess.axl.ui.pages.navigation.Route
 
 private const val BRAVO_TEXT = "Bravo !"
 
@@ -32,6 +36,7 @@ private const val BRAVO_TEXT = "Bravo !"
 class TestTraining : TestWithKoin {
 
   private val database: DatabaseQueryManager by inject()
+  private val navigator: Navigator by inject()
 
   @BeforeTest
   override fun setUp() {
@@ -100,6 +105,7 @@ class TestTraining : TestWithKoin {
   fun testFailTraining() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
+    clickOnNextNode()
     assertNodeWithTextExists(BRAVO_TEXT)
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
       val positions = getAllPositions()
@@ -119,6 +125,7 @@ class TestTraining : TestWithKoin {
   fun testIncrementDay() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
+    clickOnNextNode()
     assertNodeWithTextExists(BRAVO_TEXT)
     assertNodeWithTextExists("Increment a day").performClick()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
@@ -130,7 +137,7 @@ class TestTraining : TestWithKoin {
   fun testResetDayOnFail() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
-    assertNodeWithTextExists(BRAVO_TEXT)
+    clickOnNextNode()
     assertNodeWithTextExists("Increment a day").performClick()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e4")
@@ -138,6 +145,7 @@ class TestTraining : TestWithKoin {
     assertNodeWithTextExists("Increment a day").performClick()
     assertNodeWithTextExists("2")
     playMove("e2", "e3")
+    clickOnNextNode()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
   }
 
@@ -201,5 +209,16 @@ class TestTraining : TestWithKoin {
     playMove("h7", "h8")
     promoteTo(Piece.QUEEN)
     assertNodeWithTextExists(BRAVO_TEXT)
+  }
+
+  @Test
+  fun `show the right node in explorer`() = runTestFromSetup {
+    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+    playMove("e2", "e3")
+    clickOnShowOnExplore()
+    assertEquals(
+      ((navigator as RememberLastRouteNavigator).lastRoute as Route.ExploreRoute).position,
+      PositionIdentifier.START_POSITION.fenRepresentation,
+    )
   }
 }

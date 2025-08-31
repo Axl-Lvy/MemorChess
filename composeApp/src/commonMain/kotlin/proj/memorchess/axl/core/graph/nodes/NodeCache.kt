@@ -81,8 +81,6 @@ class NodeCache : KoinComponent {
     database.deleteMove(positionIdentifier, move.move)
   }
 
-  private var s = false
-
   /** Clears the cache and resets the database retrieved flag. */
   private fun clear() {
     nodesByDay.clear()

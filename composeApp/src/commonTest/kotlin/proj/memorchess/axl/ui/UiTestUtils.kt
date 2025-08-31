@@ -133,6 +133,14 @@ fun ComposeUiTest.isBoardReversed(): Boolean {
   return a1y < a8y
 }
 
+fun ComposeUiTest.clickOnNextNode() {
+  waitUntilNodeExists(hasTestTag("Next node")).assertExists().performClick()
+}
+
+fun ComposeUiTest.clickOnShowOnExplore() {
+  waitUntilNodeExists(hasTestTag("Go to explore")).assertExists().performClick()
+}
+
 private fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
   val matcher = hasClickLabel(getTileDescription(tileName))
   waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)

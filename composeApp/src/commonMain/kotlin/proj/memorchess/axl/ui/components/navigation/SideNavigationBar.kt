@@ -9,15 +9,16 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
+import org.koin.compose.koinInject
+import proj.memorchess.axl.ui.pages.navigation.Navigator
 
 /** Side navigation bar */
 @Composable
 fun SideNavigationBar(
   currentRoute: String,
-  navController: NavHostController,
   items: Collection<NavigationBarItemContent>,
   modifier: Modifier = Modifier,
+  navController: Navigator = koinInject(),
 ) {
   NavigationRail(modifier = modifier.fillMaxHeight()) {
     items.forEach { item ->
@@ -27,7 +28,7 @@ fun SideNavigationBar(
         selected = isSelected,
         icon = item.icon,
         label = { Text(item.destination.getLabel()) },
-        onClick = { navController.navigate(item.destination) },
+        onClick = { navController.navigateTo(item.destination) },
       )
     }
   }

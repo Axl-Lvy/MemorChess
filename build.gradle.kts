@@ -44,7 +44,7 @@ sonar {
     // Exclude also ui files as jacoco handles them very poorly.
     property(
       "sonar.exclusions",
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**",
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/main.kt",
     )
 
     property(

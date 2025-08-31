@@ -25,6 +25,7 @@ import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
  * @return An array of all koin modules
  */
 fun initKoinModules(): Array<Module> {
+
   val authModule = module {
     single<SupabaseClient> { createSupabaseClient() }
     singleOf(::AuthManager)
