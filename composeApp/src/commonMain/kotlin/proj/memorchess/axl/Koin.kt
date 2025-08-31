@@ -1,5 +1,7 @@
 package proj.memorchess.axl
 
+import androidx.compose.runtime.Composable
+import androidx.navigation.compose.rememberNavController
 import com.russhwolf.settings.Settings
 import io.github.jan.supabase.SupabaseClient
 import org.koin.core.module.Module
@@ -18,6 +20,8 @@ import proj.memorchess.axl.core.graph.nodes.NodeCache
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
+import proj.memorchess.axl.ui.pages.navigation.DelegateNavigator
+import proj.memorchess.axl.ui.pages.navigation.Navigator
 
 /**
  * Initializes koin modules
@@ -25,6 +29,7 @@ import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
  * @return An array of all koin modules
  */
 fun initKoinModules(): Array<Module> {
+
   val authModule = module {
     single<SupabaseClient> { createSupabaseClient() }
     singleOf(::AuthManager)
@@ -43,7 +48,19 @@ fun initKoinModules(): Array<Module> {
     singleOf(::NodeManager)
   }
 
-  val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
+  val otherModule = module {
+    single<ToastRenderer> { getPlatformSpecificToastRenderer() }
+  }
 
   return arrayOf(authModule, dataModule, nodeModule, otherModule)
+}
+
+@Composable
+fun initComposableModules(): Array<Module> {
+  val navController = rememberNavController()
+  val navigationModule = module {
+    single<Navigator> { DelegateNavigator(navController) }
+  }
+
+  return arrayOf(navigationModule)
 }

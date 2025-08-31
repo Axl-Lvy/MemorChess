@@ -54,33 +54,40 @@ private class TrainingBoard : KoinComponent {
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
   private var previousPlayedMove: StoredMove? = null
   private val nodeManager: NodeManager by inject()
+  private val localReloader = BasicReloader()
+  private val trainerReloader = BasicReloader()
+  private var chosenNode by mutableStateOf<StoredNode?>(null)
+
+  init {
+    choseNextNode()
+  }
 
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
-    val localReloader = remember { BasicReloader() }
-    val trainerReloader = remember { BasicReloader() }
     val numberOfNodesToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
         nodeManager.getNumberOfNodesToTrain(daysInAdvance)
       }
-    val moveToTrain =
-      remember(localReloader.getKey(), daysInAdvance) {
-        nodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
-      }
     LaunchedEffect(reloader.getKey()) {
-      if (state.isShowing) {
+      if (state.isShowing && state.isCorrect) {
         delay(moveDelay)
-        state = state.toPlayableState()
-        localReloader.reload()
-        trainerReloader.reload()
+        choseNextNode()
       }
     }
-    if (moveToTrain == null) {
+    val finalChosenNode = chosenNode
+    if (finalChosenNode == null) {
       NoNodeToTrain(modifier = modifier)
     } else {
-      NodeToTrain(moveToTrain, numberOfNodesToTrain, modifier = modifier)
+      NodeToTrain(finalChosenNode, numberOfNodesToTrain, modifier = modifier)
     }
   }
+
+  private fun choseNextNode() {
+    state = state.toPlayableState()
+    localReloader.reload()
+    trainerReloader.reload()
+    chosenNode = nodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
+   }
 
   /**
    * Composable that displays a message when there are no nodes to train.
@@ -117,7 +124,13 @@ private class TrainingBoard : KoinComponent {
           color = MaterialTheme.colorScheme.onBackground,
           textAlign = TextAlign.Center,
         )
-        Button(onClick = { daysInAdvance++ }, modifier = Modifier.padding(top = 16.dp)) {
+        Button(
+          onClick = {
+            daysInAdvance++
+            choseNextNode()
+          },
+          modifier = Modifier.padding(top = 16.dp),
+        ) {
           Text("Increment a day")
         }
         Text("Days in advance: $daysInAdvance")
@@ -155,7 +168,15 @@ private class TrainingBoard : KoinComponent {
       TrainingLayoutContent(
         board = { BoardContainer(inverted, trainer, it) },
         daysInAdvance = { DaysInAdvanceCard(this@TrainingBoard.daysInAdvance, it) },
-        successIndicator = { SuccessIndicatorCard(state.isCorrect, state.isShowing, it) },
+        successIndicator = {
+          SuccessIndicatorCard(
+            state.isCorrect,
+            state.isShowing,
+            { choseNextNode() },
+            chosenNode?.positionIdentifier,
+            it,
+          )
+        },
         movesToTrain = { MovesToTrainCard(numberOfNodesToTrain, it) },
       )
     BoxWithConstraints {
@@ -178,7 +199,7 @@ private enum class TrainingBoardState(val isCorrect: Boolean, val isShowing: Boo
     return when (this) {
       SHOW_CORRECT_MOVE -> FROM_CORRECT_MOVE
       SHOW_WRONG_MOVE -> FROM_WRONG_MOVE
-      else -> error { "$this is already playable" }
+      else -> this
     }
   }
 }

@@ -4,11 +4,15 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import com.russhwolf.settings.Settings
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
+import org.koin.core.module.Module
+import org.koin.core.qualifier.named
+import org.koin.dsl.module
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
@@ -20,11 +24,19 @@ import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.core.engine.pieces.Piece
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.NoOpNavigator
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestSettings
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.components.popup.NO_OP_RENDERER
+import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.Training
+import proj.memorchess.axl.ui.pages.navigation.Navigator
+import proj.memorchess.axl.ui.pages.navigation.Route
 
 private const val BRAVO_TEXT = "Bravo !"
 

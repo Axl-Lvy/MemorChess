@@ -21,6 +21,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.NO_OP_RENDERER
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
+import proj.memorchess.axl.ui.pages.navigation.Navigator
 
 interface TestWithKoin : KoinComponent {
 
@@ -40,6 +41,7 @@ interface TestWithKoin : KoinComponent {
       single<Settings> { TestSettings() }
       single<DatabaseQueryManager>(named("local")) { TestDatabaseQueryManager.empty() }
       single<ToastRenderer> { NO_OP_RENDERER }
+      single<Navigator> { RememberLastRouteNavigator() }
     }
   }
 

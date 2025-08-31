@@ -2,6 +2,7 @@ package proj.memorchess.axl.ui.components.training
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,23 +11,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import org.koin.compose.koinInject
+import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.ui.pages.navigation.Navigator
+import proj.memorchess.axl.ui.pages.navigation.Route
 
 @Composable
 fun SuccessIndicatorCard(
   isCorrect: Boolean,
   isVisible: Boolean,
+  nextMove: () -> Unit,
+  failedPosition: PositionIdentifier?,
   modifier: Modifier = Modifier.Companion,
+  navigator: Navigator = koinInject(),
 ) {
   if (!isVisible) {
     return
@@ -48,23 +57,45 @@ fun SuccessIndicatorCard(
     shape = RoundedCornerShape(16.dp),
     colors = CardDefaults.cardColors(containerColor = backgroundColor),
   ) {
-    Column(
-      modifier = Modifier.fillMaxSize().padding(16.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-    ) {
-      Icon(
-        imageVector = icon,
-        contentDescription = if (isCorrect) "Correct" else "Incorrect",
-        tint = iconColor,
-        modifier = Modifier.size(32.dp),
-      )
-      Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = iconColor,
-      )
+    if (isCorrect) {
+      CorrectIcon(icon, isCorrect, iconColor)
+    } else {
+
+      Column(
+        modifier = modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+      ) {
+        Row {
+          IconButton(
+            onClick = {
+              checkNotNull(failedPosition) {
+                "Failed position must not be null when displaying a incorrect move."
+              }
+              navigator.navigateTo(
+                Route.ExploreRoute(position = failedPosition.fenRepresentation)
+              )
+            },
+            modifier = Modifier.weight(1f).padding(8.dp),
+          ) {
+            Icon(Icons.Default.Search, contentDescription = "Go to explores")
+          }
+          CorrectIcon(icon, isCorrect, iconColor)
+          IconButton(onClick = nextMove, modifier = Modifier.weight(1f).padding(8.dp)) {
+            Icon(Icons.Default.PlayArrow, contentDescription = "Next move")
+          }
+        }
+      }
     }
   }
+}
+
+@Composable
+private fun CorrectIcon(icon: ImageVector, isCorrect: Boolean, iconColor: Color) {
+  Icon(
+    imageVector = icon,
+    contentDescription = if (isCorrect) "Correct" else "Incorrect",
+    tint = iconColor,
+    modifier = Modifier.size(32.dp),
+  )
 }

@@ -21,7 +21,8 @@ import proj.memorchess.axl.ui.components.buttons.SignInButton
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
   ComposeViewport(document.body ?: return) {
-    KoinApplication(application = { modules(*initKoinModules()) }) { NoAccountProtection() }
+    val modules = initKoinModules() + initComposableModules()
+    KoinApplication(application = { modules(*modules) }) { NoAccountProtection() }
   }
 }
 
@@ -33,6 +34,6 @@ private fun NoAccountProtection(authManager: AuthManager = koinInject()) {
       Box(contentAlignment = Alignment.Center) { SignInButton() }
     }
   } else {
-    App { it.bindToBrowserNavigation() }
+    App { it.callDelegate {navHostController -> navHostController.bindToBrowserNavigation() }}
   }
 }
