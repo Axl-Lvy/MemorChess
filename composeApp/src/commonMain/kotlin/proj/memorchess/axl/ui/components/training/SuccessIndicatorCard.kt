@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionIdentifier
@@ -74,12 +75,15 @@ fun SuccessIndicatorCard(
               }
               navigator.navigateTo(Route.ExploreRoute(position = failedPosition.fenRepresentation))
             },
-            modifier = Modifier.weight(1f).padding(8.dp),
+            modifier = Modifier.weight(1f).padding(8.dp).testTag("Go to explore"),
           ) {
-            Icon(Icons.Default.Search, contentDescription = "Go to explores")
+            Icon(Icons.Default.Search, contentDescription = "Go to explore")
           }
           CorrectIcon(icon, isCorrect, iconColor)
-          IconButton(onClick = nextMove, modifier = Modifier.weight(1f).padding(8.dp)) {
+          IconButton(
+            onClick = nextMove,
+            modifier = Modifier.weight(1f).padding(8.dp).testTag("Next node"),
+          ) {
             Icon(Icons.Default.PlayArrow, contentDescription = "Next move")
           }
         }

@@ -36,8 +36,8 @@ import proj.memorchess.axl.ui.util.BasicReloader
 /** Training board */
 @Composable
 fun TrainingBoardPage(modifier: Modifier = Modifier, nodeManager: NodeManager = koinInject()) {
-  val trainingBoard = remember { TrainingBoard() }
   LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
+    val trainingBoard = remember { TrainingBoard() }
     trainingBoard.Draw(modifier = modifier)
   }
 }
