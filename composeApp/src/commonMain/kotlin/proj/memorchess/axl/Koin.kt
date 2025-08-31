@@ -48,9 +48,7 @@ fun initKoinModules(): Array<Module> {
     singleOf(::NodeManager)
   }
 
-  val otherModule = module {
-    single<ToastRenderer> { getPlatformSpecificToastRenderer() }
-  }
+  val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
 
   return arrayOf(authModule, dataModule, nodeModule, otherModule)
 }
@@ -58,9 +56,7 @@ fun initKoinModules(): Array<Module> {
 @Composable
 fun initComposableModules(): Array<Module> {
   val navController = rememberNavController()
-  val navigationModule = module {
-    single<Navigator> { DelegateNavigator(navController) }
-  }
+  val navigationModule = module { single<Navigator> { DelegateNavigator(navController) } }
 
   return arrayOf(navigationModule)
 }

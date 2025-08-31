@@ -87,7 +87,7 @@ private class TrainingBoard : KoinComponent {
     localReloader.reload()
     trainerReloader.reload()
     chosenNode = nodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
-   }
+  }
 
   /**
    * Composable that displays a message when there are no nodes to train.

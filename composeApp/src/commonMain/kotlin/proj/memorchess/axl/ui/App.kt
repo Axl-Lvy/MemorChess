@@ -32,12 +32,8 @@ fun App(navigator: Navigator = koinInject(), onNavHostReady: suspend (Navigator)
     val currentRoute =
       navBackStackEntry?.destination?.route?.substringBefore("?") ?: Route.TrainingRoute.getLabel()
     MainLayout(
-      sideBar = {
-        SideNavigationBar(currentRoute, NavigationBarItemContent.entries)
-      },
-      bottomBar = {
-        BottomNavigationBar(currentRoute, NavigationBarItemContent.entries)
-      },
+      sideBar = { SideNavigationBar(currentRoute, NavigationBarItemContent.entries) },
+      bottomBar = { BottomNavigationBar(currentRoute, NavigationBarItemContent.entries) },
     ) { innerPadding ->
       Router(modifier = Modifier.padding(innerPadding))
     }

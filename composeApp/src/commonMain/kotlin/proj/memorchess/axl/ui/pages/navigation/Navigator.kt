@@ -12,8 +12,7 @@ interface Navigator {
   fun navigateTo(route: Route)
 
   /** Get the current back stack entry as a state */
-  @Composable
-  fun currentBackStackEntryAsState(): State<NavBackStackEntry?>
+  @Composable fun currentBackStackEntryAsState(): State<NavBackStackEntry?>
 
   /** Call a delegate function with the NavHostController */
   suspend fun callDelegate(delegate: suspend (NavHostController) -> Unit)

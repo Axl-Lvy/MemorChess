@@ -34,6 +34,6 @@ private fun NoAccountProtection(authManager: AuthManager = koinInject()) {
       Box(contentAlignment = Alignment.Center) { SignInButton() }
     }
   } else {
-    App { it.callDelegate {navHostController -> navHostController.bindToBrowserNavigation() }}
+    App { it.callDelegate { navHostController -> navHostController.bindToBrowserNavigation() } }
   }
 }
