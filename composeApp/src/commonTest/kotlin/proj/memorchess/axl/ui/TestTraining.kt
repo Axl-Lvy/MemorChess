@@ -217,8 +217,11 @@ class TestTraining : TestWithKoin {
     playMove("e2", "e3")
     clickOnShowOnExplore()
     assertEquals(
-      ((navigator as RememberLastRouteNavigator).lastRoute as Route.ExploreRoute).position,
-      PositionIdentifier.START_POSITION.fenRepresentation,
+      ((navigator as RememberLastRouteNavigator).lastRoute as Route.ExploreRoute)
+        .position
+        ?.toPosition()
+        ?.createIdentifier(),
+      PositionIdentifier.START_POSITION,
     )
   }
 }

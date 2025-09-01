@@ -72,7 +72,7 @@ fun SuccessIndicatorCard(
               checkNotNull(failedPosition) {
                 "Failed position must not be null when displaying an incorrect move."
               }
-              navigator.navigateTo(Route.ExploreRoute(position = failedPosition.fenRepresentation))
+              navigator.navigateTo(Route.ExploreRoute(failedPosition))
             },
             modifier = Modifier.weight(1f).padding(8.dp).testTag("Go to explore"),
           ) {
