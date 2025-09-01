@@ -36,6 +36,12 @@ private fun NavGraphBuilder.settingsRoute() {
 private fun NavGraphBuilder.exploreRoute() {
   composable<Route.ExploreRoute> {
     val position = it.toRoute<Route.ExploreRoute>().position
-    Explore(position?.let { p -> PositionIdentifier.validateAndCreateOrNull(p) })
+    Explore(
+      position?.let { p ->
+        PositionIdentifier.validateAndCreateOrNull(
+          p.toPosition().createIdentifier().fenRepresentation
+        )
+      }
+    )
   }
 }

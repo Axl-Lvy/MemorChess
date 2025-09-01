@@ -24,6 +24,15 @@ data class PositionIdentifier(val fenRepresentation: String) {
     return FenParser.readPosition(this)
   }
 
+  /**
+   * Converts this [PositionIdentifier] to a [CompressedPositionIdentifier].
+   *
+   * @return A [CompressedPositionIdentifier] representing the same position.
+   */
+  fun toCompressedPosition(): CompressedPositionIdentifier {
+    return CompressedPositionIdentifier.fromPositionIdentifier(this)
+  }
+
   companion object {
 
     /** Position identifier for the standard starting position. */
