@@ -25,7 +25,7 @@ import proj.memorchess.axl.core.date.DateUtil
       Index(value = ["updatedAt"]),
     ],
 )
-internal data class MoveEntity(
+data class MoveEntity(
   val origin: String,
   val destination: String,
   val move: String,

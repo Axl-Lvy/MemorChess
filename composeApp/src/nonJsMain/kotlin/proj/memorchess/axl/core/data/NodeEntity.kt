@@ -25,7 +25,7 @@ import proj.memorchess.axl.core.date.DateUtil
       Index(value = ["updatedAt"]),
     ],
 )
-internal data class NodeEntity(
+data class NodeEntity(
 
   /**
    * FEN string uniquely identifying the chess position. Used as the primary key.

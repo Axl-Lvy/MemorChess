@@ -6,7 +6,7 @@ import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 /** Entity representing a node with its associated moves. */
-internal data class NodeWithMoves(
+data class NodeWithMoves(
   @Embedded val node: NodeEntity,
   @Relation(parentColumn = "fenRepresentation", entityColumn = "destination")
   val previousMoves: List<MoveEntity>,

@@ -9,7 +9,7 @@ import kotlinx.datetime.LocalDateTime
 
 /** DAO for managing [NodeEntity] and [MoveEntity] (linked by [NodeWithMoves]). */
 @Dao
-internal interface NodeEntityDao {
+interface NodeEntityDao {
 
   /**
    * Inserts a new node with its moves into the database.
