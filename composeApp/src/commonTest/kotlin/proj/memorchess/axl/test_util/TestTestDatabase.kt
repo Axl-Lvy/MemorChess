@@ -17,14 +17,14 @@ class TestTestDatabase {
     // Check that the database has the correct number of positions
     assertEquals(
       viennaMoves.size,
-      viennaDb.storedNodes.size,
+      viennaDb.dataNodes.size,
       "Vienna database should have the same number of positions as moves",
     )
 
     // Verify each move is stored in the database
     for (move in viennaMoves) {
       val found =
-        viennaDb.storedNodes.values.any { node ->
+        viennaDb.dataNodes.values.any { node ->
           node.previousAndNextMoves.nextMoves.values.any { it.move == move }
         }
       assertTrue(found, "Move $move should be in the Vienna database")
@@ -39,14 +39,14 @@ class TestTestDatabase {
     // Check that the database has the correct number of positions
     assertEquals(
       londonMoves.size,
-      londonDb.storedNodes.size,
+      londonDb.dataNodes.size,
       "London database should have the same number of positions as moves",
     )
 
     // Verify each move is stored in the database
     for (move in londonMoves) {
       val found =
-        londonDb.storedNodes.values.any { node ->
+        londonDb.dataNodes.values.any { node ->
           node.previousAndNextMoves.nextMoves.values.any { it.move == move }
         }
       assertTrue(found, "Move $move should be in the London database")
@@ -61,14 +61,14 @@ class TestTestDatabase {
     // Check that the database has the correct number of positions
     assertEquals(
       scandinavianMoves.size,
-      scandinavianDb.storedNodes.size,
+      scandinavianDb.dataNodes.size,
       "Scandinavian database should have the same number of positions as moves",
     )
 
     // Verify each move is stored in the database
     for (move in scandinavianMoves) {
       val found =
-        scandinavianDb.storedNodes.values.any { node ->
+        scandinavianDb.dataNodes.values.any { node ->
           node.previousAndNextMoves.nextMoves.values.any { it.move == move }
         }
       assertTrue(found, "Move $move should be in the Scandinavian database")
@@ -86,17 +86,17 @@ class TestTestDatabase {
 
     // Check that the merged database contains all positions from individual databases
     val uniquePositions =
-      (viennaDb.storedNodes.keys + londonDb.storedNodes.keys + scandinavianDb.storedNodes.keys).size
+      (viennaDb.dataNodes.keys + londonDb.dataNodes.keys + scandinavianDb.dataNodes.keys).size
 
     assertEquals(
       uniquePositions,
-      mergedDb.storedNodes.size,
+      mergedDb.dataNodes.size,
       "Merged database should contain all unique positions from individual databases",
     )
 
     // Check that all moves from individual databases are in the merged database
-    for (node in viennaDb.storedNodes.values) {
-      val mergedNode = mergedDb.storedNodes[node.positionIdentifier.fenRepresentation]
+    for (node in viennaDb.dataNodes.values) {
+      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
       assertTrue(mergedNode != null, "Position from Vienna database should be in merged database")
       for (move in node.previousAndNextMoves.nextMoves.values) {
         assertTrue(
@@ -106,8 +106,8 @@ class TestTestDatabase {
       }
     }
 
-    for (node in londonDb.storedNodes.values) {
-      val mergedNode = mergedDb.storedNodes[node.positionIdentifier.fenRepresentation]
+    for (node in londonDb.dataNodes.values) {
+      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
       assertTrue(mergedNode != null, "Position from London database should be in merged database")
       for (move in node.previousAndNextMoves.nextMoves.values) {
         assertTrue(
@@ -117,8 +117,8 @@ class TestTestDatabase {
       }
     }
 
-    for (node in scandinavianDb.storedNodes.values) {
-      val mergedNode = mergedDb.storedNodes[node.positionIdentifier.fenRepresentation]
+    for (node in scandinavianDb.dataNodes.values) {
+      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
       assertTrue(
         mergedNode != null,
         "Position from Scandinavian database should be in merged database",

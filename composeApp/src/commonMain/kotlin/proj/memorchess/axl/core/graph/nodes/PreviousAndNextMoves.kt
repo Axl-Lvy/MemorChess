@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.graph.nodes
 
-import proj.memorchess.axl.core.data.StoredMove
+import proj.memorchess.axl.core.data.DataMove
 
 /**
  * Holds the previous and next moves for a chess position, along with the minimum depth at which we
@@ -11,8 +11,8 @@ import proj.memorchess.axl.core.data.StoredMove
  * @property depth The minimum depth at which we can find these moves. depth.
  */
 data class PreviousAndNextMoves(
-  val previousMoves: MutableMap<String, StoredMove>,
-  val nextMoves: MutableMap<String, StoredMove>,
+  val previousMoves: MutableMap<String, DataMove>,
+  val nextMoves: MutableMap<String, DataMove>,
   var depth: Int,
 ) {
   /** Creates an empty [PreviousAndNextMoves] instance at depth `0`. */
@@ -33,8 +33,8 @@ data class PreviousAndNextMoves(
    * @param nextMoves The collection of next moves.
    */
   constructor(
-    previousMoves: Collection<StoredMove>,
-    nextMoves: Collection<StoredMove>,
+    previousMoves: Collection<DataMove>,
+    nextMoves: Collection<DataMove>,
   ) : this(
     previousMoves.associateBy { it.move }.toMutableMap(),
     nextMoves.associateBy { it.move }.toMutableMap(),
@@ -50,8 +50,8 @@ data class PreviousAndNextMoves(
    * @param depth The depth to create the instance at.
    */
   constructor(
-    previousMoves: Collection<StoredMove>,
-    nextMoves: Collection<StoredMove>,
+    previousMoves: Collection<DataMove>,
+    nextMoves: Collection<DataMove>,
     depth: Int,
   ) : this(
     previousMoves.associateBy { it.move }.toMutableMap(),
@@ -65,7 +65,7 @@ data class PreviousAndNextMoves(
    * @param move The move to add.
    * @return The previous move associated with the key, or null if none existed.
    */
-  fun addPreviousMove(move: StoredMove): StoredMove? {
+  fun addPreviousMove(move: DataMove): DataMove? {
     return previousMoves.put(move.move, move)
   }
 
@@ -75,7 +75,7 @@ data class PreviousAndNextMoves(
    * @param move The move to add.
    * @return The previous move associated with the key, or null if none existed.
    */
-  fun addNextMove(move: StoredMove): StoredMove? {
+  fun addNextMove(move: DataMove): DataMove? {
     return nextMoves.put(move.move, move)
   }
 

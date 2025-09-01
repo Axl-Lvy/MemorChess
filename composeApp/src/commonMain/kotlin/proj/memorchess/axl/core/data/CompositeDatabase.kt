@@ -18,7 +18,7 @@ class CompositeDatabase(
   private val localDatabase: DatabaseQueryManager,
   private val databaseSynchronizer: DatabaseSynchronizer,
 ) : DatabaseQueryManager {
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     return if (localDatabase.isActive()) {
       localDatabase.getAllNodes(withDeletedOnes)
     } else if (remoteDatabase.isActive()) {
@@ -28,7 +28,7 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
     return if (localDatabase.isActive()) {
       localDatabase.getPosition(positionIdentifier)
     } else if (remoteDatabase.isActive()) {
@@ -65,7 +65,7 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun insertNodes(vararg positions: StoredNode) {
+  override suspend fun insertNodes(vararg positions: DataNode) {
     if (localDatabase.isActive()) {
       localDatabase.insertNodes(*positions)
     }

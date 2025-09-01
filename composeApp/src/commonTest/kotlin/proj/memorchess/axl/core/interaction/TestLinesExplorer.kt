@@ -3,9 +3,9 @@ package proj.memorchess.axl.core.interaction
 import kotlin.test.*
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.Move
@@ -113,8 +113,8 @@ class TestLinesExplorer : TestWithKoin {
     clickOnTile("e4")
     interactionsManager.save()
     verifyStoredNode(startPosition, true, "e4")
-    val storedNode: StoredNode? = database.getPosition(startPosition)
-    val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
+    val dataNode: DataNode? = database.getPosition(startPosition)
+    val savedBadMove = dataNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
     assertNull(savedBadMove)
   }
 
@@ -145,9 +145,9 @@ class TestLinesExplorer : TestWithKoin {
     isGood: Boolean,
     move: String,
   ) {
-    var storedNode: StoredNode? = null
-    runTest { storedNode = database.getPosition(positionIdentifier) }
-    val savedBadMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == move }
+    var dataNode: DataNode? = null
+    runTest { dataNode = database.getPosition(positionIdentifier) }
+    val savedBadMove = dataNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == move }
     assertEquals(isGood, savedBadMove?.isGood, "Move should be saved as bad")
   }
 

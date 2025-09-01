@@ -12,7 +12,7 @@ import kotlinx.coroutines.IO
 @Database(entities = [NodeEntity::class, MoveEntity::class], version = 1, autoMigrations = [])
 @TypeConverters(DateConverters::class)
 @ConstructedBy(DatabaseConstructor::class)
-abstract class CustomDatabase : RoomDatabase() {
+internal abstract class CustomDatabase : RoomDatabase() {
   abstract fun getNodeEntityDao(): NodeEntityDao
 }
 

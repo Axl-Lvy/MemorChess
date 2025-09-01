@@ -6,7 +6,7 @@ import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Room entity representing an [StoredMove].
+ * Room entity representing an [DataMove].
  *
  * @property origin FEN string of the origin position.
  * @property destination FEN string of the destination position.
@@ -25,7 +25,7 @@ import proj.memorchess.axl.core.date.DateUtil
       Index(value = ["updatedAt"]),
     ],
 )
-data class MoveEntity(
+internal data class MoveEntity(
   val origin: String,
   val destination: String,
   val move: String,
@@ -38,9 +38,9 @@ data class MoveEntity(
   val updatedAt: LocalDateTime = DateUtil.now(),
 ) {
 
-  /** Converts to an [StoredMove]. */
-  fun toStoredMove(): StoredMove {
-    return StoredMove(
+  /** Converts to an [DataMove]. */
+  fun toStoredMove(): DataMove {
+    return DataMove(
       PositionIdentifier(origin),
       PositionIdentifier(destination),
       move,
@@ -51,19 +51,19 @@ data class MoveEntity(
   }
 
   companion object {
-    /** Converts an [StoredMove] to a [MoveEntity]. */
-    fun convertToEntity(storedMove: StoredMove): MoveEntity {
-      val isGood = storedMove.isGood
+    /** Converts an [DataMove] to a [MoveEntity]. */
+    fun convertToEntity(dataMove: DataMove): MoveEntity {
+      val isGood = dataMove.isGood
       checkNotNull(isGood) {
         "A StoredMove must have a isGood value to be inserted into the database"
       }
       return MoveEntity(
-        storedMove.origin.fenRepresentation,
-        storedMove.destination.fenRepresentation,
-        storedMove.move,
+        dataMove.origin.fenRepresentation,
+        dataMove.destination.fenRepresentation,
+        dataMove.move,
         isGood,
-        storedMove.isDeleted,
-        storedMove.updatedAt,
+        dataMove.isDeleted,
+        dataMove.updatedAt,
       )
     }
   }

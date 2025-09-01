@@ -3,10 +3,10 @@ package proj.memorchess.axl.core.graph.nodes
 import com.diamondedge.logging.logging
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.engine.Game
 
 /** Node factory singleton. */
@@ -44,18 +44,18 @@ class NodeManager : KoinComponent {
   fun createNode(game: Game, previous: Node, move: String): Node {
     val previousNodeMoves =
       nodeCache.getOrCreate(previous.position, previous.previousAndNextMoves.depth)
-    val storedMove =
+    val dataMove =
       previousNodeMoves.nextMoves.getOrPut(move) {
-        StoredMove(previous.position, game.position.createIdentifier(), move)
+        DataMove(previous.position, game.position.createIdentifier(), move)
       }
     val newNodeLinkedMoves =
       nodeCache.getOrCreate(
         game.position.createIdentifier(),
         previous.previousAndNextMoves.depth + 1,
       )
-    val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(storedMove)
-    if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != storedMove) {
-      LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $storedMove" }
+    val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(dataMove)
+    if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != dataMove) {
+      LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
     }
     val newNode =
       Node(
@@ -63,7 +63,7 @@ class NodeManager : KoinComponent {
         previous = previous,
         previousAndNextMoves = newNodeLinkedMoves,
       )
-    previous.addChild(storedMove, newNode)
+    previous.addChild(dataMove, newNode)
     return newNode
   }
 
@@ -71,7 +71,7 @@ class NodeManager : KoinComponent {
     nodeCache.clearNextMoves(positionIdentifier)
   }
 
-  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: StoredMove) {
+  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove) {
     nodeCache.clearPreviousMove(positionIdentifier, move)
   }
 
@@ -85,7 +85,7 @@ class NodeManager : KoinComponent {
     nodeCache.resetGraphFromDatabase(db)
   }
 
-  fun getNextNodeToLearn(day: Int, previousPlayedMove: StoredMove?): StoredNode? {
+  fun getNextNodeToLearn(day: Int, previousPlayedMove: DataMove?): DataNode? {
     if (previousPlayedMove == null) {
       return nodeCache.getNodeFromDay(day)
     }
@@ -101,7 +101,7 @@ class NodeManager : KoinComponent {
     return nodeCache.getNumberOfNodesToTrain(day)
   }
 
-  fun cacheNode(node: StoredNode) {
+  fun cacheNode(node: DataNode) {
     nodeCache.cacheNode(node)
   }
 

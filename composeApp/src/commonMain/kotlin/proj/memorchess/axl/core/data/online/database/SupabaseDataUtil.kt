@@ -10,9 +10,9 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -32,18 +32,18 @@ internal data class MoveFetched(
   val updatedAt: Instant,
 ) {
   constructor(
-    storedMove: StoredMove
+    dataMove: DataMove
   ) : this(
-    storedMove.origin.fenRepresentation,
-    storedMove.destination.fenRepresentation,
-    storedMove.move,
-    storedMove.isGood,
-    storedMove.isDeleted,
-    storedMove.updatedAt.toInstant(TimeZone.currentSystemDefault()),
+    dataMove.origin.fenRepresentation,
+    dataMove.destination.fenRepresentation,
+    dataMove.move,
+    dataMove.isGood,
+    dataMove.isDeleted,
+    dataMove.updatedAt.toInstant(TimeZone.currentSystemDefault()),
   )
 
-  fun toStoredMove(): StoredMove {
-    return StoredMove(
+  fun toStoredMove(): DataMove {
+    return DataMove(
       PositionIdentifier(origin),
       PositionIdentifier(destination),
       move,
@@ -65,20 +65,20 @@ internal data class PositionFetched(
   @SerialName(IS_DELETED_FIELD) val isDeleted: Boolean,
 ) {
   constructor(
-    storedNode: StoredNode
+    dataNode: DataNode
   ) : this(
-    storedNode.positionIdentifier.fenRepresentation,
-    storedNode.previousAndNextMoves.nextMoves.map { MoveFetched(it.value) } +
-      storedNode.previousAndNextMoves.previousMoves.map { MoveFetched(it.value) },
-    storedNode.previousAndNextMoves.depth,
-    storedNode.previousAndNextTrainingDate.previousDate,
-    storedNode.previousAndNextTrainingDate.nextDate,
-    storedNode.updatedAt.toInstant(TimeZone.currentSystemDefault()),
-    storedNode.isDeleted,
+    dataNode.positionIdentifier.fenRepresentation,
+    dataNode.previousAndNextMoves.nextMoves.map { MoveFetched(it.value) } +
+      dataNode.previousAndNextMoves.previousMoves.map { MoveFetched(it.value) },
+    dataNode.previousAndNextMoves.depth,
+    dataNode.previousAndNextTrainingDate.previousDate,
+    dataNode.previousAndNextTrainingDate.nextDate,
+    dataNode.updatedAt.toInstant(TimeZone.currentSystemDefault()),
+    dataNode.isDeleted,
   )
 
-  fun toStoredNode(withDeletedOnes: Boolean = false): StoredNode {
-    return StoredNode(
+  fun toStoredNode(withDeletedOnes: Boolean = false): DataNode {
+    return DataNode(
       PositionIdentifier(positionIdentifier),
       PreviousAndNextMoves(
         linkedMoves

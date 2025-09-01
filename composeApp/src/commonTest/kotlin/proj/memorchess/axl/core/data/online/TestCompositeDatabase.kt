@@ -6,9 +6,9 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.config.generated.Secrets
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
@@ -57,7 +57,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
     // Arrange
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
@@ -78,7 +78,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
     val game = Game()
     val positionIdentifier = game.position.createIdentifier()
     val node =
-      StoredNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     compositeDatabase.insertNodes(node)
 
     // Act
@@ -95,7 +95,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
     val game = Game()
     val positionIdentifier = game.position.createIdentifier()
     val node =
-      StoredNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     compositeDatabase.insertNodes(node)
 
     // Verify node exists
@@ -119,17 +119,17 @@ abstract class TestCompositeDatabase : TestWithKoin {
     val childPosition = game.position.createIdentifier()
 
     val rootNode =
-      StoredNode(
+      DataNode(
         rootPosition,
         PreviousAndNextMoves(
           previousMoves = emptyList(),
-          nextMoves = listOf(StoredMove(rootPosition, childPosition, "e4", true)),
+          nextMoves = listOf(DataMove(rootPosition, childPosition, "e4", true)),
         ),
         PreviousAndNextDate.dummyToday(),
       )
 
     val childNode =
-      StoredNode(childPosition, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(childPosition, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     compositeDatabase.insertNodes(rootNode, childNode)
 
@@ -168,7 +168,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
     // Arrange
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),

@@ -4,18 +4,18 @@ import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 
 /** Database for non-JS platforms */
-object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
+internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private val database = getRoomDatabase(databaseBuilder())
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     val allNodes = database.getNodeEntityDao().getAllNodes()
     return (if (withDeletedOnes) allNodes else allNodes.filter { !it.node.isDeleted }).map {
       it.toStoredNode()
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
     return database.getNodeEntityDao().getNode(positionIdentifier.fenRepresentation)?.toStoredNode()
   }
 
@@ -36,7 +36,7 @@ object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     hardFrom?.let { database.getNodeEntityDao().deleteNewerMoves(it) }
   }
 
-  override suspend fun insertNodes(vararg positions: StoredNode) {
+  override suspend fun insertNodes(vararg positions: DataNode) {
     database
       .getNodeEntityDao()
       .insertNodeAndMoves(positions.map { NodeWithMoves.convertToEntity(it) })

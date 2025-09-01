@@ -8,9 +8,9 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 
 private const val USER_NOT_CONNECTED_MESSAGE = "User must be logged in to update database"
@@ -20,7 +20,7 @@ class SupabaseQueryManager(
   private val authManager: AuthManager,
 ) : DatabaseQueryManager {
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<StoredNode> {
+  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
@@ -32,7 +32,7 @@ class SupabaseQueryManager(
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode? {
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val rpc =
@@ -75,7 +75,7 @@ class SupabaseQueryManager(
     )
   }
 
-  override suspend fun insertNodes(vararg positions: StoredNode) {
+  override suspend fun insertNodes(vararg positions: DataNode) {
     val user = authManager.user
     checkNotNull(user)
     client.postgrest.rpc(

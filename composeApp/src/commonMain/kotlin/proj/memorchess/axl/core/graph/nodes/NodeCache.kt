@@ -5,10 +5,10 @@ import kotlin.collections.set
 import kotlinx.datetime.LocalDate
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
@@ -23,7 +23,7 @@ class NodeCache : KoinComponent {
 
   private var databaseRetrieved = false
 
-  private val nodesByDay = mutableMapOf<Int, MutableMap<PositionIdentifier, StoredNode>>()
+  private val nodesByDay = mutableMapOf<Int, MutableMap<PositionIdentifier, DataNode>>()
 
   /** Cache to prevent creating a node twice. */
   private val movesCache = mutableMapOf<PositionIdentifier, PreviousAndNextMoves>()
@@ -75,7 +75,7 @@ class NodeCache : KoinComponent {
    * @param positionIdentifier The position key to clear the previous move for.
    * @param move The move to clear.
    */
-  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: StoredMove) {
+  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove) {
     movesCache[positionIdentifier]?.previousMoves?.remove(move.move)
     LOGGER.i { "Cleared previous move $move for position: $positionIdentifier" }
     database.deleteMove(positionIdentifier, move.move)
@@ -88,20 +88,20 @@ class NodeCache : KoinComponent {
     databaseRetrieved = false
   }
 
-  fun cacheNode(node: StoredNode) {
+  fun cacheNode(node: DataNode) {
     movesCache[node.positionIdentifier] = node.previousAndNextMoves
     val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
     nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
   }
 
-  fun getNodeFromDay(day: Int): StoredNode? {
+  fun getNodeFromDay(day: Int): DataNode? {
     val candidates = nodesByDay[day] ?: return null
     val position =
       candidates.entries.minByOrNull { it.value.previousAndNextMoves.depth }?.key ?: return null
     return candidates.remove(position)
   }
 
-  fun getNodeToTrainAfterPosition(day: Int, positionIdentifier: PositionIdentifier): StoredNode? {
+  fun getNodeToTrainAfterPosition(day: Int, positionIdentifier: PositionIdentifier): DataNode? {
     val todayNodes = nodesByDay[day] ?: return null
     for (candidatePosition in
       movesCache[positionIdentifier]?.nextMoves?.values?.map { it.destination } ?: emptyList()) {
@@ -121,7 +121,7 @@ class NodeCache : KoinComponent {
   suspend fun resetGraphFromDatabase(db: DatabaseQueryManager = database) {
     clear()
     todayDate = DateUtil.today()
-    val allNodes: List<StoredNode> = db.getAllNodes()
+    val allNodes: List<DataNode> = db.getAllNodes()
     allNodes.forEach { node ->
       val previousAndNextMoves = node.previousAndNextMoves.filterNotDeleted()
       movesCache.getOrPut(node.positionIdentifier) { previousAndNextMoves }

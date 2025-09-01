@@ -3,9 +3,9 @@ package proj.memorchess.axl.core.data.online
 import kotlin.test.*
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -33,7 +33,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Arrange
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
@@ -71,7 +71,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     val game = Game()
     val positionIdentifier = game.position.createIdentifier()
     val node =
-      StoredNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     remoteDatabase.insertNodes(node)
 
     // Act
@@ -102,7 +102,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     val game = Game()
     val positionIdentifier = game.position.createIdentifier()
     val node =
-      StoredNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     remoteDatabase.insertNodes(node)
 
     // Verify node exists
@@ -126,17 +126,17 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     val childPosition = game.position.createIdentifier()
 
     val rootNode =
-      StoredNode(
+      DataNode(
         rootPosition,
         PreviousAndNextMoves(
           previousMoves = emptyList(),
-          nextMoves = listOf(StoredMove(rootPosition, childPosition, "e4", true)),
+          nextMoves = listOf(DataMove(rootPosition, childPosition, "e4", true)),
         ),
         PreviousAndNextDate.dummyToday(),
       )
 
     val childNode =
-      StoredNode(childPosition, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(childPosition, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     remoteDatabase.insertNodes(rootNode, childNode)
 
@@ -177,7 +177,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     val updatedAt = DateUtil.now()
     val positionIdentifier = game.position.createIdentifier()
     val node =
-      StoredNode(
+      DataNode(
         positionIdentifier,
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
@@ -199,7 +199,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Arrange
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
@@ -232,7 +232,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Arrange
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
@@ -257,7 +257,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
 
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
@@ -295,7 +295,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
 
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),

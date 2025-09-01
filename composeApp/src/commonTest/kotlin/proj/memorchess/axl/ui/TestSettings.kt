@@ -8,9 +8,9 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
@@ -76,7 +76,7 @@ class TestSettings : TestWithKoin {
   fun testEraseAllDataButton() = runTestFromSetup {
     runTest {
       database.insertNodes(
-        StoredNode(
+        DataNode(
           PositionIdentifier.START_POSITION,
           PreviousAndNextMoves(),
           PreviousAndNextDate(DateUtil.today(), DateUtil.today()),
@@ -102,8 +102,8 @@ class TestSettings : TestWithKoin {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { getAllPositions().isEmpty() }
   }
 
-  private fun getAllPositions(): List<StoredNode> {
-    var result: List<StoredNode>? = null
+  private fun getAllPositions(): List<DataNode> {
+    var result: List<DataNode>? = null
     runTest { result = database.getAllNodes(false) }
     checkNotNull(result)
     return result

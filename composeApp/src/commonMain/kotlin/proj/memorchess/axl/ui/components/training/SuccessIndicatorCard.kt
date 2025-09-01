@@ -51,7 +51,6 @@ fun SuccessIndicatorCard(
 
   val iconColor = if (isCorrect) Color(0xFF4CAF50) else Color(0xFFF44336)
   val icon = if (isCorrect) Icons.Default.Done else Icons.Default.Close
-  val text = if (isCorrect) "Correct!" else "Try Again"
 
   Card(
     modifier = modifier.fillMaxWidth(),

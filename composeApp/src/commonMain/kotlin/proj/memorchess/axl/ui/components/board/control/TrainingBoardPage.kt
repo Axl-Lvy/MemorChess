@@ -17,8 +17,8 @@ import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
@@ -52,11 +52,11 @@ private class TrainingBoard : KoinComponent {
   private var daysInAdvance by mutableStateOf(0)
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
-  private var previousPlayedMove: StoredMove? = null
+  private var previousPlayedMove: DataMove? = null
   private val nodeManager: NodeManager by inject()
   private val localReloader = BasicReloader()
   private val trainerReloader = BasicReloader()
-  private var chosenNode by mutableStateOf<StoredNode?>(null)
+  private var chosenNode by mutableStateOf<DataNode?>(null)
 
   init {
     choseNextNode()
@@ -147,7 +147,7 @@ private class TrainingBoard : KoinComponent {
    */
   @Composable
   private fun NodeToTrain(
-    nodeToLearn: StoredNode,
+    nodeToLearn: DataNode,
     numberOfNodesToTrain: Int,
     modifier: Modifier = Modifier,
   ) {
