@@ -43,11 +43,7 @@ class TestNoOpDatabaseQueryManager {
   @Test
   fun testInsertNodesDoesNothing() = runTest {
     noOpDatabaseQueryManager.insertNodes(
-      StoredNode(
-        PositionIdentifier("test"),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(PositionIdentifier("test"), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     )
     // No exception or state change expected
   }

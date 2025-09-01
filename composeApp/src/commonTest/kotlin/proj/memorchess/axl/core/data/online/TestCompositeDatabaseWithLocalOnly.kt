@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
@@ -27,7 +27,7 @@ class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
   fun testConsistency() = runTest {
     val game = Game()
     val node =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),

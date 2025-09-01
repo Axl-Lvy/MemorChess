@@ -8,12 +8,12 @@ interface DatabaseQueryManager {
   /**
    * Retrieves all stored positions.
    *
-   * @return A list of all stored positions as [StoredNode] objects.
+   * @return A list of all stored positions as [DataNode] objects.
    */
-  suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<StoredNode>
+  suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<DataNode>
 
   /** Retrieves a specific position. */
-  suspend fun getPosition(positionIdentifier: PositionIdentifier): StoredNode?
+  suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode?
 
   /**
    * Deletes a specific position by its FEN.
@@ -41,9 +41,9 @@ interface DatabaseQueryManager {
   /**
    * Inserts a new position.
    *
-   * @param positions The [StoredNode] to insert.
+   * @param positions The [DataNode] to insert.
    */
-  suspend fun insertNodes(vararg positions: StoredNode)
+  suspend fun insertNodes(vararg positions: DataNode)
 
   /** Retrieves the last move update time. */
   suspend fun getLastUpdate(): LocalDateTime?

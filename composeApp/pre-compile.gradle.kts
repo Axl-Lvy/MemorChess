@@ -148,7 +148,7 @@ val applySupabaseFunctions by
     doLast {
       if (supabaseDbLink.isEmpty()) {
         logger.error(
-          "Could not create Supabase database link. Please check your local.properties file."
+          "Could not update the supabase functions as supabaseDbLink is missing in local.properties."
         )
         return@doLast
       }

@@ -21,8 +21,8 @@ expect object DatabaseConstructor : RoomDatabaseConstructor<CustomDatabase> {
   override fun initialize(): CustomDatabase
 }
 
-expect fun databaseBuilder(): RoomDatabase.Builder<CustomDatabase>
+internal expect fun databaseBuilder(): RoomDatabase.Builder<CustomDatabase>
 
-fun getRoomDatabase(builder: RoomDatabase.Builder<CustomDatabase>): CustomDatabase {
+internal fun getRoomDatabase(builder: RoomDatabase.Builder<CustomDatabase>): CustomDatabase {
   return builder.setDriver(BundledSQLiteDriver()).setQueryCoroutineContext(Dispatchers.IO).build()
 }

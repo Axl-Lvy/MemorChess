@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.interactions
 
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -14,10 +14,8 @@ import proj.memorchess.axl.core.engine.Game
  * @property callBackOnCorrect Callback to call after the move is played. The input move is null
  *   when the played move is incorrect.
  */
-class SingleMoveTrainer(
-  private var node: StoredNode,
-  val callBackOnCorrect: (StoredMove?) -> Unit,
-) : InteractionsManager(Game(node.positionIdentifier)) {
+class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (DataMove?) -> Unit) :
+  InteractionsManager(Game(node.positionIdentifier)) {
 
   private var isCorrect: Boolean = true
 
@@ -31,7 +29,7 @@ class SingleMoveTrainer(
     callCallBacks()
   }
 
-  fun updateNode(newNode: StoredNode) {
+  fun updateNode(newNode: DataNode) {
     if (
       newNode.positionIdentifier != node.positionIdentifier ||
         newNode.positionIdentifier != game.position.createIdentifier()
@@ -54,13 +52,13 @@ class SingleMoveTrainer(
 
     val nextTrainingDate = calculator.calculateNextDate(node.previousAndNextTrainingDate)
 
-    val storedNode =
-      StoredNode(
+    val dataNode =
+      DataNode(
         positionIdentifier = node.positionIdentifier,
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
-    nodeManager.cacheNode(storedNode)
-    storedNode.save()
+    nodeManager.cacheNode(dataNode)
+    dataNode.save()
   }
 }

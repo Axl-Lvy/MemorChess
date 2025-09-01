@@ -2,10 +2,10 @@ package proj.memorchess.axl.core.graph.nodes
 
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 
@@ -45,7 +45,7 @@ class Node(
    * @param move The move string to add.
    * @param child The child [Node] resulting from the move.
    */
-  fun addChild(move: StoredMove, child: Node) {
+  fun addChild(move: DataMove, child: Node) {
     previousAndNextMoves.addNextMove(move)
     next = child
   }
@@ -55,18 +55,18 @@ class Node(
    * recursively saves the previous node.
    */
   private suspend fun save() {
-    StoredNode(position, previousAndNextMoves.filterValidMoves(), PreviousAndNextDate.dummyToday())
+    DataNode(position, previousAndNextMoves.filterValidMoves(), PreviousAndNextDate.dummyToday())
       .save()
   }
 
-  /** Sets this node as [good][StoredMove.isGood] and saves it to the database. */
+  /** Sets this node as [good][DataMove.isGood] and saves it to the database. */
   suspend fun saveGood() {
     previousAndNextMoves.setPreviousMovesAsGood()
     save()
     previous?.saveBad()
   }
 
-  /** Sets this node as [bad][StoredMove.isGood] and saves it to the database. */
+  /** Sets this node as [bad][DataMove.isGood] and saves it to the database. */
   private suspend fun saveBad() {
     previousAndNextMoves.setPreviousMovesAsBadIfNotMarked()
     save()
@@ -90,7 +90,7 @@ class Node(
     next = null
   }
 
-  private suspend fun deleteFromPrevious(previousMove: StoredMove) {
+  private suspend fun deleteFromPrevious(previousMove: DataMove) {
     println("Deleting from previous: $previousMove. Position: $position")
     nodeManager.clearPreviousMove(position, previousMove)
     check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
@@ -110,7 +110,7 @@ class Node(
    * @param previousMove The previous move to consider for deletion.
    * @return The number of nodes that would be deleted.
    */
-  fun calculateNumberOfNodesToDelete(previousMove: StoredMove? = null): Int {
+  fun calculateNumberOfNodesToDelete(previousMove: DataMove? = null): Int {
     return if (
       previousMove != null &&
         previousAndNextMoves.previousMoves.values.any { it.move != previousMove.move }

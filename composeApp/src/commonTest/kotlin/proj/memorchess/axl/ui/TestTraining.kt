@@ -11,10 +11,10 @@ import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -61,11 +61,11 @@ class TestTraining : TestWithKoin {
 
     game.playMove("e4")
     val e4Pos = game.position.createIdentifier()
-    val e4Move = StoredMove(startPos, e4Pos, "e4", isGood = true)
+    val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
 
     // Create the node with the move
     val testNode =
-      StoredNode(
+      DataNode(
         positionIdentifier = startPos,
         PreviousAndNextMoves(listOf(), listOf(e4Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
@@ -94,8 +94,8 @@ class TestTraining : TestWithKoin {
     }
   }
 
-  private fun getAllPositions(): List<StoredNode> {
-    var positions: List<StoredNode>? = null
+  private fun getAllPositions(): List<DataNode> {
+    var positions: List<DataNode>? = null
     runTest { positions = database.getAllNodes(false) }
     checkNotNull(positions)
     return positions
@@ -158,14 +158,14 @@ class TestTraining : TestWithKoin {
 
     game.playMove("e4")
     val e4Pos = game.position.createIdentifier()
-    val e4Move = StoredMove(startPos, e4Pos, "e4", isGood = true)
+    val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
     game.playMove("e5")
     val e5Pos = game.position.createIdentifier()
-    val e5Move = StoredMove(e4Pos, e5Pos, "e5", isGood = true)
+    val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
 
     // Create the node with the move
     val testNode =
-      StoredNode(
+      DataNode(
         positionIdentifier = e4Pos,
         PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
@@ -196,9 +196,9 @@ class TestTraining : TestWithKoin {
     val startPosition = game.position.createIdentifier()
     game.playMove("h8=Q+")
     val endPosition = game.position.createIdentifier()
-    val startMove = StoredMove(startPosition, endPosition, "h8=Q", isGood = true)
+    val startMove = DataMove(startPosition, endPosition, "h8=Q", isGood = true)
     val node =
-      StoredNode(
+      DataNode(
         positionIdentifier = startPosition,
         PreviousAndNextMoves(listOf(), listOf(startMove)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),

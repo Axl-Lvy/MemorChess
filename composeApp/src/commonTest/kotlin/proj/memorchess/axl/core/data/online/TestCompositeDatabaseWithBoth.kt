@@ -7,7 +7,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.atTime
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.StoredNode
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -35,7 +35,7 @@ class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabas
     // Arrange
     val game = Game()
     val node1 =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.Companion.dummyToday(),
@@ -43,7 +43,7 @@ class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabas
       )
     localDatabase.insertNodes(node1)
     val node2 =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.Companion.dummyToday(),

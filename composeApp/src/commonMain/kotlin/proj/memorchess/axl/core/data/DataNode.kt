@@ -17,7 +17,7 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
  *   be trained next.
  * @constructor Creates a new node.
  */
-data class StoredNode(
+data class DataNode(
   val positionIdentifier: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves,
   val previousAndNextTrainingDate: PreviousAndNextDate,
@@ -34,7 +34,7 @@ data class StoredNode(
   }
 
   override fun equals(other: Any?) =
-    other is StoredNode && EssentialData(this) == EssentialData(other)
+    other is DataNode && EssentialData(this) == EssentialData(other)
 
   override fun hashCode() = EssentialData(this).hashCode()
 
@@ -47,11 +47,11 @@ data class StoredNode(
     val previousAndNextTrainingDate: PreviousAndNextDate,
   ) {
     constructor(
-      storedNode: StoredNode
+      dataNode: DataNode
     ) : this(
-      storedNode.positionIdentifier,
-      storedNode.previousAndNextMoves,
-      storedNode.previousAndNextTrainingDate,
+      dataNode.positionIdentifier,
+      dataNode.previousAndNextMoves,
+      dataNode.previousAndNextTrainingDate,
     )
   }
 }

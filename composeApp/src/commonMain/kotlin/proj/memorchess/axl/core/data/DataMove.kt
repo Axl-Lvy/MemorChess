@@ -4,7 +4,7 @@ import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.date.DateUtil
 
 /** Move that can be stored in [DatabaseQueryManager] */
-data class StoredMove(
+data class DataMove(
   /** Origin position of the move */
   val origin: PositionIdentifier,
 
@@ -31,7 +31,7 @@ data class StoredMove(
 ) {
 
   override fun equals(other: Any?) =
-    other is StoredMove && EssentialData(this) == EssentialData(other)
+    other is DataMove && EssentialData(this) == EssentialData(other)
 
   override fun hashCode() = EssentialData(this).hashCode()
 
@@ -46,7 +46,7 @@ data class StoredMove(
     val isDeleted: Boolean,
   ) {
     constructor(
-      storedNode: StoredMove
+      storedNode: DataMove
     ) : this(
       storedNode.origin,
       storedNode.destination,

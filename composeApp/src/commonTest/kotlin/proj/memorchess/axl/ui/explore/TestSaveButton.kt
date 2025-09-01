@@ -7,9 +7,9 @@ import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.test_util.Awaitility
@@ -43,7 +43,7 @@ class TestSaveButton : TestWithKoin {
   fun testSaveGood() = runTestFromSetup {
     runTest {
       assertNull(getPosition(afterH3Position))
-      var savedPosition: StoredNode? = null
+      var savedPosition: DataNode? = null
       Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
         clickOnSave()
         savedPosition = getPosition(afterH3Position)
@@ -59,8 +59,8 @@ class TestSaveButton : TestWithKoin {
     assertPieceMoved("h7", "h6", Pawn.black())
     assertNull(getPosition(afterH3Position))
     assertNull(getPosition(afterH6Position))
-    var savedLastPosition: StoredNode? = null
-    var savedFirstPosition: StoredNode? = null
+    var savedLastPosition: DataNode? = null
+    var savedFirstPosition: DataNode? = null
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testPropagateSave: Positions not saved") {
       clickOnSave()
       savedLastPosition = getPosition(afterH6Position)
@@ -71,8 +71,8 @@ class TestSaveButton : TestWithKoin {
     check(savedFirstPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == false })
   }
 
-  private fun getPosition(p: PositionIdentifier): StoredNode? {
-    var result: StoredNode? = null
+  private fun getPosition(p: PositionIdentifier): DataNode? {
+    var result: DataNode? = null
     runTest { result = database.getPosition(p) }
     return result
   }

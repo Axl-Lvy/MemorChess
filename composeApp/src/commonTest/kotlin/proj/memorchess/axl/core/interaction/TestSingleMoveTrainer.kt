@@ -6,9 +6,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.StoredMove
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
@@ -24,7 +24,7 @@ class TestSingleMoveTrainer : TestWithKoin {
   private lateinit var moveFactory: RealMoveFactory
   private lateinit var checkChecker: DummyCheckChecker
   private val database: DatabaseQueryManager by inject()
-  private lateinit var testNode: StoredNode
+  private lateinit var testNode: DataNode
 
   private fun initialize() = runTest {
     database.deleteAll(DateUtil.farInThePast())
@@ -35,17 +35,17 @@ class TestSingleMoveTrainer : TestWithKoin {
     // Create e4 as a good move
     game.playMove("e4")
     val e4Position = game.position.createIdentifier()
-    val e4Move = StoredMove(startPosition, e4Position, "e4", isGood = true)
+    val e4Move = DataMove(startPosition, e4Position, "e4", isGood = true)
 
     // Create d4 as a bad move
     val game2 = Game()
     game2.playMove("d4")
     val d4Position = game2.position.createIdentifier()
-    val d4Move = StoredMove(startPosition, d4Position, "d4", isGood = false)
+    val d4Move = DataMove(startPosition, d4Position, "d4", isGood = false)
 
     // Create the node with both moves
     testNode =
-      StoredNode(
+      DataNode(
         positionIdentifier = startPosition,
         PreviousAndNextMoves(listOf(), listOf(e4Move, d4Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),

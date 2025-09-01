@@ -8,7 +8,7 @@ import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Entity representing an [StoredNode] ready to be stored in the database.
+ * Entity representing an [DataNode] ready to be stored in the database.
  *
  * @property fenRepresentation FEN string uniquely identifying the chess position.
  * @property lastTrainedDate The date when this node was last trained.

@@ -14,10 +14,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import proj.memorchess.axl.core.data.CustomDatabase
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.MoveEntity
 import proj.memorchess.axl.core.data.NodeEntityDao
 import proj.memorchess.axl.core.data.NodeWithMoves
-import proj.memorchess.axl.core.data.StoredNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
@@ -48,7 +48,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            StoredNode(
+            DataNode(
               game.position.createIdentifier(),
               PreviousAndNextMoves(),
               PreviousAndNextDate.dummyToday(),
@@ -75,7 +75,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            StoredNode(
+            DataNode(
               game.position.createIdentifier(),
               PreviousAndNextMoves(),
               PreviousAndNextDate.dummyToday(),
@@ -104,14 +104,14 @@ class TestNodeEntitiesDataBase {
       )
     val now = DateUtil.now()
     val rootNode =
-      StoredNode(
+      DataNode(
         rootPositionKey,
         PreviousAndNextMoves(listOf(), listOf(linkMove.toStoredMove())),
         PreviousAndNextDate.dummyToday(),
         now,
       )
     val childNode =
-      StoredNode(
+      DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),

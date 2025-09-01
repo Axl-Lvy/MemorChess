@@ -13,8 +13,8 @@ data class NodeWithMoves(
   @Relation(parentColumn = "fenRepresentation", entityColumn = "origin")
   val nextMoves: List<MoveEntity>,
 ) {
-  fun toStoredNode(): StoredNode {
-    return StoredNode(
+  fun toStoredNode(): DataNode {
+    return DataNode(
       PositionIdentifier(node.fenRepresentation),
       PreviousAndNextMoves(
         previousMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
@@ -28,18 +28,18 @@ data class NodeWithMoves(
   }
 
   companion object {
-    fun convertToEntity(storedNode: StoredNode): NodeWithMoves {
+    fun convertToEntity(dataNode: DataNode): NodeWithMoves {
       return NodeWithMoves(
         NodeEntity(
-          storedNode.positionIdentifier.fenRepresentation,
-          storedNode.previousAndNextTrainingDate.previousDate,
-          storedNode.previousAndNextTrainingDate.nextDate,
-          storedNode.previousAndNextMoves.depth,
-          storedNode.isDeleted,
-          storedNode.updatedAt,
+          dataNode.positionIdentifier.fenRepresentation,
+          dataNode.previousAndNextTrainingDate.previousDate,
+          dataNode.previousAndNextTrainingDate.nextDate,
+          dataNode.previousAndNextMoves.depth,
+          dataNode.isDeleted,
+          dataNode.updatedAt,
         ),
-        storedNode.previousAndNextMoves.previousMoves.map { MoveEntity.convertToEntity(it.value) },
-        storedNode.previousAndNextMoves.nextMoves.map { MoveEntity.convertToEntity(it.value) },
+        dataNode.previousAndNextMoves.previousMoves.map { MoveEntity.convertToEntity(it.value) },
+        dataNode.previousAndNextMoves.nextMoves.map { MoveEntity.convertToEntity(it.value) },
       )
     }
   }
