@@ -12,7 +12,7 @@ import kotlinx.coroutines.IO
 @Database(entities = [NodeEntity::class, MoveEntity::class], version = 1, autoMigrations = [])
 @TypeConverters(DateConverters::class)
 @ConstructedBy(DatabaseConstructor::class)
-internal abstract class CustomDatabase : RoomDatabase() {
+abstract class CustomDatabase : RoomDatabase() {
   abstract fun getNodeEntityDao(): NodeEntityDao
 }
 
@@ -21,8 +21,8 @@ expect object DatabaseConstructor : RoomDatabaseConstructor<CustomDatabase> {
   override fun initialize(): CustomDatabase
 }
 
-expect fun databaseBuilder(): RoomDatabase.Builder<CustomDatabase>
+internal expect fun databaseBuilder(): RoomDatabase.Builder<CustomDatabase>
 
-fun getRoomDatabase(builder: RoomDatabase.Builder<CustomDatabase>): CustomDatabase {
+internal fun getRoomDatabase(builder: RoomDatabase.Builder<CustomDatabase>): CustomDatabase {
   return builder.setDriver(BundledSQLiteDriver()).setQueryCoroutineContext(Dispatchers.IO).build()
 }
