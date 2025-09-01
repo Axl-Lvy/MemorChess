@@ -255,6 +255,8 @@ jobs:
     needs: [ android-tests, jvm-tests ]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Download pre-compiled base outputs
       - name: Download compiled outputs
