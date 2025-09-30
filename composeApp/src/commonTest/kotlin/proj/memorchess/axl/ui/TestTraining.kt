@@ -212,7 +212,7 @@ class TestTraining : TestWithKoin {
   }
 
   @Test
-  fun `show the right node in explorer`() = runTestFromSetup {
+  fun testShowRightMoveInExplorer() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
     clickOnShowOnExplore()
