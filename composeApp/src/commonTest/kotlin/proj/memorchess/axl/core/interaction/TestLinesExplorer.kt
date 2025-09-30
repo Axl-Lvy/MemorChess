@@ -266,4 +266,26 @@ class TestLinesExplorer : TestWithKoin {
       interactionsManager.game.position.createIdentifier(),
     )
   }
+
+  @Test
+  fun `test that the root node can have previous moves`() = runTest {
+    interactionsManager.playMove("Nf3")
+    interactionsManager.save()
+    interactionsManager.playMove("Nf6")
+    interactionsManager.save()
+    interactionsManager.playMove("Ng1")
+    interactionsManager.save()
+    interactionsManager.playMove("Ng8")
+    interactionsManager.save()
+
+    assertEquals(
+      PositionIdentifier.START_POSITION,
+      interactionsManager.game.position.createIdentifier(),
+    )
+    interactionsManager.reset()
+    assertEquals(
+      PositionIdentifier.START_POSITION,
+      interactionsManager.game.position.createIdentifier(),
+    )
+  }
 }
