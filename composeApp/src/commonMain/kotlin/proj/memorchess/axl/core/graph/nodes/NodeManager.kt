@@ -55,7 +55,7 @@ class NodeManager : KoinComponent {
       )
     val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(dataMove)
     if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != dataMove) {
-      Logger.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
+      LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
     }
     val newNode =
       Node(
@@ -109,3 +109,5 @@ class NodeManager : KoinComponent {
     return nodeCache.get(position) != null
   }
 }
+
+private val LOGGER = Logger.withTag("NodeManager")

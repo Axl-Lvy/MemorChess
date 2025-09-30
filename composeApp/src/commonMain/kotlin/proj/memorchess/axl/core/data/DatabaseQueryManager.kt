@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.data
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /** Interface for the application's database operations on positions. */
 interface DatabaseQueryManager {
