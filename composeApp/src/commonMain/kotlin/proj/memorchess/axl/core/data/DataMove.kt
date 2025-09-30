@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.data
 
-import kotlinx.datetime.LocalDateTime
+import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil
 
 /** Move that can be stored in [DatabaseQueryManager] */
@@ -27,7 +27,7 @@ data class DataMove(
   val isDeleted: Boolean = false,
 
   /** Date at which this move was updated */
-  val updatedAt: LocalDateTime = DateUtil.now(),
+  val updatedAt: Instant = DateUtil.now(),
 ) {
 
   override fun equals(other: Any?) =

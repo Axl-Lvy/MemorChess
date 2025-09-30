@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.data.online.auth
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
@@ -61,7 +61,7 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
         supabaseClient.auth.refreshSession(refreshToken = refreshToken)
       } catch (e: AuthRestException) {
         KEEP_LOGGED_IN_SETTING.reset()
-        LOGGER.warn { "Failed to restore session: ${e.message}" }
+        LOGGER.e(e) { "Failed to restore session." }
         updateSavedTokens()
       }
     }
@@ -122,4 +122,4 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
   }
 }
 
-private val LOGGER = logging()
+private val LOGGER = Logger.withTag("AuthManager")

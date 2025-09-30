@@ -115,9 +115,8 @@ enum class EmbeddedSettingItem(
   }
 
   @Composable
-  private fun <T> DrawItemSelector(buttonParams: EnumBasedSelectorParameters<T>) where
-  T : Enum<T>,
-  T : CanDisplayName {
+  private fun <T> DrawItemSelector(buttonParams: EnumBasedSelectorParameters<T>)
+    where T : Enum<T>, T : CanDisplayName {
     val children =
       buttonParams.config.getEntries().map {
         WideScrollBarChild(

@@ -104,8 +104,8 @@ kotlin {
       implementation(libs.material3.adaptive)
 
       // Utilities
-      api(libs.logging)
       implementation(libs.multiplatform.settings)
+      implementation(libs.kermit.logging)
 
       // Backend and networking
       implementation(libs.supabase.database)
@@ -131,7 +131,6 @@ kotlin {
     val nonJsMain by getting {
       dependencies {
         implementation(libs.androidx.room.runtime)
-        implementation(libs.androidx.room.compiler)
         implementation(libs.sqlite.bundled)
       }
       configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
@@ -148,7 +147,6 @@ kotlin {
       implementation(compose.desktop.currentOs)
       implementation(libs.ktor.client.java)
       implementation(libs.slf4j.api)
-      implementation(libs.logback.classic)
     }
 
     iosMain.dependencies { implementation(libs.ktor.client.darwin) }
@@ -156,6 +154,11 @@ kotlin {
     commonTest.dependencies {
       implementation(libs.kotlin.test)
       @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class) implementation(compose.uiTest)
+    }
+
+    sourceSets.all {
+      languageSettings.optIn("kotlin.uuid.ExperimentalUuidApi")
+      languageSettings.optIn("kotlin.time.ExperimentalTime")
     }
   }
 

@@ -1,8 +1,13 @@
 package proj.memorchess.axl.core.data
 
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -36,7 +41,9 @@ class TestNoOpDatabaseQueryManager {
 
   @Test
   fun testDeleteAllDoesNothing() = runTest {
-    noOpDatabaseQueryManager.deleteAll(LocalDateTime(2025, 8, 13, 0, 0))
+    noOpDatabaseQueryManager.deleteAll(
+      LocalDateTime(2025, 8, 13, 0, 0).toInstant(TimeZone.currentSystemDefault())
+    )
     // No exception or state change expected
   }
 

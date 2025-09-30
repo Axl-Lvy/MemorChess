@@ -3,11 +3,7 @@ package proj.memorchess.axl.core.data.online.database
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.rpc
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
@@ -66,13 +62,10 @@ class SupabaseQueryManager(
     )
   }
 
-  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
+  override suspend fun deleteAll(hardFrom: Instant?) {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    client.postgrest.rpc(
-      "delete_all",
-      SingleDateTimeFunctionArg(user.id, hardFrom?.toInstant(TimeZone.currentSystemDefault())),
-    )
+    client.postgrest.rpc("delete_all", SingleDateTimeFunctionArg(user.id, hardFrom))
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
@@ -84,7 +77,7 @@ class SupabaseQueryManager(
     )
   }
 
-  override suspend fun getLastUpdate(): LocalDateTime? {
+  override suspend fun getLastUpdate(): Instant? {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val rpc =
@@ -92,7 +85,7 @@ class SupabaseQueryManager(
         "fetch_last_update",
         SingleUserIdFunctionArg(user.id),
       )
-    return rpc.decodeAsOrNull<Instant>()?.toLocalDateTime(TimeZone.currentSystemDefault())
+    return rpc.decodeAsOrNull<Instant>()
   }
 
   override fun isActive(): Boolean {

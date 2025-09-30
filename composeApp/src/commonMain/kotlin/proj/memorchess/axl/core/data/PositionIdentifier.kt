@@ -1,10 +1,10 @@
 package proj.memorchess.axl.core.data
 
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import proj.memorchess.axl.core.engine.board.IPosition
 import proj.memorchess.axl.core.engine.parser.FenParser
 
-private val LOGGER = logging()
+private val LOGGER = Logger.withTag("PositionIdentifier")
 
 /**
  * Represents a unique key for a chess position based on its pseudo FEN representation. This key can
@@ -41,8 +41,7 @@ data class PositionIdentifier(val fenRepresentation: String) {
         positionIdentifier.createPosition()
         return positionIdentifier
       } catch (e: IllegalArgumentException) {
-        LOGGER.warn { "Invalid FEN: $fen." }
-        LOGGER.warn { e.stackTraceToString() }
+        LOGGER.e(e) { "Invalid FEN: $fen." }
         return null
       }
     }

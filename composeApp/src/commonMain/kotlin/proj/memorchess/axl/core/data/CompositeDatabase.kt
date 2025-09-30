@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.data
 
-import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Instant
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
@@ -56,7 +56,7 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
+  override suspend fun deleteAll(hardFrom: Instant?) {
     if (localDatabase.isActive()) {
       localDatabase.deleteAll(hardFrom)
     }
@@ -74,7 +74,7 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun getLastUpdate(): LocalDateTime? {
+  override suspend fun getLastUpdate(): Instant? {
     val local = if (localDatabase.isActive()) localDatabase.getLastUpdate() else null
     val remote =
       if (remoteDatabase.isActive() && databaseSynchronizer.isSynced) remoteDatabase.getLastUpdate()

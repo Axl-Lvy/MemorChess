@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.graph.nodes
 
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import kotlin.collections.set
 import kotlinx.datetime.LocalDate
 import org.koin.core.component.KoinComponent
@@ -135,4 +135,4 @@ class NodeCache : KoinComponent {
   }
 }
 
-private val LOGGER = logging()
+private val LOGGER = Logger.withTag("NodeCache")

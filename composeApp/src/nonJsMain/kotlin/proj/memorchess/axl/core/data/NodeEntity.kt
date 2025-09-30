@@ -3,8 +3,8 @@ package proj.memorchess.axl.core.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
@@ -51,7 +51,7 @@ data class NodeEntity(
   val isDeleted: Boolean = false,
 
   /** The date time of the last update. */
-  val updatedAt: LocalDateTime = DateUtil.now(),
+  val updatedAt: Instant = DateUtil.now(),
 ) {
 
   init {

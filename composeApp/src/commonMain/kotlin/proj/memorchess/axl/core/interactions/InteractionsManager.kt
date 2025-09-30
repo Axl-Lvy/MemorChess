@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.diamondedge.logging.logging
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionIdentifier
@@ -55,10 +54,10 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
    */
   suspend fun clickOnTile(coordinates: Pair<Int, Int>) {
     if (isBlocked) {
-      LOGGER.warn { "Clicked on tile ${IBoard.getTileName(coordinates)} but the game is blocked" }
+      LOGGER.w { "Clicked on tile ${IBoard.getTileName(coordinates)} but the game is blocked" }
       return
     }
-    LOGGER.info { "Clicked on tile ${IBoard.getTileName(coordinates)}" }
+    LOGGER.i { "Clicked on tile ${IBoard.getTileName(coordinates)}" }
     val immutableFirstTile = selectedTile
     if (immutableFirstTile != null) {
       try {
@@ -147,4 +146,4 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
   }
 }
 
-private val LOGGER = logging()
+private val LOGGER = co.touchlab.kermit.Logger.withTag("CommandsManager")

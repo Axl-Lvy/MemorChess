@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.data
 
-import kotlinx.datetime.LocalDateTime
+import kotlin.time.Instant
 
 open class NoOpDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
@@ -19,7 +19,7 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
+  override suspend fun deleteAll(hardFrom: Instant?) {
     // Nothing to do
   }
 
@@ -27,7 +27,7 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun getLastUpdate(): LocalDateTime? {
+  override suspend fun getLastUpdate(): Instant? {
     return null
   }
 

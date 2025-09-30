@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.jan.supabase.auth.status.SessionStatus
-import kotlinx.datetime.LocalDateTime
+import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
@@ -26,7 +26,7 @@ class DatabaseSynchronizer(
   var isSynced by mutableStateOf(false)
     private set
 
-  val lastUpdates = mutableStateOf<Pair<LocalDateTime?, LocalDateTime?>?>(null)
+  val lastUpdates = mutableStateOf<Pair<Instant?, Instant?>?>(null)
 
   init {
     if (!localDatabase.isActive()) {
@@ -44,7 +44,7 @@ class DatabaseSynchronizer(
    *
    * @return Pair(local, remote)
    */
-  private suspend fun getLastUpdates(): Pair<LocalDateTime?, LocalDateTime?>? {
+  private suspend fun getLastUpdates(): Pair<Instant?, Instant?>? {
     if (authManager.user == null) {
       return null
     }

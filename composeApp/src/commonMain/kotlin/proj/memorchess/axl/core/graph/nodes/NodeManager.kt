@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.graph.nodes
 
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
@@ -55,7 +55,7 @@ class NodeManager : KoinComponent {
       )
     val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(dataMove)
     if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != dataMove) {
-      LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
+      Logger.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
     }
     val newNode =
       Node(
@@ -109,5 +109,3 @@ class NodeManager : KoinComponent {
     return nodeCache.get(position) != null
   }
 }
-
-private val LOGGER = logging()

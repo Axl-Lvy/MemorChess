@@ -5,8 +5,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
@@ -43,9 +41,9 @@ class Awaitility {
       failingMessage: String? = null,
       condition: () -> Boolean,
     ) {
-      val startTime = DateUtil.now().toInstant(TimeZone.UTC)
+      val startTime = DateUtil.now()
       while (!condition()) {
-        if (DateUtil.now().toInstant(TimeZone.UTC).minus(startTime) > timeout) {
+        if (DateUtil.now().minus(startTime) > timeout) {
           throw AssertionError(failingMessage ?: "Timed out waiting for condition")
         }
       }
@@ -55,14 +53,14 @@ class Awaitility {
   @Test
   fun testAwaitility() {
     // Example usage of Awaitility
-    val startTime = DateUtil.now().toInstant(TimeZone.UTC)
+    val startTime = DateUtil.now()
     assertFailsWith<AssertionError> {
       awaitUntilTrue(1.seconds) {
         // Replace with your actual condition
         false // This should be a condition that eventually becomes true
       }
     }
-    val endTime = DateUtil.now().toInstant(TimeZone.UTC)
+    val endTime = DateUtil.now()
     assertTrue { endTime.minus(startTime) > 1.seconds }
     assertTrue { endTime.minus(startTime) < 2.seconds }
   }
