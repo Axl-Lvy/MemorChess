@@ -34,9 +34,8 @@ class EnumBasedAppConfigItem<T>(
     )
 
   companion object {
-    inline fun <reified T> from(name: String, default: T): EnumBasedAppConfigItem<T> where
-    T : Enum<T>,
-    T : CanDisplayName {
+    inline fun <reified T> from(name: String, default: T): EnumBasedAppConfigItem<T>
+      where T : Enum<T>, T : CanDisplayName {
       return EnumBasedAppConfigItem(name, default, { enumValueOf<T>(it) }, { enumValues<T>() })
     }
   }

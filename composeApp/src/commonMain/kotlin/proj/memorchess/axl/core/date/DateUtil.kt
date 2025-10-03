@@ -1,12 +1,14 @@
 package proj.memorchess.axl.core.date
 
 import kotlin.math.absoluteValue
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
+import kotlinx.datetime.number
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
@@ -24,22 +26,22 @@ object DateUtil {
   /**
    * Returns the current date and time in the system's default timezone.
    *
-   * @return Current [LocalDateTime] in system timezone
+   * @return Current [Instant] in system timezone
    */
-  fun now(): LocalDateTime {
-    return Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+  fun now(): Instant {
+    return Clock.System.now()
   }
 
   /**
-   * Returns a [LocalDateTime] representing a point far in the past (January 1, 1970).
+   * Returns a [Instant] representing a point far in the past (January 1, 1970).
    *
    * This is useful for initializing date fields that should represent "never" or as a default value
    * indicating no specific date has been set.
    *
-   * @return [LocalDateTime] set to 1970-01-01 00:00:00
+   * @return [Instant] set to 1970-01-01 00:00:00
    */
-  fun farInThePast(): LocalDateTime {
-    return LocalDateTime(1970, 1, 1, 0, 0, 0)
+  fun farInThePast(): Instant {
+    return Instant.parse("1970-01-01T00:00:00Z")
   }
 
   /**
@@ -48,7 +50,8 @@ object DateUtil {
    * @return Current [LocalDate] in system timezone
    */
   fun today(): LocalDate {
-    return Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val todayIn = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    return todayIn
   }
 
   /**
@@ -82,49 +85,51 @@ object DateUtil {
   }
 
   /**
-   * Truncates a [LocalDateTime] to seconds precision by setting nanoseconds to 0.
+   * Truncates a [Instant] to seconds precision by setting nanoseconds to 0.
    *
    * This extension function is useful when you need to remove sub-second precision for comparison
    * or storage purposes.
    *
-   * @return [LocalDateTime] with the same date and time but nanoseconds set to 0
+   * @return [Instant] with the same date and time but nanoseconds set to 0
    */
-  fun LocalDateTime.truncateToSeconds(): LocalDateTime {
-    return LocalDateTime(year, monthNumber, dayOfMonth, hour, minute, second, 0)
+  fun Instant.truncateToSeconds(): Instant {
+    val timeZone = TimeZone.currentSystemDefault()
+    return this.toLocalDateTime(timeZone)
+      .let { LocalDateTime(it.year, it.month.number, it.day, it.hour, it.minute, it.second) }
+      .toInstant(timeZone)
   }
 
   /**
-   * Compares this [LocalDateTime] with another [LocalDateTime] to check if they are almost equal.
+   * Compares this [Instant] with another [Instant] to check if they are almost equal.
    *
-   * Two [LocalDateTime] instances are considered almost equal if their difference is less than or
-   * equal to the specified [tolerance] in seconds.
+   * Two [Instant] instances are considered almost equal if their difference is less than or equal
+   * to the specified [tolerance] in seconds.
    *
-   * @param other The [LocalDateTime] to compare with.
+   * @param other The [Instant] to compare with.
    * @param tolerance The maximum difference in seconds for the two instances to be considered
    *   almost equal. Default is 1 second.
    * @return `true` if the difference between the two instances is within the [tolerance], `false`
    *   otherwise.
    */
-  fun LocalDateTime.isAlmostEqual(other: LocalDateTime?, tolerance: Long = 5): Boolean {
+  fun Instant.isAlmostEqual(other: Instant?, tolerance: Long = 5): Boolean {
     if (other == null) {
       return false
     }
-    val difference =
-      this.toInstant(TimeZone.UTC).epochSeconds - other.toInstant(TimeZone.UTC).epochSeconds
+    val difference = this.epochSeconds - other.epochSeconds
     return difference.absoluteValue <= tolerance
   }
 
   /**
-   * Returns the maximum of two [LocalDateTime] instances.
+   * Returns the maximum of two [Instant] instances.
    *
    * If one of the instances is `null`, it returns the other instance. If both are `null`, it
    * returns `null`. If both are non-null, it returns the later date.
    *
-   * @param a First [LocalDateTime] instance
-   * @param b Second [LocalDateTime] instance
-   * @return The later [LocalDateTime], or `null` if both are `null`
+   * @param a First [Instant] instance
+   * @param b Second [Instant] instance
+   * @return The later [Instant], or `null` if both are `null`
    */
-  fun maxOf(a: LocalDateTime?, b: LocalDateTime?): LocalDateTime? {
+  fun maxOf(a: Instant?, b: Instant?): Instant? {
     return if (a == null) {
       b
     } else if (b == null) {
@@ -132,5 +137,9 @@ object DateUtil {
     } else {
       if (a > b) a else b
     }
+  }
+
+  fun LocalDateTime.toInstant(): Instant {
+    return this.toInstant(TimeZone.currentSystemDefault())
   }
 }

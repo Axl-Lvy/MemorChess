@@ -78,7 +78,7 @@ class TestFenParser {
   }
 
   @Test
-  fun `cannot create a position with invalid FEN`() {
+  fun testCreatePositionWithInvalidFen() {
     val invalidFens =
       listOf(
         "hey", // Missing parts
@@ -90,7 +90,7 @@ class TestFenParser {
   }
 
   @Test
-  fun `create a position with valid FEN`() {
+  fun testCreatePositionWithValidFen() {
     val validFens =
       listOf(
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq",

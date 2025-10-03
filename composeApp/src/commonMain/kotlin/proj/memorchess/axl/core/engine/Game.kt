@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.engine
 
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import kotlin.math.abs
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.board.IPosition
@@ -138,7 +138,7 @@ class Game(val position: IPosition, private val checkChecker: CheckChecker) {
 
   private fun playMove(move: Move) {
     if (checkChecker.isPossible(move)) {
-      LOGGER.info { "Playing ${moveFactory.stringifyMove(move)}." }
+      LOGGER.i { "Playing ${moveFactory.stringifyMove(move)}." }
       beforePlayMove()
       position.board.playMove(move)
       afterPlayMove(move)
@@ -187,8 +187,6 @@ class Game(val position: IPosition, private val checkChecker: CheckChecker) {
   override fun toString(): String {
     return FenParser.parse(this)
   }
-
-  companion object {
-    val LOGGER = logging()
-  }
 }
+
+private val LOGGER = Logger.withTag("Game")

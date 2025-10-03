@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.data
 
-import kotlinx.datetime.LocalDateTime
+import kotlin.time.Instant
 
 /** Interface for the application's database operations on positions. */
 interface DatabaseQueryManager {
@@ -36,7 +36,7 @@ interface DatabaseQueryManager {
    * @param hardFrom Everything is not entirely deleted, but marked as deleted. Except for entities
    *   that where updated after this date.
    */
-  suspend fun deleteAll(hardFrom: LocalDateTime?)
+  suspend fun deleteAll(hardFrom: Instant?)
 
   /**
    * Inserts a new position.
@@ -46,7 +46,7 @@ interface DatabaseQueryManager {
   suspend fun insertNodes(vararg positions: DataNode)
 
   /** Retrieves the last move update time. */
-  suspend fun getLastUpdate(): LocalDateTime?
+  suspend fun getLastUpdate(): Instant?
 
   /** Checks if the database is can be used. */
   fun isActive(): Boolean

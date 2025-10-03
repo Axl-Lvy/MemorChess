@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.data
 
-import com.diamondedge.logging.logging
-import kotlinx.datetime.LocalDateTime
+import co.touchlab.kermit.Logger
+import kotlin.time.Instant
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.date.DateUtil
@@ -21,7 +21,7 @@ data class DataNode(
   val positionIdentifier: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves,
   val previousAndNextTrainingDate: PreviousAndNextDate,
-  val updatedAt: LocalDateTime = DateUtil.now(),
+  val updatedAt: Instant = DateUtil.now(),
   val isDeleted: Boolean = false,
 ) : KoinComponent {
 
@@ -29,7 +29,7 @@ data class DataNode(
 
   /** Saves this node. */
   suspend fun save() {
-    LOGGER.info { "saving $this" }
+    LOGGER.i { "saving $this" }
     db.insertNodes(this)
   }
 
@@ -56,4 +56,4 @@ data class DataNode(
   }
 }
 
-private val LOGGER = logging()
+private val LOGGER = Logger.withTag("DataNode")

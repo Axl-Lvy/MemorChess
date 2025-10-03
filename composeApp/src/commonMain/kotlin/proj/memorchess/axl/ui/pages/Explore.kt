@@ -8,7 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
@@ -33,7 +33,7 @@ import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.pages.navigation.Route
 
-private val LOGGER = logging()
+private val LOGGER = Logger.withTag("Explore")
 
 @Composable
 fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koinInject()) {
@@ -136,7 +136,7 @@ private fun extractInitialPosition(
   return if (position == null) {
     null
   } else if (!nodeManager.isKnown(position)) {
-    LOGGER.warn {
+    LOGGER.w {
       "Position $position is not stored yet. You must first store it to integrate it in your position tree."
     }
     null

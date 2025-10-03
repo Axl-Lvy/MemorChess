@@ -1,80 +1,92 @@
 [versions]
-agp = "8.10.1"
-android-compileSdk = "35"
-android-minSdk = "35"
-android-targetSdk = "35"
-androidx-activityCompose = "1.10.1"
-androidx-lifecycle = "2.9.0"
-compose-multiplatform = "1.8.2"
+agp = "8.12.3"
+android-compileSdk = "36"
+android-minSdk = "24"
+android-targetSdk = "36"
+androidx-activityCompose = "1.11.0"
+androidx-lifecycle = "2.9.4"
+androidx-room = "2.8.1"
+composeHotReload = "1.0.0-beta09"
+compose-multiplatform = "1.9.0"
 hotpreview = "0.2.0"
-kotlin = "2.2.0"
-kotlinxDatetime = "0.6.2"
+kermit = "2.0.8"
+kover = "0.9.2"
+koin = "4.1.1"
+ktfmt = "0.24.0"
+kotlin = "2.2.20"
+ksp = "2.2.20-2.0.2"
+kotest = "6.0.3"
+kotlinxDatetime = "0.7.1"
 kotlinxSerializationJson = "1.9.0"
-logging = "2.0.3"
-navigationComposeVersion = "2.9.0-beta04"
-material3Android = "1.3.2"
-uiTestJunit4Android = "1.8.2"
-xfeather_z = "1.1.1"
-ktfmt = "0.23.0"
-androidx-room = "2.7.2"
-ksp = "2.2.0-2.0.2"
-sqlite = "2.5.2"
-koin = "4.1.0"
-sonar = "6.2.0.5505"
+ktor = "3.3.0"
 material-icons = "1.7.3"
-multiplatform-settings = "1.3.0"
-supabase = "3.2.0"
-ktor = "3.2.0"
 material3-adaptive = "1.1.2"
-composeHotReload = "1.0.0-beta04"
-logback = "1.5.16"
-slf4jApi = "2.0.16"
-kover = "0.8.1"
+material3Android = "1.4.0"
+multiplatform-settings = "1.3.0"
+navigationComposeVersion = "2.9.0"
+slf4jApi = "2.0.17"
+sonar = "6.3.1.5724"
+sqlite = "2.6.1"
+supabase = "3.2.4"
+uiTestJunit4Android = "1.9.2"
+xfeather_z = "1.1.1"
 
 [libraries]
-androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
-androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestJunit4Android" }
-hotpreview = { module = "de.drick.compose:hotpreview", version.ref = "hotpreview" }
-kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+# --- Misc ---
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
-androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
-androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
-kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
-kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
-logging = { module = "com.diamondedge:logging", version.ref = "logging" }
-navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationComposeVersion" }
 androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
+hotpreview = { module = "de.drick.compose:hotpreview", version.ref = "hotpreview" }
 material3-adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", version.ref = "material3-adaptive" }
+material-icons = {module = "org.jetbrains.compose.material:material-icons-core", version.ref = "material-icons" }
+navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationComposeVersion" }
 xfeather_z = { module = "br.com.devsrsouza.compose.icons:feather", version.ref = "xfeather_z" }
-androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "androidx-room" }
+
+# --- AndroidX lifecycle ---
+androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
+
+# --- Data ---
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "androidx-room" }
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "androidx-room" }
+sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
+supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt", version.ref = "supabase" }
+supabase-database = { module = "io.github.jan-tennert.supabase:postgrest-kt", version.ref = "supabase" }
+multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
+
+# --- Koin ---
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin"}
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin"}
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin"}
 koin-compose-viewmodel-navigation = { module = "io.insert-koin:koin-compose-viewmodel-navigation", version.ref = "koin"}
-koin-test = {module = "io.insert-koin:koin-test", version.ref = "koin"}
-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
-material-icons = {module = "org.jetbrains.compose.material:material-icons-core", version.ref = "material-icons"}
-multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
-supabase-database = { module = "io.github.jan-tennert.supabase:postgrest-kt", version.ref = "supabase" }
-supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt", version.ref = "supabase" }
+
+# --- Testing ---
+kotest-assertions = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
+androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestJunit4Android" }
+
+# --- Networking ---
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+
+# --- Logging ---
+kermit-logging = { module = "co.touchlab:kermit", version.ref = "kermit" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4jApi" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
-composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload"}
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinX-serialization-plugin = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-ktfmt = {id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt"}
-room = { id = "androidx.room", version.ref = "androidx-room" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-sonar = { id = "org.sonarqube", version.ref = "sonar" }
-composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload"}
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+room = { id = "androidx.room", version.ref = "androidx-room" }
+sonar = { id = "org.sonarqube", version.ref = "sonar" }

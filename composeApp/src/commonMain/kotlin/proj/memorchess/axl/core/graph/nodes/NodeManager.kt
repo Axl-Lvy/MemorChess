@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.graph.nodes
 
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
@@ -110,4 +110,4 @@ class NodeManager : KoinComponent {
   }
 }
 
-private val LOGGER = logging()
+private val LOGGER = Logger.withTag("NodeManager")

@@ -5,7 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import kotlinx.datetime.LocalDateTime
+import kotlin.time.Instant
 
 /** DAO for managing [NodeEntity] and [MoveEntity] (linked by [NodeWithMoves]). */
 @Dao
@@ -100,14 +100,14 @@ interface NodeEntityDao {
 
   /** Delete all nodes that were updated after a specific date. */
   @Query(value = "DELETE FROM NodeEntity WHERE updatedAt >= :date")
-  suspend fun deleteNewerNodes(date: LocalDateTime)
+  suspend fun deleteNewerNodes(date: Instant)
 
   /** Marks all moves as deleted. */
   @Query(value = "UPDATE MoveEntity SET isDeleted = TRUE") suspend fun deleteAllMoves()
 
   /** Delete all moves that were updated after a specific date. */
   @Query(value = "DELETE FROM MoveEntity WHERE updatedAt >= :date")
-  suspend fun deleteNewerMoves(date: LocalDateTime)
+  suspend fun deleteNewerMoves(date: Instant)
 
   /**
    * Retrieves all nodes with their moves from the database.
@@ -121,9 +121,9 @@ interface NodeEntityDao {
 
   @Query("SELECT * FROM MoveEntity") suspend fun getAllMovesWithDeletedOnes(): List<MoveEntity>
 
-  @Query("SELECT MAX(updatedAt) FROM NodeEntity") suspend fun getLastNodeUpdate(): LocalDateTime?
+  @Query("SELECT MAX(updatedAt) FROM NodeEntity") suspend fun getLastNodeUpdate(): Instant?
 
   @Query("SELECT * FROM NodeEntity") suspend fun getPositions(): List<NodeEntity>
 
-  @Query("SELECT MAX(updatedAt) FROM MoveEntity") suspend fun getLastMoveUpdate(): LocalDateTime?
+  @Query("SELECT MAX(updatedAt) FROM MoveEntity") suspend fun getLastMoveUpdate(): Instant?
 }

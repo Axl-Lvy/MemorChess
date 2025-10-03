@@ -241,7 +241,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun `can go back even if started from custom position`() = runTest {
+  fun testGoBackFromStartPosition() = runTest {
     // Arrange: create a custom position by playing some moves
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
@@ -268,7 +268,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun `test that the root node can have previous moves`() = runTest {
+  fun testRootNodeWithPreviousMoves() = runTest {
     interactionsManager.playMove("Nf3")
     interactionsManager.save()
     interactionsManager.playMove("Nf6")
@@ -286,6 +286,24 @@ class TestLinesExplorer : TestWithKoin {
     assertEquals(
       PositionIdentifier.START_POSITION,
       interactionsManager.game.position.createIdentifier(),
+    )
+  }
+
+  @Test
+  fun testBlocked() = runTest {
+    interactionsManager.block()
+    clickOnTile("e2")
+    clickOnTile("e4")
+    assertEquals(
+      interactionsManager.game.position.createIdentifier(),
+      PositionIdentifier.START_POSITION,
+    )
+    interactionsManager.unblock()
+    clickOnTile("e2")
+    clickOnTile("e4")
+    assertNotEquals(
+      interactionsManager.game.position.createIdentifier(),
+      PositionIdentifier.START_POSITION,
     )
   }
 }

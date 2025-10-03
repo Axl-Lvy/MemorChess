@@ -3,11 +3,8 @@
 package proj.memorchess.axl.core.data.online.database
 
 import kotlin.time.ExperimentalTime
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.DataMove
@@ -39,7 +36,7 @@ internal data class MoveFetched(
     dataMove.move,
     dataMove.isGood,
     dataMove.isDeleted,
-    dataMove.updatedAt.toInstant(TimeZone.currentSystemDefault()),
+    dataMove.updatedAt,
   )
 
   fun toStoredMove(): DataMove {
@@ -49,7 +46,7 @@ internal data class MoveFetched(
       move,
       isGood,
       isDeleted,
-      updatedAt.toLocalDateTime(TimeZone.currentSystemDefault()),
+      updatedAt,
     )
   }
 }
@@ -73,7 +70,7 @@ internal data class PositionFetched(
     dataNode.previousAndNextMoves.depth,
     dataNode.previousAndNextTrainingDate.previousDate,
     dataNode.previousAndNextTrainingDate.nextDate,
-    dataNode.updatedAt.toInstant(TimeZone.currentSystemDefault()),
+    dataNode.updatedAt,
     dataNode.isDeleted,
   )
 
@@ -90,7 +87,7 @@ internal data class PositionFetched(
         depth,
       ),
       PreviousAndNextDate(lastTrainingDate, nextTrainingDate),
-      updatedAt.toLocalDateTime(TimeZone.currentSystemDefault()),
+      updatedAt,
     )
   }
 }

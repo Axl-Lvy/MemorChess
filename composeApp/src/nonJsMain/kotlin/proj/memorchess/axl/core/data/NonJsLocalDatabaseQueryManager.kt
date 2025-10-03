@@ -1,6 +1,6 @@
 package proj.memorchess.axl.core.data
 
-import kotlinx.datetime.LocalDateTime
+import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 
 /** Database for non-JS platforms */
@@ -29,7 +29,7 @@ internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     database.getNodeEntityDao().removeMove(origin.fenRepresentation, move)
   }
 
-  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
+  override suspend fun deleteAll(hardFrom: Instant?) {
     database.getNodeEntityDao().deleteAllNodes()
     hardFrom?.let { database.getNodeEntityDao().deleteNewerNodes(it) }
     database.getNodeEntityDao().deleteAllMoves()
@@ -42,7 +42,7 @@ internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
       .insertNodeAndMoves(positions.map { NodeWithMoves.convertToEntity(it) })
   }
 
-  override suspend fun getLastUpdate(): LocalDateTime? {
+  override suspend fun getLastUpdate(): Instant? {
     val move = database.getNodeEntityDao().getLastMoveUpdate()
     val node = database.getNodeEntityDao().getLastNodeUpdate()
     return (if (move != null && node != null) {

@@ -1,6 +1,6 @@
 package proj.memorchess.axl.test_util
 
-import kotlinx.datetime.LocalDateTime
+import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -91,7 +91,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deleteAll(hardFrom: LocalDateTime?) {
+  override suspend fun deleteAll(hardFrom: Instant?) {
     dataNodes.clear()
   }
 
@@ -99,7 +99,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     positions.forEach { dataNodes[it.positionIdentifier.fenRepresentation] = it }
   }
 
-  override suspend fun getLastUpdate(): LocalDateTime? {
+  override suspend fun getLastUpdate(): Instant? {
     val node = dataNodes.values.maxOfOrNull { it.updatedAt }
     val move =
       dataNodes.values

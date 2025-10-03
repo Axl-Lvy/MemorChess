@@ -17,7 +17,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
-import com.diamondedge.logging.logging
+import co.touchlab.kermit.Logger
 import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.engine.pieces.Piece
@@ -219,7 +219,7 @@ fun ComposeUiTest.slideToLeft(sliderTestTag: String) {
 private fun ComposeUiTest.slide(sliderTestTag: String, widthFactor: Float) {
   val node = assertNodeWithTagExists(sliderTestTag)
   val width = node.fetchSemanticsNode().size.width
-  LOGGER.error { width }
+  LOGGER.e { "$width" }
   node.performTouchInput { click(Offset(width * widthFactor, 0f)) }
 }
 
@@ -247,4 +247,4 @@ fun ComposeUiTest.clickOnSave() {
     .performClick()
 }
 
-private val LOGGER = logging()
+private val LOGGER = Logger.withTag("ComposeUiTest")
