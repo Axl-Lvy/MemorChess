@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.online
 
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -15,7 +16,6 @@ import proj.memorchess.axl.core.date.DateUtil.toInstant
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
-import kotlin.test.Ignore
 
 class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabaseAuthenticated() {
   private val databaseSynchronizer: DatabaseSynchronizer by inject()
