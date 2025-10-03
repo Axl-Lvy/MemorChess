@@ -135,6 +135,7 @@ tasks.matching { it.name == "clean" }.configureEach { dependsOn(cleanSecretsTask
 // Gradle cache is used to avoid reapplying functions if they haven't changed
 val applySupabaseFunctions by
   tasks.registering {
+    group = "codegen"
     val sqlDir = file("../supabase/functions")
 
     // Tell Gradle: these files are inputs

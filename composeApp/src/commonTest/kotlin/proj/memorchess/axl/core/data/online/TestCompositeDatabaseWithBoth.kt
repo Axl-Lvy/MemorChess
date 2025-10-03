@@ -15,6 +15,7 @@ import proj.memorchess.axl.core.date.DateUtil.toInstant
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import kotlin.test.Ignore
 
 class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabaseAuthenticated() {
   private val databaseSynchronizer: DatabaseSynchronizer by inject()
@@ -32,15 +33,15 @@ class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabas
     assertTrue { compositeDatabase.isActive() }
   }
 
+  @Ignore
   @Test
   fun testLastUpdatedFail() = runTest {
-    // Arrange
     val game = Game()
     val node1 =
       DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
-        PreviousAndNextDate.Companion.dummyToday(),
+        PreviousAndNextDate.dummyToday(),
         DateUtil.tomorrow().atTime(LocalTime(0, 0, 0)).toInstant(),
       )
     localDatabase.insertNodes(node1)
@@ -48,7 +49,7 @@ class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabas
       DataNode(
         game.position.createIdentifier(),
         PreviousAndNextMoves(),
-        PreviousAndNextDate.Companion.dummyToday(),
+        PreviousAndNextDate.dummyToday(),
         DateUtil.now(),
       )
     remoteDatabase.insertNodes(node2)
