@@ -1,11 +1,15 @@
 package proj.memorchess.axl.ui.pages
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
@@ -22,6 +26,7 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
+import proj.memorchess.axl.core.stockfish.StockfishEvaluator
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
 import proj.memorchess.axl.ui.components.board.StateIndicator
@@ -36,7 +41,11 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 private val LOGGER = Logger.withTag("Explore")
 
 @Composable
-fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koinInject()) {
+fun Explore(
+  position: PositionIdentifier? = null,
+  nodeManager: NodeManager = koinInject(),
+  evaluator: StockfishEvaluator = koinInject(),
+) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -57,6 +66,9 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
         linesExplorer.registerCallBack {
           nextMoves.clear()
           nextMoves.addAll(linesExplorer.getNextMoves())
+          coroutineScope.launch {
+            evaluator.evaluate(linesExplorer.game.position.createIdentifier())
+          }
         }
       }
       val deletionConfirmationDialog = remember { ConfirmationDialog(okText = "Delete") }
@@ -81,7 +93,22 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
             }
             Piece(if (playerTurn) King.white() else King.black())
           },
-          stateIndicators = { StateIndicator(it, linesExplorer.state) },
+          boardTopping = {
+            Row(it) {
+              StateIndicator(Modifier.weight(1f), linesExplorer.state)
+              Spacer(Modifier.width(2.dp))
+              Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.weight(1f).clip(RoundedCornerShape(4.dp)),
+              ) {
+                val eval by evaluator.evaluation.collectAsState()
+                EvaluationBar(
+                  eval = eval.adjustToPlayer(linesExplorer.game.position.playerTurn),
+                  modifier = Modifier.fillMaxSize(),
+                )
+              }
+            }
+          },
           saveButton = {
             Button(
               onClick = { coroutineScope.launch { linesExplorer.save() } },
@@ -155,5 +182,74 @@ private fun NextMoveButton(move: String, playMove: () -> Unit) {
     contentAlignment = Alignment.Center,
   ) {
     Text(move)
+  }
+}
+
+@Composable
+private fun EvaluationBar(
+  eval: String,
+  modifier: Modifier = Modifier,
+  maxEval: Float = 5f, // Clamp evaluation to [-5, 5]
+) {
+  // Adjust for player/inverted
+  val percentWhite =
+    if (eval.contains("M")) {
+      if (eval.startsWith("M")) {
+        // Mate in favor of white
+        1f
+      } else if (eval.startsWith("-M")) {
+        // Mate in favor of black
+        0f
+      } else {
+        // Invalid mate evaluation
+        0.5f
+      }
+    } else {
+      val numericEval = eval.toFloatOrNull() ?: 0f
+      ((numericEval.coerceIn(-maxEval, maxEval) + maxEval) / (2 * maxEval)).coerceIn(0f, 1f)
+    }
+
+  Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Row(modifier = Modifier.fillMaxSize()) {
+      if (percentWhite > 0f) {
+        Box(
+          modifier =
+            Modifier.weight(percentWhite)
+              .fillMaxSize()
+              .background(Color.White.copy(0.5f)) // White section
+        )
+      }
+      if (1f - percentWhite > 0f) {
+        Box(
+          modifier =
+            Modifier.weight(1f - percentWhite)
+              .fillMaxSize()
+              .background(Color.Black.copy(0.5f)) // Black section
+        )
+      }
+    }
+    // Overlay the numeric value
+    Text(
+      text = eval,
+      style = MaterialTheme.typography.labelSmall,
+      color = MaterialTheme.colorScheme.onSurface,
+      modifier = Modifier.align(Alignment.Center),
+    )
+  }
+}
+
+private fun String.adjustToPlayer(player: Game.Player): String {
+  if (this == "0.0") {
+    return this
+  }
+  val shouldReverse = player == Game.Player.BLACK
+  return if (shouldReverse) {
+    when {
+      this.startsWith("-") -> this.substring(1)
+      this.isNotEmpty() -> "-${this}"
+      else -> this
+    }
+  } else {
+    this
   }
 }

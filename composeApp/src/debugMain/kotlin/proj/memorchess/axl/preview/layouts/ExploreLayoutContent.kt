@@ -44,7 +44,7 @@ internal val previewExploreLayoutContent =
         }
       }
     },
-    stateIndicators = { StateIndicator(it, Node.NodeState.FIRST) },
+    boardTopping = { StateIndicator(it, Node.NodeState.FIRST) },
     playerTurnIndicator = { Piece(King.white()) },
     saveButton = {
       Button(

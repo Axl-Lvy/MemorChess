@@ -24,6 +24,15 @@ data class PositionIdentifier(val fenRepresentation: String) {
     return FenParser.readPosition(this)
   }
 
+  /**
+   * Converts this position identifier to a real FEN string.
+   *
+   * @return A real FEN string representation of this position.
+   */
+  fun toRealFen(): String {
+    return FenParser.realFen(this)
+  }
+
   companion object {
 
     /** Position identifier for the standard starting position. */

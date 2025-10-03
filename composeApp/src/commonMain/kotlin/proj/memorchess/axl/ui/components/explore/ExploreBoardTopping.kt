@@ -11,9 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun ExploreStateIndicators(
+fun ExploreBoardTopping(
   modifier: Modifier = Modifier,
-  stateIndicators: @Composable (Modifier) -> Unit,
+  boardTopping: @Composable (Modifier) -> Unit,
 ) {
   Card(
     modifier = modifier.fillMaxWidth(),
@@ -21,8 +21,6 @@ fun ExploreStateIndicators(
       CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
   ) {
-    stateIndicators(
-      Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp, vertical = 8.dp)
-    )
+    boardTopping(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 16.dp, vertical = 8.dp))
   }
 }
