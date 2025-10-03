@@ -292,13 +292,15 @@ class TestLinesExplorer : TestWithKoin {
   @Test
   fun testBlocked() = runTest {
     interactionsManager.block()
-    interactionsManager.playMove("Nf3")
+    clickOnTile("e2")
+    clickOnTile("e4")
     assertEquals(
       interactionsManager.game.position.createIdentifier(),
       PositionIdentifier.START_POSITION,
     )
     interactionsManager.unblock()
-    interactionsManager.playMove("Nf3")
+    clickOnTile("e2")
+    clickOnTile("e4")
     assertNotEquals(
       interactionsManager.game.position.createIdentifier(),
       PositionIdentifier.START_POSITION,
