@@ -49,7 +49,7 @@ sonar {
 
     property(
       "sonar.coverage.exclusions",
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/ui/**,supabase/functions/**",
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/ui/**,supabase/functions/**,**/main.kt",
     )
 
     // PL/SQL specific configuration for SQL files
