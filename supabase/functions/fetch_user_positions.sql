@@ -1,9 +1,9 @@
-create or replace function fetch_user_positions(
+create or replace function memor_chess.fetch_user_positions(
     user_id_input uuid
 )
     returns jsonb
     language plpgsql
-    set search_path to public
+    set search_path to memor_chess
 as
 $$
 declare

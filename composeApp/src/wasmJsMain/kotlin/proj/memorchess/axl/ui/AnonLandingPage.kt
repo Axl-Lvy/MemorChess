@@ -33,7 +33,10 @@ import proj.memorchess.axl.ui.components.buttons.SignInButton
 @Composable
 fun AnonLandingPage() {
   val scrollState = rememberScrollState()
-  Surface(modifier = Modifier.fillMaxSize().verticalScroll(scrollState), color = MaterialTheme.colorScheme.background) {
+  Surface(
+    modifier = Modifier.fillMaxSize().verticalScroll(scrollState),
+    color = MaterialTheme.colorScheme.background,
+  ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
       Column(
         horizontalAlignment = Alignment.CenterHorizontally,

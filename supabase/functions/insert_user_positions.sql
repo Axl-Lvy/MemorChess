@@ -1,10 +1,10 @@
-create or replace function insert_user_positions(
+create or replace function memor_chess.insert_user_positions(
     user_id_input uuid,
     stored_nodes jsonb
 )
     returns void
     language plpgsql
-    set search_path to public
+    set search_path to memor_chess
 as
 $$
 

@@ -16,6 +16,6 @@ private const val url = "https://hqvnegakqcgltmrzvoxi.supabase.co"
 fun createSupabaseClient(): SupabaseClient {
   return createSupabaseClient(supabaseUrl = url, supabaseKey = Secrets.supabaseApiKey) {
     install(Auth)
-    install(Postgrest)
+    install(Postgrest) { defaultSchema = "memor_chess" }
   }
 }
