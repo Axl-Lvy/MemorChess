@@ -78,7 +78,7 @@ fun Settings(
           contentDescription = "Reset",
           modifier = Modifier.padding(end = 8.dp),
         )
-        Text("Reset to Default Values")
+        Text("Reset to default values")
       }
 
       Spacer(modifier = Modifier.height(16.dp))
@@ -103,7 +103,7 @@ fun Settings(
           contentDescription = "Erase",
           modifier = Modifier.padding(end = 8.dp),
         )
-        Text("Erase All Data")
+        Text("Erase all data")
       }
 
       // --- Sign In Button ---
