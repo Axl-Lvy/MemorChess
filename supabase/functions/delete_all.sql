@@ -1,10 +1,10 @@
-create or replace function delete_all(
+create or replace function memor_chess.delete_all(
     user_id_input uuid,
     hard_from_input timestamp with time zone default null
 )
     returns void
     language plpgsql
-    set search_path to public
+    set search_path to memor_chess
 as
 $$
 begin

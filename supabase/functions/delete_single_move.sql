@@ -1,11 +1,11 @@
-create or replace function delete_single_move(
+create or replace function memor_chess.delete_single_move(
     user_id_input uuid,
     origin_input text,
     move_input text
 )
     returns boolean
     language plpgsql
-    set search_path to public
+    set search_path to memor_chess
 as
 $$
 declare

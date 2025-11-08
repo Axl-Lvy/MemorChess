@@ -1,10 +1,10 @@
-create or replace function fetch_single_position(
+create or replace function memor_chess.fetch_single_position(
     user_id_input uuid,
     fen_representation_input text
 )
     returns jsonb
     language plpgsql
-    set search_path to public
+    set search_path to memor_chess
 as
 $$
 declare
