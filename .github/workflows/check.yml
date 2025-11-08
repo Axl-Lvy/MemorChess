@@ -355,6 +355,8 @@ jobs:
 
   # Check code formatting using ktfmt
   format-check:
+    needs: [check-files]
+    if: needs.check-files.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Ensure tests checkbox is checked
@@ -384,3 +386,43 @@ jobs:
 
       - name: Run formatter check
         run: ./gradlew ktfmtCheck
+
+  # Final status check - always succeeds if jobs passed or were skipped
+  # This is the job that should be required in branch protection rules
+  check-status:
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs: [check-files, jvm-tests, android-tests, sonar-analysis, format-check]
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          # If check-files said we should skip, that's a success
+          if [ "${{ needs.check-files.outputs.should_run }}" == "false" ]; then
+            echo "✅ No Kotlin/Java files modified - checks skipped successfully"
+            exit 0
+          fi
+          
+          # Otherwise, check that all jobs succeeded
+          if [ "${{ needs.jvm-tests.result }}" != "success" ]; then
+            echo "❌ JVM tests failed or were cancelled"
+            exit 1
+          fi
+          
+          if [ "${{ needs.android-tests.result }}" != "success" ]; then
+            echo "❌ Android tests failed or were cancelled"
+            exit 1
+          fi
+          
+          if [ "${{ needs.sonar-analysis.result }}" != "success" ]; then
+            echo "❌ Sonar analysis failed or was cancelled"
+            exit 1
+          fi
+          
+          if [ "${{ needs.format-check.result }}" != "success" ]; then
+            echo "❌ Format check failed or was cancelled"
+            exit 1
+          fi
+          
+          echo "✅ All checks passed successfully"
+
