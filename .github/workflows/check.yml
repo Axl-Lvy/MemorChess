@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   # Check if Kotlin or Java files were modified
-  check-files:
+  is-check-necessary:
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
@@ -30,6 +30,16 @@ jobs:
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "Scheduled run - executing all jobs"
             exit 0
+          fi
+          
+          # Check if PR title contains [skip-test]
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            if echo "$PR_TITLE" | grep -qi "\[skip-tests\]"; then
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "PR title contains [skip-tests] - skipping jobs"
+              exit 0
+            fi
           fi
           
           if [ "${{ github.event_name }}" == "push" ]; then
@@ -51,8 +61,8 @@ jobs:
 
   # Pre compile the project, but without secrets.
   compile:
-    needs: [check-files]
-    if: needs.check-files.outputs.should_run == 'true'
+    needs: [is-check-necessary]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Ensure tests checkbox is checked
@@ -107,8 +117,8 @@ jobs:
 
   # Run JVM tests, which do not require secrets
   jvm-tests:
-    needs: [check-files, compile]
-    if: needs.check-files.outputs.should_run == 'true'
+    needs: [is-check-necessary, compile]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -158,8 +168,8 @@ jobs:
 
   # Generate the matrix for parallel test execution
   generate-matrix:
-    needs: [check-files]
-    if: needs.check-files.outputs.should_run == 'true'
+    needs: [is-check-necessary]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix_json: ${{ steps.set-matrix.outputs.matrix_json }}
@@ -178,8 +188,8 @@ jobs:
 
   # Run Android tests in parallel using the generated matrix
   android-tests:
-    needs: [check-files, generate-matrix, compile]
-    if: needs.check-files.outputs.should_run == 'true'
+    needs: [is-check-necessary, generate-matrix, compile]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -294,8 +304,8 @@ jobs:
   sonar-analysis:
     name: Sonar analysis
     runs-on: ubuntu-latest
-    needs: [check-files, android-tests, jvm-tests]
-    if: needs.check-files.outputs.should_run == 'true'
+    needs: [is-check-necessary, android-tests, jvm-tests]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -355,8 +365,8 @@ jobs:
 
   # Check code formatting using ktfmt
   format-check:
-    needs: [check-files]
-    if: needs.check-files.outputs.should_run == 'true'
+    needs: [is-check-necessary]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Ensure tests checkbox is checked
@@ -392,13 +402,13 @@ jobs:
   check-status:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [check-files, jvm-tests, android-tests, sonar-analysis, format-check]
+    needs: [is-check-necessary, jvm-tests, android-tests, sonar-analysis, format-check]
     if: always()
     steps:
       - name: Check job results
         run: |
-          # If check-files said we should skip, that's a success
-          if [ "${{ needs.check-files.outputs.should_run }}" == "false" ]; then
+          # If is-check-necessary said we should skip, that's a success
+          if [ "${{ needs.is-check-necessary.outputs.should_run }}" == "false" ]; then
             echo "✅ No Kotlin/Java files modified - checks skipped successfully"
             exit 0
           fi
