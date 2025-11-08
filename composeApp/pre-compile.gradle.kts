@@ -13,11 +13,12 @@ val generateSecretsTask by
     // Declare inputs
     val moduleProps = File(projectDirPath, "local.properties")
     val globalProps = File(rootProjectDirPath, "local.properties")
-    val propsFile = when {
-      moduleProps.exists() -> moduleProps
-      globalProps.exists() -> globalProps
-      else -> null
-    }
+    val propsFile =
+      when {
+        moduleProps.exists() -> moduleProps
+        globalProps.exists() -> globalProps
+        else -> null
+      }
 
     if (propsFile != null) {
       inputs.file(propsFile)
@@ -130,7 +131,6 @@ val cleanSecretsTask by
       }
     }
   }
-
 
 tasks
   .matching { it.name.contains("compile", ignoreCase = true) }
