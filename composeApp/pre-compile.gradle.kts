@@ -6,6 +6,10 @@ val generateSecretsTask by
     group = "codegen"
     description = "Generate secrets from local.properties"
 
+    // Force task to always run
+    outputs.upToDateWhen { false }
+    doNotTrackState("Always regenerate secrets to ensure they're current")
+
     val projectDirValue = projectDir
     val rootProjectDirValue = rootProject.projectDir
 
