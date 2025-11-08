@@ -1,5 +1,5 @@
 # Workflow for deploying WasmJS App to GitHub Pages
-name: Deploy WasmJS App to GitHub Pages and Send Artifact URL
+name: Deploy WasmJS
 
 on:
   push:
@@ -25,9 +25,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-
-      - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v4
 
       - name: Update local.properties
         run: |
