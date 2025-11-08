@@ -1,5 +1,5 @@
 # Workflow for deploying WasmJS App to GitHub Pages
-name: Deploy WasmJS App to GitHub Pages and Send Artifact URL
+name: Deploy WasmJS
 
 on:
   push:
