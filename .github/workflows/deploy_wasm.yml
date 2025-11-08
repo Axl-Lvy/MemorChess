@@ -26,9 +26,6 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
       - name: Update local.properties
         run: |
           chmod +x .github/scripts/update_properties.sh
