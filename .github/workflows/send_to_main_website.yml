@@ -25,6 +25,13 @@ jobs:
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
 
+      - name: Update local.properties for this shard
+        run: |
+          chmod +x .github/scripts/update_properties.sh
+          .github/scripts/update_properties.sh
+        env:
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+
       - name: "Build WasmJS App"
         run: gradle :composeApp:wasmJsBrowserDistribution
 
