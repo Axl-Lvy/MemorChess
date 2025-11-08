@@ -1,4 +1,4 @@
-package proj.memorchess.axl
+package proj.memorchess.axl.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -107,11 +107,9 @@ fun AnonLandingPage() {
 }
 
 /**
- * Displays the animated chess GIF from the README.
+ * Displays a circular progress indicator centered within the given modifier.
  *
- * Uses the pre-existing HTML img element defined in index.html and positions it correctly.
- *
- * @param modifier Modifier for customizing the size and appearance
+ * @param modifier Modifier to be applied to the Box containing the progress indicator.
  */
 @Composable
 private fun ProgressIndicator(modifier: Modifier = Modifier) {
