@@ -39,9 +39,9 @@ val generateSecretsTask by
 
     // Generate Secrets.kt content
     val content = buildString {
-      appendLine("proj.memorchess.axl.core.config.generated")
+      appendLine("package proj.memorchess.axl.core.config.generated")
       appendLine()
-      appendLine("import proj.memorchess.axl.core.config.generated.SecretsTemplate")
+      appendLine("import proj.memorchess.axl.core.config.SecretsTemplate")
       appendLine()
       appendLine("/**")
       appendLine(" * Contains secrets stored in local.properties.")
