@@ -10,32 +10,20 @@ import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
  * Factor to apply to calculate the next training date. See
  * [NextDateCalculator][proj.memorchess.axl.core.date.NextDateCalculator]
  */
-val ON_SUCCESS_DATE_FACTOR_SETTING =
-  ValueBasedAppConfigItem<Double, Double>("onSuccessDateFactor", 1.5)
+val ON_SUCCESS_DATE_FACTOR_SETTING = DoubleBasedConfigItem("onSuccessDateFactor", 1.5)
 
 /** Delay after each move in training mode before loading the next move */
-val TRAINING_MOVE_DELAY_SETTING =
-  ValueBasedAppConfigItem(
-    "trainingMoveDelay",
-    1.seconds,
-    { long -> long.milliseconds },
-    { duration -> duration.inWholeMilliseconds },
-  )
+val TRAINING_MOVE_DELAY_SETTING = DurationBasedConfigItem("trainingMoveDelay", 1.seconds)
 
 val MOVE_ANIMATION_DURATION_SETTING =
-  ValueBasedAppConfigItem(
-    "moveAnimationDuration",
-    500.milliseconds,
-    { long -> long.milliseconds },
-    { duration -> duration.inWholeMilliseconds },
-  )
+  DurationBasedConfigItem("moveAnimationDuration", 500.milliseconds)
 
 val APP_THEME_SETTING = EnumBasedAppConfigItem.from("appTheme", AppThemeSetting.SYSTEM)
 
 val CHESS_BOARD_COLOR_SETTING =
   EnumBasedAppConfigItem.from("chessBoardColor", ChessBoardColorScheme.WOOD)
 
-val KEEP_LOGGED_IN_SETTING = ValueBasedAppConfigItem<Boolean, Boolean>("keepLoggedIn", false)
+val KEEP_LOGGED_IN_SETTING = BooleanBasedConfigItem("keepLoggedIn", false)
 
 val ALL_SETTINGS_ITEMS =
   listOf(

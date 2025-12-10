@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.online
 
+import io.kotest.assertions.nondeterministic.eventually
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -9,9 +10,9 @@ import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
+import proj.memorchess.axl.core.data.online.database.DatabaseUploader
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
@@ -22,6 +23,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
   private val remoteDatabase by inject<SupabaseQueryManager>()
 
   private val globalDatabase by inject<DatabaseQueryManager>()
+  private val databaseUploader by inject<DatabaseUploader>()
 
   private val refDatabase = TestDatabaseQueryManager.vienna()
 
@@ -45,6 +47,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromLocal()
+    eventually { assertTrue { databaseUploader.isIdle } }
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
@@ -61,6 +64,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromRemote()
+    eventually { assertTrue { databaseUploader.isIdle } }
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
@@ -76,6 +80,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromLocal()
+    eventually { assertTrue { databaseUploader.isIdle } }
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
@@ -91,6 +96,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromRemote()
+    eventually { assertTrue { databaseUploader.isIdle } }
 
     // Assert: Remote should now have the same data as local
     assertDatabaseAreSame()
@@ -103,6 +109,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
     refDatabase.getAllNodes().forEach { globalDatabase.insertNodes(it) }
     assertTrue(databaseSynchronizer.isSynced)
+    eventually { assertTrue { databaseUploader.isIdle } }
     assertDatabaseAreSame()
   }
 
@@ -117,9 +124,5 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
       )
     }
     assertEquals(localNodes.size, remoteNodes.size)
-  }
-
-  private fun PreviousAndNextMoves.isNotEmpty(): Boolean {
-    return nextMoves.isNotEmpty() && previousMoves.isNotEmpty()
   }
 }
