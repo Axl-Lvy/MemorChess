@@ -3,18 +3,46 @@ package proj.memorchess.axl.core.config
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import com.russhwolf.settings.set
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+class TimeBasedConfig(name: String, defaultValue: Instant) :
+  ValueBasedAppConfigItem<Long, Instant>(
+    name,
+    defaultValue,
+    { milliseconds -> Instant.fromEpochMilliseconds(milliseconds) },
+    { instant -> instant.toEpochMilliseconds() },
+  )
+
+class DurationBasedConfigItem(name: String, defaultValue: Duration) :
+  ValueBasedAppConfigItem<Long, Duration>(
+    name,
+    defaultValue,
+    { milliseconds -> milliseconds.milliseconds },
+    { duration -> duration.inWholeMilliseconds },
+  )
+
+class StringBasedConfig(name: String, defaultValue: String) :
+  ValueBasedAppConfigItem<String, String>(name, defaultValue)
+
+class DoubleBasedConfigItem(name: String, defaultValue: Double) :
+  ValueBasedAppConfigItem<Double, Double>(name, defaultValue)
+
+class BooleanBasedConfigItem(name: String, defaultValue: Boolean) :
+  ValueBasedAppConfigItem<Boolean, Boolean>(name, defaultValue)
+
 /** A typed configuration item. */
 @Suppress("UNCHECKED_CAST")
-class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
+sealed class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
   override val name: String,
   override val defaultValue: T,
   val converter: ((StoredT) -> T),
   val serializer: ((T) -> StoredT),
 ) : ConfigItem<T>, KoinComponent {
-  constructor(
+  protected constructor(
     name: String,
     defaultValue: T,
   ) : this(name, defaultValue, { it as T }, { it as StoredT })

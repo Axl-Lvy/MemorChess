@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
+import proj.memorchess.axl.core.data.online.database.DatabaseUploader
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeCache
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -35,6 +36,7 @@ fun initKoinModules(): Array<Module> {
     single<DatabaseQueryManager>(named("local")) { getPlatformSpecificLocalDatabase() }
     single<SupabaseQueryManager> { SupabaseQueryManager(get(), get()) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
+    single<DatabaseUploader> { DatabaseUploader(get(), get()) }
     single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local")), get()) }
     single<Settings> { getPlatformSpecificSettings() }
   }
