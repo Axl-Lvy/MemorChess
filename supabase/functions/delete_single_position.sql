@@ -1,10 +1,10 @@
-create or replace function delete_single_position(
+create or replace function memor_chess.delete_single_position(
     user_id_input uuid,
     fen_representation_input text
 )
     returns boolean
     language plpgsql
-    set search_path to public
+    set search_path to memor_chess
 as
 $$
 declare

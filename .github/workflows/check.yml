@@ -13,8 +13,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Check if Kotlin or Java files were modified
+  is-check-necessary:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for Kotlin/Java file changes
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Scheduled run - executing all jobs"
+            exit 0
+          fi
+          
+          # Check if PR title contains [skip-test]
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            if echo "$PR_TITLE" | grep -qi "\[skip-tests\]"; then
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "PR title contains [skip-tests] - skipping jobs"
+              exit 0
+            fi
+          fi
+          
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # For push events, compare with the previous commit
+            FILES_CHANGED=$(git diff --name-only HEAD~1 HEAD || echo "")
+          else
+            # For pull requests, compare with the base branch
+            git fetch origin ${{ github.base_ref }}
+            FILES_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD || echo "")
+          fi
+          
+          if echo "$FILES_CHANGED" | grep -qE '\.(kt|java)$'; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Kotlin or Java files were modified - executing jobs"
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "No Kotlin or Java files modified - skipping jobs"
+          fi
+
   # Pre compile the project, but without secrets.
   compile:
+    needs: [is-check-necessary]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Ensure tests checkbox is checked
@@ -69,7 +117,8 @@ jobs:
 
   # Run JVM tests, which do not require secrets
   jvm-tests:
-    needs: [ compile ]
+    needs: [is-check-necessary, compile]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -119,6 +168,8 @@ jobs:
 
   # Generate the matrix for parallel test execution
   generate-matrix:
+    needs: [is-check-necessary]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix_json: ${{ steps.set-matrix.outputs.matrix_json }}
@@ -137,7 +188,8 @@ jobs:
 
   # Run Android tests in parallel using the generated matrix
   android-tests:
-    needs: [ generate-matrix, compile ]
+    needs: [is-check-necessary, generate-matrix, compile]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -252,7 +304,8 @@ jobs:
   sonar-analysis:
     name: Sonar analysis
     runs-on: ubuntu-latest
-    needs: [ android-tests, jvm-tests ]
+    needs: [is-check-necessary, android-tests, jvm-tests]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -312,6 +365,8 @@ jobs:
 
   # Check code formatting using ktfmt
   format-check:
+    needs: [is-check-necessary]
+    if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Ensure tests checkbox is checked
@@ -341,3 +396,43 @@ jobs:
 
       - name: Run formatter check
         run: ./gradlew ktfmtCheck
+
+  # Final status check - always succeeds if jobs passed or were skipped
+  # This is the job that should be required in branch protection rules
+  check-status:
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs: [is-check-necessary, jvm-tests, android-tests, sonar-analysis, format-check]
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          # If is-check-necessary said we should skip, that's a success
+          if [ "${{ needs.is-check-necessary.outputs.should_run }}" == "false" ]; then
+            echo "✅ No Kotlin/Java files modified - checks skipped successfully"
+            exit 0
+          fi
+          
+          # Otherwise, check that all jobs succeeded
+          if [ "${{ needs.jvm-tests.result }}" != "success" ]; then
+            echo "❌ JVM tests failed or were cancelled"
+            exit 1
+          fi
+          
+          if [ "${{ needs.android-tests.result }}" != "success" ]; then
+            echo "❌ Android tests failed or were cancelled"
+            exit 1
+          fi
+          
+          if [ "${{ needs.sonar-analysis.result }}" != "success" ]; then
+            echo "❌ Sonar analysis failed or was cancelled"
+            exit 1
+          fi
+          
+          if [ "${{ needs.format-check.result }}" != "success" ]; then
+            echo "❌ Format check failed or was cancelled"
+            exit 1
+          fi
+          
+          echo "✅ All checks passed successfully"
+
