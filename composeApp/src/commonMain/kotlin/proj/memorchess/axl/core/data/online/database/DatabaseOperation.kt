@@ -4,9 +4,7 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
 
-/**
- * Sealed class representing database operations that can be queued for upload.
- */
+/** Sealed class representing database operations that can be queued for upload. */
 sealed class DatabaseOperation {
 
   /**
@@ -38,4 +36,3 @@ sealed class DatabaseOperation {
    */
   data class DeleteAll(val hardFrom: Instant?) : DatabaseOperation()
 }
-

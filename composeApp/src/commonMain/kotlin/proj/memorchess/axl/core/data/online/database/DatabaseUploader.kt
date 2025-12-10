@@ -13,9 +13,9 @@ import kotlinx.coroutines.launch
 /**
  * Handles asynchronous upload of database operations to the remote database.
  *
- * Operations are queued and processed sequentially in the background.
- * This decouples local database operations from remote synchronization,
- * improving responsiveness and handling network issues gracefully.
+ * Operations are queued and processed sequentially in the background. This decouples local database
+ * operations from remote synchronization, improving responsiveness and handling network issues
+ * gracefully.
  *
  * @property remoteDatabase The remote database to upload operations to.
  * @property databaseSynchronizer The synchronizer to check sync status.
@@ -49,16 +49,14 @@ class DatabaseUploader(
     get() = pendingOperationsCount == 0 && !isProcessing
 
   init {
-    scope.launch {
-      processQueue()
-    }
+    scope.launch { processQueue() }
   }
 
   /**
    * Enqueues a database operation for upload to the remote database.
    *
-   * The operation will be processed asynchronously if the remote database is active
-   * and synchronized.
+   * The operation will be processed asynchronously if the remote database is active and
+   * synchronized.
    *
    * @param operation The operation to enqueue.
    */
@@ -68,9 +66,7 @@ class DatabaseUploader(
       return
     }
     pendingOperationsCount++
-    scope.launch {
-      operationChannel.send(operation)
-    }
+    scope.launch { operationChannel.send(operation) }
   }
 
   private suspend fun processQueue() {
@@ -110,4 +106,3 @@ class DatabaseUploader(
 }
 
 private val LOGGER = Logger.withTag("DatabaseUploader")
-

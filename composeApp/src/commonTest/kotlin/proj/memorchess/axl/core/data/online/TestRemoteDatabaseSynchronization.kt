@@ -1,6 +1,10 @@
 package proj.memorchess.axl.core.data.online
 
 import io.kotest.assertions.nondeterministic.eventually
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
@@ -11,10 +15,6 @@ import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
-import kotlin.test.Test
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 

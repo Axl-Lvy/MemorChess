@@ -1,33 +1,19 @@
 package proj.memorchess.axl.core.data
 
+import kotlin.time.Instant
 import proj.memorchess.axl.core.data.online.database.DatabaseOperation
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
-import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
-import kotlin.time.Instant
 
 /**
  * A composite database that queries multiple databases.
  *
- * Every get is done on the local database in priority.
- * Write operations are performed on the local database immediately and queued for upload
- * to the remote database asynchronously.
+ * Every get is done on the local database in priority. Write operations are performed on the local
+ * database immediately and queued for upload to the remote database asynchronously.
  *
- * User Operation
- *      │
- *      ▼
- * CompositeDatabase
- *      │
- *      ├── localDatabase.isActive()?
- *      │         │
- *      │    Yes  │  No
- *      │         │
- *      ├────►Local DB (sync) + enqueue to Uploader (async)
- *      │         │
- *      │    remoteDatabase.isActive()?
- *      │         │
- *      │    Yes  │
- *      └────────►Remote DB (sync, immediate - webapp scenario)
+ * User Operation │ ▼ CompositeDatabase │ ├── localDatabase.isActive()? │ │ │ Yes │ No │ │
+ * ├────►Local DB (sync) + enqueue to Uploader (async) │ │ │ remoteDatabase.isActive()? │ │ │ Yes │
+ * └────────►Remote DB (sync, immediate - webapp scenario)
  *
  * @property remoteDatabase Remote database
  * @property localDatabase Local database
