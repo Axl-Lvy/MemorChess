@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.online
 
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFails
 import kotlin.test.assertFalse
@@ -18,6 +19,7 @@ class TestNoActiveDatabase : TestWithKoin {
   val localDatabase by inject<DatabaseQueryManager>(named("local"))
   val remoteDatabase by inject<SupabaseQueryManager>()
 
+  @BeforeTest
   override fun setUp() {
     super.setUp()
     (localDatabase as TestDatabaseQueryManager).isActiveState = false
@@ -27,7 +29,9 @@ class TestNoActiveDatabase : TestWithKoin {
 
   @Test
   fun testOperationsFailWhenNoActiveDatabase() = runTest {
-    assertFails { compositeDatabase.getAllNodes() }
-    assertFails { compositeDatabase.getPosition(PositionIdentifier.START_POSITION) }
+    assertFails("No active database found.") { compositeDatabase.getAllNodes() }
+    assertFails("No active database found.") {
+      compositeDatabase.getPosition(PositionIdentifier.START_POSITION)
+    }
   }
 }
