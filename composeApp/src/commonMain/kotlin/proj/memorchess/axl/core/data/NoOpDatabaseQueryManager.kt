@@ -2,6 +2,10 @@ package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
 
+/**
+ * A no-operation implementation of [DatabaseQueryManager] that performs no actions and returns
+ * default values.
+ */
 open class NoOpDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     return emptyList()
