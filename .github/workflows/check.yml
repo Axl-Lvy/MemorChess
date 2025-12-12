@@ -3,6 +3,8 @@ name: Check code
 on:
   pull_request:
     types: [ opened, synchronize, reopened, edited ]
+  push:
+    branches: [ master ]
   schedule:
     - cron: 0 0 * * 1,4
 
@@ -343,12 +345,49 @@ jobs:
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
+        id: test-results
         if: always()
         with:
           files: |
             test-results/**/*.xml
           check_name: Test Results
           comment_title: Test Results
+
+      - name: Set badge color
+        shell: bash
+        if: always()
+        run: |
+          case ${{ fromJSON( steps.test-results.outputs.json ).conclusion }} in
+            success)
+              echo "BADGE_COLOR=31c653" >> $GITHUB_ENV
+              ;;
+            failure)
+              echo "BADGE_COLOR=800000" >> $GITHUB_ENV
+              ;;
+            neutral)
+              echo "BADGE_COLOR=696969" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Create badge
+        uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8
+        if: always()
+        with:
+          label: Tests
+          status: '${{ fromJSON( steps.test-results.outputs.json ).formatted.stats.tests }} tests, ${{ fromJSON( steps.test-results.outputs.json ).formatted.stats.runs }} runs: ${{ fromJSON( steps.test-results.outputs.json ).conclusion }}'
+          color: ${{ env.BADGE_COLOR }}
+          path: badge.svg
+
+      - name: Upload badge to Gist
+        if: >
+          always() &&
+          (github.event_name == 'push' && github.ref == 'refs/heads/master' ||
+          github.event_name == 'schedule')
+        uses: andymckay/append-gist-action@6e8d64427fe47cbacf4ab6b890411f1d67c07f3e
+        with:
+          token: ${{ secrets.GIST_TOKEN }}
+          gistURL: https://gist.githubusercontent.com/Axl-Lvy/${{ secrets.GIST_ID }}
+          file: badge.svg
 
   # Generate the coverage report using JaCoCo
   sonar-analysis:
