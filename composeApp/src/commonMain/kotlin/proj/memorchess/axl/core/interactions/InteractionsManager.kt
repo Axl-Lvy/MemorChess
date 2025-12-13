@@ -128,8 +128,8 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
    *
    * @param position The new position key to reset the game to.
    */
-  fun reset(position: PositionIdentifier) {
-    game = Game(position)
+  fun reset(position: PositionIdentifier? = null) {
+    game = if (position == null) Game() else Game(position)
     needPromotion.value = game.needPromotion()
     selectedTile = null
     callCallBacks(false)

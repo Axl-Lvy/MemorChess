@@ -1,8 +1,5 @@
 package proj.memorchess.axl.core.interactions
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
@@ -14,6 +11,7 @@ import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 /**
@@ -30,67 +28,41 @@ class BookExplorer(private val book: Book) : InteractionsManager(Game()) {
   /** All moves in the current book. */
   private var bookMoves: List<BookMove> = emptyList()
 
-  /** Current position identifier. */
-  var currentPosition by mutableStateOf(PositionIdentifier.START_POSITION)
-    private set
+  private var node = createInitialNode()
 
-  /** Available next moves from current position within the book. */
-  var availableNextMoves by mutableStateOf<List<BookMove>>(emptyList())
-    private set
+  init {
+    block()
+  }
 
-  /** Move history for back navigation. */
-  private val moveHistory = mutableListOf<BookMove>()
+  private fun createInitialNode(): Node {
+    return nodeManager.createNodeFromBook(bookMoves)
+  }
 
   /** Loads the book moves from the database. */
   suspend fun loadBookMoves() {
     bookMoves = bookQueryManager.getBookMoves(book.id)
-    updateAvailableMoves()
-  }
-
-  /** Updates the available next moves based on current position. */
-  private fun updateAvailableMoves() {
-    availableNextMoves = bookMoves.filter { it.origin == currentPosition }
-  }
-
-  /** Resets the explorer to the starting position. */
-  fun reset() {
-    currentPosition = PositionIdentifier.START_POSITION
-    game = Game()
-    moveHistory.clear()
-    updateAvailableMoves()
-    callCallBacks(false)
-  }
-
-  /** Moves back to the previous position. */
-  fun back() {
-    val lastMove = moveHistory.removeLastOrNull()
-    if (lastMove != null) {
-      currentPosition = lastMove.origin
-      game = Game(currentPosition)
-      updateAvailableMoves()
-      callCallBacks(false)
-    } else {
-      toastRenderer.info("No previous move.")
-    }
-  }
-
-  /**
-   * Gets the list of move names that can be played from the current position.
-   *
-   * @return A list of move names available in the book from current position.
-   */
-  fun getNextMoves(): List<String> {
-    return availableNextMoves.map { it.move }.sorted()
+    node = createInitialNode()
+    reset(node.position)
   }
 
   override suspend fun afterPlayMove(move: String) {
-    val bookMove = availableNextMoves.find { it.move == move }
-    if (bookMove != null) {
-      moveHistory.add(bookMove)
-      currentPosition = bookMove.destination
-      updateAvailableMoves()
-    }
+    val childNode = node.getChild(move) ?: return
+    node = childNode
     callCallBacks()
+  }
+
+  /** Moves back in the exploration tree to the previous node. */
+  fun back() {
+    val parent = node.previous
+    if (parent != null) {
+      node = parent
+    }
+    game = node.createGame()
+    callCallBacks(false)
+  }
+
+  fun getNextMoves(): List<String> {
+    return node.previousAndNextMoves.nextMoves.values.map { it.move }
   }
 
   /**
