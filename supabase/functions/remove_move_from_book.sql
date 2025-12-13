@@ -1,5 +1,4 @@
 create or replace function memor_chess.remove_move_from_book(
-    user_id_input uuid,
     book_id_input bigint,
     origin_input text,
     move_input text
@@ -17,7 +16,7 @@ declare
     has_been_deleted   boolean;
 begin
     -- Check if user has BOOK_CREATION permission
-    select check_user_permission(user_id_input, 'BOOK_CREATION')
+    select check_user_permission('BOOK_CREATION')
     into has_permission;
 
     if not has_permission then

@@ -38,10 +38,12 @@ class SupabaseBookQueryManager(
   }
 
   override suspend fun hasPermission(permission: UserPermission): Boolean {
-    val user = authManager.user ?: return false
+    if (!authManager.isUserLoggedIn()) {
+      return false
+    }
     val result =
       client.postgrest
-        .rpc("check_user_permission", CheckPermissionFunctionArg(user.id, permission.value))
+        .rpc("check_user_permission", CheckPermissionFunctionArg(permission.value))
         .decodeAs<Boolean>()
     return result
   }
@@ -49,8 +51,7 @@ class SupabaseBookQueryManager(
   override suspend fun createBook(name: String): Long {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    val result =
-      client.postgrest.rpc("create_book", CreateBookFunctionArg(user.id, name)).decodeAs<Long>()
+    val result = client.postgrest.rpc("create_book", CreateBookFunctionArg(name)).decodeAs<Long>()
     return result
   }
 
@@ -62,7 +63,6 @@ class SupabaseBookQueryManager(
         .rpc(
           "add_move_to_book",
           AddMoveToBookFunctionArg(
-            user.id,
             bookId,
             move.origin.fenRepresentation,
             move.destination.fenRepresentation,
@@ -79,12 +79,8 @@ class SupabaseBookQueryManager(
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
       client.postgrest
-        .rpc(
-          "remove_move_from_book",
-          RemoveMoveFromBookFunctionArg(user.id, bookId, originFen, move),
-        )
+        .rpc("remove_move_from_book", RemoveMoveFromBookFunctionArg(bookId, originFen, move))
         .decodeAs<Boolean>()
-    println("${user.id}, $bookId, $originFen, $move")
     return result
   }
 
@@ -92,9 +88,7 @@ class SupabaseBookQueryManager(
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
-      client.postgrest
-        .rpc("delete_book", DeleteBookFunctionArg(user.id, bookId))
-        .decodeAs<Boolean>()
+      client.postgrest.rpc("delete_book", DeleteBookFunctionArg(bookId)).decodeAs<Boolean>()
     return result
   }
 }
@@ -127,19 +121,14 @@ internal data class BookMoveFetched(
 
 @Serializable
 internal data class CheckPermissionFunctionArg(
-  @SerialName("user_id_input") val userId: String,
-  @SerialName("permission_input") val permission: String,
+  @SerialName("permission_input") val permission: String
 )
 
 @Serializable
-internal data class CreateBookFunctionArg(
-  @SerialName("user_id_input") val userId: String,
-  @SerialName("book_name_input") val bookName: String,
-)
+internal data class CreateBookFunctionArg(@SerialName("book_name_input") val bookName: String)
 
 @Serializable
 internal data class AddMoveToBookFunctionArg(
-  @SerialName("user_id_input") val userId: String,
   @SerialName("book_id_input") val bookId: Long,
   @SerialName("origin_input") val origin: String,
   @SerialName("destination_input") val destination: String,
@@ -148,17 +137,11 @@ internal data class AddMoveToBookFunctionArg(
 )
 
 @Serializable
-internal data class DeleteBookFunctionArg(
-  @SerialName("user_id_input") val userId: String,
-  @SerialName("book_id_input") val bookId: Long,
-)
+internal data class DeleteBookFunctionArg(@SerialName("book_id_input") val bookId: Long)
 
 @Serializable
 internal data class RemoveMoveFromBookFunctionArg(
-  @SerialName("user_id_input") val userId: String,
   @SerialName("book_id_input") val bookId: Long,
   @SerialName("origin_input") val origin: String,
   @SerialName("move_input") val move: String,
 )
-
-@Serializable internal data class PPP(val user_id: String, val permission: String)

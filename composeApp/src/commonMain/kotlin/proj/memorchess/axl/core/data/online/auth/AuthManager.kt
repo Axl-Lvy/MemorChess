@@ -120,6 +120,10 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
       }
     }
   }
+
+  fun isUserLoggedIn(): Boolean {
+    return user != null
+  }
 }
 
 private val LOGGER = Logger.withTag("AuthManager")

@@ -1,6 +1,12 @@
 package proj.memorchess.axl.core.data.book
 
-import kotlin.test.*
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
@@ -24,7 +30,7 @@ class TestBookQueryManager : TestWithKoin {
 
   @AfterTest
   override fun tearDown() {
-    //    runTest { cleanupBooks() }
+    runTest { cleanupBooks() }
     ensureSignedOut()
     super.tearDown()
   }

@@ -1,5 +1,4 @@
 create or replace function memor_chess.delete_book(
-    user_id_input uuid,
     book_id_input bigint
 )
     returns boolean
@@ -12,7 +11,7 @@ declare
     has_permission boolean;
 begin
     -- Check if user has BOOK_CREATION permission
-    select check_user_permission(user_id_input, 'BOOK_CREATION')
+    select check_user_permission('BOOK_CREATION')
     into has_permission;
 
     if not has_permission then

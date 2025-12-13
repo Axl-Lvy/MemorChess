@@ -1,5 +1,4 @@
 create or replace function memor_chess.delete_single_position(
-    user_id_input uuid,
     fen_representation_input text
 )
     returns boolean
@@ -9,6 +8,7 @@ as
 $$
 declare
     pos_record record;
+    current_user_id uuid := auth.uid();
 begin
     -- Find the position for the user
     select up.position_id,
@@ -16,7 +16,7 @@ begin
     into pos_record
     from user_positions up
              join positions p on up.position_id = p.id
-    where up.user_id = user_id_input
+    where up.user_id = current_user_id
       and p.fen_representation = fen_representation_input
       and not up.is_deleted;
 
@@ -29,14 +29,14 @@ begin
     update user_positions
     set is_deleted = true,
         updated_at = now()
-    where user_id = user_id_input
+    where user_id = current_user_id
       and position_id = pos_record.position_id;
 
     -- Mark all moves associated with this position as deleted for this user
     update user_moves
     set is_deleted = true,
         updated_at = now()
-    where user_id = user_id_input
+    where user_id = current_user_id
       and move_id in (select m.id
                       from moves m
                       where m.origin = pos_record.position_id

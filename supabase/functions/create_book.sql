@@ -1,5 +1,4 @@
 create or replace function memor_chess.create_book(
-    user_id_input uuid,
     book_name_input text
 )
     returns bigint
@@ -13,7 +12,7 @@ declare
     new_book_id    bigint;
 begin
     -- Check if user has BOOK_CREATION permission
-    select check_user_permission(user_id_input, 'BOOK_CREATION')
+    select check_user_permission('BOOK_CREATION')
     into has_permission;
 
     if not has_permission then

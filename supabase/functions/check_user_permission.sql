@@ -1,5 +1,4 @@
 create or replace function memor_chess.check_user_permission(
-    user_id_input uuid,
     permission_input text
 )
     returns boolean
@@ -10,12 +9,12 @@ as
 $$
 declare
     has_permission boolean;
+    current_user_id uuid := auth.uid();
 begin
-    select exists(
-                   select 1
-                   from user_permissions up
-                   where up.user_id = user_id_input
-               )
+    select exists(select 1
+                  from user_permissions up
+                  where up.user_id = current_user_id
+                    and up.permission::text = permission_input)
     into has_permission;
 
     return has_permission;
