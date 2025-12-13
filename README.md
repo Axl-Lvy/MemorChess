@@ -8,6 +8,21 @@
   <img src="https://media.giphy.com/media/3o7TKtnuHOHHUjR38Y/giphy.gif" width="300" alt="Chess GIF" />
 </p>
 
+<p align="center">
+  <a href="https://sonarcloud.io/summary/new_code?id=Axl-Lvy_MemorChess">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=Axl-Lvy_MemorChess&metric=alert_status" alt="Quality gate" />
+  </a>
+  <a href="https://sonarcloud.io/summary/new_code?id=Axl-Lvy_MemorChess">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=Axl-Lvy_MemorChess&metric=code_smells" alt="Code Smells" />
+  </a>
+  <a href="https://sonarcloud.io/summary/new_code?id=Axl-Lvy_MemorChess">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=Axl-Lvy_MemorChess&metric=coverage" alt="Coverage" />
+  </a>
+  <a href="https://github.com/Axl-Lvy/MemorChess/actions/workflows/check.yml">
+    <img src="https://gist.githubusercontent.com/Axl-Lvy/69f14a721eba3ba2b1d3b886b1923a8b/raw/badge.svg" alt="Test Results" />
+  </a>
+</p>
+
 <h4 align="center">A simple application to memorize chess openings.</h4>
 
 ---
@@ -53,4 +68,3 @@ We love contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guideli
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
-
