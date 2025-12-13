@@ -17,6 +17,7 @@ import proj.memorchess.axl.core.data.online.database.DatabaseUploader
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeCache
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.stockfish.StockfishEvaluator
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
@@ -46,7 +47,10 @@ fun initKoinModules(): Array<Module> {
     singleOf(::NodeManager)
   }
 
-  val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
+  val otherModule = module {
+    single<ToastRenderer> { getPlatformSpecificToastRenderer() }
+    singleOf(::StockfishEvaluator)
+  }
 
   return arrayOf(authModule, dataModule, nodeModule, otherModule)
 }

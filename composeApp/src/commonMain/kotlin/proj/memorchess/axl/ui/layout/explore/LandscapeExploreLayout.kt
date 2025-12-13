@@ -15,9 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.components.explore.ExploreActionButtons
 import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
+import proj.memorchess.axl.ui.components.explore.ExploreBoardTopping
 import proj.memorchess.axl.ui.components.explore.ExploreHeader
 import proj.memorchess.axl.ui.components.explore.ExploreNextMovesSection
-import proj.memorchess.axl.ui.components.explore.ExploreStateIndicators
 
 @Composable
 fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
@@ -54,7 +54,7 @@ fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayout
       )
 
       // State indicators section
-      ExploreStateIndicators(stateIndicators = content.stateIndicators)
+      ExploreBoardTopping(boardTopping = content.boardTopping)
 
       // Next moves section with horizontal scrolling
       ExploreNextMovesSection(nextMoveButtons = content.nextMoveButtons)

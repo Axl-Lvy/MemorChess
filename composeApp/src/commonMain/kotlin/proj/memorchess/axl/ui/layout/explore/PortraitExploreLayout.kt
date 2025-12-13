@@ -10,9 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.components.explore.ExploreActionButtons
 import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
+import proj.memorchess.axl.ui.components.explore.ExploreBoardTopping
 import proj.memorchess.axl.ui.components.explore.ExploreHeader
 import proj.memorchess.axl.ui.components.explore.ExploreNextMovesSection
-import proj.memorchess.axl.ui.components.explore.ExploreStateIndicators
 
 @Composable
 fun PortraitExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
@@ -32,7 +32,7 @@ fun PortraitExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutC
 
       // State indicators section
       if (this@BoxWithConstraints.maxHeight > 650.dp) {
-        ExploreStateIndicators(stateIndicators = content.stateIndicators)
+        ExploreBoardTopping(boardTopping = content.boardTopping)
       }
 
       // Main board section with responsive sizing
