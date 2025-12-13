@@ -56,4 +56,3 @@ begin
     RETURN has_been_deleted;
 end;
 $$;
-
