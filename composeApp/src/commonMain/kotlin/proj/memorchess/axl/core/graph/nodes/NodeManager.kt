@@ -7,6 +7,7 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.engine.Game
 
 /** Node factory singleton. */
@@ -65,6 +66,25 @@ class NodeManager : KoinComponent {
       )
     previous.addChild(dataMove, newNode)
     return newNode
+  }
+
+  fun createNodeFromBook(bookMoves: List<BookMove>): Node {
+    val indexedMoves = bookMoves.groupBy { it.origin }
+    val startNode = Node(PositionIdentifier.START_POSITION)
+    startNode.createUnderlyingForBook(indexedMoves)
+    return startNode
+  }
+
+  private fun Node.createUnderlyingForBook(indexedMoves: Map<PositionIdentifier, List<BookMove>>) {
+    val movesToAdd = indexedMoves[this.position] ?: return
+    for (move in movesToAdd) {
+      val dataMove = DataMove(move.origin, move.destination, move.move, move.isGood)
+      val childNode =
+        Node(move.destination, PreviousAndNextMoves(listOf(dataMove), emptyList()), this)
+      if (this.addChild(dataMove, childNode)) {
+        childNode.createUnderlyingForBook(indexedMoves)
+      }
+    }
   }
 
   fun clearNextMoves(positionIdentifier: PositionIdentifier) {

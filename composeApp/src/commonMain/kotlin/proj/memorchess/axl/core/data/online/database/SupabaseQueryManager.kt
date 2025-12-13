@@ -19,10 +19,7 @@ class SupabaseQueryManager(
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    val result =
-      client.postgrest
-        .rpc("fetch_user_positions", SingleUserIdFunctionArg(user.id))
-        .decodeList<PositionFetched>()
+    val result = client.postgrest.rpc("fetch_user_positions").decodeList<PositionFetched>()
     return (if (withDeletedOnes) result else result.filter { !it.isDeleted }).map {
       it.toStoredNode()
     }
@@ -34,7 +31,7 @@ class SupabaseQueryManager(
     val rpc =
       client.postgrest.rpc<SinglePositionFunctionArg>(
         "fetch_single_position",
-        SinglePositionFunctionArg(user.id, positionIdentifier.fenRepresentation),
+        SinglePositionFunctionArg(positionIdentifier.fenRepresentation),
       )
     val result = rpc.decodeAsOrNull<PositionFetched>()
     return if (result == null || result.isDeleted) {
@@ -49,7 +46,7 @@ class SupabaseQueryManager(
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     client.postgrest.rpc(
       "delete_single_position",
-      SinglePositionFunctionArg(user.id, position.fenRepresentation),
+      SinglePositionFunctionArg(position.fenRepresentation),
     )
   }
 
@@ -58,14 +55,14 @@ class SupabaseQueryManager(
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     client.postgrest.rpc(
       "delete_single_move",
-      MoveFromOriginFunctionArg(user.id, origin.fenRepresentation, move),
+      MoveFromOriginFunctionArg(origin.fenRepresentation, move),
     )
   }
 
   override suspend fun deleteAll(hardFrom: Instant?) {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    client.postgrest.rpc("delete_all", SingleDateTimeFunctionArg(user.id, hardFrom))
+    client.postgrest.rpc("delete_all", SingleDateTimeFunctionArg(hardFrom))
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
@@ -73,18 +70,14 @@ class SupabaseQueryManager(
     checkNotNull(user)
     client.postgrest.rpc(
       "insert_user_positions",
-      InsertPositionFunctionArg(user.id, positions.map { PositionFetched(it) }),
+      InsertPositionFunctionArg(positions.map { PositionFetched(it) }),
     )
   }
 
   override suspend fun getLastUpdate(): Instant? {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    val rpc =
-      client.postgrest.rpc<SingleUserIdFunctionArg>(
-        "fetch_last_update",
-        SingleUserIdFunctionArg(user.id),
-      )
+    val rpc = client.postgrest.rpc("fetch_last_update")
     return rpc.decodeAsOrNull<Instant>()
   }
 

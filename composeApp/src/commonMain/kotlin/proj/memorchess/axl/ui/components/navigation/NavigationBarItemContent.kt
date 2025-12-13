@@ -8,6 +8,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Book
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.icon_main
 import org.jetbrains.compose.resources.painterResource
@@ -41,9 +43,16 @@ enum class NavigationBarItemContent(
       )
     },
   ),
+  Books(
+    destination = Route.BooksRoute,
+    index = 2,
+    icon = {
+      Icon(FeatherIcons.Book, contentDescription = Route.BooksRoute.getLabel() + BUTTON_SUFFIX)
+    },
+  ),
   Settings(
     destination = Route.SettingsRoute,
-    index = 2,
+    index = 3,
     icon = {
       Icon(
         Icons.Rounded.Settings,

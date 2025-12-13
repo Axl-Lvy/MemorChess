@@ -1,5 +1,4 @@
 create or replace function memor_chess.fetch_single_position(
-    user_id_input uuid,
     fen_representation_input text
 )
     returns jsonb
@@ -12,6 +11,7 @@ declare
     previous_moves jsonb;
     next_moves     jsonb;
     linked_moves   jsonb;
+    current_user_id uuid := auth.uid();
 begin
     select up.position_id,
            p.fen_representation as fen,
@@ -23,7 +23,7 @@ begin
     into pos_record
     from user_positions up
              join positions p on up.position_id = p.id
-    where up.user_id = user_id_input
+    where up.user_id = current_user_id
       and p.fen_representation = fen_representation_input
       and not up.is_deleted;
 
@@ -45,7 +45,7 @@ begin
              join positions po on po.id = m.origin
              join user_moves um on um.move_id = m.id
     where m.destination = pos_record.position_id
-      and um.user_id = user_id_input
+      and um.user_id = current_user_id
       and not um.is_deleted;
 
     -- nextMoves
@@ -62,7 +62,7 @@ begin
              join positions pd on pd.id = m.destination
              join user_moves um on um.move_id = m.id
     where m.origin = pos_record.position_id
-      and um.user_id = user_id_input
+      and um.user_id = current_user_id
       and not um.is_deleted;
 
     -- combine moves

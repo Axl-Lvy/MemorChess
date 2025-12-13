@@ -96,28 +96,21 @@ internal data class PositionFetched(
 
 @Serializable
 internal data class SinglePositionFunctionArg(
-  @SerialName("user_id_input") val userId: String,
-  @SerialName("fen_representation_input") val fen: String,
+  @SerialName("fen_representation_input") val fen: String
 )
 
 @Serializable
 internal data class SingleDateTimeFunctionArg(
-  @SerialName("user_id_input") val userId: String,
-  @SerialName("hard_from_input") val hardFrom: Instant?,
+  @SerialName("hard_from_input") val hardFrom: Instant?
 )
 
 @Serializable
 internal data class MoveFromOriginFunctionArg(
-  @SerialName("user_id_input") val userId: String,
   @SerialName("origin_input") val origin: String,
   @SerialName("move_input") val move: String,
 )
 
 @Serializable
 internal data class InsertPositionFunctionArg(
-  @SerialName("user_id_input") val userId: String,
-  @SerialName("stored_nodes") val positions: List<PositionFetched>,
+  @SerialName("stored_nodes") val positions: List<PositionFetched>
 )
-
-@Serializable
-internal data class SingleUserIdFunctionArg(@SerialName("user_id_input") val userId: String)

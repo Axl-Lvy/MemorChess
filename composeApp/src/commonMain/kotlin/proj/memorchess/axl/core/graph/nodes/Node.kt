@@ -30,6 +30,13 @@ class Node(
 
   private val nodeManager by inject<NodeManager>()
 
+  /** Cache of all children nodes by move string. */
+  private val allChildren = mutableMapOf<String, Node>()
+
+  fun getChild(move: String): Node? {
+    return allChildren[move]
+  }
+
   /**
    * Creates a new [Game] instance from this node's position.
    *
@@ -44,10 +51,13 @@ class Node(
    *
    * @param move The move string to add.
    * @param child The child [Node] resulting from the move.
+   * @return True if the move was added successfully, false if it already existed.
    */
-  fun addChild(move: DataMove, child: Node) {
-    previousAndNextMoves.addNextMove(move)
+  fun addChild(move: DataMove, child: Node): Boolean {
+    val previous = previousAndNextMoves.addNextMove(move)
     next = child
+    allChildren[move.move] = child
+    return previous == null
   }
 
   /**

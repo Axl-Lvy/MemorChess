@@ -1,6 +1,4 @@
-create or replace function memor_chess.fetch_last_update(
-    user_id_input uuid
-)
+create or replace function memor_chess.fetch_last_update()
     returns timestamp with time zone
     language plpgsql
     set search_path to memor_chess
@@ -10,18 +8,19 @@ declare
     last_move_update     timestamp with time zone;
     last_position_update timestamp with time zone;
     latest_update        timestamp with time zone;
+    current_user_id      uuid := auth.uid();
 begin
     -- Get the latest update from user_moves
     select max(updated_at)
     into last_move_update
     from memor_chess.user_moves
-    where user_id = user_id_input;
+    where user_id = current_user_id;
 
     -- Get the latest update from user_positions
     select max(updated_at)
     into last_position_update
     from memor_chess.user_positions
-    where user_id = user_id_input;
+    where user_id = current_user_id;
 
     -- Return the latest update between the two tables
     if last_move_update is not null and last_position_update is not null then

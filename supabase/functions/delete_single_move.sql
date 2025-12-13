@@ -1,5 +1,4 @@
 create or replace function memor_chess.delete_single_move(
-    user_id_input uuid,
     origin_input text,
     move_input text
 )
@@ -13,6 +12,7 @@ declare
     destination_position_id bigint;
     move_input_id           bigint;
     destination_move_count  int;
+    current_user_id         uuid := auth.uid();
 begin
     -- Find the origin position
     select p.id
@@ -41,7 +41,7 @@ begin
     update user_moves
     set is_deleted = true,
         updated_at = now()
-    where user_id = user_id_input
+    where user_id = current_user_id
       and move_id = move_input_id;
 
     -- Check if the destination position has any other non-deleted moves for this user
@@ -49,7 +49,7 @@ begin
     into destination_move_count
     from user_moves um
              join moves m on um.move_id = m.id
-    where um.user_id = user_id_input
+    where um.user_id = current_user_id
       and m.origin = destination_position_id
       and um.is_deleted = false;
 
@@ -60,7 +60,7 @@ begin
         where p.id = destination_position_id
         into origin_input; -- Reuse variable for destination FEN
 
-        perform delete_single_position(user_id_input, origin_input);
+        perform delete_single_position(origin_input);
     end if;
 
     return true;

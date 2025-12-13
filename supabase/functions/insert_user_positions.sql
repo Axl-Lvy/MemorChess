@@ -1,5 +1,4 @@
 create or replace function memor_chess.insert_user_positions(
-    user_id_input uuid,
     stored_nodes jsonb
 )
     returns void
@@ -11,6 +10,7 @@ $$
 declare
     node_item         jsonb;
     position_id_input bigint;
+    current_user_id   uuid := auth.uid();
 begin
     for node_item in select * from jsonb_array_elements(stored_nodes)
         loop
@@ -33,7 +33,7 @@ begin
                                        created_at,
                                        updated_at,
                                        is_deleted)
-            values (user_id_input,
+            values (current_user_id,
                     position_id_input,
                     (node_item ->> 'depth')::int,
                     (node_item ->> 'last_training_date')::date,
@@ -50,7 +50,6 @@ begin
 
             -- 3. Insert previous and next moves
             perform insert_user_moves(
-                    user_id_input,
                     to_jsonb(node_item -> 'linked_moves')
                     );
         end loop;
