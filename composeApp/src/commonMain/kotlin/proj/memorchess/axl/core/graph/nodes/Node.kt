@@ -12,6 +12,8 @@ abstract class Node<T : Node<T>>(
   var next: T? = null,
 ) : KoinComponent {
 
+  protected abstract val nodeManager: NodeManager<T>
+
   /**
    * Adds a child node representing a move from this position.
    *
@@ -48,13 +50,16 @@ abstract class Node<T : Node<T>>(
     previous?.saveGood()
   }
 
-  protected abstract suspend fun save()
-
-  /**
-   * Deletes this node and its descendants from the database. Recursively deletes child nodes and
-   * clears the moves.
-   */
-  abstract suspend fun delete()
+  protected suspend fun deleteFromPrevious(previousMove: DataMove) {
+    println("Deleting from previous: $previousMove. Position: $position")
+    nodeManager.clearPreviousMove(position, previousMove)
+    check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
+      "$previousMove not removed."
+    }
+    if (previousAndNextMoves.previousMoves.isEmpty()) {
+      delete()
+    }
+  }
 
   /**
    * Calculates the number of nodes to delete starting from this node.
@@ -65,7 +70,31 @@ abstract class Node<T : Node<T>>(
    * @param previousMove The previous move to consider for deletion.
    * @return The number of nodes that would be deleted.
    */
-  abstract fun calculateNumberOfNodesToDelete(previousMove: DataMove? = null): Int
+  fun calculateNumberOfNodesToDelete(previousMove: DataMove?): Int {
+    return if (
+      previousMove != null &&
+        previousAndNextMoves.previousMoves.values.any { it.move != previousMove.move }
+    ) {
+      0
+    } else {
+      var count = 1
+      previousAndNextMoves.nextMoves.values.forEach { move ->
+        val game = createGame()
+        game.playMove(move.move)
+        val childNode = nodeManager.createNode(game, this as T, move.move)
+        count += childNode.calculateNumberOfNodesToDelete(move)
+      }
+      count
+    }
+  }
+
+  protected abstract suspend fun save()
+
+  /**
+   * Deletes this node and its descendants from the database. Recursively deletes child nodes and
+   * clears the moves.
+   */
+  abstract suspend fun delete()
 
   /**
    * Calculate the [state][NodeState] of this node.

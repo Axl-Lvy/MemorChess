@@ -10,8 +10,8 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * NodeCache singleton to abstract operations on the moves cache. This class manages the cache of
- * position keys and their associated moves.
+ * DbBasedNodeCache is a NodeCache implementation that uses a database as the source of truth for
+ * nodes and moves.
  */
 class DbBasedNodeCache : NodeCache(), KoinComponent {
 
@@ -63,7 +63,6 @@ class DbBasedNodeCache : NodeCache(), KoinComponent {
     return nodesByDay[day]?.size ?: 0
   }
 
-  /** Retrieves the graph from the database and populates the cache. */
   override suspend fun resetFromSource() {
     clear()
     val allNodes: List<DataNode> = database.getAllNodes()

@@ -5,6 +5,10 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
 
+/**
+ * NodeCache to abstract operations on the moves cache. This class manages the cache of
+ * position keys and their associated moves.
+ */
 abstract class NodeCache {
 
   /** Cache to prevent creating a node twice. */
@@ -51,19 +55,30 @@ abstract class NodeCache {
     LOGGER.i { "Cleared next moves for position: $positionIdentifier" }
   }
 
+  /** Clears the entire cache and reloads it from the source. */
   abstract suspend fun resetFromSource()
 
+  /** Gets a node scheduled for training after a number of days. */
   abstract fun getNodeFromDay(day: Int): DataNode?
 
+  /** Gets a node scheduled for training after a number of days, following a specific position. */
   abstract fun getNodeToTrainAfterPosition(
     day: Int,
     positionIdentifier: PositionIdentifier,
   ): DataNode?
 
+  /** Gets the number of nodes scheduled for training after a number of days. */
   abstract fun getNumberOfNodesToTrain(day: Int): Int
 
+  /** Caches the given node. */
   abstract fun cacheNode(node: DataNode)
 
+  /**
+   * Clears a specific previous move for the given position key.
+   *
+   * @param positionIdentifier The position key to clear the previous move for.
+   * @param move The move to clear.
+   */
   abstract suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove)
 }
 

@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
@@ -26,7 +25,7 @@ class PersonalNode(
 
   private val database by inject<DatabaseQueryManager>()
 
-  val nodeManager by inject<NodeManager<PersonalNode>>()
+  override val nodeManager by inject<NodeManager<PersonalNode>>()
 
   /**
    * Saves this node and its ancestors to the database. Persists the position and moves, then
@@ -48,34 +47,5 @@ class PersonalNode(
     previousAndNextMoves.nextMoves.clear()
     database.deletePosition(position)
     next = null
-  }
-
-  private suspend fun deleteFromPrevious(previousMove: DataMove) {
-    println("Deleting from previous: $previousMove. Position: $position")
-    nodeManager.clearPreviousMove(position, previousMove)
-    check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
-      "$previousMove not removed."
-    }
-    if (previousAndNextMoves.previousMoves.isEmpty()) {
-      delete()
-    }
-  }
-
-  override fun calculateNumberOfNodesToDelete(previousMove: DataMove?): Int {
-    return if (
-      previousMove != null &&
-        previousAndNextMoves.previousMoves.values.any { it.move != previousMove.move }
-    ) {
-      0
-    } else {
-      var count = 1
-      previousAndNextMoves.nextMoves.values.forEach { move ->
-        val game = createGame()
-        game.playMove(move.move)
-        val childNode = nodeManager.createNode(game, this, move.move)
-        count += childNode.calculateNumberOfNodesToDelete(move)
-      }
-      count
-    }
   }
 }

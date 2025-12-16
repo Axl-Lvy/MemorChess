@@ -8,6 +8,12 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 
+/**
+ * BookBasedNodeCache is a NodeCache implementation that retrieves moves from a specific book in
+ * the online database.
+ *
+ * @param bookId The ID of the book to retrieve moves from.
+ */
 class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent {
 
   private val bookQueryManager: SupabaseBookQueryManager by inject()

@@ -3,11 +3,22 @@ package proj.memorchess.axl.core.graph.nodes
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
-import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 
+/**
+ * IsolatedBookNode represents a node in a chess opening book that is isolated from the user's
+ * personal repertoire.
+ *
+ * This node interacts with a specific book in the online database to save and delete moves.
+ *
+ * @param bookId The ID of the book this node belongs to.
+ * @param position The position identifier for this node.
+ * @param previousAndNextMoves The previous and next moves associated with this node.
+ * @param previous The previous node in the sequence.
+ * @param next The next node in the sequence.
+ */
 class IsolatedBookNode(
   private val bookId: Long,
   position: PositionIdentifier,
@@ -17,7 +28,7 @@ class IsolatedBookNode(
 ) : Node<IsolatedBookNode>(position, previousAndNextMoves, previous, next) {
   private val bookQueryManager: SupabaseBookQueryManager by inject()
   private var isSaved: Boolean = false
-  private val nodeManager: NodeManager<IsolatedBookNode> by
+  override val nodeManager: NodeManager<IsolatedBookNode> by
     inject(named("booked")) { parametersOf(bookId) }
 
   override suspend fun save() {
@@ -44,34 +55,5 @@ class IsolatedBookNode(
     nodeManager.clearNextMoves(position)
     previousAndNextMoves.nextMoves.clear()
     next = null
-  }
-
-  private suspend fun deleteFromPrevious(previousMove: DataMove) {
-    println("Deleting from previous: $previousMove. Position: $position")
-    nodeManager.clearPreviousMove(position, previousMove)
-    check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
-      "$previousMove not removed."
-    }
-    if (previousAndNextMoves.previousMoves.isEmpty()) {
-      delete()
-    }
-  }
-
-  override fun calculateNumberOfNodesToDelete(previousMove: DataMove?): Int {
-    return if (
-      previousMove != null &&
-        previousAndNextMoves.previousMoves.values.any { it.move != previousMove.move }
-    ) {
-      0
-    } else {
-      var count = 1
-      previousAndNextMoves.nextMoves.values.forEach { move ->
-        val game = createGame()
-        game.playMove(move.move)
-        val childNode = nodeManager.createNode(game, this, move.move)
-        count += childNode.calculateNumberOfNodesToDelete(move)
-      }
-      count
-    }
   }
 }
