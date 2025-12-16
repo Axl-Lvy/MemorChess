@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.interactions
 
+import kotlinx.collections.immutable.toImmutableMap
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
@@ -58,7 +59,7 @@ class BookExplorer(
     val trainingDate = PreviousAndNextDate(today, today)
 
     val dataNodes =
-      positionsToSave.map { (position, moves) ->
+      positionsToSave.toImmutableMap().map { (position, moves) ->
         val previousMoves =
           bookMoves
             .filter { it.destination == position }

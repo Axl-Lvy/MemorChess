@@ -36,9 +36,6 @@ class NodeManager<NodeT : Node<NodeT>>(
         checkNotNull(moves) { "Position $startPosition not known." }
         nodeConstructor(startPosition, moves, null, null)
       }
-    LOGGER.w {
-      "Created initial node for position: ${result.position}\n ${result.previousAndNextMoves}"
-    }
     return result
   }
 

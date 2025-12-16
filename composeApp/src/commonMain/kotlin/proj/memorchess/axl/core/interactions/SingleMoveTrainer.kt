@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.interactions
 
-import kotlin.getValue
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
