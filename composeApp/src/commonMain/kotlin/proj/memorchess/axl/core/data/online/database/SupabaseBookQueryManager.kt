@@ -16,22 +16,47 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 
 private const val USER_NOT_CONNECTED_MESSAGE = "User must be logged in to access book features"
 
+/**
+ * SupabaseBookQueryManager handles book-related queries to the Supabase backend.
+ *
+ * This class provides methods to fetch, create, update, and delete books and their moves.
+ *
+ * @param client The Supabase client used for database interactions.
+ * @param authManager The authentication manager to verify user permissions.
+ */
 class SupabaseBookQueryManager(
   private val client: SupabaseClient,
   private val authManager: AuthManager,
 ) {
 
+  /**
+   * Fetches a book by its ID.
+   *
+   * @param bookId The ID of the book to fetch.
+   * @return The fetched Book object, or null if not found.
+   */
   suspend fun getBook(bookId: Long): Book? {
     val result =
       client.postgrest.from("book").select { filter { eq("id", bookId) } }.decodeList<BookFetched>()
     return result.firstOrNull()?.toBook()
   }
 
+  /**
+   * Fetches all books available.
+   *
+   * @return A list of all Book objects.
+   */
   suspend fun getAllBooks(): List<Book> {
     val result = client.postgrest.rpc("fetch_all_books").decodeList<BookFetched>()
     return result.map { it.toBook() }
   }
 
+  /**
+   * Fetches all moves associated with a specific book.
+   *
+   * @param bookId The ID of the book to fetch moves for.
+   * @return A list of BookMove objects associated with the book.
+   */
   suspend fun getBookMoves(bookId: Long): List<BookMove> {
     val result =
       client.postgrest
@@ -40,6 +65,12 @@ class SupabaseBookQueryManager(
     return result.map { it.toBookMove() }
   }
 
+  /**
+   * Creates a new book with the given name.
+   *
+   * @param name The name of the new book.
+   * @return The ID of the newly created book.
+   */
   suspend fun createBook(name: String): Long {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
@@ -47,6 +78,13 @@ class SupabaseBookQueryManager(
     return result
   }
 
+  /**
+   * Adds a move to a specific book.
+   *
+   * @param bookId The ID of the book to add the move to.
+   * @param move The BookMove object representing the move to add.
+   * @return True if the move was added successfully, false otherwise.
+   */
   suspend fun addMoveToBook(bookId: Long, move: BookMove): Boolean {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
@@ -66,6 +104,14 @@ class SupabaseBookQueryManager(
     return result
   }
 
+  /**
+   * Removes a move from a specific book.
+   *
+   * @param bookId The ID of the book to remove the move from.
+   * @param originFen The FEN representation of the origin position.
+   * @param move The move string to remove.
+   * @return True if the move was removed successfully, false otherwise.
+   */
   suspend fun removeMoveFromBook(bookId: Long, originFen: String, move: String): Boolean {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
@@ -76,6 +122,12 @@ class SupabaseBookQueryManager(
     return result
   }
 
+  /**
+   * Deletes a book by its ID.
+   *
+   * @param bookId The ID of the book to delete.
+   * @return True if the book was deleted successfully, false otherwise.
+   */
   suspend fun deleteBook(bookId: Long): Boolean {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }

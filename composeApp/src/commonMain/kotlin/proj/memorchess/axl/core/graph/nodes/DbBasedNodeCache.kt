@@ -19,16 +19,8 @@ class DbBasedNodeCache : NodeCache(), KoinComponent {
 
   private val nodesByDay = mutableMapOf<Int, MutableMap<PositionIdentifier, DataNode>>()
 
-  /**
-   * Clears a specific previous move for the given position key.
-   *
-   * @param positionIdentifier The position key to clear the previous move for.
-   * @param move The move to clear.
-   */
-  override suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove) {
-    movesCache[positionIdentifier]?.previousMoves?.remove(move.move)
-    LOGGER.i { "Cleared previous move $move for position: $positionIdentifier" }
-    database.deleteMove(positionIdentifier, move.move)
+  override suspend fun deleteMove(move: DataMove) {
+    database.deleteMove(move.origin, move.move)
   }
 
   override fun cacheNode(node: DataNode) {

@@ -29,7 +29,7 @@ class IsolatedBookNode(
   private val bookQueryManager: SupabaseBookQueryManager by inject()
   private var isSaved: Boolean = false
   override val nodeManager: NodeManager<IsolatedBookNode> by
-    inject(named("booked")) { parametersOf(bookId) }
+    inject(named("book")) { parametersOf(bookId) }
 
   override suspend fun save() {
     if (isSaved) return

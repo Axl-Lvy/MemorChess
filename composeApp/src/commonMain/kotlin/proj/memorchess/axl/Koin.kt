@@ -49,13 +49,17 @@ fun initKoinModules(): Array<Module> {
   val nodeModule = module {
     singleOf(::DbBasedNodeCache)
     single<NodeManager<PersonalNode>> { NodeManager(::PersonalNode, DbBasedNodeCache()) }
+    single<MutableMap<Long, NodeManager<IsolatedBookNode>>> { mutableMapOf() }
     factory(named("book")) { (bookId: Long) ->
-      NodeManager<IsolatedBookNode>(
-        nodeConstructor = { position, previousAndNextMoves, previous, next ->
-          IsolatedBookNode(bookId, position, previousAndNextMoves, previous, next)
-        },
-        BookBasedNodeCache(bookId),
-      )
+      val cache: MutableMap<Long, NodeManager<IsolatedBookNode>> = get()
+      cache.getOrPut(bookId) {
+        NodeManager(
+          nodeConstructor = { position, previousAndNextMoves, previous, next ->
+            IsolatedBookNode(bookId, position, previousAndNextMoves, previous, next)
+          },
+          BookBasedNodeCache(bookId),
+        )
+      }
     }
   }
 

@@ -9,8 +9,8 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 
 /**
- * BookBasedNodeCache is a NodeCache implementation that retrieves moves from a specific book in
- * the online database.
+ * BookBasedNodeCache is a NodeCache implementation that retrieves moves from a specific book in the
+ * online database.
  *
  * @param bookId The ID of the book to retrieve moves from.
  */
@@ -65,8 +65,8 @@ class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent 
     throwUnsupportedOperation()
   }
 
-  override suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove) {
-    throwUnsupportedOperation()
+  override suspend fun deleteMove(move: DataMove) {
+    bookQueryManager.removeMoveFromBook(bookId, move.origin.fenRepresentation, move.move)
   }
 
   private fun throwUnsupportedOperation(): Nothing {

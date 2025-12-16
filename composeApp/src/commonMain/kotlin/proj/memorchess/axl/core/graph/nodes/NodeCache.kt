@@ -6,8 +6,8 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
 
 /**
- * NodeCache to abstract operations on the moves cache. This class manages the cache of
- * position keys and their associated moves.
+ * NodeCache to abstract operations on the moves cache. This class manages the cache of position
+ * keys and their associated moves.
  */
 abstract class NodeCache {
 
@@ -79,7 +79,13 @@ abstract class NodeCache {
    * @param positionIdentifier The position key to clear the previous move for.
    * @param move The move to clear.
    */
-  abstract suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove)
+  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove) {
+    movesCache[positionIdentifier]?.previousMoves?.remove(move.move)
+    LOGGER.i { "Cleared previous move $move for position: $positionIdentifier" }
+    deleteMove(move)
+  }
+
+  abstract suspend fun deleteMove(move: DataMove)
 }
 
 private val LOGGER = Logger.withTag("NodeCache")

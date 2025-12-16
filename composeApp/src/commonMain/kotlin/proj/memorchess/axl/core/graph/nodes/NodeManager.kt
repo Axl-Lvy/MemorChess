@@ -7,7 +7,13 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 
-/** Node factory singleton. */
+/**
+ * NodeManager is responsible for creating and managing nodes in the chess position graph.
+ *
+ * @param NodeT The type of node being managed.
+ * @property nodeConstructor A function to construct a new node.
+ * @property nodeCache The cache used to store and retrieve nodes and their moves.
+ */
 class NodeManager<NodeT : Node<NodeT>>(
   private val nodeConstructor: (PositionIdentifier, PreviousAndNextMoves, NodeT?, NodeT?) -> NodeT,
   private val nodeCache: NodeCache,

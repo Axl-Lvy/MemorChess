@@ -5,6 +5,15 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 
+/**
+ * Abstract class representing a node in the chess position graph.
+ *
+ * @param T The type of the node, for next and previous.
+ * @property position The position identifier for this node.
+ * @property previousAndNextMoves The previous and next moves associated with this position.
+ * @property previous The previous node in the graph (null if this is the root).
+ * @property next The next node in the graph (null if there are no next moves).
+ */
 abstract class Node<T : Node<T>>(
   val position: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
@@ -70,7 +79,7 @@ abstract class Node<T : Node<T>>(
    * @param previousMove The previous move to consider for deletion.
    * @return The number of nodes that would be deleted.
    */
-  fun calculateNumberOfNodesToDelete(previousMove: DataMove?): Int {
+  fun calculateNumberOfNodesToDelete(previousMove: DataMove? = null): Int {
     return if (
       previousMove != null &&
         previousAndNextMoves.previousMoves.values.any { it.move != previousMove.move }
