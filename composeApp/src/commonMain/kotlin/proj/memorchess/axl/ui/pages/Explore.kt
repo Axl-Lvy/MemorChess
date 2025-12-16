@@ -21,6 +21,7 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
@@ -36,7 +37,10 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 private val LOGGER = Logger.withTag("Explore")
 
 @Composable
-fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koinInject()) {
+fun Explore(
+  position: PositionIdentifier? = null,
+  nodeManager: NodeManager<PersonalNode> = koinInject(),
+) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -44,11 +48,11 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
         .testTag(Route.ExploreRoute.DEFAULT.getLabel()),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
+    LoadingWidget({ nodeManager.resetCacheFromSource() }) {
       val initialPosition = extractInitialPosition(position, nodeManager)
       val modifier = Modifier.fillMaxWidth()
       var inverted by remember { mutableStateOf(false) }
-      val linesExplorer = remember { LinesExplorer(initialPosition) }
+      val linesExplorer = remember { LinesExplorer(initialPosition, nodeManager) }
       val coroutineScope = rememberCoroutineScope()
       val nextMoves = remember {
         mutableStateListOf(*linesExplorer.getNextMoves().toTypedArray<String>())
@@ -131,7 +135,7 @@ fun Explore(position: PositionIdentifier? = null, nodeManager: NodeManager = koi
 
 private fun extractInitialPosition(
   position: PositionIdentifier?,
-  nodeManager: NodeManager,
+  nodeManager: NodeManager<PersonalNode>,
 ): PositionIdentifier? {
   return if (position == null) {
     null

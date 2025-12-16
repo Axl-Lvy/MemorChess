@@ -28,6 +28,7 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.ui.components.buttons.SignInButton
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
@@ -38,7 +39,7 @@ import proj.memorchess.axl.ui.util.BasicReloader
 @Composable
 fun Settings(
   database: DatabaseQueryManager = koinInject(),
-  nodeManager: NodeManager = koinInject(),
+  nodeManager: NodeManager<PersonalNode> = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
@@ -89,7 +90,7 @@ fun Settings(
           dlg.show("Are you sure you want to erase all data?") {
             coroutineScope.launch {
               database.deleteAll(null)
-              nodeManager.resetCacheFromDataBase()
+              nodeManager.resetCacheFromSource()
             }
           }
         },

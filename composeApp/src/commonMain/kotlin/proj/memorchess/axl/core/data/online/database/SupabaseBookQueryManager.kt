@@ -12,24 +12,27 @@ import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
-import proj.memorchess.axl.core.data.book.BookQueryManager
-import proj.memorchess.axl.core.data.book.UserPermission
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 
 private const val USER_NOT_CONNECTED_MESSAGE = "User must be logged in to access book features"
 
-/** Supabase implementation of [BookQueryManager]. */
 class SupabaseBookQueryManager(
   private val client: SupabaseClient,
   private val authManager: AuthManager,
-) : BookQueryManager {
+) {
 
-  override suspend fun getAllBooks(): List<Book> {
+  suspend fun getBook(bookId: Long): Book? {
+    val result =
+      client.postgrest.from("book").select { filter { eq("id", bookId) } }.decodeList<BookFetched>()
+    return result.firstOrNull()?.toBook()
+  }
+
+  suspend fun getAllBooks(): List<Book> {
     val result = client.postgrest.rpc("fetch_all_books").decodeList<BookFetched>()
     return result.map { it.toBook() }
   }
 
-  override suspend fun getBookMoves(bookId: Long): List<BookMove> {
+  suspend fun getBookMoves(bookId: Long): List<BookMove> {
     val result =
       client.postgrest
         .rpc("fetch_book_moves", BookIdFunctionArg(bookId))
@@ -37,25 +40,14 @@ class SupabaseBookQueryManager(
     return result.map { it.toBookMove() }
   }
 
-  override suspend fun hasPermission(permission: UserPermission): Boolean {
-    if (!authManager.isUserLoggedIn()) {
-      return false
-    }
-    val result =
-      client.postgrest
-        .rpc("check_user_permission", CheckPermissionFunctionArg(permission.value))
-        .decodeAs<Boolean>()
-    return result
-  }
-
-  override suspend fun createBook(name: String): Long {
+  suspend fun createBook(name: String): Long {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result = client.postgrest.rpc("create_book", CreateBookFunctionArg(name)).decodeAs<Long>()
     return result
   }
 
-  override suspend fun addMoveToBook(bookId: Long, move: BookMove): Boolean {
+  suspend fun addMoveToBook(bookId: Long, move: BookMove): Boolean {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
@@ -74,7 +66,7 @@ class SupabaseBookQueryManager(
     return result
   }
 
-  override suspend fun removeMoveFromBook(bookId: Long, originFen: String, move: String): Boolean {
+  suspend fun removeMoveFromBook(bookId: Long, originFen: String, move: String): Boolean {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
@@ -84,7 +76,7 @@ class SupabaseBookQueryManager(
     return result
   }
 
-  override suspend fun deleteBook(bookId: Long): Boolean {
+  suspend fun deleteBook(bookId: Long): Boolean {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
@@ -96,7 +88,7 @@ class SupabaseBookQueryManager(
 // DTOs for Supabase responses
 
 @Serializable
-internal data class BookFetched(
+private data class BookFetched(
   val id: Long,
   val name: String,
   @SerialName("created_at") val createdAt: Instant,
@@ -105,7 +97,7 @@ internal data class BookFetched(
 }
 
 @Serializable
-internal data class BookMoveFetched(
+private data class BookMoveFetched(
   val origin: String,
   val destination: String,
   val move: String,
@@ -117,18 +109,13 @@ internal data class BookMoveFetched(
 
 // Function arguments for Supabase RPC calls
 
-@Serializable internal data class BookIdFunctionArg(@SerialName("book_id_input") val bookId: Long)
+@Serializable private data class BookIdFunctionArg(@SerialName("book_id_input") val bookId: Long)
 
 @Serializable
-internal data class CheckPermissionFunctionArg(
-  @SerialName("permission_input") val permission: String
-)
+private data class CreateBookFunctionArg(@SerialName("book_name_input") val bookName: String)
 
 @Serializable
-internal data class CreateBookFunctionArg(@SerialName("book_name_input") val bookName: String)
-
-@Serializable
-internal data class AddMoveToBookFunctionArg(
+private data class AddMoveToBookFunctionArg(
   @SerialName("book_id_input") val bookId: Long,
   @SerialName("origin_input") val origin: String,
   @SerialName("destination_input") val destination: String,
@@ -137,10 +124,10 @@ internal data class AddMoveToBookFunctionArg(
 )
 
 @Serializable
-internal data class DeleteBookFunctionArg(@SerialName("book_id_input") val bookId: Long)
+private data class DeleteBookFunctionArg(@SerialName("book_id_input") val bookId: Long)
 
 @Serializable
-internal data class RemoveMoveFromBookFunctionArg(
+private data class RemoveMoveFromBookFunctionArg(
   @SerialName("book_id_input") val bookId: Long,
   @SerialName("origin_input") val origin: String,
   @SerialName("move_input") val move: String,

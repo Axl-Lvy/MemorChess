@@ -1,32 +1,14 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import co.touchlab.kermit.Logger
-import kotlin.collections.set
-import kotlinx.datetime.LocalDate
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.date.DateUtil
 
-/**
- * NodeCache singleton to abstract operations on the moves cache. This class manages the cache of
- * position keys and their associated moves.
- */
-class NodeCache : KoinComponent {
-
-  private val database by inject<DatabaseQueryManager>()
-
-  private lateinit var todayDate: LocalDate
-
-  private var databaseRetrieved = false
-
-  private val nodesByDay = mutableMapOf<Int, MutableMap<PositionIdentifier, DataNode>>()
+abstract class NodeCache {
 
   /** Cache to prevent creating a node twice. */
-  private val movesCache = mutableMapOf<PositionIdentifier, PreviousAndNextMoves>()
+  protected val movesCache = mutableMapOf<PositionIdentifier, PreviousAndNextMoves>()
 
   /**
    * Gets or creates a PreviousAndNextMoves entry for the given position key.
@@ -69,70 +51,20 @@ class NodeCache : KoinComponent {
     LOGGER.i { "Cleared next moves for position: $positionIdentifier" }
   }
 
-  /**
-   * Clears a specific previous move for the given position key.
-   *
-   * @param positionIdentifier The position key to clear the previous move for.
-   * @param move The move to clear.
-   */
-  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove) {
-    movesCache[positionIdentifier]?.previousMoves?.remove(move.move)
-    LOGGER.i { "Cleared previous move $move for position: $positionIdentifier" }
-    database.deleteMove(positionIdentifier, move.move)
-  }
+  abstract suspend fun resetFromSource()
 
-  /** Clears the cache and resets the database retrieved flag. */
-  private fun clear() {
-    nodesByDay.clear()
-    movesCache.clear()
-    databaseRetrieved = false
-  }
+  abstract fun getNodeFromDay(day: Int): DataNode?
 
-  fun cacheNode(node: DataNode) {
-    movesCache[node.positionIdentifier] = node.previousAndNextMoves
-    val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
-    nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
-  }
+  abstract fun getNodeToTrainAfterPosition(
+    day: Int,
+    positionIdentifier: PositionIdentifier,
+  ): DataNode?
 
-  fun getNodeFromDay(day: Int): DataNode? {
-    val candidates = nodesByDay[day] ?: return null
-    val position =
-      candidates.entries.minByOrNull { it.value.previousAndNextMoves.depth }?.key ?: return null
-    return candidates.remove(position)
-  }
+  abstract fun getNumberOfNodesToTrain(day: Int): Int
 
-  fun getNodeToTrainAfterPosition(day: Int, positionIdentifier: PositionIdentifier): DataNode? {
-    val todayNodes = nodesByDay[day] ?: return null
-    for (candidatePosition in
-      movesCache[positionIdentifier]?.nextMoves?.values?.map { it.destination } ?: emptyList()) {
-      val candidateNode = todayNodes.remove(candidatePosition)
-      if (candidateNode != null) {
-        return candidateNode
-      }
-    }
-    return null
-  }
+  abstract fun cacheNode(node: DataNode)
 
-  fun getNumberOfNodesToTrain(day: Int): Int {
-    return nodesByDay[day]?.size ?: 0
-  }
-
-  /** Retrieves the graph from the database and populates the cache. */
-  suspend fun resetGraphFromDatabase(db: DatabaseQueryManager = database) {
-    clear()
-    todayDate = DateUtil.today()
-    val allNodes: List<DataNode> = db.getAllNodes()
-    allNodes.forEach { node ->
-      val previousAndNextMoves = node.previousAndNextMoves.filterNotDeleted()
-      movesCache.getOrPut(node.positionIdentifier) { previousAndNextMoves }
-      if (previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {
-        val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
-        nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
-      }
-      LOGGER.i { "Retrieved node: ${node.positionIdentifier}" }
-    }
-    databaseRetrieved = true
-  }
+  abstract suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove)
 }
 
 private val LOGGER = Logger.withTag("NodeCache")

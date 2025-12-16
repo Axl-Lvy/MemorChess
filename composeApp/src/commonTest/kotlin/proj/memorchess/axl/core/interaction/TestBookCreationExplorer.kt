@@ -6,18 +6,19 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.BookCreationExplorer
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestBookCreationExplorer : TestWithKoin {
 
-  private val nodeManager: NodeManager by inject()
+  private val nodeManager: NodeManager<PersonalNode> by inject()
   private val database: DatabaseQueryManager by inject()
-  private val bookQueryManager: BookQueryManager by inject()
+  private val bookQueryManager: SupabaseBookQueryManager by inject()
   private val authManager: AuthManager by inject()
 
   private lateinit var bookCreationExplorer: BookCreationExplorer
@@ -29,7 +30,7 @@ class TestBookCreationExplorer : TestWithKoin {
     ensureSignedIn()
     runTest {
       database.deleteAll(null)
-      nodeManager.resetCacheFromDataBase()
+      nodeManager.resetCacheFromSource()
     }
     bookCreationExplorer = BookCreationExplorer()
   }

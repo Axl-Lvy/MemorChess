@@ -7,7 +7,7 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
-import proj.memorchess.axl.core.data.book.BookQueryManager
+import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.engine.Game
 
 /**
@@ -18,7 +18,7 @@ import proj.memorchess.axl.core.engine.Game
  */
 class BookCreationExplorer(private var book: Book? = null) : InteractionsManager(Game()) {
 
-  private val bookQueryManager: BookQueryManager by inject()
+  private val bookQueryManager: SupabaseBookQueryManager by inject()
 
   /** All moves currently in the book. */
   private val addedMoves = mutableListOf<BookMove>()

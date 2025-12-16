@@ -6,12 +6,11 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.book.Book
-import proj.memorchess.axl.core.data.book.BookMove
-import proj.memorchess.axl.core.data.book.BookQueryManager
+import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.graph.nodes.Node
+import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 /**
@@ -20,49 +19,18 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
  * This class handles navigation through book moves and supports downloading them to the user's
  * personal repertoire.
  */
-class BookExplorer(private val book: Book) : InteractionsManager(Game()) {
-
-  private val bookQueryManager: BookQueryManager by inject()
+class BookExplorer(
+  private val book: Book,
+  val canEdit: Boolean,
+  nodeManager: NodeManager<IsolatedBookNode>,
+) : LinesExplorer<IsolatedBookNode>(nodeManager = nodeManager) {
+  private val bookQueryManager: SupabaseBookQueryManager by inject()
   private val databaseQueryManager: DatabaseQueryManager by inject()
 
-  /** All moves in the current book. */
-  private var bookMoves: List<BookMove> = emptyList()
-
-  private var node = createInitialNode()
-
   init {
-    block()
-  }
-
-  private fun createInitialNode(): Node {
-    return nodeManager.createNodeFromBook(bookMoves)
-  }
-
-  /** Loads the book moves from the database. */
-  suspend fun loadBookMoves() {
-    bookMoves = bookQueryManager.getBookMoves(book.id)
-    node = createInitialNode()
-    reset(node.position)
-  }
-
-  override suspend fun afterPlayMove(move: String) {
-    val childNode = node.getChild(move) ?: return
-    node = childNode
-    callCallBacks()
-  }
-
-  /** Moves back in the exploration tree to the previous node. */
-  fun back() {
-    val parent = node.previous
-    if (parent != null) {
-      node = parent
+    if (!canEdit) {
+      block()
     }
-    game = node.createGame()
-    callCallBacks(false)
-  }
-
-  fun getNextMoves(): List<String> {
-    return node.previousAndNextMoves.nextMoves.values.map { it.move }
   }
 
   /**
@@ -72,6 +40,7 @@ class BookExplorer(private val book: Book) : InteractionsManager(Game()) {
    */
   suspend fun downloadBookToRepertoire() {
     val positionsToSave = mutableMapOf<PositionIdentifier, MutableList<DataMove>>()
+    val bookMoves = bookQueryManager.getBookMoves(book.id)
 
     bookMoves.forEach { bookMove ->
       val dataMove =
@@ -103,7 +72,7 @@ class BookExplorer(private val book: Book) : InteractionsManager(Game()) {
       }
 
     databaseQueryManager.insertNodes(*dataNodes.toTypedArray())
-    nodeManager.resetCacheFromDataBase()
+    nodeManager.resetCacheFromSource()
     toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
   }
 }

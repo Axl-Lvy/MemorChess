@@ -12,12 +12,13 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestBookQueryManager : TestWithKoin {
 
-  private val bookQueryManager: BookQueryManager by inject()
+  private val bookQueryManager: SupabaseBookQueryManager by inject()
   private val authManager: AuthManager by inject()
 
   private val createdBookIds = mutableListOf<Long>()
@@ -93,7 +94,7 @@ class TestBookQueryManager : TestWithKoin {
   @Test
   fun testHasPermission() = runTest {
     // Test user has BOOK_CREATION permission
-    assertTrue(bookQueryManager.hasPermission(UserPermission.BOOK_CREATION))
+    assertTrue(authManager.hasUserPermission(UserPermission.BOOK_CREATION))
   }
 
   @Test
