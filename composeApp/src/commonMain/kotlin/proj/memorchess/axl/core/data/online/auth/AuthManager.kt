@@ -144,6 +144,7 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
     return result
   }
 
+  /** Returns true if a user is currently logged in. */
   fun isUserLoggedIn(): Boolean {
     return user != null
   }
