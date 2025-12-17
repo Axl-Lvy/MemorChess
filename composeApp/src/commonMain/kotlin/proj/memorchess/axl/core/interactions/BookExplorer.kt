@@ -1,14 +1,13 @@
 package proj.memorchess.axl.core.interactions
 
-import kotlinx.collections.immutable.toImmutableMap
+import kotlin.math.min
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.book.Book
+import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
-import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -40,40 +39,36 @@ class BookExplorer(
    * This converts book moves to DataNodes and stores them in the database.
    */
   suspend fun downloadBookToRepertoire() {
-    val positionsToSave = mutableMapOf<PositionIdentifier, MutableList<DataMove>>()
-    val bookMoves = bookQueryManager.getBookMoves(book.id)
+    val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
+    val dataNodes = mutableMapOf<PositionIdentifier, DataNode>()
+    dataNodes.fillRecursively(PositionIdentifier.START_POSITION, bookMoves)
 
-    bookMoves.forEach { bookMove ->
-      val dataMove =
-        DataMove(
-          origin = bookMove.origin,
-          destination = bookMove.destination,
-          move = bookMove.move,
-          isGood = bookMove.isGood,
-          updatedAt = DateUtil.now(),
-        )
-      positionsToSave.getOrPut(bookMove.origin) { mutableListOf() }.add(dataMove)
-    }
-
-    val today = DateUtil.today()
-    val trainingDate = PreviousAndNextDate(today, today)
-
-    val dataNodes =
-      positionsToSave.toImmutableMap().map { (position, moves) ->
-        val previousMoves =
-          bookMoves
-            .filter { it.destination == position }
-            .map { DataMove(it.origin, it.destination, it.move, it.isGood) }
-        DataNode(
-          positionIdentifier = position,
-          previousAndNextMoves = PreviousAndNextMoves(previousMoves, moves, depth = 0),
-          previousAndNextTrainingDate = trainingDate,
-          updatedAt = DateUtil.now(),
-        )
-      }
-
-    databaseQueryManager.insertNodes(*dataNodes.toTypedArray())
+    databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
     nodeManager.resetCacheFromSource()
     toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
+  }
+
+  private fun MutableMap<PositionIdentifier, DataNode>.fillRecursively(
+    position: PositionIdentifier,
+    bookMoves: Map<PositionIdentifier, List<BookMove>>,
+  ) {
+    val moves = bookMoves[position] ?: return
+    val trainingDate = PreviousAndNextDate.dummyToday()
+    for (move in moves) {
+      val currentPreviousAndNextMoves =
+        this.getOrPut(position) { DataNode(position, PreviousAndNextMoves(), trainingDate) }
+          .previousAndNextMoves
+      currentPreviousAndNextMoves.addNextMove(move.toDataMove())
+      val nextPreviousAndNextMoves =
+        this.getOrPut(move.destination) {
+            DataNode(move.destination, PreviousAndNextMoves(depth = Int.MAX_VALUE), trainingDate)
+          }
+          .previousAndNextMoves
+      val newDepth = min(nextPreviousAndNextMoves.depth, currentPreviousAndNextMoves.depth + 1)
+      if (newDepth != nextPreviousAndNextMoves.depth) {
+        nextPreviousAndNextMoves.depth = newDepth
+        this.fillRecursively(move.destination, bookMoves)
+      }
+    }
   }
 }

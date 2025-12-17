@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.book
 
+import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionIdentifier
 
 /**
@@ -15,4 +16,6 @@ data class BookMove(
   val destination: PositionIdentifier,
   val move: String,
   val isGood: Boolean,
-)
+) {
+  fun toDataMove() = DataMove(origin, destination, move, isGood)
+}
