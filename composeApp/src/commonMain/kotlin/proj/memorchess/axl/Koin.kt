@@ -49,7 +49,7 @@ fun initKoinModules(): Array<Module> {
   val nodeModule = module {
     singleOf(::DbBasedNodeCache)
     single<DbBasedNodeCache> { DbBasedNodeCache() }
-    single<NodeManager<PersonalNode>> { NodeManager(::PersonalNode, get()) }
+    single<NodeManager<PersonalNode>> { NodeManager(::PersonalNode, get<DbBasedNodeCache>()) }
     single<MutableMap<Long, NodeManager<IsolatedBookNode>>> { mutableMapOf() }
     factory(named("book")) { (bookId: Long) ->
       val cache: MutableMap<Long, NodeManager<IsolatedBookNode>> = get()
