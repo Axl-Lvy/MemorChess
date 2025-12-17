@@ -85,6 +85,7 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
     } else if (user == null && !wasNull) {
       LOGGER.i { "User signed out" }
     }
+    permissionsCache.clear()
     updateSavedTokens()
   }
 

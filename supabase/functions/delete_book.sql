@@ -9,6 +9,7 @@ as
 $$
 declare
     has_permission boolean;
+    deleted_count integer;
 begin
     -- Check if user has BOOK_CREATION permission
     select check_user_permission('BOOK_CREATION')
@@ -22,10 +23,12 @@ begin
     delete from move_cross_book
     where book_id = book_id_input;
 
-    -- Delete the book
+    -- Delete the book and get the count of deleted rows
     delete from book
     where id = book_id_input;
 
-    return true;
+    get diagnostics deleted_count = row_count;
+
+    return deleted_count > 0;
 end;
 $$;

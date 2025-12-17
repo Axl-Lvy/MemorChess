@@ -147,6 +147,13 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
+  fun testDeleteNonExistentBook() = runTest {
+    val result = bookQueryManager.deleteBook(-999L)
+
+    assertFalse(result)
+  }
+
+  @Test
   fun testDeleteBookAlsoDeletesMoves() = runTest {
     val bookId = bookQueryManager.createBook("Book with Moves")
 
