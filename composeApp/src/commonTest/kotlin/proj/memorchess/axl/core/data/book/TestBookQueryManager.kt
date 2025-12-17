@@ -66,6 +66,24 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
+  fun testGetBook() = runTest {
+    val bookId = bookQueryManager.createBook("Test Book")
+    createdBookIds.add(bookId)
+
+    val book = bookQueryManager.getBook(bookId)
+
+    assertEquals(bookId, book?.id)
+    assertEquals("Test Book", book?.name)
+  }
+
+  @Test
+  fun testGetNonExistentBook() = runTest {
+    val book = bookQueryManager.getBook(-999L)
+
+    assertEquals(null, book)
+  }
+
+  @Test
   fun testGetBookMoves() = runTest {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
