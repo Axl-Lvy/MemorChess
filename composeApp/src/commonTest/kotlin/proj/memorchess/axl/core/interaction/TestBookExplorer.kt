@@ -702,4 +702,26 @@ class TestBookExplorer : TestWithKoin {
 
     assertEquals(4, count)
   }
+
+  @Test
+  fun testDifferentBooksDontShareNodeManager() = runTest {
+    val bookId1 = bookQueryManager.createBook("Test Book 1")
+    val bookId2 = bookQueryManager.createBook("Test Book 2")
+
+    try {
+      val nodeManager1: NodeManager<IsolatedBookNode> by
+        inject(named("book")) { parametersOf(bookId1) }
+      val nodeManager2: NodeManager<IsolatedBookNode> by
+        inject(named("book")) { parametersOf(bookId2) }
+
+      assertNotEquals(
+        nodeManager1,
+        nodeManager2,
+        "BookExplorers with different bookIds should not share the same NodeManager",
+      )
+    } finally {
+      bookQueryManager.deleteBook(bookId1)
+      bookQueryManager.deleteBook(bookId2)
+    }
+  }
 }
