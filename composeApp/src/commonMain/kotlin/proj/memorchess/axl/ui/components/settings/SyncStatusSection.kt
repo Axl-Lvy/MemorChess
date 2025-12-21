@@ -28,75 +28,105 @@ fun SyncStatusSection(
   authManager: AuthManager = koinInject(),
   databaseSynchronizer: DatabaseSynchronizer = koinInject(),
 ) {
+  if (authManager.user == null) return
+
   val coroutineScope = rememberCoroutineScope()
-  var lastLocalUpdate by remember { mutableStateOf(databaseSynchronizer.lastUpdates.value?.first) }
-  var lastRemoteUpdate by remember {
-    mutableStateOf(databaseSynchronizer.lastUpdates.value?.second)
-  }
   var loading by remember { mutableStateOf(false) }
   var error by remember { mutableStateOf<String?>(null) }
 
-  if (authManager.user != null) {
-    Spacer(modifier = Modifier.height(16.dp))
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(8.dp),
-      verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-      Text("Database Synchronisation", style = MaterialTheme.typography.titleMedium)
-      if (loading) {
-        Text("Checking sync status...")
-      } else if (error != null) {
-        Text("Error: $error", color = MaterialTheme.colorScheme.error)
-      } else {
-        if (!databaseSynchronizer.isSynced) {
-          Text("Local last update: " + (lastLocalUpdate?.toString() ?: "N/A"))
-          Text("Remote last update: " + (lastRemoteUpdate?.toString() ?: "N/A"))
-        }
-        if (databaseSynchronizer.isSynced) {
-          Text("Databases are synced", color = MaterialTheme.colorScheme.primary)
-        } else {
-          Text("Databases are NOT synced", color = MaterialTheme.colorScheme.error)
-          val updates = databaseSynchronizer.lastUpdates.value
-          lastLocalUpdate = updates?.first
-          lastRemoteUpdate = updates?.second
-          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-              onClick = {
-                loading = true
-                error = null
-                coroutineScope.launch {
-                  try {
-                    databaseSynchronizer.syncFromLocal()
-                  } catch (e: Exception) {
-                    error = e.message ?: "Upload failed"
-                  } finally {
-                    loading = false
-                  }
-                }
-              }
-            ) {
-              Text("Upload Local → Remote")
-            }
-            Button(
-              onClick = {
-                loading = true
-                error = null
-                coroutineScope.launch {
-                  try {
-                    databaseSynchronizer.syncFromRemote()
-                  } catch (e: Exception) {
-                    error = e.message ?: "Download failed"
-                  } finally {
-                    loading = false
-                  }
-                }
-              }
-            ) {
-              Text("Download Remote → Local")
-            }
-          }
+  val updates = databaseSynchronizer.lastUpdates.value
+  val lastLocalUpdate = updates?.first
+  val lastRemoteUpdate = updates?.second
+
+  SyncStatusContent(
+    loading = loading,
+    error = error,
+    isSynced = databaseSynchronizer.isSynced,
+    lastLocalUpdate = lastLocalUpdate,
+    lastRemoteUpdate = lastRemoteUpdate,
+    onSyncFromLocal = {
+      loading = true
+      error = null
+      coroutineScope.launch {
+        try {
+          databaseSynchronizer.syncFromLocal()
+        } catch (e: Exception) {
+          error = e.message ?: "Upload failed"
+        } finally {
+          loading = false
         }
       }
+    },
+    onSyncFromRemote = {
+      loading = true
+      error = null
+      coroutineScope.launch {
+        try {
+          databaseSynchronizer.syncFromRemote()
+        } catch (e: Exception) {
+          error = e.message ?: "Download failed"
+        } finally {
+          loading = false
+        }
+      }
+    },
+  )
+}
+
+@Composable
+private fun SyncStatusContent(
+  loading: Boolean,
+  error: String?,
+  isSynced: Boolean,
+  lastLocalUpdate: Any?,
+  lastRemoteUpdate: Any?,
+  onSyncFromLocal: () -> Unit,
+  onSyncFromRemote: () -> Unit,
+) {
+  Spacer(modifier = Modifier.height(16.dp))
+  Column(
+    modifier = Modifier.fillMaxWidth().padding(8.dp),
+    verticalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
+    Text("Database Synchronisation", style = MaterialTheme.typography.titleMedium)
+
+    when {
+      loading -> Text("Checking sync status...")
+      error != null -> Text("Error: $error", color = MaterialTheme.colorScheme.error)
+      else ->
+        SyncStatusDetails(
+          isSynced = isSynced,
+          lastLocalUpdate = lastLocalUpdate,
+          lastRemoteUpdate = lastRemoteUpdate,
+          onSyncFromLocal = onSyncFromLocal,
+          onSyncFromRemote = onSyncFromRemote,
+        )
     }
+  }
+}
+
+@Composable
+private fun SyncStatusDetails(
+  isSynced: Boolean,
+  lastLocalUpdate: Any?,
+  lastRemoteUpdate: Any?,
+  onSyncFromLocal: () -> Unit,
+  onSyncFromRemote: () -> Unit,
+) {
+  if (isSynced) {
+    Text("Databases are synced", color = MaterialTheme.colorScheme.primary)
+  } else {
+    Text("Local last update: ${lastLocalUpdate?.toString() ?: "N/A"}")
+    Text("Remote last update: ${lastRemoteUpdate?.toString() ?: "N/A"}")
+    Text("Databases are NOT synced", color = MaterialTheme.colorScheme.error)
+    SyncActions(onSyncFromLocal, onSyncFromRemote)
+  }
+}
+
+@Composable
+private fun SyncActions(onSyncFromLocal: () -> Unit, onSyncFromRemote: () -> Unit) {
+  Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Button(onClick = onSyncFromLocal) { Text("Upload Local → Remote") }
+    Button(onClick = onSyncFromRemote) { Text("Download Remote → Local") }
   }
 }

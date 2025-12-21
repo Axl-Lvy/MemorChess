@@ -136,6 +136,30 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
+  fun testRegisterBookDownload() = runTest {
+    val bookId = bookQueryManager.createBook("Download Test Book")
+    createdBookIds.add(bookId)
+
+    // Initial state
+    var book = bookQueryManager.getBook(bookId)
+    assertEquals(0, book?.downloads)
+
+    // First download
+    val result1 = bookQueryManager.registerBookDownload(bookId)
+    assertTrue(result1)
+
+    book = bookQueryManager.getBook(bookId)
+    assertEquals(1, book?.downloads)
+
+    // Second download (same user)
+    val result2 = bookQueryManager.registerBookDownload(bookId)
+    assertFalse(result2)
+
+    book = bookQueryManager.getBook(bookId)
+    assertEquals(1, book?.downloads)
+  }
+
+  @Test
   fun testDeleteBook() = runTest {
     val bookId = bookQueryManager.createBook("Book to Delete")
 

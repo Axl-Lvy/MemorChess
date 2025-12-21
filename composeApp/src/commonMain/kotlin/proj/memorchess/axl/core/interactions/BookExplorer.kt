@@ -39,13 +39,19 @@ class BookExplorer(
    * This converts book moves to DataNodes and stores them in the database.
    */
   suspend fun downloadBookToRepertoire() {
-    val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
-    val dataNodes = mutableMapOf<PositionIdentifier, DataNode>()
-    dataNodes.fillRecursively(PositionIdentifier.START_POSITION, bookMoves)
+    try {
+      bookQueryManager.registerBookDownload(book.id)
 
-    databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
-    nodeManager.resetCacheFromSource()
-    toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
+      val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
+      val dataNodes = mutableMapOf<PositionIdentifier, DataNode>()
+      dataNodes.fillRecursively(PositionIdentifier.START_POSITION, bookMoves)
+
+      databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
+      nodeManager.resetCacheFromSource()
+      toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
+    } catch (_: Exception) {
+      toastRenderer.info("Failed to download book '${book.name}'.")
+    }
   }
 
   private fun MutableMap<PositionIdentifier, DataNode>.fillRecursively(

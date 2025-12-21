@@ -15,7 +15,6 @@ import org.koin.dsl.module
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
-import proj.memorchess.axl.ui.components.popup.NO_OP_RENDERER
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.navigation.Navigator
 
@@ -25,18 +24,20 @@ interface TestWithKoin : KoinComponent {
   fun setUp() {
     startKoin { modules(*initKoinModules(), initTestModule()) }
     MOVE_ANIMATION_DURATION_SETTING.setValue(Duration.ZERO)
+    ToastRendererForTests.clear()
   }
 
   @AfterTest
   fun tearDown() {
     stopKoin()
+    ToastRendererForTests.clear()
   }
 
   fun initTestModule(): Module {
     return module {
       single<Settings> { TestSettings() }
       single<DatabaseQueryManager>(named("local")) { TestDatabaseQueryManager.empty() }
-      single<ToastRenderer> { NO_OP_RENDERER }
+      single<ToastRenderer> { ToastRendererForTests }
       single<Navigator> { RememberLastRouteNavigator() }
     }
   }

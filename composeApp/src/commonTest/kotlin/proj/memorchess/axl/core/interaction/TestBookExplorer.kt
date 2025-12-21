@@ -23,6 +23,7 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.BookExplorer
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.ToastRendererForTests
 
 /** Tests for [BookExplorer] which handles exploring and downloading book moves. */
 class TestBookExplorer : TestWithKoin {
@@ -150,6 +151,25 @@ class TestBookExplorer : TestWithKoin {
 
     val nodesAfterDownload = database.getAllNodes()
     assertTrue(nodesAfterDownload.isNotEmpty())
+  }
+
+  @Test
+  fun testDownloadBookToRepertoireFail() = runTest {
+    setupTestBook()
+
+    val nodesBeforeDownload = database.getAllNodes()
+    assertTrue(nodesBeforeDownload.isEmpty())
+
+    ensureSignedOut()
+    ToastRendererForTests.clear()
+    bookExplorer.downloadBookToRepertoire()
+
+    val nodesAfterDownload = database.getAllNodes()
+    assertTrue(nodesAfterDownload.isEmpty())
+    ToastRendererForTests.message.find {
+      it.second.contains("Failed to download book Test Opening.")
+    }
+    ensureSignedIn()
   }
 
   @Test

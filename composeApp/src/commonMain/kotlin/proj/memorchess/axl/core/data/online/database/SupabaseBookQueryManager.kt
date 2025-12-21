@@ -140,6 +140,23 @@ class SupabaseBookQueryManager(
       client.postgrest.rpc("delete_book", DeleteBookFunctionArg(bookId)).decodeAs<Boolean>()
     return result
   }
+
+  /**
+   * Registers a book download for the current user.
+   *
+   * This creates a downloaded_books record and increments the book's download counter if the book
+   * hasn't been downloaded by this user before.
+   *
+   * @param bookId The ID of the book to register as downloaded.
+   * @return True if the download was registered (first time), false if already downloaded.
+   */
+  suspend fun registerBookDownload(bookId: Long): Boolean {
+    val user = authManager.user
+    checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
+    val result =
+      client.postgrest.rpc("register_book_download", BookIdFunctionArg(bookId)).decodeAs<Boolean>()
+    return result
+  }
 }
 
 // DTOs for Supabase responses
@@ -149,8 +166,9 @@ private data class BookFetched(
   val id: Long,
   val name: String,
   @SerialName("created_at") val createdAt: Instant,
+  val downloads: Int = 0,
 ) {
-  fun toBook(): Book = Book(id, name, createdAt)
+  fun toBook(): Book = Book(id, name, createdAt, downloads)
 }
 
 @Serializable
