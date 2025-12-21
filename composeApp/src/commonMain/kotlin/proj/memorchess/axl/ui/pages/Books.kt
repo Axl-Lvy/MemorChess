@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -34,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Download
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.book.Book
@@ -45,10 +50,10 @@ import proj.memorchess.axl.ui.pages.navigation.Navigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 /** The number of books to fetch per batch when loading more books. */
-private const val BOOKS_PER_BATCH = 20
+private const val BOOKS_PER_BATCH = 50
 
 /** The number of items before the end of the list at which to trigger loading more books. */
-private const val LOAD_MORE_THRESHOLD = 10
+private const val LOAD_MORE_THRESHOLD = 25
 
 /**
  * State holder for the Books screen.
@@ -515,8 +520,21 @@ private fun BookListItem(book: Book, onClick: () -> Unit, onLongClick: (() -> Un
         .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
-    Column(modifier = Modifier.padding(16.dp)) {
+    Row(
+      modifier = Modifier.padding(16.dp).fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
       Text(book.name, style = MaterialTheme.typography.titleMedium)
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+          FeatherIcons.Download,
+          contentDescription = "Downloads",
+          modifier = Modifier.size(16.dp),
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(book.downloads.toString(), style = MaterialTheme.typography.bodyMedium)
+      }
     }
   }
 }

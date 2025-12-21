@@ -10,16 +10,14 @@ begin
     select coalesce(jsonb_agg(jsonb_build_object(
             'id', b.id,
             'name', b.name,
-            'created_at', b.created_at
+            'created_at', b.created_at,
+            'downloads', b.downloads
                               )), '[]'::jsonb)
     into result
-    from (
-        select b.id, b.name, b.created_at
-        from book b
-        order by b.created_at desc, b.id desc
-        limit limit_input
-        offset offset_input
-    ) b;
+    from (select b.id, b.name, b.created_at, b.downloads
+          from book b
+          order by b.downloads desc, b.created_at desc, b.id desc
+          limit limit_input offset offset_input) b;
 
     return result;
 end;
