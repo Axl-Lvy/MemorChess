@@ -33,7 +33,8 @@ begin
 
     -- Create the download record
     insert into downloaded_books(user_id, book_id)
-    values (current_user_id, book_id_input);
+    values (current_user_id, book_id_input)
+    ON CONFLICT DO NOTHING;
 
     -- Increment the downloaded counter on the book
     update book
