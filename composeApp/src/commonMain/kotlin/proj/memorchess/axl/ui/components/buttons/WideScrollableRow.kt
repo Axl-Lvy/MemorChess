@@ -51,47 +51,87 @@ fun WideScrollableRow(
 ) {
   var selected by remember { mutableStateOf(selectedInitial) }
   val scrollState = rememberScrollState()
+  val colors = WideScrollableRowColors(baseColor, selectedColor, changeSelectedColor)
+
   BoxWithConstraints(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))) {
-    val itemCount = children.size
-    val availableWidth = maxWidth
-    val calculatedItemWidth = (availableWidth / itemCount).coerceAtLeast(minWidth)
-    val totalRequiredWidth = minWidth * itemCount
-    val isScrollable = totalRequiredWidth > availableWidth
-    Row(
-      modifier =
-        if (isScrollable) Modifier.horizontalScroll(scrollState) else Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      children.forEachIndexed { i, child ->
-        val isSelected = i == selected
-        Box(
-          modifier =
-            Modifier.width(if (isScrollable) minWidth else calculatedItemWidth)
-              .background(
-                if (i == selected && changeSelectedColor) {
-                  selectedColor
-                } else {
-                  baseColor
-                }
-              )
-              .testTag(child.testTag)
-              .clickable(!isSelected) {
-                if (changeSelectedColor) {
-                  selected = i
-                }
-                child.onClick()
-              }
-              .fillMaxHeight(),
-          contentAlignment = Alignment.Center,
-        ) {
-          child.drawContent(isSelected)
-        }
-        if (i < children.lastIndex) {
-          Box(Modifier.width(1.dp).fillMaxHeight().background(selectedColor))
-        }
+    WideScrollableRowContent(
+      children = children,
+      minWidth = minWidth,
+      selected = selected,
+      onSelect = { selected = it },
+      colors = colors,
+      scrollState = scrollState,
+    )
+  }
+}
+
+@Composable
+private fun BoxWithConstraintsScope.WideScrollableRowContent(
+  children: List<WideScrollBarChild>,
+  minWidth: Dp,
+  selected: Int,
+  onSelect: (Int) -> Unit,
+  colors: WideScrollableRowColors,
+  scrollState: ScrollState,
+) {
+  val isScrollable = (minWidth * children.size) > maxWidth
+  val itemWidth = if (isScrollable) minWidth else (maxWidth / children.size).coerceAtLeast(minWidth)
+
+  Row(
+    modifier =
+      if (isScrollable) Modifier.horizontalScroll(scrollState) else Modifier.fillMaxWidth(),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    children.forEachIndexed { i, child ->
+      WideScrollableRowItem(
+        child = child,
+        isSelected = i == selected,
+        width = itemWidth,
+        colors = colors,
+        onClick = {
+          if (colors.changeSelected) {
+            onSelect(i)
+          }
+          child.onClick()
+        },
+      )
+      if (i < children.lastIndex) {
+        VerticalSeparator(colors.selected)
       }
     }
-    DrawScrollIndicators(isScrollable, scrollState)
+  }
+  DrawScrollIndicators(isScrollable, scrollState)
+}
+
+@Composable
+private fun VerticalSeparator(color: Color) {
+  Box(Modifier.width(1.dp).fillMaxHeight().background(color))
+}
+
+@Composable
+private fun WideScrollableRowItem(
+  child: WideScrollBarChild,
+  isSelected: Boolean,
+  width: Dp,
+  colors: WideScrollableRowColors,
+  onClick: () -> Unit,
+) {
+  Box(
+    modifier =
+      Modifier.width(width)
+        .background(
+          if (isSelected && colors.changeSelected) {
+            colors.selected
+          } else {
+            colors.base
+          }
+        )
+        .testTag(child.testTag)
+        .clickable(!isSelected) { onClick() }
+        .fillMaxHeight(),
+    contentAlignment = Alignment.Center,
+  ) {
+    child.drawContent(isSelected)
   }
 }
 
@@ -131,3 +171,9 @@ private fun BoxWithConstraintsScope.DrawScrollIndicators(
     }
   }
 }
+
+private data class WideScrollableRowColors(
+  val base: Color,
+  val selected: Color,
+  val changeSelected: Boolean,
+)
