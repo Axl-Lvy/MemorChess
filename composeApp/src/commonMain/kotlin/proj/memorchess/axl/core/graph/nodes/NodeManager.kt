@@ -2,18 +2,22 @@ package proj.memorchess.axl.core.graph.nodes
 
 import co.touchlab.kermit.Logger
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 
-/** Node factory singleton. */
-class NodeManager : KoinComponent {
-
-  /** Reference to the NodeCache singleton. */
-  private val nodeCache: NodeCache by inject()
+/**
+ * NodeManager is responsible for creating and managing nodes in the chess position graph.
+ *
+ * @param NodeT The type of node being managed.
+ * @property nodeConstructor A function to construct a new node.
+ * @property nodeCache The cache used to store and retrieve nodes and their moves.
+ */
+class NodeManager<NodeT : Node<NodeT>>(
+  private val nodeConstructor: (PositionIdentifier, PreviousAndNextMoves, NodeT?, NodeT?) -> NodeT,
+  private val nodeCache: NodeCache,
+) : KoinComponent {
 
   /**
    * Creates the root node.
@@ -22,15 +26,17 @@ class NodeManager : KoinComponent {
    *   position will be used.
    * @return The root node.
    */
-  fun createInitialNode(startPosition: PositionIdentifier? = null): Node {
-    return if (startPosition == null) {
-      val moves = nodeCache.getOrCreate(PositionIdentifier.START_POSITION, 0)
-      Node(PositionIdentifier.START_POSITION, moves)
-    } else {
-      val moves = nodeCache.get(startPosition)
-      checkNotNull(moves) { "Position $startPosition not known." }
-      Node(startPosition, moves)
-    }
+  fun createInitialNode(startPosition: PositionIdentifier? = null): NodeT {
+    val result =
+      if (startPosition == null) {
+        val moves = nodeCache.getOrCreate(PositionIdentifier.START_POSITION, 0)
+        nodeConstructor(PositionIdentifier.START_POSITION, moves, null, null)
+      } else {
+        val moves = nodeCache.get(startPosition)
+        checkNotNull(moves) { "Position $startPosition not known." }
+        nodeConstructor(startPosition, moves, null, null)
+      }
+    return result
   }
 
   /**
@@ -41,7 +47,7 @@ class NodeManager : KoinComponent {
    * @param move The move that led to this position.
    * @return The node.
    */
-  fun createNode(game: Game, previous: Node, move: String): Node {
+  fun createNode(game: Game, previous: NodeT, move: String): NodeT {
     val previousNodeMoves =
       nodeCache.getOrCreate(previous.position, previous.previousAndNextMoves.depth)
     val dataMove =
@@ -58,11 +64,7 @@ class NodeManager : KoinComponent {
       LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
     }
     val newNode =
-      Node(
-        game.position.createIdentifier(),
-        previous = previous,
-        previousAndNextMoves = newNodeLinkedMoves,
-      )
+      nodeConstructor(game.position.createIdentifier(), newNodeLinkedMoves, previous, null)
     previous.addChild(dataMove, newNode)
     return newNode
   }
@@ -76,13 +78,8 @@ class NodeManager : KoinComponent {
   }
 
   /** Resets the cache from the database. */
-  suspend fun resetCacheFromDataBase() {
-    nodeCache.resetGraphFromDatabase()
-  }
-
-  /** Resets the cache from the database. */
-  suspend fun resetCacheFromDataBase(db: DatabaseQueryManager) {
-    nodeCache.resetGraphFromDatabase(db)
+  suspend fun resetCacheFromSource() {
+    nodeCache.resetFromSource()
   }
 
   fun getNextNodeToLearn(day: Int, previousPlayedMove: DataMove?): DataNode? {

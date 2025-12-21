@@ -8,6 +8,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.ui.pages.BookDetail
+import proj.memorchess.axl.ui.pages.Books
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.pages.Settings
 import proj.memorchess.axl.ui.pages.Training
@@ -22,6 +24,8 @@ fun Router(modifier: Modifier = Modifier, navController: Navigator = koinInject(
     trainingRoute()
     settingsRoute()
     exploreRoute()
+    booksRoute()
+    bookDetailRoute()
   }
 }
 
@@ -37,5 +41,16 @@ private fun NavGraphBuilder.exploreRoute() {
   composable<Route.ExploreRoute> {
     val position = it.toRoute<Route.ExploreRoute>().position
     Explore(position?.let { p -> PositionIdentifier.validateAndCreateOrNull(p) })
+  }
+}
+
+private fun NavGraphBuilder.booksRoute() {
+  composable<Route.BooksRoute> { Books() }
+}
+
+private fun NavGraphBuilder.bookDetailRoute() {
+  composable<Route.BookDetailRoute> {
+    val route = it.toRoute<Route.BookDetailRoute>()
+    BookDetail(route.bookId, route.editing)
   }
 }

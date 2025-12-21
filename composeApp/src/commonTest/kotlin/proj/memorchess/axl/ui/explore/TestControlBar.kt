@@ -8,7 +8,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.graph.nodes.DbBasedNodeCache
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnBack
@@ -22,10 +24,10 @@ import proj.memorchess.axl.ui.playMove
 @OptIn(ExperimentalTestApi::class)
 class TestControlBar : TestWithKoin {
 
-  private val nodeManager = NodeManager()
+  private val nodeManager = NodeManager(::PersonalNode, DbBasedNodeCache())
 
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runTest { nodeManager.resetCacheFromDataBase() }
+    runTest { nodeManager.resetCacheFromSource() }
     runComposeUiTest {
       setContent { InitializeApp { Explore() } }
       playMove("e2", "e4")

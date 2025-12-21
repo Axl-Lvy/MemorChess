@@ -41,4 +41,26 @@ sealed interface Route {
   data object SettingsRoute : Route {
     override fun getLabel(): String = "Settings"
   }
+
+  /** Books route - list of available books. */
+  @Serializable
+  @SerialName("books")
+  data object BooksRoute : Route {
+    override fun getLabel(): String = "Books"
+  }
+
+  /**
+   * Book detail route - view and download book moves.
+   *
+   * @property bookId The ID of the book to display.
+   * @property editing Whether the user can edit the book.
+   */
+  @Serializable
+  @SerialName("book_detail")
+  data class BookDetailRoute(
+    @SerialName("bookId") val bookId: Long,
+    @SerialName("canEdit") val editing: Boolean = false,
+  ) : Route {
+    override fun getLabel(): String = "Book Detail"
+  }
 }

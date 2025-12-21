@@ -14,9 +14,13 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
+import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
-import proj.memorchess.axl.core.graph.nodes.NodeCache
+import proj.memorchess.axl.core.graph.nodes.BookBasedNodeCache
+import proj.memorchess.axl.core.graph.nodes.DbBasedNodeCache
+import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
@@ -35,6 +39,7 @@ fun initKoinModules(): Array<Module> {
   val dataModule = module {
     single<DatabaseQueryManager>(named("local")) { getPlatformSpecificLocalDatabase() }
     single<SupabaseQueryManager> { SupabaseQueryManager(get(), get()) }
+    single<SupabaseBookQueryManager> { SupabaseBookQueryManager(get(), get()) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
     single<DatabaseUploader> { DatabaseUploader(get(), get()) }
     single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local")), get()) }
@@ -42,8 +47,21 @@ fun initKoinModules(): Array<Module> {
   }
 
   val nodeModule = module {
-    singleOf(::NodeCache)
-    singleOf(::NodeManager)
+    singleOf(::DbBasedNodeCache)
+    single<DbBasedNodeCache> { DbBasedNodeCache() }
+    single<NodeManager<PersonalNode>> { NodeManager(::PersonalNode, get<DbBasedNodeCache>()) }
+    single<MutableMap<Long, NodeManager<IsolatedBookNode>>> { mutableMapOf() }
+    factory(named("book")) { (bookId: Long) ->
+      val cache: MutableMap<Long, NodeManager<IsolatedBookNode>> = get()
+      cache.getOrPut(bookId) {
+        NodeManager(
+          nodeConstructor = { position, previousAndNextMoves, previous, next ->
+            IsolatedBookNode(bookId, position, previousAndNextMoves, previous, next)
+          },
+          BookBasedNodeCache(bookId),
+        )
+      }
+    }
   }
 
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }

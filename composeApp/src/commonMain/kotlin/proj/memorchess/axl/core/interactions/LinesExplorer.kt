@@ -6,9 +6,13 @@ import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.Node
+import proj.memorchess.axl.core.graph.nodes.NodeManager
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
-class LinesExplorer(position: PositionIdentifier? = null) :
+open class LinesExplorer<NodeT : Node<NodeT>>(
+  position: PositionIdentifier? = null,
+  protected val nodeManager: NodeManager<NodeT>,
+) :
   InteractionsManager(
     if (position == null) {
       Game()
@@ -18,11 +22,7 @@ class LinesExplorer(position: PositionIdentifier? = null) :
   ) {
 
   /** The current node in the exploration tree. */
-  private var node: Node
-
-  init {
-    node = nodeManager.createInitialNode(position)
-  }
+  private var node = nodeManager.createInitialNode(position)
 
   var state by mutableStateOf(node.getState())
 

@@ -12,7 +12,7 @@ import compose.icons.feathericons.AlertCircle
 import compose.icons.feathericons.ArrowRightCircle
 import compose.icons.feathericons.CheckCircle
 import compose.icons.feathericons.HelpCircle
-import proj.memorchess.axl.core.graph.nodes.Node
+import proj.memorchess.axl.core.graph.nodes.Node.NodeState
 import proj.memorchess.axl.ui.theme.goodTint
 
 /**
@@ -23,19 +23,19 @@ import proj.memorchess.axl.ui.theme.goodTint
  * @param state The state of the node.
  */
 @Composable
-fun StateIndicator(modifier: Modifier = Modifier, state: Node.NodeState) {
+fun StateIndicator(modifier: Modifier = Modifier, state: NodeState) {
   val unknownColor = MaterialTheme.colorScheme.outline
   val (color, icon, label) =
     when (state) {
-      Node.NodeState.FIRST -> Triple(goodTint, FeatherIcons.ArrowRightCircle, "Start")
-      Node.NodeState.SAVED_GOOD -> Triple(goodTint, FeatherIcons.CheckCircle, "Saved")
-      Node.NodeState.SAVED_BAD -> Triple(goodTint, FeatherIcons.CheckCircle, "Partially saved")
-      Node.NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE ->
+      NodeState.FIRST -> Triple(goodTint, FeatherIcons.ArrowRightCircle, "Start")
+      NodeState.SAVED_GOOD -> Triple(goodTint, FeatherIcons.CheckCircle, "Saved")
+      NodeState.SAVED_BAD -> Triple(goodTint, FeatherIcons.CheckCircle, "Partially saved")
+      NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE ->
         Triple(unknownColor, FeatherIcons.HelpCircle, "Saved (Unknown Move)")
-      Node.NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE ->
+      NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE ->
         Triple(unknownColor, FeatherIcons.HelpCircle, "Partially saved (Unknown Move)")
-      Node.NodeState.UNKNOWN -> Triple(unknownColor, FeatherIcons.HelpCircle, "Unknown")
-      Node.NodeState.BAD_STATE ->
+      NodeState.UNKNOWN -> Triple(unknownColor, FeatherIcons.HelpCircle, "Unknown")
+      NodeState.BAD_STATE ->
         Triple(MaterialTheme.colorScheme.error, FeatherIcons.AlertCircle, "Bad State")
     }
   BoardTopping(modifier = modifier, backGroundColor = color.copy(alpha = 0.15f)) {

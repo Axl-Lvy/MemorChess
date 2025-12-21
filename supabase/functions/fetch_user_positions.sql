@@ -1,6 +1,4 @@
-create or replace function memor_chess.fetch_user_positions(
-    user_id_input uuid
-)
+create or replace function memor_chess.fetch_user_positions()
     returns jsonb
     language plpgsql
     set search_path to memor_chess
@@ -12,6 +10,7 @@ declare
     previous_moves jsonb;
     next_moves     jsonb;
     linked_moves   jsonb;
+    current_user_id uuid := auth.uid();
 begin
     for pos_record in
         select up.position_id,
@@ -23,7 +22,7 @@ begin
                up.depth
         from user_positions up
                  join positions p on up.position_id = p.id
-        where up.user_id = user_id_input
+        where up.user_id = current_user_id
         loop
             -- previousMoves
             select coalesce(jsonb_agg(jsonb_build_object(
@@ -39,7 +38,7 @@ begin
                      join positions po on po.id = m.origin
                      join user_moves um on um.move_id = m.id
             where m.destination = pos_record.position_id
-              and um.user_id = user_id_input;
+              and um.user_id = current_user_id;
 
             -- nextMoves
             select coalesce(jsonb_agg(jsonb_build_object(
@@ -55,7 +54,7 @@ begin
                      join positions pd on pd.id = m.destination
                      join user_moves um on um.move_id = m.id
             where m.origin = pos_record.position_id
-              and um.user_id = user_id_input;
+              and um.user_id = current_user_id;
 
             -- concat both into linkedMoves
             linked_moves := previous_moves || next_moves;

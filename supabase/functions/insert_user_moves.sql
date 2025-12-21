@@ -1,5 +1,4 @@
 create or replace function memor_chess.insert_user_moves(
-    user_id_input uuid,
     stored_moves jsonb
 )
     returns void
@@ -13,6 +12,7 @@ declare
     origin_id      bigint;
     destination_id bigint;
     move_id_input  bigint;
+    current_user_id uuid := auth.uid();
 begin
     for move_item in select * from jsonb_array_elements(stored_moves)
         loop
@@ -51,7 +51,7 @@ begin
             -- 4. Insert user move
             insert into user_moves(move_id, user_id, is_good, is_deleted, updated_at)
             values (move_id_input,
-                    user_id_input,
+                    current_user_id,
                     (move_item ->> 'isGood')::boolean,
                     (move_item ->> 'isDeleted')::boolean,
                     (move_item ->> 'updatedAt')::timestamp)

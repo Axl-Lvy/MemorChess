@@ -21,6 +21,7 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.training.BoardContainer
@@ -35,8 +36,11 @@ import proj.memorchess.axl.ui.util.BasicReloader
 
 /** Training board */
 @Composable
-fun TrainingBoardPage(modifier: Modifier = Modifier, nodeManager: NodeManager = koinInject()) {
-  LoadingWidget({ nodeManager.resetCacheFromDataBase() }) {
+fun TrainingBoardPage(
+  modifier: Modifier = Modifier,
+  nodeManager: NodeManager<PersonalNode> = koinInject(),
+) {
+  LoadingWidget({ nodeManager.resetCacheFromSource() }) {
     val trainingBoard = remember { TrainingBoard() }
     trainingBoard.Draw(modifier = modifier)
   }
@@ -53,7 +57,7 @@ private class TrainingBoard : KoinComponent {
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
   private var previousPlayedMove: DataMove? = null
-  private val nodeManager: NodeManager by inject()
+  private val nodeManager: NodeManager<PersonalNode> by inject()
   private val localReloader = BasicReloader()
   private val trainerReloader = BasicReloader()
   private var chosenNode by mutableStateOf<DataNode?>(null)

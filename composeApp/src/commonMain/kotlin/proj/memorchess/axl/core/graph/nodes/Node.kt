@@ -1,34 +1,40 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 
 /**
- * Represents a node in the chess position graph. Each node corresponds to a unique chess position
- * and tracks possible moves, previous moves, and links to previous and next nodes in the graph.
+ * Abstract class representing a node in the chess position graph.
  *
- * @property position The unique key representing the chess position (FEN).
- * @property previousAndNextMoves Holds the moves available from this position and the previous
- *   moves leading to it.
- * @property previous Reference to the previous node in the graph.
- * @property next Reference to the next node in the graph.
+ * @param T The type of the node, for next and previous.
+ * @property position The position identifier for this node.
+ * @property previousAndNextMoves The previous and next moves associated with this position.
+ * @property previous The previous node in the graph (null if this is the root).
+ * @property next The next node in the graph (null if there are no next moves).
  */
-class Node(
+abstract class Node<T : Node<T>>(
   val position: PositionIdentifier,
   val previousAndNextMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
-  var previous: Node? = null,
-  var next: Node? = null,
+  var previous: T? = null,
+  var next: T? = null,
 ) : KoinComponent {
 
-  private val database by inject<DatabaseQueryManager>()
+  protected abstract val nodeManager: NodeManager<T>
 
-  private val nodeManager by inject<NodeManager>()
+  /**
+   * Adds a child node representing a move from this position.
+   *
+   * @param move The move string to add.
+   * @param child The child node resulting from the move.
+   * @return True if the move was added successfully, false if it already existed.
+   */
+  fun addChild(move: DataMove, child: T): Boolean {
+    val previous = previousAndNextMoves.addNextMove(move)
+    next = child
+    return previous == null
+  }
 
   /**
    * Creates a new [Game] instance from this node's position.
@@ -37,26 +43,6 @@ class Node(
    */
   fun createGame(): Game {
     return Game(position)
-  }
-
-  /**
-   * Adds a child node representing a move from this position.
-   *
-   * @param move The move string to add.
-   * @param child The child [Node] resulting from the move.
-   */
-  fun addChild(move: DataMove, child: Node) {
-    previousAndNextMoves.addNextMove(move)
-    next = child
-  }
-
-  /**
-   * Saves this node and its ancestors to the database. Persists the position and moves, then
-   * recursively saves the previous node.
-   */
-  private suspend fun save() {
-    DataNode(position, previousAndNextMoves.filterValidMoves(), PreviousAndNextDate.dummyToday())
-      .save()
   }
 
   /** Sets this node as [good][DataMove.isGood] and saves it to the database. */
@@ -73,25 +59,7 @@ class Node(
     previous?.saveGood()
   }
 
-  /**
-   * Deletes this node and its descendants from the database. Recursively deletes child nodes and
-   * clears the moves.
-   */
-  suspend fun delete() {
-    previousAndNextMoves.nextMoves.values.forEach { move ->
-      val game = createGame()
-      game.playMove(move.move)
-      val childNode = nodeManager.createNode(game, this, move.move)
-      childNode.deleteFromPrevious(move)
-    }
-    nodeManager.clearNextMoves(position)
-    database.deletePosition(position)
-    previousAndNextMoves.nextMoves.clear()
-    next = null
-  }
-
-  private suspend fun deleteFromPrevious(previousMove: DataMove) {
-    println("Deleting from previous: $previousMove. Position: $position")
+  protected suspend fun deleteFromPrevious(previousMove: DataMove) {
     nodeManager.clearPreviousMove(position, previousMove)
     check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
       "$previousMove not removed."
@@ -121,12 +89,20 @@ class Node(
       previousAndNextMoves.nextMoves.values.forEach { move ->
         val game = createGame()
         game.playMove(move.move)
-        val childNode = nodeManager.createNode(game, this, move.move)
+        val childNode = nodeManager.createNode(game, this as T, move.move)
         count += childNode.calculateNumberOfNodesToDelete(move)
       }
       count
     }
   }
+
+  protected abstract suspend fun save()
+
+  /**
+   * Deletes this node and its descendants from the database. Recursively deletes child nodes and
+   * clears the moves.
+   */
+  abstract suspend fun delete()
 
   /**
    * Calculate the [state][NodeState] of this node.

@@ -13,23 +13,24 @@ import proj.memorchess.axl.core.engine.moves.factory.CheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
 import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.getGames
 
 class TestLinesExplorer : TestWithKoin {
-  private lateinit var interactionsManager: LinesExplorer
+  private lateinit var interactionsManager: LinesExplorer<PersonalNode>
   private lateinit var moveFactory: RealMoveFactory
   private lateinit var checkChecker: CheckChecker
-  private val nodeManager: NodeManager by inject()
+  private val nodeManager: NodeManager<PersonalNode> by inject()
   private val database: DatabaseQueryManager by inject()
 
   private fun initialize() {
     runTest {
       database.deleteAll(null)
-      nodeManager.resetCacheFromDataBase()
+      nodeManager.resetCacheFromSource()
     }
-    interactionsManager = LinesExplorer()
+    interactionsManager = LinesExplorer(nodeManager = nodeManager)
     moveFactory = RealMoveFactory(interactionsManager.game.position)
     checkChecker = DummyCheckChecker(interactionsManager.game.position)
   }
@@ -235,7 +236,7 @@ class TestLinesExplorer : TestWithKoin {
     val customPosition = interactionsManager.game.position.createIdentifier()
 
     // Act: create a new LinesExplorer from this position
-    val explorerFromCustom = LinesExplorer(customPosition)
+    val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
     // Assert: explorer's game should be at the custom position
     assertEquals(customPosition, explorerFromCustom.game.position.createIdentifier())
   }
@@ -249,7 +250,7 @@ class TestLinesExplorer : TestWithKoin {
     val customPosition = interactionsManager.game.position.createIdentifier()
 
     // Act: create a new LinesExplorer from this position
-    val explorerFromCustom = LinesExplorer(customPosition)
+    val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
     // Assert: explorer's game should be at the custom position
     assertEquals(customPosition, explorerFromCustom.game.position.createIdentifier())
     explorerFromCustom.back()

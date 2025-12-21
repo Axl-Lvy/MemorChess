@@ -1,11 +1,14 @@
 package proj.memorchess.axl.core.interactions
 
+import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 
 /**
  * Trainer based on a node.
@@ -16,6 +19,8 @@ import proj.memorchess.axl.core.engine.Game
  */
 class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (DataMove?) -> Unit) :
   InteractionsManager(Game(node.positionIdentifier)) {
+
+  private val nodeManager: NodeManager<PersonalNode> by inject()
 
   private var isCorrect: Boolean = true
 

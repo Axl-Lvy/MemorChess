@@ -14,8 +14,11 @@ import androidx.compose.ui.Modifier
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
+import org.koin.compose.koinInject
 import proj.memorchess.axl.core.engine.pieces.vectors.King
 import proj.memorchess.axl.core.graph.nodes.Node
+import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
@@ -64,5 +67,8 @@ internal val previewExploreLayoutContent =
         Icon(FeatherIcons.Trash, contentDescription = "Delete")
       }
     },
-    board = { Board(inverted = false, interactionsManager = LinesExplorer()) },
+    board = {
+      val nodeManager: NodeManager<PersonalNode> = koinInject()
+      Board(inverted = false, interactionsManager = LinesExplorer(nodeManager = nodeManager))
+    },
   )

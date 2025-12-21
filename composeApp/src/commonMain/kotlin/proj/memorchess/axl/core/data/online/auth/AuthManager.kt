@@ -9,13 +9,18 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.config.AUTH_ACCESS_TOKEN_SETTINGS
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
+import proj.memorchess.axl.core.data.book.UserPermission
 
 /**
  * A singleton class for managing Supabase authentication
@@ -80,6 +85,7 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
     } else if (user == null && !wasNull) {
       LOGGER.i { "User signed out" }
     }
+    permissionsCache.clear()
     updateSavedTokens()
   }
 
@@ -120,6 +126,34 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
       }
     }
   }
+
+  private val permissionsCache = mutableMapOf<UserPermission, Boolean>()
+
+  /** Checks if the current user has the specified permission. */
+  suspend fun hasUserPermission(permission: UserPermission): Boolean {
+    if (!isUserLoggedIn()) {
+      return false
+    }
+    permissionsCache[permission]?.let {
+      return it
+    }
+    val result =
+      supabaseClient.postgrest
+        .rpc("check_user_permission", CheckPermissionFunctionArg(permission.value))
+        .decodeAs<Boolean>()
+    permissionsCache[permission] = result
+    return result
+  }
+
+  /** Returns true if a user is currently logged in. */
+  fun isUserLoggedIn(): Boolean {
+    return user != null
+  }
 }
 
 private val LOGGER = Logger.withTag("AuthManager")
+
+@Serializable
+private data class CheckPermissionFunctionArg(
+  @SerialName("permission_input") val permission: String
+)

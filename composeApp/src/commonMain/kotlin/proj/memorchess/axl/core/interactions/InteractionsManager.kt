@@ -11,7 +11,6 @@ import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.board.IBoard
 import proj.memorchess.axl.core.engine.moves.IllegalMoveException
 import proj.memorchess.axl.core.engine.moves.description.MoveDescription
-import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
 /**
@@ -21,8 +20,6 @@ import proj.memorchess.axl.ui.components.popup.ToastRenderer
  * @constructor Creates an interaction manager from a game.
  */
 abstract class InteractionsManager(var game: Game) : KoinComponent {
-
-  protected val nodeManager: NodeManager by inject()
 
   val toastRenderer: ToastRenderer by inject()
 
@@ -128,8 +125,8 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
    *
    * @param position The new position key to reset the game to.
    */
-  fun reset(position: PositionIdentifier) {
-    game = Game(position)
+  fun reset(position: PositionIdentifier? = null) {
+    game = if (position == null) Game() else Game(position)
     needPromotion.value = game.needPromotion()
     selectedTile = null
     callCallBacks(false)
