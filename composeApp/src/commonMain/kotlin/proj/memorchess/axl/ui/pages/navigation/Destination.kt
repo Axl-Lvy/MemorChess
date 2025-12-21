@@ -53,13 +53,13 @@ sealed interface Route {
    * Book detail route - view and download book moves.
    *
    * @property bookId The ID of the book to display.
-   * @property canEdit Whether the user can edit the book.
+   * @property editing Whether the user can edit the book.
    */
   @Serializable
   @SerialName("book_detail")
   data class BookDetailRoute(
     @SerialName("bookId") val bookId: Long,
-    @SerialName("canEdit") val canEdit: Boolean = false,
+    @SerialName("canEdit") val editing: Boolean = false,
   ) : Route {
     override fun getLabel(): String = "Book Detail"
   }

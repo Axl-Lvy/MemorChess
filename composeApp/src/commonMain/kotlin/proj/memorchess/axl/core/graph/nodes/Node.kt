@@ -60,7 +60,6 @@ abstract class Node<T : Node<T>>(
   }
 
   protected suspend fun deleteFromPrevious(previousMove: DataMove) {
-    println("Deleting from previous: $previousMove. Position: $position")
     nodeManager.clearPreviousMove(position, previousMove)
     check(!previousAndNextMoves.previousMoves.contains(previousMove.move)) {
       "$previousMove not removed."

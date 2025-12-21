@@ -262,7 +262,7 @@ fun Books(
           BooksContentCallbacks(
             onRefresh = { state.isRefreshing = true },
             onBookClick = { book ->
-              navigator.navigateTo(Route.BookDetailRoute(book.id, canEdit = false))
+              navigator.navigateTo(Route.BookDetailRoute(book.id, editing = false))
             },
             onBookLongClick = { book -> state.selectedBookForActions = book },
             onLoadMore = { coroutineScope.launch { loadMoreBooks() } },
@@ -469,7 +469,7 @@ private fun BooksDialogs(
         coroutineScope.launch {
           val bookId = bookQueryManager.createBook(name)
           state.showCreateDialog = false
-          navigator.navigateTo(Route.BookDetailRoute(bookId, canEdit = true))
+          navigator.navigateTo(Route.BookDetailRoute(bookId, editing = true))
         }
       },
     )
@@ -481,7 +481,7 @@ private fun BooksDialogs(
       onDismiss = { state.selectedBookForActions = null },
       onEdit = {
         state.selectedBookForActions = null
-        navigator.navigateTo(Route.BookDetailRoute(book.id, canEdit = true))
+        navigator.navigateTo(Route.BookDetailRoute(book.id, editing = true))
       },
       onDelete = {
         coroutineScope.launch {
