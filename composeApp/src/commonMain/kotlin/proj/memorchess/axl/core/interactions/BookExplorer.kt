@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.interactions
 
+import co.touchlab.kermit.Logger
 import kotlin.math.min
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
@@ -40,16 +41,16 @@ class BookExplorer(
    */
   suspend fun downloadBookToRepertoire() {
     try {
-      bookQueryManager.registerBookDownload(book.id)
-
       val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
+      bookQueryManager.registerBookDownload(book.id)
       val dataNodes = mutableMapOf<PositionIdentifier, DataNode>()
       dataNodes.fillRecursively(PositionIdentifier.START_POSITION, bookMoves)
 
       databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
       nodeManager.resetCacheFromSource()
       toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+      LOGGER.e(e) { "Failed to download book '${book.name}'." }
       toastRenderer.info("Failed to download book '${book.name}'.")
     }
   }
@@ -78,3 +79,5 @@ class BookExplorer(
     }
   }
 }
+
+private val LOGGER = Logger.withTag("BookExplorer")
