@@ -50,7 +50,7 @@ private fun NavGraphBuilder.booksRoute() {
 
 private fun NavGraphBuilder.bookDetailRoute() {
   composable<Route.BookDetailRoute> {
-    val bookId = it.toRoute<Route.BookDetailRoute>().bookId
-    BookDetail(bookId)
+    val route = it.toRoute<Route.BookDetailRoute>()
+    BookDetail(route.bookId, route.canEdit)
   }
 }

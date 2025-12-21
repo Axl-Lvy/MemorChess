@@ -44,10 +44,15 @@ class SupabaseBookQueryManager(
   /**
    * Fetches all books available.
    *
-   * @return A list of all Book objects.
+   * @param offset The number of books to skip.
+   * @param limit The maximum number of books to fetch.
+   * @return A list of Book objects.
    */
-  suspend fun getAllBooks(): List<Book> {
-    val result = client.postgrest.rpc("fetch_all_books").decodeList<BookFetched>()
+  suspend fun getAllBooks(offset: Int = 0, limit: Int = 50): List<Book> {
+    val result =
+      client.postgrest
+        .rpc("fetch_all_books", FetchAllBooksFunctionArg(offset, limit))
+        .decodeList<BookFetched>()
     return result.map { it.toBook() }
   }
 
@@ -160,6 +165,12 @@ private data class BookMoveFetched(
 }
 
 // Function arguments for Supabase RPC calls
+
+@Serializable
+private data class FetchAllBooksFunctionArg(
+  @SerialName("offset_input") val offset: Int,
+  @SerialName("limit_input") val limit: Int,
+)
 
 @Serializable private data class BookIdFunctionArg(@SerialName("book_id_input") val bookId: Long)
 

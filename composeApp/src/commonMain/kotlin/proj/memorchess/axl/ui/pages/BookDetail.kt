@@ -1,10 +1,9 @@
 package proj.memorchess.axl.ui.pages
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,18 +37,22 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.BookExplorer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
+import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
 /**
  * Book detail page showing book moves and allowing users to browse/download them.
  *
  * @param bookId The ID of the book to display.
+ * @param editing Whether the user can edit the book.
  */
 @Composable
 fun BookDetail(
   bookId: Long,
+  editing: Boolean = false,
   bookQueryManager: SupabaseBookQueryManager = koinInject(),
-  authManager: AuthManager = koinInject(),
   nodeManager: NodeManager<IsolatedBookNode> = koinInject(named("book")) { parametersOf(bookId) },
+  authManager: AuthManager = koinInject(),
+  toastRenderer: ToastRenderer = koinInject(),
 ) {
 
   var book by remember(bookId) { mutableStateOf<Book?>(null) }
@@ -64,15 +67,14 @@ fun BookDetail(
   ) {
     LoadingWidget({
       val fetchedBook = bookQueryManager.getBook(bookId)
+      val canEdit = editing && authManager.hasUserPermission(UserPermission.BOOK_CREATION)
+      if (!canEdit && editing) {
+        toastRenderer.info("You do not have permission to edit this book.")
+      }
       if (fetchedBook != null) {
         book = fetchedBook
         nodeManager.resetCacheFromSource()
-        val explorer =
-          BookExplorer(
-            fetchedBook,
-            authManager.hasUserPermission(UserPermission.BOOK_CREATION),
-            nodeManager,
-          )
+        val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
         bookExplorer = explorer
       }
     }) {
@@ -112,6 +114,14 @@ private fun BookDetailContent(book: Book, explorer: BookExplorer) {
             tint = MaterialTheme.colorScheme.onPrimary,
           )
         }
+      } else {
+        Button(
+          modifier = Modifier.fillMaxWidth(),
+          onClick = { coroutineScope.launch { explorer.downloadBookToRepertoire() } },
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        ) {
+          Icon(FeatherIcons.Download, contentDescription = "Download to Repertoire")
+        }
       }
     },
     deleteButton = {
@@ -139,19 +149,11 @@ private fun BookDetailContent(book: Book, explorer: BookExplorer) {
       }
     },
     header = {
-      Row(horizontalArrangement = Arrangement.SpaceEvenly) {
-        Text(
-          text = "Book: ${book.name}",
-          style = MaterialTheme.typography.headlineMedium,
-          modifier = Modifier.padding(8.dp),
-        )
-        Button(
-          onClick = { coroutineScope.launch { explorer.downloadBookToRepertoire() } },
-          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-        ) {
-          Icon(FeatherIcons.Download, contentDescription = "Download to Repertoire")
-        }
-      }
+      Text(
+        text = "Book: ${book.name}",
+        style = MaterialTheme.typography.headlineMedium,
+        modifier = Modifier.padding(8.dp),
+      )
     },
   )
 }
