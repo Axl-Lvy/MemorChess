@@ -326,9 +326,9 @@ class TestBookQueryManager : TestWithKoin {
   @Test
   fun testFetchBookByName() = runTest {
     val bookId1 = bookQueryManager.createBook("AAA")
-    val bookId2 = bookQueryManager.createBook("BBB")
+    val bookId2 = bookQueryManager.createBook("BBBSEITSRENITSR")
     createdBookIds.addAll(listOf(bookId1, bookId2))
-    val result = bookQueryManager.getAllBooks(0, 50, "B")
+    val result = bookQueryManager.getAllBooks(0, 50, "BSEITSRENITS")
 
     result shouldHaveSize 1
     result shouldMatchEach listOf { assertEquals(bookId2, it.id) }
