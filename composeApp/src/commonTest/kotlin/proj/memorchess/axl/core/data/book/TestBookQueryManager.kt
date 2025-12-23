@@ -319,7 +319,8 @@ class TestBookQueryManager : TestWithKoin {
 
   @Test
   fun testCannotFetchWithNegativeLimit() = runTest {
-    assertFails { bookQueryManager.getAllBooks(0, 0) }
+    bookQueryManager.getAllBooks(0, 0) shouldHaveSize 0
+    assertFails { bookQueryManager.getAllBooks(0, -1) }
   }
 
   @Test
