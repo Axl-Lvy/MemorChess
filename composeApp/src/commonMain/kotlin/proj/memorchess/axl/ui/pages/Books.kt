@@ -1,5 +1,10 @@
 package proj.memorchess.axl.ui.pages
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -306,8 +312,9 @@ fun Books(
 /**
  * Header section for the Books page.
  *
- * Displays the page title "Books", a filter text field for searching books by name, and, if the
- * user has creation permission, shows an "Add" button to create new books.
+ * Displays the page title "Books", a search icon to toggle the filter field, and, if the user has
+ * creation permission, shows an "Add" button to create new books. The filter field appears below
+ * the header with a smooth animation when toggled.
  *
  * @param hasCreationPermission Whether the current user has permission to create books.
  * @param filterText The current filter text for searching books.
@@ -321,25 +328,39 @@ private fun BooksHeader(
   onFilterTextChange: (String) -> Unit,
   onCreateClick: () -> Unit,
 ) {
+  var showFilterField by remember { mutableStateOf(false) }
+
   Column(modifier = Modifier.fillMaxWidth()) {
     Row(
       modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically,
     ) {
+      Text("Books", style = MaterialTheme.typography.headlineMedium)
+      Row {
+        IconButton(onClick = { showFilterField = !showFilterField }) {
+          Icon(Icons.Default.Search, contentDescription = "Filter books")
+        }
+        if (hasCreationPermission) {
+          IconButton(onClick = onCreateClick) {
+            Icon(Icons.Default.Add, contentDescription = "Create Book")
+          }
+        }
+      }
+    }
+
+    AnimatedVisibility(
+      visible = showFilterField,
+      enter = expandVertically() + fadeIn(),
+      exit = shrinkVertically() + fadeOut(),
+    ) {
       OutlinedTextField(
         value = filterText,
         onValueChange = onFilterTextChange,
         label = { Text("Filter by name") },
         singleLine = true,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
       )
-      Text("Books", style = MaterialTheme.typography.headlineMedium)
-      if (hasCreationPermission) {
-        IconButton(onClick = onCreateClick) {
-          Icon(Icons.Default.Add, contentDescription = "Create Book")
-        }
-      }
     }
   }
 }
