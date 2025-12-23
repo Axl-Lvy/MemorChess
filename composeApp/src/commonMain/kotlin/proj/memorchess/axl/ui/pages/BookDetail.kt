@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import co.touchlab.kermit.Logger
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Download
 import compose.icons.feathericons.Save
@@ -66,16 +67,21 @@ fun BookDetail(
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     LoadingWidget({
-      val fetchedBook = bookQueryManager.getBook(bookId)
-      val canEdit = editing && authManager.hasUserPermission(UserPermission.BOOK_CREATION)
-      if (!canEdit && editing) {
-        toastRenderer.info("You do not have permission to edit this book.")
-      }
-      if (fetchedBook != null) {
-        book = fetchedBook
-        nodeManager.resetCacheFromSource()
-        val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
-        bookExplorer = explorer
+      try {
+        val fetchedBook = bookQueryManager.getBook(bookId)
+        val canEdit = editing && authManager.hasUserPermission(UserPermission.BOOK_CREATION)
+        if (!canEdit && editing) {
+          toastRenderer.info("You do not have permission to edit this book.")
+        }
+        if (fetchedBook != null) {
+          book = fetchedBook
+          nodeManager.resetCacheFromSource()
+          val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
+          bookExplorer = explorer
+        }
+      } catch (e: Exception) {
+        LOGGER.e(e) { "Failed to load book $bookId" }
+        toastRenderer.info("Failed to load book.")
       }
     }) {
       val immutableBook = book
@@ -157,3 +163,5 @@ private fun BookDetailContent(book: Book, explorer: BookExplorer) {
     },
   )
 }
+
+private val LOGGER = Logger.withTag("BookDetail")

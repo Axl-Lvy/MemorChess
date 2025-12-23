@@ -37,8 +37,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import co.touchlab.kermit.Logger
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Download
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.book.Book
@@ -46,6 +48,7 @@ import proj.memorchess.axl.core.data.book.UserPermission
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
+import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.navigation.Navigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 
@@ -78,13 +81,16 @@ private class BooksState {
   var hasMoreBooks by mutableStateOf(true)
 
   /** The current offset for pagination (number of books already loaded). */
-  var currentOffset by mutableStateOf(0)
+  var currentOffset by mutableStateOf(0L)
 
   /** Whether the create book dialog is currently shown. */
   var showCreateDialog by mutableStateOf(false)
 
   /** The book currently selected for actions (edit/delete), or null if no book is selected. */
   var selectedBookForActions by mutableStateOf<Book?>(null)
+
+  /** The current filter text for searching books by name. */
+  var filterText by mutableStateOf("")
 
   /** Lock to prevent concurrent load/refresh operations. */
   private var isOperationInProgress by mutableStateOf(false)
@@ -183,6 +189,7 @@ fun Books(
   bookQueryManager: SupabaseBookQueryManager = koinInject(),
   navigator: Navigator = koinInject(),
   authManager: AuthManager = koinInject(),
+  toastRenderer: ToastRenderer = koinInject(),
 ) {
   val state = remember { BooksState() }
   val coroutineScope = rememberCoroutineScope()
@@ -204,12 +211,19 @@ fun Books(
     state.isLoadingMore = true
     try {
       val newBooks =
-        bookQueryManager.getAllBooks(offset = state.currentOffset, limit = BOOKS_PER_BATCH)
+        bookQueryManager.getAllBooks(
+          offset = state.currentOffset,
+          limit = BOOKS_PER_BATCH,
+          text = state.filterText,
+        )
       if (newBooks.isNotEmpty()) {
         state.updateBooksAfterLoad(newBooks)
       } else {
         state.hasMoreBooks = false
       }
+    } catch (e: Exception) {
+      LOGGER.w(e) { "Failed to fetch books." }
+      toastRenderer.info("Failed to load books.")
     } finally {
       state.isLoadingMore = false
       state.operationComplete()
@@ -254,6 +268,11 @@ fun Books(
 
       BooksHeader(
         hasCreationPermission = state.hasCreationPermission,
+        filterText = state.filterText,
+        onFilterTextChange = { newText ->
+          state.filterText = newText
+          state.isRefreshing = true
+        },
         onCreateClick = { state.showCreateDialog = true },
       )
 
@@ -287,25 +306,41 @@ fun Books(
 /**
  * Header section for the Books page.
  *
- * Displays the page title "Books" and, if the user has creation permission, shows an "Add" button
- * to create new books.
+ * Displays the page title "Books", a filter text field for searching books by name, and, if the
+ * user has creation permission, shows an "Add" button to create new books.
  *
  * @param hasCreationPermission Whether the current user has permission to create books.
+ * @param filterText The current filter text for searching books.
+ * @param onFilterTextChange Callback invoked when the filter text changes.
  * @param onCreateClick Callback invoked when the create button is clicked.
  */
 @Composable
-private fun BooksHeader(hasCreationPermission: Boolean, onCreateClick: () -> Unit) {
-  Row(
-    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    Text("Books", style = MaterialTheme.typography.headlineMedium)
-    if (hasCreationPermission) {
-      IconButton(onClick = onCreateClick) {
-        Icon(Icons.Default.Add, contentDescription = "Create Book")
+private fun BooksHeader(
+  hasCreationPermission: Boolean,
+  filterText: String,
+  onFilterTextChange: (String) -> Unit,
+  onCreateClick: () -> Unit,
+) {
+  Column(modifier = Modifier.fillMaxWidth()) {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Text("Books", style = MaterialTheme.typography.headlineMedium)
+      if (hasCreationPermission) {
+        IconButton(onClick = onCreateClick) {
+          Icon(Icons.Default.Add, contentDescription = "Create Book")
+        }
       }
     }
+    OutlinedTextField(
+      value = filterText,
+      onValueChange = onFilterTextChange,
+      label = { Text("Filter by name") },
+      singleLine = true,
+      modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+    )
   }
 }
 
@@ -465,16 +500,25 @@ private fun BooksDialogs(
   state: BooksState,
   bookQueryManager: SupabaseBookQueryManager,
   navigator: Navigator,
-  coroutineScope: kotlinx.coroutines.CoroutineScope,
+  coroutineScope: CoroutineScope,
+  toastRenderer: ToastRenderer = koinInject(),
 ) {
   if (state.showCreateDialog) {
     CreateBookDialog(
       onDismiss = { state.showCreateDialog = false },
       onCreate = { name ->
         coroutineScope.launch {
-          val bookId = bookQueryManager.createBook(name)
-          state.showCreateDialog = false
-          navigator.navigateTo(Route.BookDetailRoute(bookId, editing = true))
+          var bookId: Long? = null
+          try {
+            bookId = bookQueryManager.createBook(name)
+          } catch (e: Exception) {
+            LOGGER.e(e) { "Failed to create book." }
+            toastRenderer.info("Failed to create book.")
+          }
+          if (bookId != null) {
+            state.showCreateDialog = false
+            navigator.navigateTo(Route.BookDetailRoute(bookId, editing = true))
+          }
         }
       },
     )
@@ -490,9 +534,14 @@ private fun BooksDialogs(
       },
       onDelete = {
         coroutineScope.launch {
-          bookQueryManager.deleteBook(book.id)
-          state.selectedBookForActions = null
-          state.isRefreshing = true
+          try {
+            bookQueryManager.deleteBook(book.id)
+            state.selectedBookForActions = null
+            state.isRefreshing = true
+          } catch (e: Exception) {
+            toastRenderer.info("Failed to delete book ${book.name}")
+            LOGGER.e(e) { "Failed to delete book ${book.id}" }
+          }
         }
       },
     )
@@ -605,3 +654,5 @@ private fun BookActionsDialog(
     },
   )
 }
+
+private val LOGGER = Logger.withTag("Books")

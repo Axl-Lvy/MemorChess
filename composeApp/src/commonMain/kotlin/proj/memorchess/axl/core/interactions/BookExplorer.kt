@@ -47,7 +47,6 @@ class BookExplorer(
       dataNodes.fillRecursively(PositionIdentifier.START_POSITION, bookMoves)
 
       databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
-      nodeManager.resetCacheFromSource()
       toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
     } catch (e: Exception) {
       LOGGER.e(e) { "Failed to download book '${book.name}'." }

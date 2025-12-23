@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
@@ -166,7 +167,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodesAfterDownload = database.getAllNodes()
     assertTrue(nodesAfterDownload.isEmpty())
-    ToastRendererForTests.message.find {
+    ToastRendererForTests.messages.find {
       it.second.contains("Failed to download book Test Opening.")
     }
     ensureSignedIn()
@@ -710,6 +711,25 @@ class TestBookExplorer : TestWithKoin {
     val movesAfterDelete = bookQueryManager.getBookMoves(testBook.id)
     assertEquals(2, movesAfterDelete.size)
     assertFalse(movesAfterDelete.any { it.move == "Nf3" })
+  }
+
+  fun testDeleteMoveFail() = runTest {
+    setupTestBook(canEdit = true)
+
+    val initialMoves = bookQueryManager.getBookMoves(testBook.id)
+    assertEquals(3, initialMoves.size)
+
+    bookExplorer.playMove("e4")
+    bookExplorer.playMove("e5")
+    ensureSignedOut()
+    ToastRendererForTests.clear()
+    bookExplorer.delete()
+    ensureSignedIn()
+
+    val movesAfterDelete = bookQueryManager.getBookMoves(testBook.id)
+    assertEquals(3, movesAfterDelete.size)
+    assertTrue(movesAfterDelete.any { it.move == "Nf3" })
+    assertNull(ToastRendererForTests.messages.find { it.second.contains("Failed to delete move") })
   }
 
   @Test
