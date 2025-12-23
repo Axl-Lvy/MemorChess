@@ -327,6 +327,13 @@ private fun BooksHeader(
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically,
     ) {
+      OutlinedTextField(
+        value = filterText,
+        onValueChange = onFilterTextChange,
+        label = { Text("Filter by name") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+      )
       Text("Books", style = MaterialTheme.typography.headlineMedium)
       if (hasCreationPermission) {
         IconButton(onClick = onCreateClick) {
@@ -334,13 +341,6 @@ private fun BooksHeader(
         }
       }
     }
-    OutlinedTextField(
-      value = filterText,
-      onValueChange = onFilterTextChange,
-      label = { Text("Filter by name") },
-      singleLine = true,
-      modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-    )
   }
 }
 
