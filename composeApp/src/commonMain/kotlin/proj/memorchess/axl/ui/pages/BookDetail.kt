@@ -67,22 +67,18 @@ fun BookDetail(
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     LoadingWidget({
-      try {
-        val fetchedBook = bookQueryManager.getBook(bookId)
-        val canEdit = editing && authManager.hasUserPermission(UserPermission.BOOK_CREATION)
-        if (!canEdit && editing) {
-          toastRenderer.info("You do not have permission to edit this book.")
-        }
-        if (fetchedBook != null) {
-          book = fetchedBook
-          nodeManager.resetCacheFromSource()
-          val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
+      loadBookData(
+        bookId = bookId,
+        editing = editing,
+        bookQueryManager = bookQueryManager,
+        nodeManager = nodeManager,
+        authManager = authManager,
+        toastRenderer = toastRenderer,
+        onBookLoaded = { loadedBook, explorer ->
+          book = loadedBook
           bookExplorer = explorer
-        }
-      } catch (e: Exception) {
-        LOGGER.e(e) { "Failed to load book $bookId" }
-        toastRenderer.info("Failed to load book.")
-      }
+        },
+      )
     }) {
       val immutableBook = book
       val immutableBookExplorer = bookExplorer
@@ -95,6 +91,33 @@ fun BookDetail(
         BookDetailContent(immutableBook, explorer = immutableBookExplorer)
       }
     }
+  }
+}
+
+/** Loads book data and initializes the explorer. */
+private suspend fun loadBookData(
+  bookId: Long,
+  editing: Boolean,
+  bookQueryManager: SupabaseBookQueryManager,
+  nodeManager: NodeManager<IsolatedBookNode>,
+  authManager: AuthManager,
+  toastRenderer: ToastRenderer,
+  onBookLoaded: (Book, BookExplorer) -> Unit,
+) {
+  try {
+    val fetchedBook = bookQueryManager.getBook(bookId) ?: return
+    val canEdit = editing && authManager.hasUserPermission(UserPermission.BOOK_CREATION)
+
+    if (!canEdit && editing) {
+      toastRenderer.info("You do not have permission to edit this book.")
+    }
+
+    nodeManager.resetCacheFromSource()
+    val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
+    onBookLoaded(fetchedBook, explorer)
+  } catch (e: Exception) {
+    LOGGER.e(e) { "Failed to load book $bookId" }
+    toastRenderer.info("Failed to load book.")
   }
 }
 
