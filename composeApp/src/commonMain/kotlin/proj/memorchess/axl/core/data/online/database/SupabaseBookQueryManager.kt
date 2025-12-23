@@ -51,6 +51,7 @@ class SupabaseBookQueryManager(
    * @return A list of Book objects.
    */
   suspend fun getAllBooks(offset: Long = 0, limit: Int = 50, text: String = ""): List<Book> {
+    require(limit > 0) { "Limit must be greater than 0" }
     val result =
       client.postgrest
         .from("book")

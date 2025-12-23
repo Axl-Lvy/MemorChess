@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
-import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
@@ -713,6 +713,7 @@ class TestBookExplorer : TestWithKoin {
     assertFalse(movesAfterDelete.any { it.move == "Nf3" })
   }
 
+  @Test
   fun testDeleteMoveFail() = runTest {
     setupTestBook(canEdit = true)
 
@@ -729,7 +730,9 @@ class TestBookExplorer : TestWithKoin {
     val movesAfterDelete = bookQueryManager.getBookMoves(testBook.id)
     assertEquals(3, movesAfterDelete.size)
     assertTrue(movesAfterDelete.any { it.move == "Nf3" })
-    assertNull(ToastRendererForTests.messages.find { it.second.contains("Failed to delete move") })
+    assertNotNull(
+      ToastRendererForTests.messages.find { it.second.contains("Failed to delete move") }
+    )
   }
 
   @Test

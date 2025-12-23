@@ -6,6 +6,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
@@ -317,10 +318,16 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
+  fun testCannotFetchWithNegativeLimit() = runTest {
+    assertFails { bookQueryManager.getAllBooks(0, 0) }
+  }
+
+  @Test
   fun testFetchBookByName() = runTest {
-    bookQueryManager.createBook("AAA")
+    val bookId1 = bookQueryManager.createBook("AAA")
     val bookId2 = bookQueryManager.createBook("BBB")
-    val result = bookQueryManager.getAllBooks(0, 0, "B")
+    createdBookIds.addAll(listOf(bookId1, bookId2))
+    val result = bookQueryManager.getAllBooks(0, 50, "B")
 
     result shouldHaveSize 1
     result shouldMatchEach listOf { assertEquals(bookId2, it.id) }
