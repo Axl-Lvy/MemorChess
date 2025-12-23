@@ -1,9 +1,12 @@
 package proj.memorchess.axl.core.data.book
 
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.collections.shouldMatchEach
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
@@ -312,5 +315,22 @@ class TestBookQueryManager : TestWithKoin {
       )
 
     assertFalse(result)
+  }
+
+  @Test
+  fun testCannotFetchWithNegativeLimit() = runTest {
+    bookQueryManager.getAllBooks(0, 0) shouldHaveSize 0
+    assertFails { bookQueryManager.getAllBooks(0, -1) }
+  }
+
+  @Test
+  fun testFetchBookByName() = runTest {
+    val bookId1 = bookQueryManager.createBook("AAA")
+    val bookId2 = bookQueryManager.createBook("BBBSEITSRENITSR")
+    createdBookIds.addAll(listOf(bookId1, bookId2))
+    val result = bookQueryManager.getAllBooks(0, 50, "BSEITSRENITS")
+
+    result shouldHaveSize 1
+    result shouldMatchEach listOf { assertEquals(bookId2, it.id) }
   }
 }

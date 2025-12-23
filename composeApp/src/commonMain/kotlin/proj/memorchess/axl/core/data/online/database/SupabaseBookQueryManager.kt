@@ -4,6 +4,7 @@ package proj.memorchess.axl.core.data.online.database
 
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -46,12 +47,24 @@ class SupabaseBookQueryManager(
    *
    * @param offset The number of books to skip.
    * @param limit The maximum number of books to fetch.
+   * @param text The text to filter books by name.
    * @return A list of Book objects.
    */
-  suspend fun getAllBooks(offset: Int = 0, limit: Int = 50): List<Book> {
+  suspend fun getAllBooks(offset: Long = 0, limit: Int = 50, text: String = ""): List<Book> {
+    require(limit >= 0) { "Limit must be greater than 0" }
+    if (limit == 0) return emptyList()
     val result =
       client.postgrest
-        .rpc("fetch_all_books", FetchAllBooksFunctionArg(offset, limit))
+        .from("book")
+        .select {
+          if (text.isNotBlank()) {
+            filter { ilike("name", "%$text%") }
+          }
+          order("downloads", Order.DESCENDING)
+          order("created_at", Order.DESCENDING)
+          order("id", Order.DESCENDING)
+          range(offset, (offset + limit - 1))
+        }
         .decodeList<BookFetched>()
     return result.map { it.toBook() }
   }
@@ -183,12 +196,6 @@ private data class BookMoveFetched(
 }
 
 // Function arguments for Supabase RPC calls
-
-@Serializable
-private data class FetchAllBooksFunctionArg(
-  @SerialName("offset_input") val offset: Int,
-  @SerialName("limit_input") val limit: Int,
-)
 
 @Serializable private data class BookIdFunctionArg(@SerialName("book_id_input") val bookId: Long)
 

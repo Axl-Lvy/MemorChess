@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import co.touchlab.kermit.Logger
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Download
 import compose.icons.feathericons.Save
@@ -66,17 +67,18 @@ fun BookDetail(
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     LoadingWidget({
-      val fetchedBook = bookQueryManager.getBook(bookId)
-      val canEdit = editing && authManager.hasUserPermission(UserPermission.BOOK_CREATION)
-      if (!canEdit && editing) {
-        toastRenderer.info("You do not have permission to edit this book.")
-      }
-      if (fetchedBook != null) {
-        book = fetchedBook
-        nodeManager.resetCacheFromSource()
-        val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
-        bookExplorer = explorer
-      }
+      loadBookData(
+        bookId = bookId,
+        editing = editing,
+        bookQueryManager = bookQueryManager,
+        nodeManager = nodeManager,
+        authManager = authManager,
+        toastRenderer = toastRenderer,
+        onBookLoaded = { loadedBook, explorer ->
+          book = loadedBook
+          bookExplorer = explorer
+        },
+      )
     }) {
       val immutableBook = book
       val immutableBookExplorer = bookExplorer
@@ -89,6 +91,33 @@ fun BookDetail(
         BookDetailContent(immutableBook, explorer = immutableBookExplorer)
       }
     }
+  }
+}
+
+/** Loads book data and initializes the explorer. */
+private suspend fun loadBookData(
+  bookId: Long,
+  editing: Boolean,
+  bookQueryManager: SupabaseBookQueryManager,
+  nodeManager: NodeManager<IsolatedBookNode>,
+  authManager: AuthManager,
+  toastRenderer: ToastRenderer,
+  onBookLoaded: (Book, BookExplorer) -> Unit,
+) {
+  try {
+    val fetchedBook = bookQueryManager.getBook(bookId) ?: return
+    val canEdit = editing && authManager.hasUserPermission(UserPermission.BOOK_CREATION)
+
+    if (!canEdit && editing) {
+      toastRenderer.info("You do not have permission to edit this book.")
+    }
+
+    nodeManager.resetCacheFromSource()
+    val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
+    onBookLoaded(fetchedBook, explorer)
+  } catch (e: Exception) {
+    LOGGER.e(e) { "Failed to load book $bookId" }
+    toastRenderer.info("Failed to load book.")
   }
 }
 
@@ -157,3 +186,5 @@ private fun BookDetailContent(book: Book, explorer: BookExplorer) {
     },
   )
 }
+
+private val LOGGER = Logger.withTag("BookDetail")

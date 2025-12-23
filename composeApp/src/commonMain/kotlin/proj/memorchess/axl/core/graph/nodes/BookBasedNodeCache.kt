@@ -6,7 +6,9 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
+import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
 /**
  * BookBasedNodeCache is a NodeCache implementation that retrieves moves from a specific book in the
@@ -17,10 +19,17 @@ import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent {
 
   private val bookQueryManager: SupabaseBookQueryManager by inject()
+  private val toastRenderer: ToastRenderer by inject()
 
   override suspend fun resetFromSource() {
     clear()
-    val allMoves = bookQueryManager.getBookMoves(bookId)
+    val allMoves = mutableListOf<BookMove>()
+    try {
+      allMoves.addAll(bookQueryManager.getBookMoves(bookId))
+    } catch (e: Exception) {
+      LOGGER.e(e) { "Failed to fetch book moves from $bookId" }
+      toastRenderer.info("Failed to fetch book moves.")
+    }
     allMoves.forEach { move ->
       movesCache
         .getOrPut(move.origin) { PreviousAndNextMoves() }
@@ -66,7 +75,12 @@ class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent 
   }
 
   override suspend fun deleteMove(move: DataMove) {
-    bookQueryManager.removeMoveFromBook(bookId, move.origin.fenRepresentation, move.move)
+    try {
+      bookQueryManager.removeMoveFromBook(bookId, move.origin.fenRepresentation, move.move)
+    } catch (e: Exception) {
+      LOGGER.e(e) { "Failed to delete move ${move.move} from book." }
+      toastRenderer.info("Failed to delete move ${move.move} from book.")
+    }
   }
 
   private fun throwUnsupportedOperation(): Nothing {

@@ -137,12 +137,17 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
     permissionsCache[permission]?.let {
       return it
     }
-    val result =
-      supabaseClient.postgrest
-        .rpc("check_user_permission", CheckPermissionFunctionArg(permission.value))
-        .decodeAs<Boolean>()
-    permissionsCache[permission] = result
-    return result
+    try {
+      val result =
+        supabaseClient.postgrest
+          .rpc("check_user_permission", CheckPermissionFunctionArg(permission.value))
+          .decodeAs<Boolean>()
+      permissionsCache[permission] = result
+      return result
+    } catch (e: Exception) {
+      LOGGER.e(e) { "Failed to check user permission: ${permission.value}" }
+      return false
+    }
   }
 
   /** Returns true if a user is currently logged in. */
