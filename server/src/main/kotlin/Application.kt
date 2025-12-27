@@ -8,8 +8,8 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
+  configureFlyway()
   configureSecurity()
-  configureSerialization()
   configureDatabases()
   configureRouting()
 }

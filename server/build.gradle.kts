@@ -21,6 +21,9 @@ dependencies {
   implementation(libs.ktor.server.content.negotiation)
   implementation(libs.exposed.core)
   implementation(libs.exposed.jdbc)
+  implementation(libs.exposed.dao)
+  implementation(libs.flyway.core)
+  implementation(libs.flyway.database.postgresql)
   implementation(libs.postgresql)
   implementation(libs.ktor.server.netty)
   implementation(libs.logback.classic)
@@ -30,6 +33,8 @@ dependencies {
   testImplementation(libs.kotlin.test.junit)
   implementation(libs.ktor.server.swagger)
   implementation(libs.ktor.server.openapi)
+  implementation(libs.kgraphql)
+  implementation(libs.kgraphql.ktor)
 }
 
 swagger {
