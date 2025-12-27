@@ -22,6 +22,7 @@ dependencies {
   implementation(libs.exposed.core)
   implementation(libs.exposed.jdbc)
   implementation(libs.exposed.dao)
+  implementation(libs.exposed.datetime)
   implementation(libs.flyway.core)
   implementation(libs.flyway.database.postgresql)
   implementation(libs.postgresql)

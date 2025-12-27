@@ -76,7 +76,7 @@ CREATE INDEX idx_user_moves_user_id ON user_moves(user_id);
 CREATE INDEX idx_user_moves_move_id ON user_moves(move_id);
 
 -- Books table (stores opening repertoire books)
-CREATE TABLE book (
+CREATE TABLE books (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     downloads BIGINT DEFAULT 0,
@@ -84,14 +84,14 @@ CREATE TABLE book (
 );
 
 -- Create index on book name
-CREATE INDEX idx_book_name ON book(name);
-CREATE INDEX idx_book_downloads ON book(downloads DESC);
+CREATE INDEX idx_book_name ON books(name);
+CREATE INDEX idx_book_downloads ON books(downloads DESC);
 
 -- Move cross book table (many-to-many relationship between moves and books)
 CREATE TABLE move_cross_book (
     id BIGSERIAL PRIMARY KEY,
     move_id BIGINT NOT NULL REFERENCES moves(id) ON DELETE CASCADE,
-    book_id BIGINT NOT NULL REFERENCES book(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     is_good BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(move_id, book_id)
@@ -105,7 +105,7 @@ CREATE INDEX idx_move_cross_book_book_id ON move_cross_book(book_id);
 CREATE TABLE downloaded_books (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID NOT NULL,
-    book_id BIGINT NOT NULL REFERENCES book(id) ON DELETE CASCADE,
+    book_id BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
     downloaded_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(user_id, book_id)
 );
@@ -131,7 +131,7 @@ COMMENT ON TABLE positions IS 'Stores unique chess positions using FEN notation'
 COMMENT ON TABLE moves IS 'Stores chess moves connecting two positions';
 COMMENT ON TABLE user_positions IS 'Tracks user-specific position data including training schedule';
 COMMENT ON TABLE user_moves IS 'Tracks user-specific move preferences and deletion status';
-COMMENT ON TABLE book IS 'Stores opening repertoire books';
+COMMENT ON TABLE books IS 'Stores opening repertoire books';
 COMMENT ON TABLE move_cross_book IS 'Links moves to books they belong to';
 COMMENT ON TABLE downloaded_books IS 'Tracks book downloads by users';
 COMMENT ON TABLE user_permissions IS 'Manages user permissions like book creation rights';
