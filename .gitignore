@@ -19,3 +19,4 @@ captures
 .scannerwork/
 kotlin-js-store
 docs/
+reset-db.ps1
