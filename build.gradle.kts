@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   // this is necessary to avoid the plugins to be loaded multiple times
   // in each subproject's classloader
@@ -12,8 +14,8 @@ plugins {
 }
 
 // Load properties from local.properties
-val localProperties = java.util.Properties()
-val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties()
+val localPropertiesFile: File = rootProject.file("local.properties")
 
 if (localPropertiesFile.exists()) {
   localProperties.load(localPropertiesFile.inputStream())
