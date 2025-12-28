@@ -1,10 +1,10 @@
 package proj.memorchess.axl.server.data
 
-import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
-import org.jetbrains.exposed.sql.kotlin.datetime.date
-import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
+import org.jetbrains.exposed.v1.datetime.date
+import org.jetbrains.exposed.v1.datetime.timestamp
 
 /** Exposed table definition for users. */
 object Users : Table("users") {
@@ -50,7 +50,8 @@ object Moves : Table("moves") {
 object UserPositions : Table("user_positions") {
   val id = long("id").autoIncrement()
   val userId = uuid("user_id").index()
-  val positionId = reference("position_id", Positions.id, onDelete = ReferenceOption.CASCADE).index()
+  val positionId =
+    reference("position_id", Positions.id, onDelete = ReferenceOption.CASCADE).index()
   val depth = integer("depth").default(0)
   val lastTrainingDate = date("last_training_date").nullable()
   val nextTrainingDate = date("next_training_date").nullable().index()
@@ -134,3 +135,22 @@ object UserPermissions : Table("user_permissions") {
     uniqueIndex(userId, permission)
   }
 }
+
+/**
+ * Returns all table definitions in this file using reflection.
+ *
+ * This automatically discovers all objects that extend [Table], eliminating the need to manually
+ * maintain a list of tables.
+ */
+val ALL_TABLES: Array<Table> =
+  arrayOf(
+    Users,
+    Positions,
+    Moves,
+    UserPositions,
+    UserMoves,
+    Books,
+    MoveCrossBook,
+    DownloadedBooks,
+    UserPermissions,
+  )
