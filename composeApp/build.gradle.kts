@@ -81,6 +81,9 @@ kotlin {
   // Source sets configuration
   sourceSets {
     commonMain.dependencies {
+      // Shared module
+      implementation(project(":shared"))
+
       // Compose dependencies
       implementation(compose.runtime)
       implementation(compose.foundation)

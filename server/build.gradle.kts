@@ -14,6 +14,7 @@ application { mainClass = "io.ktor.server.netty.EngineMain" }
 ktfmt { googleStyle() }
 
 dependencies {
+  implementation(project(":shared"))
   implementation(libs.ktor.server.auth)
   implementation(libs.ktor.server.core)
   implementation(libs.ktor.server.auth.jwt)
@@ -21,6 +22,7 @@ dependencies {
   implementation(libs.ktor.server.content.negotiation)
   implementation(libs.exposed.core)
   implementation(libs.exposed.r2dbc)
+  implementation(libs.exposed.jdbc)
   implementation(libs.exposed.migration.core)
   implementation(libs.exposed.migration.r2dbc)
   implementation(libs.exposed.dao)

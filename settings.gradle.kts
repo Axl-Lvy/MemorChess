@@ -43,3 +43,4 @@ develocity {
 
 include(":composeApp")
 include(":server")
+include(":shared")
