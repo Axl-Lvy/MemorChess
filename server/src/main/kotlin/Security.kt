@@ -1,8 +1,5 @@
 package proj.memorchess.axl.server
 
-import io.github.tabilzad.ktor.annotations.GenerateOpenApi
-import io.github.tabilzad.ktor.annotations.KtorDescription
-import io.github.tabilzad.ktor.annotations.respondsNothing
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.auth.UserIdPrincipal
@@ -11,9 +8,7 @@ import io.ktor.server.auth.authentication
 import io.ktor.server.auth.basic
 import io.ktor.server.auth.form
 import io.ktor.server.auth.principal
-import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
-import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 
@@ -46,11 +41,8 @@ fun Application.configureSecurity() {
     }
   }
   routing {
-
     authenticate(FORM_AUTH) {
-      post("/login") {
-        call.respondText("Hello, ${call.principal<UserIdPrincipal>()?.name}!")
-      }
+      post("/login") { call.respondText("Hello, ${call.principal<UserIdPrincipal>()?.name}!") }
     }
   }
 }

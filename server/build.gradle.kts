@@ -30,12 +30,13 @@ dependencies {
   implementation(libs.logback.classic)
   implementation(libs.ktor.server.config.yaml)
   implementation(libs.ktor.client.apache)
-  testImplementation(libs.ktor.server.test.host)
-  testImplementation(libs.kotlin.test.junit)
   implementation(libs.ktor.server.swagger)
   implementation(libs.ktor.server.openapi)
   implementation(libs.kgraphql)
   implementation(libs.kgraphql.ktor)
+
+  testImplementation(libs.ktor.server.test.host)
+  testImplementation(libs.kotlin.test.junit)
 }
 
 swagger {
