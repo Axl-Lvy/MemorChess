@@ -37,6 +37,7 @@ dependencies {
   implementation(libs.ktor.server.openapi)
   implementation(libs.kgraphql)
   implementation(libs.kgraphql.ktor)
+  implementation(libs.ktor.server.rate.limit)
 
   testImplementation(libs.ktor.server.test.host)
   testImplementation(libs.kotlin.test.junit)
