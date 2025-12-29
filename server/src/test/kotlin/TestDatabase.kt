@@ -24,7 +24,6 @@ fun Application.configureTestDatabase() {
   val password = environment.config.property("database.password").getString()
   val url = environment.config.property("database.url").getString()
 
-
   // Clean and migrate to ensure fresh state
   if (!migrationApplied) {
     // Run migrations on test database
@@ -38,13 +37,11 @@ fun Application.configureTestDatabase() {
     flyway.migrate()
     Database.connect(url = url, driver = "org.postgresql.Driver", user = user, password = password)
     migrationApplied = true
-    seedTestData()
   } else {
     Database.connect(url = url, driver = "org.postgresql.Driver", user = user, password = password)
-//    cleanTestDatabase()
+    cleanTestDatabase()
   }
-  // Clean all data from the database
-  //  cleanTestDatabase()
+  seedTestData()
 }
 
 /**

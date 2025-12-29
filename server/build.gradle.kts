@@ -35,6 +35,7 @@ dependencies {
   implementation(libs.ktor.client.apache)
   implementation(libs.ktor.server.swagger)
   implementation(libs.ktor.server.openapi)
+  implementation(libs.ktor.server.resource)
   implementation(libs.kgraphql)
   implementation(libs.kgraphql.ktor)
   implementation(libs.ktor.server.rate.limit)
@@ -43,6 +44,7 @@ dependencies {
   testImplementation(libs.ktor.server.test.host)
   testImplementation(libs.ktor.client.content.negotiation)
   testImplementation(libs.ktor.client.auth)
+  testImplementation(libs.ktor.client.resource)
   testImplementation(libs.kotlin.test.junit)
 }
 

@@ -43,16 +43,8 @@ fun addMoves(user: String, moves: List<MoveFetched>) {
     val userEntity =
       UserEntity.find { UsersTable.email eq user }.firstOrNull() ?: return@transaction
     for (move in moves) {
-      val originPositionEntity =
-        PositionEntity.find { PositionsTable.fenRepresentation eq move.origin.positionIdentifier }
-          .firstOrNull()
-          ?: PositionEntity.new { fenRepresentation = move.origin.positionIdentifier }
-      val destinationPositionEntity =
-        PositionEntity.find {
-            PositionsTable.fenRepresentation eq move.destination.positionIdentifier
-          }
-          .firstOrNull()
-          ?: PositionEntity.new { fenRepresentation = move.destination.positionIdentifier }
+      val originPositionEntity = updatePosition(move.origin, userEntity)
+      val destinationPositionEntity = updatePosition(move.destination, userEntity)
       val moveEntity =
         MoveEntity.find {
             (MovesTable.origin eq originPositionEntity.id.value) and
@@ -73,6 +65,34 @@ fun addMoves(user: String, moves: List<MoveFetched>) {
       }
     }
   }
+}
+
+private fun updatePosition(position: PositionFetched, userEntity: UserEntity): PositionEntity {
+  val originPositionEntity =
+    PositionEntity.find { PositionsTable.fenRepresentation eq position.positionIdentifier }
+      .firstOrNull() ?: PositionEntity.new { fenRepresentation = position.positionIdentifier }
+  UserPositionEntity.find {
+      (UserPositionsTable.userId eq userEntity.id.value) and
+        (UserPositionsTable.positionId eq originPositionEntity.id.value)
+    }
+    .firstOrNull()
+    ?.let {
+      it.depth = position.depth
+      it.lastTrainingDate = position.lastTrainingDate
+      it.nextTrainingDate = position.nextTrainingDate
+      it.isDeleted = position.isDeleted
+      it.updatedAt = position.updatedAt
+    }
+    ?: UserPositionEntity.new {
+      this.user = userEntity
+      this.position = originPositionEntity
+      this.depth = position.depth
+      this.lastTrainingDate = position.lastTrainingDate
+      this.nextTrainingDate = position.nextTrainingDate
+      this.isDeleted = position.isDeleted
+      this.updatedAt = position.updatedAt
+    }
+  return originPositionEntity
 }
 
 fun getNode(userId: String, fen: String): NodeFetched? {

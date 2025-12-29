@@ -4,6 +4,7 @@ import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BasicAuthCredentials
 import io.ktor.client.plugins.auth.providers.basic
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.resources.Resources
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.config.ApplicationConfig
@@ -21,22 +22,26 @@ fun testApplicationWithTestModule(block: suspend ApplicationTestBuilder.() -> Un
     environment { config = ApplicationConfig("application-test.yaml") }
     client = createClient {
       install(ContentNegotiation) { json() }
+      install(Resources)
     }
+    startApplication()
     block()
   }
 }
 
-fun testAuthenticated(block: suspend ApplicationTestBuilder.() -> Unit) = testApplicationWithTestModule {
-  client = client.config {
-    install(Auth) {
-      basic {
-        credentials { BasicAuthCredentials(username = "admin", password = "admin") }
-        sendWithoutRequest { request -> request.url.host.contains("localhost") }
+fun testAuthenticated(block: suspend ApplicationTestBuilder.() -> Unit) =
+  testApplicationWithTestModule {
+    client =
+      client.config {
+        install(Auth) {
+          basic {
+            credentials { BasicAuthCredentials(username = "admin", password = "admin") }
+            sendWithoutRequest { request -> request.url.host.contains("localhost") }
+          }
+        }
       }
-    }
+    block()
   }
-  block()
-}
 
 fun Application.module() {
   configureSerialization()
