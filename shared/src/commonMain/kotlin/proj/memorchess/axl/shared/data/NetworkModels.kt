@@ -29,7 +29,7 @@ data class MoveFetched(
   val origin: PositionFetched,
   val destination: PositionFetched,
   val move: String,
-  var isGood: Boolean?,
+  var isGood: Boolean,
   val isDeleted: Boolean,
   val updatedAt: Instant,
 )

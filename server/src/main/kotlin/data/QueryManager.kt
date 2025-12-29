@@ -1,9 +1,13 @@
 package proj.memorchess.axl.server.data
 
 import java.util.UUID
+import kotlin.time.Instant
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import proj.memorchess.axl.shared.data.MoveFetched
@@ -26,39 +30,167 @@ fun hasUserPermission(userId: String, permission: String): Boolean {
 
 fun getAllMoves(userId: String): List<MoveFetched> {
   val moves = transaction {
-    UserMoveEntity.find { UserMovesTable.userId eq UUID.fromString(userId) }
+    UserMoveEntity.find {
+      UserMovesTable.userId eq UUID.fromString(userId) and (UserMovesTable.isDeleted eq false)
+    }
   }
   val userPositionCache = mutableMapOf<Long, PositionFetched>()
   return transaction { moves.map { it.toMoveFetched(userPositionCache) } }
 }
 
+fun addMoves(user: String, moves: List<MoveFetched>) {
+  transaction {
+    val userEntity =
+      UserEntity.find { UsersTable.email eq user }.firstOrNull() ?: return@transaction
+    for (move in moves) {
+      val originPositionEntity =
+        PositionEntity.find { PositionsTable.fenRepresentation eq move.origin.positionIdentifier }
+          .firstOrNull()
+          ?: PositionEntity.new { fenRepresentation = move.origin.positionIdentifier }
+      val destinationPositionEntity =
+        PositionEntity.find {
+            PositionsTable.fenRepresentation eq move.destination.positionIdentifier
+          }
+          .firstOrNull()
+          ?: PositionEntity.new { fenRepresentation = move.destination.positionIdentifier }
+      val moveEntity =
+        MoveEntity.find {
+            (MovesTable.origin eq originPositionEntity.id.value) and
+              (MovesTable.destination eq destinationPositionEntity.id.value) and
+              (MovesTable.name eq move.move)
+          }
+          .firstOrNull()
+          ?: MoveEntity.new {
+            origin = originPositionEntity
+            destination = destinationPositionEntity
+            name = move.move
+          }
+      UserMoveEntity.new {
+        this.user = userEntity
+        this.move = moveEntity
+        this.isGood = move.isGood
+        this.isDeleted = move.isDeleted
+      }
+    }
+  }
+}
+
 fun getNode(userId: String, fen: String): NodeFetched? {
-  val queryPosition =
-    transaction {
+  return transaction {
+    val positionQuery =
       UserPositionsTable.innerJoin(PositionsTable)
         .select(UserPositionsTable.columns)
         .where {
           (UserPositionsTable.userId eq UUID.fromString(userId)) and
-            (PositionsTable.fenRepresentation eq fen)
+            (PositionsTable.fenRepresentation eq fen) and
+            (UserPositionsTable.isDeleted eq false)
         }
         .limit(1)
+    val userPosition =
+      positionQuery.firstOrNull()?.let { UserPositionEntity.wrapRow(it) } ?: return@transaction null
+    val query =
+      UserMovesTable.innerJoin(MovesTable).select(UserMovesTable.columns).where {
+        (UserMovesTable.userId eq UUID.fromString(userId)) and
+          ((MovesTable.origin eq userPosition.position.id.value) or
+            (MovesTable.destination eq userPosition.position.id.value)) and
+          (UserMovesTable.isDeleted eq false)
+      }
+
+    val userMoves = UserMoveEntity.wrapRows(query)
+    val userPositionCache =
+      mutableMapOf(Pair(userPosition.id.value, userPosition.toPositionFetched()))
+    NodeFetched(
+      position = userPosition.toPositionFetched(),
+      moves = transaction { userMoves.map { it.toMoveFetched(userPositionCache) } },
+    )
+  }
+}
+
+fun deletePosition(userId: String, positionIdentifier: String) {
+  transaction {
+    val positionEntity =
+      PositionEntity.find { PositionsTable.fenRepresentation eq positionIdentifier }.firstOrNull()
+        ?: return@transaction
+
+    val userPosition =
+      UserPositionEntity.find {
+          (UserPositionsTable.userId eq UUID.fromString(userId)) and
+            (UserPositionsTable.positionId eq positionEntity.id.value)
+        }
+        .firstOrNull() ?: return@transaction
+
+    userPosition.isDeleted = true
+  }
+}
+
+fun deleteMove(userId: String, origin: String, move: String) {
+  transaction {
+    val originPosition =
+      PositionEntity.find { PositionsTable.fenRepresentation eq origin }.firstOrNull()
+        ?: return@transaction
+
+    val moveEntity =
+      MoveEntity.find {
+          (MovesTable.origin eq originPosition.id.value) and (MovesTable.name eq move)
+        }
+        .firstOrNull() ?: return@transaction
+
+    val userMove =
+      UserMoveEntity.find {
+          (UserMovesTable.userId eq UUID.fromString(userId)) and
+            (UserMovesTable.moveId eq moveEntity.id.value)
+        }
+        .firstOrNull() ?: return@transaction
+
+    userMove.isDeleted = true
+  }
+}
+
+fun deleteAllUserData(userId: String, hardFrom: Instant?) {
+  transaction {
+    if (hardFrom != null) {
+      UserPositionsTable.deleteWhere {
+        UserPositionsTable.userId eq
+          UUID.fromString(userId) and
+          (UserPositionsTable.updatedAt greater hardFrom)
+      }
+      UserMovesTable.deleteWhere {
+        UserMovesTable.userId eq
+          UUID.fromString(userId) and
+          (UserMovesTable.updatedAt greater hardFrom)
+      }
+    }
+    UserPositionEntity.find { UserPositionsTable.userId eq UUID.fromString(userId) }
+      .forEach { it.isDeleted = true }
+    UserMoveEntity.find { UserMovesTable.userId eq UUID.fromString(userId) }
+      .forEach { it.isDeleted = true }
+  }
+}
+
+fun getLastUpdate(userId: String): Instant? {
+  return transaction {
+    val lastMoveUpdate =
+      UserMovesTable.select(UserMovesTable.updatedAt)
+        .where { UserMovesTable.userId eq UUID.fromString(userId) }
+        .orderBy(UserMovesTable.updatedAt, order = SortOrder.DESC)
+        .limit(1)
         .firstOrNull()
-    } ?: return null
-  val userPosition = UserPositionEntity.wrapRow(queryPosition)
-  val queryMoves = transaction {
-    UserMovesTable.innerJoin(MovesTable).select(UserMovesTable.columns).where {
-      (UserMovesTable.userId eq UUID.fromString(userId)) and
-        ((MovesTable.origin eq userPosition.position.id.value) or
-          (MovesTable.destination eq userPosition.position.id.value))
+        ?.get(UserMovesTable.updatedAt)
+
+    val lastPositionUpdate =
+      UserPositionsTable.select(UserPositionsTable.updatedAt)
+        .where { UserPositionsTable.userId eq UUID.fromString(userId) }
+        .orderBy(UserPositionsTable.updatedAt, order = SortOrder.DESC)
+        .limit(1)
+        .firstOrNull()
+        ?.get(UserPositionsTable.updatedAt)
+
+    when {
+      lastMoveUpdate != null && lastPositionUpdate != null ->
+        lastMoveUpdate.coerceAtLeast(lastPositionUpdate)
+      else -> lastMoveUpdate ?: lastPositionUpdate
     }
   }
-  val userMoves = UserMoveEntity.wrapRows(queryMoves)
-  val userPositionCache =
-    mutableMapOf(Pair(userPosition.id.value, userPosition.toPositionFetched()))
-  return NodeFetched(
-    position = userPosition.toPositionFetched(),
-    moves = transaction { userMoves.map { it.toMoveFetched(userPositionCache) } },
-  )
 }
 
 private fun UserPositionEntity.toPositionFetched(): PositionFetched {

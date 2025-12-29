@@ -21,20 +21,26 @@ fun testApplicationWithTestModule(block: suspend ApplicationTestBuilder.() -> Un
     environment { config = ApplicationConfig("application-test.yaml") }
     client = createClient {
       install(ContentNegotiation) { json() }
-      install(Auth) {
-        basic {
-          credentials { BasicAuthCredentials(username = "admin", password = "admin") }
-          sendWithoutRequest { request -> request.url.host.contains("localhost") }
-        }
-      }
     }
     block()
   }
 }
 
+fun testAuthenticated(block: suspend ApplicationTestBuilder.() -> Unit) = testApplicationWithTestModule {
+  client = client.config {
+    install(Auth) {
+      basic {
+        credentials { BasicAuthCredentials(username = "admin", password = "admin") }
+        sendWithoutRequest { request -> request.url.host.contains("localhost") }
+      }
+    }
+  }
+  block()
+}
+
 fun Application.module() {
   configureSerialization()
-  configureTestDatabase() // Use test database instead of configureDatabase()
+  configureTestDatabase()
   configureSecurity()
   configureRouting()
 }

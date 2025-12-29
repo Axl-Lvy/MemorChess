@@ -24,23 +24,27 @@ fun Application.configureTestDatabase() {
   val password = environment.config.property("database.password").getString()
   val url = environment.config.property("database.url").getString()
 
-  // Run migrations on test database
-  val flyway =
-    Flyway.configure()
-      .dataSource(url, user, password)
-      .locations("classpath:db/migration")
-      .cleanDisabled(false) // Allow cleaning for tests
-      .load()
 
   // Clean and migrate to ensure fresh state
-  flyway.clean()
-  flyway.migrate()
-  // Seed with test data
-  // Connect to the database
-  Database.connect(url = url, driver = "org.postgresql.Driver", user = user, password = password)
+  if (!migrationApplied) {
+    // Run migrations on test database
+    val flyway =
+      Flyway.configure()
+        .dataSource(url, user, password)
+        .locations("classpath:db/migration")
+        .cleanDisabled(false) // Allow cleaning for tests
+        .load()
+    flyway.clean()
+    flyway.migrate()
+    Database.connect(url = url, driver = "org.postgresql.Driver", user = user, password = password)
+    migrationApplied = true
+    seedTestData()
+  } else {
+    Database.connect(url = url, driver = "org.postgresql.Driver", user = user, password = password)
+//    cleanTestDatabase()
+  }
   // Clean all data from the database
   //  cleanTestDatabase()
-  seedTestData()
 }
 
 /**
@@ -60,3 +64,5 @@ fun cleanTestDatabase() {
     exec("DELETE FROM ${BooksTable.tableName}")
   }
 }
+
+private var migrationApplied = false

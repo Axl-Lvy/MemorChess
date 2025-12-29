@@ -71,7 +71,6 @@ fun createUser(email: String, password: String): UserEntity? {
  * @return The [UserEntity] if credentials are valid, null otherwise
  */
 fun validateCredentials(email: String, password: String): UserEntity? {
-  println("Validating credentials for email: $email")
   val user = getUser(email) ?: return null
   val hash = hashPassword(password, user.passwordHashSalt) // Use stored salt
   return if (hash == user.passwordHash) user else null
