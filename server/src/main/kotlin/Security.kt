@@ -47,10 +47,10 @@ fun Application.configureSecurity() {
 }
 
 // When creating a user
-fun createUser(email: String, password: String): Boolean {
+fun createUser(email: String, password: String): UserEntity? {
   // Check if user already exists
   if (getUser(email) != null) {
-    return false
+    return null
   }
   val salt = generateSalt()
   val hash = hashPassword(password, salt)
@@ -60,7 +60,6 @@ fun createUser(email: String, password: String): Boolean {
       this.passwordHash = hash
       this.passwordHashSalt = salt
     }
-    true
   }
 }
 
@@ -71,7 +70,8 @@ fun createUser(email: String, password: String): Boolean {
  * @param password The plaintext password to validate
  * @return The [UserEntity] if credentials are valid, null otherwise
  */
-suspend fun validateCredentials(email: String, password: String): UserEntity? {
+fun validateCredentials(email: String, password: String): UserEntity? {
+  println("Validating credentials for email: $email")
   val user = getUser(email) ?: return null
   val hash = hashPassword(password, user.passwordHashSalt) // Use stored salt
   return if (hash == user.passwordHash) user else null

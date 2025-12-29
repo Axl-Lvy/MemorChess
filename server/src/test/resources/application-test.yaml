@@ -1,0 +1,12 @@
+ktor:
+  application:
+    modules:
+      - proj.memorchess.axl.server.ApplicationTestKt.module
+  deployment:
+    port: 8080
+
+database:
+  url: jdbc:postgresql://localhost:5432/memorchess_test
+  user: postgres
+  password: postgres
+

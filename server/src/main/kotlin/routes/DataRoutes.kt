@@ -13,11 +13,12 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import proj.memorchess.axl.server.BASIC_AUTH
 import proj.memorchess.axl.server.FORM_AUTH
 import proj.memorchess.axl.server.data.getAllMoves
+import proj.memorchess.axl.server.data.getNode
 import proj.memorchess.axl.shared.data.MoveFetched
+import proj.memorchess.axl.shared.data.NodeFetched
 
 @GenerateOpenApi
 fun Route.configureProtectedDataRoutes() {
@@ -33,7 +34,7 @@ fun Route.configureProtectedDataRoutes() {
           call.principal<UserIdPrincipal>()
             ?: return@get call.respondText("No principal", status = HttpStatusCode.Unauthorized)
 
-        val moves = transaction { getAllMoves(principal.name) }
+        val moves = getAllMoves(principal.name)
 
         responds<List<MoveFetched>>(
           status = HttpStatusCode.OK,
@@ -41,6 +42,35 @@ fun Route.configureProtectedDataRoutes() {
         )
         respondsNothing(status = HttpStatusCode.Unauthorized, description = "Unauthorized access")
         call.respond(HttpStatusCode.OK, moves)
+      }
+
+      @KtorDescription(
+        summary = "Fetch data for a specific position",
+        operationId = "getUserPosition",
+        tags = ["personal data"],
+      )
+      get("/node/{fen}") {
+        val principal =
+          call.principal<UserIdPrincipal>()
+            ?: return@get call.respondText("No principal", status = HttpStatusCode.Unauthorized)
+
+        val fen =
+          call.parameters["fen"]
+            ?: return@get call.respondText(
+              "Missing FEN parameter",
+              status = HttpStatusCode.BadRequest,
+            )
+
+        val nodeFetched =
+          getNode(principal.name, fen)
+            ?: return@get call.respondText("Position not found", status = HttpStatusCode.NotFound)
+        call.respond(HttpStatusCode.OK, nodeFetched)
+        responds<NodeFetched>(
+          status = HttpStatusCode.OK,
+          description = "Successfully retrieved position data",
+        )
+        respondsNothing(status = HttpStatusCode.Unauthorized, description = "Unauthorized access")
+        respondsNothing(status = HttpStatusCode.Forbidden, description = "Forbidden access")
       }
     }
   }

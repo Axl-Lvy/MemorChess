@@ -42,7 +42,7 @@ object MovesTable : LongIdTable("moves") {
 
 /** Exposed table definition for user positions. */
 object UserPositionsTable : LongIdTable("user_positions") {
-  val userId = uuid("user_id").index()
+  val userId = reference("user_id", UsersTable.id).index()
   val positionId =
     reference("position_id", PositionsTable.id, onDelete = ReferenceOption.CASCADE).index()
   val depth = integer("depth").default(0)
@@ -59,7 +59,7 @@ object UserPositionsTable : LongIdTable("user_positions") {
 
 /** Exposed table definition for user moves. */
 object UserMovesTable : LongIdTable("user_moves") {
-  val userId = uuid("user_id").index()
+  val userId = reference("user_id", UsersTable.id).index()
   val moveId = reference("move_id", MovesTable.id, onDelete = ReferenceOption.CASCADE).index()
   val isGood = bool("is_good").default(true)
   val isDeleted = bool("is_deleted").default(false)
@@ -92,7 +92,7 @@ object MoveCrossBookTable : LongIdTable("move_cross_book") {
 
 /** Exposed table definition for downloaded books. */
 object DownloadedBooksTable : LongIdTable("downloaded_books") {
-  val userId = uuid("user_id").index()
+  val userId = reference("user_id", UsersTable.id).index()
   val bookId = reference("book_id", BooksTable.id, onDelete = ReferenceOption.CASCADE).index()
   val downloadedAt = timestamp("downloaded_at").defaultExpression(CurrentTimestamp)
 
@@ -103,7 +103,7 @@ object DownloadedBooksTable : LongIdTable("downloaded_books") {
 
 /** Exposed table definition for user permissions. */
 object UserPermissionsTable : LongIdTable("user_permissions") {
-  val userId = uuid("user_id").index()
+  val userId = reference("user_id", UsersTable.id).index()
   val permission = varchar("permission", 50)
   val grantedAt = timestamp("granted_at").defaultExpression(CurrentTimestamp)
 

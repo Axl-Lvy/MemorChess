@@ -42,14 +42,11 @@ fun Route.configureUserRelatedRoutes() {
       try {
         val credentials = call.receive<SignupRequest>()
 
-        val created = createUser(credentials.email, credentials.password)
-
-        if (!created) {
-          return@post call.respondText(
+        createUser(credentials.email, credentials.password)
+          ?: return@post call.respondText(
             "User with this email already exists",
             status = HttpStatusCode.BadRequest,
           )
-        }
 
         call.respond(HttpStatusCode.Created)
       } catch (e: Exception) {

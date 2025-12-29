@@ -35,3 +35,5 @@ data class MoveFetched(
 )
 
 @Serializable data class SignupRequest(val email: String, val password: String)
+
+@Serializable data class NodeFetched(val position: PositionFetched, val moves: List<MoveFetched>)
