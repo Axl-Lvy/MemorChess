@@ -1,13 +1,11 @@
 ktor:
-    application:
-        modules:
-            - proj.memorchess.axl.server.ApplicationKt.module
-    deployment:
-        port: 8080
+  application:
+    modules:
+      - proj.memorchess.axl.server.ApplicationKt.module
+  deployment:
+    port: 8080
 
 database:
-    url:
-        jdbc: jdbc:postgresql://localhost:5432/memorchess
-        r2dbc: r2dbc:postgresql://localhost:5432/memorchess
-    user: postgres
-    password: postgres
+  url: jdbc:postgresql://localhost:5432/memorchess
+  user: postgres
+  password: postgres

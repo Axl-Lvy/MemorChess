@@ -33,3 +33,5 @@ data class MoveFetched(
   val isDeleted: Boolean,
   val updatedAt: Instant,
 )
+
+@Serializable data class SignupRequest(val email: String, val password: String)

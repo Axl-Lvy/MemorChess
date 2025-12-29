@@ -12,6 +12,7 @@ class UserEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
   var email by UsersTable.email
   var passwordHash by UsersTable.passwordHash
+  var passwordHashSalt by UsersTable.passwordHashSalt
   var emailVerified by UsersTable.emailVerified
   var verificationToken by UsersTable.verificationToken
   var resetToken by UsersTable.resetToken
@@ -58,4 +59,12 @@ class UserMoveEntity(id: EntityID<Long>) : LongEntity(id) {
   var isDeleted by UserMovesTable.isDeleted
   var updatedAt by UserMovesTable.updatedAt
   var createdAt by UserMovesTable.createdAt
+}
+
+class UserPermissionEntity(id: EntityID<Long>) : LongEntity(id) {
+  companion object : LongEntityClass<UserPermissionEntity>(UserPermissionsTable)
+
+  var user by UserEntity referencedOn UserPermissionsTable.userId
+  var permission by UserPermissionsTable.permission
+  var grantedAt by UserPermissionsTable.grantedAt
 }

@@ -6,9 +6,9 @@ import java.nio.file.Paths
 import kotlinx.coroutines.runBlocking
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
-import org.jetbrains.exposed.v1.migration.r2dbc.MigrationUtils
-import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 import proj.memorchess.axl.server.data.ALL_TABLES
 
 /**
@@ -21,16 +21,14 @@ import proj.memorchess.axl.server.data.ALL_TABLES
 fun Application.configureDatabase() {
   val user = environment.config.property("database.user").getString()
   val password = environment.config.property("database.password").getString()
-  val jdbcUrl = environment.config.property("database.url.jdbc").getString()
-  val r2dbcUrl = environment.config.property("database.url.r2dbc").getString()
-  val nextMigrationVersion = executeMigrations(jdbcUrl, user, password) + 1
+  val url = environment.config.property("database.url").getString()
+  val nextMigrationVersion = executeMigrations(url, user, password) + 1
 
   // Generate migration script before running migrations
   runBlocking {
-    val db =
-      R2dbcDatabase.connect(url = r2dbcUrl, driver = "postgresql", user = user, password = password)
+    Database.connect(url = url, driver = "org.postgresql.Driver", user = user, password = password)
     val statements = mutableListOf<String>()
-    suspendTransaction(db) {
+    transaction {
       statements.addAll(MigrationUtils.statementsRequiredForDatabaseMigration(*ALL_TABLES))
     }
 
@@ -46,7 +44,7 @@ fun Application.configureDatabase() {
       log.debug("Statements before migration:\n${statements.joinToString("\n")}")
 
       // Execute the migration we just generated
-      executeMigrations(jdbcUrl, user, password)
+      executeMigrations(url, user, password)
     } else {
       log.info("No schema changes detected. Skipping migration script generation.")
     }

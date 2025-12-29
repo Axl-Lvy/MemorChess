@@ -2,6 +2,7 @@ package proj.memorchess.axl
 
 import com.russhwolf.settings.Settings
 import io.github.jan.supabase.SupabaseClient
+import io.ktor.client.HttpClient
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
@@ -11,6 +12,8 @@ import proj.memorchess.axl.core.data.CompositeDatabase
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
+import proj.memorchess.axl.core.data.online.createKtorClient
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
@@ -34,6 +37,8 @@ fun initKoinModules(): Array<Module> {
   val authModule = module {
     single<SupabaseClient> { createSupabaseClient() }
     singleOf(::AuthManager)
+    single<HttpClient> { createKtorClient() }
+    singleOf(::KtorAuthManager)
   }
 
   val dataModule = module {

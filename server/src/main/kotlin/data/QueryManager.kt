@@ -3,13 +3,30 @@ package proj.memorchess.axl.server.data
 import java.util.UUID
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import proj.memorchess.axl.shared.data.MoveFetched
 import proj.memorchess.axl.shared.data.PositionFetched
 
+fun getUser(email: String): UserEntity? {
+  return transaction { UserEntity.find { UsersTable.email eq email }.firstOrNull() }
+}
+
+fun hasUserPermission(userId: String, permission: String): Boolean {
+  return transaction {
+    !UserPermissionEntity.find {
+        (UserPermissionsTable.userId eq UUID.fromString(userId)) and
+          (UserPermissionsTable.permission eq permission)
+      }
+      .empty()
+  }
+}
+
 fun getAllMoves(userId: String): List<MoveFetched> {
-  val moves = UserMoveEntity.find { UserMovesTable.userId eq UUID.fromString(userId) }
-  val userPositionCache = mutableMapOf<Long, PositionFetched>()
-  return moves.map { it.toMoveFetched(userPositionCache) }
+  return transaction {
+    val moves = UserMoveEntity.find { UserMovesTable.userId eq UUID.fromString(userId) }
+    val userPositionCache = mutableMapOf<Long, PositionFetched>()
+    moves.map { it.toMoveFetched(userPositionCache) }
+  }
 }
 
 private fun UserPositionEntity.toPositionFetched(): PositionFetched {

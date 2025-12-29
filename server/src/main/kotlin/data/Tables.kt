@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 object UsersTable : UUIDTable("users") {
   val email = varchar("email", 255).uniqueIndex()
   val passwordHash = varchar("password_hash", 255)
+  val passwordHashSalt = varchar("password_hash_salt", 255)
   val emailVerified = bool("email_verified").default(false)
   val verificationToken = varchar("verification_token", 255).nullable()
   val resetToken = varchar("reset_token", 255).nullable()
