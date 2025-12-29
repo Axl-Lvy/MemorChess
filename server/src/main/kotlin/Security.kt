@@ -78,7 +78,7 @@ fun validateCredentials(email: String, password: String): UserEntity? {
 
 private fun hashPassword(password: String, salt: String): String {
   val digestFunction = getDigestFunction("SHA-256") { salt }
-  return digestFunction(password).decodeToString()
+  return digestFunction(password).joinToString("") { "%02x".format(it) }
 }
 
 private fun generateSalt(): String = UUID.randomUUID().toString()
