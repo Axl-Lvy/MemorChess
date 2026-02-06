@@ -38,11 +38,15 @@ fun getAllMoves(userId: String): List<MoveFetched> {
   return transaction { moves.map { it.toMoveFetched(userPositionCache) } }
 }
 
-fun addMoves(userId: String, moves: List<MoveFetched>) {
+fun addMoves(userIdentifier: String, moves: List<MoveFetched>) {
   transaction {
     val userEntity =
-      UserEntity.find { UsersTable.id eq UUID.fromString(userId) }.firstOrNull()
-        ?: return@transaction
+      UserEntity.find { UsersTable.email eq userIdentifier }.firstOrNull()
+        ?: try {
+          UserEntity.findById(UUID.fromString(userIdentifier))
+        } catch (_: IllegalArgumentException) {
+          null
+        } ?: return@transaction
     for (move in moves) {
       val originPositionEntity = updatePosition(move.origin, userEntity)
       val destinationPositionEntity = updatePosition(move.destination, userEntity)
