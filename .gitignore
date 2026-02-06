@@ -21,3 +21,4 @@ kotlin-js-store
 docs/
 reset-db.ps1
 reset-test-db.ps1
+.claude/
