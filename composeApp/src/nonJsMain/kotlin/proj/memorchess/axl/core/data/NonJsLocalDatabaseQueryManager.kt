@@ -2,21 +2,43 @@ package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
+import proj.memorchess.axl.core.date.PreviousAndNextDate
 
 /** Database for non-JS platforms */
 internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private val database = getRoomDatabase(databaseBuilder())
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
-    val allNodes = database.getNodeEntityDao().getAllNodes()
-    return (if (withDeletedOnes) allNodes else allNodes.filter { !it.node.isDeleted }).map {
-      it.toStoredNode()
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<DataMove> {
+    val moves = if (withDeletedOnes) {
+      database.getNodeEntityDao().getAllMovesWithDeletedOnes()
+    } else {
+      database.getNodeEntityDao().getAllMoves()
+    }
+    return moves.map { it.toStoredMove() }
+  }
+
+  override suspend fun getAllPositions(withDeletedOnes: Boolean): List<DataPosition> {
+    val positions = database.getNodeEntityDao().getPositions()
+    return (if (withDeletedOnes) positions else positions.filter { !it.isDeleted }).map {
+      DataPosition(
+        PositionIdentifier(it.fenRepresentation),
+        it.depth,
+        PreviousAndNextDate(it.lastTrainedDate, it.nextTrainedDate),
+        it.updatedAt,
+        it.isDeleted,
+      )
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
-    return database.getNodeEntityDao().getNode(positionIdentifier.fenRepresentation)?.toStoredNode()
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataPosition? {
+    val nodeWithMoves = database.getNodeEntityDao().getNode(positionIdentifier.fenRepresentation)
+    return nodeWithMoves?.toDataPosition()
+  }
+
+  override suspend fun getMovesForPosition(positionIdentifier: PositionIdentifier): List<DataMove> {
+    val nodeWithMoves = database.getNodeEntityDao().getNode(positionIdentifier.fenRepresentation)
+    return nodeWithMoves?.toDataMoves() ?: emptyList()
   }
 
   override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
@@ -36,10 +58,10 @@ internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     hardFrom?.let { database.getNodeEntityDao().deleteNewerMoves(it) }
   }
 
-  override suspend fun insertNodes(vararg positions: DataNode) {
+  override suspend fun insertMoves(moves: List<DataMove>, positions: List<DataPosition>) {
     database
       .getNodeEntityDao()
-      .insertNodeAndMoves(positions.map { NodeWithMoves.convertToEntity(it) })
+      .insertNodeAndMoves(NodeWithMoves.convertToEntities(moves, positions))
   }
 
   override suspend fun getLastUpdate(): Instant? {

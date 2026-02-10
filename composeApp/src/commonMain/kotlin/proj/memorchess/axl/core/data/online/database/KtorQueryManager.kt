@@ -10,7 +10,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlin.time.Instant
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
@@ -30,18 +31,33 @@ class KtorQueryManager(
     check(authManager.isUserLoggedIn()) { USER_NOT_CONNECTED_MESSAGE }
   }
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<DataMove> {
     requireAuth()
     val moves = httpClient.get(DataRoutes.Moves(withDeletedOnes = withDeletedOnes)).body<List<MoveFetched>>()
-    return movesToDataNodes(moves, withDeletedOnes)
+    return moves.map { it.toDataMove() }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
+  override suspend fun getAllPositions(withDeletedOnes: Boolean): List<DataPosition> {
+    requireAuth()
+    val moves = httpClient.get(DataRoutes.Moves(withDeletedOnes = withDeletedOnes)).body<List<MoveFetched>>()
+    val (_, positions) = moveFetchedToMovesAndPositions(moves, withDeletedOnes)
+    return positions
+  }
+
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataPosition? {
     requireAuth()
     val response = httpClient.get(DataRoutes.Node(fen = positionIdentifier.fenRepresentation))
     if (response.status == HttpStatusCode.NotFound) return null
     val node = response.body<NodeFetched>()
-    return nodeToDataNode(node)
+    return node.toDataPositionAndMoves().first
+  }
+
+  override suspend fun getMovesForPosition(positionIdentifier: PositionIdentifier): List<DataMove> {
+    requireAuth()
+    val response = httpClient.get(DataRoutes.Node(fen = positionIdentifier.fenRepresentation))
+    if (response.status == HttpStatusCode.NotFound) return emptyList()
+    val node = response.body<NodeFetched>()
+    return node.toDataPositionAndMoves().second
   }
 
   override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
@@ -59,12 +75,12 @@ class KtorQueryManager(
     httpClient.delete(DataRoutes.All(hardFrom = hardFrom, updatedAt = DateUtil.now()))
   }
 
-  override suspend fun insertNodes(vararg positions: DataNode) {
+  override suspend fun insertMoves(moves: List<DataMove>, positions: List<DataPosition>) {
     requireAuth()
-    val moves = dataNodesToMoves(positions.toList())
+    val moveFetched = dataMovesToMoveFetched(moves, positions)
     httpClient.post(DataRoutes.Moves()) {
       contentType(ContentType.Application.Json)
-      setBody(moves)
+      setBody(moveFetched)
     }
   }
 

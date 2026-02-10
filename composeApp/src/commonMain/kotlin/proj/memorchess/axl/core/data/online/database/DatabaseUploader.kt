@@ -89,8 +89,8 @@ class DatabaseUploader(
   private suspend fun executeOperation(operation: DatabaseOperation) {
     LOGGER.d { "Executing operation: $operation" }
     when (operation) {
-      is DatabaseOperation.InsertNodes -> {
-        remoteDatabase.insertNodes(*operation.nodes.toTypedArray())
+      is DatabaseOperation.InsertMoves -> {
+        remoteDatabase.insertMoves(operation.moves, operation.positions)
       }
       is DatabaseOperation.DeletePosition -> {
         remoteDatabase.deletePosition(operation.position, operation.updatedAt)

@@ -3,7 +3,6 @@ package proj.memorchess.axl.core.data
 import androidx.room.Embedded
 import androidx.room.Relation
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 /** Entity representing a node with its associated moves. */
 data class NodeWithMoves(
@@ -13,34 +12,49 @@ data class NodeWithMoves(
   @Relation(parentColumn = "fenRepresentation", entityColumn = "origin")
   val nextMoves: List<MoveEntity>,
 ) {
-  fun toStoredNode(): DataNode {
-    return DataNode(
+  fun toDataPosition(): DataPosition {
+    return DataPosition(
       PositionIdentifier(node.fenRepresentation),
-      PreviousAndNextMoves(
-        previousMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
-        nextMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
-        node.depth,
-      ),
+      node.depth,
       PreviousAndNextDate(node.lastTrainedDate, node.nextTrainedDate),
       node.updatedAt,
       node.isDeleted,
     )
   }
 
+  fun toDataMoves(): List<DataMove> {
+    return (previousMoves + nextMoves)
+      .filter { !it.isDeleted }
+      .map { it.toStoredMove() }
+      .distinctBy { Triple(it.origin, it.destination, it.move) }
+  }
+
   companion object {
-    fun convertToEntity(dataNode: DataNode): NodeWithMoves {
-      return NodeWithMoves(
-        NodeEntity(
-          dataNode.positionIdentifier.fenRepresentation,
-          dataNode.previousAndNextTrainingDate.previousDate,
-          dataNode.previousAndNextTrainingDate.nextDate,
-          dataNode.previousAndNextMoves.depth,
-          dataNode.isDeleted,
-          dataNode.updatedAt,
-        ),
-        dataNode.previousAndNextMoves.previousMoves.map { MoveEntity.convertToEntity(it.value) },
-        dataNode.previousAndNextMoves.nextMoves.map { MoveEntity.convertToEntity(it.value) },
-      )
+    fun convertToEntities(
+      moves: List<DataMove>,
+      positions: List<DataPosition>,
+    ): List<NodeWithMoves> {
+      val positionMap = positions.associateBy { it.positionIdentifier.fenRepresentation }
+      val movesByOrigin = moves.groupBy { it.origin.fenRepresentation }
+      val movesByDestination = moves.groupBy { it.destination.fenRepresentation }
+
+      return positions.map { position ->
+        val fen = position.positionIdentifier.fenRepresentation
+        val nextMoves = movesByOrigin[fen]?.map { MoveEntity.convertToEntity(it) } ?: emptyList()
+        val previousMoves = movesByDestination[fen]?.map { MoveEntity.convertToEntity(it) } ?: emptyList()
+        NodeWithMoves(
+          NodeEntity(
+            fen,
+            position.previousAndNextTrainingDate.previousDate,
+            position.previousAndNextTrainingDate.nextDate,
+            position.depth,
+            position.isDeleted,
+            position.updatedAt,
+          ),
+          previousMoves,
+          nextMoves,
+        )
+      }
     }
   }
 }

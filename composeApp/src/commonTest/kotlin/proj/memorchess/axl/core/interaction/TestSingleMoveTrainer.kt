@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -24,11 +24,12 @@ class TestSingleMoveTrainer : TestWithKoin {
   private lateinit var moveFactory: RealMoveFactory
   private lateinit var checkChecker: DummyCheckChecker
   private val database: DatabaseQueryManager by inject()
-  private lateinit var testNode: DataNode
+  private lateinit var testPosition: DataPosition
+  private lateinit var testMoves: PreviousAndNextMoves
 
   private fun initialize() = runTest {
     database.deleteAll(DateUtil.farInThePast())
-    // Create a test node with some moves
+    // Create a test position with some moves
     val game = Game()
     val startPosition = game.position.createIdentifier()
 
@@ -43,17 +44,22 @@ class TestSingleMoveTrainer : TestWithKoin {
     val d4Position = game2.position.createIdentifier()
     val d4Move = DataMove(startPosition, d4Position, "d4", isGood = false)
 
-    // Create the node with both moves
-    testNode =
-      DataNode(
+    // Create the position and moves
+    testPosition =
+      DataPosition(
         positionIdentifier = startPosition,
-        PreviousAndNextMoves(listOf(), listOf(e4Move, d4Move)),
-        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+        depth = 0,
+        previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
 
-    testNode.save()
+    testMoves = PreviousAndNextMoves(listOf(), listOf(e4Move, d4Move))
 
-    singleMoveTrainer = SingleMoveTrainer(testNode) {}
+    database.insertMoves(
+      listOf(e4Move, d4Move),
+      listOf(testPosition),
+    )
+
+    singleMoveTrainer = SingleMoveTrainer(testPosition, testMoves) {}
     moveFactory = RealMoveFactory(singleMoveTrainer.game.position)
     checkChecker = DummyCheckChecker(singleMoveTrainer.game.position)
   }
@@ -70,15 +76,15 @@ class TestSingleMoveTrainer : TestWithKoin {
 
     // Verify the move was recognized as correct
     runTest {
-      val updatedNode = database.getPosition(testNode.positionIdentifier)
+      val updatedPosition = database.getPosition(testPosition.positionIdentifier)
       // The next training date should be further in the future (success case)
       assertTrue(
-        updatedNode!!.previousAndNextTrainingDate.nextDate > DateUtil.tomorrow(),
+        updatedPosition!!.previousAndNextTrainingDate.nextDate > DateUtil.tomorrow(),
         "Next training date should be more than 1 day in the future for correct move",
       )
       assertEquals(
         DateUtil.today(),
-        updatedNode.previousAndNextTrainingDate.previousDate,
+        updatedPosition.previousAndNextTrainingDate.previousDate,
         "Last trained date should be updated to today",
       )
     }
@@ -94,16 +100,16 @@ class TestSingleMoveTrainer : TestWithKoin {
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.getPosition(testNode.positionIdentifier)
+      val updatedPosition = database.getPosition(testPosition.positionIdentifier)
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
-        updatedNode!!.previousAndNextTrainingDate.nextDate,
+        updatedPosition!!.previousAndNextTrainingDate.nextDate,
         "Next training date should be tomorrow for incorrect move",
       )
       assertEquals(
         DateUtil.today(),
-        updatedNode.previousAndNextTrainingDate.previousDate,
+        updatedPosition.previousAndNextTrainingDate.previousDate,
         "Last trained date should be updated to today",
       )
     }
@@ -113,22 +119,22 @@ class TestSingleMoveTrainer : TestWithKoin {
   fun testUnknownMove() {
     initialize()
 
-    // Play a move that's not in the node's next moves
+    // Play a move that's not in the position's next moves
     clickOnTile("c2")
     clickOnTile("c4")
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.getPosition(testNode.positionIdentifier)
+      val updatedPosition = database.getPosition(testPosition.positionIdentifier)
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
-        updatedNode!!.previousAndNextTrainingDate.nextDate,
+        updatedPosition!!.previousAndNextTrainingDate.nextDate,
         "Next training date should be tomorrow for unknown move",
       )
       assertEquals(
         DateUtil.today(),
-        updatedNode.previousAndNextTrainingDate.previousDate,
+        updatedPosition.previousAndNextTrainingDate.previousDate,
         "Last trained date should be updated to today",
       )
     }

@@ -7,7 +7,8 @@ import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
@@ -43,13 +44,14 @@ class TestSaveButton : TestWithKoin {
   fun testSaveGood() = runTestFromSetup {
     runTest {
       assertNull(getPosition(afterH3Position))
-      var savedPosition: DataNode? = null
+      var savedPosition: DataPosition? = null
       Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
         clickOnSave()
         savedPosition = getPosition(afterH3Position)
         savedPosition != null
       }
-      check(savedPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
+      val movesForPosition = getMovesForPosition(afterH3Position)
+      check(movesForPosition.filter { it.destination == afterH3Position }.all { it.isGood == true })
     }
   }
 
@@ -59,21 +61,29 @@ class TestSaveButton : TestWithKoin {
     assertPieceMoved("h7", "h6", Pawn.black())
     assertNull(getPosition(afterH3Position))
     assertNull(getPosition(afterH6Position))
-    var savedLastPosition: DataNode? = null
-    var savedFirstPosition: DataNode? = null
+    var savedLastPosition: DataPosition? = null
+    var savedFirstPosition: DataPosition? = null
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testPropagateSave: Positions not saved") {
       clickOnSave()
       savedLastPosition = getPosition(afterH6Position)
       savedFirstPosition = getPosition(afterH3Position)
       savedLastPosition != null && savedFirstPosition != null
     }
-    check(savedLastPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
-    check(savedFirstPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == false })
+    val movesForLast = getMovesForPosition(afterH6Position)
+    check(movesForLast.filter { it.destination == afterH6Position }.all { it.isGood == true })
+    val movesForFirst = getMovesForPosition(afterH3Position)
+    check(movesForFirst.filter { it.destination == afterH3Position }.all { it.isGood == false })
   }
 
-  private fun getPosition(p: PositionIdentifier): DataNode? {
-    var result: DataNode? = null
+  private fun getPosition(p: PositionIdentifier): DataPosition? {
+    var result: DataPosition? = null
     runTest { result = database.getPosition(p) }
+    return result
+  }
+
+  private fun getMovesForPosition(p: PositionIdentifier): List<DataMove> {
+    var result: List<DataMove> = emptyList()
+    runTest { result = database.getMovesForPosition(p) }
     return result
   }
 }

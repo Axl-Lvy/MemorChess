@@ -34,11 +34,11 @@ class TestCompositeDatabaseWithNothing : TestWithKoin {
 
   @Test
   fun testThrowOnGet() = runTest {
-    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    val (_, positions) = TestDatabaseQueryManager.minimalNodePair()
 
-    assertFailsWith<IllegalStateException> { compositeDatabase.getAllNodes(true) }
+    assertFailsWith<IllegalStateException> { compositeDatabase.getAllPositions(true) }
     assertFailsWith<IllegalStateException> {
-      compositeDatabase.getPosition(nodes.first().positionIdentifier)
+      compositeDatabase.getPosition(positions.first().positionIdentifier)
     }
   }
 

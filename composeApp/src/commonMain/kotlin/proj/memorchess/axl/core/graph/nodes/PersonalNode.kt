@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -32,8 +32,10 @@ class PersonalNode(
    * recursively saves the previous node.
    */
   override suspend fun save() {
-    DataNode(position, previousAndNextMoves.filterValidMoves(), PreviousAndNextDate.dummyToday())
-      .save()
+    val validMoves = previousAndNextMoves.filterValidMoves()
+    val moves = (validMoves.previousMoves.values + validMoves.nextMoves.values).toList()
+    val dataPosition = DataPosition(position, validMoves.depth, PreviousAndNextDate.dummyToday())
+    database.insertMoves(moves, listOf(dataPosition))
   }
 
   override suspend fun delete() {

@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.graph.nodes
 
 import co.touchlab.kermit.Logger
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.PositionIdentifier
 
 /**
@@ -58,20 +58,20 @@ abstract class NodeCache {
   /** Clears the entire cache and reloads it from the source. */
   abstract suspend fun resetFromSource()
 
-  /** Gets a node scheduled for training after a number of days. */
-  abstract fun getNodeFromDay(day: Int): DataNode?
+  /** Gets a position scheduled for training after a number of days. */
+  abstract fun getPositionFromDay(day: Int): DataPosition?
 
-  /** Gets a node scheduled for training after a number of days, following a specific position. */
-  abstract fun getNodeToTrainAfterPosition(
+  /** Gets a position scheduled for training after a number of days, following a specific position. */
+  abstract fun getPositionToTrainAfterPosition(
     day: Int,
     positionIdentifier: PositionIdentifier,
-  ): DataNode?
+  ): DataPosition?
 
-  /** Gets the number of nodes scheduled for training after a number of days. */
-  abstract fun getNumberOfNodesToTrain(day: Int): Int
+  /** Gets the number of positions scheduled for training after a number of days. */
+  abstract fun getNumberOfPositionsToTrain(day: Int): Int
 
-  /** Caches the given node. */
-  abstract fun cacheNode(node: DataNode)
+  /** Caches the given position. */
+  abstract fun cachePosition(position: DataPosition)
 
   /**
    * Clears a specific previous move for the given position key.

@@ -1,121 +1,15 @@
 package proj.memorchess.axl.core.data.online.database
 
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.shared.data.MoveFetched
 import proj.memorchess.axl.shared.data.NodeFetched
 import proj.memorchess.axl.shared.data.PositionFetched
 
-/**
- * Converts a [NodeFetched] from the server into a [DataNode].
- *
- * The node contains its position and all associated moves. Moves where this position is the
- * destination become previous moves, and moves where this position is the origin become next moves.
- */
-internal fun nodeToDataNode(node: NodeFetched): DataNode {
-  val fen = node.position.positionIdentifier
-  val previousMoves =
-    node.moves
-      .filter { it.destination.positionIdentifier == fen }
-      .map { it.toDataMove() }
-  val nextMoves =
-    node.moves
-      .filter { it.origin.positionIdentifier == fen }
-      .map { it.toDataMove() }
-  return DataNode(
-    positionIdentifier = PositionIdentifier(fen),
-    previousAndNextMoves =
-      PreviousAndNextMoves(previousMoves, nextMoves, node.position.depth),
-    previousAndNextTrainingDate =
-      PreviousAndNextDate(node.position.lastTrainingDate, node.position.nextTrainingDate),
-    updatedAt = node.position.updatedAt,
-    isDeleted = node.position.isDeleted,
-  )
-}
-
-/**
- * Converts a flat list of [MoveFetched] into a list of [DataNode], grouping by unique position.
- *
- * Each position appearing as origin or destination in the moves list produces a [DataNode]. Moves
- * are assigned as previous or next moves relative to each position.
- */
-internal fun movesToDataNodes(
-  moves: List<MoveFetched>,
-  withDeletedOnes: Boolean = false,
-): List<DataNode> {
-  val positionMap = mutableMapOf<String, PositionFetched>()
-  val previousMovesMap = mutableMapOf<String, MutableList<DataMove>>()
-  val nextMovesMap = mutableMapOf<String, MutableList<DataMove>>()
-
-  for (move in moves) {
-    val originFen = move.origin.positionIdentifier
-    val destFen = move.destination.positionIdentifier
-    positionMap.getOrPut(originFen) { move.origin }
-    positionMap.getOrPut(destFen) { move.destination }
-
-    val dataMove = move.toDataMove()
-    nextMovesMap.getOrPut(originFen) { mutableListOf() }.add(dataMove)
-    previousMovesMap.getOrPut(destFen) { mutableListOf() }.add(dataMove)
-  }
-
-  return positionMap.values
-    .filter { withDeletedOnes || !it.isDeleted }
-    .map { position ->
-      val fen = position.positionIdentifier
-      DataNode(
-        positionIdentifier = PositionIdentifier(fen),
-        previousAndNextMoves =
-          PreviousAndNextMoves(
-            previousMovesMap[fen].orEmpty(),
-            nextMovesMap[fen].orEmpty(),
-            position.depth,
-          ),
-        previousAndNextTrainingDate =
-          PreviousAndNextDate(position.lastTrainingDate, position.nextTrainingDate),
-        updatedAt = position.updatedAt,
-        isDeleted = position.isDeleted,
-      )
-    }
-}
-
-/**
- * Converts a list of [DataNode] into a list of [MoveFetched] suitable for the server's POST
- * endpoint.
- *
- * Each next move of each node produces one [MoveFetched]. The origin position is the node itself,
- * and the destination is derived from the move's destination.
- */
-internal fun dataNodesToMoves(nodes: List<DataNode>): List<MoveFetched> {
-  val positionLookup = nodes.associateBy { it.positionIdentifier.fenRepresentation }
-  return nodes.flatMap { node ->
-    val originPosition = node.toPositionFetched()
-    node.previousAndNextMoves.nextMoves.values.map { dataMove ->
-      val destNode = positionLookup[dataMove.destination.fenRepresentation]
-      MoveFetched(
-        origin = originPosition,
-        destination =
-          destNode?.toPositionFetched()
-            ?: PositionFetched(
-              positionIdentifier = dataMove.destination.fenRepresentation,
-              depth = 0,
-              lastTrainingDate = node.previousAndNextTrainingDate.previousDate,
-              nextTrainingDate = node.previousAndNextTrainingDate.nextDate,
-              updatedAt = dataMove.updatedAt,
-              isDeleted = dataMove.isDeleted,
-            ),
-        move = dataMove.move,
-        isGood = dataMove.isGood ?: true,
-        isDeleted = dataMove.isDeleted,
-        updatedAt = dataMove.updatedAt,
-      )
-    }
-  }
-}
-
-private fun MoveFetched.toDataMove(): DataMove {
+/** Converts a [MoveFetched] from the server into a [DataMove]. */
+internal fun MoveFetched.toDataMove(): DataMove {
   return DataMove(
     origin = PositionIdentifier(origin.positionIdentifier),
     destination = PositionIdentifier(destination.positionIdentifier),
@@ -126,13 +20,89 @@ private fun MoveFetched.toDataMove(): DataMove {
   )
 }
 
-private fun DataNode.toPositionFetched(): PositionFetched {
+/** Converts a [PositionFetched] from the server into a [DataPosition]. */
+internal fun PositionFetched.toDataPosition(): DataPosition {
+  return DataPosition(
+    positionIdentifier = PositionIdentifier(positionIdentifier),
+    depth = depth,
+    previousAndNextTrainingDate = PreviousAndNextDate(lastTrainingDate, nextTrainingDate),
+    updatedAt = updatedAt,
+    isDeleted = isDeleted,
+  )
+}
+
+/** Converts a [NodeFetched] from the server into a [DataPosition] and its associated [DataMove]s. */
+internal fun NodeFetched.toDataPositionAndMoves(): Pair<DataPosition, List<DataMove>> {
+  return Pair(position.toDataPosition(), moves.map { it.toDataMove() })
+}
+
+/**
+ * Converts a flat list of [MoveFetched] into separate lists of [DataMove] and [DataPosition].
+ *
+ * Each position appearing as origin or destination in the moves list produces a [DataPosition].
+ */
+internal fun moveFetchedToMovesAndPositions(
+  moves: List<MoveFetched>,
+  withDeletedOnes: Boolean = false,
+): Pair<List<DataMove>, List<DataPosition>> {
+  val positionMap = mutableMapOf<String, PositionFetched>()
+
+  for (move in moves) {
+    positionMap.getOrPut(move.origin.positionIdentifier) { move.origin }
+    positionMap.getOrPut(move.destination.positionIdentifier) { move.destination }
+  }
+
+  val dataMoves = moves.map { it.toDataMove() }
+  val dataPositions = positionMap.values
+    .filter { withDeletedOnes || !it.isDeleted }
+    .map { it.toDataPosition() }
+
+  return Pair(dataMoves, dataPositions)
+}
+
+/**
+ * Converts lists of [DataMove] and [DataPosition] into a list of [MoveFetched] suitable for the
+ * server's POST endpoint.
+ */
+internal fun dataMovesToMoveFetched(
+  moves: List<DataMove>,
+  positions: List<DataPosition>,
+): List<MoveFetched> {
+  val positionLookup = positions.associateBy { it.positionIdentifier.fenRepresentation }
+  return moves.map { dataMove ->
+    val originPosition = positionLookup[dataMove.origin.fenRepresentation]
+    val destPosition = positionLookup[dataMove.destination.fenRepresentation]
+    MoveFetched(
+      origin = originPosition?.toPositionFetched()
+        ?: dataMove.origin.toDefaultPositionFetched(dataMove),
+      destination = destPosition?.toPositionFetched()
+        ?: dataMove.destination.toDefaultPositionFetched(dataMove),
+      move = dataMove.move,
+      isGood = dataMove.isGood ?: true,
+      isDeleted = dataMove.isDeleted,
+      updatedAt = dataMove.updatedAt,
+    )
+  }
+}
+
+private fun DataPosition.toPositionFetched(): PositionFetched {
   return PositionFetched(
     positionIdentifier = positionIdentifier.fenRepresentation,
-    depth = previousAndNextMoves.depth,
+    depth = depth,
     lastTrainingDate = previousAndNextTrainingDate.previousDate,
     nextTrainingDate = previousAndNextTrainingDate.nextDate,
     updatedAt = updatedAt,
     isDeleted = isDeleted,
+  )
+}
+
+private fun PositionIdentifier.toDefaultPositionFetched(move: DataMove): PositionFetched {
+  return PositionFetched(
+    positionIdentifier = fenRepresentation,
+    depth = 0,
+    lastTrainingDate = PreviousAndNextDate.dummyToday().previousDate,
+    nextTrainingDate = PreviousAndNextDate.dummyToday().nextDate,
+    updatedAt = move.updatedAt,
+    isDeleted = move.isDeleted,
   )
 }

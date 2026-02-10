@@ -29,7 +29,7 @@ class TestNoActiveDatabase : TestWithKoin {
 
   @Test
   fun testOperationsFailWhenNoActiveDatabase() = runTest {
-    assertFails("No active database found.") { compositeDatabase.getAllNodes() }
+    assertFails("No active database found.") { compositeDatabase.getAllPositions() }
     assertFails("No active database found.") {
       compositeDatabase.getPosition(PositionIdentifier.START_POSITION)
     }

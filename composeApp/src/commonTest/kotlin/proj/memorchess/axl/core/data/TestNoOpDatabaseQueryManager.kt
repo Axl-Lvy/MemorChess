@@ -15,9 +15,15 @@ class TestNoOpDatabaseQueryManager {
   private val noOpDatabaseQueryManager = NoOpDatabaseQueryManager()
 
   @Test
-  fun testGetAllNodesReturnsEmptyList() = runTest {
-    val nodes = noOpDatabaseQueryManager.getAllNodes(false)
-    assertTrue(nodes.isEmpty(), "Expected empty list of nodes")
+  fun testGetAllPositionsReturnsEmptyList() = runTest {
+    val positions = noOpDatabaseQueryManager.getAllPositions(false)
+    assertTrue(positions.isEmpty(), "Expected empty list of positions")
+  }
+
+  @Test
+  fun testGetAllMovesReturnsEmptyList() = runTest {
+    val moves = noOpDatabaseQueryManager.getAllMoves(false)
+    assertTrue(moves.isEmpty(), "Expected empty list of moves")
   }
 
   @Test
@@ -47,9 +53,9 @@ class TestNoOpDatabaseQueryManager {
   }
 
   @Test
-  fun testInsertNodesDoesNothing() = runTest {
-    val nodes = TestDatabaseQueryManager.minimalNodePair()
-    noOpDatabaseQueryManager.insertNodes(*nodes.toTypedArray())
+  fun testInsertMovesDoesNothing() = runTest {
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
+    noOpDatabaseQueryManager.insertMoves(moves, positions)
     // No exception or state change expected
   }
 

@@ -37,7 +37,7 @@ class TestNextMoveBar : TestWithKoin {
     clickOnSave()
     Awaitility.awaitUntilTrue {
       var size = 0
-      runTest { size = database.getAllNodes(false).size }
+      runTest { size = database.getAllPositions(false).size }
       size == 2
     }
   }

@@ -14,19 +14,16 @@ class TestTestDatabase {
     val viennaDb = TestDatabaseQueryManager.vienna()
     val viennaMoves = getVienna()
 
-    // Check that the database has the correct number of positions
+    // Each move string should produce one DataMove
     assertEquals(
       viennaMoves.size,
-      viennaDb.dataNodes.size,
-      "Vienna database should have the same number of positions as moves",
+      viennaDb.dataMoves.size,
+      "Vienna database should have the same number of DataMoves as input moves",
     )
 
     // Verify each move is stored in the database
     for (move in viennaMoves) {
-      val found =
-        viennaDb.dataNodes.values.any { node ->
-          node.previousAndNextMoves.nextMoves.values.any { it.move == move }
-        }
+      val found = viennaDb.dataMoves.any { it.move == move }
       assertTrue(found, "Move $move should be in the Vienna database")
     }
   }
@@ -36,19 +33,14 @@ class TestTestDatabase {
     val londonDb = TestDatabaseQueryManager.london()
     val londonMoves = getLondon()
 
-    // Check that the database has the correct number of positions
     assertEquals(
       londonMoves.size,
-      londonDb.dataNodes.size,
-      "London database should have the same number of positions as moves",
+      londonDb.dataMoves.size,
+      "London database should have the same number of DataMoves as input moves",
     )
 
-    // Verify each move is stored in the database
     for (move in londonMoves) {
-      val found =
-        londonDb.dataNodes.values.any { node ->
-          node.previousAndNextMoves.nextMoves.values.any { it.move == move }
-        }
+      val found = londonDb.dataMoves.any { it.move == move }
       assertTrue(found, "Move $move should be in the London database")
     }
   }
@@ -58,19 +50,14 @@ class TestTestDatabase {
     val scandinavianDb = TestDatabaseQueryManager.scandinavian()
     val scandinavianMoves = getScandinavian()
 
-    // Check that the database has the correct number of positions
     assertEquals(
       scandinavianMoves.size,
-      scandinavianDb.dataNodes.size,
-      "Scandinavian database should have the same number of positions as moves",
+      scandinavianDb.dataMoves.size,
+      "Scandinavian database should have the same number of DataMoves as input moves",
     )
 
-    // Verify each move is stored in the database
     for (move in scandinavianMoves) {
-      val found =
-        scandinavianDb.dataNodes.values.any { node ->
-          node.previousAndNextMoves.nextMoves.values.any { it.move == move }
-        }
+      val found = scandinavianDb.dataMoves.any { it.move == move }
       assertTrue(found, "Move $move should be in the Scandinavian database")
     }
   }
@@ -84,51 +71,36 @@ class TestTestDatabase {
     // Merge all databases
     val mergedDb = TestDatabaseQueryManager.merge(viennaDb, londonDb, scandinavianDb)
 
-    // Check that the merged database contains all positions from individual databases
+    // Check that the merged database contains all unique positions
     val uniquePositions =
-      (viennaDb.dataNodes.keys + londonDb.dataNodes.keys + scandinavianDb.dataNodes.keys).size
+      (viennaDb.dataPositions.keys + londonDb.dataPositions.keys + scandinavianDb.dataPositions.keys).size
 
     assertEquals(
       uniquePositions,
-      mergedDb.dataNodes.size,
+      mergedDb.dataPositions.size,
       "Merged database should contain all unique positions from individual databases",
     )
 
     // Check that all moves from individual databases are in the merged database
-    for (node in viennaDb.dataNodes.values) {
-      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
-      assertTrue(mergedNode != null, "Position from Vienna database should be in merged database")
-      for (move in node.previousAndNextMoves.nextMoves.values) {
-        assertTrue(
-          mergedNode.previousAndNextMoves.nextMoves.values.contains(move),
-          "Move $move from Vienna database should be in merged database",
-        )
+    for (move in viennaDb.dataMoves) {
+      val found = mergedDb.dataMoves.any {
+        it.origin == move.origin && it.destination == move.destination && it.move == move.move
       }
+      assertTrue(found, "Move ${move.move} from Vienna database should be in merged database")
     }
 
-    for (node in londonDb.dataNodes.values) {
-      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
-      assertTrue(mergedNode != null, "Position from London database should be in merged database")
-      for (move in node.previousAndNextMoves.nextMoves.values) {
-        assertTrue(
-          mergedNode.previousAndNextMoves.nextMoves.values.contains(move),
-          "Move $move from London database should be in merged database",
-        )
+    for (move in londonDb.dataMoves) {
+      val found = mergedDb.dataMoves.any {
+        it.origin == move.origin && it.destination == move.destination && it.move == move.move
       }
+      assertTrue(found, "Move ${move.move} from London database should be in merged database")
     }
 
-    for (node in scandinavianDb.dataNodes.values) {
-      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
-      assertTrue(
-        mergedNode != null,
-        "Position from Scandinavian database should be in merged database",
-      )
-      for (move in node.previousAndNextMoves.nextMoves.values) {
-        assertTrue(
-          mergedNode.previousAndNextMoves.nextMoves.values.contains(move),
-          "Move $move from Scandinavian database should be in merged database",
-        )
+    for (move in scandinavianDb.dataMoves) {
+      val found = mergedDb.dataMoves.any {
+        it.origin == move.origin && it.destination == move.destination && it.move == move.move
       }
+      assertTrue(found, "Move ${move.move} from Scandinavian database should be in merged database")
     }
   }
 }

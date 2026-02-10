@@ -24,26 +24,29 @@ class TestTrainingNodeOrder : TestWithKoin {
     super.setUp()
     runTest {
       database.deleteAll(DateUtil.farInThePast())
-      database.insertNodes(*TestDatabaseQueryManager.vienna().getAllNodes(true).toTypedArray())
+      val vienna = TestDatabaseQueryManager.vienna()
+      database.insertMoves(vienna.dataMoves, vienna.dataPositions.values.toList())
       nodeManager.resetCacheFromSource()
     }
   }
 
   @Test
   fun testMinimumDepth() {
-    val node = nodeManager.getNextNodeToLearn(0, null)
-    assertNotNull(node)
-    assertTrue { node.positionIdentifier == PositionIdentifier.START_POSITION }
+    val position = nodeManager.getNextPositionToLearn(0, null)
+    assertNotNull(position)
+    assertTrue { position.positionIdentifier == PositionIdentifier.START_POSITION }
   }
 
   @Test
   fun testNextMove() {
-    val node = nodeManager.getNextNodeToLearn(0, null)
-    checkNotNull(node)
-    val nextNode =
-      nodeManager.getNextNodeToLearn(0, node.previousAndNextMoves.nextMoves.iterator().next().value)
-    assertNotNull(nextNode)
-    val move = nextNode.previousAndNextMoves.nextMoves.iterator().next().value.move
+    val position = nodeManager.getNextPositionToLearn(0, null)
+    checkNotNull(position)
+    val movesForPosition = checkNotNull(nodeManager.getMovesForPosition(position.positionIdentifier))
+    val nextMove = movesForPosition.nextMoves.iterator().next().value
+    val nextPosition = nodeManager.getNextPositionToLearn(0, nextMove)
+    assertNotNull(nextPosition)
+    val nextPositionMoves = checkNotNull(nodeManager.getMovesForPosition(nextPosition.positionIdentifier))
+    val move = nextPositionMoves.nextMoves.iterator().next().value.move
     assertTrue("Move is $move but should be Nc3") { move == "Nc3" }
   }
 }

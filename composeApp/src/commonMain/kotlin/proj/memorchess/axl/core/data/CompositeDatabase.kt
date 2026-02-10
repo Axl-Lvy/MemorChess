@@ -23,21 +23,41 @@ class CompositeDatabase(
   private val localDatabase: DatabaseQueryManager,
   private val databaseUploader: DatabaseUploader,
 ) : DatabaseQueryManager {
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<DataMove> {
     return if (localDatabase.isActive()) {
-      localDatabase.getAllNodes(withDeletedOnes)
+      localDatabase.getAllMoves(withDeletedOnes)
     } else if (remoteDatabase.isActive()) {
-      remoteDatabase.getAllNodes(withDeletedOnes)
+      remoteDatabase.getAllMoves(withDeletedOnes)
     } else {
       throwNoActiveDatabaseException()
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
+  override suspend fun getAllPositions(withDeletedOnes: Boolean): List<DataPosition> {
+    return if (localDatabase.isActive()) {
+      localDatabase.getAllPositions(withDeletedOnes)
+    } else if (remoteDatabase.isActive()) {
+      remoteDatabase.getAllPositions(withDeletedOnes)
+    } else {
+      throwNoActiveDatabaseException()
+    }
+  }
+
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataPosition? {
     return if (localDatabase.isActive()) {
       localDatabase.getPosition(positionIdentifier)
     } else if (remoteDatabase.isActive()) {
       remoteDatabase.getPosition(positionIdentifier)
+    } else {
+      throwNoActiveDatabaseException()
+    }
+  }
+
+  override suspend fun getMovesForPosition(positionIdentifier: PositionIdentifier): List<DataMove> {
+    return if (localDatabase.isActive()) {
+      localDatabase.getMovesForPosition(positionIdentifier)
+    } else if (remoteDatabase.isActive()) {
+      remoteDatabase.getMovesForPosition(positionIdentifier)
     } else {
       throwNoActiveDatabaseException()
     }
@@ -70,12 +90,12 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun insertNodes(vararg positions: DataNode) {
+  override suspend fun insertMoves(moves: List<DataMove>, positions: List<DataPosition>) {
     if (localDatabase.isActive()) {
-      localDatabase.insertNodes(*positions)
-      databaseUploader.enqueue(DatabaseOperation.InsertNodes(positions.toList()))
+      localDatabase.insertMoves(moves, positions)
+      databaseUploader.enqueue(DatabaseOperation.InsertMoves(moves, positions))
     } else if (remoteDatabase.isActive()) {
-      remoteDatabase.insertNodes(*positions)
+      remoteDatabase.insertMoves(moves, positions)
     }
   }
 

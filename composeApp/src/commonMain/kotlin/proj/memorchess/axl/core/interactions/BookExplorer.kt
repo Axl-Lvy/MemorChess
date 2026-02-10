@@ -3,7 +3,8 @@ package proj.memorchess.axl.core.interactions
 import co.touchlab.kermit.Logger
 import kotlin.math.min
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.book.Book
@@ -37,16 +38,17 @@ class BookExplorer(
   /**
    * Downloads all moves from the book to the user's repertoire.
    *
-   * This converts book moves to DataNodes and stores them in the database.
+   * This converts book moves to DataMoves and DataPositions and stores them in the database.
    */
   suspend fun downloadBookToRepertoire() {
     try {
       val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
       bookQueryManager.registerBookDownload(book.id)
-      val dataNodes = mutableMapOf<PositionIdentifier, DataNode>()
-      dataNodes.fillRecursively(PositionIdentifier.START_POSITION, bookMoves)
+      val dataMoves = mutableListOf<DataMove>()
+      val dataPositions = mutableMapOf<PositionIdentifier, DataPosition>()
+      fillRecursively(PositionIdentifier.START_POSITION, bookMoves, dataMoves, dataPositions, 0)
 
-      databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
+      databaseQueryManager.insertMoves(dataMoves, dataPositions.values.toList())
       toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
     } catch (e: Exception) {
       LOGGER.e(e) { "Failed to download book '${book.name}'." }
@@ -54,26 +56,24 @@ class BookExplorer(
     }
   }
 
-  private fun MutableMap<PositionIdentifier, DataNode>.fillRecursively(
+  private fun fillRecursively(
     position: PositionIdentifier,
     bookMoves: Map<PositionIdentifier, List<BookMove>>,
+    dataMoves: MutableList<DataMove>,
+    dataPositions: MutableMap<PositionIdentifier, DataPosition>,
+    currentDepth: Int,
   ) {
     val moves = bookMoves[position] ?: return
     val trainingDate = PreviousAndNextDate.dummyToday()
+    dataPositions.getOrPut(position) { DataPosition(position, currentDepth, trainingDate) }
+
     for (move in moves) {
-      val currentPreviousAndNextMoves =
-        this.getOrPut(position) { DataNode(position, PreviousAndNextMoves(), trainingDate) }
-          .previousAndNextMoves
-      currentPreviousAndNextMoves.addNextMove(move.toDataMove())
-      val nextPreviousAndNextMoves =
-        this.getOrPut(move.destination) {
-            DataNode(move.destination, PreviousAndNextMoves(depth = Int.MAX_VALUE), trainingDate)
-          }
-          .previousAndNextMoves
-      val newDepth = min(nextPreviousAndNextMoves.depth, currentPreviousAndNextMoves.depth + 1)
-      if (newDepth != nextPreviousAndNextMoves.depth) {
-        nextPreviousAndNextMoves.depth = newDepth
-        this.fillRecursively(move.destination, bookMoves)
+      dataMoves.add(move.toDataMove())
+      val existingDest = dataPositions[move.destination]
+      val newDepth = if (existingDest != null) min(existingDest.depth, currentDepth + 1) else currentDepth + 1
+      if (existingDest == null || newDepth != existingDest.depth) {
+        dataPositions[move.destination] = DataPosition(move.destination, newDepth, trainingDate)
+        fillRecursively(move.destination, bookMoves, dataMoves, dataPositions, newDepth)
       }
     }
   }

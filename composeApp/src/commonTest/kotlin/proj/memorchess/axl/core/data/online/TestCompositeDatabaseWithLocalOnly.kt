@@ -22,10 +22,10 @@ class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
 
   @Test
   fun testConsistency() = runTest {
-    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
 
-    localDatabase.insertNodes(*nodes.toTypedArray())
-    val positionIdentifier = nodes.first().positionIdentifier
+    localDatabase.insertMoves(moves, positions)
+    val positionIdentifier = positions.first().positionIdentifier
     assertEquals(
       localDatabase.getPosition(positionIdentifier),
       compositeDatabase.getPosition(positionIdentifier),

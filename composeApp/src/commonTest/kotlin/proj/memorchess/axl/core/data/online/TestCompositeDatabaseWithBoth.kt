@@ -27,10 +27,10 @@ class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabas
 
   @Test
   fun testConsistency() = runTest {
-    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
 
-    remoteDatabase.insertNodes(*nodes.toTypedArray())
-    val positionIdentifier = nodes.first().positionIdentifier
+    remoteDatabase.insertMoves(moves, positions)
+    val positionIdentifier = positions.first().positionIdentifier
     assertEquals(
       remoteDatabase.getPosition(positionIdentifier),
       remoteDatabase.getPosition(positionIdentifier),

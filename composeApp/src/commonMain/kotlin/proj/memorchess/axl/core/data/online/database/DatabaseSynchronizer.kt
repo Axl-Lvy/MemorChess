@@ -68,7 +68,9 @@ class DatabaseSynchronizer(
   suspend fun syncFromLocal() {
     val hardDeleteDate = lastUpdates.value?.first
     remoteDatabase.deleteAll(hardDeleteDate)
-    remoteDatabase.insertNodes(*localDatabase.getAllNodes().toTypedArray())
+    val moves = localDatabase.getAllMoves()
+    val positions = localDatabase.getAllPositions()
+    remoteDatabase.insertMoves(moves, positions)
     isSynced = true
   }
 
@@ -76,8 +78,9 @@ class DatabaseSynchronizer(
   suspend fun syncFromRemote() {
     val hardDeleteDate = lastUpdates.value?.second
     localDatabase.deleteAll(hardDeleteDate)
-    val positionToStoredNode = remoteDatabase.getAllNodes()
-    localDatabase.insertNodes(*positionToStoredNode.toTypedArray())
+    val moves = remoteDatabase.getAllMoves()
+    val positions = remoteDatabase.getAllPositions()
+    localDatabase.insertMoves(moves, positions)
     isSynced = true
   }
 }

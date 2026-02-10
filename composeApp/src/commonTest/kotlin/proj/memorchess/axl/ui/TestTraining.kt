@@ -12,7 +12,7 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
@@ -21,7 +21,6 @@ import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.engine.pieces.Pawn
 import proj.memorchess.axl.core.engine.pieces.Piece
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.RememberLastRouteNavigator
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
@@ -52,10 +51,10 @@ class TestTraining : TestWithKoin {
   }
 
   suspend fun resetDatabase() {
-    // Delete all existing nodes
+    // Delete all existing data
     database.deleteAll(null)
 
-    // Create a test node with e4 as a good move
+    // Create a test position with e4 as a good move
     val game = Game()
     val startPos = game.position.createIdentifier()
 
@@ -63,16 +62,16 @@ class TestTraining : TestWithKoin {
     val e4Pos = game.position.createIdentifier()
     val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
 
-    // Create the node with the move
-    val testNode =
-      DataNode(
+    // Create the position
+    val testPosition =
+      DataPosition(
         positionIdentifier = startPos,
-        PreviousAndNextMoves(listOf(), listOf(e4Move)),
-        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+        depth = 0,
+        previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
 
-    // Save the node to the database
-    database.insertNodes(testNode)
+    // Save the position and move to the database
+    database.insertMoves(listOf(e4Move), listOf(testPosition))
   }
 
   @Test
@@ -94,9 +93,9 @@ class TestTraining : TestWithKoin {
     }
   }
 
-  private fun getAllPositions(): List<DataNode> {
-    var positions: List<DataNode>? = null
-    runTest { positions = database.getAllNodes(false) }
+  private fun getAllPositions(): List<DataPosition> {
+    var positions: List<DataPosition>? = null
+    runTest { positions = database.getAllPositions(false) }
     checkNotNull(positions)
     return positions
   }
@@ -163,14 +162,14 @@ class TestTraining : TestWithKoin {
     val e5Pos = game.position.createIdentifier()
     val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
 
-    // Create the node with the move
-    val testNode =
-      DataNode(
+    // Create the position
+    val testPosition =
+      DataPosition(
         positionIdentifier = e4Pos,
-        PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
-        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+        depth = 1,
+        previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
-    runTest { database.insertNodes(testNode) }
+    runTest { database.insertMoves(listOf(e4Move, e5Move), listOf(testPosition)) }
     setContent { InitializeApp { Training() } }
 
     try {
@@ -197,13 +196,13 @@ class TestTraining : TestWithKoin {
     game.playMove("h8=Q+")
     val endPosition = game.position.createIdentifier()
     val startMove = DataMove(startPosition, endPosition, "h8=Q", isGood = true)
-    val node =
-      DataNode(
+    val position =
+      DataPosition(
         positionIdentifier = startPosition,
-        PreviousAndNextMoves(listOf(), listOf(startMove)),
-        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+        depth = 0,
+        previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
-    runTest { database.insertNodes(node) }
+    runTest { database.insertMoves(listOf(startMove), listOf(position)) }
     setContent { InitializeApp { Training() } }
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("h7", "h8")

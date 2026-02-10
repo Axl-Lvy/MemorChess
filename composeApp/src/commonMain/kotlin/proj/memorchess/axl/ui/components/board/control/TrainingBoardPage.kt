@@ -18,10 +18,11 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.engine.Game
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
+import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.training.BoardContainer
@@ -60,46 +61,49 @@ private class TrainingBoard : KoinComponent {
   private val nodeManager: NodeManager<PersonalNode> by inject()
   private val localReloader = BasicReloader()
   private val trainerReloader = BasicReloader()
-  private var chosenNode by mutableStateOf<DataNode?>(null)
+  private var chosenPosition by mutableStateOf<DataPosition?>(null)
+  private var chosenMoves by mutableStateOf<PreviousAndNextMoves?>(null)
 
   init {
-    choseNextNode()
+    choseNextPosition()
   }
 
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
-    val numberOfNodesToTrain =
+    val numberOfPositionsToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
-        nodeManager.getNumberOfNodesToTrain(daysInAdvance)
+        nodeManager.getNumberOfPositionsToTrain(daysInAdvance)
       }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing && state.isCorrect) {
         delay(moveDelay)
-        choseNextNode()
+        choseNextPosition()
       }
     }
-    val finalChosenNode = chosenNode
-    if (finalChosenNode == null) {
-      NoNodeToTrain(modifier = modifier)
+    val finalChosenPosition = chosenPosition
+    val finalChosenMoves = chosenMoves
+    if (finalChosenPosition == null || finalChosenMoves == null) {
+      NoPositionToTrain(modifier = modifier)
     } else {
-      NodeToTrain(finalChosenNode, numberOfNodesToTrain, modifier = modifier)
+      PositionToTrain(finalChosenPosition, finalChosenMoves, numberOfPositionsToTrain, modifier = modifier)
     }
   }
 
-  private fun choseNextNode() {
+  private fun choseNextPosition() {
     state = state.toPlayableState()
     localReloader.reload()
     trainerReloader.reload()
-    chosenNode = nodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
+    chosenPosition = nodeManager.getNextPositionToLearn(daysInAdvance, previousPlayedMove)
+    chosenMoves = chosenPosition?.let { nodeManager.getMovesForPosition(it.positionIdentifier) }
   }
 
   /**
-   * Composable that displays a message when there are no nodes to train.
+   * Composable that displays a message when there are no positions to train.
    *
    * @param modifier Modifier for styling.
    */
   @Composable
-  private fun NoNodeToTrain(modifier: Modifier = Modifier) {
+  private fun NoPositionToTrain(modifier: Modifier = Modifier) {
     if (!state.isCorrect && daysInAdvance > 0) {
       daysInAdvance = 1
       return
@@ -131,7 +135,7 @@ private class TrainingBoard : KoinComponent {
         Button(
           onClick = {
             daysInAdvance++
-            choseNextNode()
+            choseNextPosition()
           },
           modifier = Modifier.padding(top = 16.dp),
         ) {
@@ -143,21 +147,23 @@ private class TrainingBoard : KoinComponent {
   }
 
   /**
-   * Composable based on a node to train.
+   * Composable based on a position to train.
    *
-   * @param nodeToLearn The node to learn.
-   * @param numberOfNodesToTrain The number of nodes to train.
+   * @param positionToLearn The position to learn.
+   * @param movesToLearn The moves for the position.
+   * @param numberOfPositionsToTrain The number of positions to train.
    * @param modifier Modifier for styling.
    */
   @Composable
-  private fun NodeToTrain(
-    nodeToLearn: DataNode,
-    numberOfNodesToTrain: Int,
+  private fun PositionToTrain(
+    positionToLearn: DataPosition,
+    movesToLearn: PreviousAndNextMoves,
+    numberOfPositionsToTrain: Int,
     modifier: Modifier = Modifier,
   ) {
     val trainer = remember {
       val trainer =
-        SingleMoveTrainer(nodeToLearn) {
+        SingleMoveTrainer(positionToLearn, movesToLearn) {
           state =
             if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
             else TrainingBoardState.SHOW_WRONG_MOVE
@@ -166,8 +172,8 @@ private class TrainingBoard : KoinComponent {
       trainer.registerCallBack { reloader.reload() }
       trainer
     }
-    trainer.updateNode(nodeToLearn)
-    val inverted = remember(nodeToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
+    trainer.updatePosition(positionToLearn, movesToLearn)
+    val inverted = remember(positionToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
     val content =
       TrainingLayoutContent(
         board = { BoardContainer(inverted, trainer, it) },
@@ -176,12 +182,12 @@ private class TrainingBoard : KoinComponent {
           SuccessIndicatorCard(
             state.isCorrect,
             state.isShowing,
-            { choseNextNode() },
-            chosenNode?.positionIdentifier,
+            { choseNextPosition() },
+            chosenPosition?.positionIdentifier,
             it,
           )
         },
-        movesToTrain = { MovesToTrainCard(numberOfNodesToTrain, it) },
+        movesToTrain = { MovesToTrainCard(numberOfPositionsToTrain, it) },
       )
     BoxWithConstraints {
       if (maxHeight > maxWidth) {
