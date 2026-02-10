@@ -40,12 +40,12 @@ fun Route.configureProtectedDataRoutes() {
       operationId = "getUserMoves",
       tags = ["personal data"],
     )
-    get<DataRoutes.Moves> {
+    get<DataRoutes.Moves> { resource ->
       val principal =
         call.principal<UserIdPrincipal>()
           ?: return@get call.respondText(NO_PRINCIPAL_MESSAGE, status = HttpStatusCode.Unauthorized)
 
-      val moves = getAllMoves(principal.name)
+      val moves = getAllMoves(principal.name, resource.withDeletedOnes)
 
       responds<List<MoveFetched>>(
         status = HttpStatusCode.OK,

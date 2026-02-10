@@ -21,8 +21,9 @@ import proj.memorchess.axl.server.data.ALL_TABLES
 fun Application.configureDatabase() {
   val user = environment.config.property("database.user").getString()
   val password = environment.config.property("database.password").getString()
-  val url = environment.config.property("database.url").getString()
-  val nextMigrationVersion = executeMigrations(url, user, password) + 1
+  val url = System.getenv("DATABASE_URL") ?: environment.config.property("database.url").getString()
+  val firstResult = executeMigrations(url, user, password)
+  val nextMigrationVersion = firstResult.version + 1
 
   // Generate migration script before running migrations
   runBlocking {
@@ -44,24 +45,42 @@ fun Application.configureDatabase() {
       log.debug("Statements before migration:\n${statements.joinToString("\n")}")
 
       // Execute the migration we just generated
-      executeMigrations(url, user, password)
+      val secondResult = executeMigrations(url, user, password)
+
+      // Fallback: if Flyway couldn't run the migration (e.g. fat JAR service loading issue),
+      // execute the statements directly via Exposed
+      if (secondResult.migrationsExecuted == 0) {
+        log.warn("Flyway did not apply migrations. Executing schema statements directly.")
+        transaction {
+          for (statement in statements) {
+            exec(statement)
+          }
+        }
+      }
     } else {
       log.info("No schema changes detected. Skipping migration script generation.")
     }
   }
 }
 
-private fun executeMigrations(url: String, user: String, password: String): Int {
+private data class MigrationResult(val version: Int, val migrationsExecuted: Int)
+
+private fun executeMigrations(url: String, user: String, password: String): MigrationResult {
   val migrationDir = Paths.get("server/src/main/resources/db/migration").toAbsolutePath()
   val flyway =
-    Flyway.configure().dataSource(url, user, password).locations("filesystem:$migrationDir").load()
+    Flyway.configure()
+      .dataSource(url, user, password)
+      .locations("filesystem:$migrationDir")
+      .load()
   val migrationResult = flyway.migrate()
   if (!migrationResult.success) {
     throw Exception("Database migration failed")
   }
-  return if (migrationResult.migrationsExecuted == 0) {
-    migrationResult.initialSchemaVersion?.toInt() ?: 0
-  } else {
-    migrationResult.targetSchemaVersion?.toInt() ?: 0
-  }
+  val version =
+    if (migrationResult.migrationsExecuted == 0) {
+      migrationResult.initialSchemaVersion?.toInt() ?: 0
+    } else {
+      migrationResult.targetSchemaVersion?.toInt() ?: 0
+    }
+  return MigrationResult(version, migrationResult.migrationsExecuted)
 }

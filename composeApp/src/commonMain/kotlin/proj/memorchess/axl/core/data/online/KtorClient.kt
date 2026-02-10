@@ -2,6 +2,8 @@ package proj.memorchess.axl.core.data.online
 
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.resources.Resources
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
@@ -15,6 +17,8 @@ private const val SERVER_URL = "http://localhost:8080"
  */
 fun createKtorClient(): HttpClient {
   return HttpClient {
+    defaultRequest { url(SERVER_URL) }
+    install(Resources)
     install(ContentNegotiation) {
       json(
         Json {

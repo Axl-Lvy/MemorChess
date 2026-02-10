@@ -101,6 +101,22 @@ class TestQueryManager {
   }
 
   @Test
+  fun testGetAllMoves_withDeletedOnes() = testApplicationWithTestModule {
+    val user = getUser("admin")
+    user.shouldNotBeNull()
+
+    // Mark a move as deleted
+    transaction {
+      val moveToDelete = UserMoveEntity.find { UserMovesTable.userId eq user.id.value }.first()
+      moveToDelete.isDeleted = true
+    }
+
+    val moves = getAllMoves(user.id.value.toString(), withDeletedOnes = true)
+    moves shouldHaveSize 6
+    moves.any { it.isDeleted } shouldBe true
+  }
+
+  @Test
   fun testAddMoves_createsNewPositionsAndMoves() = testApplicationWithTestModule {
     val user = getUser("admin")
     user.shouldNotBeNull()

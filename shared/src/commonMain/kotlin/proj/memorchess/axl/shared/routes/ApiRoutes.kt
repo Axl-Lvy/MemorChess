@@ -12,7 +12,9 @@ import kotlinx.serialization.Serializable
 @Resource("/data")
 class DataRoutes {
   /** Route for fetching all moves for the authenticated user. GET /data/moves */
-  @Serializable @Resource("moves") class Moves(val parent: DataRoutes = DataRoutes())
+  @Serializable
+  @Resource("moves")
+  class Moves(val parent: DataRoutes = DataRoutes(), val withDeletedOnes: Boolean = false)
 
   /** Route for fetching or deleting data for a specific position. GET /data/node/{fen} */
   @Serializable

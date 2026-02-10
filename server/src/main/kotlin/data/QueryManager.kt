@@ -28,10 +28,14 @@ fun hasUserPermission(userId: String, permission: String): Boolean {
   }
 }
 
-fun getAllMoves(userId: String): List<MoveFetched> {
+fun getAllMoves(userId: String, withDeletedOnes: Boolean = false): List<MoveFetched> {
   val moves = transaction {
     UserMoveEntity.find {
-      UserMovesTable.userId eq UUID.fromString(userId) and (UserMovesTable.isDeleted eq false)
+      if (withDeletedOnes) {
+        UserMovesTable.userId eq UUID.fromString(userId)
+      } else {
+        UserMovesTable.userId eq UUID.fromString(userId) and (UserMovesTable.isDeleted eq false)
+      }
     }
   }
   val userPositionCache = mutableMapOf<Long, PositionFetched>()

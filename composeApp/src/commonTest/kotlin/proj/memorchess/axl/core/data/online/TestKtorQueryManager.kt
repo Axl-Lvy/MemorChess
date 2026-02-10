@@ -6,7 +6,7 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
@@ -15,9 +15,9 @@ import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
-class TestSupabaseQueryManager : TestAuthenticated() {
+class TestKtorQueryManager : TestAuthenticated() {
 
-  private val remoteDatabase by inject<SupabaseQueryManager>()
+  private val remoteDatabase by inject<KtorQueryManager>()
   private val refDatabase = TestDatabaseQueryManager.vienna()
 
   override fun setUp() {

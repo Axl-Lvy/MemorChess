@@ -9,8 +9,8 @@ import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
@@ -18,19 +18,21 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.ensureDockerRunning
 
 abstract class TestCompositeDatabase : TestWithKoin {
 
   val compositeDatabase by inject<DatabaseQueryManager>()
   val localDatabase by inject<DatabaseQueryManager>(named("local"))
-  val remoteDatabase by inject<SupabaseQueryManager>()
+  val remoteDatabase by inject<KtorQueryManager>()
 
   abstract class TestCompositeDatabaseAuthenticated : TestCompositeDatabase() {
-    val authManager by inject<AuthManager>()
+    val authManager by inject<KtorAuthManager>()
 
     @BeforeTest
     override fun setUp() {
       super.setUp()
+      ensureDockerRunning()
       ensureSignedOut()
       runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
       Awaitility.awaitUntilTrue { authManager.user != null }

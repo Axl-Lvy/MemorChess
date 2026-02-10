@@ -11,7 +11,7 @@ import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
@@ -20,7 +20,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
   private val databaseSynchronizer by inject<DatabaseSynchronizer>()
   private val localDatabase by inject<DatabaseQueryManager>(named("local"))
-  private val remoteDatabase by inject<SupabaseQueryManager>()
+  private val remoteDatabase by inject<KtorQueryManager>()
 
   private val globalDatabase by inject<DatabaseQueryManager>()
   private val databaseUploader by inject<DatabaseUploader>()

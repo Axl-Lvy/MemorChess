@@ -5,15 +5,16 @@ import kotlin.test.BeforeTest
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
-import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
 
 abstract class TestAuthenticated : TestWithKoin {
 
-  val authManager by inject<AuthManager>()
+  val authManager by inject<KtorAuthManager>()
 
   @BeforeTest
   override fun setUp() {
     super.setUp()
+    ensureDockerRunning()
     ensureSignedOut()
     runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
     Awaitility.awaitUntilTrue { authManager.user != null }

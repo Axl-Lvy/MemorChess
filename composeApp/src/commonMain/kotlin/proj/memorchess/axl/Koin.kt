@@ -17,6 +17,7 @@ import proj.memorchess.axl.core.data.online.createKtorClient
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.BookBasedNodeCache
@@ -43,11 +44,11 @@ fun initKoinModules(): Array<Module> {
 
   val dataModule = module {
     single<DatabaseQueryManager>(named("local")) { getPlatformSpecificLocalDatabase() }
-    single<SupabaseQueryManager> { SupabaseQueryManager(get(), get()) }
+    single<KtorQueryManager> { KtorQueryManager(get(), get()) }
     single<SupabaseBookQueryManager> { SupabaseBookQueryManager(get(), get()) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
-    single<DatabaseUploader> { DatabaseUploader(get(), get()) }
-    single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local")), get()) }
+    single<DatabaseUploader> { DatabaseUploader(get<KtorQueryManager>(), get()) }
+    single<DatabaseQueryManager> { CompositeDatabase(get<KtorQueryManager>(), get(named("local")), get()) }
     single<Settings> { getPlatformSpecificSettings() }
   }
 

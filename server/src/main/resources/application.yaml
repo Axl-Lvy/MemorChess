@@ -6,6 +6,6 @@ ktor:
     port: 8080
 
 database:
-  url: jdbc:postgresql://localhost:5432/memorchess
+  url: "jdbc:postgresql://localhost:5432/memorchess"
   user: postgres
   password: postgres

@@ -24,6 +24,7 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.ensureDockerRunning
 import proj.memorchess.axl.ui.pages.Settings
 
 @OptIn(ExperimentalTestApi::class)
@@ -41,6 +42,7 @@ class TestAuthentication : TestWithKoin {
 
   @BeforeTest
   override fun setUp() {
+    ensureDockerRunning()
     super.setUp()
     runTest {
       signOut() // Ensure we start with a clean state

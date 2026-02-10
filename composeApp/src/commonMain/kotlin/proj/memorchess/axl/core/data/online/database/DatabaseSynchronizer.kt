@@ -18,7 +18,7 @@ import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
  */
 class DatabaseSynchronizer(
   private val authManager: AuthManager,
-  private val remoteDatabase: SupabaseQueryManager,
+  private val remoteDatabase: KtorQueryManager,
   private val localDatabase: DatabaseQueryManager,
 ) {
 

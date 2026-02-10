@@ -10,7 +10,7 @@ import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
@@ -22,7 +22,7 @@ class TestCompositeDatabaseWithNothing : TestWithKoin {
 
   val compositeDatabase by inject<DatabaseQueryManager>()
   val localDatabase by inject<DatabaseQueryManager>(named("local"))
-  val remoteDatabase by inject<SupabaseQueryManager>()
+  val remoteDatabase by inject<KtorQueryManager>()
 
   override fun setUp() {
     super.setUp()

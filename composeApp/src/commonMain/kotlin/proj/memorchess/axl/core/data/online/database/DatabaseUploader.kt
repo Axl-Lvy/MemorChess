@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 
 /**
  * Handles asynchronous upload of database operations to the remote database.
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
  * @property databaseSynchronizer The synchronizer to check sync status.
  */
 class DatabaseUploader(
-  private val remoteDatabase: SupabaseQueryManager,
+  private val remoteDatabase: DatabaseQueryManager,
   private val databaseSynchronizer: DatabaseSynchronizer,
 ) {
 

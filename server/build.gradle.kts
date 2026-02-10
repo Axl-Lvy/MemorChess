@@ -10,6 +10,8 @@ plugins {
 
 application { mainClass = "io.ktor.server.netty.EngineMain" }
 
+tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> { mergeServiceFiles() }
+
 // Code formatting configuration
 ktfmt { googleStyle() }
 

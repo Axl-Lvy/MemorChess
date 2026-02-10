@@ -3,7 +3,6 @@ package proj.memorchess.axl.core.data
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.online.database.DatabaseOperation
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 
 /**
  * A composite database that queries multiple databases.
@@ -20,7 +19,7 @@ import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
  * @property databaseUploader Uploader that handles async remote operations
  */
 class CompositeDatabase(
-  private val remoteDatabase: SupabaseQueryManager,
+  private val remoteDatabase: DatabaseQueryManager,
   private val localDatabase: DatabaseQueryManager,
   private val databaseUploader: DatabaseUploader,
 ) : DatabaseQueryManager {

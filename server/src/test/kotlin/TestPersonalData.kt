@@ -36,6 +36,27 @@ class TestPersonalData {
   }
 
   @Test
+  fun testGetMovesWithDeletedOnes() = testAuthenticated {
+    // Delete a move first
+    val originFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq"
+    client.delete(DataRoutes.Move(fen = originFen, move = "e4"))
+
+    // Without deleted ones
+    client.get(DataRoutes.Moves()).apply {
+      status.value shouldBeExactly 200
+      body<List<MoveFetched>>() shouldHaveSize 5
+    }
+
+    // With deleted ones
+    client.get(DataRoutes.Moves(withDeletedOnes = true)).apply {
+      status.value shouldBeExactly 200
+      val moves = body<List<MoveFetched>>()
+      moves shouldHaveSize 6
+      moves.any { it.isDeleted } shouldBe true
+    }
+  }
+
+  @Test
   fun testGetPosition() {
     val testFen = "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq"
     testAuthenticated {
