@@ -77,7 +77,7 @@ object DockerServerManager {
 
   private fun isServerReady(): Boolean {
     return try {
-      val conn = URI("http://localhost:8080/swagger").toURL().openConnection() as HttpURLConnection
+      val conn = URI("http://localhost:8080/ping").toURL().openConnection() as HttpURLConnection
       conn.connectTimeout = 2000
       conn.readTimeout = 2000
       conn.requestMethod = "GET"

@@ -20,7 +20,7 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
 import proj.memorchess.axl.core.config.generated.Secrets
-import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -30,7 +30,7 @@ import proj.memorchess.axl.ui.pages.Settings
 @OptIn(ExperimentalTestApi::class)
 class TestAuthentication : TestWithKoin {
 
-  val authManager by inject<AuthManager>()
+  val authManager by inject<KtorAuthManager>()
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     runComposeUiTest {

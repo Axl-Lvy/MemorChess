@@ -154,6 +154,16 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       return testDataBase
     }
 
+    /**
+     * Creates a minimal two-node chain: the starting position connected to the position after "e4".
+     *
+     * This is the smallest valid data unit — a position is only meaningful if it's connected to
+     * another via a move.
+     */
+    fun minimalNodePair(): List<DataNode> {
+      return convertStringMovesToNodes(listOf("e4"))
+    }
+
     fun convertStringMovesToNodes(moves: List<String>): List<DataNode> {
       val nodes = mutableListOf<DataNode>()
       val game = Game()
@@ -175,6 +185,18 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
         previousMove = dataMove
         nodes.add(node)
       }
+      // Add the leaf node (final destination position with no outgoing moves)
+      val leafNode =
+        DataNode(
+          game.position.createIdentifier(),
+          PreviousAndNextMoves(
+            previousMove?.let { listOf(it) } ?: listOf(),
+            emptyList(),
+            moves.size,
+          ),
+          PreviousAndNextDate.dummyToday(),
+        )
+      nodes.add(leafNode)
       return nodes
     }
 

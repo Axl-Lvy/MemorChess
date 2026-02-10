@@ -35,6 +35,9 @@ class DataRoutes {
   @Serializable @Resource("last-update") class LastUpdate(val parent: DataRoutes = DataRoutes())
 }
 
+/** Route for health check. GET /ping */
+@Serializable @Resource("/ping") class Ping
+
 @Serializable
 @Resource("/user")
 class UserRoutes {

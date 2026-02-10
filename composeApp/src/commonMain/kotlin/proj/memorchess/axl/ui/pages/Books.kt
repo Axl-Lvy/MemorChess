@@ -51,7 +51,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.UserPermission
-import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
@@ -194,7 +194,7 @@ private data class BooksContentCallbacks(
 fun Books(
   bookQueryManager: SupabaseBookQueryManager = koinInject(),
   navigator: Navigator = koinInject(),
-  authManager: AuthManager = koinInject(),
+  authManager: KtorAuthManager = koinInject(),
   toastRenderer: ToastRenderer = koinInject(),
 ) {
   val state = remember { BooksState() }

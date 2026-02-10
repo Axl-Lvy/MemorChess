@@ -29,23 +29,19 @@ class TestKtorQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testInsertAndRetrieveSingleNode() = runTest {
+  fun testInsertAndRetrieveNodes() = runTest {
     // Arrange
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
 
     // Act
-    remoteDatabase.insertNodes(node)
+    remoteDatabase.insertNodes(*nodes.toTypedArray())
     val retrievedNodes = remoteDatabase.getAllNodes(false)
 
     // Assert
-    assertEquals(1, retrievedNodes.size)
-    assertEquals(node.positionIdentifier, retrievedNodes.first().positionIdentifier)
+    assertEquals(nodes.size, retrievedNodes.size)
+    nodes.forEach { originalNode ->
+      assertContains(retrievedNodes.map { it.positionIdentifier }, originalNode.positionIdentifier)
+    }
   }
 
   @Test
@@ -68,11 +64,9 @@ class TestKtorQueryManager : TestAuthenticated() {
   @Test
   fun testGetPosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    remoteDatabase.insertNodes(node)
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    val positionIdentifier = nodes.first().positionIdentifier
+    remoteDatabase.insertNodes(*nodes.toTypedArray())
 
     // Act
     val retrievedNode = remoteDatabase.getPosition(positionIdentifier)
@@ -99,11 +93,9 @@ class TestKtorQueryManager : TestAuthenticated() {
   @Test
   fun testDeletePosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    remoteDatabase.insertNodes(node)
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    val positionIdentifier = nodes.first().positionIdentifier
+    remoteDatabase.insertNodes(*nodes.toTypedArray())
 
     // Verify node exists
     val beforeDelete = remoteDatabase.getPosition(positionIdentifier)
@@ -124,27 +116,34 @@ class TestKtorQueryManager : TestAuthenticated() {
     val rootPosition = game.position.createIdentifier()
     game.playMove("e4")
     val childPosition = game.position.createIdentifier()
+    val move = DataMove(rootPosition, childPosition, "e4", true)
 
     val rootNode =
       DataNode(
         rootPosition,
         PreviousAndNextMoves(
           previousMoves = emptyList(),
-          nextMoves = listOf(DataMove(rootPosition, childPosition, "e4", true)),
+          nextMoves = listOf(move),
         ),
         PreviousAndNextDate.dummyToday(),
       )
 
     val childNode =
-      DataNode(childPosition, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(
+        childPosition,
+        PreviousAndNextMoves(
+          previousMoves = listOf(move),
+          nextMoves = emptyList(),
+        ),
+        PreviousAndNextDate.dummyToday(),
+      )
 
     remoteDatabase.insertNodes(rootNode, childNode)
 
     // Act
     remoteDatabase.deleteMove(rootPosition, "e4")
 
-    // Assert - This test depends on implementation details
-    // The move should be marked as deleted in the database
+    // Assert
     val retrievedRootNode = remoteDatabase.getPosition(rootPosition)
     val retrieveChildNode = remoteDatabase.getPosition(childPosition)
     assertNotNull(retrievedRootNode, "Root node should still exist after move deletion")
@@ -173,53 +172,33 @@ class TestKtorQueryManager : TestAuthenticated() {
   @Test
   fun testDeleteAllWithHardFrom() = runTest {
     // Arrange
-    val game = Game()
-    val updatedAt = DateUtil.now()
-    val positionIdentifier = game.position.createIdentifier()
-    val node =
-      DataNode(
-        positionIdentifier,
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-        updatedAt,
-      )
-    remoteDatabase.insertNodes(node)
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    remoteDatabase.insertNodes(*nodes.toTypedArray())
 
     // Act
     remoteDatabase.deleteAll(DateUtil.farInThePast())
 
-    // Assert - node created should be deleted
-    assertFalse {
-      remoteDatabase.getAllNodes(true).any { it.positionIdentifier == positionIdentifier }
-    }
+    // Assert - nodes created should be deleted
+    val remaining = remoteDatabase.getAllNodes(true)
+    assertTrue(remaining.isEmpty(), "All nodes should be hard-deleted")
   }
 
   @Test
   fun testGetLastUpdate() = runTest {
     // Arrange
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-        DateUtil.now(),
-      )
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
 
     // Act
     val beforeInsert = remoteDatabase.getLastUpdate()
     assertNull(beforeInsert)
-    remoteDatabase.insertNodes(node)
+    remoteDatabase.insertNodes(*nodes.toTypedArray())
     val afterInsert = remoteDatabase.getLastUpdate()
-    remoteDatabase.deletePosition(node.positionIdentifier)
+    remoteDatabase.deletePosition(nodes.first().positionIdentifier)
     val afterDelete = remoteDatabase.getLastUpdate()
 
     // Assert
     assertNotNull(afterInsert, "Should have last update time after inserting nodes")
     assertNotNull(afterDelete, "Should have last update time after deleting nodes")
-
-    // It seems like the clocks from the test and the remote database might not be perfectly
-    // synchronized. So afterDelete might be more recent than afterInsert.
     assertTrue(
       "Last update should be updated after deletion. AfterDelete: $afterDelete AfterInsert: $afterInsert"
     ) {
@@ -230,22 +209,19 @@ class TestKtorQueryManager : TestAuthenticated() {
   @Test
   fun testGetAllNodesWithDeletedOnes() = runTest {
     // Arrange
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
-    remoteDatabase.insertNodes(node)
-    remoteDatabase.deletePosition(node.positionIdentifier)
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    remoteDatabase.insertNodes(*nodes.toTypedArray())
+    remoteDatabase.deletePosition(nodes.first().positionIdentifier)
 
     // Act
     val nodesWithoutDeleted = remoteDatabase.getAllNodes(false)
     val nodesWithDeleted = remoteDatabase.getAllNodes(true)
 
     // Assert
-    assertTrue(nodesWithoutDeleted.isEmpty(), "Should not include deleted nodes")
+    assertTrue(
+      nodesWithoutDeleted.size < nodesWithDeleted.size,
+      "Deleted nodes should be excluded by default",
+    )
     assertTrue(nodesWithDeleted.isNotEmpty(), "Should include deleted nodes when requested")
   }
 
@@ -255,20 +231,14 @@ class TestKtorQueryManager : TestAuthenticated() {
     authManager.signOut()
     Awaitility.awaitUntilTrue { authManager.user == null }
 
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
 
     // Act & Assert
-    assertFailsWith<IllegalStateException> { remoteDatabase.insertNodes(node) }
-
+    assertFailsWith<IllegalStateException> { remoteDatabase.insertNodes(*nodes.toTypedArray()) }
     assertFailsWith<IllegalStateException> { remoteDatabase.getAllNodes(false) }
-
-    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(node.positionIdentifier) }
+    assertFailsWith<IllegalStateException> {
+      remoteDatabase.getPosition(nodes.first().positionIdentifier)
+    }
   }
 
   @Test
@@ -293,25 +263,16 @@ class TestKtorQueryManager : TestAuthenticated() {
     authManager.signOut()
     Awaitility.awaitUntilTrue { authManager.user == null }
 
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    val positionId = nodes.first().positionIdentifier
 
     // Act & Assert
     assertFailsWith<IllegalStateException> { remoteDatabase.deleteAll(null) }
-    assertFailsWith<IllegalStateException> {
-      remoteDatabase.deletePosition(node.positionIdentifier)
-    }
+    assertFailsWith<IllegalStateException> { remoteDatabase.deletePosition(positionId) }
     assertFailsWith<IllegalStateException> { remoteDatabase.getAllNodes(false) }
-    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(node.positionIdentifier) }
+    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(positionId) }
     assertFailsWith<IllegalStateException> { remoteDatabase.getLastUpdate() }
-    assertFailsWith<IllegalStateException> {
-      remoteDatabase.deleteMove(node.positionIdentifier, "e4")
-    }
-    assertFailsWith<IllegalStateException> { remoteDatabase.insertNodes(node) }
+    assertFailsWith<IllegalStateException> { remoteDatabase.deleteMove(positionId, "e4") }
+    assertFailsWith<IllegalStateException> { remoteDatabase.insertNodes(*nodes.toTypedArray()) }
   }
 }

@@ -8,8 +8,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
-import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
 class TestNoOpDatabaseQueryManager {
 
@@ -49,9 +48,8 @@ class TestNoOpDatabaseQueryManager {
 
   @Test
   fun testInsertNodesDoesNothing() = runTest {
-    noOpDatabaseQueryManager.insertNodes(
-      DataNode(PositionIdentifier("test"), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    )
+    val nodes = TestDatabaseQueryManager.minimalNodePair()
+    noOpDatabaseQueryManager.insertNodes(*nodes.toTypedArray())
     // No exception or state change expected
   }
 

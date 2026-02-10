@@ -89,20 +89,23 @@ internal fun movesToDataNodes(
  * and the destination is derived from the move's destination.
  */
 internal fun dataNodesToMoves(nodes: List<DataNode>): List<MoveFetched> {
+  val positionLookup = nodes.associateBy { it.positionIdentifier.fenRepresentation }
   return nodes.flatMap { node ->
     val originPosition = node.toPositionFetched()
     node.previousAndNextMoves.nextMoves.values.map { dataMove ->
+      val destNode = positionLookup[dataMove.destination.fenRepresentation]
       MoveFetched(
         origin = originPosition,
         destination =
-          PositionFetched(
-            positionIdentifier = dataMove.destination.fenRepresentation,
-            depth = 0,
-            lastTrainingDate = node.previousAndNextTrainingDate.previousDate,
-            nextTrainingDate = node.previousAndNextTrainingDate.nextDate,
-            updatedAt = dataMove.updatedAt,
-            isDeleted = dataMove.isDeleted,
-          ),
+          destNode?.toPositionFetched()
+            ?: PositionFetched(
+              positionIdentifier = dataMove.destination.fenRepresentation,
+              depth = 0,
+              lastTrainingDate = node.previousAndNextTrainingDate.previousDate,
+              nextTrainingDate = node.previousAndNextTrainingDate.nextDate,
+              updatedAt = dataMove.updatedAt,
+              isDeleted = dataMove.isDeleted,
+            ),
         move = dataMove.move,
         isGood = dataMove.isGood ?: true,
         isDeleted = dataMove.isDeleted,

@@ -31,7 +31,7 @@ import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.UserPermission
-import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -52,7 +52,7 @@ fun BookDetail(
   editing: Boolean = false,
   bookQueryManager: SupabaseBookQueryManager = koinInject(),
   nodeManager: NodeManager<IsolatedBookNode> = koinInject(named("book")) { parametersOf(bookId) },
-  authManager: AuthManager = koinInject(),
+  authManager: KtorAuthManager = koinInject(),
   toastRenderer: ToastRenderer = koinInject(),
 ) {
 
@@ -100,7 +100,7 @@ private suspend fun loadBookData(
   editing: Boolean,
   bookQueryManager: SupabaseBookQueryManager,
   nodeManager: NodeManager<IsolatedBookNode>,
-  authManager: AuthManager,
+  authManager: KtorAuthManager,
   toastRenderer: ToastRenderer,
   onBookLoaded: (Book, BookExplorer) -> Unit,
 ) {

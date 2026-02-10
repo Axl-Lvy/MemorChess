@@ -19,7 +19,6 @@ import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
 import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.BookBasedNodeCache
 import proj.memorchess.axl.core.graph.nodes.DbBasedNodeCache
 import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
