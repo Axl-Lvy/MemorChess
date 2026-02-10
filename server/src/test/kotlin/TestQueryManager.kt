@@ -319,7 +319,7 @@ class TestQueryManager {
     var node = getNode(user.id.value.toString(), fen)
     node.shouldNotBeNull()
 
-    deletePosition(user.id.value.toString(), fen)
+    deletePosition(user.id.value.toString(), fen, Clock.System.now())
 
     // Verify position is marked as deleted
     node = getNode(user.id.value.toString(), fen)
@@ -332,7 +332,7 @@ class TestQueryManager {
     user.shouldNotBeNull()
 
     // Should not throw exception
-    deletePosition(user.id.value.toString(), "nonexistent/fen")
+    deletePosition(user.id.value.toString(), "nonexistent/fen", Clock.System.now())
 
     // Verify no side effects - all moves still exist
     val moves = getAllMoves(user.id.value.toString())
@@ -352,7 +352,7 @@ class TestQueryManager {
     val originalCount = moves.size
     moves.any { it.origin.positionIdentifier == originFen && it.move == moveName } shouldBe true
 
-    deleteMove(user.id.value.toString(), originFen, moveName)
+    deleteMove(user.id.value.toString(), originFen, moveName, Clock.System.now())
 
     // Verify move is marked as deleted
     moves = getAllMoves(user.id.value.toString())
@@ -368,7 +368,7 @@ class TestQueryManager {
     val originalMoves = getAllMoves(user.id.value.toString())
 
     // Should not throw exception
-    deleteMove(user.id.value.toString(), "nonexistent/fen", "nonexistent_move")
+    deleteMove(user.id.value.toString(), "nonexistent/fen", "nonexistent_move", Clock.System.now())
 
     // Verify no side effects
     val moves = getAllMoves(user.id.value.toString())
@@ -383,7 +383,7 @@ class TestQueryManager {
     val originalMoves = getAllMoves(user.id.value.toString())
 
     // Should not throw exception
-    deleteMove(user.id.value.toString(), "nonexistent/fen", "e4")
+    deleteMove(user.id.value.toString(), "nonexistent/fen", "e4", Clock.System.now())
 
     // Verify no side effects
     val moves = getAllMoves(user.id.value.toString())
@@ -399,7 +399,7 @@ class TestQueryManager {
     originalMoves.shouldNotBeEmpty()
 
     // Soft delete (hardFrom = null)
-    deleteAllUserData(user.id.value.toString(), null)
+    deleteAllUserData(user.id.value.toString(), null, Clock.System.now())
 
     // All moves should be marked as deleted
     val moves = getAllMoves(user.id.value.toString())
@@ -422,7 +422,7 @@ class TestQueryManager {
 
     // Hard delete from now (should delete all data created after now, which is none in our test
     // data)
-    deleteAllUserData(user.id.value.toString(), now)
+    deleteAllUserData(user.id.value.toString(), now, Clock.System.now())
 
     // All moves should still be marked as soft deleted
     val moves = getAllMoves(user.id.value.toString())

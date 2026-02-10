@@ -135,7 +135,7 @@ fun getNode(userId: String, fen: String): NodeFetched? {
   }
 }
 
-fun deletePosition(userId: String, positionIdentifier: String) {
+fun deletePosition(userId: String, positionIdentifier: String, updatedAt: Instant) {
   transaction {
     val positionEntity =
       PositionEntity.find { PositionsTable.fenRepresentation eq positionIdentifier }.firstOrNull()
@@ -149,10 +149,11 @@ fun deletePosition(userId: String, positionIdentifier: String) {
         .firstOrNull() ?: return@transaction
 
     userPosition.isDeleted = true
+    userPosition.updatedAt = updatedAt
   }
 }
 
-fun deleteMove(userId: String, origin: String, move: String) {
+fun deleteMove(userId: String, origin: String, move: String, updatedAt: Instant) {
   transaction {
     val originPosition =
       PositionEntity.find { PositionsTable.fenRepresentation eq origin }.firstOrNull()
@@ -172,10 +173,11 @@ fun deleteMove(userId: String, origin: String, move: String) {
         .firstOrNull() ?: return@transaction
 
     userMove.isDeleted = true
+    userMove.updatedAt = updatedAt
   }
 }
 
-fun deleteAllUserData(userId: String, hardFrom: Instant?) {
+fun deleteAllUserData(userId: String, hardFrom: Instant?, updatedAt: Instant) {
   transaction {
     if (hardFrom != null) {
       UserPositionsTable.deleteWhere {
@@ -190,9 +192,15 @@ fun deleteAllUserData(userId: String, hardFrom: Instant?) {
       }
     }
     UserPositionEntity.find { UserPositionsTable.userId eq UUID.fromString(userId) }
-      .forEach { it.isDeleted = true }
+      .forEach {
+        it.isDeleted = true
+        it.updatedAt = updatedAt
+      }
     UserMoveEntity.find { UserMovesTable.userId eq UUID.fromString(userId) }
-      .forEach { it.isDeleted = true }
+      .forEach {
+        it.isDeleted = true
+        it.updatedAt = updatedAt
+      }
   }
 }
 

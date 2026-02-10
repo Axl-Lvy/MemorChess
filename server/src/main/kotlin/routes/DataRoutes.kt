@@ -125,7 +125,7 @@ fun Route.configureProtectedDataRoutes() {
             status = HttpStatusCode.Unauthorized,
           )
 
-      deletePosition(principal.name, resource.fen)
+      deletePosition(principal.name, resource.fen, resource.updatedAt ?: Instant.fromEpochMilliseconds(0))
 
       respondsNothing(
         status = HttpStatusCode.NoContent,
@@ -151,7 +151,7 @@ fun Route.configureProtectedDataRoutes() {
             status = HttpStatusCode.Unauthorized,
           )
 
-      deleteMove(principal.name, resource.fen, resource.move)
+      deleteMove(principal.name, resource.fen, resource.move, resource.updatedAt ?: Instant.fromEpochMilliseconds(0))
 
       respondsNothing(status = HttpStatusCode.NoContent, description = "Successfully deleted move")
       respondsNothing(
@@ -174,8 +174,7 @@ fun Route.configureProtectedDataRoutes() {
             status = HttpStatusCode.Unauthorized,
           )
 
-      // Check for optional query parameter for hard delete timestamp
-      deleteAllUserData(principal.name, all.hardFrom)
+      deleteAllUserData(principal.name, all.hardFrom, all.updatedAt ?: Instant.fromEpochMilliseconds(0))
 
       respondsNothing(
         status = HttpStatusCode.NoContent,

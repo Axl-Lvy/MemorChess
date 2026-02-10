@@ -43,21 +43,21 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
     if (localDatabase.isActive()) {
-      localDatabase.deletePosition(position)
-      databaseUploader.enqueue(DatabaseOperation.DeletePosition(position))
+      localDatabase.deletePosition(position, updatedAt)
+      databaseUploader.enqueue(DatabaseOperation.DeletePosition(position, updatedAt))
     } else if (remoteDatabase.isActive()) {
-      remoteDatabase.deletePosition(position)
+      remoteDatabase.deletePosition(position, updatedAt)
     }
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant) {
     if (localDatabase.isActive()) {
-      localDatabase.deleteMove(origin, move)
-      databaseUploader.enqueue(DatabaseOperation.DeleteMove(origin, move))
+      localDatabase.deleteMove(origin, move, updatedAt)
+      databaseUploader.enqueue(DatabaseOperation.DeleteMove(origin, move, updatedAt))
     } else if (remoteDatabase.isActive()) {
-      remoteDatabase.deleteMove(origin, move)
+      remoteDatabase.deleteMove(origin, move, updatedAt)
     }
   }
 

@@ -32,7 +32,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
     val node = dataNodes[position.fenRepresentation]
     if (node != null) {
       dataNodes[position.fenRepresentation] =
@@ -46,7 +46,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant) {
     if (dataNodes[origin.fenRepresentation] == null) {
       return
     }

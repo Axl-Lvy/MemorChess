@@ -93,10 +93,10 @@ class DatabaseUploader(
         remoteDatabase.insertNodes(*operation.nodes.toTypedArray())
       }
       is DatabaseOperation.DeletePosition -> {
-        remoteDatabase.deletePosition(operation.position)
+        remoteDatabase.deletePosition(operation.position, operation.updatedAt)
       }
       is DatabaseOperation.DeleteMove -> {
-        remoteDatabase.deleteMove(operation.origin, operation.move)
+        remoteDatabase.deleteMove(operation.origin, operation.move, operation.updatedAt)
       }
       is DatabaseOperation.DeleteAll -> {
         remoteDatabase.deleteAll(operation.hardFrom)

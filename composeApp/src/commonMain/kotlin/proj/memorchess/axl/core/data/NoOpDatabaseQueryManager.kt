@@ -15,11 +15,11 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     return null
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
     // Nothing to do
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant) {
     // Nothing to do
   }
 

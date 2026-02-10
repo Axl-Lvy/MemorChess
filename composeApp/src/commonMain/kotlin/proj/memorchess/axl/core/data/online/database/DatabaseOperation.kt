@@ -19,7 +19,7 @@ sealed class DatabaseOperation {
    *
    * @property position The position identifier to delete.
    */
-  data class DeletePosition(val position: PositionIdentifier) : DatabaseOperation()
+  data class DeletePosition(val position: PositionIdentifier, val updatedAt: Instant) : DatabaseOperation()
 
   /**
    * Operation to delete a move from the database.
@@ -27,7 +27,7 @@ sealed class DatabaseOperation {
    * @property origin The origin position of the move.
    * @property move The move notation to delete.
    */
-  data class DeleteMove(val origin: PositionIdentifier, val move: String) : DatabaseOperation()
+  data class DeleteMove(val origin: PositionIdentifier, val move: String, val updatedAt: Instant) : DatabaseOperation()
 
   /**
    * Operation to delete all positions and moves.

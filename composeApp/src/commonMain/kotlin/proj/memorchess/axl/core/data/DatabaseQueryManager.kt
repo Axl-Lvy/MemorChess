@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.date.DateUtil
 
 /** Interface for the application's database operations on positions. */
 interface DatabaseQueryManager {
@@ -20,15 +21,16 @@ interface DatabaseQueryManager {
    *
    * @param position The position to delete.
    */
-  suspend fun deletePosition(position: PositionIdentifier)
+  suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant = DateUtil.now())
 
   /**
    * Deletes a node
    *
    * @param origin The origin of the move
    * @param move The name of move to delete
+   * @param updatedAt The timestamp to record for this deletion, defaults to now.
    */
-  suspend fun deleteMove(origin: PositionIdentifier, move: String)
+  suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant = DateUtil.now())
 
   /**
    * Deletes all positions and moves.

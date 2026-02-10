@@ -19,17 +19,17 @@ class DataRoutes {
   /** Route for fetching or deleting data for a specific position. GET /data/node/{fen} */
   @Serializable
   @Resource("node/{fen}")
-  class Node(val parent: DataRoutes = DataRoutes(), val fen: String)
+  class Node(val parent: DataRoutes = DataRoutes(), val fen: String, val updatedAt: Instant? = null)
 
   /** Route for deleting a specific move. DELETE /data/move/{fen}/{move} */
   @Serializable
   @Resource("move/{fen}/{move}")
-  class Move(val parent: DataRoutes = DataRoutes(), val fen: String, val move: String)
+  class Move(val parent: DataRoutes = DataRoutes(), val fen: String, val move: String, val updatedAt: Instant? = null)
 
   /** Route for deleting all user data. DELETE /data/all */
   @Serializable
   @Resource("all")
-  class All(val parent: DataRoutes = DataRoutes(), val hardFrom: Instant? = null)
+  class All(val parent: DataRoutes = DataRoutes(), val hardFrom: Instant? = null, val updatedAt: Instant? = null)
 
   /** Route for getting last update timestamp. GET /data/last-update */
   @Serializable @Resource("last-update") class LastUpdate(val parent: DataRoutes = DataRoutes())

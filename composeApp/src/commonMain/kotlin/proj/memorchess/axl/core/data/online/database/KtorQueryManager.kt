@@ -14,6 +14,7 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.shared.data.MoveFetched
 import proj.memorchess.axl.shared.data.NodeFetched
 import proj.memorchess.axl.shared.routes.DataRoutes
@@ -43,19 +44,19 @@ class KtorQueryManager(
     return nodeToDataNode(node)
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
     requireAuth()
-    httpClient.delete(DataRoutes.Node(fen = position.fenRepresentation))
+    httpClient.delete(DataRoutes.Node(fen = position.fenRepresentation, updatedAt = updatedAt))
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant) {
     requireAuth()
-    httpClient.delete(DataRoutes.Move(fen = origin.fenRepresentation, move = move))
+    httpClient.delete(DataRoutes.Move(fen = origin.fenRepresentation, move = move, updatedAt = updatedAt))
   }
 
   override suspend fun deleteAll(hardFrom: Instant?) {
     requireAuth()
-    httpClient.delete(DataRoutes.All(hardFrom = hardFrom))
+    httpClient.delete(DataRoutes.All(hardFrom = hardFrom, updatedAt = DateUtil.now()))
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
