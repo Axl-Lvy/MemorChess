@@ -7,19 +7,27 @@ import kotlin.time.Instant
  * default values.
  */
 open class NoOpDatabaseQueryManager : DatabaseQueryManager {
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<DataMove> {
     return emptyList()
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
+  override suspend fun getAllPositions(withDeletedOnes: Boolean): List<DataPosition> {
+    return emptyList()
+  }
+
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataPosition? {
     return null
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun getMovesForPosition(positionIdentifier: PositionIdentifier): List<DataMove> {
+    return emptyList()
+  }
+
+  override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
     // Nothing to do
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant) {
     // Nothing to do
   }
 
@@ -27,7 +35,7 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     // Nothing to do
   }
 
-  override suspend fun insertNodes(vararg positions: DataNode) {
+  override suspend fun insertMoves(moves: List<DataMove>, positions: List<DataPosition>) {
     // Nothing to do
   }
 

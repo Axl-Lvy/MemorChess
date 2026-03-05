@@ -8,12 +8,11 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -75,12 +74,15 @@ class TestSettings : TestWithKoin {
   @Test
   fun testEraseAllDataButton() = runTestFromSetup {
     runTest {
-      database.insertNodes(
-        DataNode(
-          PositionIdentifier.START_POSITION,
-          PreviousAndNextMoves(),
-          PreviousAndNextDate(DateUtil.today(), DateUtil.today()),
-        )
+      database.insertMoves(
+        emptyList(),
+        listOf(
+          DataPosition(
+            PositionIdentifier.START_POSITION,
+            0,
+            PreviousAndNextDate(DateUtil.today(), DateUtil.today()),
+          )
+        ),
       )
     }
     assertNodeWithTagDoesNotExists("confirmDialog")
@@ -102,9 +104,9 @@ class TestSettings : TestWithKoin {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT) { getAllPositions().isEmpty() }
   }
 
-  private fun getAllPositions(): List<DataNode> {
-    var result: List<DataNode>? = null
-    runTest { result = database.getAllNodes(false) }
+  private fun getAllPositions(): List<DataPosition> {
+    var result: List<DataPosition>? = null
+    runTest { result = database.getAllPositions(false) }
     checkNotNull(result)
     return result
   }

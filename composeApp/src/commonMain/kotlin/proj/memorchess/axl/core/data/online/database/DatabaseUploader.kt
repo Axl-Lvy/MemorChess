@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 
 /**
  * Handles asynchronous upload of database operations to the remote database.
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
  * @property databaseSynchronizer The synchronizer to check sync status.
  */
 class DatabaseUploader(
-  private val remoteDatabase: SupabaseQueryManager,
+  private val remoteDatabase: DatabaseQueryManager,
   private val databaseSynchronizer: DatabaseSynchronizer,
 ) {
 
@@ -88,14 +89,14 @@ class DatabaseUploader(
   private suspend fun executeOperation(operation: DatabaseOperation) {
     LOGGER.d { "Executing operation: $operation" }
     when (operation) {
-      is DatabaseOperation.InsertNodes -> {
-        remoteDatabase.insertNodes(*operation.nodes.toTypedArray())
+      is DatabaseOperation.InsertMoves -> {
+        remoteDatabase.insertMoves(operation.moves, operation.positions)
       }
       is DatabaseOperation.DeletePosition -> {
-        remoteDatabase.deletePosition(operation.position)
+        remoteDatabase.deletePosition(operation.position, operation.updatedAt)
       }
       is DatabaseOperation.DeleteMove -> {
-        remoteDatabase.deleteMove(operation.origin, operation.move)
+        remoteDatabase.deleteMove(operation.origin, operation.move, operation.updatedAt)
       }
       is DatabaseOperation.DeleteAll -> {
         remoteDatabase.deleteAll(operation.hardFrom)

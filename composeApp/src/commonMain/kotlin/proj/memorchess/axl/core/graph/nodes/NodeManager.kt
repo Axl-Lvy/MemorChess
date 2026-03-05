@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.graph.nodes
 import co.touchlab.kermit.Logger
 import org.koin.core.component.KoinComponent
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.engine.Game
 
@@ -82,24 +82,29 @@ class NodeManager<NodeT : Node<NodeT>>(
     nodeCache.resetFromSource()
   }
 
-  fun getNextNodeToLearn(day: Int, previousPlayedMove: DataMove?): DataNode? {
+  fun getNextPositionToLearn(day: Int, previousPlayedMove: DataMove?): DataPosition? {
     if (previousPlayedMove == null) {
-      return nodeCache.getNodeFromDay(day)
+      return nodeCache.getPositionFromDay(day)
     }
-    val candidateNodeFromPrevious =
-      nodeCache.getNodeToTrainAfterPosition(day, previousPlayedMove.destination)
-    if (candidateNodeFromPrevious != null) {
-      return candidateNodeFromPrevious
+    val candidateFromPrevious =
+      nodeCache.getPositionToTrainAfterPosition(day, previousPlayedMove.destination)
+    if (candidateFromPrevious != null) {
+      return candidateFromPrevious
     }
-    return nodeCache.getNodeFromDay(day)
+    return nodeCache.getPositionFromDay(day)
   }
 
-  fun getNumberOfNodesToTrain(day: Int): Int {
-    return nodeCache.getNumberOfNodesToTrain(day)
+  /** Gets the moves for a position from the cache. */
+  fun getMovesForPosition(positionIdentifier: PositionIdentifier): PreviousAndNextMoves? {
+    return nodeCache.get(positionIdentifier)
   }
 
-  fun cacheNode(node: DataNode) {
-    nodeCache.cacheNode(node)
+  fun getNumberOfPositionsToTrain(day: Int): Int {
+    return nodeCache.getNumberOfPositionsToTrain(day)
+  }
+
+  fun cachePosition(position: DataPosition) {
+    nodeCache.cachePosition(position)
   }
 
   fun isKnown(position: PositionIdentifier): Boolean {

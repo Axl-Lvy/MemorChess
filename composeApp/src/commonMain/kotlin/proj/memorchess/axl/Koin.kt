@@ -2,6 +2,7 @@ package proj.memorchess.axl
 
 import com.russhwolf.settings.Settings
 import io.github.jan.supabase.SupabaseClient
+import io.ktor.client.HttpClient
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
@@ -11,11 +12,13 @@ import proj.memorchess.axl.core.data.CompositeDatabase
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
+import proj.memorchess.axl.core.data.online.createKtorClient
 import proj.memorchess.axl.core.data.online.createSupabaseClient
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.BookBasedNodeCache
 import proj.memorchess.axl.core.graph.nodes.DbBasedNodeCache
 import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
@@ -34,15 +37,17 @@ fun initKoinModules(): Array<Module> {
   val authModule = module {
     single<SupabaseClient> { createSupabaseClient() }
     singleOf(::AuthManager)
+    single<HttpClient> { createKtorClient() }
+    singleOf(::KtorAuthManager)
   }
 
   val dataModule = module {
     single<DatabaseQueryManager>(named("local")) { getPlatformSpecificLocalDatabase() }
-    single<SupabaseQueryManager> { SupabaseQueryManager(get(), get()) }
+    single<KtorQueryManager> { KtorQueryManager(get(), get()) }
     single<SupabaseBookQueryManager> { SupabaseBookQueryManager(get(), get()) }
     single<DatabaseSynchronizer> { DatabaseSynchronizer(get(), get(), get(named("local"))) }
-    single<DatabaseUploader> { DatabaseUploader(get(), get()) }
-    single<DatabaseQueryManager> { CompositeDatabase(get(), get(named("local")), get()) }
+    single<DatabaseUploader> { DatabaseUploader(get<KtorQueryManager>(), get()) }
+    single<DatabaseQueryManager> { CompositeDatabase(get<KtorQueryManager>(), get(named("local")), get()) }
     single<Settings> { getPlatformSpecificSettings() }
   }
 

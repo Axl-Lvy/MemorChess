@@ -8,17 +8,22 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
-import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
 class TestNoOpDatabaseQueryManager {
 
   private val noOpDatabaseQueryManager = NoOpDatabaseQueryManager()
 
   @Test
-  fun testGetAllNodesReturnsEmptyList() = runTest {
-    val nodes = noOpDatabaseQueryManager.getAllNodes(false)
-    assertTrue(nodes.isEmpty(), "Expected empty list of nodes")
+  fun testGetAllPositionsReturnsEmptyList() = runTest {
+    val positions = noOpDatabaseQueryManager.getAllPositions(false)
+    assertTrue(positions.isEmpty(), "Expected empty list of positions")
+  }
+
+  @Test
+  fun testGetAllMovesReturnsEmptyList() = runTest {
+    val moves = noOpDatabaseQueryManager.getAllMoves(false)
+    assertTrue(moves.isEmpty(), "Expected empty list of moves")
   }
 
   @Test
@@ -48,10 +53,9 @@ class TestNoOpDatabaseQueryManager {
   }
 
   @Test
-  fun testInsertNodesDoesNothing() = runTest {
-    noOpDatabaseQueryManager.insertNodes(
-      DataNode(PositionIdentifier("test"), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    )
+  fun testInsertMovesDoesNothing() = runTest {
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
+    noOpDatabaseQueryManager.insertMoves(moves, positions)
     // No exception or state change expected
   }
 

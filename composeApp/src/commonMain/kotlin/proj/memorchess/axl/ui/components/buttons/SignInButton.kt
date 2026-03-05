@@ -32,12 +32,12 @@ import compose.icons.feathericons.CheckCircle
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
-import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.theme.goodTint
 
 @Composable
-fun SignInButton(modifier: Modifier = Modifier, authManager: AuthManager = koinInject()) {
+fun SignInButton(modifier: Modifier = Modifier, authManager: KtorAuthManager = koinInject()) {
   var showSignInDialog by rememberSaveable { mutableStateOf(false) }
   val signOutDialog = remember { ConfirmationDialog("Sign Out", "Cancel") }
   val staySignedInDialog = remember { ConfirmationDialog("Yes", "No") }
@@ -116,7 +116,7 @@ fun SignInButton(modifier: Modifier = Modifier, authManager: AuthManager = koinI
 }
 
 @Composable
-private fun SignInDialog(dismiss: () -> Unit, authManager: AuthManager = koinInject()) {
+private fun SignInDialog(dismiss: () -> Unit, authManager: KtorAuthManager = koinInject()) {
   val coroutineScope = rememberCoroutineScope()
   var email by rememberSaveable { mutableStateOf("") }
   var password by rememberSaveable { mutableStateOf("") }

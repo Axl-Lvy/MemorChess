@@ -3,10 +3,10 @@ package proj.memorchess.axl.core.data.online.database
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import io.github.jan.supabase.auth.status.SessionStatus
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.AuthEvent
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
 import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
 
 /**
@@ -17,8 +17,8 @@ import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
  * @property localDatabase Local database
  */
 class DatabaseSynchronizer(
-  private val authManager: AuthManager,
-  private val remoteDatabase: SupabaseQueryManager,
+  private val authManager: KtorAuthManager,
+  private val remoteDatabase: KtorQueryManager,
   private val localDatabase: DatabaseQueryManager,
 ) {
 
@@ -33,7 +33,7 @@ class DatabaseSynchronizer(
       isSynced = true
     }
     authManager.registerListener {
-      if (it is SessionStatus.Authenticated) {
+      if (it is AuthEvent.Authenticated) {
         lastUpdates.value = getLastUpdates() ?: Pair(null, null)
       }
     }
@@ -68,7 +68,9 @@ class DatabaseSynchronizer(
   suspend fun syncFromLocal() {
     val hardDeleteDate = lastUpdates.value?.first
     remoteDatabase.deleteAll(hardDeleteDate)
-    remoteDatabase.insertNodes(*localDatabase.getAllNodes().toTypedArray())
+    val moves = localDatabase.getAllMoves()
+    val positions = localDatabase.getAllPositions()
+    remoteDatabase.insertMoves(moves, positions)
     isSynced = true
   }
 
@@ -76,8 +78,9 @@ class DatabaseSynchronizer(
   suspend fun syncFromRemote() {
     val hardDeleteDate = lastUpdates.value?.second
     localDatabase.deleteAll(hardDeleteDate)
-    val positionToStoredNode = remoteDatabase.getAllNodes()
-    localDatabase.insertNodes(*positionToStoredNode.toTypedArray())
+    val moves = remoteDatabase.getAllMoves()
+    val positions = remoteDatabase.getAllPositions()
+    localDatabase.insertMoves(moves, positions)
     isSynced = true
   }
 }

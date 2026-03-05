@@ -8,10 +8,9 @@ import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 internal const val IS_DELETED_FIELD = "is_deleted"
 internal const val UPDATED_AT_FIELD = "updated_at"
@@ -62,33 +61,32 @@ internal data class PositionFetched(
   @SerialName(IS_DELETED_FIELD) val isDeleted: Boolean,
 ) {
   constructor(
-    dataNode: DataNode
+    dataPosition: DataPosition,
+    moves: List<DataMove>,
   ) : this(
-    dataNode.positionIdentifier.fenRepresentation,
-    dataNode.previousAndNextMoves.nextMoves.map { MoveFetched(it.value) } +
-      dataNode.previousAndNextMoves.previousMoves.map { MoveFetched(it.value) },
-    dataNode.previousAndNextMoves.depth,
-    dataNode.previousAndNextTrainingDate.previousDate,
-    dataNode.previousAndNextTrainingDate.nextDate,
-    dataNode.updatedAt,
-    dataNode.isDeleted,
+    dataPosition.positionIdentifier.fenRepresentation,
+    moves.map { MoveFetched(it) },
+    dataPosition.depth,
+    dataPosition.previousAndNextTrainingDate.previousDate,
+    dataPosition.previousAndNextTrainingDate.nextDate,
+    dataPosition.updatedAt,
+    dataPosition.isDeleted,
   )
 
-  fun toStoredNode(withDeletedOnes: Boolean = false): DataNode {
-    return DataNode(
+  fun toDataPosition(): DataPosition {
+    return DataPosition(
       PositionIdentifier(positionIdentifier),
-      PreviousAndNextMoves(
-        linkedMoves
-          .filter { it.destination == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
-          .map { it.toStoredMove() },
-        linkedMoves
-          .filter { it.origin == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
-          .map { it.toStoredMove() },
-        depth,
-      ),
+      depth,
       PreviousAndNextDate(lastTrainingDate, nextTrainingDate),
       updatedAt,
+      isDeleted,
     )
+  }
+
+  fun toDataMoves(withDeletedOnes: Boolean = false): List<DataMove> {
+    return linkedMoves
+      .filter { withDeletedOnes || !it.isDeleted }
+      .map { it.toStoredMove() }
   }
 }
 
@@ -100,9 +98,7 @@ internal data class SinglePositionFunctionArg(
 )
 
 @Serializable
-internal data class SingleDateTimeFunctionArg(
-  @SerialName("hard_from_input") val hardFrom: Instant?
-)
+internal data class SingleDateTimeFunctionArg(@SerialName("hard_from_input") val hardFrom: Instant?)
 
 @Serializable
 internal data class MoveFromOriginFunctionArg(

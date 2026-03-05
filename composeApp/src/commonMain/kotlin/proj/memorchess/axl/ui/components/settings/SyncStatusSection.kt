@@ -20,12 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.online.auth.AuthManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 
 @Composable
 fun SyncStatusSection(
-  authManager: AuthManager = koinInject(),
+  authManager: KtorAuthManager = koinInject(),
   databaseSynchronizer: DatabaseSynchronizer = koinInject(),
 ) {
   if (authManager.user == null) return

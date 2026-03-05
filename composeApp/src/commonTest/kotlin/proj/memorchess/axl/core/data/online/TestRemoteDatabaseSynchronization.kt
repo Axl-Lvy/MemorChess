@@ -11,7 +11,7 @@ import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
@@ -20,7 +20,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
   private val databaseSynchronizer by inject<DatabaseSynchronizer>()
   private val localDatabase by inject<DatabaseQueryManager>(named("local"))
-  private val remoteDatabase by inject<SupabaseQueryManager>()
+  private val remoteDatabase by inject<KtorQueryManager>()
 
   private val globalDatabase by inject<DatabaseQueryManager>()
   private val databaseUploader by inject<DatabaseUploader>()
@@ -39,11 +39,11 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
   @Test
   fun testSyncFromLocal() = runTest {
     // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
+    localDatabase.insertMoves(refDatabase.dataMoves, refDatabase.dataPositions.values.toList())
 
     // Verify local has data, remote is empty
-    val remoteNodesBefore = remoteDatabase.getAllNodes(false)
-    assertTrue(remoteNodesBefore.isEmpty())
+    val remotePositionsBefore = remoteDatabase.getAllPositions(false)
+    assertTrue(remotePositionsBefore.isEmpty())
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromLocal()
@@ -55,14 +55,14 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
   @Test
   fun testSyncFromRemote() = runTest {
-    // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
+    // Arrange: Set up initial remote data
+    remoteDatabase.insertMoves(refDatabase.dataMoves, refDatabase.dataPositions.values.toList())
 
-    // Verify local has data, remote is empty
-    val remoteNodesBefore = localDatabase.getAllNodes()
-    assertTrue(remoteNodesBefore.isEmpty())
+    // Verify local is empty
+    val localPositionsBefore = localDatabase.getAllPositions()
+    assertTrue(localPositionsBefore.isEmpty())
 
-    // Act: Sync from local to remote
+    // Act: Sync from remote to local
     databaseSynchronizer.syncFromRemote()
     eventually { assertTrue { databaseUploader.isIdle } }
 
@@ -73,10 +73,11 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
   @Test
   fun testSyncNonEmptyFromLocal() = runTest {
     // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
+    localDatabase.insertMoves(refDatabase.dataMoves, refDatabase.dataPositions.values.toList())
 
-    // Verify local has data, remote is empty
-    TestDatabaseQueryManager.london().getAllNodes().forEach { remoteDatabase.insertNodes(it) }
+    // Set up remote with different data
+    val londonDb = TestDatabaseQueryManager.london()
+    remoteDatabase.insertMoves(londonDb.dataMoves, londonDb.dataPositions.values.toList())
 
     // Act: Sync from local to remote
     databaseSynchronizer.syncFromLocal()
@@ -88,13 +89,14 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
   @Test
   fun testSyncNonEmptyFromRemote() = runTest {
-    // Arrange: Set up initial local data
-    refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
+    // Arrange: Set up initial remote data
+    remoteDatabase.insertMoves(refDatabase.dataMoves, refDatabase.dataPositions.values.toList())
 
-    // Verify local has data, remote is empty
-    TestDatabaseQueryManager.london().getAllNodes().forEach { localDatabase.insertNodes(it) }
+    // Set up local with different data
+    val londonDb = TestDatabaseQueryManager.london()
+    localDatabase.insertMoves(londonDb.dataMoves, londonDb.dataPositions.values.toList())
 
-    // Act: Sync from local to remote
+    // Act: Sync from remote to local
     databaseSynchronizer.syncFromRemote()
     eventually { assertTrue { databaseUploader.isIdle } }
 
@@ -107,22 +109,22 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
     databaseSynchronizer.syncFromLocal()
     assertTrue(databaseSynchronizer.isSynced)
 
-    refDatabase.getAllNodes().forEach { globalDatabase.insertNodes(it) }
+    globalDatabase.insertMoves(refDatabase.dataMoves, refDatabase.dataPositions.values.toList())
     assertTrue(databaseSynchronizer.isSynced)
     eventually { assertTrue { databaseUploader.isIdle } }
     assertDatabaseAreSame()
   }
 
   private fun assertDatabaseAreSame() = runTest {
-    val localNodes = localDatabase.getAllNodes(false)
-    val remoteNodes = remoteDatabase.getAllNodes(false).toSet()
-    localNodes.forEach {
+    val localPositions = localDatabase.getAllPositions(false)
+    val remotePositions = remoteDatabase.getAllPositions(false).toSet()
+    localPositions.forEach {
       assertContains(
-        remoteNodes,
+        remotePositions,
         it,
-        "Local node: $it\nRemote node: ${remoteNodes.find { remoteIt -> remoteIt.positionIdentifier == it.positionIdentifier }}",
+        "Local position: $it\nRemote position: ${remotePositions.find { remoteIt -> remoteIt.positionIdentifier == it.positionIdentifier }}",
       )
     }
-    assertEquals(localNodes.size, remoteNodes.size)
+    assertEquals(localPositions.size, remotePositions.size)
   }
 }

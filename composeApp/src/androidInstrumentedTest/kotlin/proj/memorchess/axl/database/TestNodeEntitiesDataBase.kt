@@ -14,14 +14,14 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import proj.memorchess.axl.core.data.CustomDatabase
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.MoveEntity
 import proj.memorchess.axl.core.data.NodeEntityDao
 import proj.memorchess.axl.core.data.NodeWithMoves
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 class TestNodeEntitiesDataBase {
   private lateinit var nodeEntityDao: NodeEntityDao
@@ -44,16 +44,16 @@ class TestNodeEntitiesDataBase {
   fun writeAndReadNode() {
     val retrievedNodes: List<NodeWithMoves>
     val game = Game()
+    val position = DataPosition(
+      game.position.createIdentifier(),
+      0,
+      PreviousAndNextDate.dummyToday(),
+    )
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
-        listOf(
-          NodeWithMoves.convertToEntity(
-            DataNode(
-              game.position.createIdentifier(),
-              PreviousAndNextMoves(),
-              PreviousAndNextDate.dummyToday(),
-            )
-          )
+        NodeWithMoves.convertToEntities(
+          emptyList(),
+          listOf(position),
         )
       )
       retrievedNodes = nodeEntityDao.getAllNodes()
@@ -63,7 +63,7 @@ class TestNodeEntitiesDataBase {
     assertTrue { retrievedNodes.first().nextMoves.isEmpty() }
     assertEquals(
       game.position.createIdentifier(),
-      retrievedNodes.first().toStoredNode().positionIdentifier,
+      retrievedNodes.first().toDataPosition().positionIdentifier,
     )
   }
 
@@ -71,16 +71,16 @@ class TestNodeEntitiesDataBase {
   fun testDeleteAll() {
     val retrievedNode: NodeWithMoves?
     val game = Game()
+    val position = DataPosition(
+      game.position.createIdentifier(),
+      0,
+      PreviousAndNextDate.dummyToday(),
+    )
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
-        listOf(
-          NodeWithMoves.convertToEntity(
-            DataNode(
-              game.position.createIdentifier(),
-              PreviousAndNextMoves(),
-              PreviousAndNextDate.dummyToday(),
-            )
-          )
+        NodeWithMoves.convertToEntities(
+          emptyList(),
+          listOf(position),
         )
       )
       nodeEntityDao.deleteAllNodes()
@@ -95,32 +95,42 @@ class TestNodeEntitiesDataBase {
     val game = Game()
     val rootPositionKey = game.position.createIdentifier()
     game.playMove("e4")
+    val childPositionKey = game.position.createIdentifier()
     val linkMove =
       MoveEntity(
         rootPositionKey.fenRepresentation,
-        game.position.createIdentifier().fenRepresentation,
+        childPositionKey.fenRepresentation,
         "e4",
         true,
       )
     val now = DateUtil.now()
-    val rootNode =
-      DataNode(
-        rootPositionKey,
-        PreviousAndNextMoves(listOf(), listOf(linkMove.toStoredMove())),
-        PreviousAndNextDate.dummyToday(),
-        now,
-      )
-    val childNode =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-        now,
-      )
+    val dataMove = DataMove(
+      rootPositionKey,
+      childPositionKey,
+      "e4",
+      isGood = true,
+      updatedAt = now,
+    )
+    val rootPosition = DataPosition(
+      rootPositionKey,
+      0,
+      PreviousAndNextDate.dummyToday(),
+      now,
+    )
+    val childPosition = DataPosition(
+      childPositionKey,
+      1,
+      PreviousAndNextDate.dummyToday(),
+      now,
+    )
     runBlocking {
-      nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
-      nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))
-      nodeEntityDao.delete(childNode.positionIdentifier.fenRepresentation)
+      nodeEntityDao.insertNodeAndMoves(
+        NodeWithMoves.convertToEntities(listOf(dataMove), listOf(rootPosition))
+      )
+      nodeEntityDao.insertNodeAndMoves(
+        NodeWithMoves.convertToEntities(listOf(dataMove), listOf(childPosition))
+      )
+      nodeEntityDao.delete(childPositionKey.fenRepresentation)
       retrievedNodes = nodeEntityDao.getAllNodes().filter { !it.node.isDeleted }
     }
     assertEquals(1, retrievedNodes.size)
@@ -128,6 +138,6 @@ class TestNodeEntitiesDataBase {
       retrievedNodes.first().nextMoves.map { it.toStoredMove() },
       linkMove.toStoredMove(),
     )
-    assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionIdentifier)
+    assertEquals(rootPositionKey, retrievedNodes.first().toDataPosition().positionIdentifier)
   }
 }

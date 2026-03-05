@@ -2,13 +2,12 @@ package proj.memorchess.axl.test_util
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 /**
  * A test in-memory database.
@@ -16,97 +15,72 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
  * @constructor Creates an empty test database.
  */
 class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
-  val dataNodes = mutableMapOf<String, DataNode>()
+  val dataMoves = mutableListOf<DataMove>()
+  val dataPositions = mutableMapOf<String, DataPosition>()
   var isActiveState = true
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
-    return dataNodes.values.filter { withDeletedOnes || !it.isDeleted }.toList()
+  override suspend fun getAllMoves(withDeletedOnes: Boolean): List<DataMove> {
+    return dataMoves.filter { withDeletedOnes || !it.isDeleted }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
-    val node = dataNodes[positionIdentifier.fenRepresentation]
-    return if (node?.isDeleted == false) {
-      node
-    } else {
-      null
+  override suspend fun getAllPositions(withDeletedOnes: Boolean): List<DataPosition> {
+    return dataPositions.values.filter { withDeletedOnes || !it.isDeleted }.toList()
+  }
+
+  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataPosition? {
+    val position = dataPositions[positionIdentifier.fenRepresentation]
+    return if (position?.isDeleted == false) position else null
+  }
+
+  override suspend fun getMovesForPosition(positionIdentifier: PositionIdentifier): List<DataMove> {
+    val fen = positionIdentifier.fenRepresentation
+    return dataMoves.filter {
+      !it.isDeleted && (it.origin.fenRepresentation == fen || it.destination.fenRepresentation == fen)
     }
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
-    val node = dataNodes[position.fenRepresentation]
-    if (node != null) {
-      dataNodes[position.fenRepresentation] =
-        DataNode(
-          node.positionIdentifier,
-          node.previousAndNextMoves,
-          node.previousAndNextTrainingDate,
-          DateUtil.now(),
-          true,
-        )
+  override suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant) {
+    val existing = dataPositions[position.fenRepresentation]
+    if (existing != null) {
+      dataPositions[position.fenRepresentation] = existing.copy(isDeleted = true, updatedAt = DateUtil.now())
     }
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
-    if (dataNodes[origin.fenRepresentation] == null) {
-      return
+  override suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant) {
+    val index = dataMoves.indexOfFirst {
+      !it.isDeleted && it.origin.fenRepresentation == origin.fenRepresentation && it.move == move
     }
-    val storedNode = dataNodes[origin.fenRepresentation]!!
-    var destination: PositionIdentifier? = null
-    val newNextMoves =
-      storedNode.previousAndNextMoves.nextMoves.values.filter {
-        return@filter if (it.move == move) {
-          destination = it.destination
-          false
-        } else {
-          true
-        }
-      }
-    dataNodes[origin.fenRepresentation] =
-      DataNode(
-        PositionIdentifier(origin.fenRepresentation),
-        PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
-        storedNode.previousAndNextTrainingDate,
-        storedNode.updatedAt,
-      )
-    if (destination != null) {
-      val destinationNode = dataNodes[destination.fenRepresentation]
-      if (destinationNode != null) {
-        val newPreviousMoves =
-          destinationNode.previousAndNextMoves.previousMoves.values.filter { it.move != move }
-        if (newPreviousMoves.isEmpty()) {
-          dataNodes.remove(destination.fenRepresentation)
-        } else {
-          dataNodes[destination.fenRepresentation] =
-            DataNode(
-              destinationNode.positionIdentifier,
-              PreviousAndNextMoves(
-                newPreviousMoves,
-                destinationNode.previousAndNextMoves.nextMoves.values,
-              ),
-              destinationNode.previousAndNextTrainingDate,
-              destinationNode.updatedAt,
-            )
-        }
-      }
+    if (index >= 0) {
+      val existing = dataMoves[index]
+      dataMoves[index] = existing.copy(isDeleted = true, updatedAt = DateUtil.now())
     }
   }
 
   override suspend fun deleteAll(hardFrom: Instant?) {
-    dataNodes.clear()
+    dataMoves.clear()
+    dataPositions.clear()
   }
 
-  override suspend fun insertNodes(vararg positions: DataNode) {
-    positions.forEach { dataNodes[it.positionIdentifier.fenRepresentation] = it }
+  override suspend fun insertMoves(moves: List<DataMove>, positions: List<DataPosition>) {
+    for (position in positions) {
+      dataPositions[position.positionIdentifier.fenRepresentation] = position
+    }
+    for (move in moves) {
+      val existingIndex = dataMoves.indexOfFirst {
+        it.origin == move.origin && it.destination == move.destination && it.move == move.move
+      }
+      if (existingIndex >= 0) {
+        dataMoves[existingIndex] = move
+      } else {
+        dataMoves.add(move)
+      }
+    }
   }
 
   override suspend fun getLastUpdate(): Instant? {
-    val node = dataNodes.values.maxOfOrNull { it.updatedAt }
-    val move =
-      dataNodes.values
-        .map { (it.previousAndNextMoves.previousMoves + it.previousAndNextMoves.nextMoves).values }
-        .flatten()
-        .maxOfOrNull { it.updatedAt }
-    return DateUtil.maxOf(node, move)
+    val positionUpdate = dataPositions.values.maxOfOrNull { it.updatedAt }
+    val moveUpdate = dataMoves.maxOfOrNull { it.updatedAt }
+    return DateUtil.maxOf(positionUpdate, moveUpdate)
   }
 
   override fun isActive(): Boolean {
@@ -147,35 +121,50 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
      */
     private fun createDataBaseFromMoves(moves: List<String>): TestDatabaseQueryManager {
       val testDataBase = TestDatabaseQueryManager()
-      val nodes = convertStringMovesToNodes(moves)
-      for (node in nodes) {
-        testDataBase.dataNodes[node.positionIdentifier.fenRepresentation] = node
+      val (dataMoves, dataPositions) = convertStringMovesToMovesAndPositions(moves)
+      testDataBase.dataMoves.addAll(dataMoves)
+      for (position in dataPositions) {
+        testDataBase.dataPositions[position.positionIdentifier.fenRepresentation] = position
       }
       return testDataBase
     }
 
-    fun convertStringMovesToNodes(moves: List<String>): List<DataNode> {
-      val nodes = mutableListOf<DataNode>()
+    /**
+     * Creates a minimal two-node chain: the starting position connected to the position after "e4".
+     *
+     * This is the smallest valid data unit — a position is only meaningful if it's connected to
+     * another via a move.
+     */
+    fun minimalNodePair(): Pair<List<DataMove>, List<DataPosition>> {
+      return convertStringMovesToMovesAndPositions(listOf("e4"))
+    }
+
+    fun convertStringMovesToMovesAndPositions(moves: List<String>): Pair<List<DataMove>, List<DataPosition>> {
+      val dataMoves = mutableListOf<DataMove>()
+      val dataPositions = mutableListOf<DataPosition>()
       val game = Game()
-      var previousMove: DataMove? = null
       for ((depth, move) in moves.withIndex()) {
         val currentPosition = game.position.createIdentifier()
         game.playMove(move)
         val dataMove = DataMove(currentPosition, game.position.createIdentifier(), move, true)
-        val node =
-          DataNode(
+        dataMoves.add(dataMove)
+        dataPositions.add(
+          DataPosition(
             currentPosition,
-            PreviousAndNextMoves(
-              previousMove?.let { listOf(it) } ?: listOf(),
-              listOf(dataMove),
-              depth,
-            ),
+            depth,
             PreviousAndNextDate.dummyToday(),
           )
-        previousMove = dataMove
-        nodes.add(node)
+        )
       }
-      return nodes
+      // Add the leaf position (final destination with no outgoing moves)
+      dataPositions.add(
+        DataPosition(
+          game.position.createIdentifier(),
+          moves.size,
+          PreviousAndNextDate.dummyToday(),
+        )
+      )
+      return Pair(dataMoves, dataPositions)
     }
 
     /**
@@ -187,21 +176,17 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     fun merge(vararg testDataBases: TestDatabaseQueryManager): TestDatabaseQueryManager {
       val merged = TestDatabaseQueryManager()
       for (dataBase in testDataBases) {
-        for (entry in dataBase.dataNodes) {
-          val storedNode = merged.dataNodes[entry.key]
-          if (storedNode == null) {
-            merged.dataNodes[entry.key] = entry.value
+        for (position in dataBase.dataPositions.values) {
+          merged.dataPositions[position.positionIdentifier.fenRepresentation] = position
+        }
+        for (move in dataBase.dataMoves) {
+          val existingIndex = merged.dataMoves.indexOfFirst {
+            it.origin == move.origin && it.destination == move.destination && it.move == move.move
+          }
+          if (existingIndex >= 0) {
+            merged.dataMoves[existingIndex] = move
           } else {
-            val newMoves = storedNode.previousAndNextMoves.nextMoves.values.toMutableSet()
-            newMoves.addAll(entry.value.previousAndNextMoves.nextMoves.values)
-            val previousMoves = storedNode.previousAndNextMoves.previousMoves.values.toMutableSet()
-            newMoves.addAll(entry.value.previousAndNextMoves.previousMoves.values)
-            merged.dataNodes[entry.key] =
-              DataNode(
-                storedNode.positionIdentifier,
-                PreviousAndNextMoves(previousMoves, newMoves),
-                PreviousAndNextDate.dummyToday(),
-              )
+            merged.dataMoves.add(move)
           }
         }
       }

@@ -1,34 +1,46 @@
 package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.date.DateUtil
 
-/** Interface for the application's database operations on positions. */
+/** Interface for the application's database operations on positions and moves. */
 interface DatabaseQueryManager {
+
+  /**
+   * Retrieves all stored moves.
+   *
+   * @return A list of all stored moves as [DataMove] objects.
+   */
+  suspend fun getAllMoves(withDeletedOnes: Boolean = false): List<DataMove>
 
   /**
    * Retrieves all stored positions.
    *
-   * @return A list of all stored positions as [DataNode] objects.
+   * @return A list of all stored positions as [DataPosition] objects.
    */
-  suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<DataNode>
+  suspend fun getAllPositions(withDeletedOnes: Boolean = false): List<DataPosition>
 
-  /** Retrieves a specific position. */
-  suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode?
+  /** Retrieves a specific position's metadata. */
+  suspend fun getPosition(positionIdentifier: PositionIdentifier): DataPosition?
+
+  /** Retrieves all moves originating from or leading to a specific position. */
+  suspend fun getMovesForPosition(positionIdentifier: PositionIdentifier): List<DataMove>
 
   /**
    * Deletes a specific position by its FEN.
    *
    * @param position The position to delete.
    */
-  suspend fun deletePosition(position: PositionIdentifier)
+  suspend fun deletePosition(position: PositionIdentifier, updatedAt: Instant = DateUtil.now())
 
   /**
-   * Deletes a node
+   * Deletes a move.
    *
    * @param origin The origin of the move
    * @param move The name of move to delete
+   * @param updatedAt The timestamp to record for this deletion, defaults to now.
    */
-  suspend fun deleteMove(origin: PositionIdentifier, move: String)
+  suspend fun deleteMove(origin: PositionIdentifier, move: String, updatedAt: Instant = DateUtil.now())
 
   /**
    * Deletes all positions and moves.
@@ -39,11 +51,12 @@ interface DatabaseQueryManager {
   suspend fun deleteAll(hardFrom: Instant?)
 
   /**
-   * Inserts a new position.
+   * Inserts moves and their associated position metadata.
    *
-   * @param positions The [DataNode] to insert.
+   * @param moves The [DataMove] objects to insert.
+   * @param positions The [DataPosition] metadata for positions referenced by the moves.
    */
-  suspend fun insertNodes(vararg positions: DataNode)
+  suspend fun insertMoves(moves: List<DataMove>, positions: List<DataPosition>)
 
   /** Retrieves the last move update time. */
   suspend fun getLastUpdate(): Instant?

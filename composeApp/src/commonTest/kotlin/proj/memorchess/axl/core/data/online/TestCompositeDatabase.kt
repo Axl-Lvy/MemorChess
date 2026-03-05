@@ -7,30 +7,31 @@ import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
+import proj.memorchess.axl.core.data.online.auth.KtorAuthManager
+import proj.memorchess.axl.core.data.online.database.KtorQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.ensureDockerRunning
 
 abstract class TestCompositeDatabase : TestWithKoin {
 
   val compositeDatabase by inject<DatabaseQueryManager>()
   val localDatabase by inject<DatabaseQueryManager>(named("local"))
-  val remoteDatabase by inject<SupabaseQueryManager>()
+  val remoteDatabase by inject<KtorQueryManager>()
 
   abstract class TestCompositeDatabaseAuthenticated : TestCompositeDatabase() {
-    val authManager by inject<AuthManager>()
+    val authManager by inject<KtorAuthManager>()
 
     @BeforeTest
     override fun setUp() {
       super.setUp()
+      ensureDockerRunning()
       ensureSignedOut()
       runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
       Awaitility.awaitUntilTrue { authManager.user != null }
@@ -53,52 +54,44 @@ abstract class TestCompositeDatabase : TestWithKoin {
   }
 
   @Test
-  fun testInsertAndRetrieveSingleNode() = runTest {
+  fun testInsertAndRetrieveNodes() = runTest {
     // Arrange
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
 
     // Act
-    compositeDatabase.insertNodes(node)
-    val retrievedNodes = compositeDatabase.getAllNodes(false)
+    compositeDatabase.insertMoves(moves, positions)
+    val retrievedPositions = compositeDatabase.getAllPositions(false)
 
     // Assert
-    assertEquals(1, retrievedNodes.size)
-    assertEquals(node.positionIdentifier, retrievedNodes.first().positionIdentifier)
+    assertEquals(positions.size, retrievedPositions.size)
+    positions.forEach { originalPosition ->
+      assertContains(retrievedPositions.map { it.positionIdentifier }, originalPosition.positionIdentifier)
+    }
   }
 
   @Test
   fun testGetPosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    compositeDatabase.insertNodes(node)
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
+    val positionIdentifier = positions.first().positionIdentifier
+    compositeDatabase.insertMoves(moves, positions)
 
     // Act
-    val retrievedNode = compositeDatabase.getPosition(positionIdentifier)
+    val retrievedPosition = compositeDatabase.getPosition(positionIdentifier)
 
     // Assert
-    assertNotNull(retrievedNode)
-    assertEquals(positionIdentifier, retrievedNode.positionIdentifier)
+    assertNotNull(retrievedPosition)
+    assertEquals(positionIdentifier, retrievedPosition.positionIdentifier)
   }
 
   @Test
   fun testDeletePosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    compositeDatabase.insertNodes(node)
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
+    val positionIdentifier = positions.first().positionIdentifier
+    compositeDatabase.insertMoves(moves, positions)
 
-    // Verify node exists
+    // Verify position exists
     val beforeDelete = compositeDatabase.getPosition(positionIdentifier)
     assertNotNull(beforeDelete)
 
@@ -117,78 +110,66 @@ abstract class TestCompositeDatabase : TestWithKoin {
     val rootPosition = game.position.createIdentifier()
     game.playMove("e4")
     val childPosition = game.position.createIdentifier()
+    val move = DataMove(rootPosition, childPosition, "e4", true)
 
-    val rootNode =
-      DataNode(
-        rootPosition,
-        PreviousAndNextMoves(
-          previousMoves = emptyList(),
-          nextMoves = listOf(DataMove(rootPosition, childPosition, "e4", true)),
-        ),
-        PreviousAndNextDate.dummyToday(),
-      )
+    val rootDataPosition = DataPosition(
+      rootPosition,
+      0,
+      PreviousAndNextDate.dummyToday(),
+    )
 
-    val childNode =
-      DataNode(childPosition, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+    val childDataPosition = DataPosition(
+      childPosition,
+      1,
+      PreviousAndNextDate.dummyToday(),
+    )
 
-    compositeDatabase.insertNodes(rootNode, childNode)
+    compositeDatabase.insertMoves(listOf(move), listOf(rootDataPosition, childDataPosition))
 
     // Act
     compositeDatabase.deleteMove(rootPosition, "e4")
 
-    // Assert - This test depends on implementation details
-    // The move should be marked as deleted in the database
-    val retrievedRootNode = compositeDatabase.getPosition(rootPosition)
-    val retrieveChildNode = compositeDatabase.getPosition(childPosition)
-    assertNotNull(retrievedRootNode, "Root node should still exist after move deletion")
-    assertFalse { retrievedRootNode.previousAndNextMoves.nextMoves.any { it.key == "e4" } }
-    assertNull(retrieveChildNode, "Child node should be deleted after move deletion")
+    // Assert
+    val retrievedRootPosition = compositeDatabase.getPosition(rootPosition)
+    assertNotNull(retrievedRootPosition, "Root position should still exist after move deletion")
+    val movesForRoot = compositeDatabase.getMovesForPosition(rootPosition)
+    assertFalse { movesForRoot.any { it.move == "e4" && !it.isDeleted } }
   }
 
   @Test
   fun testDeleteAll() = runTest {
     // Arrange
-    val nodes = TestDatabaseQueryManager.vienna().getAllNodes()
-    compositeDatabase.insertNodes(*nodes.toTypedArray())
+    val refDatabase = TestDatabaseQueryManager.vienna()
+    compositeDatabase.insertMoves(refDatabase.dataMoves, refDatabase.dataPositions.values.toList())
 
-    // Verify nodes exist
-    val beforeDelete = compositeDatabase.getAllNodes(false)
+    // Verify positions exist
+    val beforeDelete = compositeDatabase.getAllPositions(false)
     assertTrue(beforeDelete.isNotEmpty())
 
     // Act
     compositeDatabase.deleteAll(null)
 
     // Assert
-    val afterDelete = compositeDatabase.getAllNodes(false)
-    assertTrue(afterDelete.isEmpty(), "All nodes should be deleted")
+    val afterDelete = compositeDatabase.getAllPositions(false)
+    assertTrue(afterDelete.isEmpty(), "All positions should be deleted")
   }
 
   @Test
   fun testGetLastUpdate() = runTest {
     // Arrange
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-        DateUtil.farInThePast(),
-      )
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
 
     // Act
     val beforeInsert = compositeDatabase.getLastUpdate()
     assertNull(beforeInsert)
-    compositeDatabase.insertNodes(node)
+    compositeDatabase.insertMoves(moves, positions)
     val afterInsert = compositeDatabase.getLastUpdate()
-    compositeDatabase.deletePosition(node.positionIdentifier)
+    compositeDatabase.deletePosition(positions.first().positionIdentifier)
     val afterDelete = compositeDatabase.getLastUpdate()
 
     // Assert
     assertNotNull(afterInsert, "Should have last update time after inserting nodes")
     assertNotNull(afterDelete, "Should have last update time after deleting nodes")
-
-    // It seems like the clocks from the test and the remote database might not be perfectly
-    // synchronized. So afterDelete might be more recent than afterInsert.
     assertTrue(
       "Last update should be updated after deletion. AfterDelete: $afterDelete AfterInsert: $afterInsert"
     ) {

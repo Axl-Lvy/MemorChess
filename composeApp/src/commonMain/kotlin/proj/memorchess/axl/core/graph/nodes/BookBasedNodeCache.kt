@@ -4,7 +4,7 @@ import co.touchlab.kermit.Logger
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataPosition
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
@@ -55,22 +55,22 @@ class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent 
     }
   }
 
-  override fun getNodeFromDay(day: Int): DataNode? {
+  override fun getPositionFromDay(day: Int): DataPosition? {
     throwUnsupportedOperation()
   }
 
-  override fun getNodeToTrainAfterPosition(
+  override fun getPositionToTrainAfterPosition(
     day: Int,
     positionIdentifier: PositionIdentifier,
-  ): DataNode? {
+  ): DataPosition? {
     throwUnsupportedOperation()
   }
 
-  override fun getNumberOfNodesToTrain(day: Int): Int {
+  override fun getNumberOfPositionsToTrain(day: Int): Int {
     throwUnsupportedOperation()
   }
 
-  override fun cacheNode(node: DataNode) {
+  override fun cachePosition(position: DataPosition) {
     throwUnsupportedOperation()
   }
 

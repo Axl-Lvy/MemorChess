@@ -5,11 +5,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
 class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
   override fun setUp() {
@@ -25,18 +22,13 @@ class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
 
   @Test
   fun testConsistency() = runTest {
-    val game = Game()
-    val node =
-      DataNode(
-        game.position.createIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+    val (moves, positions) = TestDatabaseQueryManager.minimalNodePair()
 
-    localDatabase.insertNodes(node)
+    localDatabase.insertMoves(moves, positions)
+    val positionIdentifier = positions.first().positionIdentifier
     assertEquals(
-      localDatabase.getPosition(node.positionIdentifier),
-      compositeDatabase.getPosition(node.positionIdentifier),
+      localDatabase.getPosition(positionIdentifier),
+      compositeDatabase.getPosition(positionIdentifier),
     )
   }
 }
