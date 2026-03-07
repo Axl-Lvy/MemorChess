@@ -9,7 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -31,8 +31,8 @@ internal data class MoveFetched(
   constructor(
     dataMove: DataMove
   ) : this(
-    dataMove.origin.fenRepresentation,
-    dataMove.destination.fenRepresentation,
+    dataMove.origin.value,
+    dataMove.destination.value,
     dataMove.move,
     dataMove.isGood,
     dataMove.isDeleted,
@@ -41,8 +41,8 @@ internal data class MoveFetched(
 
   fun toStoredMove(): DataMove {
     return DataMove(
-      PositionIdentifier(origin),
-      PositionIdentifier(destination),
+      PositionKey(origin),
+      PositionKey(destination),
       move,
       isGood,
       isDeleted,
@@ -64,7 +64,7 @@ internal data class PositionFetched(
   constructor(
     dataNode: DataNode
   ) : this(
-    dataNode.positionIdentifier.fenRepresentation,
+    dataNode.positionKey.value,
     dataNode.previousAndNextMoves.nextMoves.map { MoveFetched(it.value) } +
       dataNode.previousAndNextMoves.previousMoves.map { MoveFetched(it.value) },
     dataNode.previousAndNextMoves.depth,
@@ -76,7 +76,7 @@ internal data class PositionFetched(
 
   fun toStoredNode(withDeletedOnes: Boolean = false): DataNode {
     return DataNode(
-      PositionIdentifier(positionIdentifier),
+      PositionKey(positionIdentifier),
       PreviousAndNextMoves(
         linkedMoves
           .filter { it.destination == positionIdentifier && (withDeletedOnes || !it.isDeleted) }

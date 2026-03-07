@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.ui.pages.navigation.Navigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 
@@ -34,7 +34,7 @@ fun SuccessIndicatorCard(
   isCorrect: Boolean,
   isVisible: Boolean,
   nextMove: () -> Unit,
-  failedPosition: PositionIdentifier?,
+  failedPosition: PositionKey?,
   modifier: Modifier = Modifier.Companion,
   navigator: Navigator = koinInject(),
 ) {
@@ -72,7 +72,7 @@ fun SuccessIndicatorCard(
               checkNotNull(failedPosition) {
                 "Failed position must not be null when displaying an incorrect move."
               }
-              navigator.navigateTo(Route.ExploreRoute(position = failedPosition.fenRepresentation))
+              navigator.navigateTo(Route.ExploreRoute(position = failedPosition.value))
             },
             modifier = Modifier.weight(1f).padding(8.dp).testTag("Go to explore"),
           ) {

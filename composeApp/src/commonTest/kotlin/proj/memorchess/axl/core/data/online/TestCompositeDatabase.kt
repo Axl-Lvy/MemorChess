@@ -57,11 +57,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
     // Arrange
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     // Act
     compositeDatabase.insertNodes(node)
@@ -69,44 +65,42 @@ abstract class TestCompositeDatabase : TestWithKoin {
 
     // Assert
     assertEquals(1, retrievedNodes.size)
-    assertEquals(node.positionIdentifier, retrievedNodes.first().positionIdentifier)
+    assertEquals(node.positionKey, retrievedNodes.first().positionKey)
   }
 
   @Test
   fun testGetPosition() = runTest {
     // Arrange
     val engine = GameEngine()
-    val positionIdentifier = engine.toPositionIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+    val positionKey = engine.toPositionKey()
+    val node = DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     compositeDatabase.insertNodes(node)
 
     // Act
-    val retrievedNode = compositeDatabase.getPosition(positionIdentifier)
+    val retrievedNode = compositeDatabase.getPosition(positionKey)
 
     // Assert
     assertNotNull(retrievedNode)
-    assertEquals(positionIdentifier, retrievedNode.positionIdentifier)
+    assertEquals(positionKey, retrievedNode.positionKey)
   }
 
   @Test
   fun testDeletePosition() = runTest {
     // Arrange
     val engine = GameEngine()
-    val positionIdentifier = engine.toPositionIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+    val positionKey = engine.toPositionKey()
+    val node = DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     compositeDatabase.insertNodes(node)
 
     // Verify node exists
-    val beforeDelete = compositeDatabase.getPosition(positionIdentifier)
+    val beforeDelete = compositeDatabase.getPosition(positionKey)
     assertNotNull(beforeDelete)
 
     // Act
-    compositeDatabase.deletePosition(positionIdentifier)
+    compositeDatabase.deletePosition(positionKey)
 
     // Assert
-    val afterDelete = compositeDatabase.getPosition(positionIdentifier)
+    val afterDelete = compositeDatabase.getPosition(positionKey)
     assertNull(afterDelete, "Position should be null after deletion")
   }
 
@@ -114,9 +108,9 @@ abstract class TestCompositeDatabase : TestWithKoin {
   fun testDeleteMove() = runTest {
     // Arrange
     val engine = GameEngine()
-    val rootPosition = engine.toPositionIdentifier()
+    val rootPosition = engine.toPositionKey()
     engine.playSanMove("e4")
-    val childPosition = engine.toPositionIdentifier()
+    val childPosition = engine.toPositionKey()
 
     val rootNode =
       DataNode(
@@ -169,7 +163,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
     val engine = GameEngine()
     val node =
       DataNode(
-        engine.toPositionIdentifier(),
+        engine.toPositionKey(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
         DateUtil.farInThePast(),
@@ -180,7 +174,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
     assertNull(beforeInsert)
     compositeDatabase.insertNodes(node)
     val afterInsert = compositeDatabase.getLastUpdate()
-    compositeDatabase.deletePosition(node.positionIdentifier)
+    compositeDatabase.deletePosition(node.positionKey)
     val afterDelete = compositeDatabase.getLastUpdate()
 
     // Assert

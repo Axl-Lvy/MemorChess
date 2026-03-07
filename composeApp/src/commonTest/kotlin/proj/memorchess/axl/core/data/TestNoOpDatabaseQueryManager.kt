@@ -23,19 +23,19 @@ class TestNoOpDatabaseQueryManager {
 
   @Test
   fun testGetPositionReturnsNull() = runTest {
-    val position = noOpDatabaseQueryManager.getPosition(PositionIdentifier("test"))
+    val position = noOpDatabaseQueryManager.getPosition(PositionKey("test"))
     assertNull(position, "Expected null for non-existent position")
   }
 
   @Test
   fun testDeletePositionDoesNothing() = runTest {
-    noOpDatabaseQueryManager.deletePosition(PositionIdentifier("test"))
+    noOpDatabaseQueryManager.deletePosition(PositionKey("test"))
     // No exception or state change expected
   }
 
   @Test
   fun testDeleteMoveDoesNothing() = runTest {
-    noOpDatabaseQueryManager.deleteMove(PositionIdentifier("test"), "e4")
+    noOpDatabaseQueryManager.deleteMove(PositionKey("test"), "e4")
     // No exception or state change expected
   }
 
@@ -50,7 +50,7 @@ class TestNoOpDatabaseQueryManager {
   @Test
   fun testInsertNodesDoesNothing() = runTest {
     noOpDatabaseQueryManager.insertNodes(
-      DataNode(PositionIdentifier("test"), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+      DataNode(PositionKey("test"), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     )
     // No exception or state change expected
   }

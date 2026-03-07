@@ -5,7 +5,7 @@ import kotlin.math.min
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
@@ -43,8 +43,8 @@ class BookExplorer(
     try {
       val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
       bookQueryManager.registerBookDownload(book.id)
-      val dataNodes = mutableMapOf<PositionIdentifier, DataNode>()
-      dataNodes.fillRecursively(PositionIdentifier.START_POSITION, bookMoves)
+      val dataNodes = mutableMapOf<PositionKey, DataNode>()
+      dataNodes.fillRecursively(PositionKey.START_POSITION, bookMoves)
 
       databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
       toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
@@ -54,9 +54,9 @@ class BookExplorer(
     }
   }
 
-  private fun MutableMap<PositionIdentifier, DataNode>.fillRecursively(
-    position: PositionIdentifier,
-    bookMoves: Map<PositionIdentifier, List<BookMove>>,
+  private fun MutableMap<PositionKey, DataNode>.fillRecursively(
+    position: PositionKey,
+    bookMoves: Map<PositionKey, List<BookMove>>,
   ) {
     val moves = bookMoves[position] ?: return
     val trainingDate = PreviousAndNextDate.dummyToday()

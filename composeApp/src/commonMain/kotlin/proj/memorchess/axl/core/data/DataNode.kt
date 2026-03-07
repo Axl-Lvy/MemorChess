@@ -11,14 +11,14 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 /**
  * Data class representing a node in the database.
  *
- * @property positionIdentifier The position.
+ * @property positionKey The position.
  * @property previousAndNextMoves The linked moves.
  * @property previousAndNextTrainingDate The date when this node was last trained and when it should
  *   be trained next.
  * @constructor Creates a new node.
  */
 data class DataNode(
-  val positionIdentifier: PositionIdentifier,
+  val positionKey: PositionKey,
   val previousAndNextMoves: PreviousAndNextMoves,
   val previousAndNextTrainingDate: PreviousAndNextDate,
   val updatedAt: Instant = DateUtil.now(),
@@ -42,14 +42,14 @@ data class DataNode(
     EssentialData(this).toString().replaceFirst("EssentialData", "StoredNode")
 
   private data class EssentialData(
-    val positionIdentifier: PositionIdentifier,
+    val positionKey: PositionKey,
     val previousAndNextMoves: PreviousAndNextMoves,
     val previousAndNextTrainingDate: PreviousAndNextDate,
   ) {
     constructor(
       dataNode: DataNode
     ) : this(
-      dataNode.positionIdentifier,
+      dataNode.positionKey,
       dataNode.previousAndNextMoves,
       dataNode.previousAndNextTrainingDate,
     )

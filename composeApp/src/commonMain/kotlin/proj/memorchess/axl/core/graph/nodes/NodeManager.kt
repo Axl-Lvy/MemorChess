@@ -4,7 +4,7 @@ import co.touchlab.kermit.Logger
 import org.koin.core.component.KoinComponent
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 
 /**
@@ -15,7 +15,7 @@ import proj.memorchess.axl.core.engine.GameEngine
  * @property nodeCache The cache used to store and retrieve nodes and their moves.
  */
 class NodeManager<NodeT : Node<NodeT>>(
-  private val nodeConstructor: (PositionIdentifier, PreviousAndNextMoves, NodeT?, NodeT?) -> NodeT,
+  private val nodeConstructor: (PositionKey, PreviousAndNextMoves, NodeT?, NodeT?) -> NodeT,
   private val nodeCache: NodeCache,
 ) : KoinComponent {
 
@@ -26,11 +26,11 @@ class NodeManager<NodeT : Node<NodeT>>(
    *   position will be used.
    * @return The root node.
    */
-  fun createInitialNode(startPosition: PositionIdentifier? = null): NodeT {
+  fun createInitialNode(startPosition: PositionKey? = null): NodeT {
     val result =
       if (startPosition == null) {
-        val moves = nodeCache.getOrCreate(PositionIdentifier.START_POSITION, 0)
-        nodeConstructor(PositionIdentifier.START_POSITION, moves, null, null)
+        val moves = nodeCache.getOrCreate(PositionKey.START_POSITION, 0)
+        nodeConstructor(PositionKey.START_POSITION, moves, null, null)
       } else {
         val moves = nodeCache.get(startPosition)
         checkNotNull(moves) { "Position $startPosition not known." }
@@ -52,25 +52,25 @@ class NodeManager<NodeT : Node<NodeT>>(
       nodeCache.getOrCreate(previous.position, previous.previousAndNextMoves.depth)
     val dataMove =
       previousNodeMoves.nextMoves.getOrPut(move) {
-        DataMove(previous.position, engine.toPositionIdentifier(), move)
+        DataMove(previous.position, engine.toPositionKey(), move)
       }
     val newNodeLinkedMoves =
-      nodeCache.getOrCreate(engine.toPositionIdentifier(), previous.previousAndNextMoves.depth + 1)
+      nodeCache.getOrCreate(engine.toPositionKey(), previous.previousAndNextMoves.depth + 1)
     val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(dataMove)
     if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != dataMove) {
       LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
     }
-    val newNode = nodeConstructor(engine.toPositionIdentifier(), newNodeLinkedMoves, previous, null)
+    val newNode = nodeConstructor(engine.toPositionKey(), newNodeLinkedMoves, previous, null)
     previous.addChild(dataMove, newNode)
     return newNode
   }
 
-  fun clearNextMoves(positionIdentifier: PositionIdentifier) {
-    nodeCache.clearNextMoves(positionIdentifier)
+  fun clearNextMoves(positionKey: PositionKey) {
+    nodeCache.clearNextMoves(positionKey)
   }
 
-  suspend fun clearPreviousMove(positionIdentifier: PositionIdentifier, move: DataMove) {
-    nodeCache.clearPreviousMove(positionIdentifier, move)
+  suspend fun clearPreviousMove(positionKey: PositionKey, move: DataMove) {
+    nodeCache.clearPreviousMove(positionKey, move)
   }
 
   /** Resets the cache from the database. */
@@ -98,7 +98,7 @@ class NodeManager<NodeT : Node<NodeT>>(
     nodeCache.cacheNode(node)
   }
 
-  fun isKnown(position: PositionIdentifier): Boolean {
+  fun isKnown(position: PositionKey): Boolean {
     return nodeCache.get(position) != null
   }
 }

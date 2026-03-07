@@ -7,14 +7,14 @@ import io.github.alluhemanth.chess.core.board.Square
 import io.github.alluhemanth.chess.core.piece.PieceColor
 import io.github.alluhemanth.chess.core.piece.PieceType
 import io.github.alluhemanth.chess.core.utils.SanUtils
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 
 /**
  * Wrapper around [ChessGame] from chess-core-kmp that provides a simpler API for the app.
  *
  * Manages board state, validates moves (SAN and coordinate-based), handles promotions, and produces
- * [PositionIdentifier]s for node storage. SAN strings returned by move methods never include check
- * or checkmate markers (`+`/`#`), for consistency with stored move data.
+ * [PositionKey]s for node storage. SAN strings returned by move methods never include check or
+ * checkmate markers (`+`/`#`), for consistency with stored move data.
  */
 class GameEngine private constructor(private val game: ChessGame) {
 
@@ -22,12 +22,14 @@ class GameEngine private constructor(private val game: ChessGame) {
   constructor() : this(ChessGame())
 
   /**
-   * Creates a new game from the given FEN string.
+   * Creates a new game from the given [PositionKey].
    *
-   * Accepts cropped FENs (3–5 parts) as stored by [PositionIdentifier]; missing fields (en passant,
+   * Accepts cropped FENs (3–5 parts) as stored by [PositionKey]; missing fields (en passant,
    * half-move clock, full-move number) are filled with defaults.
    */
-  constructor(fen: String) : this(ChessGame().also { it.loadFen(toFullFen(fen)) })
+  constructor(
+    positionKey: PositionKey
+  ) : this(ChessGame().also { it.loadFen(toFullFen(positionKey.value)) })
 
   /** The player whose turn it is to move. */
   val playerTurn: Player
@@ -119,25 +121,25 @@ class GameEngine private constructor(private val game: ChessGame) {
     return ChessPiece(fromChessCorePieceType(piece.pieceType), fromChessCoreColor(piece.color))
   }
 
-  /** Returns the full 6-part FEN of the current position. */
-  fun toFen(): String = game.getFen()
+  /** Returns the full 6-part [Fen] of the current position. */
+  fun toFen(): Fen = Fen(game.getFen())
 
   /**
-   * Builds a [PositionIdentifier] for the current board state.
+   * Builds a [PositionKey] for the current board state.
    *
-   * The identifier contains a cropped FEN (board + turn + castling, and en passant only when an
-   * adjacent enemy pawn can actually capture). This ensures that positions which are identical for
-   * repertoire purposes share the same identifier regardless of move counters.
+   * The key contains a cropped FEN (board + turn + castling, and en passant only when an adjacent
+   * enemy pawn can actually capture). This ensures that positions which are identical for
+   * repertoire purposes share the same key regardless of move counters.
    */
-  fun toPositionIdentifier(): PositionIdentifier {
-    return PositionIdentifier(toPositionFen())
+  fun toPositionKey(): PositionKey {
+    return PositionKey(toCroppedFenString())
   }
 
   /**
-   * Produces the cropped FEN used by [toPositionIdentifier]. Includes en passant only when
+   * Produces the cropped FEN used by [toPositionKey]. Includes en passant only when
    * [isEnPassantRelevant] — i.e. an adjacent pawn of the current player can actually capture.
    */
-  private fun toPositionFen(): String {
+  private fun toCroppedFenString(): String {
     val fen = game.getFen()
     val parts = fen.split(" ")
     val board = parts[0]

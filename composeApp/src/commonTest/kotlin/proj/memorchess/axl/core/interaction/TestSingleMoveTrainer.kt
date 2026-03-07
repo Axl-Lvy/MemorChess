@@ -25,23 +25,23 @@ class TestSingleMoveTrainer : TestWithKoin {
     database.deleteAll(DateUtil.farInThePast())
     // Create a test node with some moves
     val engine = GameEngine()
-    val startPosition = engine.toPositionIdentifier()
+    val startPosition = engine.toPositionKey()
 
     // Create e4 as a good move
     engine.playSanMove("e4")
-    val e4Position = engine.toPositionIdentifier()
+    val e4Position = engine.toPositionKey()
     val e4Move = DataMove(startPosition, e4Position, "e4", isGood = true)
 
     // Create d4 as a bad move
     val engine2 = GameEngine()
     engine2.playSanMove("d4")
-    val d4Position = engine2.toPositionIdentifier()
+    val d4Position = engine2.toPositionKey()
     val d4Move = DataMove(startPosition, d4Position, "d4", isGood = false)
 
     // Create the node with both moves
     testNode =
       DataNode(
-        positionIdentifier = startPosition,
+        positionKey = startPosition,
         PreviousAndNextMoves(listOf(), listOf(e4Move, d4Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
@@ -63,7 +63,7 @@ class TestSingleMoveTrainer : TestWithKoin {
 
     // Verify the move was recognized as correct
     runTest {
-      val updatedNode = database.getPosition(testNode.positionIdentifier)
+      val updatedNode = database.getPosition(testNode.positionKey)
       // The next training date should be further in the future (success case)
       assertTrue(
         updatedNode!!.previousAndNextTrainingDate.nextDate > DateUtil.tomorrow(),
@@ -87,7 +87,7 @@ class TestSingleMoveTrainer : TestWithKoin {
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.getPosition(testNode.positionIdentifier)
+      val updatedNode = database.getPosition(testNode.positionKey)
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),
@@ -112,7 +112,7 @@ class TestSingleMoveTrainer : TestWithKoin {
 
     // Verify the move was recognized as incorrect
     runTest {
-      val updatedNode = database.getPosition(testNode.positionIdentifier)
+      val updatedNode = database.getPosition(testNode.positionKey)
       // The next training date should be tomorrow (failure case)
       assertEquals(
         DateUtil.tomorrow(),

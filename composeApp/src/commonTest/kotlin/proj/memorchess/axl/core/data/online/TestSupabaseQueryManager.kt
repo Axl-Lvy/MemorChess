@@ -5,7 +5,7 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -33,11 +33,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Arrange
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     // Act
     remoteDatabase.insertNodes(node)
@@ -45,7 +41,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
 
     // Assert
     assertEquals(1, retrievedNodes.size)
-    assertEquals(node.positionIdentifier, retrievedNodes.first().positionIdentifier)
+    assertEquals(node.positionKey, retrievedNodes.first().positionKey)
   }
 
   @Test
@@ -61,7 +57,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Assert
     assertEquals(nodes.size, retrievedNodes.size)
     nodes.forEach { originalNode ->
-      assertContains(retrievedNodes.map { it.positionIdentifier }, originalNode.positionIdentifier)
+      assertContains(retrievedNodes.map { it.positionKey }, originalNode.positionKey)
     }
   }
 
@@ -69,17 +65,16 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   fun testGetPosition() = runTest {
     // Arrange
     val engine = GameEngine()
-    val positionIdentifier = engine.toPositionIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+    val positionKey = engine.toPositionKey()
+    val node = DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     remoteDatabase.insertNodes(node)
 
     // Act
-    val retrievedNode = remoteDatabase.getPosition(positionIdentifier)
+    val retrievedNode = remoteDatabase.getPosition(positionKey)
 
     // Assert
     assertNotNull(retrievedNode)
-    assertEquals(positionIdentifier, retrievedNode.positionIdentifier)
+    assertEquals(positionKey, retrievedNode.positionKey)
   }
 
   @Test
@@ -87,7 +82,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Arrange
     val engine = GameEngine()
     engine.playSanMove("e4") // Create a different position
-    val nonExistentPosition = engine.toPositionIdentifier()
+    val nonExistentPosition = engine.toPositionKey()
 
     // Act
     val retrievedNode = remoteDatabase.getPosition(nonExistentPosition)
@@ -100,20 +95,19 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   fun testDeletePosition() = runTest {
     // Arrange
     val engine = GameEngine()
-    val positionIdentifier = engine.toPositionIdentifier()
-    val node =
-      DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+    val positionKey = engine.toPositionKey()
+    val node = DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     remoteDatabase.insertNodes(node)
 
     // Verify node exists
-    val beforeDelete = remoteDatabase.getPosition(positionIdentifier)
+    val beforeDelete = remoteDatabase.getPosition(positionKey)
     assertNotNull(beforeDelete)
 
     // Act
-    remoteDatabase.deletePosition(positionIdentifier)
+    remoteDatabase.deletePosition(positionKey)
 
     // Assert
-    val afterDelete = remoteDatabase.getPosition(positionIdentifier)
+    val afterDelete = remoteDatabase.getPosition(positionKey)
     assertNull(afterDelete, "Position should be null after deletion")
   }
 
@@ -121,9 +115,9 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   fun testDeleteMove() = runTest {
     // Arrange
     val engine = GameEngine()
-    val rootPosition = engine.toPositionIdentifier()
+    val rootPosition = engine.toPositionKey()
     engine.playSanMove("e4")
-    val childPosition = engine.toPositionIdentifier()
+    val childPosition = engine.toPositionKey()
 
     val rootNode =
       DataNode(
@@ -175,23 +169,16 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Arrange
     val engine = GameEngine()
     val updatedAt = DateUtil.now()
-    val positionIdentifier = engine.toPositionIdentifier()
+    val positionKey = engine.toPositionKey()
     val node =
-      DataNode(
-        positionIdentifier,
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-        updatedAt,
-      )
+      DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday(), updatedAt)
     remoteDatabase.insertNodes(node)
 
     // Act
     remoteDatabase.deleteAll(DateUtil.farInThePast())
 
     // Assert - node created should be deleted
-    assertFalse {
-      remoteDatabase.getAllNodes(true).any { it.positionIdentifier == positionIdentifier }
-    }
+    assertFalse { remoteDatabase.getAllNodes(true).any { it.positionKey == positionKey } }
   }
 
   @Test
@@ -200,7 +187,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     val engine = GameEngine()
     val node =
       DataNode(
-        engine.toPositionIdentifier(),
+        engine.toPositionKey(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
         DateUtil.now(),
@@ -211,7 +198,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     assertNull(beforeInsert)
     remoteDatabase.insertNodes(node)
     val afterInsert = remoteDatabase.getLastUpdate()
-    remoteDatabase.deletePosition(node.positionIdentifier)
+    remoteDatabase.deletePosition(node.positionKey)
     val afterDelete = remoteDatabase.getLastUpdate()
 
     // Assert
@@ -232,13 +219,9 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     // Arrange
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     remoteDatabase.insertNodes(node)
-    remoteDatabase.deletePosition(node.positionIdentifier)
+    remoteDatabase.deletePosition(node.positionKey)
 
     // Act
     val nodesWithoutDeleted = remoteDatabase.getAllNodes(false)
@@ -257,18 +240,14 @@ class TestSupabaseQueryManager : TestAuthenticated() {
 
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     // Act & Assert
     assertFailsWith<IllegalStateException> { remoteDatabase.insertNodes(node) }
 
     assertFailsWith<IllegalStateException> { remoteDatabase.getAllNodes(false) }
 
-    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(node.positionIdentifier) }
+    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(node.positionKey) }
   }
 
   @Test
@@ -277,7 +256,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     val emptyNodes = remoteDatabase.getAllNodes(false)
     val nonExistentPosition =
       remoteDatabase.getPosition(
-        PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
       )
     val lastUpdate = remoteDatabase.getLastUpdate()
 
@@ -295,23 +274,15 @@ class TestSupabaseQueryManager : TestAuthenticated() {
 
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     // Act & Assert
     assertFailsWith<IllegalStateException> { remoteDatabase.deleteAll(null) }
-    assertFailsWith<IllegalStateException> {
-      remoteDatabase.deletePosition(node.positionIdentifier)
-    }
+    assertFailsWith<IllegalStateException> { remoteDatabase.deletePosition(node.positionKey) }
     assertFailsWith<IllegalStateException> { remoteDatabase.getAllNodes(false) }
-    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(node.positionIdentifier) }
+    assertFailsWith<IllegalStateException> { remoteDatabase.getPosition(node.positionKey) }
     assertFailsWith<IllegalStateException> { remoteDatabase.getLastUpdate() }
-    assertFailsWith<IllegalStateException> {
-      remoteDatabase.deleteMove(node.positionIdentifier, "e4")
-    }
+    assertFailsWith<IllegalStateException> { remoteDatabase.deleteMove(node.positionKey, "e4") }
     assertFailsWith<IllegalStateException> { remoteDatabase.insertNodes(node) }
   }
 }

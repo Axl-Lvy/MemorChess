@@ -10,7 +10,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.auth.AuthManager
@@ -112,8 +112,8 @@ class SupabaseBookQueryManager(
           "add_move_to_book",
           AddMoveToBookFunctionArg(
             bookId,
-            move.origin.fenRepresentation,
-            move.destination.fenRepresentation,
+            move.origin.value,
+            move.destination.value,
             move.move,
             move.isGood,
           ),
@@ -191,8 +191,7 @@ private data class BookMoveFetched(
   val move: String,
   val isGood: Boolean,
 ) {
-  fun toBookMove(): BookMove =
-    BookMove(PositionIdentifier(origin), PositionIdentifier(destination), move, isGood)
+  fun toBookMove(): BookMove = BookMove(PositionKey(origin), PositionKey(destination), move, isGood)
 }
 
 // Function arguments for Supabase RPC calls

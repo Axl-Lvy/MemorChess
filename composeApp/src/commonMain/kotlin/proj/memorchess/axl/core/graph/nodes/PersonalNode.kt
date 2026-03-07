@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.graph.nodes
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 
 /**
@@ -17,7 +17,7 @@ import proj.memorchess.axl.core.date.PreviousAndNextDate
  * @property next Reference to the next node in the graph.
  */
 class PersonalNode(
-  position: PositionIdentifier,
+  position: PositionKey,
   previousAndNextMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
   previous: PersonalNode? = null,
   next: PersonalNode? = null,

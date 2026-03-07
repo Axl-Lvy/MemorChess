@@ -34,17 +34,17 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
+  override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     return if (localDatabase.isActive()) {
-      localDatabase.getPosition(positionIdentifier)
+      localDatabase.getPosition(positionKey)
     } else if (remoteDatabase.isActive()) {
-      remoteDatabase.getPosition(positionIdentifier)
+      remoteDatabase.getPosition(positionKey)
     } else {
       throwNoActiveDatabaseException()
     }
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun deletePosition(position: PositionKey) {
     if (localDatabase.isActive()) {
       localDatabase.deletePosition(position)
       databaseUploader.enqueue(DatabaseOperation.DeletePosition(position))
@@ -53,7 +53,7 @@ class CompositeDatabase(
     }
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionKey, move: String) {
     if (localDatabase.isActive()) {
       localDatabase.deleteMove(origin, move)
       databaseUploader.enqueue(DatabaseOperation.DeleteMove(origin, move))

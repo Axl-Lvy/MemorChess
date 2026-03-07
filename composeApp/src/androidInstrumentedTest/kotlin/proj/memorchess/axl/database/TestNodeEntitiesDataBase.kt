@@ -48,11 +48,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            DataNode(
-              game.toPositionIdentifier(),
-              PreviousAndNextMoves(),
-              PreviousAndNextDate.dummyToday(),
-            )
+            DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
           )
         )
       )
@@ -61,10 +57,7 @@ class TestNodeEntitiesDataBase {
     assertEquals(1, retrievedNodes.size)
     assertNotNull(retrievedNodes.first())
     assertTrue { retrievedNodes.first().nextMoves.isEmpty() }
-    assertEquals(
-      game.toPositionIdentifier(),
-      retrievedNodes.first().toStoredNode().positionIdentifier,
-    )
+    assertEquals(game.toPositionKey(), retrievedNodes.first().toStoredNode().positionKey)
   }
 
   @Test
@@ -75,11 +68,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            DataNode(
-              game.toPositionIdentifier(),
-              PreviousAndNextMoves(),
-              PreviousAndNextDate.dummyToday(),
-            )
+            DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
           )
         )
       )
@@ -93,15 +82,9 @@ class TestNodeEntitiesDataBase {
   fun testDeleteSingle() {
     val retrievedNodes: List<NodeWithMoves>
     val game = GameEngine()
-    val rootPositionKey = game.toPositionIdentifier()
+    val rootPositionKey = game.toPositionKey()
     game.playSanMove("e4")
-    val linkMove =
-      MoveEntity(
-        rootPositionKey.fenRepresentation,
-        game.toPositionIdentifier().fenRepresentation,
-        "e4",
-        true,
-      )
+    val linkMove = MoveEntity(rootPositionKey.value, game.toPositionKey().value, "e4", true)
     val now = DateUtil.now()
     val rootNode =
       DataNode(
@@ -111,16 +94,11 @@ class TestNodeEntitiesDataBase {
         now,
       )
     val childNode =
-      DataNode(
-        game.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-        now,
-      )
+      DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday(), now)
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))
-      nodeEntityDao.delete(childNode.positionIdentifier.fenRepresentation)
+      nodeEntityDao.delete(childNode.positionKey.value)
       retrievedNodes = nodeEntityDao.getAllNodes().filter { !it.node.isDeleted }
     }
     assertEquals(1, retrievedNodes.size)
@@ -128,6 +106,6 @@ class TestNodeEntitiesDataBase {
       retrievedNodes.first().nextMoves.map { it.toStoredMove() },
       linkMove.toStoredMove(),
     )
-    assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionIdentifier)
+    assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionKey)
   }
 }

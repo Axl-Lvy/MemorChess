@@ -14,7 +14,7 @@ import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.auth.AuthManager
@@ -76,13 +76,13 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
 
     bookQueryManager.addMoveToBook(
       testBook.id,
-      BookMove(PositionIdentifier.START_POSITION, e4Position, "e4", true),
+      BookMove(PositionKey.START_POSITION, e4Position, "e4", true),
     )
     bookQueryManager.addMoveToBook(testBook.id, BookMove(e4Position, e5Position, "e5", false))
     bookQueryManager.addMoveToBook(testBook.id, BookMove(e5Position, nf3Position, "Nf3", true))
@@ -107,8 +107,8 @@ class TestBookExplorer : TestWithKoin {
 
     bookExplorer.playMove("e4")
     assertEquals(
-      PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
-      bookExplorer.engine.toPositionIdentifier(),
+      PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
+      bookExplorer.engine.toPositionKey(),
     )
 
     val nextMovesAfterE4 = bookExplorer.getNextMoves()
@@ -125,8 +125,8 @@ class TestBookExplorer : TestWithKoin {
 
     bookExplorer.back()
     assertEquals(
-      PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
-      bookExplorer.engine.toPositionIdentifier(),
+      PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
+      bookExplorer.engine.toPositionKey(),
     )
   }
 
@@ -138,7 +138,7 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.playMove("e5")
 
     bookExplorer.reset()
-    assertEquals(PositionIdentifier.START_POSITION, bookExplorer.engine.toPositionIdentifier())
+    assertEquals(PositionKey.START_POSITION, bookExplorer.engine.toPositionKey())
   }
 
   @Test
@@ -180,20 +180,20 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
-    val startNode = nodeMap[PositionIdentifier.START_POSITION]!!
+    val startNode = nodeMap[PositionKey.START_POSITION]!!
     assertEquals(0, startNode.previousAndNextMoves.depth)
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
     val e4Node = nodeMap[e4Position]!!
     assertEquals(1, e4Node.previousAndNextMoves.depth)
 
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
     val e5Node = nodeMap[e5Position]!!
     assertEquals(2, e5Node.previousAndNextMoves.depth)
 
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
     val nf3Node = nodeMap[nf3Position]!!
     assertEquals(3, nf3Node.previousAndNextMoves.depth)
   }
@@ -203,14 +203,14 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Test Cycle")
     createdBookId = bookId
 
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq")
-    val nf6Position = PositionIdentifier("rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq")
-    val ng1Position = PositionIdentifier("rnbqkb1r/pppppppp/5n2/8/8/8/PPPPPPPP/RNBQKB1R b KQkq")
-    val ng8Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKB1R w KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq")
+    val nf6Position = PositionKey("rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq")
+    val ng1Position = PositionKey("rnbqkb1r/pppppppp/5n2/8/8/8/PPPPPPPP/RNBQKB1R b KQkq")
+    val ng8Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKB1R w KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, nf3Position, "Nf3", true),
+      BookMove(PositionKey.START_POSITION, nf3Position, "Nf3", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(nf3Position, nf6Position, "Nf6", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(nf6Position, ng1Position, "Ng1", true))
@@ -234,14 +234,14 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Test Cycle Depth")
     createdBookId = bookId
 
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq")
-    val nf6Position = PositionIdentifier("rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq")
-    val ng1Position = PositionIdentifier("rnbqkb1r/pppppppp/5n2/8/8/8/PPPPPPPP/RNBQKB1R b KQkq")
-    val ng8Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKB1R w KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq")
+    val nf6Position = PositionKey("rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq")
+    val ng1Position = PositionKey("rnbqkb1r/pppppppp/5n2/8/8/8/PPPPPPPP/RNBQKB1R b KQkq")
+    val ng8Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKB1R w KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, nf3Position, "Nf3", true),
+      BookMove(PositionKey.START_POSITION, nf3Position, "Nf3", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(nf3Position, nf6Position, "Nf6", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(nf6Position, ng1Position, "Ng1", true))
@@ -257,9 +257,9 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[nf3Position]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[nf6Position]!!.previousAndNextMoves.depth)
     assertEquals(3, nodeMap[ng1Position]!!.previousAndNextMoves.depth)
@@ -271,22 +271,21 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Complex Cycle")
     createdBookId = bookId
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
-    val nc6Position =
-      PositionIdentifier("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val nc6Position = PositionKey("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, e4Position, "e4", true),
+      BookMove(PositionKey.START_POSITION, e4Position, "e4", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, e5Position, "e5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(e5Position, nf3Position, "Nf3", true))
     bookQueryManager.addMoveToBook(bookId, BookMove(nf3Position, nc6Position, "Nc6", false))
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(nc6Position, PositionIdentifier.START_POSITION, "back-to-start", true),
+      BookMove(nc6Position, PositionKey.START_POSITION, "back-to-start", true),
     )
 
     val books = bookQueryManager.getAllBooks()
@@ -301,8 +300,8 @@ class TestBookExplorer : TestWithKoin {
     val nodes = database.getAllNodes()
     assertEquals(5, nodes.size)
 
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    val nodeMap = nodes.associateBy { it.positionKey }
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
   }
 
   @Test
@@ -310,15 +309,15 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Multiple Paths")
     createdBookId = bookId
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val c5Position = PositionIdentifier("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val nf3FromC5 = PositionIdentifier("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
-    val nf3FromE5 = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val c5Position = PositionKey("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val nf3FromC5 = PositionKey("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val nf3FromE5 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, e4Position, "e4", true),
+      BookMove(PositionKey.START_POSITION, e4Position, "e4", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, c5Position, "c5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, e5Position, "e5", false))
@@ -335,9 +334,9 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[e4Position]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[c5Position]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[e5Position]!!.previousAndNextMoves.depth)
@@ -350,25 +349,25 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Transpositions")
     createdBookId = bookId
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val d4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq")
-    val d5Position = PositionIdentifier("rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq")
-    val e5FromD5 = PositionIdentifier("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPP1PPPP/RNBQKBNR b KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val d4Position = PositionKey("rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq")
+    val d5Position = PositionKey("rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq")
+    val e5FromD5 = PositionKey("rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPP1PPPP/RNBQKBNR b KQkq")
 
-    val c5Position = PositionIdentifier("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val d4FromC5 = PositionIdentifier("rnbqkbnr/pp1ppppp/8/2p5/3PP3/8/PPP2PPP/RNBQKBNR b KQkq")
-    val cxd4Position = PositionIdentifier("rnbqkbnr/pp1ppppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq")
+    val c5Position = PositionKey("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val d4FromC5 = PositionKey("rnbqkbnr/pp1ppppp/8/2p5/3PP3/8/PPP2PPP/RNBQKBNR b KQkq")
+    val cxd4Position = PositionKey("rnbqkbnr/pp1ppppp/8/8/3pP3/8/PPP2PPP/RNBQKBNR w KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, d4Position, "d4", true),
+      BookMove(PositionKey.START_POSITION, d4Position, "d4", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(d4Position, d5Position, "d5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(d5Position, e5FromD5, "e4", true))
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, e4Position, "e4", true),
+      BookMove(PositionKey.START_POSITION, e4Position, "e4", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, c5Position, "c5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(c5Position, d4FromC5, "d4", true))
@@ -384,9 +383,9 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[e4Position]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[d4Position]!!.previousAndNextMoves.depth)
   }
@@ -400,7 +399,7 @@ class TestBookExplorer : TestWithKoin {
     val nodes = database.getAllNodes()
     assertEquals(4, nodes.size)
 
-    val startNode = nodes.find { it.positionIdentifier == PositionIdentifier.START_POSITION }!!
+    val startNode = nodes.find { it.positionKey == PositionKey.START_POSITION }!!
     assertEquals(1, startNode.previousAndNextMoves.nextMoves.size)
     assertTrue(startNode.previousAndNextMoves.nextMoves.containsKey("e4"))
   }
@@ -410,11 +409,11 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Self Loop")
     createdBookId = bookId
 
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, nf3Position, "Nf3", true),
+      BookMove(PositionKey.START_POSITION, nf3Position, "Nf3", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(nf3Position, nf3Position, "self-loop", false))
 
@@ -430,8 +429,8 @@ class TestBookExplorer : TestWithKoin {
     val nodes = database.getAllNodes()
     assertEquals(2, nodes.size)
 
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    val nodeMap = nodes.associateBy { it.positionKey }
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[nf3Position]!!.previousAndNextMoves.depth)
   }
 
@@ -440,14 +439,14 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Diamond Pattern")
     createdBookId = bookId
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val c5Position = PositionIdentifier("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val c5Position = PositionKey("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, e4Position, "e4", true),
+      BookMove(PositionKey.START_POSITION, e4Position, "e4", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, c5Position, "c5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, e5Position, "e5", false))
@@ -464,9 +463,9 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[e4Position]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[c5Position]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[e5Position]!!.previousAndNextMoves.depth)
@@ -478,17 +477,14 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Deep Chain")
     createdBookId = bookId
 
-    val pos1 = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val pos2 = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val pos3 = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
-    val pos4 = PositionIdentifier("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
-    val pos5 = PositionIdentifier("r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq")
-    val pos6 = PositionIdentifier("r1bqk1nr/pppp1ppp/2n5/1Bb1p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq")
+    val pos1 = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val pos2 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val pos3 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val pos4 = PositionKey("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
+    val pos5 = PositionKey("r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq")
+    val pos6 = PositionKey("r1bqk1nr/pppp1ppp/2n5/1Bb1p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq")
 
-    bookQueryManager.addMoveToBook(
-      bookId,
-      BookMove(PositionIdentifier.START_POSITION, pos1, "e4", true),
-    )
+    bookQueryManager.addMoveToBook(bookId, BookMove(PositionKey.START_POSITION, pos1, "e4", true))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos1, pos2, "e5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos2, pos3, "Nf3", true))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos3, pos4, "Nc6", false))
@@ -505,10 +501,10 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
     assertEquals(7, nodes.size)
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[pos1]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[pos2]!!.previousAndNextMoves.depth)
     assertEquals(3, nodeMap[pos3]!!.previousAndNextMoves.depth)
@@ -522,15 +518,12 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Backward Edge")
     createdBookId = bookId
 
-    val pos1 = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val pos2 = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val pos3 = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
-    val pos4 = PositionIdentifier("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
+    val pos1 = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val pos2 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val pos3 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val pos4 = PositionKey("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
 
-    bookQueryManager.addMoveToBook(
-      bookId,
-      BookMove(PositionIdentifier.START_POSITION, pos1, "e4", true),
-    )
+    bookQueryManager.addMoveToBook(bookId, BookMove(PositionKey.START_POSITION, pos1, "e4", true))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos1, pos2, "e5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos2, pos3, "Nf3", true))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos3, pos4, "Nc6", false))
@@ -546,10 +539,10 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
     assertEquals(5, nodes.size)
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[pos1]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[pos2]!!.previousAndNextMoves.depth)
     assertEquals(3, nodeMap[pos3]!!.previousAndNextMoves.depth)
@@ -561,15 +554,12 @@ class TestBookExplorer : TestWithKoin {
     val bookId = bookQueryManager.createBook("Multiple Cycles")
     createdBookId = bookId
 
-    val pos1 = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val pos2 = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val pos3 = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
-    val pos4 = PositionIdentifier("rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
+    val pos1 = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val pos2 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val pos3 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val pos4 = PositionKey("rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq")
 
-    bookQueryManager.addMoveToBook(
-      bookId,
-      BookMove(PositionIdentifier.START_POSITION, pos1, "e4", true),
-    )
+    bookQueryManager.addMoveToBook(bookId, BookMove(PositionKey.START_POSITION, pos1, "e4", true))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos1, pos2, "e5", false))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos2, pos3, "Nf3", true))
     bookQueryManager.addMoveToBook(bookId, BookMove(pos3, pos4, "Nf6", false))
@@ -586,10 +576,10 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
     assertEquals(5, nodes.size)
-    assertEquals(0, nodeMap[PositionIdentifier.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
     assertEquals(1, nodeMap[pos1]!!.previousAndNextMoves.depth)
     assertEquals(2, nodeMap[pos2]!!.previousAndNextMoves.depth)
     assertEquals(3, nodeMap[pos3]!!.previousAndNextMoves.depth)
@@ -603,13 +593,13 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.downloadBookToRepertoire()
 
     val nodes = database.getAllNodes()
-    val nodeMap = nodes.associateBy { it.positionIdentifier }
+    val nodeMap = nodes.associateBy { it.positionKey }
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
-    val nf3Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val nf3Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
 
-    val startNode = nodeMap[PositionIdentifier.START_POSITION]!!
+    val startNode = nodeMap[PositionKey.START_POSITION]!!
     assertTrue(startNode.previousAndNextMoves.nextMoves.containsKey("e4"))
     assertEquals(e4Position, startNode.previousAndNextMoves.nextMoves["e4"]!!.destination)
 
@@ -639,20 +629,20 @@ class TestBookExplorer : TestWithKoin {
     setupTestBook()
 
     bookExplorer.back()
-    assertEquals(PositionIdentifier.START_POSITION, bookExplorer.engine.toPositionIdentifier())
+    assertEquals(PositionKey.START_POSITION, bookExplorer.engine.toPositionKey())
   }
 
   @Test
   fun testGameStateUpdatedAfterMove() = runTest {
     setupTestBook()
 
-    val initialPosition = bookExplorer.engine.toPositionIdentifier()
-    assertEquals(PositionIdentifier.START_POSITION, initialPosition)
+    val initialPosition = bookExplorer.engine.toPositionKey()
+    assertEquals(PositionKey.START_POSITION, initialPosition)
 
     bookExplorer.playMove("e4")
 
-    val afterE4Position = bookExplorer.engine.toPositionIdentifier()
-    assertNotEquals(PositionIdentifier.START_POSITION, afterE4Position)
+    val afterE4Position = bookExplorer.engine.toPositionKey()
+    assertNotEquals(PositionKey.START_POSITION, afterE4Position)
   }
 
   @Test
@@ -678,8 +668,8 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.forward()
 
     assertEquals(
-      PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
-      bookExplorer.engine.toPositionIdentifier(),
+      PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
+      bookExplorer.engine.toPositionKey(),
     )
   }
 

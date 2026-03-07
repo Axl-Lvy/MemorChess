@@ -4,7 +4,7 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
@@ -23,8 +23,8 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     return dataNodes.values.filter { withDeletedOnes || !it.isDeleted }.toList()
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
-    val node = dataNodes[positionIdentifier.fenRepresentation]
+  override suspend fun getPosition(positionKey: PositionKey): DataNode? {
+    val node = dataNodes[positionKey.value]
     return if (node?.isDeleted == false) {
       node
     } else {
@@ -32,12 +32,12 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
-    val node = dataNodes[position.fenRepresentation]
+  override suspend fun deletePosition(position: PositionKey) {
+    val node = dataNodes[position.value]
     if (node != null) {
-      dataNodes[position.fenRepresentation] =
+      dataNodes[position.value] =
         DataNode(
-          node.positionIdentifier,
+          node.positionKey,
           node.previousAndNextMoves,
           node.previousAndNextTrainingDate,
           DateUtil.now(),
@@ -46,12 +46,12 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
-    if (dataNodes[origin.fenRepresentation] == null) {
+  override suspend fun deleteMove(origin: PositionKey, move: String) {
+    if (dataNodes[origin.value] == null) {
       return
     }
-    val storedNode = dataNodes[origin.fenRepresentation]!!
-    var destination: PositionIdentifier? = null
+    val storedNode = dataNodes[origin.value]!!
+    var destination: PositionKey? = null
     val newNextMoves =
       storedNode.previousAndNextMoves.nextMoves.values.filter {
         return@filter if (it.move == move) {
@@ -61,24 +61,24 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
           true
         }
       }
-    dataNodes[origin.fenRepresentation] =
+    dataNodes[origin.value] =
       DataNode(
-        PositionIdentifier(origin.fenRepresentation),
+        PositionKey(origin.value),
         PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
         storedNode.previousAndNextTrainingDate,
         storedNode.updatedAt,
       )
     if (destination != null) {
-      val destinationNode = dataNodes[destination.fenRepresentation]
+      val destinationNode = dataNodes[destination.value]
       if (destinationNode != null) {
         val newPreviousMoves =
           destinationNode.previousAndNextMoves.previousMoves.values.filter { it.move != move }
         if (newPreviousMoves.isEmpty()) {
-          dataNodes.remove(destination.fenRepresentation)
+          dataNodes.remove(destination.value)
         } else {
-          dataNodes[destination.fenRepresentation] =
+          dataNodes[destination.value] =
             DataNode(
-              destinationNode.positionIdentifier,
+              destinationNode.positionKey,
               PreviousAndNextMoves(
                 newPreviousMoves,
                 destinationNode.previousAndNextMoves.nextMoves.values,
@@ -96,7 +96,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
-    positions.forEach { dataNodes[it.positionIdentifier.fenRepresentation] = it }
+    positions.forEach { dataNodes[it.positionKey.value] = it }
   }
 
   override suspend fun getLastUpdate(): Instant? {
@@ -149,7 +149,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       val testDataBase = TestDatabaseQueryManager()
       val nodes = convertStringMovesToNodes(moves)
       for (node in nodes) {
-        testDataBase.dataNodes[node.positionIdentifier.fenRepresentation] = node
+        testDataBase.dataNodes[node.positionKey.value] = node
       }
       return testDataBase
     }
@@ -159,9 +159,9 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       val engine = GameEngine()
       var previousMove: DataMove? = null
       for ((depth, move) in moves.withIndex()) {
-        val currentPosition = engine.toPositionIdentifier()
+        val currentPosition = engine.toPositionKey()
         engine.playSanMove(move)
-        val dataMove = DataMove(currentPosition, engine.toPositionIdentifier(), move, true)
+        val dataMove = DataMove(currentPosition, engine.toPositionKey(), move, true)
         val node =
           DataNode(
             currentPosition,
@@ -198,7 +198,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
             newMoves.addAll(entry.value.previousAndNextMoves.previousMoves.values)
             merged.dataNodes[entry.key] =
               DataNode(
-                storedNode.positionIdentifier,
+                storedNode.positionKey,
                 PreviousAndNextMoves(previousMoves, newMoves),
                 PreviousAndNextDate.dummyToday(),
               )

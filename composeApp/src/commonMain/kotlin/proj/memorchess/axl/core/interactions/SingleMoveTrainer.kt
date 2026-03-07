@@ -18,7 +18,7 @@ import proj.memorchess.axl.core.graph.nodes.PersonalNode
  *   when the played move is incorrect.
  */
 class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (DataMove?) -> Unit) :
-  InteractionsManager(GameEngine(node.positionIdentifier.fenRepresentation)) {
+  InteractionsManager(GameEngine(node.positionKey)) {
 
   private val nodeManager: NodeManager<PersonalNode> by inject()
 
@@ -35,12 +35,9 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
   }
 
   fun updateNode(newNode: DataNode) {
-    if (
-      newNode.positionIdentifier != node.positionIdentifier ||
-        newNode.positionIdentifier != engine.toPositionIdentifier()
-    ) {
+    if (newNode.positionKey != node.positionKey || newNode.positionKey != engine.toPositionKey()) {
       node = newNode
-      engine = GameEngine(node.positionIdentifier.fenRepresentation)
+      engine = GameEngine(node.positionKey)
       isCorrect = true
       unblock()
       callCallBacks()
@@ -59,7 +56,7 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
 
     val dataNode =
       DataNode(
-        positionIdentifier = node.positionIdentifier,
+        positionKey = node.positionKey,
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )

@@ -96,7 +96,7 @@ class TestTestDatabase {
 
     // Check that all moves from individual databases are in the merged database
     for (node in viennaDb.dataNodes.values) {
-      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
+      val mergedNode = mergedDb.dataNodes[node.positionKey.value]
       assertTrue(mergedNode != null, "Position from Vienna database should be in merged database")
       for (move in node.previousAndNextMoves.nextMoves.values) {
         assertTrue(
@@ -107,7 +107,7 @@ class TestTestDatabase {
     }
 
     for (node in londonDb.dataNodes.values) {
-      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
+      val mergedNode = mergedDb.dataNodes[node.positionKey.value]
       assertTrue(mergedNode != null, "Position from London database should be in merged database")
       for (move in node.previousAndNextMoves.nextMoves.values) {
         assertTrue(
@@ -118,7 +118,7 @@ class TestTestDatabase {
     }
 
     for (node in scandinavianDb.dataNodes.values) {
-      val mergedNode = mergedDb.dataNodes[node.positionIdentifier.fenRepresentation]
+      val mergedNode = mergedDb.dataNodes[node.positionKey.value]
       assertTrue(
         mergedNode != null,
         "Position from Scandinavian database should be in merged database",

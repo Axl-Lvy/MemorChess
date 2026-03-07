@@ -6,7 +6,7 @@ import io.github.jan.supabase.postgrest.rpc
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 
 private const val USER_NOT_CONNECTED_MESSAGE = "User must be logged in to update database"
@@ -25,13 +25,13 @@ class SupabaseQueryManager(
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
+  override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val rpc =
       client.postgrest.rpc<SinglePositionFunctionArg>(
         "fetch_single_position",
-        SinglePositionFunctionArg(positionIdentifier.fenRepresentation),
+        SinglePositionFunctionArg(positionKey.value),
       )
     val result = rpc.decodeAsOrNull<PositionFetched>()
     return if (result == null || result.isDeleted) {
@@ -41,22 +41,16 @@ class SupabaseQueryManager(
     }
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun deletePosition(position: PositionKey) {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    client.postgrest.rpc(
-      "delete_single_position",
-      SinglePositionFunctionArg(position.fenRepresentation),
-    )
+    client.postgrest.rpc("delete_single_position", SinglePositionFunctionArg(position.value))
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionKey, move: String) {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    client.postgrest.rpc(
-      "delete_single_move",
-      MoveFromOriginFunctionArg(origin.fenRepresentation, move),
-    )
+    client.postgrest.rpc("delete_single_move", MoveFromOriginFunctionArg(origin.value, move))
   }
 
   override suspend fun deleteAll(hardFrom: Instant?) {

@@ -41,8 +41,8 @@ data class MoveEntity(
   /** Converts to an [DataMove]. */
   fun toStoredMove(): DataMove {
     return DataMove(
-      PositionIdentifier(origin),
-      PositionIdentifier(destination),
+      PositionKey(origin),
+      PositionKey(destination),
       move,
       isGood,
       isDeleted,
@@ -58,8 +58,8 @@ data class MoveEntity(
         "A StoredMove must have a isGood value to be inserted into the database"
       }
       return MoveEntity(
-        dataMove.origin.fenRepresentation,
-        dataMove.destination.fenRepresentation,
+        dataMove.origin.value,
+        dataMove.destination.value,
         dataMove.move,
         isGood,
         dataMove.isDeleted,

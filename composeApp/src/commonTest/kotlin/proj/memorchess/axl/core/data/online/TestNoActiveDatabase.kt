@@ -8,7 +8,7 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -31,7 +31,7 @@ class TestNoActiveDatabase : TestWithKoin {
   fun testOperationsFailWhenNoActiveDatabase() = runTest {
     assertFails("No active database found.") { compositeDatabase.getAllNodes() }
     assertFails("No active database found.") {
-      compositeDatabase.getPosition(PositionIdentifier.START_POSITION)
+      compositeDatabase.getPosition(PositionKey.START_POSITION)
     }
   }
 }

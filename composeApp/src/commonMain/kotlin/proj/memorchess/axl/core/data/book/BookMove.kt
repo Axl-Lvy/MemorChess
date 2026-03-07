@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.data.book
 
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 
 /**
  * Represents a move within a book.
@@ -12,8 +12,8 @@ import proj.memorchess.axl.core.data.PositionIdentifier
  * @property isGood Whether this is a good move (to learn) or bad move (opponent's mistake).
  */
 data class BookMove(
-  val origin: PositionIdentifier,
-  val destination: PositionIdentifier,
+  val origin: PositionKey,
+  val destination: PositionKey,
   val move: String,
   val isGood: Boolean,
 ) {

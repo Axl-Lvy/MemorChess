@@ -177,7 +177,7 @@ private class TrainingBoard : KoinComponent {
             state.isCorrect,
             state.isShowing,
             { choseNextNode() },
-            chosenNode?.positionIdentifier,
+            chosenNode?.positionKey,
             it,
           )
         },

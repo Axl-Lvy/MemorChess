@@ -14,7 +14,7 @@ import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
@@ -58,16 +58,16 @@ class TestTraining : TestWithKoin {
 
     // Create a test node with e4 as a good move
     val engine = GameEngine()
-    val startPos = engine.toPositionIdentifier()
+    val startPos = engine.toPositionKey()
 
     engine.playSanMove("e4")
-    val e4Pos = engine.toPositionIdentifier()
+    val e4Pos = engine.toPositionKey()
     val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
 
     // Create the node with the move
     val testNode =
       DataNode(
-        positionIdentifier = startPos,
+        positionKey = startPos,
         PreviousAndNextMoves(listOf(), listOf(e4Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
@@ -84,7 +84,7 @@ class TestTraining : TestWithKoin {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSucceedOfTraining: Position not saved") {
       val positions = getAllPositions()
       positions.size == 1 &&
-        positions[0].positionIdentifier == PositionIdentifier.START_POSITION &&
+        positions[0].positionKey == PositionKey.START_POSITION &&
         positions[0].previousAndNextTrainingDate.previousDate.dayOfYear ==
           DateUtil.today().dayOfYear &&
         positions[0].previousAndNextTrainingDate.nextDate.dayOfYear ==
@@ -111,7 +111,7 @@ class TestTraining : TestWithKoin {
     Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
       val positions = getAllPositions()
       positions.size == 1 &&
-        positions[0].positionIdentifier == PositionIdentifier.START_POSITION &&
+        positions[0].positionKey == PositionKey.START_POSITION &&
         positions[0].previousAndNextTrainingDate.previousDate.dayOfYear ==
           DateUtil.today().dayOfYear &&
         positions[0].previousAndNextTrainingDate.nextDate.dayOfYear ==
@@ -155,19 +155,19 @@ class TestTraining : TestWithKoin {
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     // Insert a second move in the database
     val engine = GameEngine()
-    val startPos = engine.toPositionIdentifier()
+    val startPos = engine.toPositionKey()
 
     engine.playSanMove("e4")
-    val e4Pos = engine.toPositionIdentifier()
+    val e4Pos = engine.toPositionKey()
     val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
     engine.playSanMove("e5")
-    val e5Pos = engine.toPositionIdentifier()
+    val e5Pos = engine.toPositionKey()
     val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
 
     // Create the node with the move
     val testNode =
       DataNode(
-        positionIdentifier = e4Pos,
+        positionKey = e4Pos,
         PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
@@ -193,14 +193,14 @@ class TestTraining : TestWithKoin {
   @Test
   fun testPromotion() = runComposeUiTest {
     runTest { database.deleteAll(null) }
-    val engine = GameEngine("k7/7P/8/8/8/8/8/7K w KQkq")
-    val startPosition = engine.toPositionIdentifier()
+    val engine = GameEngine(PositionKey("k7/7P/8/8/8/8/8/7K w KQkq"))
+    val startPosition = engine.toPositionKey()
     engine.playSanMove("h8=Q+")
-    val endPosition = engine.toPositionIdentifier()
+    val endPosition = engine.toPositionKey()
     val startMove = DataMove(startPosition, endPosition, "h8=Q", isGood = true)
     val node =
       DataNode(
-        positionIdentifier = startPosition,
+        positionKey = startPosition,
         PreviousAndNextMoves(listOf(), listOf(startMove)),
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
@@ -219,7 +219,7 @@ class TestTraining : TestWithKoin {
     clickOnShowOnExplore()
     assertEquals(
       ((navigator as RememberLastRouteNavigator).lastRoute as Route.ExploreRoute).position,
-      PositionIdentifier.START_POSITION.fenRepresentation,
+      PositionKey.START_POSITION.value,
     )
   }
 }

@@ -81,7 +81,7 @@ interface NodeEntityDao {
   suspend fun removeMoveTo(destination: String)
 
   @Transaction
-  @Query("SELECT * FROM NodeEntity WHERE fenRepresentation = :fen AND isDeleted IS FALSE")
+  @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen AND isDeleted IS FALSE")
   suspend fun getNode(fen: String): NodeWithMoves?
 
   /**
@@ -90,9 +90,7 @@ interface NodeEntityDao {
    * @param fen The FEN representation of the node to retrieve.
    * @return A [NodeWithMoves] containing the node and its associated moves, or null if not found.
    */
-  @Query(
-    "UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND fenRepresentation = :fen"
-  )
+  @Query("UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND positionKey = :fen")
   suspend fun delete(fen: String)
 
   /** Marks all nodes as deleted. */

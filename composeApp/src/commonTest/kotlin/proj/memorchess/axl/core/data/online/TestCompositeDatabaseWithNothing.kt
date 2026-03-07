@@ -40,19 +40,11 @@ class TestCompositeDatabaseWithNothing : TestWithKoin {
   fun testThrowOnGet() = runTest {
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     assertFailsWith<IllegalStateException> { compositeDatabase.getAllNodes(true) }
-    assertFailsWith<IllegalStateException> {
-      compositeDatabase.getPosition(node.positionIdentifier)
-    }
-    assertFailsWith<IllegalStateException> {
-      compositeDatabase.getPosition(node.positionIdentifier)
-    }
+    assertFailsWith<IllegalStateException> { compositeDatabase.getPosition(node.positionKey) }
+    assertFailsWith<IllegalStateException> { compositeDatabase.getPosition(node.positionKey) }
   }
 
   fun testLastUpdated() = runTest { assertNull(compositeDatabase.getLastUpdate()) }

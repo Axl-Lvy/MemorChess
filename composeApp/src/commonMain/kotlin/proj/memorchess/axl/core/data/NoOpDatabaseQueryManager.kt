@@ -11,15 +11,15 @@ open class NoOpDatabaseQueryManager : DatabaseQueryManager {
     return emptyList()
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
+  override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     return null
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
+  override suspend fun deletePosition(position: PositionKey) {
     // Nothing to do
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
+  override suspend fun deleteMove(origin: PositionKey, move: String) {
     // Nothing to do
   }
 
