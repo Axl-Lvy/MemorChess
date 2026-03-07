@@ -13,7 +13,7 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
@@ -55,10 +55,10 @@ abstract class TestCompositeDatabase : TestWithKoin {
   @Test
   fun testInsertAndRetrieveSingleNode() = runTest {
     // Arrange
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )
@@ -75,8 +75,8 @@ abstract class TestCompositeDatabase : TestWithKoin {
   @Test
   fun testGetPosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
+    val engine = GameEngine()
+    val positionIdentifier = engine.toPositionIdentifier()
     val node =
       DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     compositeDatabase.insertNodes(node)
@@ -92,8 +92,8 @@ abstract class TestCompositeDatabase : TestWithKoin {
   @Test
   fun testDeletePosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
+    val engine = GameEngine()
+    val positionIdentifier = engine.toPositionIdentifier()
     val node =
       DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     compositeDatabase.insertNodes(node)
@@ -113,10 +113,10 @@ abstract class TestCompositeDatabase : TestWithKoin {
   @Test
   fun testDeleteMove() = runTest {
     // Arrange
-    val game = Game()
-    val rootPosition = game.position.createIdentifier()
-    game.playMove("e4")
-    val childPosition = game.position.createIdentifier()
+    val engine = GameEngine()
+    val rootPosition = engine.toPositionIdentifier()
+    engine.playSanMove("e4")
+    val childPosition = engine.toPositionIdentifier()
 
     val rootNode =
       DataNode(
@@ -166,10 +166,10 @@ abstract class TestCompositeDatabase : TestWithKoin {
   @Test
   fun testGetLastUpdate() = runTest {
     // Arrange
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
         DateUtil.farInThePast(),

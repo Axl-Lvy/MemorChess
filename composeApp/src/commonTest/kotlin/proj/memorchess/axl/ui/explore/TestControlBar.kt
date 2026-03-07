@@ -7,7 +7,9 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.nodes.DbBasedNodeCache
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
@@ -31,7 +33,7 @@ class TestControlBar : TestWithKoin {
     runComposeUiTest {
       setContent { InitializeApp { Explore() } }
       playMove("e2", "e4")
-      assertPieceMoved("e2", "e4", Pawn.white())
+      assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
       block()
     }
   }
@@ -51,17 +53,17 @@ class TestControlBar : TestWithKoin {
   fun testForward() = runTestFromSetup {
     playThenBack()
     clickOnNext()
-    assertPieceMoved("e2", "e4", Pawn.white())
+    assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 
   private fun ComposeUiTest.playThenBack() {
     clickOnBack()
-    assertPieceMoved("e4", "e2", Pawn.white())
+    assertPieceMoved("e4", "e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 
   @Test
   fun testReset() = runTestFromSetup {
     clickOnReset()
-    assertPieceMoved("e4", "e2", Pawn.white())
+    assertPieceMoved("e4", "e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 }

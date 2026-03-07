@@ -13,7 +13,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -38,10 +38,10 @@ class TestCompositeDatabaseWithNothing : TestWithKoin {
 
   @Test
   fun testThrowOnGet() = runTest {
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )

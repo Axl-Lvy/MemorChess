@@ -11,7 +11,9 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.getNextMoveDescription
@@ -33,7 +35,7 @@ class TestNextMoveBar : TestWithKoin {
     runTest { database.deleteAll(DateUtil.farInThePast()) }
     setContent { InitializeApp { Explore() } }
     playMove("e2", "e4")
-    assertPieceMoved("e2", "e4", Pawn.white())
+    assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
     clickOnSave()
     Awaitility.awaitUntilTrue {
       var size = 0
@@ -59,23 +61,23 @@ class TestNextMoveBar : TestWithKoin {
   fun testNextMoveWorks() = runTestFromSetup {
     clickOnBack()
     assertNextMoveExist("e4").performClick()
-    assertPieceMoved("e2", "e4", Pawn.white())
+    assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 
   @Test
   fun testMultipleNextMoves() = runTestFromSetup {
     clickOnBack()
     playMove("e2", "e3")
-    assertPieceMoved("e2", "e3", Pawn.white())
+    assertPieceMoved("e2", "e3", ChessPiece(PieceKind.PAWN, Player.WHITE))
     clickOnSave()
     clickOnBack()
     assertNextMoveExist("e4")
     assertNextMoveExist("e3").performClick()
-    assertPieceMoved("e2", "e3", Pawn.white())
+    assertPieceMoved("e2", "e3", ChessPiece(PieceKind.PAWN, Player.WHITE))
     clickOnBack()
     assertNextMoveExist("e3")
     assertNextMoveExist("e4").performClick()
-    assertPieceMoved("e2", "e4", Pawn.white())
+    assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 
   @Test
@@ -93,13 +95,13 @@ class TestNextMoveBar : TestWithKoin {
     assertNodeWithTagExists("NextMovesBar")
       .performScrollToNode(hasTestTag(getNextMoveDescription("h4")))
     assertNextMoveExist("h4").performClick()
-    assertPieceMoved("h2", "h4", Pawn.white())
+    assertPieceMoved("h2", "h4", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 
   @Test
   fun testNextMoveAfterReset() = runTestFromSetup {
     clickOnReset()
     assertNextMoveExist("e4").performClick()
-    assertPieceMoved("e2", "e4", Pawn.white())
+    assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 }

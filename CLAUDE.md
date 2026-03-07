@@ -1,0 +1,57 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openings using spaced repetition. Targets Android, iOS, JVM desktop, and WebAssembly (wasmJs).
+
+## Build & Test Commands
+
+```sh
+# Build
+./gradlew build
+
+# Run desktop (JVM)
+./gradlew :composeApp:run
+
+# Run tests
+./gradlew desktopTest                          # JVM/desktop tests
+./gradlew connectedAndroidTest                 # Android instrumented tests
+
+# Run a single test class (desktop)
+./gradlew desktopTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"
+
+# Code formatting (ktfmt, Google style)
+./gradlew ktfmtCheck                           # Check formatting
+./gradlew ktfmtFormat                          # Auto-format
+
+# Coverage
+./gradlew koverXmlReportJvm                    # Kover JVM coverage report
+```
+
+## Architecture
+
+Single Gradle module (`composeApp`) with Kotlin Multiplatform source sets: `commonMain`, `androidMain`, `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews).
+
+### Core layer (`core/`)
+
+- **`engine/`** — Chess engine wrapper around the `chess-core` library (`io.github.alluhemanth:chess-core`). `GameEngine` is the central class: manages board state, validates moves (SAN and coordinate-based), handles promotions, and produces position FENs. Helper types: `Player`, `ChessPiece`, `PieceKind`, `BoardLocation`, `TileColor`.
+- **`graph/nodes/`** — Opening tree as a graph of `Node`s. `NodeManager` caches and navigates nodes. Two node types: `PersonalNode` (user's repertoire) and `IsolatedBookNode` (community-shared book). Caches: `DbBasedNodeCache` (local DB), `BookBasedNodeCache` (remote book).
+- **`interactions/`** — Game interaction controllers. `InteractionsManager` (abstract) handles tile selection, move execution, and promotion flow. Concrete implementations: `LinesExplorer` (free exploration), `SingleMoveTrainer` (spaced-repetition training), `BookExplorer`.
+- **`data/`** — Persistence layer. `DatabaseQueryManager` interface with `CompositeDatabase` (local + remote). Local storage via Room (`nonJsMain`). Remote via Supabase (`SupabaseQueryManager`, `SupabaseBookQueryManager`). `DatabaseSynchronizer` syncs local/remote.
+- **`config/`** — App configuration and secrets. `SecretsTemplate.kt` defines secret fields; `Secrets.kt` is generated at build time from `local.properties`.
+- **`date/`** — Spaced repetition scheduling (`NextDateCalculator`).
+
+### UI layer (`ui/`)
+
+Compose Multiplatform UI. Components in `ui/components/` (board, explore, training, navigation, popup, settings). Pages in `ui/pages/`. DI via Koin (`Koin.kt`).
+
+## Key Conventions
+
+- **Formatting**: ktfmt with Google style. Pre-commit hook checks formatting on `master`.
+- **Testing**: Kotest assertions, no mocking. UI tests extend `TestFromMainActivity`. AAA pattern.
+- **DI**: Koin for dependency injection. Modules defined in `Koin.kt`.
+- **PR titles**: Must follow Conventional Commits (`feat(module): ...`, `fix: ...`).
+- **Secrets**: Add to `SecretsTemplate.kt` with default `NOT_FOUND`, set real value in `local.properties` as `UPPER_SNAKE_CASE`. Generated `Secrets.kt` is gitignored.
+- **Kotlin style**: Prefer `val` over `var`, avoid `!!` and `lateinit`, use sealed classes for state, leverage coroutines for async.

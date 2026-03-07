@@ -20,7 +20,7 @@ import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.engine.pieces.Piece
+import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
@@ -94,7 +94,7 @@ fun ComposeUiTest.assertTileIsEmpty(tileName: String) {
  */
 fun ComposeUiTest.assertTileContainsPiece(
   tileName: String,
-  piece: Piece,
+  piece: ChessPiece,
   timeOut: Duration = TEST_TIMEOUT,
 ) {
   waitUntilNodeExists(hasTestTag("Piece $piece at $tileName"), timeOut)
@@ -108,7 +108,7 @@ fun ComposeUiTest.assertTileContainsPiece(
  * @param toTile The algebraic notation of the destination tile (e.g., "e4")
  * @param piece The chess piece that should have moved
  */
-fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, piece: Piece) {
+fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, piece: ChessPiece) {
   waitUntilTileAppears(fromTile)
   assertTileIsEmpty(fromTile)
   waitUntilTileAppears(toTile)

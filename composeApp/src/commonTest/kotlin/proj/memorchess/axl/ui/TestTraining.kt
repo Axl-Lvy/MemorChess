@@ -18,9 +18,10 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.pieces.Pawn
-import proj.memorchess.axl.core.engine.pieces.Piece
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.engine.PieceKind
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.RememberLastRouteNavigator
@@ -56,11 +57,11 @@ class TestTraining : TestWithKoin {
     database.deleteAll(null)
 
     // Create a test node with e4 as a good move
-    val game = Game()
-    val startPos = game.position.createIdentifier()
+    val engine = GameEngine()
+    val startPos = engine.toPositionIdentifier()
 
-    game.playMove("e4")
-    val e4Pos = game.position.createIdentifier()
+    engine.playSanMove("e4")
+    val e4Pos = engine.toPositionIdentifier()
     val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
 
     // Create the node with the move
@@ -153,14 +154,14 @@ class TestTraining : TestWithKoin {
   fun testShowNextMove() = runComposeUiTest {
     TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
     // Insert a second move in the database
-    val game = Game()
-    val startPos = game.position.createIdentifier()
+    val engine = GameEngine()
+    val startPos = engine.toPositionIdentifier()
 
-    game.playMove("e4")
-    val e4Pos = game.position.createIdentifier()
+    engine.playSanMove("e4")
+    val e4Pos = engine.toPositionIdentifier()
     val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
-    game.playMove("e5")
-    val e5Pos = game.position.createIdentifier()
+    engine.playSanMove("e5")
+    val e5Pos = engine.toPositionIdentifier()
     val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
 
     // Create the node with the move
@@ -174,14 +175,14 @@ class TestTraining : TestWithKoin {
     setContent { InitializeApp { Training() } }
 
     try {
-      assertTileContainsPiece("e4", Pawn.white(), Duration.ZERO)
+      assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
       playMove("e7", "e5")
     } catch (_: Throwable) {
       playMove("e2", "e4")
     }
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     try {
-      assertTileContainsPiece("e4", Pawn.white(), Duration.ZERO)
+      assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
       playMove("e7", "e5")
     } catch (_: Throwable) {
       playMove("e2", "e4")
@@ -192,10 +193,10 @@ class TestTraining : TestWithKoin {
   @Test
   fun testPromotion() = runComposeUiTest {
     runTest { database.deleteAll(null) }
-    val game = Game(PositionIdentifier("k7/7P/8/8/8/8/8/7K w KQkq"))
-    val startPosition = game.position.createIdentifier()
-    game.playMove("h8=Q+")
-    val endPosition = game.position.createIdentifier()
+    val engine = GameEngine("k7/7P/8/8/8/8/8/7K w KQkq")
+    val startPosition = engine.toPositionIdentifier()
+    engine.playSanMove("h8=Q+")
+    val endPosition = engine.toPositionIdentifier()
     val startMove = DataMove(startPosition, endPosition, "h8=Q", isGood = true)
     val node =
       DataNode(
@@ -207,7 +208,7 @@ class TestTraining : TestWithKoin {
     setContent { InitializeApp { Training() } }
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("h7", "h8")
-    promoteTo(Piece.QUEEN)
+    promoteTo("queen")
     assertNodeWithTextExists(BRAVO_TEXT)
   }
 

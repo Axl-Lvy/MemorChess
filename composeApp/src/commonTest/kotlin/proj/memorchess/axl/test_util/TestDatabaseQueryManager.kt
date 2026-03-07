@@ -7,7 +7,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 /**
@@ -156,12 +156,12 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
 
     fun convertStringMovesToNodes(moves: List<String>): List<DataNode> {
       val nodes = mutableListOf<DataNode>()
-      val game = Game()
+      val engine = GameEngine()
       var previousMove: DataMove? = null
       for ((depth, move) in moves.withIndex()) {
-        val currentPosition = game.position.createIdentifier()
-        game.playMove(move)
-        val dataMove = DataMove(currentPosition, game.position.createIdentifier(), move, true)
+        val currentPosition = engine.toPositionIdentifier()
+        engine.playSanMove(move)
+        val dataMove = DataMove(currentPosition, engine.toPositionIdentifier(), move, true)
         val node =
           DataNode(
             currentPosition,

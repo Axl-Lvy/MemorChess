@@ -6,12 +6,7 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.board.IBoard
-import proj.memorchess.axl.core.engine.moves.Move
-import proj.memorchess.axl.core.engine.moves.factory.CheckChecker
-import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
-import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
@@ -20,8 +15,6 @@ import proj.memorchess.axl.test_util.getGames
 
 class TestLinesExplorer : TestWithKoin {
   private lateinit var interactionsManager: LinesExplorer<PersonalNode>
-  private lateinit var moveFactory: RealMoveFactory
-  private lateinit var checkChecker: CheckChecker
   private val nodeManager: NodeManager<PersonalNode> by inject()
   private val database: DatabaseQueryManager by inject()
 
@@ -31,8 +24,6 @@ class TestLinesExplorer : TestWithKoin {
       nodeManager.resetCacheFromSource()
     }
     interactionsManager = LinesExplorer(nodeManager = nodeManager)
-    moveFactory = RealMoveFactory(interactionsManager.game.position)
-    checkChecker = DummyCheckChecker(interactionsManager.game.position)
   }
 
   @BeforeTest
@@ -74,7 +65,7 @@ class TestLinesExplorer : TestWithKoin {
 
   @Test
   fun testSave() = runTest {
-    val startPosition = interactionsManager.game.position.createIdentifier()
+    val startPosition = interactionsManager.engine.toPositionIdentifier()
     clickOnTile("e2")
     clickOnTile("e4")
     interactionsManager.save()
@@ -87,13 +78,13 @@ class TestLinesExplorer : TestWithKoin {
 
   @Test
   fun testSaveGoodThenBad() = runTest {
-    val startPosition = interactionsManager.game.position.createIdentifier()
+    val startPosition = interactionsManager.engine.toPositionIdentifier()
     clickOnTile("e2")
     clickOnTile("e4")
-    val secondPosition = interactionsManager.game.position.createIdentifier()
+    val secondPosition = interactionsManager.engine.toPositionIdentifier()
     clickOnTile("e7")
     clickOnTile("e5")
-    val thirdPosition = interactionsManager.game.position.createIdentifier()
+    val thirdPosition = interactionsManager.engine.toPositionIdentifier()
     clickOnTile("b1")
     clickOnTile("c3")
     interactionsManager.save()
@@ -106,7 +97,7 @@ class TestLinesExplorer : TestWithKoin {
 
   @Test
   fun testSideMoveNotSaved() = runTest {
-    val startPosition = interactionsManager.game.position.createIdentifier()
+    val startPosition = interactionsManager.engine.toPositionIdentifier()
     clickOnTile("e2")
     clickOnTile("e3")
     interactionsManager.back()
@@ -124,10 +115,10 @@ class TestLinesExplorer : TestWithKoin {
     clickOnTile("e3")
     assertNull(interactionsManager.selectedTile, "No piece should be selected on an empty tile.")
     clickOnTile("e2")
-    assertEquals(interactionsManager.selectedTile, IBoard.getCoords("e2"))
+    assertEquals(interactionsManager.selectedTile, Pair(1, 4))
     clickOnTile("d2")
     assertEquals(
-      IBoard.getCoords("d2"),
+      Pair(1, 3),
       interactionsManager.selectedTile,
       "Piece from the same player has been selected. Selected tile should be updated.",
     )
@@ -136,7 +127,7 @@ class TestLinesExplorer : TestWithKoin {
     clickOnTile("d2")
     assertNull(interactionsManager.selectedTile, "Selected a tile from the wrong player.")
     clickOnTile("e7")
-    assertEquals(IBoard.getCoords("e7"), interactionsManager.selectedTile)
+    assertEquals(Pair(6, 4), interactionsManager.selectedTile)
     clickOnTile("d5")
     assertNull(interactionsManager.selectedTile, "Invalid move should reset selected tile.")
   }
@@ -154,17 +145,11 @@ class TestLinesExplorer : TestWithKoin {
 
   private fun testGame(stringMoves: List<String>) = runTest {
     initialize()
-    val refGame = Game()
+    val refEngine = GameEngine()
     stringMoves.forEach {
-      val move = createMove(it)
-      clickOnTile(move.origin())
-      clickOnTile(move.destination())
-      if (it.contains("=")) {
-        assertTrue { interactionsManager.game.needPromotion() }
-        interactionsManager.applyPromotion(it.split("=")[1][0].lowercase())
-      }
-      refGame.playMove(it)
-      validateGame(refGame)
+      interactionsManager.playMove(it)
+      refEngine.playSanMove(it)
+      validateGame(refEngine)
     }
   }
 
@@ -177,22 +162,23 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   private fun assertPawnOnTile(pawnTile: String, emptyTile: String) {
-    interactionsManager.game.position.board.getTile(pawnTile).getSafePiece()?.let {
-      assertEquals("P", it.toString())
-    } ?: error("No piece found on $pawnTile")
-    assertNull(interactionsManager.game.position.board.getTile(emptyTile).getSafePiece())
+    val pawnRow = pawnTile[1] - '1'
+    val pawnCol = pawnTile[0] - 'a'
+    val emptyRow = emptyTile[1] - '1'
+    val emptyCol = emptyTile[0] - 'a'
+    interactionsManager.engine.pieceAt(pawnRow, pawnCol)?.let { assertEquals("P", it.toString()) }
+      ?: error("No piece found on $pawnTile")
+    assertNull(interactionsManager.engine.pieceAt(emptyRow, emptyCol))
   }
 
-  private fun createMove(stringMove: String): Move {
-    return moveFactory.parseMove(stringMove, checkChecker)
-  }
-
-  private fun validateGame(refGame: Game) {
-    assertEquals(refGame.toString(), interactionsManager.game.toString())
+  private fun validateGame(refEngine: GameEngine) {
+    assertEquals(refEngine.toFen(), interactionsManager.engine.toFen())
   }
 
   private suspend fun clickOnTile(tile: String) {
-    clickOnTile(IBoard.getCoords(tile))
+    val col = tile[0] - 'a'
+    val row = tile[1] - '1'
+    clickOnTile(Pair(row, col))
   }
 
   private suspend fun clickOnTile(coords: Pair<Int, Int>) {
@@ -233,12 +219,12 @@ class TestLinesExplorer : TestWithKoin {
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.save()
-    val customPosition = interactionsManager.game.position.createIdentifier()
+    val customPosition = interactionsManager.engine.toPositionIdentifier()
 
     // Act: create a new LinesExplorer from this position
     val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
     // Assert: explorer's game should be at the custom position
-    assertEquals(customPosition, explorerFromCustom.game.position.createIdentifier())
+    assertEquals(customPosition, explorerFromCustom.engine.toPositionIdentifier())
   }
 
   @Test
@@ -247,16 +233,19 @@ class TestLinesExplorer : TestWithKoin {
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.save()
-    val customPosition = interactionsManager.game.position.createIdentifier()
+    val customPosition = interactionsManager.engine.toPositionIdentifier()
 
     // Act: create a new LinesExplorer from this position
     val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
     // Assert: explorer's game should be at the custom position
-    assertEquals(customPosition, explorerFromCustom.game.position.createIdentifier())
+    assertEquals(customPosition, explorerFromCustom.engine.toPositionIdentifier())
     explorerFromCustom.back()
     interactionsManager.back()
     // After going back, the position should be the one before "e5"
-    assertEquals(explorerFromCustom.game.position, interactionsManager.game.position)
+    assertEquals(
+      explorerFromCustom.engine.toPositionIdentifier(),
+      interactionsManager.engine.toPositionIdentifier(),
+    )
   }
 
   @Test
@@ -264,7 +253,7 @@ class TestLinesExplorer : TestWithKoin {
     interactionsManager.back()
     assertEquals(
       PositionIdentifier.START_POSITION,
-      interactionsManager.game.position.createIdentifier(),
+      interactionsManager.engine.toPositionIdentifier(),
     )
   }
 
@@ -281,12 +270,12 @@ class TestLinesExplorer : TestWithKoin {
 
     assertEquals(
       PositionIdentifier.START_POSITION,
-      interactionsManager.game.position.createIdentifier(),
+      interactionsManager.engine.toPositionIdentifier(),
     )
     interactionsManager.reset()
     assertEquals(
       PositionIdentifier.START_POSITION,
-      interactionsManager.game.position.createIdentifier(),
+      interactionsManager.engine.toPositionIdentifier(),
     )
   }
 
@@ -296,14 +285,14 @@ class TestLinesExplorer : TestWithKoin {
     clickOnTile("e2")
     clickOnTile("e4")
     assertEquals(
-      interactionsManager.game.position.createIdentifier(),
+      interactionsManager.engine.toPositionIdentifier(),
       PositionIdentifier.START_POSITION,
     )
     interactionsManager.unblock()
     clickOnTile("e2")
     clickOnTile("e4")
     assertNotEquals(
-      interactionsManager.game.position.createIdentifier(),
+      interactionsManager.engine.toPositionIdentifier(),
       PositionIdentifier.START_POSITION,
     )
   }

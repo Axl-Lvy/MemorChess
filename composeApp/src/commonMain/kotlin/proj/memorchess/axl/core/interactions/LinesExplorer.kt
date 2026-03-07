@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 
@@ -14,11 +14,7 @@ open class LinesExplorer<NodeT : Node<NodeT>>(
   protected val nodeManager: NodeManager<NodeT>,
 ) :
   InteractionsManager(
-    if (position == null) {
-      Game()
-    } else {
-      Game(position)
-    }
+    if (position == null) GameEngine() else GameEngine(position.fenRepresentation)
   ) {
 
   /** The current node in the exploration tree. */
@@ -32,8 +28,6 @@ open class LinesExplorer<NodeT : Node<NodeT>>(
     if (parent != null) {
       node = parent
     } else {
-      // If there is no parent node, we create a new node from a previous move arbitrarily
-      // chosen.
       val previousMove = node.previousAndNextMoves.previousMoves.values.firstOrNull()
       if (previousMove == null) {
         toastRenderer.info("No previous move.")
@@ -41,7 +35,7 @@ open class LinesExplorer<NodeT : Node<NodeT>>(
       }
       node = nodeManager.createInitialNode(previousMove.origin)
     }
-    game = node.createGame()
+    engine = node.createEngine()
     state = node.getState()
     callCallBacks(false)
   }
@@ -50,12 +44,11 @@ open class LinesExplorer<NodeT : Node<NodeT>>(
   fun forward() {
     val firstChild = node.next
     if (firstChild != null) {
-      print("forward called on node: ${node.position}")
       val move =
         node.previousAndNextMoves.nextMoves.values.find { it.destination == firstChild.position }
       checkNotNull(move) { "No move found to go to ${firstChild.position}" }
       node = firstChild
-      game.playMove(move.move)
+      engine.playSanMove(move.move)
       state = node.getState()
       callCallBacks(false)
     } else {
@@ -80,7 +73,7 @@ open class LinesExplorer<NodeT : Node<NodeT>>(
   }
 
   override suspend fun afterPlayMove(move: String) {
-    node = nodeManager.createNode(game, node, move)
+    node = nodeManager.createNode(engine, node, move)
     state = node.getState()
     callCallBacks()
   }

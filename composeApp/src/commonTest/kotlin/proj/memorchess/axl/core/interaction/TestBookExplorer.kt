@@ -108,7 +108,7 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.playMove("e4")
     assertEquals(
       PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
-      bookExplorer.game.position.createIdentifier(),
+      bookExplorer.engine.toPositionIdentifier(),
     )
 
     val nextMovesAfterE4 = bookExplorer.getNextMoves()
@@ -126,7 +126,7 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.back()
     assertEquals(
       PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
-      bookExplorer.game.position.createIdentifier(),
+      bookExplorer.engine.toPositionIdentifier(),
     )
   }
 
@@ -138,7 +138,7 @@ class TestBookExplorer : TestWithKoin {
     bookExplorer.playMove("e5")
 
     bookExplorer.reset()
-    assertEquals(PositionIdentifier.START_POSITION, bookExplorer.game.position.createIdentifier())
+    assertEquals(PositionIdentifier.START_POSITION, bookExplorer.engine.toPositionIdentifier())
   }
 
   @Test
@@ -639,19 +639,19 @@ class TestBookExplorer : TestWithKoin {
     setupTestBook()
 
     bookExplorer.back()
-    assertEquals(PositionIdentifier.START_POSITION, bookExplorer.game.position.createIdentifier())
+    assertEquals(PositionIdentifier.START_POSITION, bookExplorer.engine.toPositionIdentifier())
   }
 
   @Test
   fun testGameStateUpdatedAfterMove() = runTest {
     setupTestBook()
 
-    val initialPosition = bookExplorer.game.position.createIdentifier()
+    val initialPosition = bookExplorer.engine.toPositionIdentifier()
     assertEquals(PositionIdentifier.START_POSITION, initialPosition)
 
     bookExplorer.playMove("e4")
 
-    val afterE4Position = bookExplorer.game.position.createIdentifier()
+    val afterE4Position = bookExplorer.engine.toPositionIdentifier()
     assertNotEquals(PositionIdentifier.START_POSITION, afterE4Position)
   }
 
@@ -679,7 +679,7 @@ class TestBookExplorer : TestWithKoin {
 
     assertEquals(
       PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
-      bookExplorer.game.position.createIdentifier(),
+      bookExplorer.engine.toPositionIdentifier(),
     )
   }
 

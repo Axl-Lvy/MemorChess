@@ -103,6 +103,9 @@ kotlin {
       implementation(libs.xfeather.z)
       implementation(libs.material3.adaptive)
 
+      // Chess engine
+      implementation(libs.chess.core)
+
       // Utilities
       implementation(libs.multiplatform.settings)
       implementation(libs.kermit.logging)

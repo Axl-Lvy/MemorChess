@@ -7,19 +7,19 @@ import androidx.compose.runtime.setValue
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.board.IBoard
-import proj.memorchess.axl.core.engine.moves.IllegalMoveException
-import proj.memorchess.axl.core.engine.moves.description.MoveDescription
+import proj.memorchess.axl.core.engine.BoardUtils
+import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.engine.IllegalMoveException
+import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
 /**
  * Class that handles clicks on the chess board.
  *
- * @param game The game that is being played.
- * @constructor Creates an interaction manager from a game.
+ * @param engine The game engine managing the current position.
+ * @constructor Creates an interaction manager from a game engine.
  */
-abstract class InteractionsManager(var game: Game) : KoinComponent {
+abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
 
   val toastRenderer: ToastRenderer by inject()
 
@@ -31,6 +31,8 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
 
   val needPromotion = mutableStateOf(false)
 
+  private var pendingPromotionFrom: Pair<Int, Int>? = null
+  private var pendingPromotionTo: Pair<Int, Int>? = null
   private var moveBeforePromotion: String? = null
 
   private val callBacks = mutableStateListOf<(Boolean) -> Unit>()
@@ -51,18 +53,19 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
    */
   suspend fun clickOnTile(coordinates: Pair<Int, Int>) {
     if (isBlocked) {
-      LOGGER.w { "Clicked on tile ${IBoard.getTileName(coordinates)} but the game is blocked" }
+      LOGGER.w { "Clicked on tile ${BoardUtils.tileName(coordinates)} but the game is blocked" }
       return
     }
-    LOGGER.i { "Clicked on tile ${IBoard.getTileName(coordinates)}" }
+    LOGGER.i { "Clicked on tile ${BoardUtils.tileName(coordinates)}" }
     val immutableFirstTile = selectedTile
     if (immutableFirstTile != null) {
       try {
-        val move = game.playMove(MoveDescription(immutableFirstTile, coordinates))
-        needPromotion.value = game.needPromotion()
-        if (game.needPromotion()) {
-          moveBeforePromotion = move
+        if (engine.isPromotionMove(immutableFirstTile, coordinates)) {
+          pendingPromotionFrom = immutableFirstTile
+          pendingPromotionTo = coordinates
+          needPromotion.value = true
         } else {
+          val move = engine.playCoordinateMove(immutableFirstTile, coordinates)
           afterPlayMove(move)
         }
       } catch (e: IllegalMoveException) {
@@ -72,7 +75,7 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
         }
       }
       selectedTile = null
-    } else if (getPlayerAt(coordinates) == game.position.playerTurn) {
+    } else if (getPlayerAt(coordinates) == engine.playerTurn) {
       selectedTile = coordinates
     }
   }
@@ -83,8 +86,8 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
    * @param coordinates The coordinates of the tile to check.
    * @return The player of the piece on the tile, or null if there is no piece.
    */
-  private fun getPlayerAt(coordinates: Pair<Int, Int>): Game.Player? =
-    game.position.board.getTile(coordinates).getSafePiece()?.player
+  private fun getPlayerAt(coordinates: Pair<Int, Int>) =
+    engine.pieceAt(coordinates.first, coordinates.second)?.player
 
   /**
    * Plays a move directly.
@@ -92,25 +95,24 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
    * @param move the move to play
    */
   suspend fun playMove(move: String) {
-    game.playMove(move)
-    needPromotion.value = game.needPromotion()
-    if (game.needPromotion()) {
-      moveBeforePromotion = move
-    } else {
-      afterPlayMove(move)
-    }
+    engine.playSanMove(move)
+    afterPlayMove(move)
   }
 
   /**
-   * Applies a promotion
+   * Applies a promotion.
    *
-   * @param newPieceName The chosen piece name
+   * @param pieceKind The chosen piece kind to promote to.
    */
-  suspend fun applyPromotion(newPieceName: String) {
-    game.applyPromotion(newPieceName)
-    needPromotion.value = game.needPromotion()
-    afterPlayMove(moveBeforePromotion!! + "=$newPieceName")
+  suspend fun applyPromotion(pieceKind: PieceKind) {
+    val from = checkNotNull(pendingPromotionFrom) { "No pending promotion" }
+    val to = checkNotNull(pendingPromotionTo) { "No pending promotion" }
+    val san = engine.playCoordinateMoveWithPromotion(from, to, pieceKind)
+    needPromotion.value = false
+    pendingPromotionFrom = null
+    pendingPromotionTo = null
     moveBeforePromotion = null
+    afterPlayMove(san)
   }
 
   /**
@@ -126,8 +128,8 @@ abstract class InteractionsManager(var game: Game) : KoinComponent {
    * @param position The new position key to reset the game to.
    */
   fun reset(position: PositionIdentifier? = null) {
-    game = if (position == null) Game() else Game(position)
-    needPromotion.value = game.needPromotion()
+    engine = if (position == null) GameEngine() else GameEngine(position.fenRepresentation)
+    needPromotion.value = false
     selectedTile = null
     callCallBacks(false)
   }

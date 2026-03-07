@@ -11,7 +11,9 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.engine.pieces.Pawn
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -34,7 +36,7 @@ class TestSaveButton : TestWithKoin {
     runComposeUiTest {
       setContent { InitializeApp { Explore() } }
       playMove("h2", "h3")
-      assertPieceMoved("h2", "h3", Pawn.white())
+      assertPieceMoved("h2", "h3", ChessPiece(PieceKind.PAWN, Player.WHITE))
       block()
     }
   }
@@ -56,7 +58,7 @@ class TestSaveButton : TestWithKoin {
   @Test
   fun testPropagateSave() = runTestFromSetup {
     playMove("h7", "h6")
-    assertPieceMoved("h7", "h6", Pawn.black())
+    assertPieceMoved("h7", "h6", ChessPiece(PieceKind.PAWN, Player.BLACK))
     assertNull(getPosition(afterH3Position))
     assertNull(getPosition(afterH6Position))
     var savedLastPosition: DataNode? = null

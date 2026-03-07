@@ -8,13 +8,12 @@ import memorchess.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.pieces.Pawn
-import proj.memorchess.axl.core.engine.pieces.Piece
-import proj.memorchess.axl.core.engine.pieces.vectors.*
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
+import proj.memorchess.axl.core.engine.Player
 
 @Composable
-fun Piece(piece: Piece, modifier: Modifier = Modifier) {
+fun Piece(piece: ChessPiece, modifier: Modifier = Modifier) {
   Image(
     painter = painterResource(pieceToResource(piece)),
     contentDescription = stringResource(Res.string.description_board_piece, piece.toString()),
@@ -23,18 +22,17 @@ fun Piece(piece: Piece, modifier: Modifier = Modifier) {
   )
 }
 
-private fun pieceToResource(piece: Piece): DrawableResource {
-  val resourceSuffix = if (piece.player == Game.Player.WHITE) "w" else "b"
+private fun pieceToResource(piece: ChessPiece): DrawableResource {
+  val resourceSuffix = if (piece.player == Player.WHITE) "w" else "b"
   return drawableResource(
     "piece_${
-            when (piece) {
-                is King -> "king"
-                is Knight -> "knight"
-                is Bishop -> "bishop"
-                is Queen -> "queen"
-                is Rook -> "rook"
-                is Pawn -> "pawn"
-                else -> throw IllegalArgumentException("Unknown piece $piece.")
+            when (piece.kind) {
+                PieceKind.KING -> "king"
+                PieceKind.KNIGHT -> "knight"
+                PieceKind.BISHOP -> "bishop"
+                PieceKind.QUEEN -> "queen"
+                PieceKind.ROOK -> "rook"
+                PieceKind.PAWN -> "pawn"
             }
         }_$resourceSuffix"
   )

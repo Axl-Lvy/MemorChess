@@ -9,7 +9,7 @@ import proj.memorchess.axl.core.data.PositionIdentifier
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TestAuthenticated
@@ -31,10 +31,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testInsertAndRetrieveSingleNode() = runTest {
     // Arrange
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )
@@ -68,8 +68,8 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testGetPosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
+    val engine = GameEngine()
+    val positionIdentifier = engine.toPositionIdentifier()
     val node =
       DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     remoteDatabase.insertNodes(node)
@@ -85,9 +85,9 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testGetNonExistentPosition() = runTest {
     // Arrange
-    val game = Game()
-    game.playMove("e4") // Create a different position
-    val nonExistentPosition = game.position.createIdentifier()
+    val engine = GameEngine()
+    engine.playSanMove("e4") // Create a different position
+    val nonExistentPosition = engine.toPositionIdentifier()
 
     // Act
     val retrievedNode = remoteDatabase.getPosition(nonExistentPosition)
@@ -99,8 +99,8 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testDeletePosition() = runTest {
     // Arrange
-    val game = Game()
-    val positionIdentifier = game.position.createIdentifier()
+    val engine = GameEngine()
+    val positionIdentifier = engine.toPositionIdentifier()
     val node =
       DataNode(positionIdentifier, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
     remoteDatabase.insertNodes(node)
@@ -120,10 +120,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testDeleteMove() = runTest {
     // Arrange
-    val game = Game()
-    val rootPosition = game.position.createIdentifier()
-    game.playMove("e4")
-    val childPosition = game.position.createIdentifier()
+    val engine = GameEngine()
+    val rootPosition = engine.toPositionIdentifier()
+    engine.playSanMove("e4")
+    val childPosition = engine.toPositionIdentifier()
 
     val rootNode =
       DataNode(
@@ -173,9 +173,9 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testDeleteAllWithHardFrom() = runTest {
     // Arrange
-    val game = Game()
+    val engine = GameEngine()
     val updatedAt = DateUtil.now()
-    val positionIdentifier = game.position.createIdentifier()
+    val positionIdentifier = engine.toPositionIdentifier()
     val node =
       DataNode(
         positionIdentifier,
@@ -197,10 +197,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testGetLastUpdate() = runTest {
     // Arrange
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
         DateUtil.now(),
@@ -230,10 +230,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   @Test
   fun testGetAllNodesWithDeletedOnes() = runTest {
     // Arrange
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )
@@ -255,10 +255,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     authManager.signOut()
     Awaitility.awaitUntilTrue { authManager.user == null }
 
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )
@@ -293,10 +293,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     authManager.signOut()
     Awaitility.awaitUntilTrue { authManager.user == null }
 
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )

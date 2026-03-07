@@ -22,8 +22,8 @@ import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
-import proj.memorchess.axl.core.engine.board.BoardLocation
-import proj.memorchess.axl.core.engine.board.ITile
+import proj.memorchess.axl.core.engine.BoardLocation
+import proj.memorchess.axl.core.engine.BoardUtils
 
 /**
  * Displays the chess board grid with interactive tiles and animated pieces.
@@ -67,10 +67,11 @@ private fun DrawTileGrid(
   var tileHeight = remember<Dp?> { null }
   DrawGrid(
     boxModifier = {
-      val tile = state.getTileAt(it)
-      val coords = tile.getCoords()
+      val location = state.getBoardLocationAt(it)
+      val coords = Pair(location.row, location.col)
       val isSelected = state.selectedTile == coords
-      val clickLabel = stringResource(Res.string.description_board_tile, tile.getName())
+      val tileName = BoardUtils.tileName(location.row, location.col)
+      val clickLabel = stringResource(Res.string.description_board_tile, tileName)
       clickable(onClickLabel = clickLabel, onClick = { scope.launch { state.onTileClick(coords) } })
         .then(
           if (isSelected)
@@ -79,16 +80,15 @@ private fun DrawTileGrid(
         )
     }
   ) {
-    val tile = state.getTileAt(it)
+    val location = state.getBoardLocationAt(it)
     BoxWithConstraints {
       if (tileWidth == null || tileHeight == null) {
         tileWidth = maxWidth
         tileHeight = maxHeight
       }
-      tilePositions[tile.boardLocation] =
-        DpOffset(tileWidth * tile.getCoords().second, -tileHeight * tile.getCoords().first)
+      tilePositions[location] = DpOffset(tileWidth * location.col, -tileHeight * location.row)
     }
-    Tile(tile)
+    Tile(location)
   }
 }
 
@@ -109,20 +109,19 @@ private fun DrawPieceGrid(
   tilePositions: Map<BoardLocation, DpOffset>,
 ) {
   DrawGrid({ this }) {
-    val tile = state.getTileAt(it)
+    val location = state.getBoardLocationAt(it)
     Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
-      val piece = state.tileToPiece[tile.boardLocation]
+      val piece = state.tileToPiece[location]
       if (
         piece != null &&
           (animationDuration == Duration.ZERO ||
-            (!state.piecesToMove.contains(tile.boardLocation) &&
-              !state.piecesToMove.values.contains(tile.boardLocation)))
+            (!state.piecesToMove.contains(location) &&
+              !state.piecesToMove.values.contains(location)))
       ) {
-        Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at ${tile.getName()}"))
-      } else if (
-        animationDuration != Duration.ZERO && state.piecesToMove.contains(tile.boardLocation)
-      ) {
-        AnimatedPiece(state, tile, tilePositions)
+        val tileName = BoardUtils.tileName(location.row, location.col)
+        Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at $tileName"))
+      } else if (animationDuration != Duration.ZERO && state.piecesToMove.contains(location)) {
+        AnimatedPiece(state, location, tilePositions)
       }
     }
   }
@@ -162,21 +161,21 @@ private fun DrawGrid(
  * Removes the piece from the move list after the animation completes.
  *
  * @param state The current board grid state containing piece and move information.
- * @param tile The tile representing the piece to animate.
- * @param tilePositions Map of grid items to their pixel offsets on the board.
+ * @param location The board location of the piece to animate.
+ * @param tilePositions Map of board locations to their pixel offsets on the board.
  */
 @Composable
 private fun AnimatedPiece(
   state: BoardGridState,
-  tile: ITile,
+  location: BoardLocation,
   tilePositions: Map<BoardLocation, DpOffset>,
 ) {
   val animationDuration = remember { MOVE_ANIMATION_DURATION_SETTING.getValue() }
-  val destinationGridItem = state.piecesToMove[tile.boardLocation]
-  val startPos = tilePositions[tile.boardLocation]
-  checkNotNull(startPos) { "Tile at ${tile.boardLocation} not positioned yet" }
-  val endPos = tilePositions[destinationGridItem]
-  checkNotNull(endPos) { "Tile at $destinationGridItem not positioned yet" }
+  val destinationLocation = state.piecesToMove[location]
+  val startPos = tilePositions[location]
+  checkNotNull(startPos) { "Tile at $location not positioned yet" }
+  val endPos = tilePositions[destinationLocation]
+  checkNotNull(endPos) { "Tile at $destinationLocation not positioned yet" }
   val targetOffset = endPos - startPos
   var moved by remember { mutableStateOf(false) }
   val x by
@@ -211,13 +210,13 @@ private fun AnimatedPiece(
           easing = LinearEasing,
         ),
     )
-  val pieceToMove = state.tileToPiece[destinationGridItem]
-  checkNotNull(pieceToMove) { "No piece at $destinationGridItem" }
+  val pieceToMove = state.tileToPiece[destinationLocation]
+  checkNotNull(pieceToMove) { "No piece at $destinationLocation" }
   val offsetMultiplier = if (state.inverted) -1 else 1
   Piece(pieceToMove, Modifier.offset(x * offsetMultiplier, y * offsetMultiplier).fillMaxSize())
   LaunchedEffect(Unit) {
     moved = true
     delay(animationDuration)
-    state.piecesToMove.remove(tile.boardLocation)
+    state.piecesToMove.remove(location)
   }
 }
