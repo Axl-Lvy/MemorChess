@@ -50,17 +50,16 @@ class NodeManager<NodeT : Node<NodeT>>(
   fun createNode(engine: GameEngine, previous: NodeT, move: String): NodeT {
     val previousNodeMoves =
       nodeCache.getOrCreate(previous.position, previous.previousAndNextMoves.depth)
+    val destination = engine.toPositionKey()
     val dataMove =
-      previousNodeMoves.nextMoves.getOrPut(move) {
-        DataMove(previous.position, engine.toPositionKey(), move)
-      }
+      previousNodeMoves.nextMoves.getOrPut(move) { DataMove(previous.position, destination, move) }
     val newNodeLinkedMoves =
-      nodeCache.getOrCreate(engine.toPositionKey(), previous.previousAndNextMoves.depth + 1)
+      nodeCache.getOrCreate(destination, previous.previousAndNextMoves.depth + 1)
     val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(dataMove)
     if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != dataMove) {
       LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
     }
-    val newNode = nodeConstructor(engine.toPositionKey(), newNodeLinkedMoves, previous, null)
+    val newNode = nodeConstructor(destination, newNodeLinkedMoves, previous, null)
     previous.addChild(dataMove, newNode)
     return newNode
   }
