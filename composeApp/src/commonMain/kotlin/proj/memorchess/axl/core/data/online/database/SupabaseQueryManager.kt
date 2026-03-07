@@ -31,7 +31,7 @@ class SupabaseQueryManager(
     val rpc =
       client.postgrest.rpc<SinglePositionFunctionArg>(
         "fetch_single_position",
-        SinglePositionFunctionArg(positionKey.value),
+        SinglePositionFunctionArg.from(positionKey),
       )
     val result = rpc.decodeAsOrNull<PositionFetched>()
     return if (result == null || result.isDeleted) {
@@ -44,13 +44,13 @@ class SupabaseQueryManager(
   override suspend fun deletePosition(position: PositionKey) {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    client.postgrest.rpc("delete_single_position", SinglePositionFunctionArg(position.value))
+    client.postgrest.rpc("delete_single_position", SinglePositionFunctionArg.from(position))
   }
 
   override suspend fun deleteMove(origin: PositionKey, move: String) {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
-    client.postgrest.rpc("delete_single_move", MoveFromOriginFunctionArg(origin.value, move))
+    client.postgrest.rpc("delete_single_move", MoveFromOriginFunctionArg.from(origin, move))
   }
 
   override suspend fun deleteAll(hardFrom: Instant?) {

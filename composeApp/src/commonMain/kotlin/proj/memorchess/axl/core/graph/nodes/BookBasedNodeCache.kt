@@ -73,7 +73,7 @@ class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent 
 
   override suspend fun deleteMove(move: DataMove) {
     try {
-      bookQueryManager.removeMoveFromBook(bookId, move.origin.value, move.move)
+      bookQueryManager.removeMoveFromBook(bookId, move.origin, move.move)
     } catch (e: Exception) {
       LOGGER.e(e) { "Failed to delete move ${move.move} from book." }
       toastRenderer.info("Failed to delete move ${move.move} from book.")

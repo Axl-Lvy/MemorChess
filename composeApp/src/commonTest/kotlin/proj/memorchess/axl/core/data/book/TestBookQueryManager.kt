@@ -269,7 +269,7 @@ class TestBookQueryManager : TestWithKoin {
     var moves = bookQueryManager.getBookMoves(bookId)
     assertEquals(1, moves.size)
 
-    val result = bookQueryManager.removeMoveFromBook(bookId, PositionKey.START_POSITION.value, "e4")
+    val result = bookQueryManager.removeMoveFromBook(bookId, PositionKey.START_POSITION, "e4")
 
     assertTrue(result)
     moves = bookQueryManager.getBookMoves(bookId)
@@ -290,7 +290,7 @@ class TestBookQueryManager : TestWithKoin {
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, e5Position, "e5", false))
 
-    bookQueryManager.removeMoveFromBook(bookId, e4Position.value, "e5")
+    bookQueryManager.removeMoveFromBook(bookId, e4Position, "e5")
 
     val moves = bookQueryManager.getBookMoves(bookId)
     assertEquals(1, moves.size)
@@ -302,7 +302,7 @@ class TestBookQueryManager : TestWithKoin {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
-    val result = bookQueryManager.removeMoveFromBook(bookId, PositionKey.START_POSITION.value, "e4")
+    val result = bookQueryManager.removeMoveFromBook(bookId, PositionKey.START_POSITION, "e4")
 
     assertFalse(result)
   }

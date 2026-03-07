@@ -16,7 +16,7 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
  * @constructor Creates an empty test database.
  */
 class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
-  val dataNodes = mutableMapOf<String, DataNode>()
+  val dataNodes = mutableMapOf<PositionKey, DataNode>()
   var isActiveState = true
 
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
@@ -24,7 +24,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   }
 
   override suspend fun getPosition(positionKey: PositionKey): DataNode? {
-    val node = dataNodes[positionKey.value]
+    val node = dataNodes[positionKey]
     return if (node?.isDeleted == false) {
       node
     } else {
@@ -33,9 +33,9 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   }
 
   override suspend fun deletePosition(position: PositionKey) {
-    val node = dataNodes[position.value]
+    val node = dataNodes[position]
     if (node != null) {
-      dataNodes[position.value] =
+      dataNodes[position] =
         DataNode(
           node.positionKey,
           node.previousAndNextMoves,
@@ -47,10 +47,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   }
 
   override suspend fun deleteMove(origin: PositionKey, move: String) {
-    if (dataNodes[origin.value] == null) {
-      return
-    }
-    val storedNode = dataNodes[origin.value]!!
+    val storedNode = dataNodes[origin] ?: return
     var destination: PositionKey? = null
     val newNextMoves =
       storedNode.previousAndNextMoves.nextMoves.values.filter {
@@ -61,33 +58,30 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
           true
         }
       }
-    dataNodes[origin.value] =
+    dataNodes[origin] =
       DataNode(
-        PositionKey(origin.value),
+        origin,
         PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
         storedNode.previousAndNextTrainingDate,
         storedNode.updatedAt,
       )
-    if (destination != null) {
-      val destinationNode = dataNodes[destination.value]
-      if (destinationNode != null) {
-        val newPreviousMoves =
-          destinationNode.previousAndNextMoves.previousMoves.values.filter { it.move != move }
-        if (newPreviousMoves.isEmpty()) {
-          dataNodes.remove(destination.value)
-        } else {
-          dataNodes[destination.value] =
-            DataNode(
-              destinationNode.positionKey,
-              PreviousAndNextMoves(
-                newPreviousMoves,
-                destinationNode.previousAndNextMoves.nextMoves.values,
-              ),
-              destinationNode.previousAndNextTrainingDate,
-              destinationNode.updatedAt,
-            )
-        }
-      }
+    val dest = destination ?: return
+    val destinationNode = dataNodes[dest] ?: return
+    val newPreviousMoves =
+      destinationNode.previousAndNextMoves.previousMoves.values.filter { it.move != move }
+    if (newPreviousMoves.isEmpty()) {
+      dataNodes.remove(dest)
+    } else {
+      dataNodes[dest] =
+        DataNode(
+          destinationNode.positionKey,
+          PreviousAndNextMoves(
+            newPreviousMoves,
+            destinationNode.previousAndNextMoves.nextMoves.values,
+          ),
+          destinationNode.previousAndNextTrainingDate,
+          destinationNode.updatedAt,
+        )
     }
   }
 
@@ -96,7 +90,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
-    positions.forEach { dataNodes[it.positionKey.value] = it }
+    positions.forEach { dataNodes[it.positionKey] = it }
   }
 
   override suspend fun getLastUpdate(): Instant? {
@@ -149,7 +143,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       val testDataBase = TestDatabaseQueryManager()
       val nodes = convertStringMovesToNodes(moves)
       for (node in nodes) {
-        testDataBase.dataNodes[node.positionKey.value] = node
+        testDataBase.dataNodes[node.positionKey] = node
       }
       return testDataBase
     }
@@ -187,16 +181,16 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     fun merge(vararg testDataBases: TestDatabaseQueryManager): TestDatabaseQueryManager {
       val merged = TestDatabaseQueryManager()
       for (dataBase in testDataBases) {
-        for (entry in dataBase.dataNodes) {
-          val storedNode = merged.dataNodes[entry.key]
+        for ((positionKey, node) in dataBase.dataNodes) {
+          val storedNode = merged.dataNodes[positionKey]
           if (storedNode == null) {
-            merged.dataNodes[entry.key] = entry.value
+            merged.dataNodes[positionKey] = node
           } else {
             val newMoves = storedNode.previousAndNextMoves.nextMoves.values.toMutableSet()
-            newMoves.addAll(entry.value.previousAndNextMoves.nextMoves.values)
+            newMoves.addAll(node.previousAndNextMoves.nextMoves.values)
             val previousMoves = storedNode.previousAndNextMoves.previousMoves.values.toMutableSet()
-            newMoves.addAll(entry.value.previousAndNextMoves.previousMoves.values)
-            merged.dataNodes[entry.key] =
+            newMoves.addAll(node.previousAndNextMoves.previousMoves.values)
+            merged.dataNodes[positionKey] =
               DataNode(
                 storedNode.positionKey,
                 PreviousAndNextMoves(previousMoves, newMoves),

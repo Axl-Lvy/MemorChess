@@ -31,12 +31,12 @@ internal data class MoveFetched(
   constructor(
     dataMove: DataMove
   ) : this(
-    dataMove.origin.value,
-    dataMove.destination.value,
-    dataMove.move,
-    dataMove.isGood,
-    dataMove.isDeleted,
-    dataMove.updatedAt,
+    origin = dataMove.origin.value,
+    destination = dataMove.destination.value,
+    move = dataMove.move,
+    isGood = dataMove.isGood,
+    isDeleted = dataMove.isDeleted,
+    updatedAt = dataMove.updatedAt,
   )
 
   fun toStoredMove(): DataMove {
@@ -53,7 +53,7 @@ internal data class MoveFetched(
 
 @Serializable
 internal data class PositionFetched(
-  val positionIdentifier: String,
+  @SerialName("positionIdentifier") val positionKey: String,
   @SerialName("linked_moves") val linkedMoves: List<MoveFetched>,
   @SerialName(DEPTH_FIELD) val depth: Int,
   @SerialName(LAST_TRAINING_DATE_FIELD) val lastTrainingDate: LocalDate,
@@ -76,13 +76,13 @@ internal data class PositionFetched(
 
   fun toStoredNode(withDeletedOnes: Boolean = false): DataNode {
     return DataNode(
-      PositionKey(positionIdentifier),
+      PositionKey(positionKey),
       PreviousAndNextMoves(
         linkedMoves
-          .filter { it.destination == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
+          .filter { it.destination == positionKey && (withDeletedOnes || !it.isDeleted) }
           .map { it.toStoredMove() },
         linkedMoves
-          .filter { it.origin == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
+          .filter { it.origin == positionKey && (withDeletedOnes || !it.isDeleted) }
           .map { it.toStoredMove() },
         depth,
       ),
@@ -97,7 +97,11 @@ internal data class PositionFetched(
 @Serializable
 internal data class SinglePositionFunctionArg(
   @SerialName("fen_representation_input") val fen: String
-)
+) {
+  companion object {
+    fun from(positionKey: PositionKey) = SinglePositionFunctionArg(positionKey.value)
+  }
+}
 
 @Serializable
 internal data class SingleDateTimeFunctionArg(
@@ -108,7 +112,11 @@ internal data class SingleDateTimeFunctionArg(
 internal data class MoveFromOriginFunctionArg(
   @SerialName("origin_input") val origin: String,
   @SerialName("move_input") val move: String,
-)
+) {
+  companion object {
+    fun from(origin: PositionKey, move: String) = MoveFromOriginFunctionArg(origin.value, move)
+  }
+}
 
 @Serializable
 internal data class InsertPositionFunctionArg(

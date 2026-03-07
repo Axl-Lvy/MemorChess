@@ -29,6 +29,9 @@ sealed interface Route {
   ) : Route {
     companion object {
       val DEFAULT = ExploreRoute()
+
+      /** Creates an [ExploreRoute] from a typed [PositionKey]. */
+      fun from(positionKey: PositionKey) = ExploreRoute(positionKey.value)
     }
 
     override fun getLabel(): String = "Explore"

@@ -59,7 +59,7 @@ class IsolatedBookNode(
       val childNode = nodeManager.createNode(engine, this, move.move)
       childNode.deleteFromPrevious(move)
       try {
-        bookQueryManager.removeMoveFromBook(bookId, position.value, move.move)
+        bookQueryManager.removeMoveFromBook(bookId, position, move.move)
       } catch (e: Exception) {
         toastRenderer.info("Failed to remove move ${move.move}.")
         LOGGER.e(e) { "Failed to remove move from book" }
