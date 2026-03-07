@@ -33,7 +33,6 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
 
   private var pendingPromotionFrom: Pair<Int, Int>? = null
   private var pendingPromotionTo: Pair<Int, Int>? = null
-  private var moveBeforePromotion: String? = null
 
   private val callBacks = mutableStateListOf<(Boolean) -> Unit>()
 
@@ -111,7 +110,6 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
     needPromotion.value = false
     pendingPromotionFrom = null
     pendingPromotionTo = null
-    moveBeforePromotion = null
     afterPlayMove(san)
   }
 

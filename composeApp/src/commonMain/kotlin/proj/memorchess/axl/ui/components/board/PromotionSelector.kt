@@ -38,7 +38,7 @@ fun PromotionSelector(state: BoardGridState) {
         .background(Color.Black.copy(alpha = 0.7f))
         .padding(16.dp)
   ) {
-    possibilities.forEach { (kind, piece) ->
+    possibilities.forEachIndexed { index, (kind, piece) ->
       val label = "Promote to ${kind.name.lowercase()}"
 
       Box(
@@ -55,7 +55,9 @@ fun PromotionSelector(state: BoardGridState) {
         Piece(piece, Modifier.fillMaxSize())
       }
 
-      Spacer(modifier = Modifier.width(12.dp))
+      if (index < possibilities.lastIndex) {
+        Spacer(modifier = Modifier.width(12.dp))
+      }
     }
   }
 }

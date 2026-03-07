@@ -220,6 +220,8 @@ class GameEngine private constructor(private val game: ChessGame) {
     /**
      * Converts a cropped FEN (board + turn + castling [+ en passant]) to a full 6-part FEN by
      * appending default half-move clock (0) and full-move number (1) if missing.
+     *
+     * A fen with less than 5 parts is invalid
      */
     private fun toFullFen(fen: String): String {
       val parts = fen.trim().split(" ")
