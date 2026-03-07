@@ -6,7 +6,7 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
 
@@ -18,7 +18,7 @@ import proj.memorchess.axl.core.graph.nodes.PersonalNode
  *   when the played move is incorrect.
  */
 class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (DataMove?) -> Unit) :
-  InteractionsManager(Game(node.positionIdentifier)) {
+  InteractionsManager(GameEngine(node.positionIdentifier.fenRepresentation)) {
 
   private val nodeManager: NodeManager<PersonalNode> by inject()
 
@@ -37,10 +37,10 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
   fun updateNode(newNode: DataNode) {
     if (
       newNode.positionIdentifier != node.positionIdentifier ||
-        newNode.positionIdentifier != game.position.createIdentifier()
+        newNode.positionIdentifier != engine.toPositionIdentifier()
     ) {
       node = newNode
-      game = Game(node.positionIdentifier)
+      engine = GameEngine(node.positionIdentifier.fenRepresentation)
       isCorrect = true
       unblock()
       callCallBacks()

@@ -1,9 +1,9 @@
 package proj.memorchess.axl.ui.components.board
 
 import androidx.compose.runtime.mutableStateMapOf
-import proj.memorchess.axl.core.engine.board.BoardLocation
-import proj.memorchess.axl.core.engine.board.ITile
-import proj.memorchess.axl.core.engine.pieces.Piece
+import proj.memorchess.axl.core.engine.BoardLocation
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.interactions.InteractionsManager
 
 /**
@@ -14,20 +14,19 @@ import proj.memorchess.axl.core.interactions.InteractionsManager
  */
 class BoardGridState(val inverted: Boolean, val interactionsManager: InteractionsManager) {
   /** Maps each board location to its current piece, or null if empty. */
-  val tileToPiece = mutableStateMapOf<BoardLocation, Piece?>()
+  val tileToPiece = mutableStateMapOf<BoardLocation, ChessPiece?>()
   /** Maps source locations to their destination locations for pieces to move. */
   val piecesToMove = mutableStateMapOf<BoardLocation, BoardLocation>()
-  /** The current board instance. */
-  var board = interactionsManager.game.position.board
 
   /** Returns the currently selected tile coordinates, or null if none is selected. */
   val selectedTile: Pair<Int, Int>?
     get() = interactionsManager.selectedTile
 
-  /** Initializes the board state and registers callbacks for board updates. */
   init {
-    board.getTilesIterator().forEach { tile ->
-      tileToPiece[tile.boardLocation] = tile.getSafePiece()
+    for (row in 0..7) {
+      for (col in 0..7) {
+        tileToPiece[BoardLocation(row, col)] = interactionsManager.engine.pieceAt(row, col)
+      }
     }
     interactionsManager.registerCallBack {
       if (it) {
@@ -48,21 +47,23 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
   }
 
   /**
-   * Applies a promotion for the given piece via the interactions manager.
+   * Applies a promotion for the given piece kind via the interactions manager.
    *
-   * @param piece The piece to promote to.
+   * @param pieceKind The piece kind to promote to.
    */
-  suspend fun applyPromotion(piece: Piece) {
-    interactionsManager.applyPromotion(piece.toString())
+  suspend fun applyPromotion(pieceKind: PieceKind) {
+    interactionsManager.applyPromotion(pieceKind)
   }
 
-  /** Updates the board tiles without animation, syncing state with the game board. */
+  /** Updates the board tiles without animation, syncing state with the game engine. */
   private fun updateTilesWithoutAnimation() {
-    board = interactionsManager.game.position.board
-    for (tile in board.getTilesIterator()) {
-      val newPiece = tile.getSafePiece()
-      if (tileToPiece[tile.boardLocation] != newPiece) {
-        tileToPiece[tile.boardLocation] = newPiece
+    for (row in 0..7) {
+      for (col in 0..7) {
+        val loc = BoardLocation(row, col)
+        val newPiece = interactionsManager.engine.pieceAt(row, col)
+        if (tileToPiece[loc] != newPiece) {
+          tileToPiece[loc] = newPiece
+        }
       }
     }
   }
@@ -70,19 +71,21 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
   /** Updates the board tiles with animation, calculating piece movement between positions. */
   private fun updateTilesWithAnimation() {
     piecesToMove.clear()
-    board = interactionsManager.game.position.board
-    val previousPiecePositions = mutableMapOf<Piece, BoardLocation>()
-    val newPiecePositions = mutableMapOf<Piece, BoardLocation>()
-    for (tile in board.getTilesIterator()) {
-      val newPiece = tile.getSafePiece()
-      val previousPiece = tileToPiece[tile.boardLocation]
-      if (previousPiece != newPiece) {
-        if (newPiece != null) {
-          newPiecePositions[newPiece] = tile.boardLocation
-        } else if (previousPiece != null) {
-          previousPiecePositions[previousPiece] = tile.boardLocation
+    val previousPiecePositions = mutableMapOf<ChessPiece, BoardLocation>()
+    val newPiecePositions = mutableMapOf<ChessPiece, BoardLocation>()
+    for (row in 0..7) {
+      for (col in 0..7) {
+        val loc = BoardLocation(row, col)
+        val newPiece = interactionsManager.engine.pieceAt(row, col)
+        val previousPiece = tileToPiece[loc]
+        if (previousPiece != newPiece) {
+          if (newPiece != null) {
+            newPiecePositions[newPiece] = loc
+          } else if (previousPiece != null) {
+            previousPiecePositions[previousPiece] = loc
+          }
+          tileToPiece[loc] = newPiece
         }
-        tileToPiece[tile.boardLocation] = newPiece
       }
     }
     previousPiecePositions.forEach { (piece, previousPosition) ->
@@ -94,14 +97,14 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
   }
 
   /**
-   * Retrieves the tile at the specified index.
+   * Retrieves the board location at the specified grid index.
    *
-   * @param index The index of the tile.
-   * @return The tile at the given index.
+   * @param index The grid index.
+   * @return The board location at the given index.
    */
-  fun getTileAt(index: Int): ITile {
+  fun getBoardLocationAt(index: Int): BoardLocation {
     val coords = squareIndexToBoardTile(index)
-    return board.getTile(coords)
+    return BoardLocation(coords.first, coords.second)
   }
 
   /**

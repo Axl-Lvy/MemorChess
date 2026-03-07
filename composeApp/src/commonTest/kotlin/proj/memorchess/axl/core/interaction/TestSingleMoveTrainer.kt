@@ -11,36 +11,31 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.board.IBoard
-import proj.memorchess.axl.core.engine.moves.factory.DummyCheckChecker
-import proj.memorchess.axl.core.engine.moves.factory.RealMoveFactory
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestSingleMoveTrainer : TestWithKoin {
   private lateinit var singleMoveTrainer: SingleMoveTrainer
-  private lateinit var moveFactory: RealMoveFactory
-  private lateinit var checkChecker: DummyCheckChecker
   private val database: DatabaseQueryManager by inject()
   private lateinit var testNode: DataNode
 
   private fun initialize() = runTest {
     database.deleteAll(DateUtil.farInThePast())
     // Create a test node with some moves
-    val game = Game()
-    val startPosition = game.position.createIdentifier()
+    val engine = GameEngine()
+    val startPosition = engine.toPositionIdentifier()
 
     // Create e4 as a good move
-    game.playMove("e4")
-    val e4Position = game.position.createIdentifier()
+    engine.playSanMove("e4")
+    val e4Position = engine.toPositionIdentifier()
     val e4Move = DataMove(startPosition, e4Position, "e4", isGood = true)
 
     // Create d4 as a bad move
-    val game2 = Game()
-    game2.playMove("d4")
-    val d4Position = game2.position.createIdentifier()
+    val engine2 = GameEngine()
+    engine2.playSanMove("d4")
+    val d4Position = engine2.toPositionIdentifier()
     val d4Move = DataMove(startPosition, d4Position, "d4", isGood = false)
 
     // Create the node with both moves
@@ -54,8 +49,6 @@ class TestSingleMoveTrainer : TestWithKoin {
     testNode.save()
 
     singleMoveTrainer = SingleMoveTrainer(testNode) {}
-    moveFactory = RealMoveFactory(singleMoveTrainer.game.position)
-    checkChecker = DummyCheckChecker(singleMoveTrainer.game.position)
   }
 
   @Test
@@ -135,7 +128,9 @@ class TestSingleMoveTrainer : TestWithKoin {
   }
 
   private fun clickOnTile(tile: String) {
-    clickOnTile(IBoard.Companion.getCoords(tile))
+    val col = tile[0] - 'a'
+    val row = tile[1] - '1'
+    clickOnTile(Pair(row, col))
   }
 
   private fun clickOnTile(coords: Pair<Int, Int>) {

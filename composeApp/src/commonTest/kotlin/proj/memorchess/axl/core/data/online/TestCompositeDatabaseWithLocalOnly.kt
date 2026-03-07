@@ -8,7 +8,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
@@ -25,10 +25,10 @@ class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
 
   @Test
   fun testConsistency() = runTest {
-    val game = Game()
+    val engine = GameEngine()
     val node =
       DataNode(
-        game.position.createIdentifier(),
+        engine.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
       )

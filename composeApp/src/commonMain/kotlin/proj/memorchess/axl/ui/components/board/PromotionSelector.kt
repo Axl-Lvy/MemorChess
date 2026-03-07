@@ -17,16 +17,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import proj.memorchess.axl.core.engine.pieces.vectors.Bishop
-import proj.memorchess.axl.core.engine.pieces.vectors.Knight
-import proj.memorchess.axl.core.engine.pieces.vectors.Queen
-import proj.memorchess.axl.core.engine.pieces.vectors.Rook
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
 
 @Composable
 fun PromotionSelector(state: BoardGridState) {
   val scope = rememberCoroutineScope()
-  val player = state.interactionsManager.game.position.playerTurn
-  val possibilities = listOf(Queen(player), Rook(player), Bishop(player), Knight(player))
+  val player = state.interactionsManager.engine.playerTurn
+  val possibilities =
+    listOf(
+      PieceKind.QUEEN to ChessPiece(PieceKind.QUEEN, player),
+      PieceKind.ROOK to ChessPiece(PieceKind.ROOK, player),
+      PieceKind.BISHOP to ChessPiece(PieceKind.BISHOP, player),
+      PieceKind.KNIGHT to ChessPiece(PieceKind.KNIGHT, player),
+    )
 
   Row(
     modifier =
@@ -34,8 +38,8 @@ fun PromotionSelector(state: BoardGridState) {
         .background(Color.Black.copy(alpha = 0.7f))
         .padding(16.dp)
   ) {
-    possibilities.forEach { piece ->
-      val label = "Promote to ${piece.toString().lowercase()}"
+    possibilities.forEachIndexed { index, (kind, piece) ->
+      val label = "Promote to ${kind.name.lowercase()}"
 
       Box(
         modifier =
@@ -44,14 +48,16 @@ fun PromotionSelector(state: BoardGridState) {
             .background(Color.White.copy(alpha = 0.85f))
             .padding(8.dp)
             .clickable(
-              onClick = { scope.launch { state.applyPromotion(piece) } },
+              onClick = { scope.launch { state.applyPromotion(kind) } },
               onClickLabel = label,
             )
       ) {
         Piece(piece, Modifier.fillMaxSize())
       }
 
-      Spacer(modifier = Modifier.width(12.dp))
+      if (index < possibilities.lastIndex) {
+        Spacer(modifier = Modifier.width(12.dp))
+      }
     }
   }
 }

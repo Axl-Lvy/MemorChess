@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.graph.nodes
 import org.koin.core.component.KoinComponent
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 
 /**
  * Abstract class representing a node in the chess position graph.
@@ -37,12 +37,12 @@ abstract class Node<T : Node<T>>(
   }
 
   /**
-   * Creates a new [Game] instance from this node's position.
+   * Creates a new [GameEngine] instance from this node's position.
    *
-   * @return a [Game] initialized to this node's position.
+   * @return a [GameEngine] initialized to this node's position.
    */
-  fun createGame(): Game {
-    return Game(position)
+  fun createEngine(): GameEngine {
+    return GameEngine(position.fenRepresentation)
   }
 
   /** Sets this node as [good][DataMove.isGood] and saves it to the database. */
@@ -87,9 +87,9 @@ abstract class Node<T : Node<T>>(
     } else {
       var count = 1
       previousAndNextMoves.nextMoves.values.forEach { move ->
-        val game = createGame()
-        game.playMove(move.move)
-        val childNode = nodeManager.createNode(game, this as T, move.move)
+        val engine = createEngine()
+        engine.playSanMove(move.move)
+        val childNode = nodeManager.createNode(engine, this as T, move.move)
         count += childNode.calculateNumberOfNodesToDelete(move)
       }
       count
@@ -174,22 +174,16 @@ abstract class Node<T : Node<T>>(
   ) {
     /** This node the first one. */
     FIRST(true, true, true),
-
     /** Node not stored */
     UNKNOWN(false, false, false),
-
     /** Node stored as good. Its previous move is also stored */
     SAVED_GOOD(true, true, true),
-
     /** Node stored as bad. Its previous move is also stored */
     SAVED_BAD(true, false, true),
-
     /** Node stored as good but from another move */
     SAVED_GOOD_BUT_UNKNOWN_MOVE(true, true, false),
-
     /** Node stored as bad but from another move */
     SAVED_BAD_BUT_UNKNOWN_MOVE(true, false, false),
-
     /**
      * Node in a bad state. For example if a bad move and a good move lead to it.
      *

@@ -15,7 +15,9 @@ import compose.icons.FeatherIcons
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.engine.pieces.vectors.King
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
@@ -48,7 +50,7 @@ internal val previewExploreLayoutContent =
       }
     },
     stateIndicators = { StateIndicator(it, Node.NodeState.FIRST) },
-    playerTurnIndicator = { Piece(King.white()) },
+    playerTurnIndicator = { Piece(ChessPiece(PieceKind.KING, Player.WHITE)) },
     saveButton = {
       Button(
         onClick = {},

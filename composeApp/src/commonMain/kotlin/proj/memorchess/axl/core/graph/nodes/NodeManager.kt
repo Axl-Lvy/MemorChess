@@ -5,7 +5,7 @@ import org.koin.core.component.KoinComponent
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionIdentifier
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 
 /**
  * NodeManager is responsible for creating and managing nodes in the chess position graph.
@@ -42,29 +42,25 @@ class NodeManager<NodeT : Node<NodeT>>(
   /**
    * Creates a node.
    *
-   * @param game The game at the position we want to store.
+   * @param engine The game engine at the position we want to store.
    * @param previous The previous node in the graph.
    * @param move The move that led to this position.
    * @return The node.
    */
-  fun createNode(game: Game, previous: NodeT, move: String): NodeT {
+  fun createNode(engine: GameEngine, previous: NodeT, move: String): NodeT {
     val previousNodeMoves =
       nodeCache.getOrCreate(previous.position, previous.previousAndNextMoves.depth)
     val dataMove =
       previousNodeMoves.nextMoves.getOrPut(move) {
-        DataMove(previous.position, game.position.createIdentifier(), move)
+        DataMove(previous.position, engine.toPositionIdentifier(), move)
       }
     val newNodeLinkedMoves =
-      nodeCache.getOrCreate(
-        game.position.createIdentifier(),
-        previous.previousAndNextMoves.depth + 1,
-      )
+      nodeCache.getOrCreate(engine.toPositionIdentifier(), previous.previousAndNextMoves.depth + 1)
     val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(dataMove)
     if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != dataMove) {
       LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
     }
-    val newNode =
-      nodeConstructor(game.position.createIdentifier(), newNodeLinkedMoves, previous, null)
+    val newNode = nodeConstructor(engine.toPositionIdentifier(), newNodeLinkedMoves, previous, null)
     previous.addChild(dataMove, newNode)
     return newNode
   }

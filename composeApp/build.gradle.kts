@@ -27,7 +27,7 @@ kotlin {
   androidTarget {
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
-    compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
   }
 
   // JVM/Desktop configuration
@@ -102,6 +102,9 @@ kotlin {
       implementation(libs.material.icons)
       implementation(libs.xfeather.z)
       implementation(libs.material3.adaptive)
+
+      // Chess engine
+      implementation(libs.chess.core)
 
       // Utilities
       implementation(libs.multiplatform.settings)
@@ -191,8 +194,8 @@ android {
   }
 
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
   }
 
   testOptions {

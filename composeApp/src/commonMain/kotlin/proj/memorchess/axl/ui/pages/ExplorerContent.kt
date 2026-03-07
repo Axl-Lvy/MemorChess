@@ -20,8 +20,9 @@ import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import org.jetbrains.compose.resources.stringResource
-import proj.memorchess.axl.core.engine.Game
-import proj.memorchess.axl.core.engine.pieces.vectors.King
+import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.PieceKind
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
@@ -71,13 +72,12 @@ fun <NodeT : Node<NodeT>> ExplorerContent(
         }
       },
       playerTurnIndicator = {
-        var playerTurn by remember {
-          mutableStateOf(explorer.game.position.playerTurn == Game.Player.WHITE)
-        }
-        explorer.registerCallBack {
-          playerTurn = explorer.game.position.playerTurn == Game.Player.WHITE
-        }
-        Piece(if (playerTurn) King.white() else King.black())
+        var playerTurn by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
+        explorer.registerCallBack { playerTurn = explorer.engine.playerTurn == Player.WHITE }
+        Piece(
+          if (playerTurn) ChessPiece(PieceKind.KING, Player.WHITE)
+          else ChessPiece(PieceKind.KING, Player.BLACK)
+        )
       },
       stateIndicators = { StateIndicator(it, explorer.state) },
       saveButton = saveButton,

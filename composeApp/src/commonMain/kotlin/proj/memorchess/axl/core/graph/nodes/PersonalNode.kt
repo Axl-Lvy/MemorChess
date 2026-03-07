@@ -38,9 +38,9 @@ class PersonalNode(
 
   override suspend fun delete() {
     previousAndNextMoves.nextMoves.values.forEach { move ->
-      val game = createGame()
-      game.playMove(move.move)
-      val childNode = nodeManager.createNode(game, this, move.move)
+      val engine = createEngine()
+      engine.playSanMove(move.move)
+      val childNode = nodeManager.createNode(engine, this, move.move)
       childNode.deleteFromPrevious(move)
     }
     nodeManager.clearNextMoves(position)

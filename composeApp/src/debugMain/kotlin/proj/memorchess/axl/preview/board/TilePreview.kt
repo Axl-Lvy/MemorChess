@@ -11,7 +11,7 @@ import de.drick.compose.hotpreview.HotPreview
 import de.drick.compose.hotpreview.HotPreviewParameter
 import de.drick.compose.hotpreview.HotPreviewParameterProvider
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
-import proj.memorchess.axl.core.engine.board.Tile
+import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.ui.components.board.Tile
 import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 
@@ -24,8 +24,8 @@ private fun TilePreview(
   Column(modifier = Modifier.fillMaxSize()) {
     Text(params.displayName, modifier = Modifier.weight(1f))
     Row(modifier = Modifier.weight(5f)) {
-      Box(modifier = Modifier.weight(1f)) { Tile(Tile(0, 0)) }
-      Box(modifier = Modifier.weight(1f)) { Tile(Tile(0, 1)) }
+      Box(modifier = Modifier.weight(1f)) { Tile(BoardLocation(0, 0)) }
+      Box(modifier = Modifier.weight(1f)) { Tile(BoardLocation(0, 1)) }
     }
   }
 }

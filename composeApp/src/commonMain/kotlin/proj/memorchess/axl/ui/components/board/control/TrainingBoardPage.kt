@@ -19,7 +19,7 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
@@ -167,7 +167,7 @@ private class TrainingBoard : KoinComponent {
       trainer
     }
     trainer.updateNode(nodeToLearn)
-    val inverted = remember(nodeToLearn) { trainer.game.position.playerTurn == Game.Player.BLACK }
+    val inverted = remember(nodeToLearn) { trainer.engine.playerTurn == Player.BLACK }
     val content =
       TrainingLayoutContent(
         board = { BoardContainer(inverted, trainer, it) },

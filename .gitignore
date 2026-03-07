@@ -18,3 +18,4 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 .scannerwork/
 kotlin-js-store
+.claude/settings.local.json

@@ -1,28 +1,18 @@
 package proj.memorchess.axl.core.data
 
 import co.touchlab.kermit.Logger
-import proj.memorchess.axl.core.engine.board.IPosition
-import proj.memorchess.axl.core.engine.parser.FenParser
+import proj.memorchess.axl.core.engine.GameEngine
 
 private val LOGGER = Logger.withTag("PositionIdentifier")
 
 /**
  * Represents a unique key for a chess position based on its pseudo FEN representation. This key can
- * be used to create an [IPosition] instance.
+ * be used to create a [GameEngine] instance.
  *
  * @property fenRepresentation The pseudo FEN string representing the chess position. It is not a
  *   full FEN as it does not include the move counts and not always the en passant column.
  */
 data class PositionIdentifier(val fenRepresentation: String) {
-
-  /**
-   * Creates an [IPosition] from this key.
-   *
-   * @return An [IPosition] created from this key.
-   */
-  fun createPosition(): IPosition {
-    return FenParser.readPosition(this)
-  }
 
   companion object {
 
@@ -38,9 +28,9 @@ data class PositionIdentifier(val fenRepresentation: String) {
     fun validateAndCreateOrNull(fen: String): PositionIdentifier? {
       val positionIdentifier = PositionIdentifier(fen)
       try {
-        positionIdentifier.createPosition()
+        GameEngine(positionIdentifier.fenRepresentation)
         return positionIdentifier
-      } catch (e: IllegalArgumentException) {
+      } catch (e: Exception) {
         LOGGER.e(e) { "Invalid FEN: $fen." }
         return null
       }
