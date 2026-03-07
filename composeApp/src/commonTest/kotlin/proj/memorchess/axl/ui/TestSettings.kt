@@ -10,7 +10,7 @@ import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
@@ -77,7 +77,7 @@ class TestSettings : TestWithKoin {
     runTest {
       database.insertNodes(
         DataNode(
-          PositionIdentifier.START_POSITION,
+          PositionKey.START_POSITION,
           PreviousAndNextMoves(),
           PreviousAndNextDate(DateUtil.today(), DateUtil.today()),
         )

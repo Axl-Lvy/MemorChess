@@ -15,18 +15,18 @@ internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode? {
-    return database.getNodeEntityDao().getNode(positionIdentifier.fenRepresentation)?.toStoredNode()
+  override suspend fun getPosition(positionKey: PositionKey): DataNode? {
+    return database.getNodeEntityDao().getNode(positionKey.value)?.toStoredNode()
   }
 
-  override suspend fun deletePosition(position: PositionIdentifier) {
-    database.getNodeEntityDao().delete(position.fenRepresentation)
-    database.getNodeEntityDao().removeMoveFrom(position.fenRepresentation)
-    database.getNodeEntityDao().removeMoveTo(position.fenRepresentation)
+  override suspend fun deletePosition(position: PositionKey) {
+    database.getNodeEntityDao().delete(position.value)
+    database.getNodeEntityDao().removeMoveFrom(position.value)
+    database.getNodeEntityDao().removeMoveTo(position.value)
   }
 
-  override suspend fun deleteMove(origin: PositionIdentifier, move: String) {
-    database.getNodeEntityDao().removeMove(origin.fenRepresentation, move)
+  override suspend fun deleteMove(origin: PositionKey, move: String) {
+    database.getNodeEntityDao().removeMove(origin.value, move)
   }
 
   override suspend fun deleteAll(hardFrom: Instant?) {

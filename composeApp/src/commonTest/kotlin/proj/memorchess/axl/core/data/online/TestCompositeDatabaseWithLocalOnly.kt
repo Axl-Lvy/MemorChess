@@ -27,16 +27,12 @@ class TestCompositeDatabaseWithLocalOnly : TestCompositeDatabase() {
   fun testConsistency() = runTest {
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     localDatabase.insertNodes(node)
     assertEquals(
-      localDatabase.getPosition(node.positionIdentifier),
-      compositeDatabase.getPosition(node.positionIdentifier),
+      localDatabase.getPosition(node.positionKey),
+      compositeDatabase.getPosition(node.positionKey),
     )
   }
 }

@@ -10,7 +10,7 @@ import proj.memorchess.axl.core.date.DateUtil
 /**
  * Entity representing an [DataNode] ready to be stored in the database.
  *
- * @property fenRepresentation FEN string uniquely identifying the chess position.
+ * @property positionKey FEN string uniquely identifying the chess position.
  * @property lastTrainedDate The date when this node was last trained.
  * @property nextTrainedDate The date when this node should be trained next.
  */
@@ -33,7 +33,7 @@ data class NodeEntity(
    * Note that it should not be always the exact FEN string: it does not keep useless en passant
    * information.
    */
-  @PrimaryKey(autoGenerate = false) val fenRepresentation: String,
+  @PrimaryKey(autoGenerate = false) val positionKey: String,
 
   /** The date when this node was last trained */
   val lastTrainedDate: LocalDate = DateUtil.today(),

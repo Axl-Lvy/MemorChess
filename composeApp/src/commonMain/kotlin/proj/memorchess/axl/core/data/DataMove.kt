@@ -6,10 +6,10 @@ import proj.memorchess.axl.core.date.DateUtil
 /** Move that can be stored in [DatabaseQueryManager] */
 data class DataMove(
   /** Origin position of the move */
-  val origin: PositionIdentifier,
+  val origin: PositionKey,
 
   /** Destination position of the move */
-  val destination: PositionIdentifier,
+  val destination: PositionKey,
 
   /** The move in standard notation */
   val move: String,
@@ -39,8 +39,8 @@ data class DataMove(
     EssentialData(this).toString().replaceFirst("EssentialData", "StoredMove")
 
   private data class EssentialData(
-    val origin: PositionIdentifier,
-    val destination: PositionIdentifier,
+    val origin: PositionKey,
+    val destination: PositionKey,
     val move: String,
     var isGood: Boolean?,
     val isDeleted: Boolean,

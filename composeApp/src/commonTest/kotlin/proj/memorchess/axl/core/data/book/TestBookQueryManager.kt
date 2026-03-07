@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.test_util.Awaitility
@@ -93,8 +93,8 @@ class TestBookQueryManager : TestWithKoin {
 
     val move =
       BookMove(
-        PositionIdentifier.START_POSITION,
-        PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
+        PositionKey.START_POSITION,
+        PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
         "e4",
         true,
       )
@@ -125,8 +125,8 @@ class TestBookQueryManager : TestWithKoin {
 
     val move =
       BookMove(
-        PositionIdentifier.START_POSITION,
-        PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
+        PositionKey.START_POSITION,
+        PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
         "e4",
         true,
       )
@@ -186,8 +186,8 @@ class TestBookQueryManager : TestWithKoin {
 
     val move =
       BookMove(
-        PositionIdentifier.START_POSITION,
-        PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
+        PositionKey.START_POSITION,
+        PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
         "e4",
         true,
       )
@@ -204,12 +204,12 @@ class TestBookQueryManager : TestWithKoin {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
-    val destination = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val destination = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
 
-    val goodMove = BookMove(PositionIdentifier.START_POSITION, destination, "e4", true)
+    val goodMove = BookMove(PositionKey.START_POSITION, destination, "e4", true)
     bookQueryManager.addMoveToBook(bookId, goodMove)
 
-    val badMove = BookMove(PositionIdentifier.START_POSITION, destination, "e4", false)
+    val badMove = BookMove(PositionKey.START_POSITION, destination, "e4", false)
     bookQueryManager.addMoveToBook(bookId, badMove)
 
     val moves = bookQueryManager.getBookMoves(bookId)
@@ -239,12 +239,12 @@ class TestBookQueryManager : TestWithKoin {
     val bookId = bookQueryManager.createBook("Multi Move Book")
     createdBookIds.add(bookId)
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, e4Position, "e4", true),
+      BookMove(PositionKey.START_POSITION, e4Position, "e4", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, e5Position, "e5", false))
 
@@ -259,8 +259,8 @@ class TestBookQueryManager : TestWithKoin {
 
     val move =
       BookMove(
-        PositionIdentifier.START_POSITION,
-        PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
+        PositionKey.START_POSITION,
+        PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq"),
         "e4",
         true,
       )
@@ -269,12 +269,7 @@ class TestBookQueryManager : TestWithKoin {
     var moves = bookQueryManager.getBookMoves(bookId)
     assertEquals(1, moves.size)
 
-    val result =
-      bookQueryManager.removeMoveFromBook(
-        bookId,
-        PositionIdentifier.START_POSITION.fenRepresentation,
-        "e4",
-      )
+    val result = bookQueryManager.removeMoveFromBook(bookId, PositionKey.START_POSITION, "e4")
 
     assertTrue(result)
     moves = bookQueryManager.getBookMoves(bookId)
@@ -286,16 +281,16 @@ class TestBookQueryManager : TestWithKoin {
     val bookId = bookQueryManager.createBook("Multi Move Book")
     createdBookIds.add(bookId)
 
-    val e4Position = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val e5Position = PositionIdentifier("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
 
     bookQueryManager.addMoveToBook(
       bookId,
-      BookMove(PositionIdentifier.START_POSITION, e4Position, "e4", true),
+      BookMove(PositionKey.START_POSITION, e4Position, "e4", true),
     )
     bookQueryManager.addMoveToBook(bookId, BookMove(e4Position, e5Position, "e5", false))
 
-    bookQueryManager.removeMoveFromBook(bookId, e4Position.fenRepresentation, "e5")
+    bookQueryManager.removeMoveFromBook(bookId, e4Position, "e5")
 
     val moves = bookQueryManager.getBookMoves(bookId)
     assertEquals(1, moves.size)
@@ -307,12 +302,7 @@ class TestBookQueryManager : TestWithKoin {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
-    val result =
-      bookQueryManager.removeMoveFromBook(
-        bookId,
-        PositionIdentifier.START_POSITION.fenRepresentation,
-        "e4",
-      )
+    val result = bookQueryManager.removeMoveFromBook(bookId, PositionKey.START_POSITION, "e4")
 
     assertFalse(result)
   }

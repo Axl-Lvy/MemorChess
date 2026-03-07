@@ -9,7 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
@@ -31,18 +31,18 @@ internal data class MoveFetched(
   constructor(
     dataMove: DataMove
   ) : this(
-    dataMove.origin.fenRepresentation,
-    dataMove.destination.fenRepresentation,
-    dataMove.move,
-    dataMove.isGood,
-    dataMove.isDeleted,
-    dataMove.updatedAt,
+    origin = dataMove.origin.value,
+    destination = dataMove.destination.value,
+    move = dataMove.move,
+    isGood = dataMove.isGood,
+    isDeleted = dataMove.isDeleted,
+    updatedAt = dataMove.updatedAt,
   )
 
   fun toStoredMove(): DataMove {
     return DataMove(
-      PositionIdentifier(origin),
-      PositionIdentifier(destination),
+      PositionKey(origin),
+      PositionKey(destination),
       move,
       isGood,
       isDeleted,
@@ -53,7 +53,7 @@ internal data class MoveFetched(
 
 @Serializable
 internal data class PositionFetched(
-  val positionIdentifier: String,
+  @SerialName("positionIdentifier") val positionKey: String,
   @SerialName("linked_moves") val linkedMoves: List<MoveFetched>,
   @SerialName(DEPTH_FIELD) val depth: Int,
   @SerialName(LAST_TRAINING_DATE_FIELD) val lastTrainingDate: LocalDate,
@@ -64,7 +64,7 @@ internal data class PositionFetched(
   constructor(
     dataNode: DataNode
   ) : this(
-    dataNode.positionIdentifier.fenRepresentation,
+    dataNode.positionKey.value,
     dataNode.previousAndNextMoves.nextMoves.map { MoveFetched(it.value) } +
       dataNode.previousAndNextMoves.previousMoves.map { MoveFetched(it.value) },
     dataNode.previousAndNextMoves.depth,
@@ -76,13 +76,13 @@ internal data class PositionFetched(
 
   fun toStoredNode(withDeletedOnes: Boolean = false): DataNode {
     return DataNode(
-      PositionIdentifier(positionIdentifier),
+      PositionKey(positionKey),
       PreviousAndNextMoves(
         linkedMoves
-          .filter { it.destination == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
+          .filter { it.destination == positionKey && (withDeletedOnes || !it.isDeleted) }
           .map { it.toStoredMove() },
         linkedMoves
-          .filter { it.origin == positionIdentifier && (withDeletedOnes || !it.isDeleted) }
+          .filter { it.origin == positionKey && (withDeletedOnes || !it.isDeleted) }
           .map { it.toStoredMove() },
         depth,
       ),
@@ -97,7 +97,11 @@ internal data class PositionFetched(
 @Serializable
 internal data class SinglePositionFunctionArg(
   @SerialName("fen_representation_input") val fen: String
-)
+) {
+  companion object {
+    fun from(positionKey: PositionKey) = SinglePositionFunctionArg(positionKey.value)
+  }
+}
 
 @Serializable
 internal data class SingleDateTimeFunctionArg(
@@ -108,7 +112,11 @@ internal data class SingleDateTimeFunctionArg(
 internal data class MoveFromOriginFunctionArg(
   @SerialName("origin_input") val origin: String,
   @SerialName("move_input") val move: String,
-)
+) {
+  companion object {
+    fun from(origin: PositionKey, move: String) = MoveFromOriginFunctionArg(origin.value, move)
+  }
+}
 
 @Serializable
 internal data class InsertPositionFunctionArg(

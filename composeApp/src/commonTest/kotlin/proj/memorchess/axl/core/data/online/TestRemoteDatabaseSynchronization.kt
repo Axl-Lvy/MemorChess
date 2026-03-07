@@ -120,7 +120,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
       assertContains(
         remoteNodes,
         it,
-        "Local node: $it\nRemote node: ${remoteNodes.find { remoteIt -> remoteIt.positionIdentifier == it.positionIdentifier }}",
+        "Local node: $it\nRemote node: ${remoteNodes.find { remoteIt -> remoteIt.positionKey == it.positionKey }}",
       )
     }
     assertEquals(localNodes.size, remoteNodes.size)

@@ -2,20 +2,20 @@ package proj.memorchess.axl.core.graph.nodes
 
 import org.koin.core.component.KoinComponent
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 
 /**
  * Abstract class representing a node in the chess position graph.
  *
  * @param T The type of the node, for next and previous.
- * @property position The position identifier for this node.
+ * @property position The position key for this node.
  * @property previousAndNextMoves The previous and next moves associated with this position.
  * @property previous The previous node in the graph (null if this is the root).
  * @property next The next node in the graph (null if there are no next moves).
  */
 abstract class Node<T : Node<T>>(
-  val position: PositionIdentifier,
+  val position: PositionKey,
   val previousAndNextMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
   var previous: T? = null,
   var next: T? = null,
@@ -42,7 +42,7 @@ abstract class Node<T : Node<T>>(
    * @return a [GameEngine] initialized to this node's position.
    */
   fun createEngine(): GameEngine {
-    return GameEngine(position.fenRepresentation)
+    return GameEngine(position)
   }
 
   /** Sets this node as [good][DataMove.isGood] and saves it to the database. */

@@ -8,14 +8,13 @@ import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 /** Entity representing a node with its associated moves. */
 data class NodeWithMoves(
   @Embedded val node: NodeEntity,
-  @Relation(parentColumn = "fenRepresentation", entityColumn = "destination")
+  @Relation(parentColumn = "positionKey", entityColumn = "destination")
   val previousMoves: List<MoveEntity>,
-  @Relation(parentColumn = "fenRepresentation", entityColumn = "origin")
-  val nextMoves: List<MoveEntity>,
+  @Relation(parentColumn = "positionKey", entityColumn = "origin") val nextMoves: List<MoveEntity>,
 ) {
   fun toStoredNode(): DataNode {
     return DataNode(
-      PositionIdentifier(node.fenRepresentation),
+      PositionKey(node.positionKey),
       PreviousAndNextMoves(
         previousMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
         nextMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
@@ -31,7 +30,7 @@ data class NodeWithMoves(
     fun convertToEntity(dataNode: DataNode): NodeWithMoves {
       return NodeWithMoves(
         NodeEntity(
-          dataNode.positionIdentifier.fenRepresentation,
+          dataNode.positionKey.value,
           dataNode.previousAndNextTrainingDate.previousDate,
           dataNode.previousAndNextTrainingDate.nextDate,
           dataNode.previousAndNextMoves.depth,

@@ -4,7 +4,7 @@ import co.touchlab.kermit.Logger
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
@@ -16,14 +16,14 @@ import proj.memorchess.axl.ui.components.popup.ToastRenderer
  * This node interacts with a specific book in the online database to save and delete moves.
  *
  * @param bookId The ID of the book this node belongs to.
- * @param position The position identifier for this node.
+ * @param position The position key for this node.
  * @param previousAndNextMoves The previous and next moves associated with this node.
  * @param previous The previous node in the sequence.
  * @param next The next node in the sequence.
  */
 class IsolatedBookNode(
   private val bookId: Long,
-  position: PositionIdentifier,
+  position: PositionKey,
   previousAndNextMoves: PreviousAndNextMoves = PreviousAndNextMoves(),
   previous: IsolatedBookNode? = null,
   next: IsolatedBookNode? = null,
@@ -59,7 +59,7 @@ class IsolatedBookNode(
       val childNode = nodeManager.createNode(engine, this, move.move)
       childNode.deleteFromPrevious(move)
       try {
-        bookQueryManager.removeMoveFromBook(bookId, position.fenRepresentation, move.move)
+        bookQueryManager.removeMoveFromBook(bookId, position, move.move)
       } catch (e: Exception) {
         toastRenderer.info("Failed to remove move ${move.move}.")
         LOGGER.e(e) { "Failed to remove move from book" }

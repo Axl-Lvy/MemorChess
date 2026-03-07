@@ -5,7 +5,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
@@ -59,10 +59,7 @@ class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent 
     throwUnsupportedOperation()
   }
 
-  override fun getNodeToTrainAfterPosition(
-    day: Int,
-    positionIdentifier: PositionIdentifier,
-  ): DataNode? {
+  override fun getNodeToTrainAfterPosition(day: Int, positionKey: PositionKey): DataNode? {
     throwUnsupportedOperation()
   }
 
@@ -76,7 +73,7 @@ class BookBasedNodeCache(private val bookId: Long) : NodeCache(), KoinComponent 
 
   override suspend fun deleteMove(move: DataMove) {
     try {
-      bookQueryManager.removeMoveFromBook(bookId, move.origin.fenRepresentation, move.move)
+      bookQueryManager.removeMoveFromBook(bookId, move.origin, move.move)
     } catch (e: Exception) {
       LOGGER.e(e) { "Failed to delete move ${move.move} from book." }
       toastRenderer.info("Failed to delete move ${move.move} from book.")

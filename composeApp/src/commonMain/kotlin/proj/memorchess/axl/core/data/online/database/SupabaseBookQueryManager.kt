@@ -10,7 +10,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.auth.AuthManager
@@ -108,16 +108,7 @@ class SupabaseBookQueryManager(
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
       client.postgrest
-        .rpc(
-          "add_move_to_book",
-          AddMoveToBookFunctionArg(
-            bookId,
-            move.origin.fenRepresentation,
-            move.destination.fenRepresentation,
-            move.move,
-            move.isGood,
-          ),
-        )
+        .rpc("add_move_to_book", AddMoveToBookFunctionArg(move, bookId))
         .decodeAs<Boolean>()
     return result
   }
@@ -126,16 +117,16 @@ class SupabaseBookQueryManager(
    * Removes a move from a specific book.
    *
    * @param bookId The ID of the book to remove the move from.
-   * @param originFen The FEN representation of the origin position.
+   * @param origin The origin position of the move.
    * @param move The move string to remove.
    * @return True if the move was removed successfully, false otherwise.
    */
-  suspend fun removeMoveFromBook(bookId: Long, originFen: String, move: String): Boolean {
+  suspend fun removeMoveFromBook(bookId: Long, origin: PositionKey, move: String): Boolean {
     val user = authManager.user
     checkNotNull(user) { USER_NOT_CONNECTED_MESSAGE }
     val result =
       client.postgrest
-        .rpc("remove_move_from_book", RemoveMoveFromBookFunctionArg(bookId, originFen, move))
+        .rpc("remove_move_from_book", RemoveMoveFromBookFunctionArg.from(bookId, origin, move))
         .decodeAs<Boolean>()
     return result
   }
@@ -191,8 +182,7 @@ private data class BookMoveFetched(
   val move: String,
   val isGood: Boolean,
 ) {
-  fun toBookMove(): BookMove =
-    BookMove(PositionIdentifier(origin), PositionIdentifier(destination), move, isGood)
+  fun toBookMove(): BookMove = BookMove(PositionKey(origin), PositionKey(destination), move, isGood)
 }
 
 // Function arguments for Supabase RPC calls
@@ -209,7 +199,18 @@ private data class AddMoveToBookFunctionArg(
   @SerialName("destination_input") val destination: String,
   @SerialName("move_input") val move: String,
   @SerialName("is_good_input") val isGood: Boolean,
-)
+) {
+  constructor(
+    bookMove: BookMove,
+    bookId: Long,
+  ) : this(
+    bookId,
+    bookMove.origin.value,
+    bookMove.destination.value,
+    bookMove.move,
+    bookMove.isGood,
+  )
+}
 
 @Serializable
 private data class DeleteBookFunctionArg(@SerialName("book_id_input") val bookId: Long)
@@ -219,4 +220,9 @@ private data class RemoveMoveFromBookFunctionArg(
   @SerialName("book_id_input") val bookId: Long,
   @SerialName("origin_input") val origin: String,
   @SerialName("move_input") val move: String,
-)
+) {
+  companion object {
+    fun from(bookId: Long, origin: PositionKey, move: String) =
+      RemoveMoveFromBookFunctionArg(bookId, origin.value, move)
+  }
+}

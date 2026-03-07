@@ -32,16 +32,12 @@ class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabas
   fun testConsistency() = runTest {
     val engine = GameEngine()
     val node =
-      DataNode(
-        engine.toPositionIdentifier(),
-        PreviousAndNextMoves(),
-        PreviousAndNextDate.dummyToday(),
-      )
+      DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     remoteDatabase.insertNodes(node)
     assertEquals(
-      remoteDatabase.getPosition(node.positionIdentifier),
-      remoteDatabase.getPosition(node.positionIdentifier),
+      remoteDatabase.getPosition(node.positionKey),
+      remoteDatabase.getPosition(node.positionKey),
     )
   }
 }

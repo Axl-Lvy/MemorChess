@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
@@ -33,7 +33,7 @@ class TestTrainingNodeOrder : TestWithKoin {
   fun testMinimumDepth() {
     val node = nodeManager.getNextNodeToLearn(0, null)
     assertNotNull(node)
-    assertTrue { node.positionIdentifier == PositionIdentifier.START_POSITION }
+    assertTrue { node.positionKey == PositionKey.START_POSITION }
   }
 
   @Test

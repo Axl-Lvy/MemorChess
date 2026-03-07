@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.data.online.database
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 
 /** Sealed class representing database operations that can be queued for upload. */
 sealed class DatabaseOperation {
@@ -19,7 +19,7 @@ sealed class DatabaseOperation {
    *
    * @property position The position identifier to delete.
    */
-  data class DeletePosition(val position: PositionIdentifier) : DatabaseOperation()
+  data class DeletePosition(val position: PositionKey) : DatabaseOperation()
 
   /**
    * Operation to delete a move from the database.
@@ -27,7 +27,7 @@ sealed class DatabaseOperation {
    * @property origin The origin position of the move.
    * @property move The move notation to delete.
    */
-  data class DeleteMove(val origin: PositionIdentifier, val move: String) : DatabaseOperation()
+  data class DeleteMove(val origin: PositionKey, val move: String) : DatabaseOperation()
 
   /**
    * Operation to delete all positions and moves.

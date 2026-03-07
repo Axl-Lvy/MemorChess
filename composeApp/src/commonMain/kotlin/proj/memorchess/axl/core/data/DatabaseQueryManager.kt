@@ -13,14 +13,14 @@ interface DatabaseQueryManager {
   suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<DataNode>
 
   /** Retrieves a specific position. */
-  suspend fun getPosition(positionIdentifier: PositionIdentifier): DataNode?
+  suspend fun getPosition(positionKey: PositionKey): DataNode?
 
   /**
    * Deletes a specific position by its FEN.
    *
    * @param position The position to delete.
    */
-  suspend fun deletePosition(position: PositionIdentifier)
+  suspend fun deletePosition(position: PositionKey)
 
   /**
    * Deletes a node
@@ -28,7 +28,7 @@ interface DatabaseQueryManager {
    * @param origin The origin of the move
    * @param move The name of move to delete
    */
-  suspend fun deleteMove(origin: PositionIdentifier, move: String)
+  suspend fun deleteMove(origin: PositionKey, move: String)
 
   /**
    * Deletes all positions and moves.

@@ -9,7 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
@@ -25,10 +25,8 @@ import proj.memorchess.axl.ui.playMove
 @OptIn(ExperimentalTestApi::class)
 class TestSaveButton : TestWithKoin {
 
-  private val afterH3Position =
-    PositionIdentifier("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq")
-  private val afterH6Position =
-    PositionIdentifier("rnbqkbnr/ppppppp1/7p/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq")
+  private val afterH3Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq")
+  private val afterH6Position = PositionKey("rnbqkbnr/ppppppp1/7p/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq")
   private val database: DatabaseQueryManager by inject()
 
   fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
@@ -73,7 +71,7 @@ class TestSaveButton : TestWithKoin {
     check(savedFirstPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == false })
   }
 
-  private fun getPosition(p: PositionIdentifier): DataNode? {
+  private fun getPosition(p: PositionKey): DataNode? {
     var result: DataNode? = null
     runTest { result = database.getPosition(p) }
     return result

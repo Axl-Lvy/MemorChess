@@ -6,7 +6,7 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
@@ -17,16 +17,16 @@ class DbBasedNodeCache : NodeCache(), KoinComponent {
 
   private val database by inject<DatabaseQueryManager>()
 
-  private val nodesByDay = mutableMapOf<Int, MutableMap<PositionIdentifier, DataNode>>()
+  private val nodesByDay = mutableMapOf<Int, MutableMap<PositionKey, DataNode>>()
 
   override suspend fun deleteMove(move: DataMove) {
     database.deleteMove(move.origin, move.move)
   }
 
   override fun cacheNode(node: DataNode) {
-    movesCache[node.positionIdentifier] = node.previousAndNextMoves
+    movesCache[node.positionKey] = node.previousAndNextMoves
     val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
-    nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
+    nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionKey] = node
   }
 
   override fun getNodeFromDay(day: Int): DataNode? {
@@ -36,13 +36,10 @@ class DbBasedNodeCache : NodeCache(), KoinComponent {
     return candidates.remove(position)
   }
 
-  override fun getNodeToTrainAfterPosition(
-    day: Int,
-    positionIdentifier: PositionIdentifier,
-  ): DataNode? {
+  override fun getNodeToTrainAfterPosition(day: Int, positionKey: PositionKey): DataNode? {
     val todayNodes = nodesByDay[day] ?: return null
     for (candidatePosition in
-      movesCache[positionIdentifier]?.nextMoves?.values?.map { it.destination } ?: emptyList()) {
+      movesCache[positionKey]?.nextMoves?.values?.map { it.destination } ?: emptyList()) {
       val candidateNode = todayNodes.remove(candidatePosition)
       if (candidateNode != null) {
         return candidateNode
@@ -60,12 +57,12 @@ class DbBasedNodeCache : NodeCache(), KoinComponent {
     val allNodes: List<DataNode> = database.getAllNodes()
     allNodes.forEach { node ->
       val previousAndNextMoves = node.previousAndNextMoves.filterNotDeleted()
-      movesCache.getOrPut(node.positionIdentifier) { previousAndNextMoves }
+      movesCache.getOrPut(node.positionKey) { previousAndNextMoves }
       if (previousAndNextMoves.nextMoves.any { it.value.isGood == true }) {
         val daysUntil = DateUtil.daysUntil(node.previousAndNextTrainingDate.nextDate)
-        nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionIdentifier] = node
+        nodesByDay.getOrPut(daysUntil) { mutableMapOf() }[node.positionKey] = node
       }
-      LOGGER.i { "Retrieved node: ${node.positionIdentifier}" }
+      LOGGER.i { "Retrieved node: ${node.positionKey}" }
     }
   }
 

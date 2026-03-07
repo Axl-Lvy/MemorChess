@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.data.book
 
 import kotlin.test.*
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 
 class TestBookDataClasses {
@@ -56,9 +56,8 @@ class TestBookDataClasses {
 
   @Test
   fun testBookMoveCreation() {
-    val origin = PositionIdentifier.START_POSITION
-    val destination =
-      PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+    val origin = PositionKey.START_POSITION
+    val destination = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
 
     val bookMove = BookMove(origin, destination, "e4", true)
 
@@ -70,9 +69,8 @@ class TestBookDataClasses {
 
   @Test
   fun testBookMoveGoodAndBad() {
-    val origin = PositionIdentifier.START_POSITION
-    val destination =
-      PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+    val origin = PositionKey.START_POSITION
+    val destination = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
 
     val goodMove = BookMove(origin, destination, "e4", true)
     val badMove = BookMove(origin, destination, "e4", false)
@@ -83,9 +81,8 @@ class TestBookDataClasses {
 
   @Test
   fun testBookMoveEquality() {
-    val origin = PositionIdentifier.START_POSITION
-    val destination =
-      PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+    val origin = PositionKey.START_POSITION
+    val destination = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
 
     val move1 = BookMove(origin, destination, "e4", true)
     val move2 = BookMove(origin, destination, "e4", true)
@@ -95,9 +92,9 @@ class TestBookDataClasses {
 
   @Test
   fun testBookMoveInequalityByMove() {
-    val origin = PositionIdentifier.START_POSITION
-    val dest1 = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
-    val dest2 = PositionIdentifier("rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq")
+    val origin = PositionKey.START_POSITION
+    val dest1 = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val dest2 = PositionKey("rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq")
 
     val move1 = BookMove(origin, dest1, "e4", true)
     val move2 = BookMove(origin, dest2, "d4", true)
@@ -107,8 +104,8 @@ class TestBookDataClasses {
 
   @Test
   fun testBookMoveInequalityByIsGood() {
-    val origin = PositionIdentifier.START_POSITION
-    val destination = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val origin = PositionKey.START_POSITION
+    val destination = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
 
     val move1 = BookMove(origin, destination, "e4", true)
     val move2 = BookMove(origin, destination, "e4", false)
@@ -118,8 +115,8 @@ class TestBookDataClasses {
 
   @Test
   fun testBookMoveCopy() {
-    val origin = PositionIdentifier.START_POSITION
-    val destination = PositionIdentifier("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val origin = PositionKey.START_POSITION
+    val destination = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
 
     val move = BookMove(origin, destination, "e4", true)
     val copiedMove = move.copy(isGood = false)

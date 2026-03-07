@@ -13,7 +13,7 @@ import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
@@ -24,10 +24,7 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 private val LOGGER = Logger.withTag("Explore")
 
 @Composable
-fun Explore(
-  position: PositionIdentifier? = null,
-  nodeManager: NodeManager<PersonalNode> = koinInject(),
-) {
+fun Explore(position: PositionKey? = null, nodeManager: NodeManager<PersonalNode> = koinInject()) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -86,9 +83,9 @@ fun Explore(
 }
 
 private fun extractInitialPosition(
-  position: PositionIdentifier?,
+  position: PositionKey?,
   nodeManager: NodeManager<PersonalNode>,
-): PositionIdentifier? {
+): PositionKey? {
   return if (position == null) {
     null
   } else if (!nodeManager.isKnown(position)) {

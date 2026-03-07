@@ -2,15 +2,15 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "7779a3b3e186cc4ffaafc08fac52eee8",
+    "identityHash": "9a9436862f17070358ab68ad30678a78",
     "entities": [
       {
         "tableName": "NodeEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fenRepresentation` TEXT NOT NULL, `lastTrainedDate` INTEGER NOT NULL, `nextTrainedDate` INTEGER NOT NULL, `depth` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`fenRepresentation`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`positionKey` TEXT NOT NULL, `lastTrainedDate` INTEGER NOT NULL, `nextTrainedDate` INTEGER NOT NULL, `depth` INTEGER NOT NULL, `isDeleted` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`positionKey`))",
         "fields": [
           {
-            "fieldPath": "fenRepresentation",
-            "columnName": "fenRepresentation",
+            "fieldPath": "positionKey",
+            "columnName": "positionKey",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -48,7 +48,7 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "fenRepresentation"
+            "positionKey"
           ]
         },
         "indices": [
@@ -198,7 +198,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7779a3b3e186cc4ffaafc08fac52eee8')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9a9436862f17070358ab68ad30678a78')"
     ]
   }
 }

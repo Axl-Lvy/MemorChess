@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.BoardUtils
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.IllegalMoveException
@@ -125,8 +125,8 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
    *
    * @param position The new position key to reset the game to.
    */
-  fun reset(position: PositionIdentifier? = null) {
-    engine = if (position == null) GameEngine() else GameEngine(position.fenRepresentation)
+  fun reset(position: PositionKey? = null) {
+    engine = if (position == null) GameEngine() else GameEngine(position)
     needPromotion.value = false
     selectedTile = null
     callCallBacks(false)

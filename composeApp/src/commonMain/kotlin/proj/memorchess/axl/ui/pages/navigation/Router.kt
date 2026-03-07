@@ -7,7 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.PositionIdentifier
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.ui.pages.BookDetail
 import proj.memorchess.axl.ui.pages.Books
 import proj.memorchess.axl.ui.pages.Explore
@@ -40,7 +40,7 @@ private fun NavGraphBuilder.settingsRoute() {
 private fun NavGraphBuilder.exploreRoute() {
   composable<Route.ExploreRoute> {
     val position = it.toRoute<Route.ExploreRoute>().position
-    Explore(position?.let { p -> PositionIdentifier.validateAndCreateOrNull(p) })
+    Explore(position?.let { p -> PositionKey.validateAndCreateOrNull(p) })
   }
 }
 
