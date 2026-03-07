@@ -20,7 +20,7 @@ import proj.memorchess.axl.core.data.NodeEntityDao
 import proj.memorchess.axl.core.data.NodeWithMoves
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.engine.Game
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
 
 class TestNodeEntitiesDataBase {
@@ -43,13 +43,13 @@ class TestNodeEntitiesDataBase {
   @Test
   fun writeAndReadNode() {
     val retrievedNodes: List<NodeWithMoves>
-    val game = Game()
+    val game = GameEngine()
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
             DataNode(
-              game.position.createIdentifier(),
+              game.toPositionIdentifier(),
               PreviousAndNextMoves(),
               PreviousAndNextDate.dummyToday(),
             )
@@ -62,7 +62,7 @@ class TestNodeEntitiesDataBase {
     assertNotNull(retrievedNodes.first())
     assertTrue { retrievedNodes.first().nextMoves.isEmpty() }
     assertEquals(
-      game.position.createIdentifier(),
+      game.toPositionIdentifier(),
       retrievedNodes.first().toStoredNode().positionIdentifier,
     )
   }
@@ -70,13 +70,13 @@ class TestNodeEntitiesDataBase {
   @Test
   fun testDeleteAll() {
     val retrievedNode: NodeWithMoves?
-    val game = Game()
+    val game = GameEngine()
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
             DataNode(
-              game.position.createIdentifier(),
+              game.toPositionIdentifier(),
               PreviousAndNextMoves(),
               PreviousAndNextDate.dummyToday(),
             )
@@ -92,13 +92,13 @@ class TestNodeEntitiesDataBase {
   @Test
   fun testDeleteSingle() {
     val retrievedNodes: List<NodeWithMoves>
-    val game = Game()
-    val rootPositionKey = game.position.createIdentifier()
-    game.playMove("e4")
+    val game = GameEngine()
+    val rootPositionKey = game.toPositionIdentifier()
+    game.playSanMove("e4")
     val linkMove =
       MoveEntity(
         rootPositionKey.fenRepresentation,
-        game.position.createIdentifier().fenRepresentation,
+        game.toPositionIdentifier().fenRepresentation,
         "e4",
         true,
       )
@@ -112,7 +112,7 @@ class TestNodeEntitiesDataBase {
       )
     val childNode =
       DataNode(
-        game.position.createIdentifier(),
+        game.toPositionIdentifier(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
         now,
