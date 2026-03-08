@@ -7,7 +7,7 @@ androidx-activityCompose = "1.11.0"
 androidx-lifecycle = "2.9.4"
 androidx-room = "2.8.1"
 composeHotReload = "1.0.0-beta09"
-compose-multiplatform = "1.9.0"
+compose-multiplatform = "1.10.1"
 hotpreview = "0.2.0"
 kermit = "2.0.8"
 kover = "0.9.2"
@@ -30,6 +30,7 @@ sqlite = "2.6.1"
 supabase = "3.2.4"
 uiTestJunit4Android = "1.9.2"
 chess-core = "1.0.1"
+filekit = "0.13.0"
 xfeather_z = "1.1.1"
 
 [libraries]
@@ -46,6 +47,9 @@ xfeather_z = { module = "br.com.devsrsouza.compose.icons:feather", version.ref =
 # --- AndroidX lifecycle ---
 androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
+
+# --- File picker ---
+filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 
 # --- Data ---
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "androidx-room" }

@@ -106,6 +106,9 @@ kotlin {
       // Chess engine
       implementation(libs.chess.core)
 
+      // File picker
+      implementation(libs.filekit.dialogs.compose)
+
       // Utilities
       implementation(libs.multiplatform.settings)
       implementation(libs.kermit.logging)
