@@ -215,7 +215,7 @@ private fun AnimatedPiece(
   val offsetMultiplier = if (state.inverted) -1 else 1
   Piece(pieceToMove, Modifier.offset(x * offsetMultiplier, y * offsetMultiplier).fillMaxSize())
   LaunchedEffect(Unit) {
-    moved = true
+    moved = true // NOSONAR: Compose state triggers recomposition
     delay(animationDuration)
     state.piecesToMove.remove(location)
   }
