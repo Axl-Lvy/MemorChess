@@ -108,8 +108,8 @@ fun SignInButton(modifier: Modifier = Modifier, authManager: AuthManager = koinI
     KEEP_LOGGED_IN_SETTING.reset()
     SignInDialog(
       dismiss = {
-        showSignInDialog = false
-        canShowStaySignedInDialog = true
+        showSignInDialog = false // NOSONAR: Compose state triggers recomposition
+        canShowStaySignedInDialog = true // NOSONAR: Compose state triggers recomposition
       }
     )
   }
