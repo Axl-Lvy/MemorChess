@@ -13,7 +13,6 @@ import de.drick.compose.hotpreview.HotPreviewParameterProvider
 import de.drick.compose.hotpreview.NavigationBarMode
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
-import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.BoardGrid
@@ -32,17 +31,13 @@ import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 private fun BoardGridPreview(
   @HotPreviewParameter(BoardGridPreviewProvider::class) params: ChessBoardColorScheme,
   nodeManager: NodeManager = koinInject(),
-  treeRepository: TreeRepository = koinInject(),
 ) {
   CHESS_BOARD_COLOR_SETTING.setValue(params)
   Column(modifier = Modifier.fillMaxSize()) {
     Text(params.displayName, modifier = Modifier.weight(1f))
     Box(modifier = Modifier.weight(8f)) {
       BoardGrid(
-        BoardGridState(
-          false,
-          LinesExplorer(nodeManager = nodeManager, treeRepository = treeRepository),
-        ),
+        BoardGridState(false, LinesExplorer(nodeManager = nodeManager)),
         Modifier.fillMaxSize(),
       )
     }

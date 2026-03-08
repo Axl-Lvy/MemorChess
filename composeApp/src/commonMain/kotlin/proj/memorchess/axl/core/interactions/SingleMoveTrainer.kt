@@ -7,7 +7,6 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 
 /**
@@ -21,7 +20,6 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
   InteractionsManager(GameEngine(node.positionKey)) {
 
   private val nodeManager: NodeManager by inject()
-  private val treeRepository: TreeRepository by inject()
 
   private var isCorrect: Boolean = true
 
@@ -62,6 +60,6 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
     nodeManager.cacheNode(dataNode)
-    treeRepository.saveNode(dataNode)
+    nodeManager.saveNode(dataNode)
   }
 }

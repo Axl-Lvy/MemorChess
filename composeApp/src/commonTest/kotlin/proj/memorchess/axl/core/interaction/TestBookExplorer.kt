@@ -88,7 +88,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, canEdit, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, canEdit, nodeManager)
   }
 
   @Test
@@ -220,7 +220,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -251,7 +251,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -292,7 +292,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -328,7 +328,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -377,7 +377,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -421,7 +421,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -457,7 +457,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -495,7 +495,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -533,7 +533,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -570,7 +570,7 @@ class TestBookExplorer : TestWithKoin {
 
     val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
+    bookExplorer = BookExplorer(testBook, false, nodeManager)
 
     bookExplorer.downloadBookToRepertoire()
 

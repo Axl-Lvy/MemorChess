@@ -7,7 +7,6 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -16,7 +15,6 @@ import proj.memorchess.axl.test_util.getGames
 class TestLinesExplorer : TestWithKoin {
   private lateinit var interactionsManager: LinesExplorer
   private val nodeManager: NodeManager by inject()
-  private val treeRepository: TreeRepository by inject()
   private val database: DatabaseQueryManager by inject()
 
   private fun initialize() {
@@ -24,7 +22,7 @@ class TestLinesExplorer : TestWithKoin {
       database.deleteAll(null)
       nodeManager.resetCacheFromSource()
     }
-    interactionsManager = LinesExplorer(nodeManager = nodeManager, treeRepository = treeRepository)
+    interactionsManager = LinesExplorer(nodeManager = nodeManager)
   }
 
   @BeforeTest
@@ -219,7 +217,7 @@ class TestLinesExplorer : TestWithKoin {
     val customPosition = interactionsManager.engine.toPositionKey()
 
     // Act: create a new LinesExplorer from this position
-    val explorerFromCustom = LinesExplorer(customPosition, nodeManager, treeRepository)
+    val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
     // Assert: explorer's game should be at the custom position
     assertEquals(customPosition, explorerFromCustom.engine.toPositionKey())
   }
@@ -233,7 +231,7 @@ class TestLinesExplorer : TestWithKoin {
     val customPosition = interactionsManager.engine.toPositionKey()
 
     // Act: create a new LinesExplorer from this position
-    val explorerFromCustom = LinesExplorer(customPosition, nodeManager, treeRepository)
+    val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
     // Assert: explorer's game should be at the custom position
     assertEquals(customPosition, explorerFromCustom.engine.toPositionKey())
     explorerFromCustom.back()

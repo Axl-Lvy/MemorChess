@@ -112,7 +112,7 @@ private suspend fun loadBookData(
     }
 
     nodeManager.resetCacheFromSource()
-    val explorer = BookExplorer(fetchedBook, canEdit, nodeManager, nodeManager.treeRepository)
+    val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
     onBookLoaded(fetchedBook, explorer)
   } catch (e: Exception) {
     LOGGER.e(e) { "Failed to load book $bookId" }

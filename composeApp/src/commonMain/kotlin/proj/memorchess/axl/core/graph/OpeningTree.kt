@@ -39,6 +39,11 @@ class OpeningTree {
   /** Checks if a position is known in the tree. */
   fun isKnown(positionKey: PositionKey): Boolean = positionKey in positions
 
+  /** Removes a position */
+  fun removePosition(positionKey: PositionKey) {
+    positions.remove(positionKey)
+  }
+
   /** Clears all next moves for the given position. */
   fun clearNextMoves(positionKey: PositionKey) {
     positions[positionKey]?.nextMoves?.clear()
@@ -92,7 +97,7 @@ class OpeningTree {
    */
   fun countDescendants(positionKey: PositionKey, viaMove: DataMove? = null): Int {
     val moves = positions[positionKey] ?: return 0
-    if (viaMove != null && moves.previousMoves.values.any { it.move != viaMove.move }) {
+    if (viaMove != null && moves.previousMoves.size > 1) {
       return 0
     }
     var count = 1

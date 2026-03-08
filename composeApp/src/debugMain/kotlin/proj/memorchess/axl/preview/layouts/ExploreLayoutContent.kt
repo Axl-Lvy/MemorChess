@@ -19,7 +19,6 @@ import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.NodeState
-import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
@@ -71,11 +70,6 @@ internal val previewExploreLayoutContent =
     },
     board = {
       val nodeManager: NodeManager = koinInject()
-      val treeRepository: TreeRepository = koinInject()
-      Board(
-        inverted = false,
-        interactionsManager =
-          LinesExplorer(nodeManager = nodeManager, treeRepository = treeRepository),
-      )
+      Board(inverted = false, interactionsManager = LinesExplorer(nodeManager = nodeManager))
     },
   )

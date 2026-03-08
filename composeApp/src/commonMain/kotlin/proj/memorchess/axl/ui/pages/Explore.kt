@@ -14,7 +14,6 @@ import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
@@ -24,11 +23,7 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 private val LOGGER = Logger.withTag("Explore")
 
 @Composable
-fun Explore(
-  position: PositionKey? = null,
-  nodeManager: NodeManager = koinInject(),
-  treeRepository: TreeRepository = koinInject(),
-) {
+fun Explore(position: PositionKey? = null, nodeManager: NodeManager = koinInject()) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -38,7 +33,7 @@ fun Explore(
   ) {
     LoadingWidget({ nodeManager.resetCacheFromSource() }) {
       val initialPosition = extractInitialPosition(position, nodeManager)
-      val linesExplorer = remember { LinesExplorer(initialPosition, nodeManager, treeRepository) }
+      val linesExplorer = remember { LinesExplorer(initialPosition, nodeManager) }
       val coroutineScope = rememberCoroutineScope()
 
       val deletionConfirmationDialog = remember { ConfirmationDialog(okText = "Delete") }

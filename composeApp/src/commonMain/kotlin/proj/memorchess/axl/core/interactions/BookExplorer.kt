@@ -11,7 +11,6 @@ import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
-import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 
 /**
@@ -20,12 +19,8 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
  * This class handles navigation through book moves and supports downloading them to the user's
  * personal repertoire.
  */
-class BookExplorer(
-  private val book: Book,
-  val canEdit: Boolean,
-  nodeManager: NodeManager,
-  treeRepository: TreeRepository,
-) : LinesExplorer(nodeManager = nodeManager, treeRepository = treeRepository) {
+class BookExplorer(private val book: Book, val canEdit: Boolean, nodeManager: NodeManager) :
+  LinesExplorer(nodeManager = nodeManager) {
   private val bookQueryManager: SupabaseBookQueryManager by inject()
   private val databaseQueryManager: DatabaseQueryManager by inject()
 
