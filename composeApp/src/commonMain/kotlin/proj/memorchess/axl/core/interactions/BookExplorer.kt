@@ -10,7 +10,7 @@ import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.MutablePreviousAndNextMoves
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 
 /**
@@ -39,10 +39,16 @@ class BookExplorer(private val book: Book, val canEdit: Boolean, nodeManager: No
     try {
       val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
       bookQueryManager.registerBookDownload(book.id)
-      val dataNodes = mutableMapOf<PositionKey, DataNode>()
-      dataNodes.fillRecursively(PositionKey.START_POSITION, bookMoves)
+      val mutableMoves = mutableMapOf<PositionKey, MutablePreviousAndNextMoves>()
+      val depths = mutableMapOf<PositionKey, Int>()
+      fillRecursively(PositionKey.START_POSITION, bookMoves, mutableMoves, depths)
 
-      databaseQueryManager.insertNodes(*dataNodes.values.toTypedArray())
+      val trainingDate = PreviousAndNextDate.dummyToday()
+      val dataNodes =
+        mutableMoves.map { (pk, moves) ->
+          DataNode(pk, moves.toImmutable(), trainingDate, depths[pk] ?: 0)
+        }
+      databaseQueryManager.insertNodes(*dataNodes.toTypedArray())
       toastRenderer.info("Downloaded ${bookMoves.size} moves from '${book.name}'")
     } catch (e: Exception) {
       LOGGER.e(e) { "Failed to download book '${book.name}'." }
@@ -50,26 +56,23 @@ class BookExplorer(private val book: Book, val canEdit: Boolean, nodeManager: No
     }
   }
 
-  private fun MutableMap<PositionKey, DataNode>.fillRecursively(
+  private fun fillRecursively(
     position: PositionKey,
     bookMoves: Map<PositionKey, List<BookMove>>,
+    moves: MutableMap<PositionKey, MutablePreviousAndNextMoves>,
+    depths: MutableMap<PositionKey, Int>,
   ) {
-    val moves = bookMoves[position] ?: return
-    val trainingDate = PreviousAndNextDate.dummyToday()
-    for (move in moves) {
-      val currentPreviousAndNextMoves =
-        this.getOrPut(position) { DataNode(position, PreviousAndNextMoves(), trainingDate) }
-          .previousAndNextMoves
-      currentPreviousAndNextMoves.addNextMove(move.toDataMove())
-      val nextPreviousAndNextMoves =
-        this.getOrPut(move.destination) {
-            DataNode(move.destination, PreviousAndNextMoves(depth = Int.MAX_VALUE), trainingDate)
-          }
-          .previousAndNextMoves
-      val newDepth = min(nextPreviousAndNextMoves.depth, currentPreviousAndNextMoves.depth + 1)
-      if (newDepth != nextPreviousAndNextMoves.depth) {
-        nextPreviousAndNextMoves.depth = newDepth
-        this.fillRecursively(move.destination, bookMoves)
+    val positionMoves = bookMoves[position] ?: return
+    for (move in positionMoves) {
+      val currentMoves = moves.getOrPut(position) { MutablePreviousAndNextMoves() }
+      currentMoves.addNextMove(move.toDataMove())
+      moves.getOrPut(move.destination) { MutablePreviousAndNextMoves() }
+      val currentDepth = depths.getOrPut(position) { 0 }
+      val existingDepth = depths[move.destination] ?: Int.MAX_VALUE
+      val newDepth = min(existingDepth, currentDepth + 1)
+      if (newDepth != existingDepth) {
+        depths[move.destination] = newDepth
+        fillRecursively(move.destination, bookMoves, moves, depths)
       }
     }
   }

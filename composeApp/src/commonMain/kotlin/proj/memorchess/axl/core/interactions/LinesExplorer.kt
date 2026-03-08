@@ -8,6 +8,7 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.MutablePreviousAndNextMoves
 import proj.memorchess.axl.core.graph.NavigationHistory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 
@@ -90,11 +91,13 @@ open class LinesExplorer(position: PositionKey? = null, protected val nodeManage
     val currentMoves = nodeManager.getMoves(navigation.current) ?: return
     // Mark current position's previous moves as good
     currentMoves.setPreviousMovesAsGood()
+    propagateIsGoodToOrigins(currentMoves)
     nodeManager.saveNode(
       DataNode(
         navigation.current,
         currentMoves.filterValidMoves(),
         PreviousAndNextDate.dummyToday(),
+        nodeManager.getDepth(navigation.current),
       )
     )
 
@@ -108,13 +111,29 @@ open class LinesExplorer(position: PositionKey? = null, protected val nodeManage
       } else {
         moves.setPreviousMovesAsGood()
       }
+      propagateIsGoodToOrigins(moves)
       nodeManager.saveNode(
-        DataNode(position, moves.filterValidMoves(), PreviousAndNextDate.dummyToday())
+        DataNode(
+          position,
+          moves.filterValidMoves(),
+          PreviousAndNextDate.dummyToday(),
+          nodeManager.getDepth(position),
+        )
       )
     }
 
     state = nodeManager.computeState(navigation.current, navigation.arrivedVia?.origin)
     toastRenderer.info("Saved")
+  }
+
+  /**
+   * After updating isGood on previous moves, propagate the change to the corresponding next move
+   * entries in origin positions.
+   */
+  private fun propagateIsGoodToOrigins(moves: MutablePreviousAndNextMoves) {
+    moves.previousMoves.values.forEach { move ->
+      nodeManager.getMoves(move.origin)?.updateNextMove(move)
+    }
   }
 
   /** Deletes the current node's children and reloads the explorer. */
@@ -140,7 +159,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val nodeManage
     if (moves != null && moves.previousMoves.isEmpty()) {
       moves.nextMoves.values.toList().forEach { move -> deleteFromPrevious(move.destination, move) }
       nodeManager.clearNextMoves(positionKey)
-      moves.nextMoves.clear()
+      moves.clearNextMoves()
       nodeManager.deletePosition(positionKey)
     }
   }

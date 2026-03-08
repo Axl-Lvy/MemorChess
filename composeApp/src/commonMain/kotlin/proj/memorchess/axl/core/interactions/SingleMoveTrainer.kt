@@ -58,6 +58,7 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
         positionKey = node.positionKey,
         previousAndNextMoves = node.previousAndNextMoves,
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
+        depth = node.depth,
       )
     nodeManager.cacheNode(dataNode)
     nodeManager.saveNode(dataNode)

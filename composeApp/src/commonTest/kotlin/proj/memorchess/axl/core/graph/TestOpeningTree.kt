@@ -16,7 +16,7 @@ class TestOpeningTree {
   @Test
   fun computeStateWithEmptyPreviousMoves() {
     val tree = OpeningTree()
-    tree.put(startPos, PreviousAndNextMoves())
+    tree.put(startPos, MutablePreviousAndNextMoves())
     assertEquals(NodeState.FIRST, tree.computeState(startPos, null))
   }
 
@@ -29,7 +29,7 @@ class TestOpeningTree {
   @Test
   fun computeStateSavedGood() {
     val tree = OpeningTree()
-    val moves = PreviousAndNextMoves()
+    val moves = MutablePreviousAndNextMoves()
     moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = true))
     tree.put(posA, moves)
     assertEquals(NodeState.SAVED_GOOD, tree.computeState(posA, startPos))
@@ -38,7 +38,7 @@ class TestOpeningTree {
   @Test
   fun computeStateSavedBad() {
     val tree = OpeningTree()
-    val moves = PreviousAndNextMoves()
+    val moves = MutablePreviousAndNextMoves()
     moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = false))
     tree.put(posA, moves)
     assertEquals(NodeState.SAVED_BAD, tree.computeState(posA, startPos))
@@ -47,7 +47,7 @@ class TestOpeningTree {
   @Test
   fun computeStateMixedGoodBadReturnsBadState() {
     val tree = OpeningTree()
-    val moves = PreviousAndNextMoves()
+    val moves = MutablePreviousAndNextMoves()
     moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = true))
     moves.addPreviousMove(DataMove(posB, posA, "d4", isGood = false))
     tree.put(posA, moves)
@@ -57,7 +57,7 @@ class TestOpeningTree {
   @Test
   fun computeStateSavedGoodButUnknownMove() {
     val tree = OpeningTree()
-    val moves = PreviousAndNextMoves()
+    val moves = MutablePreviousAndNextMoves()
     moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = true))
     tree.put(posA, moves)
     // arrivedFrom is different from the move's origin
@@ -70,16 +70,16 @@ class TestOpeningTree {
     val moveAB = DataMove(posA, posB, "e4")
     val moveBC = DataMove(posB, posC, "e5")
 
-    val movesA = PreviousAndNextMoves()
+    val movesA = MutablePreviousAndNextMoves()
     movesA.addNextMove(moveAB)
     tree.put(posA, movesA)
 
-    val movesB = PreviousAndNextMoves()
+    val movesB = MutablePreviousAndNextMoves()
     movesB.addPreviousMove(moveAB)
     movesB.addNextMove(moveBC)
     tree.put(posB, movesB)
 
-    val movesC = PreviousAndNextMoves()
+    val movesC = MutablePreviousAndNextMoves()
     movesC.addPreviousMove(moveBC)
     tree.put(posC, movesC)
 
@@ -94,17 +94,17 @@ class TestOpeningTree {
     val moveBC = DataMove(posB, posC, "e5")
     val moveDC = DataMove(posD, posC, "d4")
 
-    val movesA = PreviousAndNextMoves()
+    val movesA = MutablePreviousAndNextMoves()
     movesA.addNextMove(moveAB)
     tree.put(posA, movesA)
 
-    val movesB = PreviousAndNextMoves()
+    val movesB = MutablePreviousAndNextMoves()
     movesB.addPreviousMove(moveAB)
     movesB.addNextMove(moveBC)
     tree.put(posB, movesB)
 
     // posC has two parents
-    val movesC = PreviousAndNextMoves()
+    val movesC = MutablePreviousAndNextMoves()
     movesC.addPreviousMove(moveBC)
     movesC.addPreviousMove(moveDC)
     tree.put(posC, movesC)
@@ -116,19 +116,19 @@ class TestOpeningTree {
   @Test
   fun getOrCreateUpdatesDepthToMinimum() {
     val tree = OpeningTree()
-    val first = tree.getOrCreate(posA, 5)
-    assertEquals(5, first.depth)
-    val second = tree.getOrCreate(posA, 2)
-    assertEquals(2, second.depth)
+    tree.getOrCreate(posA, 5)
+    assertEquals(5, tree.getDepth(posA))
+    tree.getOrCreate(posA, 2)
+    assertEquals(2, tree.getDepth(posA))
     // Higher depth should not update
     tree.getOrCreate(posA, 10)
-    assertEquals(2, second.depth)
+    assertEquals(2, tree.getDepth(posA))
   }
 
   @Test
   fun clearRemovesAllPositions() {
     val tree = OpeningTree()
-    tree.put(posA, PreviousAndNextMoves())
+    tree.put(posA, MutablePreviousAndNextMoves())
     tree.clear()
     assertNull(tree.get(posA))
   }

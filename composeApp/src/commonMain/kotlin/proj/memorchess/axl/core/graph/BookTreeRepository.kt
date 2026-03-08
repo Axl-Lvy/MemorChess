@@ -21,7 +21,7 @@ class BookTreeRepository(
       val allMoves = bookQueryManager.getBookMoves(bookId)
       allMoves.forEach { move ->
         tree
-          .getOrPut(move.origin) { PreviousAndNextMoves() }
+          .getOrPut(move.origin) { MutablePreviousAndNextMoves() }
           .addNextMove(
             DataMove(
               origin = move.origin,
@@ -31,7 +31,7 @@ class BookTreeRepository(
             )
           )
         tree
-          .getOrPut(move.destination) { PreviousAndNextMoves() }
+          .getOrPut(move.destination) { MutablePreviousAndNextMoves() }
           .addPreviousMove(
             DataMove(
               origin = move.origin,

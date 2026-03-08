@@ -40,6 +40,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
           node.positionKey,
           node.previousAndNextMoves,
           node.previousAndNextTrainingDate,
+          node.depth,
           DateUtil.now(),
           true,
         )
@@ -63,6 +64,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
         origin,
         PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
         storedNode.previousAndNextTrainingDate,
+        storedNode.depth,
         storedNode.updatedAt,
       )
     val dest = destination ?: return
@@ -80,6 +82,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
             destinationNode.previousAndNextMoves.nextMoves.values,
           ),
           destinationNode.previousAndNextTrainingDate,
+          destinationNode.depth,
           destinationNode.updatedAt,
         )
     }
@@ -159,12 +162,9 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
         val node =
           DataNode(
             currentPosition,
-            PreviousAndNextMoves(
-              previousMove?.let { listOf(it) } ?: listOf(),
-              listOf(dataMove),
-              depth,
-            ),
+            PreviousAndNextMoves(previousMove?.let { listOf(it) } ?: listOf(), listOf(dataMove)),
             PreviousAndNextDate.dummyToday(),
+            depth,
           )
         previousMove = dataMove
         nodes.add(node)

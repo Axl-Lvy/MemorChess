@@ -182,19 +182,19 @@ class TestBookExplorer : TestWithKoin {
     val nodeMap = nodes.associateBy { it.positionKey }
 
     val startNode = nodeMap[PositionKey.START_POSITION]!!
-    assertEquals(0, startNode.previousAndNextMoves.depth)
+    assertEquals(0, startNode.depth)
 
     val e4Position = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
     val e4Node = nodeMap[e4Position]!!
-    assertEquals(1, e4Node.previousAndNextMoves.depth)
+    assertEquals(1, e4Node.depth)
 
     val e5Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
     val e5Node = nodeMap[e5Position]!!
-    assertEquals(2, e5Node.previousAndNextMoves.depth)
+    assertEquals(2, e5Node.depth)
 
     val nf3Position = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq")
     val nf3Node = nodeMap[nf3Position]!!
-    assertEquals(3, nf3Node.previousAndNextMoves.depth)
+    assertEquals(3, nf3Node.depth)
   }
 
   @Test
@@ -258,11 +258,11 @@ class TestBookExplorer : TestWithKoin {
     val nodes = database.getAllNodes()
     val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[nf3Position]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[nf6Position]!!.previousAndNextMoves.depth)
-    assertEquals(3, nodeMap[ng1Position]!!.previousAndNextMoves.depth)
-    assertEquals(4, nodeMap[ng8Position]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[nf3Position]!!.depth)
+    assertEquals(2, nodeMap[nf6Position]!!.depth)
+    assertEquals(3, nodeMap[ng1Position]!!.depth)
+    assertEquals(4, nodeMap[ng8Position]!!.depth)
   }
 
   @Test
@@ -300,7 +300,7 @@ class TestBookExplorer : TestWithKoin {
     assertEquals(5, nodes.size)
 
     val nodeMap = nodes.associateBy { it.positionKey }
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
   }
 
   @Test
@@ -335,12 +335,12 @@ class TestBookExplorer : TestWithKoin {
     val nodes = database.getAllNodes()
     val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[e4Position]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[c5Position]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[e5Position]!!.previousAndNextMoves.depth)
-    assertEquals(3, nodeMap[nf3FromC5]!!.previousAndNextMoves.depth)
-    assertEquals(3, nodeMap[nf3FromE5]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[e4Position]!!.depth)
+    assertEquals(2, nodeMap[c5Position]!!.depth)
+    assertEquals(2, nodeMap[e5Position]!!.depth)
+    assertEquals(3, nodeMap[nf3FromC5]!!.depth)
+    assertEquals(3, nodeMap[nf3FromE5]!!.depth)
   }
 
   @Test
@@ -384,9 +384,9 @@ class TestBookExplorer : TestWithKoin {
     val nodes = database.getAllNodes()
     val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[e4Position]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[d4Position]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[e4Position]!!.depth)
+    assertEquals(1, nodeMap[d4Position]!!.depth)
   }
 
   @Test
@@ -429,8 +429,8 @@ class TestBookExplorer : TestWithKoin {
     assertEquals(2, nodes.size)
 
     val nodeMap = nodes.associateBy { it.positionKey }
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[nf3Position]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[nf3Position]!!.depth)
   }
 
   @Test
@@ -464,11 +464,11 @@ class TestBookExplorer : TestWithKoin {
     val nodes = database.getAllNodes()
     val nodeMap = nodes.associateBy { it.positionKey }
 
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[e4Position]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[c5Position]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[e5Position]!!.previousAndNextMoves.depth)
-    assertEquals(3, nodeMap[nf3Position]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[e4Position]!!.depth)
+    assertEquals(2, nodeMap[c5Position]!!.depth)
+    assertEquals(2, nodeMap[e5Position]!!.depth)
+    assertEquals(3, nodeMap[nf3Position]!!.depth)
   }
 
   @Test
@@ -503,13 +503,13 @@ class TestBookExplorer : TestWithKoin {
     val nodeMap = nodes.associateBy { it.positionKey }
 
     assertEquals(7, nodes.size)
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[pos1]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[pos2]!!.previousAndNextMoves.depth)
-    assertEquals(3, nodeMap[pos3]!!.previousAndNextMoves.depth)
-    assertEquals(4, nodeMap[pos4]!!.previousAndNextMoves.depth)
-    assertEquals(5, nodeMap[pos5]!!.previousAndNextMoves.depth)
-    assertEquals(6, nodeMap[pos6]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[pos1]!!.depth)
+    assertEquals(2, nodeMap[pos2]!!.depth)
+    assertEquals(3, nodeMap[pos3]!!.depth)
+    assertEquals(4, nodeMap[pos4]!!.depth)
+    assertEquals(5, nodeMap[pos5]!!.depth)
+    assertEquals(6, nodeMap[pos6]!!.depth)
   }
 
   @Test
@@ -541,11 +541,11 @@ class TestBookExplorer : TestWithKoin {
     val nodeMap = nodes.associateBy { it.positionKey }
 
     assertEquals(5, nodes.size)
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[pos1]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[pos2]!!.previousAndNextMoves.depth)
-    assertEquals(3, nodeMap[pos3]!!.previousAndNextMoves.depth)
-    assertEquals(4, nodeMap[pos4]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[pos1]!!.depth)
+    assertEquals(2, nodeMap[pos2]!!.depth)
+    assertEquals(3, nodeMap[pos3]!!.depth)
+    assertEquals(4, nodeMap[pos4]!!.depth)
   }
 
   @Test
@@ -578,11 +578,11 @@ class TestBookExplorer : TestWithKoin {
     val nodeMap = nodes.associateBy { it.positionKey }
 
     assertEquals(5, nodes.size)
-    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.previousAndNextMoves.depth)
-    assertEquals(1, nodeMap[pos1]!!.previousAndNextMoves.depth)
-    assertEquals(2, nodeMap[pos2]!!.previousAndNextMoves.depth)
-    assertEquals(3, nodeMap[pos3]!!.previousAndNextMoves.depth)
-    assertEquals(4, nodeMap[pos4]!!.previousAndNextMoves.depth)
+    assertEquals(0, nodeMap[PositionKey.START_POSITION]!!.depth)
+    assertEquals(1, nodeMap[pos1]!!.depth)
+    assertEquals(2, nodeMap[pos2]!!.depth)
+    assertEquals(3, nodeMap[pos3]!!.depth)
+    assertEquals(4, nodeMap[pos4]!!.depth)
   }
 
   @Test

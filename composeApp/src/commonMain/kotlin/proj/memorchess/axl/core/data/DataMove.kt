@@ -21,7 +21,7 @@ data class DataMove(
    *
    * Bad moves are always isolated: previous and the next moves are good.
    */
-  var isGood: Boolean? = null,
+  val isGood: Boolean? = null,
 
   /** Whether the move has been deleted. */
   val isDeleted: Boolean = false,
@@ -42,7 +42,7 @@ data class DataMove(
     val origin: PositionKey,
     val destination: PositionKey,
     val move: String,
-    var isGood: Boolean?,
+    val isGood: Boolean?,
     val isDeleted: Boolean,
   ) {
     constructor(

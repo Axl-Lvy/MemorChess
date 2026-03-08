@@ -171,7 +171,12 @@ class TestSupabaseQueryManager : TestAuthenticated() {
     val updatedAt = DateUtil.now()
     val positionKey = engine.toPositionKey()
     val node =
-      DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday(), updatedAt)
+      DataNode(
+        positionKey,
+        PreviousAndNextMoves(),
+        PreviousAndNextDate.dummyToday(),
+        updatedAt = updatedAt,
+      )
     remoteDatabase.insertNodes(node)
 
     // Act
@@ -190,7 +195,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
         engine.toPositionKey(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
-        DateUtil.now(),
+        updatedAt = DateUtil.now(),
       )
 
     // Act
