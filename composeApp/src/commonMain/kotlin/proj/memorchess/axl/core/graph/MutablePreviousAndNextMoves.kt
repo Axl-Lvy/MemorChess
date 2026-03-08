@@ -78,7 +78,9 @@ class MutablePreviousAndNextMoves(
 
   /** Sets the isGood property to `true` for all previous moves. */
   fun setPreviousMovesAsGood() {
-    _previousMoves.replaceAll { _, move -> move.copy(isGood = true) }
+    for ((key, move) in _previousMoves) {
+      _previousMoves[key] = move.copy(isGood = true)
+    }
   }
 
   /**
@@ -87,7 +89,9 @@ class MutablePreviousAndNextMoves(
    * If a move was already marked (good or bad), it will not be changed.
    */
   fun setPreviousMovesAsBadIfNotMarked() {
-    _previousMoves.replaceAll { _, move -> move.copy(isGood = move.isGood ?: false) }
+    for ((key, move) in _previousMoves) {
+      _previousMoves[key] = move.copy(isGood = move.isGood ?: false)
+    }
   }
 
   // --- Snapshot methods ---
