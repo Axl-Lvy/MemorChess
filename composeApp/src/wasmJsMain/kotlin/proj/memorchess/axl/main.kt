@@ -8,6 +8,7 @@ import androidx.navigation.bindToBrowserNavigation
 import kotlinx.browser.document
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
+import proj.memorchess.axl.core.config.FeatureFlags
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.ui.AnonLandingPage
 import proj.memorchess.axl.ui.App
@@ -24,7 +25,7 @@ fun main() {
 @OptIn(ExperimentalBrowserHistoryApi::class)
 @Composable
 private fun NoAccountProtection(authManager: AuthManager = koinInject()) {
-  if (authManager.user == null) {
+  if (FeatureFlags.isAuthEnabled && authManager.user == null) {
     AnonLandingPage()
   } else {
     App { it.callDelegate { navHostController -> navHostController.bindToBrowserNavigation() } }

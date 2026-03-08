@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlin.time.Instant
+import proj.memorchess.axl.core.config.FeatureFlags
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.date.DateUtil.isAlmostEqual
@@ -32,9 +33,11 @@ class DatabaseSynchronizer(
     if (!localDatabase.isActive()) {
       isSynced = true
     }
-    authManager.registerListener {
-      if (it is SessionStatus.Authenticated) {
-        lastUpdates.value = getLastUpdates() ?: Pair(null, null)
+    if (FeatureFlags.isAuthEnabled) {
+      authManager.registerListener {
+        if (it is SessionStatus.Authenticated) {
+          lastUpdates.value = getLastUpdates() ?: Pair(null, null)
+        }
       }
     }
   }
