@@ -7,8 +7,8 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.NextDateCalculator
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.graph.nodes.PersonalNode
 
 /**
  * Trainer based on a node.
@@ -20,7 +20,8 @@ import proj.memorchess.axl.core.graph.nodes.PersonalNode
 class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (DataMove?) -> Unit) :
   InteractionsManager(GameEngine(node.positionKey)) {
 
-  private val nodeManager: NodeManager<PersonalNode> by inject()
+  private val nodeManager: NodeManager by inject()
+  private val treeRepository: TreeRepository by inject()
 
   private var isCorrect: Boolean = true
 
@@ -61,6 +62,6 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
         previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
       )
     nodeManager.cacheNode(dataNode)
-    dataNode.save()
+    treeRepository.saveNode(dataNode)
   }
 }

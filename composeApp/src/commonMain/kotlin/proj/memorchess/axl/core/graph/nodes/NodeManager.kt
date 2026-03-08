@@ -1,104 +1,82 @@
 package proj.memorchess.axl.core.graph.nodes
 
 import co.touchlab.kermit.Logger
-import org.koin.core.component.KoinComponent
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.OpeningTree
+import proj.memorchess.axl.core.graph.TrainingSchedule
+import proj.memorchess.axl.core.graph.TreeRepository
 
 /**
- * NodeManager is responsible for creating and managing nodes in the chess position graph.
+ * NodeManager is responsible for managing nodes in the chess position graph.
  *
- * @param NodeT The type of node being managed.
- * @property nodeConstructor A function to construct a new node.
- * @property nodeCache The cache used to store and retrieve nodes and their moves.
+ * @property openingTree The opening tree holding the graph structure.
+ * @property treeRepository The repository for persistence operations.
+ * @property trainingSchedule Optional training schedule for spaced-repetition.
  */
-class NodeManager<NodeT : Node<NodeT>>(
-  private val nodeConstructor: (PositionKey, PreviousAndNextMoves, NodeT?, NodeT?) -> NodeT,
-  private val nodeCache: NodeCache,
-) : KoinComponent {
+class NodeManager(
+  val openingTree: OpeningTree,
+  val treeRepository: TreeRepository,
+  private val trainingSchedule: TrainingSchedule? = null,
+) {
 
-  /**
-   * Creates the root node.
-   *
-   * @param startPosition The position identifier to start from. If null, the standard starting
-   *   position will be used.
-   * @return The root node.
-   */
-  fun createInitialNode(startPosition: PositionKey? = null): NodeT {
-    val result =
-      if (startPosition == null) {
-        val moves = nodeCache.getOrCreate(PositionKey.START_POSITION, 0)
-        nodeConstructor(PositionKey.START_POSITION, moves, null, null)
-      } else {
-        val moves = nodeCache.get(startPosition)
-        checkNotNull(moves) { "Position $startPosition not known." }
-        nodeConstructor(startPosition, moves, null, null)
-      }
-    return result
+  /** Resets the cache from the source. */
+  suspend fun resetCacheFromSource() {
+    treeRepository.loadInto(openingTree, trainingSchedule)
   }
 
-  /**
-   * Creates a node.
-   *
-   * @param engine The game engine at the position we want to store.
-   * @param previous The previous node in the graph.
-   * @param move The move that led to this position.
-   * @return The node.
-   */
-  fun createNode(engine: GameEngine, previous: NodeT, move: String): NodeT {
-    val previousNodeMoves =
-      nodeCache.getOrCreate(previous.position, previous.previousAndNextMoves.depth)
-    val destination = engine.toPositionKey()
-    val dataMove =
-      previousNodeMoves.nextMoves.getOrPut(move) { DataMove(previous.position, destination, move) }
-    val newNodeLinkedMoves =
-      nodeCache.getOrCreate(destination, previous.previousAndNextMoves.depth + 1)
-    val previouslyStoredPreviousNode = newNodeLinkedMoves.addPreviousMove(dataMove)
-    if (previouslyStoredPreviousNode != null && previouslyStoredPreviousNode != dataMove) {
-      LOGGER.w { "Overwriting previous move: $previouslyStoredPreviousNode with $dataMove" }
+  /** Registers a move in the opening tree and returns the [DataMove]. */
+  fun registerMove(
+    origin: PositionKey,
+    destination: PositionKey,
+    move: String,
+    depth: Int,
+  ): DataMove {
+    val originMoves = openingTree.getOrCreate(origin, depth)
+    val dataMove = originMoves.nextMoves.getOrPut(move) { DataMove(origin, destination, move) }
+    val destMoves = openingTree.getOrCreate(destination, depth + 1)
+    val prev = destMoves.addPreviousMove(dataMove)
+    if (prev != null && prev != dataMove) {
+      LOGGER.w { "Overwriting previous move: $prev with $dataMove" }
     }
-    val newNode = nodeConstructor(destination, newNodeLinkedMoves, previous, null)
-    previous.addChild(dataMove, newNode)
-    return newNode
+    return dataMove
   }
 
   fun clearNextMoves(positionKey: PositionKey) {
-    nodeCache.clearNextMoves(positionKey)
+    openingTree.clearNextMoves(positionKey)
+    LOGGER.i { "Cleared next moves for position: $positionKey" }
   }
 
   suspend fun clearPreviousMove(positionKey: PositionKey, move: DataMove) {
-    nodeCache.clearPreviousMove(positionKey, move)
+    openingTree.clearPreviousMove(positionKey, move.move)
+    LOGGER.i { "Cleared previous move $move for position: $positionKey" }
+    treeRepository.deleteMove(move.origin, move.move)
   }
 
-  /** Resets the cache from the database. */
-  suspend fun resetCacheFromSource() {
-    nodeCache.resetFromSource()
-  }
-
+  /** Gets the next node to learn for the given day. */
   fun getNextNodeToLearn(day: Int, previousPlayedMove: DataMove?): DataNode? {
+    val schedule = trainingSchedule ?: return null
     if (previousPlayedMove == null) {
-      return nodeCache.getNodeFromDay(day)
+      return schedule.getNodeFromDay(day)
     }
-    val candidateNodeFromPrevious =
-      nodeCache.getNodeToTrainAfterPosition(day, previousPlayedMove.destination)
-    if (candidateNodeFromPrevious != null) {
-      return candidateNodeFromPrevious
-    }
-    return nodeCache.getNodeFromDay(day)
+    return schedule.getNodeToTrainAfterPosition(day, previousPlayedMove.destination)
+      ?: schedule.getNodeFromDay(day)
   }
 
+  /** Gets the number of nodes to train for the given day. */
   fun getNumberOfNodesToTrain(day: Int): Int {
-    return nodeCache.getNumberOfNodesToTrain(day)
+    return trainingSchedule?.getNumberOfNodesToTrain(day) ?: 0
   }
 
+  /** Caches a node in the training schedule. */
   fun cacheNode(node: DataNode) {
-    nodeCache.cacheNode(node)
+    trainingSchedule?.addNode(node)
   }
 
+  /** Checks if a position is known in the tree. */
   fun isKnown(position: PositionKey): Boolean {
-    return nodeCache.get(position) != null
+    return openingTree.get(position) != null
   }
 }
 

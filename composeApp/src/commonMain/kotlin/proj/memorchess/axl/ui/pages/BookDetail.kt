@@ -33,7 +33,6 @@ import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.UserPermission
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
-import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.BookExplorer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
@@ -51,7 +50,7 @@ fun BookDetail(
   bookId: Long,
   editing: Boolean = false,
   bookQueryManager: SupabaseBookQueryManager = koinInject(),
-  nodeManager: NodeManager<IsolatedBookNode> = koinInject(named("book")) { parametersOf(bookId) },
+  nodeManager: NodeManager = koinInject(named("book")) { parametersOf(bookId) },
   authManager: AuthManager = koinInject(),
   toastRenderer: ToastRenderer = koinInject(),
 ) {
@@ -99,7 +98,7 @@ private suspend fun loadBookData(
   bookId: Long,
   editing: Boolean,
   bookQueryManager: SupabaseBookQueryManager,
-  nodeManager: NodeManager<IsolatedBookNode>,
+  nodeManager: NodeManager,
   authManager: AuthManager,
   toastRenderer: ToastRenderer,
   onBookLoaded: (Book, BookExplorer) -> Unit,
@@ -113,7 +112,7 @@ private suspend fun loadBookData(
     }
 
     nodeManager.resetCacheFromSource()
-    val explorer = BookExplorer(fetchedBook, canEdit, nodeManager)
+    val explorer = BookExplorer(fetchedBook, canEdit, nodeManager, nodeManager.treeRepository)
     onBookLoaded(fetchedBook, explorer)
   } catch (e: Exception) {
     LOGGER.e(e) { "Failed to load book $bookId" }

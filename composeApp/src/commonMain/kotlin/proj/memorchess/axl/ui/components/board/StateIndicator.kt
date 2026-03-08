@@ -12,7 +12,7 @@ import compose.icons.feathericons.AlertCircle
 import compose.icons.feathericons.ArrowRightCircle
 import compose.icons.feathericons.CheckCircle
 import compose.icons.feathericons.HelpCircle
-import proj.memorchess.axl.core.graph.nodes.Node.NodeState
+import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.ui.theme.goodTint
 
 /**

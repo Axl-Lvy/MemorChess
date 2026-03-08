@@ -23,7 +23,6 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.graph.nodes.Node
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
@@ -42,8 +41,8 @@ import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
  * @param header Optional header content to display above the explorer.
  */
 @Composable
-fun <NodeT : Node<NodeT>> ExplorerContent(
-  explorer: LinesExplorer<NodeT>,
+fun ExplorerContent(
+  explorer: LinesExplorer,
   saveButton: @Composable (Modifier) -> Unit,
   deleteButton: @Composable (Modifier) -> Unit,
   header: @Composable () -> Unit = {},

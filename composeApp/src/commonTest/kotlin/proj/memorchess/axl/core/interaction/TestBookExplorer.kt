@@ -19,7 +19,6 @@ import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
-import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.BookExplorer
 import proj.memorchess.axl.test_util.Awaitility
@@ -87,9 +86,9 @@ class TestBookExplorer : TestWithKoin {
     bookQueryManager.addMoveToBook(testBook.id, BookMove(e4Position, e5Position, "e5", false))
     bookQueryManager.addMoveToBook(testBook.id, BookMove(e5Position, nf3Position, "Nf3", true))
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, canEdit, nodeManager)
+    bookExplorer = BookExplorer(testBook, canEdit, nodeManager, nodeManager.treeRepository)
   }
 
   @Test
@@ -219,9 +218,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -250,9 +249,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -291,9 +290,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -327,9 +326,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -376,9 +375,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -420,9 +419,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -456,9 +455,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -494,9 +493,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -532,9 +531,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -569,9 +568,9 @@ class TestBookExplorer : TestWithKoin {
     val books = bookQueryManager.getAllBooks()
     testBook = books.find { it.id == bookId }!!
 
-    val nodeManager: NodeManager<IsolatedBookNode> by inject(named("book")) { parametersOf(bookId) }
+    val nodeManager: NodeManager by inject(named("book")) { parametersOf(bookId) }
     nodeManager.resetCacheFromSource()
-    bookExplorer = BookExplorer(testBook, false, nodeManager)
+    bookExplorer = BookExplorer(testBook, false, nodeManager, nodeManager.treeRepository)
 
     bookExplorer.downloadBookToRepertoire()
 
@@ -742,10 +741,8 @@ class TestBookExplorer : TestWithKoin {
     val bookId2 = bookQueryManager.createBook("Test Book 2")
 
     try {
-      val nodeManager1: NodeManager<IsolatedBookNode> by
-        inject(named("book")) { parametersOf(bookId1) }
-      val nodeManager2: NodeManager<IsolatedBookNode> by
-        inject(named("book")) { parametersOf(bookId2) }
+      val nodeManager1: NodeManager by inject(named("book")) { parametersOf(bookId1) }
+      val nodeManager2: NodeManager by inject(named("book")) { parametersOf(bookId2) }
 
       assertNotEquals(
         nodeManager1,

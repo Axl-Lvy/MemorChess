@@ -3,50 +3,59 @@ package proj.memorchess.axl.core.interactions
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.nodes.Node
+import proj.memorchess.axl.core.graph.NavigationHistory
+import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
-open class LinesExplorer<NodeT : Node<NodeT>>(
+open class LinesExplorer(
   position: PositionKey? = null,
-  protected val nodeManager: NodeManager<NodeT>,
+  protected val nodeManager: NodeManager,
+  protected val treeRepository: TreeRepository,
 ) : InteractionsManager(if (position == null) GameEngine() else GameEngine(position)) {
 
-  /** The current node in the exploration tree. */
-  private var node = nodeManager.createInitialNode(position)
+  private val startPosition = position ?: PositionKey.START_POSITION
 
-  var state by mutableStateOf(node.getState())
+  init {
+    nodeManager.openingTree.getOrCreate(startPosition, 0)
+  }
+
+  protected val navigation = NavigationHistory(startPosition)
+
+  var state by mutableStateOf(nodeManager.openingTree.computeState(startPosition, null))
 
   /** Moves back in the exploration tree to the previous node. */
   fun back() {
-    val parent = node.previous
-    if (parent != null) {
-      node = parent
+    val result = navigation.back()
+    if (result != null) {
+      engine = GameEngine(navigation.current)
     } else {
-      val previousMove = node.previousAndNextMoves.previousMoves.values.firstOrNull()
+      val moves = nodeManager.openingTree.get(navigation.current)
+      val previousMove = moves?.previousMoves?.values?.firstOrNull()
       if (previousMove == null) {
         toastRenderer.info("No previous move.")
         return
       }
-      node = nodeManager.createInitialNode(previousMove.origin)
+      navigation.reset(previousMove.origin)
+      engine = GameEngine(navigation.current)
     }
-    engine = node.createEngine()
-    state = node.getState()
+    state = nodeManager.openingTree.computeState(navigation.current, navigation.arrivedVia?.origin)
     callCallBacks(false)
   }
 
   /** Moves forward in the exploration tree to the next child node. */
   fun forward() {
-    val firstChild = node.next
-    if (firstChild != null) {
-      val move =
-        node.previousAndNextMoves.nextMoves.values.find { it.destination == firstChild.position }
-      checkNotNull(move) { "No move found to go to ${firstChild.position}" }
-      node = firstChild
+    val result = navigation.forward()
+    if (result != null) {
+      val (move, _) = result
       engine.playSanMove(move.move)
-      state = node.getState()
+      state =
+        nodeManager.openingTree.computeState(navigation.current, navigation.arrivedVia?.origin)
       callCallBacks(false)
     } else {
       toastRenderer.info("No next move.")
@@ -59,35 +68,86 @@ open class LinesExplorer<NodeT : Node<NodeT>>(
    * @return A list of moves that can be played from the current position.
    */
   fun getNextMoves(): List<String> {
-    return node.previousAndNextMoves.nextMoves.filter { it.value.isGood != null }.keys.sorted()
+    val moves = nodeManager.openingTree.get(navigation.current) ?: return emptyList()
+    return moves.nextMoves.filter { it.value.isGood != null }.keys.sorted()
   }
 
   /** Resets the LinesExplorer to the root node. */
   fun reset() {
-    node = nodeManager.createInitialNode()
-    state = node.getState()
-    super.reset(node.position)
+    val resetPosition = PositionKey.START_POSITION
+    nodeManager.openingTree.getOrCreate(resetPosition, 0)
+    navigation.reset(resetPosition)
+    state = nodeManager.openingTree.computeState(resetPosition, null)
+    super.reset(resetPosition)
   }
 
   override suspend fun afterPlayMove(move: String) {
-    node = nodeManager.createNode(engine, node, move)
-    state = node.getState()
+    val origin = navigation.current
+    val destination = engine.toPositionKey()
+    val dataMove = nodeManager.registerMove(origin, destination, move, navigation.depth)
+    navigation.push(dataMove, destination)
+    state = nodeManager.openingTree.computeState(navigation.current, navigation.arrivedVia?.origin)
     callCallBacks()
   }
 
   /** Saves the current node as coming from a good move. */
   suspend fun save() {
-    node.saveGood()
-    state = node.getState()
+    val currentMoves = nodeManager.openingTree.get(navigation.current) ?: return
+    // Mark current position's previous moves as good
+    currentMoves.setPreviousMovesAsGood()
+    treeRepository.saveNode(
+      DataNode(
+        navigation.current,
+        currentMoves.filterValidMoves(),
+        PreviousAndNextDate.dummyToday(),
+      )
+    )
+
+    // Walk back through navigation path alternating bad/good
+    val path = navigation.getBackPath().reversed()
+    for ((index, entry) in path.withIndex()) {
+      val (position, _) = entry
+      val moves = nodeManager.openingTree.get(position) ?: continue
+      if (index % 2 == 0) {
+        moves.setPreviousMovesAsBadIfNotMarked()
+      } else {
+        moves.setPreviousMovesAsGood()
+      }
+      treeRepository.saveNode(
+        DataNode(position, moves.filterValidMoves(), PreviousAndNextDate.dummyToday())
+      )
+    }
+
+    state = nodeManager.openingTree.computeState(navigation.current, navigation.arrivedVia?.origin)
     toastRenderer.info("Saved")
   }
 
-  /** Deletes the current node and reloads the explorer. */
+  /** Deletes the current node's children and reloads the explorer. */
   suspend fun delete() {
-    node.delete()
-    state = node.getState()
+    val currentMoves = nodeManager.openingTree.get(navigation.current)
+    // Delete children recursively
+    currentMoves?.nextMoves?.values?.toList()?.forEach { move ->
+      deleteFromPrevious(move.destination, move)
+    }
+    // Clear this node's next moves
+    nodeManager.clearNextMoves(navigation.current)
+    treeRepository.deletePosition(navigation.current)
+
+    navigation.clearForward()
+    state = nodeManager.openingTree.computeState(navigation.current, navigation.arrivedVia?.origin)
     toastRenderer.info("Deleted")
     callCallBacks()
+  }
+
+  private suspend fun deleteFromPrevious(positionKey: PositionKey, viaMove: DataMove) {
+    nodeManager.clearPreviousMove(positionKey, viaMove)
+    val moves = nodeManager.openingTree.get(positionKey)
+    if (moves != null && moves.previousMoves.isEmpty()) {
+      moves.nextMoves.values.toList().forEach { move -> deleteFromPrevious(move.destination, move) }
+      nodeManager.clearNextMoves(positionKey)
+      moves.nextMoves.clear()
+      treeRepository.deletePosition(positionKey)
+    }
   }
 
   /**
@@ -96,6 +156,6 @@ open class LinesExplorer<NodeT : Node<NodeT>>(
    * @return The number of nodes that would be deleted.
    */
   fun calculateNumberOfNodeToDelete(): Int {
-    return node.calculateNumberOfNodesToDelete()
+    return nodeManager.openingTree.countDescendants(navigation.current)
   }
 }
