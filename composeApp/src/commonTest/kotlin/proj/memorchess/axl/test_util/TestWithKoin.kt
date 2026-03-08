@@ -12,6 +12,7 @@ import org.koin.core.context.stopKoin
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import proj.memorchess.axl.core.config.FeatureFlags
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
@@ -22,6 +23,7 @@ interface TestWithKoin : KoinComponent {
 
   @BeforeTest
   fun setUp() {
+    FeatureFlags.isAuthEnabled = true
     startKoin { modules(*initKoinModules(), initTestModule()) }
     MOVE_ANIMATION_DURATION_SETTING.setValue(Duration.ZERO)
     ToastRendererForTests.clear()
@@ -30,6 +32,7 @@ interface TestWithKoin : KoinComponent {
   @AfterTest
   fun tearDown() {
     stopKoin()
+    FeatureFlags.isAuthEnabled = false
     ToastRendererForTests.clear()
   }
 

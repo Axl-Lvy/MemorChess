@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
+import proj.memorchess.axl.core.config.FeatureFlags
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.ui.components.buttons.SignInButton
@@ -106,9 +107,11 @@ fun Settings(
         Text("Erase all data")
       }
 
-      // --- Sign In Button ---
-      SignInButton()
-      SyncStatusSection()
+      if (FeatureFlags.isAuthEnabled) {
+        // --- Sign In Button ---
+        SignInButton()
+        SyncStatusSection()
+      }
     }
   }
 }
