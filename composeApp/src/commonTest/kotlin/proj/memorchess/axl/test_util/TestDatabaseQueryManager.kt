@@ -8,7 +8,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 
 /**
  * A test in-memory database.

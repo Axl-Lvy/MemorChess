@@ -1,4 +1,4 @@
-package proj.memorchess.axl.core.graph.nodes
+package proj.memorchess.axl.core.graph
 
 import proj.memorchess.axl.core.data.DataMove
 

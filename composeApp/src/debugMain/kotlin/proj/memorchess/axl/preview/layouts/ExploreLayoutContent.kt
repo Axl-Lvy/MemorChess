@@ -18,9 +18,8 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.graph.nodes.Node
+import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.Piece
@@ -49,7 +48,7 @@ internal val previewExploreLayoutContent =
         }
       }
     },
-    stateIndicators = { StateIndicator(it, Node.NodeState.FIRST) },
+    stateIndicators = { StateIndicator(it, NodeState.FIRST) },
     playerTurnIndicator = { Piece(ChessPiece(PieceKind.KING, Player.WHITE)) },
     saveButton = {
       Button(
@@ -70,7 +69,7 @@ internal val previewExploreLayoutContent =
       }
     },
     board = {
-      val nodeManager: NodeManager<PersonalNode> = koinInject()
+      val nodeManager: NodeManager = koinInject()
       Board(inverted = false, interactionsManager = LinesExplorer(nodeManager = nodeManager))
     },
   )

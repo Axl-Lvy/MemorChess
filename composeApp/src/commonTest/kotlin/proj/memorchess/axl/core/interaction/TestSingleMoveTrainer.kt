@@ -12,7 +12,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.test_util.TestWithKoin
 
@@ -46,7 +46,7 @@ class TestSingleMoveTrainer : TestWithKoin {
         PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
       )
 
-    testNode.save()
+    database.insertNodes(testNode)
 
     singleMoveTrainer = SingleMoveTrainer(testNode) {}
   }

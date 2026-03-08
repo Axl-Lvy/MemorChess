@@ -8,14 +8,13 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.getGames
 
 class TestLinesExplorer : TestWithKoin {
-  private lateinit var interactionsManager: LinesExplorer<PersonalNode>
-  private val nodeManager: NodeManager<PersonalNode> by inject()
+  private lateinit var interactionsManager: LinesExplorer
+  private val nodeManager: NodeManager by inject()
   private val database: DatabaseQueryManager by inject()
 
   private fun initialize() {

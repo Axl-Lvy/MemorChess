@@ -1,12 +1,9 @@
 package proj.memorchess.axl.core.data
 
-import co.touchlab.kermit.Logger
 import kotlin.time.Instant
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 
 /**
  * Data class representing a node in the database.
@@ -23,15 +20,7 @@ data class DataNode(
   val previousAndNextTrainingDate: PreviousAndNextDate,
   val updatedAt: Instant = DateUtil.now(),
   val isDeleted: Boolean = false,
-) : KoinComponent {
-
-  private val db by inject<DatabaseQueryManager>()
-
-  /** Saves this node. */
-  suspend fun save() {
-    LOGGER.i { "saving $this" }
-    db.insertNodes(this)
-  }
+) {
 
   override fun equals(other: Any?) =
     other is DataNode && EssentialData(this) == EssentialData(other)
@@ -55,5 +44,3 @@ data class DataNode(
     )
   }
 }
-
-private val LOGGER = Logger.withTag("DataNode")

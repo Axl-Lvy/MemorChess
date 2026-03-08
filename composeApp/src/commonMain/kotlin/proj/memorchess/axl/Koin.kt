@@ -16,11 +16,12 @@ import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
 import proj.memorchess.axl.core.data.online.database.DatabaseUploader
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
-import proj.memorchess.axl.core.graph.nodes.BookBasedNodeCache
-import proj.memorchess.axl.core.graph.nodes.DbBasedNodeCache
-import proj.memorchess.axl.core.graph.nodes.IsolatedBookNode
+import proj.memorchess.axl.core.graph.BookTreeRepository
+import proj.memorchess.axl.core.graph.DbTreeRepository
+import proj.memorchess.axl.core.graph.OpeningTree
+import proj.memorchess.axl.core.graph.TrainingSchedule
+import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
@@ -47,18 +48,18 @@ fun initKoinModules(): Array<Module> {
   }
 
   val nodeModule = module {
-    singleOf(::DbBasedNodeCache)
-    single<DbBasedNodeCache> { DbBasedNodeCache() }
-    single<NodeManager<PersonalNode>> { NodeManager(::PersonalNode, get<DbBasedNodeCache>()) }
-    single<MutableMap<Long, NodeManager<IsolatedBookNode>>> { mutableMapOf() }
+    single { OpeningTree() }
+    single { TrainingSchedule(get()) }
+    single<TreeRepository> { DbTreeRepository(get()) }
+    single { NodeManager(get<OpeningTree>(), get<TreeRepository>(), get<TrainingSchedule>()) }
+    single<MutableMap<Long, NodeManager>> { mutableMapOf() }
     factory(named("book")) { (bookId: Long) ->
-      val cache: MutableMap<Long, NodeManager<IsolatedBookNode>> = get()
+      val cache: MutableMap<Long, NodeManager> = get()
       cache.getOrPut(bookId) {
         NodeManager(
-          nodeConstructor = { position, previousAndNextMoves, previous, next ->
-            IsolatedBookNode(bookId, position, previousAndNextMoves, previous, next)
-          },
-          BookBasedNodeCache(bookId),
+          openingTree = OpeningTree(),
+          treeRepository = BookTreeRepository(bookId, get(), get()),
+          trainingSchedule = null,
         )
       }
     }

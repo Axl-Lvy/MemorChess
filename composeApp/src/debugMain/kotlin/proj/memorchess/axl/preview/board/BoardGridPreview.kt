@@ -14,7 +14,6 @@ import de.drick.compose.hotpreview.NavigationBarMode
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.BoardGrid
 import proj.memorchess.axl.ui.components.board.BoardGridState
@@ -31,7 +30,7 @@ import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 @Composable
 private fun BoardGridPreview(
   @HotPreviewParameter(BoardGridPreviewProvider::class) params: ChessBoardColorScheme,
-  nodeManager: NodeManager<PersonalNode> = koinInject(),
+  nodeManager: NodeManager = koinInject(),
 ) {
   CHESS_BOARD_COLOR_SETTING.setValue(params)
   Column(modifier = Modifier.fillMaxSize()) {

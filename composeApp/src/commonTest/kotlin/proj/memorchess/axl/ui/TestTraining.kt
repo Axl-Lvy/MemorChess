@@ -22,7 +22,7 @@ import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.graph.nodes.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.RememberLastRouteNavigator
 import proj.memorchess.axl.test_util.TEST_TIMEOUT

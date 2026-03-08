@@ -10,13 +10,12 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.nodes.NodeManager
-import proj.memorchess.axl.core.graph.nodes.PersonalNode
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestTrainingNodeOrder : TestWithKoin {
 
-  private val nodeManager: NodeManager<PersonalNode> by inject()
+  private val nodeManager: NodeManager by inject()
   private val database: DatabaseQueryManager by inject()
 
   @BeforeTest
