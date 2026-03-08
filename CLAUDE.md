@@ -25,9 +25,6 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 # Code formatting (ktfmt, Google style)
 ./gradlew ktfmtCheck                           # Check formatting
 ./gradlew ktfmtFormat                          # Auto-format
-
-# Coverage
-./gradlew koverXmlReportJvm                    # Kover JVM coverage report
 ```
 
 ## Architecture
@@ -36,10 +33,10 @@ Single Gradle module (`composeApp`) with Kotlin Multiplatform source sets: `comm
 
 ### Core layer (`core/`)
 
-- **`engine/`** — Chess engine wrapper around the `chess-core` library (`io.github.alluhemanth:chess-core`). `GameEngine` is the central class: manages board state, validates moves (SAN and coordinate-based), handles promotions, and produces position FENs. Helper types: `Player`, `ChessPiece`, `PieceKind`, `BoardLocation`, `TileColor`.
-- **`graph/nodes/`** — Opening tree as a graph of `Node`s. `NodeManager` caches and navigates nodes. Two node types: `PersonalNode` (user's repertoire) and `IsolatedBookNode` (community-shared book). Caches: `DbBasedNodeCache` (local DB), `BookBasedNodeCache` (remote book).
-- **`interactions/`** — Game interaction controllers. `InteractionsManager` (abstract) handles tile selection, move execution, and promotion flow. Concrete implementations: `LinesExplorer` (free exploration), `SingleMoveTrainer` (spaced-repetition training), `BookExplorer`.
-- **`data/`** — Persistence layer. `DatabaseQueryManager` interface with `CompositeDatabase` (local + remote). Local storage via Room (`nonJsMain`). Remote via Supabase (`SupabaseQueryManager`, `SupabaseBookQueryManager`). `DatabaseSynchronizer` syncs local/remote.
+- **`engine/`** — Chess engine wrapper around the `chess-core` library (`io.github.alluhemanth:chess-core`). `GameEngine` is the central class: manages board state, validates moves (SAN and coordinate-based), handles promotions, and produces position FENs. Value classes: `Fen` (full 6-part FEN string) and `PositionKey` (cropped FEN without move counters, used as graph key). Helper types: `Player`, `ChessPiece`, `PieceKind`, `BoardLocation`, `TileColor`.
+- **`graph/`** — Opening tree as a graph keyed by `PositionKey`. `OpeningTree` is the in-memory graph storing `MutablePreviousAndNextMoves` per position. `TreeRepository` interface abstracts persistence (`DbTreeRepository` for local DB, `BookTreeRepository` for remote book). `NodeManager` orchestrates tree and repository. `NavigationHistory` handles back/forward navigation. `TrainingSchedule` manages spaced-repetition scheduling; `TrainingEntry` is a lightweight reference to trainable positions. `NodeState` enum represents position state. Mutable/immutable split: `MutablePreviousAndNextMoves` (live) vs `PreviousAndNextMoves` (snapshots for persistence).
+- **`interactions/`** — Game interaction controllers. `InteractionsManager` (abstract) handles tile selection, move execution, and promotion flow. Concrete implementations: `LinesExplorer` (free exploration), `SingleMoveTrainer` (spaced-repetition training), `BookExplorer` (exploring and downloading community books).
+- **`data/`** — Persistence layer. `DatabaseQueryManager` interface with `CompositeDatabase` (local + remote). Local storage via Room (`nonJsMain`). Remote via Supabase (`SupabaseQueryManager`). `DatabaseSynchronizer` syncs local/remote. Sub-package `book/` contains `Book`, `BookMove`, and `SupabaseBookQueryManager` for community opening books.
 - **`config/`** — App configuration and secrets. `SecretsTemplate.kt` defines secret fields; `Secrets.kt` is generated at build time from `local.properties`.
 - **`date/`** — Spaced repetition scheduling (`NextDateCalculator`).
 
