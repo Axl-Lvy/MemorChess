@@ -274,4 +274,43 @@ class TestGraphSerializer {
   fun invalidInputThrows() {
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize("garbage") }
   }
+
+  @Test
+  fun missingBlankLineSeparatorThrows() {
+    shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize("single section only") }
+  }
+
+  @Test
+  fun nodeLineWithWrongColumnCountThrows() {
+    val input = "1\tpos\t0\n\n"
+    shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize(input) }
+  }
+
+  @Test
+  fun edgeLineWithWrongColumnCountThrows() {
+    val input = "1\t$startPos\t0\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n\n1\t2"
+    shouldThrow<Exception> { GraphSerializer.deserialize(input) }
+  }
+
+  @Test
+  fun edgeReferencingUnknownNodeThrows() {
+    val input =
+      "1\t$startPos\t0\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n\n" +
+        "1\t99\te4\t+\t2026-01-01T00:00:00Z"
+    shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize(input) }
+  }
+
+  @Test
+  fun invalidIsGoodValueThrows() {
+    val input =
+      "1\t$startPos\t0\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n" +
+        "2\t$posAfterE4\t1\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n\n" +
+        "1\t2\te4\tX\t2026-01-01T00:00:00Z"
+    shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize(input) }
+  }
+
+  @Test
+  fun emptyStringThrows() {
+    shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize("") }
+  }
 }
