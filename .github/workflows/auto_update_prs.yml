@@ -1,0 +1,27 @@
+name: Auto Update Pull Requests
+
+on:
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  auto-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: 3040538
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Auto update pull request branches
+        uses: maruloop/autoupdate-action@v1
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          pr_filter: "all"
