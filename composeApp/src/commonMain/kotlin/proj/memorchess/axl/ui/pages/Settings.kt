@@ -29,6 +29,7 @@ import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.config.FeatureFlags
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.ui.components.buttons.ImportAndExportButtons
 import proj.memorchess.axl.ui.components.buttons.SignInButton
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
@@ -81,6 +82,10 @@ fun Settings(
         )
         Text("Reset to default values")
       }
+
+      Spacer(modifier = Modifier.height(16.dp))
+
+      ImportAndExportButtons()
 
       Spacer(modifier = Modifier.height(16.dp))
 
