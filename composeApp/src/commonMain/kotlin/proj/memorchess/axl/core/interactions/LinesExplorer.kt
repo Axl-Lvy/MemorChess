@@ -159,7 +159,6 @@ open class LinesExplorer(position: PositionKey? = null, protected val nodeManage
     if (moves != null && moves.previousMoves.isEmpty()) {
       moves.nextMoves.values.toList().forEach { move -> deleteFromPrevious(move.destination, move) }
       nodeManager.clearNextMoves(positionKey)
-      moves.clearNextMoves()
       nodeManager.deletePosition(positionKey)
     }
   }

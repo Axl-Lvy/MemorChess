@@ -17,7 +17,6 @@ class TestTrainingSchedule {
 
   private fun makeEntry(
     positionKey: PositionKey,
-    depth: Int = 0,
     nextDate: kotlinx.datetime.LocalDate = DateUtil.today(),
   ): TrainingEntry {
     return TrainingEntry(positionKey, PreviousAndNextDate(DateUtil.today(), nextDate))
@@ -34,7 +33,7 @@ class TestTrainingSchedule {
     val tree = OpeningTree()
     val schedule = TrainingSchedule(tree)
     tree.registerPosition(startPos, 0)
-    schedule.addEntry(makeEntry(startPos, depth = 0))
+    schedule.addEntry(makeEntry(startPos))
 
     val result = schedule.getEntryFromDay(0)
     assertNotNull(result)
@@ -59,9 +58,9 @@ class TestTrainingSchedule {
     tree.registerPosition(posA, 5)
     tree.registerPosition(startPos, 0)
     tree.registerPosition(posB, 3)
-    schedule.addEntry(makeEntry(posA, depth = 5))
-    schedule.addEntry(makeEntry(startPos, depth = 0))
-    schedule.addEntry(makeEntry(posB, depth = 3))
+    schedule.addEntry(makeEntry(posA))
+    schedule.addEntry(makeEntry(startPos))
+    schedule.addEntry(makeEntry(posB))
 
     val result = schedule.getEntryFromDay(0)
     assertNotNull(result)

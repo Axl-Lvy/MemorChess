@@ -7,6 +7,8 @@ import proj.memorchess.axl.core.data.DataMove
  *
  * Maps are mutable internally but exposed as read-only views. All mutations go through explicit
  * methods. Use [toImmutable] to obtain a snapshot safe for persistence or equality.
+ *
+ * This class is not thread-safe.
  */
 class MutablePreviousAndNextMoves(
   previousMoves: Map<String, DataMove> = emptyMap(),
