@@ -45,6 +45,7 @@ boards, and real fun! ♟️✨
 - Spaced repetition learning powered by the Anki algorithm
 - Track your progress and review tricky lines
 - Cross-platform: Feel the power of [Kotlin Multiplatform](https://www.jetbrains.com/kotlin-multiplatform/)
+- Download pre-saved books then adjust to your wishes
 
 ---
 
