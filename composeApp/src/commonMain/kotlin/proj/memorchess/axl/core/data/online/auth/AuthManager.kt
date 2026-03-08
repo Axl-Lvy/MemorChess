@@ -19,6 +19,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.config.AUTH_ACCESS_TOKEN_SETTINGS
 import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
+import proj.memorchess.axl.core.config.FeatureFlags
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
 import proj.memorchess.axl.core.data.book.UserPermission
 
@@ -33,29 +34,30 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
   private val authListeningScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
   init {
-
-    authListeningScope.launch {
-      supabaseClient.auth.sessionStatus.collect {
-        when (it) {
-          is SessionStatus.Authenticated -> {
-            refreshUser()
-          }
-          SessionStatus.Initializing -> LOGGER.i { "Initializing" }
-          is SessionStatus.RefreshFailure -> {
-            LOGGER.w { "Session expired and could not be refreshed" }
-          }
-          is SessionStatus.NotAuthenticated -> {
-            if (it.isSignOut) {
+    if (FeatureFlags.isAuthEnabled) {
+      authListeningScope.launch {
+        supabaseClient.auth.sessionStatus.collect {
+          when (it) {
+            is SessionStatus.Authenticated -> {
               refreshUser()
-            } else {
-              LOGGER.i { "User not signed in" }
+            }
+            SessionStatus.Initializing -> LOGGER.i { "Initializing" }
+            is SessionStatus.RefreshFailure -> {
+              LOGGER.w { "Session expired and could not be refreshed" }
+            }
+            is SessionStatus.NotAuthenticated -> {
+              if (it.isSignOut) {
+                refreshUser()
+              } else {
+                LOGGER.i { "User not signed in" }
+              }
             }
           }
         }
       }
-    }
-    if (KEEP_LOGGED_IN_SETTING.getValue()) {
-      authListeningScope.launch { tryRestoreSession() }
+      if (KEEP_LOGGED_IN_SETTING.getValue()) {
+        authListeningScope.launch { tryRestoreSession() }
+      }
     }
   }
 
