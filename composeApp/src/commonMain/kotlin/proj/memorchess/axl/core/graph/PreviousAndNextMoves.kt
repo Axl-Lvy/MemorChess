@@ -3,31 +3,21 @@ package proj.memorchess.axl.core.graph
 import proj.memorchess.axl.core.data.DataMove
 
 /**
- * Holds the previous and next moves for a chess position, along with the minimum depth at which we
- * can find those moves.
+ * Immutable snapshot of the previous and next moves for a chess position.
+ *
+ * Safe to use in [data class][DataMove] equality, sets, and maps. For the mutable graph-resident
+ * version, see [MutablePreviousAndNextMoves].
  *
  * @property previousMoves Map of previous moves (keyed by move string).
  * @property nextMoves Map of next moves (keyed by move string).
- * @property depth The minimum depth at which we can find these moves. depth.
  */
 data class PreviousAndNextMoves(
-  val previousMoves: MutableMap<String, DataMove>,
-  val nextMoves: MutableMap<String, DataMove>,
-  var depth: Int,
+  val previousMoves: Map<String, DataMove> = emptyMap(),
+  val nextMoves: Map<String, DataMove> = emptyMap(),
 ) {
-  /** Creates an empty [PreviousAndNextMoves] instance at depth `0`. */
-  constructor() : this(mutableMapOf(), mutableMapOf(), 0)
 
   /**
-   * Creates an empty [PreviousAndNextMoves] instance at a specific depth.
-   *
-   * @param depth The depth to create the instance at.
-   */
-  constructor(depth: Int) : this(mutableMapOf(), mutableMapOf(), depth)
-
-  /**
-   * Creates a [PreviousAndNextMoves] instance from a collection of previous and next moves at depth
-   * `0`.
+   * Creates an instance from collections of previous and next moves.
    *
    * @param previousMoves The collection of previous moves.
    * @param nextMoves The collection of next moves.
@@ -35,73 +25,23 @@ data class PreviousAndNextMoves(
   constructor(
     previousMoves: Collection<DataMove>,
     nextMoves: Collection<DataMove>,
-  ) : this(
-    previousMoves.associateBy { it.move }.toMutableMap(),
-    nextMoves.associateBy { it.move }.toMutableMap(),
-    0,
-  )
+  ) : this(previousMoves.associateBy { it.move }, nextMoves.associateBy { it.move })
 
-  /**
-   * Creates a [PreviousAndNextMoves] instance from a collection of previous and next moves at a
-   * specific depth.
-   *
-   * @param previousMoves The collection of previous moves.
-   * @param nextMoves The collection of next moves.
-   * @param depth The depth to create the instance at.
-   */
-  constructor(
-    previousMoves: Collection<DataMove>,
-    nextMoves: Collection<DataMove>,
-    depth: Int,
-  ) : this(
-    previousMoves.associateBy { it.move }.toMutableMap(),
-    nextMoves.associateBy { it.move }.toMutableMap(),
-    depth,
-  )
+  /** Returns a new instance containing only moves where [DataMove.isGood] is not null. */
+  fun filterValidMoves(): PreviousAndNextMoves =
+    PreviousAndNextMoves(
+      previousMoves.values.filter { it.isGood != null },
+      nextMoves.values.filter { it.isGood != null },
+    )
 
-  /**
-   * Adds a move to the previousMoves map.
-   *
-   * @param move The move to add.
-   * @return The previous move associated with the key, or null if none existed.
-   */
-  fun addPreviousMove(move: DataMove): DataMove? {
-    return previousMoves.put(move.move, move)
-  }
+  /** Returns a new instance containing only non-deleted moves. */
+  fun filterNotDeleted(): PreviousAndNextMoves =
+    PreviousAndNextMoves(
+      previousMoves.values.filter { !it.isDeleted },
+      nextMoves.values.filter { !it.isDeleted },
+    )
 
-  /**
-   * Adds a move to the nextMoves map.
-   *
-   * @param move The move to add.
-   * @return The previous move associated with the key, or null if none existed.
-   */
-  fun addNextMove(move: DataMove): DataMove? {
-    return nextMoves.put(move.move, move)
-  }
-
-  /** Sets the isGood property for all previous moves. */
-  fun setPreviousMovesAsGood() {
-    previousMoves.values.forEach { it.isGood = true }
-  }
-
-  /**
-   * Sets the isGood property for all previous moves.
-   *
-   * Please note that if a move was already marked as good, it will not be changed.
-   */
-  fun setPreviousMovesAsBadIfNotMarked() {
-    previousMoves.values.forEach { it.isGood = it.isGood ?: false }
-  }
-
-  fun filterValidMoves(): PreviousAndNextMoves {
-    val validPreviousMoves = previousMoves.filter { it.value.isGood != null }
-    val validNextMoves = nextMoves.filter { it.value.isGood != null }
-    return PreviousAndNextMoves(validPreviousMoves.values, validNextMoves.values, depth)
-  }
-
-  fun filterNotDeleted(): PreviousAndNextMoves {
-    val validPreviousMoves = previousMoves.filter { !it.value.isDeleted }
-    val validNextMoves = nextMoves.filter { !it.value.isDeleted }
-    return PreviousAndNextMoves(validPreviousMoves.values, validNextMoves.values, depth)
-  }
+  /** Creates a mutable copy for use in the live graph. */
+  fun toMutable(): MutablePreviousAndNextMoves =
+    MutablePreviousAndNextMoves(previousMoves, nextMoves)
 }

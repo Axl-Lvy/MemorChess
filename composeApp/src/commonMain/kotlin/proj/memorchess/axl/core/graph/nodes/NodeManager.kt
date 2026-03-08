@@ -4,9 +4,10 @@ import co.touchlab.kermit.Logger
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.graph.MutablePreviousAndNextMoves
 import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.core.graph.OpeningTree
-import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.graph.TrainingSchedule
 import proj.memorchess.axl.core.graph.TreeRepository
 
@@ -32,8 +33,8 @@ class NodeManager(
     return openingTree.computeState(positionKey, arrivedFrom)
   }
 
-  /** Gets the moves for the given position, or null if not present. */
-  fun getMoves(positionKey: PositionKey): PreviousAndNextMoves? {
+  /** Gets the mutable moves for the given position, or null if not present. */
+  fun getMoves(positionKey: PositionKey): MutablePreviousAndNextMoves? {
     return openingTree.get(positionKey)
   }
 
@@ -50,7 +51,7 @@ class NodeManager(
     depth: Int,
   ): DataMove {
     val originMoves = openingTree.getOrCreate(origin, depth)
-    val dataMove = originMoves.nextMoves.getOrPut(move) { DataMove(origin, destination, move) }
+    val dataMove = originMoves.getOrAddNextMove(move) { DataMove(origin, destination, move) }
     val destMoves = openingTree.getOrCreate(destination, depth + 1)
     val prev = destMoves.addPreviousMove(dataMove)
     if (prev != null && prev != dataMove) {
@@ -83,14 +84,21 @@ class NodeManager(
     openingTree.removePosition(positionKey)
   }
 
-  /** Gets the next node to learn for the given day. */
+  /**
+   * Gets the next node to learn for the given day.
+   *
+   * Assembles a [DataNode] from the [TrainingEntry] and current graph state.
+   */
   fun getNextNodeToLearn(day: Int, previousPlayedMove: DataMove?): DataNode? {
     val schedule = trainingSchedule ?: return null
-    if (previousPlayedMove == null) {
-      return schedule.getNodeFromDay(day)
-    }
-    return schedule.getNodeToTrainAfterPosition(day, previousPlayedMove.destination)
-      ?: schedule.getNodeFromDay(day)
+    val entry =
+      if (previousPlayedMove == null) {
+        schedule.getEntryFromDay(day)
+      } else {
+        schedule.getEntryAfterPosition(day, previousPlayedMove.destination)
+          ?: schedule.getEntryFromDay(day)
+      }
+    return entry?.toDataNode()
   }
 
   /** Gets the number of nodes to train for the given day. */
@@ -98,14 +106,27 @@ class NodeManager(
     return trainingSchedule?.getNumberOfNodesToTrain(day) ?: 0
   }
 
-  /** Caches a node in the training schedule. */
+  /** Schedules a node for training. Does **not** modify the [OpeningTree]. */
   fun cacheNode(node: DataNode) {
-    trainingSchedule?.addNode(node)
+    trainingSchedule?.addEntry(TrainingEntry(node.positionKey, node.previousAndNextTrainingDate))
   }
 
   /** Checks if a position is known in the tree. */
   fun isKnown(position: PositionKey): Boolean {
     return openingTree.isKnown(position)
+  }
+
+  /** Returns the depth of a position in the tree, or [Int.MAX_VALUE] if unknown. */
+  fun getDepth(positionKey: PositionKey): Int = openingTree.getDepth(positionKey)
+
+  private fun TrainingEntry.toDataNode(): DataNode? {
+    val moves = openingTree.get(positionKey) ?: return null
+    return DataNode(
+      positionKey,
+      moves.toImmutable(),
+      trainingDate,
+      openingTree.getDepth(positionKey),
+    )
   }
 }
 

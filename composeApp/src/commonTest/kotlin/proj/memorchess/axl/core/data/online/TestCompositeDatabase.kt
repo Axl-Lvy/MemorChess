@@ -166,7 +166,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
         engine.toPositionKey(),
         PreviousAndNextMoves(),
         PreviousAndNextDate.dummyToday(),
-        DateUtil.farInThePast(),
+        updatedAt = DateUtil.farInThePast(),
       )
 
     // Act

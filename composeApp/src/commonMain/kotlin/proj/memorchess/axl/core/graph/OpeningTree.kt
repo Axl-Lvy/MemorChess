@@ -6,57 +6,76 @@ import proj.memorchess.axl.core.data.PositionKey
 /** Pure graph of chess positions and moves, keyed by [PositionKey]. */
 class OpeningTree {
 
-  private val positions = mutableMapOf<PositionKey, PreviousAndNextMoves>()
+  private val positions = mutableMapOf<PositionKey, MutablePreviousAndNextMoves>()
+  private val depths = mutableMapOf<PositionKey, Int>()
 
-  /** Get-or-create, updating depth to the minimum seen. */
-  fun getOrCreate(positionKey: PositionKey, depth: Int): PreviousAndNextMoves {
-    val prev = positions[positionKey]
-    if (prev == null) {
-      val result = PreviousAndNextMoves(depth)
-      positions[positionKey] = result
-      return result
-    }
-    if (prev.depth > depth) prev.depth = depth
-    return prev
+  /**
+   * Get-or-create a position, updating depth to the minimum seen.
+   *
+   * @param positionKey The position to get or create.
+   * @param depth The depth at which this position is being reached.
+   * @return The [MutablePreviousAndNextMoves] for the position.
+   */
+  fun getOrCreate(positionKey: PositionKey, depth: Int): MutablePreviousAndNextMoves {
+    updateDepth(positionKey, depth)
+    return positions.getOrPut(positionKey) { MutablePreviousAndNextMoves() }
   }
 
   /** Gets moves for the given position, or null if not present. */
-  fun get(positionKey: PositionKey): PreviousAndNextMoves? = positions[positionKey]
+  fun get(positionKey: PositionKey): MutablePreviousAndNextMoves? = positions[positionKey]
 
   /** Sets moves for the given position. */
-  fun put(positionKey: PositionKey, moves: PreviousAndNextMoves) {
+  fun put(positionKey: PositionKey, moves: MutablePreviousAndNextMoves) {
     positions[positionKey] = moves
   }
 
   /** Gets or inserts a default value for the given position. */
   fun getOrPut(
     positionKey: PositionKey,
-    default: () -> PreviousAndNextMoves,
-  ): PreviousAndNextMoves {
+    default: () -> MutablePreviousAndNextMoves,
+  ): MutablePreviousAndNextMoves {
     return positions.getOrPut(positionKey, default)
   }
+
+  /**
+   * Updates the depth of a position to the minimum of the current and the given depth.
+   *
+   * @param positionKey The position to update.
+   * @param depth The new depth candidate.
+   */
+  fun updateDepth(positionKey: PositionKey, depth: Int) {
+    val current = depths[positionKey]
+    if (current == null || current > depth) {
+      depths[positionKey] = depth
+    }
+  }
+
+  /** Returns the depth of a position, or [Int.MAX_VALUE] if unknown. */
+  fun getDepth(positionKey: PositionKey): Int = depths[positionKey] ?: Int.MAX_VALUE
 
   /** Checks if a position is known in the tree. */
   fun isKnown(positionKey: PositionKey): Boolean = positionKey in positions
 
-  /** Removes a position */
+  /** Removes a position. */
   fun removePosition(positionKey: PositionKey) {
     positions.remove(positionKey)
+    depths.remove(positionKey)
   }
 
   /** Clears all next moves for the given position. */
   fun clearNextMoves(positionKey: PositionKey) {
-    positions[positionKey]?.nextMoves?.clear()
+    positions[positionKey]?.clearNextMoves()
   }
 
   /** Clears a specific previous move for the given position. */
   fun clearPreviousMove(positionKey: PositionKey, moveString: String) {
-    positions[positionKey]?.previousMoves?.remove(moveString)
+    positions[positionKey]?.removePreviousMove(moveString)
   }
 
   /** Clears the entire tree. */
   fun clear() {
     positions.clear()
+    depths.clear()
   }
 
   /**

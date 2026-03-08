@@ -91,10 +91,10 @@ class TestNodeEntitiesDataBase {
         rootPositionKey,
         PreviousAndNextMoves(listOf(), listOf(linkMove.toStoredMove())),
         PreviousAndNextDate.dummyToday(),
-        now,
+        0,
       )
     val childNode =
-      DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday(), now)
+      DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday(), 0)
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))

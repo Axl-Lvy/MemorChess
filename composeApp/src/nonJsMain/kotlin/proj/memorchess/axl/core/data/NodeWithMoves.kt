@@ -18,9 +18,9 @@ data class NodeWithMoves(
       PreviousAndNextMoves(
         previousMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
         nextMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
-        node.depth,
       ),
       PreviousAndNextDate(node.lastTrainedDate, node.nextTrainedDate),
+      node.depth,
       node.updatedAt,
       node.isDeleted,
     )
@@ -33,7 +33,7 @@ data class NodeWithMoves(
           dataNode.positionKey.value,
           dataNode.previousAndNextTrainingDate.previousDate,
           dataNode.previousAndNextTrainingDate.nextDate,
-          dataNode.previousAndNextMoves.depth,
+          dataNode.depth,
           dataNode.isDeleted,
           dataNode.updatedAt,
         ),

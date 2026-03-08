@@ -24,7 +24,7 @@ internal data class MoveFetched(
   val origin: String,
   val destination: String,
   val move: String,
-  var isGood: Boolean?,
+  val isGood: Boolean?,
   val isDeleted: Boolean,
   val updatedAt: Instant,
 ) {
@@ -67,7 +67,7 @@ internal data class PositionFetched(
     dataNode.positionKey.value,
     dataNode.previousAndNextMoves.nextMoves.map { MoveFetched(it.value) } +
       dataNode.previousAndNextMoves.previousMoves.map { MoveFetched(it.value) },
-    dataNode.previousAndNextMoves.depth,
+    dataNode.depth,
     dataNode.previousAndNextTrainingDate.previousDate,
     dataNode.previousAndNextTrainingDate.nextDate,
     dataNode.updatedAt,
@@ -84,9 +84,9 @@ internal data class PositionFetched(
         linkedMoves
           .filter { it.origin == positionKey && (withDeletedOnes || !it.isDeleted) }
           .map { it.toStoredMove() },
-        depth,
       ),
       PreviousAndNextDate(lastTrainingDate, nextTrainingDate),
+      depth,
       updatedAt,
     )
   }

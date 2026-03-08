@@ -14,9 +14,12 @@ class DbTreeRepository(private val database: DatabaseQueryManager) : TreeReposit
     val allNodes = database.getAllNodes()
     allNodes.forEach { node ->
       val moves = node.previousAndNextMoves.filterNotDeleted()
-      tree.getOrPut(node.positionKey) { moves }
+      tree.getOrPut(node.positionKey) { moves.toMutable() }
+      tree.updateDepth(node.positionKey, node.depth)
       if (moves.nextMoves.any { it.value.isGood == true }) {
-        trainingSchedule?.addNode(node)
+        trainingSchedule?.addEntry(
+          TrainingEntry(node.positionKey, node.previousAndNextTrainingDate)
+        )
       }
       LOGGER.i { "Retrieved node: ${node.positionKey}" }
     }
