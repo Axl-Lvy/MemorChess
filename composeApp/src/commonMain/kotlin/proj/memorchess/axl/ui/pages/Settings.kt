@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Download
+import compose.icons.feathericons.Upload
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
@@ -108,6 +111,11 @@ fun Settings(
           modifier = Modifier.testTag("exportButton").weight(1f),
           elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
         ) {
+          Icon(
+            FeatherIcons.Upload,
+            contentDescription = "Export",
+            modifier = Modifier.padding(end = 8.dp),
+          )
           Text("Export")
         }
 
@@ -134,6 +142,11 @@ fun Settings(
           modifier = Modifier.testTag("importButton").weight(1f),
           elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
         ) {
+          Icon(
+            FeatherIcons.Download,
+            contentDescription = "Import",
+            modifier = Modifier.padding(end = 8.dp),
+          )
           Text("Import")
         }
       }
