@@ -45,28 +45,28 @@ fun SyncStatusSection(
     lastLocalUpdate = lastLocalUpdate,
     lastRemoteUpdate = lastRemoteUpdate,
     onSyncFromLocal = {
-      loading = true
-      error = null
+      loading = true // NOSONAR: Compose state triggers recomposition
+      error = null // NOSONAR: Compose state triggers recomposition
       coroutineScope.launch {
         try {
           databaseSynchronizer.syncFromLocal()
         } catch (e: Exception) {
-          error = e.message ?: "Upload failed"
+          error = e.message ?: "Upload failed" // NOSONAR: Compose state triggers recomposition
         } finally {
-          loading = false
+          loading = false // NOSONAR: Compose state triggers recomposition
         }
       }
     },
     onSyncFromRemote = {
-      loading = true
-      error = null
+      loading = true // NOSONAR: Compose state triggers recomposition
+      error = null // NOSONAR: Compose state triggers recomposition
       coroutineScope.launch {
         try {
           databaseSynchronizer.syncFromRemote()
         } catch (e: Exception) {
-          error = e.message ?: "Download failed"
+          error = e.message ?: "Download failed" // NOSONAR: Compose state triggers recomposition
         } finally {
-          loading = false
+          loading = false // NOSONAR: Compose state triggers recomposition
         }
       }
     },
