@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -19,13 +21,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.BarChart2
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
+import proj.memorchess.axl.core.config.EVAL_BAR_ENABLED_SETTING
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
+import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
 import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
@@ -56,24 +64,32 @@ fun ExplorerContent(
   var inverted by remember { mutableStateOf(false) }
   val coroutineScope = rememberCoroutineScope()
   val nextMoves = remember { mutableStateListOf(*explorer.getNextMoves().toTypedArray()) }
-  val evaluator = remember { StockfishEvaluator() }
-  val evaluation by evaluator.evaluation.collectAsState()
+  var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
 
-  DisposableEffect(Unit) { onDispose { evaluator.close() } }
+  // Evaluator is created/destroyed based on the toggle so the device stops computing when off.
+  val maxDepth = remember { ENGINE_MAX_DEPTH_SETTING.getValue() }
+  var evaluator by remember {
+    mutableStateOf(if (evalBarEnabled) StockfishEvaluator(maxDepth) else null)
+  }
+  val nullEvalFlow = remember { MutableStateFlow<EvaluationScore?>(null) }
+  val nullDepthFlow = remember { MutableStateFlow<Int?>(null) }
+  val evaluation by (evaluator?.evaluation ?: nullEvalFlow).collectAsState()
+  val currentDepth by (evaluator?.currentDepth ?: nullDepthFlow).collectAsState()
 
-  LaunchedEffect(Unit) {
-    evaluator.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn == Player.BLACK)
+  DisposableEffect(Unit) { onDispose { evaluator?.close() } }
+
+  LaunchedEffect(evaluator) {
+    evaluator?.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn == Player.BLACK)
   }
 
   remember {
     explorer.registerCallBack {
       nextMoves.clear()
       nextMoves.addAll(explorer.getNextMoves())
-      coroutineScope.launch {
-        evaluator.evaluate(
-          explorer.engine.toFen().value,
-          explorer.engine.playerTurn == Player.BLACK,
-        )
+      evaluator?.let { eval ->
+        coroutineScope.launch {
+          eval.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn == Player.BLACK)
+        }
       }
     }
   }
@@ -98,7 +114,29 @@ fun ExplorerContent(
         )
       },
       stateIndicators = { StateIndicator(it, explorer.state) },
-      evaluationBar = { EvaluationBar(evaluation = evaluation, modifier = it) },
+      evaluationPanel = {
+        if (evalBarEnabled) {
+          EvaluationBar(evaluation = evaluation, currentDepth = currentDepth, modifier = it)
+        }
+      },
+      evaluationBarToggle = {
+        FilledIconToggleButton(
+          checked = evalBarEnabled,
+          onCheckedChange = { enabled ->
+            evalBarEnabled = enabled
+            EVAL_BAR_ENABLED_SETTING.setValue(enabled)
+            if (enabled) {
+              evaluator = StockfishEvaluator(maxDepth)
+            } else {
+              evaluator?.close()
+              evaluator = null
+            }
+          },
+          modifier = it,
+        ) {
+          Icon(imageVector = FeatherIcons.BarChart2, contentDescription = "Toggle evaluation bar")
+        }
+      },
       saveButton = saveButton,
       deleteButton = deleteButton,
       board = { Board(inverted, explorer, it) },

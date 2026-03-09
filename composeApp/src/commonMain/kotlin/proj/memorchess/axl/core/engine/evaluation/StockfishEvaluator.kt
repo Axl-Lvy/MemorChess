@@ -21,8 +21,10 @@ import kotlinx.coroutines.sync.withLock
  * Each call to [evaluate] cancels the previous search and starts a new one. The evaluation is
  * normalized to White's perspective. Access to the native engine is serialized via a [Mutex] to
  * prevent concurrent native calls that would cause a segfault.
+ *
+ * @param maxDepth Maximum search depth (5–25), or 0 for infinite.
  */
-class StockfishEvaluator {
+class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
 
   private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
   private var engine: StockfishEngine? = null
@@ -34,6 +36,11 @@ class StockfishEvaluator {
 
   /** Current evaluation, or `null` if unavailable. */
   val evaluation: StateFlow<EvaluationScore?> = _evaluation.asStateFlow()
+
+  private val _currentDepth = MutableStateFlow<Int?>(null)
+
+  /** Depth reached by the engine during the current search, or `null` if idle. */
+  val currentDepth: StateFlow<Int?> = _currentDepth.asStateFlow()
 
   init {
     initJob =
@@ -62,12 +69,16 @@ class StockfishEvaluator {
       it.join()
     }
 
+    _currentDepth.value = null
+
     searchJob =
       scope.launch {
         engineMutex.withLock {
           try {
             currentEngine.setPosition(fen = fen)
-            currentEngine.search(depth = SEARCH_DEPTH) { info ->
+            val depthArg = if (maxDepth == 0) null else maxDepth
+            currentEngine.search(depth = depthArg) { info ->
+              info.depth?.let { _currentDepth.value = it }
               val score = info.score ?: return@search
               _evaluation.value = toEvaluationScore(score, isBlackToMove)
             }
@@ -96,7 +107,7 @@ class StockfishEvaluator {
 
   companion object {
     private const val TAG = "StockfishEvaluator"
-    private const val SEARCH_DEPTH = 20
+    private const val DEFAULT_SEARCH_DEPTH = 20
 
     /**
      * Converts a library [Score] to an [EvaluationScore] from White's perspective.

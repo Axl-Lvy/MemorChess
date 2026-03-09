@@ -23,6 +23,7 @@ fun ExploreHeader(
   playerTurnIndicator: @Composable (Modifier) -> Unit,
   backButton: @Composable (Modifier) -> Unit,
   forwardButton: @Composable (Modifier) -> Unit,
+  evaluationBarToggle: @Composable (Modifier) -> Unit = {},
 ) {
   Card(
     modifier = modifier.fillMaxWidth(),
@@ -43,6 +44,8 @@ fun ExploreHeader(
       backButton(Modifier.weight(1f))
       Spacer(modifier = Modifier.width(6.dp))
       forwardButton(Modifier.weight(1f))
+      Spacer(modifier = Modifier.width(6.dp))
+      evaluationBarToggle(Modifier.weight(1f))
     }
   }
 }

@@ -25,13 +25,14 @@ import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
  * Horizontal evaluation bar showing white/black advantage.
  *
  * The bar is split into a light (White) section and a dark (Black) section, with proportions driven
- * by the evaluation score. A text label displays the numeric score.
+ * by the evaluation score. A text label displays the numeric score and current engine depth.
  *
  * @param evaluation The current evaluation, or `null` for a neutral display.
+ * @param currentDepth The depth currently reached by the engine, or `null` if idle.
  * @param modifier Modifier for the bar container.
  */
 @Composable
-fun EvaluationBar(evaluation: EvaluationScore?, modifier: Modifier = Modifier) {
+fun EvaluationBar(evaluation: EvaluationScore?, currentDepth: Int?, modifier: Modifier = Modifier) {
   val whiteFraction = evaluationToFraction(evaluation)
   val animatedFraction by
     animateFloatAsState(targetValue = whiteFraction, animationSpec = tween(durationMillis = 300))
@@ -57,9 +58,9 @@ fun EvaluationBar(evaluation: EvaluationScore?, modifier: Modifier = Modifier) {
       // Black section
       Box(modifier = Modifier.fillMaxHeight().weight((1f - animatedFraction).coerceAtLeast(0.01f)))
     }
-    // Score label centered on the bar
+    // Score + depth label centered on the bar
     Box(modifier = Modifier.matchParentSize().padding(horizontal = 8.dp)) {
-      val label = formatScore(evaluation)
+      val label = formatLabel(evaluation, currentDepth)
       val labelColor =
         if (whiteFraction >= 0.5f) MaterialTheme.colorScheme.onSurface
         else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
@@ -83,13 +84,21 @@ private fun evaluationToFraction(evaluation: EvaluationScore?): Float {
   }
 }
 
+/** Formats score and depth as a combined label. */
+private fun formatLabel(evaluation: EvaluationScore?, currentDepth: Int?): String {
+  val score = formatScore(evaluation)
+  val depth = if (currentDepth != null) " (d$currentDepth)" else ""
+  return "$score$depth"
+}
+
 /** Formats an [EvaluationScore] as a human-readable label. */
 private fun formatScore(evaluation: EvaluationScore?): String {
   return when (evaluation) {
     is EvaluationScore.Centipawns -> {
-      val pawns = evaluation.value / 100f
+      val pawns = kotlin.math.round(evaluation.value / 10f) / 10f
       val sign = if (pawns >= 0) "+" else ""
-      "$sign%.1f".format(pawns)
+      val formatted = if (pawns == pawns.toLong().toFloat()) "${pawns.toLong()}.0" else "$pawns"
+      "$sign$formatted"
     }
     is EvaluationScore.Mate -> {
       val sign = if (evaluation.moves > 0) "+" else "-"

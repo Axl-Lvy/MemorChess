@@ -18,6 +18,7 @@ import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.core.config.APP_THEME_SETTING
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.ConfigItem
+import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
 import proj.memorchess.axl.core.config.EnumBasedAppConfigItem
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
@@ -70,6 +71,25 @@ enum class EmbeddedSettingItem(
       { (it as Duration).inWholeMilliseconds.toFloat() / 1_000 },
     ) {
       "Move Animation Duration: ${(it * 100).roundToInt() / 100.0}s"
+    },
+  ),
+  ENGINE_MAX_DEPTH(
+    ENGINE_MAX_DEPTH_SETTING,
+    SliderParameters(
+      5f,
+      26f,
+      20,
+      {
+        val intVal = it.roundToInt()
+        ENGINE_MAX_DEPTH_SETTING.setValue(if (intVal >= 26) 0 else intVal)
+      },
+      {
+        val stored = it as Int
+        if (stored == 0) 26f else stored.toFloat()
+      },
+    ) {
+      val intVal = it.roundToInt()
+      if (intVal >= 26) "Engine Search Depth: \u221E" else "Engine Search Depth: $intVal"
     },
   ),
   APP_THEME(APP_THEME_SETTING),

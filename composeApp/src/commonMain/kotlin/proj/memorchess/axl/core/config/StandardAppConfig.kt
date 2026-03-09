@@ -25,6 +25,16 @@ val CHESS_BOARD_COLOR_SETTING =
 
 val KEEP_LOGGED_IN_SETTING = BooleanBasedConfigItem("keepLoggedIn", false)
 
+/** Whether the evaluation bar is shown next to the board. */
+val EVAL_BAR_ENABLED_SETTING = BooleanBasedConfigItem("evalBarEnabled", false)
+
+/**
+ * Maximum search depth for the Stockfish engine.
+ *
+ * Values 5–25 are literal depths; 0 means infinite (pass `null` to the engine).
+ */
+val ENGINE_MAX_DEPTH_SETTING = IntBasedConfigItem("engineMaxDepth", 20)
+
 val ALL_SETTINGS_ITEMS =
   listOf(
     ON_SUCCESS_DATE_FACTOR_SETTING,
@@ -32,6 +42,7 @@ val ALL_SETTINGS_ITEMS =
     MOVE_ANIMATION_DURATION_SETTING,
     APP_THEME_SETTING,
     CHESS_BOARD_COLOR_SETTING,
+    ENGINE_MAX_DEPTH_SETTING,
   )
 
 internal expect fun getPlatformSpecificSettings(): Settings
