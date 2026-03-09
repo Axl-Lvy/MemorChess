@@ -225,8 +225,9 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
       val jsNode =
-        objectStore(NODES_STORE).get(Key(positionKey.value.toJsString())) as? JsNodeEntity
-          ?: return@transaction null
+        objectStore(NODES_STORE)
+          .get(Key(positionKey.value.toJsString()))
+          ?.unsafeCast<JsNodeEntity>() ?: return@transaction null
       if (jsNode.isDeleted) return@transaction null
 
       val movesStore = objectStore(MOVES_STORE)
@@ -246,7 +247,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       val movesStore = objectStore(MOVES_STORE)
 
       // Soft-delete the node
-      val jsNode = nodesStore.get(Key(position.value.toJsString())) as? JsNodeEntity
+      val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
       if (jsNode != null && !jsNode.isDeleted) {
         jsNode.isDeleted = true
         nodesStore.put(jsNode)
