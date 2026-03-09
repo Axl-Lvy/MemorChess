@@ -6,7 +6,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
-import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
@@ -46,18 +45,7 @@ kotlin {
   wasmJs {
     outputModuleName = "composeApp"
     browser {
-      commonWebpackConfig {
-        outputFileName = "composeApp.js"
-        devServer =
-          (devServer ?: KotlinWebpackConfig.DevServer()).apply {
-            static =
-              (static ?: mutableListOf()).apply {
-                // Serve sources to debug inside browser
-                add(project.rootDir.path)
-                add(project.projectDir.path)
-              }
-          }
-      }
+      commonWebpackConfig { outputFileName = "composeApp.js" }
       testTask { useKarma { useFirefoxHeadless() } }
     }
     binaries.executable()
@@ -83,12 +71,12 @@ kotlin {
   sourceSets {
     commonMain.dependencies {
       // Compose dependencies
-      implementation(compose.runtime)
-      implementation(compose.foundation)
-      implementation(compose.material3)
-      implementation(compose.ui)
-      implementation(compose.components.resources)
-      implementation(compose.components.uiToolingPreview)
+      implementation(libs.compose.runtime)
+      implementation(libs.compose.foundation)
+      implementation(libs.compose.material3)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.components.resources)
+      implementation(libs.compose.components.uiToolingPreview)
 
       // Lifecycle dependencies
       implementation(libs.androidx.lifecycle.viewmodel)
@@ -127,15 +115,14 @@ kotlin {
     }
 
     // Debug source set configuration
-    val debugMain by getting {
+    named("debugMain") {
       dependencies {
         // Hot Preview
         implementation(libs.hotpreview)
       }
     }
 
-    @SuppressWarnings("unused")
-    val nonJsMain by getting {
+    named("nonJsMain") {
       dependencies {
         implementation(libs.androidx.room.runtime)
         implementation(libs.sqlite.bundled)
@@ -144,14 +131,14 @@ kotlin {
     }
 
     androidMain.dependencies {
-      implementation(compose.preview)
+      implementation(libs.compose.ui.tooling.preview)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.material3.android)
       implementation(libs.ktor.client.okhttp)
     }
 
     jvmMain.dependencies {
-      implementation(compose.desktop.currentOs)
+      @Suppress("DEPRECATION") implementation(compose.desktop.currentOs)
       implementation(libs.ktor.client.java)
       implementation(libs.slf4j.api)
     }
@@ -162,7 +149,7 @@ kotlin {
 
     commonTest.dependencies {
       implementation(libs.kotlin.test)
-      @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class) implementation(compose.uiTest)
+      implementation(libs.compose.ui.test)
       implementation(libs.kotest.assertions)
     }
 
@@ -245,6 +232,7 @@ tasks.withType<KotlinJsTest>().configureEach {
 }
 
 tasks.register<JacocoReport>("jacocoAndroidTestReport") {
+  dependsOn("compileDebugKotlinAndroid")
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
 

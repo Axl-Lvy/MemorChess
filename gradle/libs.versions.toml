@@ -8,6 +8,7 @@ androidx-lifecycle = "2.9.6"
 androidx-room = "2.8.4"
 chess-core = "1.0.1"
 composeHotReload = "1.0.0"
+compose-material3-multiplatform = "1.10.0-alpha05"
 compose-multiplatform = "1.10.2"
 hotpreview = "0.2.0"
 filekit = "0.13.0"
@@ -17,7 +18,7 @@ koin = "4.1.1"
 ktfmt = "0.25.0"
 kotlin = "2.3.10"
 ksp = "2.3.6"
-kotest = "6.1.4"
+kotest = "6.1.5"
 kotlinxDatetime = "0.7.1"
 kotlinxSerializationJson = "1.10.0"
 ktor = "3.4.1"
@@ -35,6 +36,16 @@ uiTestJunit4Android = "1.10.4"
 xfeather_z = "1.1.1"
 
 [libraries]
+# --- Compose ---
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3-multiplatform" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-multiplatform" }
+compose-components-uiToolingPreview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "compose-multiplatform" }
+compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-multiplatform" }
+compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "compose-multiplatform" }
+
 # --- Misc ---
 chess-core = { module = "io.github.alluhemanth:chess-core", version.ref = "chess-core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
