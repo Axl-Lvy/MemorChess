@@ -14,20 +14,24 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
-import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Settings
 
 @OptIn(ExperimentalTestApi::class)
-class TestSettings : TestWithKoin {
+class TestSettings : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
 
-  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runComposeUiTest {
-      setContent { InitializeApp { Settings() } }
-      block()
+  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+    koinSetUp()
+    try {
+      runComposeUiTest {
+        setContent { InitializeApp { Settings() } }
+        block()
+      }
+    } finally {
+      koinTearDown()
     }
   }
 
@@ -66,7 +70,7 @@ class TestSettings : TestWithKoin {
     assertNodeWithTextExists("OK").performClick()
 
     // Verify the values were reset to defaults
-    Awaitility.awaitUntilTrue {
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
       TRAINING_MOVE_DELAY_SETTING.defaultValue == TRAINING_MOVE_DELAY_SETTING.getValue() &&
         ON_SUCCESS_DATE_FACTOR_SETTING.defaultValue == ON_SUCCESS_DATE_FACTOR_SETTING.getValue()
     }
@@ -99,7 +103,7 @@ class TestSettings : TestWithKoin {
     assertNodeWithTextExists("OK").performClick()
 
     // Verify the database is cleared
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { getAllPositions().isEmpty() }
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) { getAllPositions().isEmpty() }
   }
 
   private fun getAllPositions(): List<DataNode> {

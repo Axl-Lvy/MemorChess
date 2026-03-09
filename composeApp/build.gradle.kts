@@ -58,6 +58,7 @@ kotlin {
               }
           }
       }
+      testTask { useKarma { useFirefoxHeadless() } }
     }
     binaries.executable()
   }

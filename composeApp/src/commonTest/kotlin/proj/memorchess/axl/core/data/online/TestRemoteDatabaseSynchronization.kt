@@ -5,7 +5,6 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -27,17 +26,15 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
 
   private val refDatabase = TestDatabaseQueryManager.vienna()
 
-  override fun setUp() {
+  override suspend fun setUp() {
     super.setUp()
-    runTest {
-      // Clear remote database to start with clean state
-      remoteDatabase.deleteAll(DateUtil.farInThePast())
-      localDatabase.deleteAll(DateUtil.farInThePast())
-    }
+    // Clear remote database to start with clean state
+    remoteDatabase.deleteAll(DateUtil.farInThePast())
+    localDatabase.deleteAll(DateUtil.farInThePast())
   }
 
   @Test
-  fun testSyncFromLocal() = runTest {
+  fun testSyncFromLocal() = test {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
 
@@ -54,7 +51,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
   }
 
   @Test
-  fun testSyncFromRemote() = runTest {
+  fun testSyncFromRemote() = test {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
 
@@ -71,7 +68,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
   }
 
   @Test
-  fun testSyncNonEmptyFromLocal() = runTest {
+  fun testSyncNonEmptyFromLocal() = test {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { localDatabase.insertNodes(it) }
 
@@ -87,7 +84,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
   }
 
   @Test
-  fun testSyncNonEmptyFromRemote() = runTest {
+  fun testSyncNonEmptyFromRemote() = test {
     // Arrange: Set up initial local data
     refDatabase.getAllNodes().forEach { remoteDatabase.insertNodes(it) }
 
@@ -103,7 +100,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
   }
 
   @Test
-  fun testBothDatabasesUpdatedWhenSynced() = runTest {
+  fun testBothDatabasesUpdatedWhenSynced() = test {
     databaseSynchronizer.syncFromLocal()
     assertTrue(databaseSynchronizer.isSynced)
 
@@ -113,7 +110,7 @@ class TestRemoteDatabaseSynchronization : TestAuthenticated() {
     assertDatabaseAreSame()
   }
 
-  private fun assertDatabaseAreSame() = runTest {
+  private suspend fun assertDatabaseAreSame() {
     val localNodes = localDatabase.getAllNodes(false)
     val remoteNodes = remoteDatabase.getAllNodes(false).toSet()
     localNodes.forEach {

@@ -1,10 +1,8 @@
 package proj.memorchess.axl.core.interaction
 
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
@@ -13,30 +11,26 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 
-class TestTrainingNodeOrder : TestWithKoin {
+class TestTrainingNodeOrder : TestWithKoin() {
 
   private val nodeManager: NodeManager by inject()
   private val database: DatabaseQueryManager by inject()
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
-    runTest {
-      database.deleteAll(DateUtil.farInThePast())
-      database.insertNodes(*TestDatabaseQueryManager.vienna().getAllNodes(true).toTypedArray())
-      nodeManager.resetCacheFromSource()
-    }
+  override suspend fun setUp() {
+    database.deleteAll(DateUtil.farInThePast())
+    database.insertNodes(*TestDatabaseQueryManager.vienna().getAllNodes(true).toTypedArray())
+    nodeManager.resetCacheFromSource()
   }
 
   @Test
-  fun testMinimumDepth() {
+  fun testMinimumDepth() = test {
     val node = nodeManager.getNextNodeToLearn(0, null)
     assertNotNull(node)
     assertTrue { node.positionKey == PositionKey.START_POSITION }
   }
 
   @Test
-  fun testNextMove() {
+  fun testNextMove() = test {
     val node = nodeManager.getNextNodeToLearn(0, null)
     checkNotNull(node)
     val nextNode =

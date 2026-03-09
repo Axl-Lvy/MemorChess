@@ -2,9 +2,9 @@ package proj.memorchess.axl.test_util
 
 import androidx.compose.runtime.Composable
 import com.russhwolf.settings.Settings
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.time.Duration
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
 import org.koin.core.annotation.KoinInternalApi
 import org.koin.core.component.KoinComponent
 import org.koin.core.context.startKoin
@@ -19,18 +19,50 @@ import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.navigation.Navigator
 
-interface TestWithKoin : KoinComponent {
+/**
+ * Base class for tests that need Koin dependency injection.
+ *
+ * Use [test] for coroutine-based tests (wraps everything in a single `runTest`). For UI tests that
+ * need `runComposeUiTest`, use [koinSetUp]/[koinTearDown] directly.
+ */
+abstract class TestWithKoin : KoinComponent {
 
-  @BeforeTest
-  fun setUp() {
+  /** Override to add suspend setup logic within [test]'s single coroutine scope. */
+  open suspend fun setUp() {}
+
+  /** Override to add suspend teardown logic within [test]'s single coroutine scope. */
+  open suspend fun tearDown() {}
+
+  /**
+   * Runs a test within a single [runTest], handling Koin lifecycle and calling [setUp]/[tearDown].
+   *
+   * This avoids the wasmJs limitation where only one `runTest` can be called per test method.
+   */
+  fun test(block: suspend TestScope.() -> Unit) = runTest {
+    koinSetUp()
+    setUp()
+    try {
+      block()
+    } finally {
+      try {
+        tearDown()
+      } finally {
+        koinTearDown()
+      }
+    }
+  }
+
+  /** Starts Koin with test modules. Use directly only for UI tests that cannot use [test]. */
+  protected fun koinSetUp() {
+    stopKoin()
     FeatureFlags.isAuthEnabled = true
     startKoin { modules(*initKoinModules(), initTestModule()) }
     MOVE_ANIMATION_DURATION_SETTING.setValue(Duration.ZERO)
     ToastRendererForTests.clear()
   }
 
-  @AfterTest
-  fun tearDown() {
+  /** Stops Koin and resets state. Use directly only for UI tests that cannot use [test]. */
+  protected fun koinTearDown() {
     stopKoin()
     FeatureFlags.isAuthEnabled = false
     ToastRendererForTests.clear()
