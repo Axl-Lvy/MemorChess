@@ -30,12 +30,14 @@ sqlite = "2.6.1"
 supabase = "3.2.4"
 uiTestJunit4Android = "1.9.2"
 chess-core = "1.0.1"
+stockfish-multiplatform = "0.1.0-alpha.3"
 filekit = "0.13.0"
 xfeather_z = "1.1.1"
 
 [libraries]
 # --- Misc ---
 chess-core = { module = "io.github.alluhemanth:chess-core", version.ref = "chess-core" }
+stockfish-multiplatform = { module = "fr.axl-lvy:stockfish-multiplatform", version.ref = "stockfish-multiplatform" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
 androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
 hotpreview = { module = "de.drick.compose:hotpreview", version.ref = "hotpreview" }

@@ -105,6 +105,7 @@ kotlin {
 
       // Chess engine
       implementation(libs.chess.core)
+      implementation(libs.stockfish.multiplatform)
 
       // File picker
       implementation(libs.filekit.dialogs.compose)

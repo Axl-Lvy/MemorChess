@@ -49,6 +49,7 @@ internal val previewExploreLayoutContent =
       }
     },
     stateIndicators = { StateIndicator(it, NodeState.FIRST) },
+    evaluationBar = {},
     playerTurnIndicator = { Piece(ChessPiece(PieceKind.KING, Player.WHITE)) },
     saveButton = {
       Button(

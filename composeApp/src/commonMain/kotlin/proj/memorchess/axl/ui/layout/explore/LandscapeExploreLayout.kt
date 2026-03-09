@@ -54,7 +54,10 @@ fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayout
       )
 
       // State indicators section
-      ExploreStateIndicators(stateIndicators = content.stateIndicators)
+      ExploreStateIndicators(
+        stateIndicators = content.stateIndicators,
+        evaluationBar = content.evaluationBar,
+      )
 
       // Next moves section with horizontal scrolling
       ExploreNextMovesSection(nextMoveButtons = content.nextMoveButtons)

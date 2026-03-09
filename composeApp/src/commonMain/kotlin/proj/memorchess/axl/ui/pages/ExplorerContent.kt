@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -23,8 +26,10 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
+import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.Board
+import proj.memorchess.axl.ui.components.board.EvaluationBar
 import proj.memorchess.axl.ui.components.board.Piece
 import proj.memorchess.axl.ui.components.board.StateIndicator
 import proj.memorchess.axl.ui.components.buttons.ControlButton
@@ -51,11 +56,25 @@ fun ExplorerContent(
   var inverted by remember { mutableStateOf(false) }
   val coroutineScope = rememberCoroutineScope()
   val nextMoves = remember { mutableStateListOf(*explorer.getNextMoves().toTypedArray()) }
+  val evaluator = remember { StockfishEvaluator() }
+  val evaluation by evaluator.evaluation.collectAsState()
+
+  DisposableEffect(Unit) { onDispose { evaluator.close() } }
+
+  LaunchedEffect(Unit) {
+    evaluator.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn == Player.BLACK)
+  }
 
   remember {
     explorer.registerCallBack {
       nextMoves.clear()
       nextMoves.addAll(explorer.getNextMoves())
+      coroutineScope.launch {
+        evaluator.evaluate(
+          explorer.engine.toFen().value,
+          explorer.engine.playerTurn == Player.BLACK,
+        )
+      }
     }
   }
 
@@ -79,6 +98,7 @@ fun ExplorerContent(
         )
       },
       stateIndicators = { StateIndicator(it, explorer.state) },
+      evaluationBar = { EvaluationBar(evaluation = evaluation, modifier = it) },
       saveButton = saveButton,
       deleteButton = deleteButton,
       board = { Board(inverted, explorer, it) },

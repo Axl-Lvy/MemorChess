@@ -19,6 +19,7 @@ class ExploreLayoutContent(
 
   // INDICATORS
   var stateIndicators: @Composable (Modifier) -> Unit,
+  var evaluationBar: @Composable (Modifier) -> Unit = {},
   var playerTurnIndicator: @Composable (Modifier) -> Unit,
 
   // DATABASE ACTIONS
