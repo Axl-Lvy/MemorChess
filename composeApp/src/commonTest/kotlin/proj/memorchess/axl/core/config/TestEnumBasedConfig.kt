@@ -12,43 +12,39 @@ private enum class TestEnum(override val displayName: String) : CanDisplayName {
   THIRD("Third"),
 }
 
-class TestEnumBasedConfig : TestWithKoin {
+class TestEnumBasedConfig : TestWithKoin() {
   private lateinit var config: EnumBasedAppConfigItem<TestEnum>
   private val settings: Settings by inject()
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
+  override suspend fun setUp() {
     config = EnumBasedAppConfigItem.from("test_enum", TestEnum.SECOND)
   }
 
   @Test
-  fun defaultValueIsReturnedInitially() {
-    assertEquals(TestEnum.SECOND, config.getValue())
-  }
+  fun defaultValueIsReturnedInitially() = test { assertEquals(TestEnum.SECOND, config.getValue()) }
 
   @Test
-  fun setValueUpdatesValueAndPersists() {
+  fun setValueUpdatesValueAndPersists() = test {
     config.setValue(TestEnum.THIRD)
     assertEquals(TestEnum.THIRD, config.getValue())
   }
 
   @Test
-  fun resetRestoresDefaultAndRemovesPersisted() {
+  fun resetRestoresDefaultAndRemovesPersisted() = test {
     config.setValue(TestEnum.FIRST)
     config.reset()
     assertEquals(TestEnum.SECOND, config.getValue())
   }
 
   @Test
-  fun invalidPersistedValueFallsBackToDefault() {
+  fun invalidPersistedValueFallsBackToDefault() = test {
     settings.putString("test_enum", "INVALID")
     val newConfig = EnumBasedAppConfigItem.from("test_enum", TestEnum.FIRST)
     assertEquals(TestEnum.FIRST, newConfig.getValue())
   }
 
   @Test
-  fun getEntriesReturnsAllEnumValues() {
+  fun getEntriesReturnsAllEnumValues() = test {
     val entries = config.getEntries().toList()
     assertEquals(listOf(TestEnum.FIRST, TestEnum.SECOND, TestEnum.THIRD), entries)
   }

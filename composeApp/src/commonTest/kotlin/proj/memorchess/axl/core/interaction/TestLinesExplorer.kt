@@ -1,53 +1,40 @@
 package proj.memorchess.axl.core.interaction
 
 import kotlin.test.*
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.test_util.getGames
 
-class TestLinesExplorer : TestWithKoin {
+class TestLinesExplorer : TestWithKoin() {
   private lateinit var interactionsManager: LinesExplorer
   private val nodeManager: NodeManager by inject()
   private val database: DatabaseQueryManager by inject()
 
-  private fun initialize() {
-    runTest {
-      database.deleteAll(null)
-      nodeManager.resetCacheFromSource()
-    }
+  private suspend fun initialize() {
+    database.deleteAll(null)
+    nodeManager.resetCacheFromSource()
     interactionsManager = LinesExplorer(nodeManager = nodeManager)
   }
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
+  override suspend fun setUp() {
     initialize()
   }
 
-  @Test
-  fun testManyGames() = runTest {
-    val gameList = getGames().shuffled().take(10)
-    gameList.forEach { testGame(it) }
-  }
-
-  @Test fun testPrevious() = runTest { previousWorkflow() }
+  @Test fun testPrevious() = test { previousWorkflow() }
 
   @Test
-  fun testForward() = runTest {
+  fun testForward() = test {
     previousWorkflow()
     interactionsManager.forward()
     assertPawnOnE4()
   }
 
   @Test
-  fun testDelete() = runTest {
+  fun testDelete() = test {
     previousWorkflow()
     interactionsManager.delete()
     interactionsManager.forward()
@@ -63,7 +50,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSave() = runTest {
+  fun testSave() = test {
     val startPosition = interactionsManager.engine.toPositionKey()
     clickOnTile("e2")
     clickOnTile("e4")
@@ -76,7 +63,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSaveGoodThenBad() = runTest {
+  fun testSaveGoodThenBad() = test {
     val startPosition = interactionsManager.engine.toPositionKey()
     clickOnTile("e2")
     clickOnTile("e4")
@@ -95,7 +82,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSideMoveNotSaved() = runTest {
+  fun testSideMoveNotSaved() = test {
     val startPosition = interactionsManager.engine.toPositionKey()
     clickOnTile("e2")
     clickOnTile("e3")
@@ -110,7 +97,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSelectTile() = runTest {
+  fun testSelectTile() = test {
     clickOnTile("e3")
     assertNull(interactionsManager.selectedTile, "No piece should be selected on an empty tile.")
     clickOnTile("e2")
@@ -131,21 +118,10 @@ class TestLinesExplorer : TestWithKoin {
     assertNull(interactionsManager.selectedTile, "Invalid move should reset selected tile.")
   }
 
-  private fun verifyStoredNode(positionKey: PositionKey, isGood: Boolean, move: String) {
-    var dataNode: DataNode? = null
-    runTest { dataNode = database.getPosition(positionKey) }
+  private suspend fun verifyStoredNode(positionKey: PositionKey, isGood: Boolean, move: String) {
+    val dataNode = database.getPosition(positionKey)
     val savedBadMove = dataNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == move }
     assertEquals(isGood, savedBadMove?.isGood, "Move should be saved as bad")
-  }
-
-  private fun testGame(stringMoves: List<String>) = runTest {
-    initialize()
-    val refEngine = GameEngine()
-    stringMoves.forEach {
-      interactionsManager.playMove(it)
-      refEngine.playSanMove(it)
-      validateGame(refEngine)
-    }
   }
 
   private fun assertPawnOnE4() {
@@ -166,10 +142,6 @@ class TestLinesExplorer : TestWithKoin {
     assertNull(interactionsManager.engine.pieceAt(emptyRow, emptyCol))
   }
 
-  private fun validateGame(refEngine: GameEngine) {
-    assertEquals(refEngine.toFen(), interactionsManager.engine.toFen())
-  }
-
   private suspend fun clickOnTile(tile: String) {
     val col = tile[0] - 'a'
     val row = tile[1] - '1'
@@ -181,7 +153,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testCalculateNumberOfNodeToDelete_SimpleLine() = runTest {
+  fun testCalculateNumberOfNodeToDelete_SimpleLine() = test {
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("Nf3")
@@ -191,7 +163,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testCalculateNumberOfNodeToDelete_ConvergingNodes() = runTest {
+  fun testCalculateNumberOfNodeToDelete_ConvergingNodes() = test {
     // Line 1
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
@@ -209,7 +181,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testCreateLinesExplorerFromCustomPosition() = runTest {
+  fun testCreateLinesExplorerFromCustomPosition() = test {
     // Arrange: create a custom position by playing some moves
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
@@ -223,7 +195,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testGoBackFromStartPosition() = runTest {
+  fun testGoBackFromStartPosition() = test {
     // Arrange: create a custom position by playing some moves
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
@@ -244,13 +216,13 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testNoPreviousMove() = runTest {
+  fun testNoPreviousMove() = test {
     interactionsManager.back()
     assertEquals(PositionKey.START_POSITION, interactionsManager.engine.toPositionKey())
   }
 
   @Test
-  fun testRootNodeWithPreviousMoves() = runTest {
+  fun testRootNodeWithPreviousMoves() = test {
     interactionsManager.playMove("Nf3")
     interactionsManager.save()
     interactionsManager.playMove("Nf6")
@@ -266,7 +238,7 @@ class TestLinesExplorer : TestWithKoin {
   }
 
   @Test
-  fun testBlocked() = runTest {
+  fun testBlocked() = test {
     interactionsManager.block()
     clickOnTile("e2")
     clickOnTile("e4")

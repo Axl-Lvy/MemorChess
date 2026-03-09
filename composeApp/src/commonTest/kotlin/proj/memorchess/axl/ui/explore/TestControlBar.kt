@@ -23,17 +23,22 @@ import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
 
 @OptIn(ExperimentalTestApi::class)
-class TestControlBar : TestWithKoin {
+class TestControlBar : TestWithKoin() {
 
   private val nodeManager: NodeManager by inject()
 
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runTest { nodeManager.resetCacheFromSource() }
-    runComposeUiTest {
-      setContent { InitializeApp { Explore() } }
-      playMove("e2", "e4")
-      assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
-      block()
+    koinSetUp()
+    try {
+      runTest { nodeManager.resetCacheFromSource() }
+      runComposeUiTest {
+        setContent { InitializeApp { Explore() } }
+        playMove("e2", "e4")
+        assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
+        block()
+      }
+    } finally {
+      koinTearDown()
     }
   }
 

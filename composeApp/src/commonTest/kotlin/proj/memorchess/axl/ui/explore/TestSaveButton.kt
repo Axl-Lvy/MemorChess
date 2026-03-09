@@ -14,7 +14,6 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertPieceMoved
@@ -23,34 +22,37 @@ import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
 
 @OptIn(ExperimentalTestApi::class)
-class TestSaveButton : TestWithKoin {
+class TestSaveButton : TestWithKoin() {
 
   private val afterH3Position = PositionKey("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR b KQkq")
   private val afterH6Position = PositionKey("rnbqkbnr/ppppppp1/7p/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq")
   private val database: DatabaseQueryManager by inject()
 
-  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runTest { database.deleteAll(DateUtil.farInThePast()) }
-    runComposeUiTest {
-      setContent { InitializeApp { Explore() } }
-      playMove("h2", "h3")
-      assertPieceMoved("h2", "h3", ChessPiece(PieceKind.PAWN, Player.WHITE))
-      block()
+  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+    koinSetUp()
+    try {
+      runTest { database.deleteAll(DateUtil.farInThePast()) }
+      runComposeUiTest {
+        setContent { InitializeApp { Explore() } }
+        playMove("h2", "h3")
+        assertPieceMoved("h2", "h3", ChessPiece(PieceKind.PAWN, Player.WHITE))
+        block()
+      }
+    } finally {
+      koinTearDown()
     }
   }
 
   @Test
   fun testSaveGood() = runTestFromSetup {
-    runTest {
-      assertNull(getPosition(afterH3Position))
-      var savedPosition: DataNode? = null
-      Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveGood: Position not saved") {
-        clickOnSave()
-        savedPosition = getPosition(afterH3Position)
-        savedPosition != null
-      }
-      check(savedPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
+    assertNull(getPosition(afterH3Position))
+    var savedPosition: DataNode? = null
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+      clickOnSave()
+      savedPosition = getPosition(afterH3Position)
+      savedPosition != null
     }
+    check(savedPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
   }
 
   @Test
@@ -61,7 +63,7 @@ class TestSaveButton : TestWithKoin {
     assertNull(getPosition(afterH6Position))
     var savedLastPosition: DataNode? = null
     var savedFirstPosition: DataNode? = null
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testPropagateSave: Positions not saved") {
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
       clickOnSave()
       savedLastPosition = getPosition(afterH6Position)
       savedFirstPosition = getPosition(afterH3Position)

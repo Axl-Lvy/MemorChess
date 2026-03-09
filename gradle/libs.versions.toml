@@ -9,8 +9,9 @@ androidx-room = "2.8.4"
 chess-core = "1.0.1"
 composeHotReload = "1.0.0"
 compose-multiplatform = "1.10.2"
-hotpreview = "0.2.0"
 filekit = "0.13.0"
+hotpreview = "0.2.0"
+indexeddb = "0.12.0"
 kermit = "2.1.0"
 kover = "0.9.7"
 koin = "4.1.1"
@@ -56,6 +57,7 @@ filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose
 # --- Data ---
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "androidx-room" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "androidx-room" }
+indexeddb = { module = "com.juul.indexeddb:core", version.ref = "indexeddb" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt", version.ref = "supabase" }
 supabase-database = { module = "io.github.jan-tennert.supabase:postgrest-kt", version.ref = "supabase" }

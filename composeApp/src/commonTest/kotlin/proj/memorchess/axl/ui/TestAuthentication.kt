@@ -8,8 +8,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.test.waitUntilDoesNotExist
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
+import io.kotest.assertions.nondeterministic.eventually
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -21,45 +20,36 @@ import proj.memorchess.axl.core.config.AUTH_REFRESH_TOKEN_SETTINGS
 import proj.memorchess.axl.core.config.KEEP_LOGGED_IN_SETTING
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Settings
 
 @OptIn(ExperimentalTestApi::class)
-class TestAuthentication : TestWithKoin {
+class TestAuthentication : TestWithKoin() {
 
   val authManager by inject<AuthManager>()
 
-  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runComposeUiTest {
-      setContent { InitializeApp { Settings() } }
-      assertNodeWithTagExists("sign_in_button").performScrollTo()
-      block()
+  private fun runTestFromSetup(
+    setup: suspend () -> Unit = { signOut() },
+    block: ComposeUiTest.() -> Unit,
+  ) {
+    koinSetUp()
+    try {
+      runTest { setup() }
+      runComposeUiTest {
+        setContent { InitializeApp { Settings() } }
+        assertNodeWithTagExists("sign_in_button").performScrollTo()
+        block()
+      }
+    } finally {
+      runTest { signOut() }
+      koinTearDown()
     }
   }
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
-    runTest {
-      signOut() // Ensure we start with a clean state
-    }
-  }
-
-  @AfterTest
-  override fun tearDown() {
-    super.tearDown()
-    runTest {
-      signOut() // Clean up after tests
-    }
-  }
-
-  private fun signOut() {
-    runTest {
-      authManager.signOut()
-      Awaitility.awaitUntilTrue { authManager.user == null }
-    }
+  private suspend fun signOut() {
+    authManager.signOut()
+    eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
   }
 
   @Test
@@ -92,8 +82,12 @@ class TestAuthentication : TestWithKoin {
     signInWorkflow()
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("Yes").performClick()
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isNotEmpty() }
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+      KEEP_LOGGED_IN_SETTING.getValue()
+    }
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+      AUTH_REFRESH_TOKEN_SETTINGS.getValue().isNotEmpty()
+    }
   }
 
   @Ignore // This test is flaky and needs to be fixed
@@ -102,8 +96,12 @@ class TestAuthentication : TestWithKoin {
     signInWorkflow()
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("No").performClick()
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { !KEEP_LOGGED_IN_SETTING.getValue() }
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { AUTH_REFRESH_TOKEN_SETTINGS.getValue().isEmpty() }
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+      !KEEP_LOGGED_IN_SETTING.getValue()
+    }
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+      AUTH_REFRESH_TOKEN_SETTINGS.getValue().isEmpty()
+    }
   }
 
   @Test
@@ -111,7 +109,9 @@ class TestAuthentication : TestWithKoin {
     signInWorkflow()
     assertNodeWithTextExists("Stay signed in?")
     assertNodeWithTextExists("Yes").performClick()
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { KEEP_LOGGED_IN_SETTING.getValue() }
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+      KEEP_LOGGED_IN_SETTING.getValue()
+    }
     assertNodeWithTextExists("DARK").performClick()
     assertNodeWithTextExists("LIGHT").performClick()
     assertNodeWithTextDoesNotExists("Stay signed in?")
@@ -162,27 +162,30 @@ class TestAuthentication : TestWithKoin {
   }
 
   @Test
-  fun testSignOut() = runTestFromSetup {
-    // First sign in
-    runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
+  fun testSignOut() =
+    runTestFromSetup(
+      setup = {
+        signOut()
+        authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
+      }
+    ) {
+      // Verify we still see "Signed in" and try to click it
+      assertNodeWithTagExists("sign_in_button").performScrollTo().performClick()
 
-    // Verify we still see "Signed in" and try to click it
-    assertNodeWithTagExists("sign_in_button").performScrollTo().performClick()
+      // Verify dialog does not appear (button should be disabled)
+      assertNodeWithTextDoesNotExists("Email")
+      assertNodeWithTextDoesNotExists("Password")
+      assertNodeWithTextExists("Are you sure you want to sign out?")
+      assertNodeWithTextExists("Cancel").performClick()
 
-    // Verify dialog does not appear (button should be disabled)
-    assertNodeWithTextDoesNotExists("Email")
-    assertNodeWithTextDoesNotExists("Password")
-    assertNodeWithTextExists("Are you sure you want to sign out?")
-    assertNodeWithTextExists("Cancel").performClick()
+      // Verify we still see "Signed in" and try to click it
+      assertNodeWithTagExists("sign_in_button").performClick()
 
-    // Verify we still see "Signed in" and try to click it
-    assertNodeWithTagExists("sign_in_button").performClick()
-
-    // Verify dialog does not appear (button should be disabled)
-    assertNodeWithTextDoesNotExists("Email")
-    assertNodeWithTextDoesNotExists("Password")
-    assertNodeWithTextExists("Are you sure you want to sign out?")
-    assertNodeWithTextExists("Sign Out").performClick()
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT) { authManager.user == null }
-  }
+      // Verify dialog does not appear (button should be disabled)
+      assertNodeWithTextDoesNotExists("Email")
+      assertNodeWithTextDoesNotExists("Password")
+      assertNodeWithTextExists("Are you sure you want to sign out?")
+      assertNodeWithTextExists("Sign Out").performClick()
+      waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) { authManager.user == null }
+    }
 }

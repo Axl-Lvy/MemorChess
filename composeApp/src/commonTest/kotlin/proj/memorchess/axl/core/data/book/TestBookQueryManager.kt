@@ -1,55 +1,49 @@
 package proj.memorchess.axl.core.data.book
 
+import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldMatchEach
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
-import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 
-class TestBookQueryManager : TestWithKoin {
+class TestBookQueryManager : TestWithKoin() {
 
   private val bookQueryManager: SupabaseBookQueryManager by inject()
   private val authManager: AuthManager by inject()
 
   private val createdBookIds = mutableListOf<Long>()
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
+  override suspend fun setUp() {
     ensureSignedIn()
   }
 
-  @AfterTest
-  override fun tearDown() {
-    runTest { cleanupBooks() }
+  override suspend fun tearDown() {
+    cleanupBooks()
     ensureSignedOut()
-    super.tearDown()
   }
 
-  private fun ensureSignedIn() {
-    runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
-    Awaitility.awaitUntilTrue { authManager.user != null }
+  private suspend fun ensureSignedIn() {
+    authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
+    eventually(TEST_TIMEOUT) { assertNotNull(authManager.user) }
   }
 
-  private fun ensureSignedOut() {
-    runTest {
-      if (authManager.user != null) {
-        authManager.signOut()
-        Awaitility.awaitUntilTrue { authManager.user == null }
-      }
+  private suspend fun ensureSignedOut() {
+    if (authManager.user != null) {
+      authManager.signOut()
+      eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
     }
   }
 
@@ -59,7 +53,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testCreateBook() = runTest {
+  fun testCreateBook() = test {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
@@ -69,7 +63,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testGetBook() = runTest {
+  fun testGetBook() = test {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
@@ -80,14 +74,14 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testGetNonExistentBook() = runTest {
+  fun testGetNonExistentBook() = test {
     val book = bookQueryManager.getBook(-999L)
 
     assertEquals(null, book)
   }
 
   @Test
-  fun testGetBookMoves() = runTest {
+  fun testGetBookMoves() = test {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
@@ -107,19 +101,19 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testGetBookMovesForNonExistentBook() = runTest {
+  fun testGetBookMovesForNonExistentBook() = test {
     val moves = bookQueryManager.getBookMoves(-999L)
     assertTrue(moves.isEmpty())
   }
 
   @Test
-  fun testHasPermission() = runTest {
+  fun testHasPermission() = test {
     // Test user has BOOK_CREATION permission
     assertTrue(authManager.hasUserPermission(UserPermission.BOOK_CREATION))
   }
 
   @Test
-  fun testAddMoveToBook() = runTest {
+  fun testAddMoveToBook() = test {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
@@ -139,7 +133,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testRegisterBookDownload() = runTest {
+  fun testRegisterBookDownload() = test {
     val bookId = bookQueryManager.createBook("Download Test Book")
     createdBookIds.add(bookId)
 
@@ -163,7 +157,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testDeleteBook() = runTest {
+  fun testDeleteBook() = test {
     val bookId = bookQueryManager.createBook("Book to Delete")
 
     val result = bookQueryManager.deleteBook(bookId)
@@ -174,14 +168,14 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testDeleteNonExistentBook() = runTest {
+  fun testDeleteNonExistentBook() = test {
     val result = bookQueryManager.deleteBook(-999L)
 
     assertFalse(result)
   }
 
   @Test
-  fun testDeleteBookAlsoDeletesMoves() = runTest {
+  fun testDeleteBookAlsoDeletesMoves() = test {
     val bookId = bookQueryManager.createBook("Book with Moves")
 
     val move =
@@ -200,7 +194,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testOverwriteMoveInBook() = runTest {
+  fun testOverwriteMoveInBook() = test {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
@@ -218,7 +212,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testMultipleBooks() = runTest {
+  fun testMultipleBooks() = test {
     val bookId1 = bookQueryManager.createBook("Book 1")
     val bookId2 = bookQueryManager.createBook("Book 2")
     val bookId3 = bookQueryManager.createBook("Book 3")
@@ -235,7 +229,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testAddMultipleMovesToBook() = runTest {
+  fun testAddMultipleMovesToBook() = test {
     val bookId = bookQueryManager.createBook("Multi Move Book")
     createdBookIds.add(bookId)
 
@@ -253,7 +247,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testRemoveMoveFromBook() = runTest {
+  fun testRemoveMoveFromBook() = test {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
@@ -277,7 +271,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testRemoveMoveFromBookWithMultipleMoves() = runTest {
+  fun testRemoveMoveFromBookWithMultipleMoves() = test {
     val bookId = bookQueryManager.createBook("Multi Move Book")
     createdBookIds.add(bookId)
 
@@ -298,7 +292,7 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testRemoveNonExistentMove() = runTest {
+  fun testRemoveNonExistentMove() = test {
     val bookId = bookQueryManager.createBook("Test Book")
     createdBookIds.add(bookId)
 
@@ -308,13 +302,13 @@ class TestBookQueryManager : TestWithKoin {
   }
 
   @Test
-  fun testCannotFetchWithNegativeLimit() = runTest {
+  fun testCannotFetchWithNegativeLimit() = test {
     bookQueryManager.getAllBooks(0, 0) shouldHaveSize 0
     assertFails { bookQueryManager.getAllBooks(0, -1) }
   }
 
   @Test
-  fun testFetchBookByName() = runTest {
+  fun testFetchBookByName() = test {
     val bookId1 = bookQueryManager.createBook("AAA")
     val bookId2 = bookQueryManager.createBook("BBBSEITSRENITSR")
     createdBookIds.addAll(listOf(bookId1, bookId2))

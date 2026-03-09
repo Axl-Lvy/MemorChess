@@ -10,23 +10,37 @@ import proj.memorchess.axl.ui.assertNodeWithTextDoesNotExists
 import proj.memorchess.axl.ui.pages.Settings
 
 @OptIn(ExperimentalTestApi::class)
-class TestFeatureFlags : TestWithKoin {
+class TestFeatureFlags : TestWithKoin() {
 
   @Test
-  fun testAuthUiHiddenWhenAuthDisabled() = runComposeUiTest {
-    FeatureFlags.isAuthEnabled = false
-    setContent { InitializeApp { Settings() } }
+  fun testAuthUiHiddenWhenAuthDisabled() {
+    koinSetUp()
+    try {
+      runComposeUiTest {
+        FeatureFlags.isAuthEnabled = false
+        setContent { InitializeApp { Settings() } }
 
-    assertNodeWithTagExists("resetConfigButton")
-    assertNodeWithTagDoesNotExists("sign_in_button")
-    assertNodeWithTextDoesNotExists("Database Synchronisation")
+        assertNodeWithTagExists("resetConfigButton")
+        assertNodeWithTagDoesNotExists("sign_in_button")
+        assertNodeWithTextDoesNotExists("Database Synchronisation")
+      }
+    } finally {
+      koinTearDown()
+    }
   }
 
   @Test
-  fun testAuthUiShownWhenAuthEnabled() = runComposeUiTest {
-    FeatureFlags.isAuthEnabled = true
-    setContent { InitializeApp { Settings() } }
+  fun testAuthUiShownWhenAuthEnabled() {
+    koinSetUp()
+    try {
+      runComposeUiTest {
+        FeatureFlags.isAuthEnabled = true
+        setContent { InitializeApp { Settings() } }
 
-    assertNodeWithTagExists("sign_in_button")
+        assertNodeWithTagExists("sign_in_button")
+      }
+    } finally {
+      koinTearDown()
+    }
   }
 }
