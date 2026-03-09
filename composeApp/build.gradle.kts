@@ -246,6 +246,7 @@ tasks.withType<KotlinJsTest>().configureEach {
 }
 
 tasks.register<JacocoReport>("jacocoAndroidTestReport") {
+  dependsOn("compileDebugKotlinAndroid")
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
 
