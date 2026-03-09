@@ -104,9 +104,7 @@ internal data class SinglePositionFunctionArg(
 }
 
 @Serializable
-internal data class SingleDateTimeFunctionArg(
-  @SerialName("hard_from_input") val hardFrom: Instant?
-)
+internal data class SingleDateTimeFunctionArg(@SerialName("hard_from_input") val hardFrom: Instant?)
 
 @Serializable
 internal data class MoveFromOriginFunctionArg(
