@@ -4,7 +4,6 @@ import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration
@@ -23,7 +22,6 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
-import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.RememberLastRouteNavigator
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -34,21 +32,21 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 private const val BRAVO_TEXT = "Bravo !"
 
 @OptIn(ExperimentalTestApi::class)
-class TestTraining : TestWithKoin {
+class TestTraining : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
   private val navigator: Navigator by inject()
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
-    runTest { resetDatabase() }
-  }
-
-  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runComposeUiTest {
-      setContent { InitializeApp { Training() } }
-      block()
+  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+    koinSetUp()
+    try {
+      runTest { resetDatabase() }
+      runComposeUiTest {
+        setContent { InitializeApp { Training() } }
+        block()
+      }
+    } finally {
+      koinTearDown()
     }
   }
 
@@ -81,7 +79,7 @@ class TestTraining : TestWithKoin {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e4")
     assertNodeWithTextExists(BRAVO_TEXT)
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSucceedOfTraining: Position not saved") {
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
       val positions = getAllPositions()
       positions.size == 1 &&
         positions[0].positionKey == PositionKey.START_POSITION &&
@@ -108,7 +106,7 @@ class TestTraining : TestWithKoin {
     playMove("e2", "e3")
     clickOnNextNode()
     assertNodeWithTextExists(BRAVO_TEXT)
-    Awaitility.awaitUntilTrue(TEST_TIMEOUT, "testSaveBad: Position not saved") {
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
       val positions = getAllPositions()
       positions.size == 1 &&
         positions[0].positionKey == PositionKey.START_POSITION &&
@@ -151,65 +149,84 @@ class TestTraining : TestWithKoin {
   }
 
   @Test
-  fun testShowNextMove() = runComposeUiTest {
-    TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
-    // Insert a second move in the database
-    val engine = GameEngine()
-    val startPos = engine.toPositionKey()
-
-    engine.playSanMove("e4")
-    val e4Pos = engine.toPositionKey()
-    val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
-    engine.playSanMove("e5")
-    val e5Pos = engine.toPositionKey()
-    val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
-
-    // Create the node with the move
-    val testNode =
-      DataNode(
-        positionKey = e4Pos,
-        PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
-        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
-      )
-    runTest { database.insertNodes(testNode) }
-    setContent { InitializeApp { Training() } }
-
+  fun testShowNextMove() {
+    koinSetUp()
     try {
-      assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
-      playMove("e7", "e5")
-    } catch (_: Throwable) {
-      playMove("e2", "e4")
+      TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
+      // Insert a second move in the database
+      val engine = GameEngine()
+      val startPos = engine.toPositionKey()
+
+      engine.playSanMove("e4")
+      val e4Pos = engine.toPositionKey()
+      val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
+      engine.playSanMove("e5")
+      val e5Pos = engine.toPositionKey()
+      val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
+
+      // Create the node with the move
+      val testNode =
+        DataNode(
+          positionKey = e4Pos,
+          PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
+          PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+        )
+      runTest {
+        resetDatabase()
+        database.insertNodes(testNode)
+      }
+      runComposeUiTest {
+        setContent { InitializeApp { Training() } }
+
+        try {
+          assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
+          playMove("e7", "e5")
+        } catch (_: Throwable) {
+          playMove("e2", "e4")
+        }
+        assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+        try {
+          assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
+          playMove("e7", "e5")
+        } catch (_: Throwable) {
+          playMove("e2", "e4")
+        }
+        assertNodeWithTextExists(BRAVO_TEXT)
+      }
+    } finally {
+      koinTearDown()
     }
-    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-    try {
-      assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
-      playMove("e7", "e5")
-    } catch (_: Throwable) {
-      playMove("e2", "e4")
-    }
-    assertNodeWithTextExists(BRAVO_TEXT)
   }
 
   @Test
-  fun testPromotion() = runComposeUiTest {
-    runTest { database.deleteAll(null) }
-    val engine = GameEngine(PositionKey("k7/7P/8/8/8/8/8/7K w KQkq"))
-    val startPosition = engine.toPositionKey()
-    engine.playSanMove("h8=Q+")
-    val endPosition = engine.toPositionKey()
-    val startMove = DataMove(startPosition, endPosition, "h8=Q", isGood = true)
-    val node =
-      DataNode(
-        positionKey = startPosition,
-        PreviousAndNextMoves(listOf(), listOf(startMove)),
-        PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
-      )
-    runTest { database.insertNodes(node) }
-    setContent { InitializeApp { Training() } }
-    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-    playMove("h7", "h8")
-    promoteTo("queen")
-    assertNodeWithTextExists(BRAVO_TEXT)
+  fun testPromotion() {
+    koinSetUp()
+    try {
+      val engine = GameEngine(PositionKey("k7/7P/8/8/8/8/8/7K w KQkq"))
+      val startPosition = engine.toPositionKey()
+      engine.playSanMove("h8=Q+")
+      val endPosition = engine.toPositionKey()
+      val startMove = DataMove(startPosition, endPosition, "h8=Q", isGood = true)
+      val node =
+        DataNode(
+          positionKey = startPosition,
+          PreviousAndNextMoves(listOf(), listOf(startMove)),
+          PreviousAndNextDate(DateUtil.dateInDays(-7), DateUtil.today()),
+        )
+      runTest {
+        database.deleteAll(null)
+        database.insertNodes(node)
+      }
+      runComposeUiTest {
+        setContent { InitializeApp { Training() } }
+        assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+        playMove("h7", "h8")
+        promoteTo("queen")
+        assertNodeWithTextExists(BRAVO_TEXT)
+      }
+    } finally {
+      koinTearDown()
+    }
   }
 
   @Test

@@ -58,6 +58,7 @@ kotlin {
               }
           }
       }
+      testTask { useKarma { useFirefoxHeadless() } }
     }
     binaries.executable()
   }
@@ -156,6 +157,8 @@ kotlin {
     }
 
     iosMain.dependencies { implementation(libs.ktor.client.darwin) }
+
+    wasmJsMain.dependencies { implementation(libs.indexeddb) }
 
     commonTest.dependencies {
       implementation(libs.kotlin.test)

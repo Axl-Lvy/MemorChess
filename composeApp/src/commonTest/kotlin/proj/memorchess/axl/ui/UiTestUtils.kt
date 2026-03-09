@@ -13,15 +13,13 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.waitUntilAtLeastOneExists
+import androidx.compose.ui.test.waitUntilDoesNotExist
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration
-import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.engine.ChessPiece
-import proj.memorchess.axl.test_util.Awaitility
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
@@ -61,19 +59,19 @@ fun ComposeUiTest.clickOnReverse() {
 /** Clicks the back button to undo the last move. */
 fun ComposeUiTest.clickOnBack() {
   waitUntilNodeExists(hasTestTag("Back")).assertExists().performClick()
-  runTest { awaitIdle() }
+  waitForIdle()
 }
 
 /** Clicks the next button to redo a previously undone move. */
 fun ComposeUiTest.clickOnNext() {
   waitUntilNodeExists(hasTestTag("Next")).assertExists().performClick()
-  runTest { awaitIdle() }
+  waitForIdle()
 }
 
 /** Clicks the reset button to return the board to its initial state. */
 fun ComposeUiTest.clickOnReset() {
   waitUntilNodeExists(hasTestTag("Reset board")).assertExists().performClick()
-  runTest { awaitIdle() }
+  waitForIdle()
 }
 
 /**
@@ -188,14 +186,7 @@ fun ComposeUiTest.assertNodeWithTextExists(text: String): SemanticsNodeInteracti
  * @throws AssertionError if an element with the specified text exists
  */
 fun ComposeUiTest.assertNodeWithTextDoesNotExists(text: String) {
-  Awaitility.awaitUntilTrue(TEST_TIMEOUT, failingMessage = "Node with text $text exists") {
-    try {
-      onNodeWithText(text).assertDoesNotExist()
-      return@awaitUntilTrue true
-    } catch (_: AssertionError) {
-      return@awaitUntilTrue false
-    }
-  }
+  waitUntilDoesNotExist(hasText(text), TEST_TIMEOUT.inWholeMilliseconds)
 }
 
 /**

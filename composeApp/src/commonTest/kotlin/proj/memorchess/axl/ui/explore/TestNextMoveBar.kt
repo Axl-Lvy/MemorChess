@@ -14,7 +14,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.ui.assertNextMoveExist
@@ -27,7 +27,7 @@ import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
 
 @OptIn(ExperimentalTestApi::class)
-class TestNextMoveBar : TestWithKoin {
+class TestNextMoveBar : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
 
@@ -37,17 +37,22 @@ class TestNextMoveBar : TestWithKoin {
     playMove("e2", "e4")
     assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
     clickOnSave()
-    Awaitility.awaitUntilTrue {
+    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
       var size = 0
       runTest { size = database.getAllNodes(false).size }
       size == 2
     }
   }
 
-  fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
-    runComposeUiTest {
-      setUp()
-      block()
+  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+    koinSetUp()
+    try {
+      runComposeUiTest {
+        setUp()
+        block()
+      }
+    } finally {
+      koinTearDown()
     }
   }
 

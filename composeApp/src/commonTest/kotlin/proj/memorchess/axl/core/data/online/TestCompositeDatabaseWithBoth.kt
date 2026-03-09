@@ -3,7 +3,6 @@ package proj.memorchess.axl.core.data.online
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.online.database.DatabaseSynchronizer
@@ -15,21 +14,19 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 class TestCompositeDatabaseWithBoth : TestCompositeDatabase.TestCompositeDatabaseAuthenticated() {
   private val databaseSynchronizer: DatabaseSynchronizer by inject()
 
-  override fun setUp() {
+  override suspend fun setUp() {
     super.setUp()
     assertTrue { remoteDatabase.isActive() }
     assertTrue { localDatabase.isActive() }
-    runTest {
-      // Clear remote database to start with clean state
-      localDatabase.deleteAll(DateUtil.farInThePast())
-      remoteDatabase.deleteAll(DateUtil.farInThePast())
-      databaseSynchronizer.syncFromLocal()
-    }
+    // Clear remote database to start with clean state
+    localDatabase.deleteAll(DateUtil.farInThePast())
+    remoteDatabase.deleteAll(DateUtil.farInThePast())
+    databaseSynchronizer.syncFromLocal()
     assertTrue { compositeDatabase.isActive() }
   }
 
   @Test
-  fun testConsistency() = runTest {
+  fun testConsistency() = test {
     val engine = GameEngine()
     val node =
       DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())

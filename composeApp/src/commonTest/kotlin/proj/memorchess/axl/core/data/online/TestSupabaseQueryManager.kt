@@ -1,7 +1,8 @@
 package proj.memorchess.axl.core.data.online
 
+import io.kotest.assertions.nondeterministic.eventually
 import kotlin.test.*
-import kotlinx.coroutines.test.runTest
+import kotlin.test.assertNull
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
@@ -11,7 +12,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
-import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestAuthenticated
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
@@ -20,16 +21,14 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   private val remoteDatabase by inject<SupabaseQueryManager>()
   private val refDatabase = TestDatabaseQueryManager.vienna()
 
-  override fun setUp() {
+  override suspend fun setUp() {
     super.setUp()
-    runTest {
-      // Clear remote database to start with clean state
-      remoteDatabase.deleteAll(DateUtil.farInThePast())
-    }
+    // Clear remote database to start with clean state
+    remoteDatabase.deleteAll(DateUtil.farInThePast())
   }
 
   @Test
-  fun testInsertAndRetrieveSingleNode() = runTest {
+  fun testInsertAndRetrieveSingleNode() = test {
     // Arrange
     val engine = GameEngine()
     val node =
@@ -45,7 +44,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testInsertMultipleNodes() = runTest {
+  fun testInsertMultipleNodes() = test {
     // Arrange
     val nodes = refDatabase.getAllNodes()
     assertTrue(nodes.isNotEmpty(), "Reference database should have nodes")
@@ -62,7 +61,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testGetPosition() = runTest {
+  fun testGetPosition() = test {
     // Arrange
     val engine = GameEngine()
     val positionKey = engine.toPositionKey()
@@ -78,7 +77,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testGetNonExistentPosition() = runTest {
+  fun testGetNonExistentPosition() = test {
     // Arrange
     val engine = GameEngine()
     engine.playSanMove("e4") // Create a different position
@@ -92,7 +91,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testDeletePosition() = runTest {
+  fun testDeletePosition() = test {
     // Arrange
     val engine = GameEngine()
     val positionKey = engine.toPositionKey()
@@ -112,7 +111,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testDeleteMove() = runTest {
+  fun testDeleteMove() = test {
     // Arrange
     val engine = GameEngine()
     val rootPosition = engine.toPositionKey()
@@ -147,7 +146,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testDeleteAll() = runTest {
+  fun testDeleteAll() = test {
     // Arrange
     val nodes = refDatabase.getAllNodes()
     remoteDatabase.insertNodes(*nodes.toTypedArray())
@@ -165,7 +164,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testDeleteAllWithHardFrom() = runTest {
+  fun testDeleteAllWithHardFrom() = test {
     // Arrange
     val engine = GameEngine()
     val updatedAt = DateUtil.now()
@@ -187,7 +186,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testGetLastUpdate() = runTest {
+  fun testGetLastUpdate() = test {
     // Arrange
     val engine = GameEngine()
     val node =
@@ -220,7 +219,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testGetAllNodesWithDeletedOnes() = runTest {
+  fun testGetAllNodesWithDeletedOnes() = test {
     // Arrange
     val engine = GameEngine()
     val node =
@@ -238,10 +237,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testOperationsRequireAuthentication() = runTest {
+  fun testOperationsRequireAuthentication() = test {
     // Arrange
     authManager.signOut()
-    Awaitility.awaitUntilTrue { authManager.user == null }
+    eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
 
     val engine = GameEngine()
     val node =
@@ -256,7 +255,7 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testEmptyDatabaseOperations() = runTest {
+  fun testEmptyDatabaseOperations() = test {
     // Act
     val emptyNodes = remoteDatabase.getAllNodes(false)
     val nonExistentPosition =
@@ -272,10 +271,10 @@ class TestSupabaseQueryManager : TestAuthenticated() {
   }
 
   @Test
-  fun testThrowOnSignOut() = runTest {
+  fun testThrowOnSignOut() = test {
     // Arrange
     authManager.signOut()
-    Awaitility.awaitUntilTrue { authManager.user == null }
+    eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
 
     val engine = GameEngine()
     val node =

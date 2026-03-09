@@ -1,14 +1,13 @@
 package proj.memorchess.axl.core.interaction
 
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
+import io.kotest.assertions.nondeterministic.eventually
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
@@ -21,12 +20,12 @@ import proj.memorchess.axl.core.data.online.auth.AuthManager
 import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.core.interactions.BookExplorer
-import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.ToastRendererForTests
 
 /** Tests for [BookExplorer] which handles exploring and downloading book moves. */
-class TestBookExplorer : TestWithKoin {
+class TestBookExplorer : TestWithKoin() {
 
   private val bookQueryManager: SupabaseBookQueryManager by inject()
   private val authManager: AuthManager by inject()
@@ -36,31 +35,25 @@ class TestBookExplorer : TestWithKoin {
   private lateinit var bookExplorer: BookExplorer
   private var createdBookId: Long? = null
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
+  override suspend fun setUp() {
     ensureSignedIn()
-    runTest { database.deleteAll(null) }
+    database.deleteAll(null)
   }
 
-  @AfterTest
-  override fun tearDown() {
-    runTest { cleanupTestBook() }
+  override suspend fun tearDown() {
+    cleanupTestBook()
     ensureSignedOut()
-    super.tearDown()
   }
 
-  private fun ensureSignedIn() {
-    runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
-    Awaitility.awaitUntilTrue { authManager.user != null }
+  private suspend fun ensureSignedIn() {
+    authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
+    eventually(TEST_TIMEOUT) { assertNotNull(authManager.user) }
   }
 
-  private fun ensureSignedOut() {
-    runTest {
-      if (authManager.user != null) {
-        authManager.signOut()
-        Awaitility.awaitUntilTrue { authManager.user == null }
-      }
+  private suspend fun ensureSignedOut() {
+    if (authManager.user != null) {
+      authManager.signOut()
+      eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
     }
   }
 
@@ -92,7 +85,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testGetNextMoves() = runTest {
+  fun testGetNextMoves() = test {
     setupTestBook()
 
     val nextMoves = bookExplorer.getNextMoves()
@@ -101,7 +94,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testNavigateThroughBookMoves() = runTest {
+  fun testNavigateThroughBookMoves() = test {
     setupTestBook()
 
     bookExplorer.playMove("e4")
@@ -116,7 +109,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testBackNavigation() = runTest {
+  fun testBackNavigation() = test {
     setupTestBook()
 
     bookExplorer.playMove("e4")
@@ -130,7 +123,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testReset() = runTest {
+  fun testReset() = test {
     setupTestBook()
 
     bookExplorer.playMove("e4")
@@ -141,7 +134,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoire() = runTest {
+  fun testDownloadBookToRepertoire() = test {
     setupTestBook()
 
     val nodesBeforeDownload = database.getAllNodes()
@@ -154,7 +147,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireFail() = runTest {
+  fun testDownloadBookToRepertoireFail() = test {
     setupTestBook()
 
     val nodesBeforeDownload = database.getAllNodes()
@@ -173,7 +166,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireCalculatesCorrectDepth() = runTest {
+  fun testDownloadBookToRepertoireCalculatesCorrectDepth() = test {
     setupTestBook()
 
     bookExplorer.downloadBookToRepertoire()
@@ -198,7 +191,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithCycleDoesNotHang() = runTest {
+  fun testDownloadBookToRepertoireWithCycleDoesNotHang() = test {
     val bookId = bookQueryManager.createBook("Test Cycle")
     createdBookId = bookId
 
@@ -229,7 +222,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithCycleCalculatesCorrectDepth() = runTest {
+  fun testDownloadBookToRepertoireWithCycleCalculatesCorrectDepth() = test {
     val bookId = bookQueryManager.createBook("Test Cycle Depth")
     createdBookId = bookId
 
@@ -266,7 +259,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithComplexCycle() = runTest {
+  fun testDownloadBookToRepertoireWithComplexCycle() = test {
     val bookId = bookQueryManager.createBook("Complex Cycle")
     createdBookId = bookId
 
@@ -304,7 +297,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithMultiplePaths() = runTest {
+  fun testDownloadBookToRepertoireWithMultiplePaths() = test {
     val bookId = bookQueryManager.createBook("Multiple Paths")
     createdBookId = bookId
 
@@ -344,7 +337,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithTranspositions() = runTest {
+  fun testDownloadBookToRepertoireWithTranspositions() = test {
     val bookId = bookQueryManager.createBook("Transpositions")
     createdBookId = bookId
 
@@ -390,7 +383,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireCountsAllMovesCorrectly() = runTest {
+  fun testDownloadBookToRepertoireCountsAllMovesCorrectly() = test {
     setupTestBook()
 
     bookExplorer.downloadBookToRepertoire()
@@ -404,7 +397,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithSelfLoop() = runTest {
+  fun testDownloadBookToRepertoireWithSelfLoop() = test {
     val bookId = bookQueryManager.createBook("Self Loop")
     createdBookId = bookId
 
@@ -434,7 +427,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithDiamondPattern() = runTest {
+  fun testDownloadBookToRepertoireWithDiamondPattern() = test {
     val bookId = bookQueryManager.createBook("Diamond Pattern")
     createdBookId = bookId
 
@@ -472,7 +465,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithDeepLinearChain() = runTest {
+  fun testDownloadBookToRepertoireWithDeepLinearChain() = test {
     val bookId = bookQueryManager.createBook("Deep Chain")
     createdBookId = bookId
 
@@ -513,7 +506,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithBackwardEdgeToNonRoot() = runTest {
+  fun testDownloadBookToRepertoireWithBackwardEdgeToNonRoot() = test {
     val bookId = bookQueryManager.createBook("Backward Edge")
     createdBookId = bookId
 
@@ -549,7 +542,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireWithMultipleCycles() = runTest {
+  fun testDownloadBookToRepertoireWithMultipleCycles() = test {
     val bookId = bookQueryManager.createBook("Multiple Cycles")
     createdBookId = bookId
 
@@ -586,7 +579,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDownloadBookToRepertoireVerifiesMovesAreLinked() = runTest {
+  fun testDownloadBookToRepertoireVerifiesMovesAreLinked() = test {
     setupTestBook()
 
     bookExplorer.downloadBookToRepertoire()
@@ -612,7 +605,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testNoNextMovesAtEndOfLine() = runTest {
+  fun testNoNextMovesAtEndOfLine() = test {
     setupTestBook()
 
     bookExplorer.playMove("e4")
@@ -624,7 +617,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testBackFromStartPositionStaysAtStart() = runTest {
+  fun testBackFromStartPositionStaysAtStart() = test {
     setupTestBook()
 
     bookExplorer.back()
@@ -632,7 +625,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testGameStateUpdatedAfterMove() = runTest {
+  fun testGameStateUpdatedAfterMove() = test {
     setupTestBook()
 
     val initialPosition = bookExplorer.engine.toPositionKey()
@@ -645,21 +638,21 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testCanEditFalseBlocksInteraction() = runTest {
+  fun testCanEditFalseBlocksInteraction() = test {
     setupTestBook(canEdit = false)
 
     assertFalse(bookExplorer.canEdit)
   }
 
   @Test
-  fun testCanEditTrueAllowsInteraction() = runTest {
+  fun testCanEditTrueAllowsInteraction() = test {
     setupTestBook(canEdit = true)
 
     assertTrue(bookExplorer.canEdit)
   }
 
   @Test
-  fun testForwardNavigation() = runTest {
+  fun testForwardNavigation() = test {
     setupTestBook()
 
     bookExplorer.playMove("e4")
@@ -673,7 +666,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testSaveMove() = runTest {
+  fun testSaveMove() = test {
     setupTestBook(canEdit = true)
 
     bookExplorer.playMove("e4")
@@ -687,7 +680,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDeleteMoves() = runTest {
+  fun testDeleteMoves() = test {
     setupTestBook(canEdit = true)
 
     val initialMoves = bookQueryManager.getBookMoves(testBook.id)
@@ -703,7 +696,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDeleteMoveFail() = runTest {
+  fun testDeleteMoveFail() = test {
     setupTestBook(canEdit = true)
 
     val initialMoves = bookQueryManager.getBookMoves(testBook.id)
@@ -725,7 +718,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testCalculateNumberOfNodeToDelete() = runTest {
+  fun testCalculateNumberOfNodeToDelete() = test {
     setupTestBook()
 
     bookExplorer.playMove("e4")
@@ -736,7 +729,7 @@ class TestBookExplorer : TestWithKoin {
   }
 
   @Test
-  fun testDifferentBooksDontShareNodeManager() = runTest {
+  fun testDifferentBooksDontShareNodeManager() = test {
     val bookId1 = bookQueryManager.createBook("Test Book 1")
     val bookId2 = bookQueryManager.createBook("Test Book 2")
 

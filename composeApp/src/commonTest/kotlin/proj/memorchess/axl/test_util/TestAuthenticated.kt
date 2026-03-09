@@ -1,36 +1,30 @@
 package proj.memorchess.axl.test_util
 
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlinx.coroutines.test.runTest
+import io.kotest.assertions.nondeterministic.eventually
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.online.auth.AuthManager
 
-abstract class TestAuthenticated : TestWithKoin {
+abstract class TestAuthenticated : TestWithKoin() {
 
   val authManager by inject<AuthManager>()
 
-  @BeforeTest
-  override fun setUp() {
-    super.setUp()
+  override suspend fun setUp() {
     ensureSignedOut()
-    runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
-    Awaitility.awaitUntilTrue { authManager.user != null }
+    authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
+    eventually(TEST_TIMEOUT) { assertNotNull(authManager.user) }
   }
 
-  @AfterTest
-  override fun tearDown() {
+  override suspend fun tearDown() {
     ensureSignedOut()
-    super.tearDown()
   }
 
-  fun ensureSignedOut() {
-    runTest {
-      if (authManager.user != null) {
-        authManager.signOut()
-        Awaitility.awaitUntilTrue { authManager.user == null }
-      }
+  suspend fun ensureSignedOut() {
+    if (authManager.user != null) {
+      authManager.signOut()
+      eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
     }
   }
 }

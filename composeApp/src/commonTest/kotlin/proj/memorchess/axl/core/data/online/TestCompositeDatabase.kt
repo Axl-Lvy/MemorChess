@@ -1,8 +1,10 @@
 package proj.memorchess.axl.core.data.online
 
+import io.kotest.assertions.nondeterministic.eventually
 import kotlin.getValue
 import kotlin.test.*
-import kotlinx.coroutines.test.runTest
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.core.config.generated.Secrets
@@ -15,11 +17,11 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
-import proj.memorchess.axl.test_util.Awaitility
+import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 
-abstract class TestCompositeDatabase : TestWithKoin {
+abstract class TestCompositeDatabase : TestWithKoin() {
 
   val compositeDatabase by inject<DatabaseQueryManager>()
   val localDatabase by inject<DatabaseQueryManager>(named("local"))
@@ -28,32 +30,26 @@ abstract class TestCompositeDatabase : TestWithKoin {
   abstract class TestCompositeDatabaseAuthenticated : TestCompositeDatabase() {
     val authManager by inject<AuthManager>()
 
-    @BeforeTest
-    override fun setUp() {
-      super.setUp()
+    override suspend fun setUp() {
       ensureSignedOut()
-      runTest { authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword) }
-      Awaitility.awaitUntilTrue { authManager.user != null }
+      authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
+      eventually(TEST_TIMEOUT) { assertNotNull(authManager.user) }
     }
 
-    @AfterTest
-    override fun tearDown() {
+    override suspend fun tearDown() {
       ensureSignedOut()
-      super.tearDown()
     }
 
-    fun ensureSignedOut() {
-      runTest {
-        if (authManager.user != null) {
-          authManager.signOut()
-          Awaitility.awaitUntilTrue { authManager.user == null }
-        }
+    suspend fun ensureSignedOut() {
+      if (authManager.user != null) {
+        authManager.signOut()
+        eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
       }
     }
   }
 
   @Test
-  fun testInsertAndRetrieveSingleNode() = runTest {
+  fun testInsertAndRetrieveSingleNode() = test {
     // Arrange
     val engine = GameEngine()
     val node =
@@ -69,7 +65,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
   }
 
   @Test
-  fun testGetPosition() = runTest {
+  fun testGetPosition() = test {
     // Arrange
     val engine = GameEngine()
     val positionKey = engine.toPositionKey()
@@ -85,7 +81,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
   }
 
   @Test
-  fun testDeletePosition() = runTest {
+  fun testDeletePosition() = test {
     // Arrange
     val engine = GameEngine()
     val positionKey = engine.toPositionKey()
@@ -105,7 +101,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
   }
 
   @Test
-  fun testDeleteMove() = runTest {
+  fun testDeleteMove() = test {
     // Arrange
     val engine = GameEngine()
     val rootPosition = engine.toPositionKey()
@@ -140,7 +136,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
   }
 
   @Test
-  fun testDeleteAll() = runTest {
+  fun testDeleteAll() = test {
     // Arrange
     val nodes = TestDatabaseQueryManager.vienna().getAllNodes()
     compositeDatabase.insertNodes(*nodes.toTypedArray())
@@ -158,7 +154,7 @@ abstract class TestCompositeDatabase : TestWithKoin {
   }
 
   @Test
-  fun testGetLastUpdate() = runTest {
+  fun testGetLastUpdate() = test {
     // Arrange
     val engine = GameEngine()
     val node =
