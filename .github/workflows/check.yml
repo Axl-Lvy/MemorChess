@@ -58,54 +58,9 @@ jobs:
             echo "No Kotlin or Java files modified - skipping jobs"
           fi
 
-  # Pre compile the project, but without secrets.
-  compile:
-    needs: [is-check-necessary]
-    if: needs.is-check-necessary.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 21
-          distribution: temurin
-
-      - name: Cache Gradle wrapper and dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/wrapper
-            ~/.gradle/caches
-            ~/.gradle/daemon
-          key: ${{ runner.os }}-gradle-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', '**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
-          gradle-home-cache-cleanup: true
-
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
-
-      # Compile app without generating secrets
-      - name: Compile common sources
-        run: ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac compileKotlinJvm
-
-      # Upload the partially compiled files
-      - name: Upload compiled outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiled-output-base
-          path: composeApp/build/
-          retention-days: 1
-
   # Run JVM tests with Kover coverage
   jvm-tests:
-    needs: [is-check-necessary, compile]
+    needs: [is-check-necessary]
     if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -117,13 +72,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-
-      # Download pre-compiled base outputs
-      - name: Download compiled outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-output-base
-          path: ./composeApp/build/
 
       # Update secrets with the specific TEST_USER_MAIL for this shard
       - name: Update local.properties for this shard
@@ -162,34 +110,14 @@ jobs:
           path: composeApp/build/test-results/jvmTest/*.xml
           retention-days: 1
 
-  # Generate the matrix for parallel test execution
-  generate-matrix:
-    needs: [is-check-necessary]
-    if: needs.is-check-necessary.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    outputs:
-      matrix_json: ${{ steps.set-matrix.outputs.matrix_json }}
-      num_processes: ${{ steps.set-num-processes.outputs.num_processes }}
-    steps:
-      - id: set-num-processes
-        run: |
-          echo "num_processes=4" >> $GITHUB_OUTPUT
-
-      - id: set-matrix
-        run: |
-          N=${{ steps.set-num-processes.outputs.num_processes }}
-          matrix_json=$(seq 0 $((N - 1)) | paste -sd, -)
-          matrix_json="[$matrix_json]"
-          echo "matrix_json=$matrix_json" >> $GITHUB_OUTPUT
-
-  # Run Android tests in parallel using the generated matrix
+  # Run Android tests in parallel
   android-tests:
-    needs: [is-check-necessary, generate-matrix, compile]
+    needs: [is-check-necessary]
     if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        shard_index: ${{ fromJSON(needs.generate-matrix.outputs.matrix_json) }}
+        shard_index: [0, 1, 2, 3]
       fail-fast: false
 
     steps:
@@ -206,13 +134,6 @@ jobs:
           TEST_USER_MAIL: "testuser${{matrix.shard_index}}@axl.com"
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
-      # Download pre-compiled base outputs
-      - name: Download compiled outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-output-base
-          path: ./composeApp/build/
-
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -224,17 +145,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/daemon
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-deps-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-deps-
 
       - name: AVD cache
         uses: actions/cache@v4
@@ -271,8 +181,6 @@ jobs:
       # Run tests with the specific configuration
       - name: Run tests
         uses: reactivecircus/android-emulator-runner@v2
-        env:
-          NUM_PROCESSES: ${{ needs.generate-matrix.outputs.num_processes }}
         with:
           api-level: 35
           target: default
@@ -281,7 +189,7 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedCheck -PshardIndex=${{ matrix.shard_index }} -PnumShards=$NUM_PROCESSES
+          script: ./gradlew connectedCheck -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
 
       # Process coverage data
       - name: Rename coverage report
@@ -306,7 +214,7 @@ jobs:
 
   # Run wasmJs tests (no coverage - Kover does not support wasmJs)
   wasm-tests:
-    needs: [is-check-necessary, compile]
+    needs: [is-check-necessary]
     if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -318,13 +226,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-
-      # Download pre-compiled base outputs
-      - name: Download compiled outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-output-base
-          path: ./composeApp/build/
 
       # Update secrets with the specific TEST_USER_MAIL for this shard
       - name: Update local.properties
@@ -447,13 +348,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Download pre-compiled base outputs
-      - name: Download compiled outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-output-base
-          path: ./composeApp/build/
-
       - name: Download android coverage reports
         uses: actions/download-artifact@v4
         with:
@@ -475,19 +369,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-          restore-keys: ${{ runner.os }}-gradle
-
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
 
-      - name: Generate JaCoCo XML reports
+      - name: Compile sources and generate JaCoCo XML reports
         run: |
-          ./gradlew jacocoAndroidTestReport
+          ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac jacocoAndroidTestReport
 
       - name: Analyze with coverage
         env:
