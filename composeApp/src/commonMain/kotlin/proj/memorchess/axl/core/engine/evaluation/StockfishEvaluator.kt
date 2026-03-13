@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,8 +96,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
 
   /** Stops the engine and cancels the coroutine scope. */
   fun close() {
-    searchJob?.cancel()
-    initJob?.cancel()
+    scope.cancel()
     try {
       engine?.close()
     } catch (e: Exception) {

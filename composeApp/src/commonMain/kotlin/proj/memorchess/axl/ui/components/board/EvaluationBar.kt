@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
+import kotlin.math.round
 import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
 
 /**
@@ -95,14 +97,14 @@ private fun formatLabel(evaluation: EvaluationScore?, currentDepth: Int?): Strin
 private fun formatScore(evaluation: EvaluationScore?): String {
   return when (evaluation) {
     is EvaluationScore.Centipawns -> {
-      val pawns = kotlin.math.round(evaluation.value / 10f) / 10f
+      val pawns = round(evaluation.value / 10f) / 10f
       val sign = if (pawns >= 0) "+" else ""
       val formatted = if (pawns == pawns.toLong().toFloat()) "${pawns.toLong()}.0" else "$pawns"
       "$sign$formatted"
     }
     is EvaluationScore.Mate -> {
       val sign = if (evaluation.moves > 0) "+" else "-"
-      "${sign}M${kotlin.math.abs(evaluation.moves)}"
+      "${sign}M${abs(evaluation.moves)}"
     }
     null -> "0.0"
   }

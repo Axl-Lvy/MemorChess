@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BarChart2
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
@@ -35,8 +35,6 @@ import proj.memorchess.axl.core.config.EVAL_BAR_ENABLED_SETTING
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.engine.evaluation.BestMove
-import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
 import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.BestMoveArrowData
@@ -79,12 +77,9 @@ fun ExplorerContent(
   var evaluator by remember {
     mutableStateOf(if (needsEngine) StockfishEvaluator(maxDepth) else null)
   }
-  val nullEvalFlow = remember { MutableStateFlow<EvaluationScore?>(null) }
-  val nullDepthFlow = remember { MutableStateFlow<Int?>(null) }
-  val nullBestMoveFlow = remember { MutableStateFlow<BestMove?>(null) }
-  val evaluation by (evaluator?.evaluation ?: nullEvalFlow).collectAsState()
-  val currentDepth by (evaluator?.currentDepth ?: nullDepthFlow).collectAsState()
-  val bestMove by (evaluator?.bestMove ?: nullBestMoveFlow).collectAsState()
+  val evaluation by (evaluator?.evaluation ?: flowOf(null)).collectAsState(initial = null)
+  val currentDepth by (evaluator?.currentDepth ?: flowOf(null)).collectAsState(initial = null)
+  val bestMove by (evaluator?.bestMove ?: flowOf(null)).collectAsState(initial = null)
   val bestMoveArrow by remember {
     derivedStateOf {
       val finalBestMove = bestMove
