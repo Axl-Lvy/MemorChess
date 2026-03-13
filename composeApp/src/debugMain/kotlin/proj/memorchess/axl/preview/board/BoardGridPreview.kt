@@ -37,8 +37,8 @@ private fun BoardGridPreview(
     Text(params.displayName, modifier = Modifier.weight(1f))
     Box(modifier = Modifier.weight(8f)) {
       BoardGrid(
-        BoardGridState(false, LinesExplorer(nodeManager = nodeManager)),
-        Modifier.fillMaxSize(),
+        state = BoardGridState(false, LinesExplorer(nodeManager = nodeManager)),
+        modifier = Modifier.fillMaxSize(),
       )
     }
   }

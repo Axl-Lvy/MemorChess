@@ -12,15 +12,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * Wraps the Stockfish engine and exposes position evaluation as a [StateFlow].
  *
  * Each call to [evaluate] cancels the previous search and starts a new one. The evaluation is
- * normalized to White's perspective. Access to the native engine is serialized via a [Mutex] to
- * prevent concurrent native calls that would cause a segfault.
+ * normalized to White's perspective.
  *
  * @param maxDepth Maximum search depth (5–25), or 0 for infinite.
  */
@@ -30,8 +27,6 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
   private var engine: StockfishEngine? = null
   private var searchJob: Job? = null
   private var initJob: Job? = null
-  private val engineMutex = Mutex()
-
   private val _evaluation = MutableStateFlow<EvaluationScore?>(null)
 
   /** Current evaluation, or `null` if unavailable. */
@@ -41,6 +36,11 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
 
   /** Depth reached by the engine during the current search, or `null` if idle. */
   val currentDepth: StateFlow<Int?> = _currentDepth.asStateFlow()
+
+  private val _bestMove = MutableStateFlow<BestMove?>(null)
+
+  /** The engine's recommended best move, or `null` while searching or unavailable. */
+  val bestMove: StateFlow<BestMove?> = _bestMove.asStateFlow()
 
   init {
     initJob =
@@ -70,21 +70,25 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
     }
 
     _currentDepth.value = null
+    _bestMove.value = null
 
     searchJob =
       scope.launch {
-        engineMutex.withLock {
-          try {
-            currentEngine.setPosition(fen = fen)
-            val depthArg = if (maxDepth == 0) null else maxDepth
+        try {
+          currentEngine.setPosition(fen = fen)
+          val depthArg = if (maxDepth == 0) null else maxDepth
+          val result =
             currentEngine.search(depth = depthArg) { info ->
               info.depth?.let { _currentDepth.value = it }
               val score = info.score ?: return@search
               _evaluation.value = toEvaluationScore(score, isBlackToMove)
+              if (info.pv.isNotEmpty()) {
+                _bestMove.value = BestMove.fromUci(info.pv.first())
+              }
             }
-          } catch (e: Exception) {
-            Logger.w(TAG) { "Evaluation failed: ${e.message}" }
-          }
+          _bestMove.value = BestMove.fromUci(result.bestMove)
+        } catch (e: Exception) {
+          Logger.w(TAG) { "Evaluation failed: ${e.message}" }
         }
       }
   }

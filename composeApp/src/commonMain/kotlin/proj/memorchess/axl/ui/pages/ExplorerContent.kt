@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,14 +29,17 @@ import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.config.BEST_MOVE_ARROW_ENABLED_SETTING
 import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
 import proj.memorchess.axl.core.config.EVAL_BAR_ENABLED_SETTING
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
+import proj.memorchess.axl.core.engine.evaluation.BestMove
 import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
 import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
 import proj.memorchess.axl.core.interactions.LinesExplorer
+import proj.memorchess.axl.ui.components.board.BestMoveArrowData
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.EvaluationBar
 import proj.memorchess.axl.ui.components.board.Piece
@@ -65,16 +69,33 @@ fun ExplorerContent(
   val coroutineScope = rememberCoroutineScope()
   val nextMoves = remember { mutableStateListOf(*explorer.getNextMoves().toTypedArray()) }
   var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
+  val bestMoveArrowEnabled by remember {
+    mutableStateOf(BEST_MOVE_ARROW_ENABLED_SETTING.getValue())
+  }
 
-  // Evaluator is created/destroyed based on the toggle so the device stops computing when off.
+  // Evaluator is created/destroyed based on the toggles so the device stops computing when off.
+  val needsEngine = evalBarEnabled || bestMoveArrowEnabled
   val maxDepth = remember { ENGINE_MAX_DEPTH_SETTING.getValue() }
   var evaluator by remember {
-    mutableStateOf(if (evalBarEnabled) StockfishEvaluator(maxDepth) else null)
+    mutableStateOf(if (needsEngine) StockfishEvaluator(maxDepth) else null)
   }
   val nullEvalFlow = remember { MutableStateFlow<EvaluationScore?>(null) }
   val nullDepthFlow = remember { MutableStateFlow<Int?>(null) }
+  val nullBestMoveFlow = remember { MutableStateFlow<BestMove?>(null) }
   val evaluation by (evaluator?.evaluation ?: nullEvalFlow).collectAsState()
   val currentDepth by (evaluator?.currentDepth ?: nullDepthFlow).collectAsState()
+  val bestMove by (evaluator?.bestMove ?: nullBestMoveFlow).collectAsState()
+  val bestMoveArrow by remember {
+    derivedStateOf {
+      val finalBestMove = bestMove
+      if (bestMoveArrowEnabled && finalBestMove != null) {
+        BestMoveArrowData(
+          finalBestMove,
+          explorer.engine.pieceAt(finalBestMove.from.row, finalBestMove.from.col)?.kind,
+        )
+      } else null
+    }
+  }
 
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }
 
@@ -105,14 +126,7 @@ fun ExplorerContent(
           { NextMoveButton(it) { coroutineScope.launch { explorer.playMove(it) } } }
         }
       },
-      playerTurnIndicator = {
-        var playerTurn by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
-        explorer.registerCallBack { playerTurn = explorer.engine.playerTurn == Player.WHITE }
-        Piece(
-          if (playerTurn) ChessPiece(PieceKind.KING, Player.WHITE)
-          else ChessPiece(PieceKind.KING, Player.BLACK)
-        )
-      },
+      playerTurnIndicator = { PlayerTurnIndicator(explorer) },
       stateIndicators = { StateIndicator(it, explorer.state) },
       evaluationPanel = {
         if (evalBarEnabled) {
@@ -120,26 +134,22 @@ fun ExplorerContent(
         }
       },
       evaluationBarToggle = {
-        FilledIconToggleButton(
-          checked = evalBarEnabled,
-          onCheckedChange = { enabled ->
-            evalBarEnabled = enabled
-            EVAL_BAR_ENABLED_SETTING.setValue(enabled)
-            if (enabled) {
-              evaluator = StockfishEvaluator(maxDepth)
-            } else {
-              evaluator?.close()
-              evaluator = null
-            }
-          },
-          modifier = it,
-        ) {
-          Icon(imageVector = FeatherIcons.BarChart2, contentDescription = "Toggle evaluation bar")
+        EvalBarToggleButton(evalBarEnabled, it) { enabled ->
+          evalBarEnabled = enabled
+          EVAL_BAR_ENABLED_SETTING.setValue(enabled)
+          evaluator = updateEvaluator(enabled, evaluator, maxDepth)
         }
       },
       saveButton = saveButton,
       deleteButton = deleteButton,
-      board = { Board(inverted, explorer, it) },
+      board = {
+        Board(
+          inverted = inverted,
+          interactionsManager = explorer,
+          bestMoveArrow = bestMoveArrow,
+          modifier = it,
+        )
+      },
     )
   }
 
@@ -150,6 +160,49 @@ fun ExplorerContent(
     else LandscapeExploreLayout(modifier, content)
   }
 }
+
+@Composable
+private fun PlayerTurnIndicator(explorer: LinesExplorer) {
+  var playerTurn by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
+  explorer.registerCallBack { playerTurn = explorer.engine.playerTurn == Player.WHITE }
+  Piece(
+    if (playerTurn) ChessPiece(PieceKind.KING, Player.WHITE)
+    else ChessPiece(PieceKind.KING, Player.BLACK)
+  )
+}
+
+@Composable
+private fun EvalBarToggleButton(
+  checked: Boolean,
+  modifier: Modifier,
+  onCheckedChange: (Boolean) -> Unit,
+) {
+  FilledIconToggleButton(
+    checked = checked,
+    onCheckedChange = onCheckedChange,
+    modifier = modifier,
+  ) {
+    Icon(imageVector = FeatherIcons.BarChart2, contentDescription = "Toggle evaluation bar")
+  }
+}
+
+/**
+ * Returns the evaluator to use after a toggle change: creates a new one when [shouldRun] is `true`
+ * and none exists, or closes and returns `null` when [shouldRun] is `false`.
+ */
+private fun updateEvaluator(
+  shouldRun: Boolean,
+  current: StockfishEvaluator?,
+  maxDepth: Int,
+): StockfishEvaluator? =
+  when {
+    shouldRun && current == null -> StockfishEvaluator(maxDepth)
+    !shouldRun -> {
+      current?.close()
+      null
+    }
+    else -> current
+  }
 
 @Composable
 private fun NextMoveButton(move: String, playMove: () -> Unit) {

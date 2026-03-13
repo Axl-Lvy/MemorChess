@@ -28,6 +28,9 @@ val KEEP_LOGGED_IN_SETTING = BooleanBasedConfigItem("keepLoggedIn", false)
 /** Whether the evaluation bar is shown next to the board. */
 val EVAL_BAR_ENABLED_SETTING = BooleanBasedConfigItem("evalBarEnabled", false)
 
+/** Whether the best-move arrow overlay is drawn on the board. */
+val BEST_MOVE_ARROW_ENABLED_SETTING = BooleanBasedConfigItem("bestMoveArrowEnabled", false)
+
 /**
  * Maximum search depth for the Stockfish engine.
  *

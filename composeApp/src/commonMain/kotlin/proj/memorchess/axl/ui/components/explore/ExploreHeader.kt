@@ -46,6 +46,7 @@ fun ExploreHeader(
       forwardButton(Modifier.weight(1f))
       Spacer(modifier = Modifier.width(6.dp))
       evaluationBarToggle(Modifier.weight(1f))
+      Spacer(modifier = Modifier.width(6.dp))
     }
   }
 }

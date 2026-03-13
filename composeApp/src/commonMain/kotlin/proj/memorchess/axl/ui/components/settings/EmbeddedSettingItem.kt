@@ -1,14 +1,19 @@
 package proj.memorchess.axl.ui.components.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -16,6 +21,8 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.core.config.APP_THEME_SETTING
+import proj.memorchess.axl.core.config.BEST_MOVE_ARROW_ENABLED_SETTING
+import proj.memorchess.axl.core.config.BooleanBasedConfigItem
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.ConfigItem
 import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
@@ -92,12 +99,17 @@ enum class EmbeddedSettingItem(
       if (intVal >= 26) "Engine Search Depth: \u221E" else "Engine Search Depth: $intVal"
     },
   ),
+  SHOW_BEST_MOVE(BEST_MOVE_ARROW_ENABLED_SETTING),
   APP_THEME(APP_THEME_SETTING),
   CHESS_BOARD_COLOR(CHESS_BOARD_COLOR_SETTING);
 
   constructor(
     enumItem: EnumBasedAppConfigItem<*>
   ) : this(enumItem, EnumBasedSelectorParameters(enumItem))
+
+  constructor(
+    booleanItem: BooleanBasedConfigItem
+  ) : this(booleanItem, BooleanBasedSelectorParameters(booleanItem))
 
   /**
    * Draws this setting item.
@@ -109,7 +121,7 @@ enum class EmbeddedSettingItem(
     when (this.buttonParams) {
       is SliderParameters -> DrawSlider(reloadKey)
       is EnumBasedSelectorParameters<*> -> DrawItemSelector(this.buttonParams)
-      else -> throw UnsupportedOperationException("Unsupported button type")
+      is BooleanBasedSelectorParameters -> DrawToggle(this.buttonParams)
     }
   }
 
@@ -160,5 +172,28 @@ enum class EmbeddedSettingItem(
       selectedInitial = buttonParams.config.getValue().ordinal,
       minWidth = 124.dp,
     )
+  }
+
+  @Composable
+  private fun DrawToggle(buttonParams: BooleanBasedSelectorParameters) {
+    var checked by remember { mutableStateOf(buttonParams.config.getValue()) }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+      Text(
+        text =
+          configItem.name
+            .replaceFirstChar { it.uppercase() }
+            .replace(Regex("([A-Z])"), " $1")
+            .trim(),
+        modifier = Modifier.weight(1f),
+      )
+      Switch(
+        checked = checked,
+        onCheckedChange = {
+          checked = it
+          buttonParams.config.setValue(it)
+        },
+        modifier = Modifier.testTag(configItem.name),
+      )
+    }
   }
 }
