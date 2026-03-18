@@ -34,7 +34,6 @@ dependencyResolutionManagement {
         includeGroupAndSubgroups("com.google")
       }
     }
-    mavenLocal()
     mavenCentral()
     maven {
       url = uri("https://maven.pkg.github.com/Axl-Lvy/Stockfish-Multiplatform")
