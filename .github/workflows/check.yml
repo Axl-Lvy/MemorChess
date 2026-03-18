@@ -158,7 +158,7 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-30-aosp-atd
+          key: avd-30-google-apis
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -172,7 +172,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
-          target: aosp_atd
+          target: google_apis
           arch: x86_64
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
