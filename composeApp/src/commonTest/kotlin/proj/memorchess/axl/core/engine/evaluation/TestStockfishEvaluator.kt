@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.engine.evaluation
 
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
 import kotlin.test.assertNull
