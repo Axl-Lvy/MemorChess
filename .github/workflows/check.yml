@@ -184,6 +184,8 @@ jobs:
 
       # Run tests with the specific configuration
       - name: Run tests
+        env:
+          ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
@@ -195,7 +197,10 @@ jobs:
           script: |
             ./gradlew connectedCheck --no-daemon -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
             adb emu kill || true
+            sleep 2
+            adb kill-server || true
             pkill -9 -f qemu-system || true
+            pkill -9 -f emulator || true
 
       # Process coverage data
       - name: Rename coverage report
