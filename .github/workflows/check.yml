@@ -195,6 +195,7 @@ jobs:
           script: |
             ./gradlew connectedCheck --no-daemon -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
             adb emu kill || true
+            pkill -9 -f qemu-system || true
 
       # Process coverage data
       - name: Rename coverage report
