@@ -30,8 +30,23 @@ class TestBestMove {
   }
 
   @Test
-  fun returnsNullForOutOfBoundsSquare() {
+  fun returnsNullForOutOfBoundsFromCol() {
     assertNull(BestMove.fromUci("z2e4"))
+  }
+
+  @Test
+  fun returnsNullForOutOfBoundsFromRow() {
+    assertNull(BestMove.fromUci("a9e4"))
+  }
+
+  @Test
+  fun returnsNullForOutOfBoundsToCol() {
+    assertNull(BestMove.fromUci("e2z4"))
+  }
+
+  @Test
+  fun returnsNullForOutOfBoundsToRow() {
+    assertNull(BestMove.fromUci("e2e9"))
   }
 
   @Test
