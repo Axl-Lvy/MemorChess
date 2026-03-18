@@ -49,7 +49,9 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
         try {
           engine = getStockfish()
         } catch (e: Exception) {
-          Logger.w(TAG) { "Stockfish not available on this platform: ${e.message}" }
+          Logger.w(tag = TAG, throwable = e) {
+            "Stockfish not available on this platform: ${e.message}"
+          }
         }
       }
   }
@@ -89,7 +91,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
             }
           _bestMove.value = BestMove.fromUci(result.bestMove)
         } catch (e: Exception) {
-          Logger.w(TAG) { "Evaluation failed: ${e.message}" }
+          Logger.w(tag = TAG, throwable = e) { "Evaluation failed: ${e.message}" }
         }
       }
   }
@@ -100,7 +102,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
     try {
       engine?.close()
     } catch (e: Exception) {
-      Logger.w(TAG) { "Error closing Stockfish: ${e.message}" }
+      Logger.w(tag = TAG, throwable = e) { "Error closing Stockfish: ${e.message}" }
     }
   }
 
