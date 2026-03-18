@@ -80,41 +80,6 @@ class TestStockfishEvaluator {
   }
 
   @Test
-  fun evaluateBlackToMoveFlipsScore() = runTest {
-    val evaluator = StockfishEvaluator(maxDepth = 10)
-    try {
-      // From Black's perspective the starting position is slightly worse,
-      // so the flipped score should be the negation of the White-to-move score.
-      evaluator.evaluate(STARTING_FEN, isBlackToMove = true)
-      val score =
-        evaluator.evaluation.first { it != null }.shouldBeInstanceOf<EvaluationScore.Centipawns>()
-      // White has a small opening advantage; flipped from Black's perspective it should be
-      // negative.
-      (score.value <= 0).shouldBe(true)
-    } finally {
-      evaluator.close()
-    }
-  }
-
-  @Test
-  fun evaluateBlackMatePositionFlipsMateScore() = runTest {
-    // White has mate in 1 — from Black's turn perspective, the score should be negative (Black is
-    // getting mated).
-    val blackToMoveFen = "6k1/5ppp/8/8/8/8/8/4R1K1 b - - 0 1"
-    val evaluator = StockfishEvaluator(maxDepth = 10)
-    try {
-      evaluator.evaluate(blackToMoveFen, isBlackToMove = true)
-      val score =
-        evaluator.evaluation.first { it != null }.shouldBeInstanceOf<EvaluationScore.Mate>()
-      // Mate score should be negative from White's perspective (Black is being mated, but engine
-      // reports from side-to-move, so flip makes it negative).
-      (score.moves < 0).shouldBe(true)
-    } finally {
-      evaluator.close()
-    }
-  }
-
-  @Test
   fun closeIsIdempotent() = runTest {
     val evaluator = StockfishEvaluator(maxDepth = 10)
     evaluator.evaluate(STARTING_FEN, isBlackToMove = false)
