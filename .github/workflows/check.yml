@@ -119,6 +119,7 @@ jobs:
     needs: [is-check-necessary]
     if: needs.is-check-necessary.outputs.should_run == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         shard_index: [0, 1, 2, 3]
@@ -191,7 +192,9 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedCheck -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
+          script: |
+            ./gradlew connectedCheck -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
+            adb emu kill || true
 
       # Process coverage data
       - name: Rename coverage report

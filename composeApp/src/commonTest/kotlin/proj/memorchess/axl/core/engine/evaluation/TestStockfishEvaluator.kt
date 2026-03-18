@@ -15,7 +15,7 @@ class TestStockfishEvaluator {
   }
 
   @Test
-  fun initialStateIsNull() {
+  fun initialStateIsNull() = runTest {
     val evaluator = StockfishEvaluator(maxDepth = 10)
     try {
       assertNull(evaluator.evaluation.value)
