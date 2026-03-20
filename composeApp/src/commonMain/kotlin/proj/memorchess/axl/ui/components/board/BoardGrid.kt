@@ -32,10 +32,15 @@ import proj.memorchess.axl.core.engine.BoardUtils
  * Compose for UI and coroutines for click handling and animation.
  *
  * @param state The board state containing tile, piece, and move information.
+ * @param bestMoveArrow Arrow overlay data, or `null` to hide the arrow.
  * @param modifier Modifier for customizing the board layout.
  */
 @Composable
-fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
+fun BoardGrid(
+  state: BoardGridState,
+  bestMoveArrow: BestMoveArrowData? = null,
+  modifier: Modifier = Modifier,
+) {
   val scope = rememberCoroutineScope()
   val tilePositions = remember { mutableMapOf<BoardLocation, DpOffset>() }
 
@@ -43,6 +48,7 @@ fun BoardGrid(state: BoardGridState, modifier: Modifier = Modifier) {
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
     DrawTileGrid(state, scope, tilePositions)
     DrawPieceGrid(state, animationDuration, tilePositions)
+    BestMoveArrow(bestMoveArrow, state.inverted, Modifier.fillMaxSize())
   }
 }
 

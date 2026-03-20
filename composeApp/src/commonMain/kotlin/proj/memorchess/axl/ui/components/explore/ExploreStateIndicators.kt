@@ -10,6 +10,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+/**
+ * Section hosting the node-state indicator.
+ *
+ * @param stateIndicators Composable rendering the node-state indicator.
+ */
 @Composable
 fun ExploreStateIndicators(
   modifier: Modifier = Modifier,

@@ -12,6 +12,10 @@ permissions:
   pages: write    # Allow deployment to GitHub Pages
   id-token: write # Required by actions/configure-pages
 
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest

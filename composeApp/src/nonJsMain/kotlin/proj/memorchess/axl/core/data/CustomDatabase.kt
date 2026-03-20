@@ -9,7 +9,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-@Database(entities = [NodeEntity::class, MoveEntity::class], version = 1, autoMigrations = [])
+@Database(entities = [NodeEntity::class, MoveEntity::class], version = 2, autoMigrations = [])
 @TypeConverters(DateConverters::class)
 @ConstructedBy(DatabaseConstructor::class)
 abstract class CustomDatabase : RoomDatabase() {
@@ -24,5 +24,9 @@ expect object DatabaseConstructor : RoomDatabaseConstructor<CustomDatabase> {
 internal expect fun databaseBuilder(): RoomDatabase.Builder<CustomDatabase>
 
 internal fun getRoomDatabase(builder: RoomDatabase.Builder<CustomDatabase>): CustomDatabase {
-  return builder.setDriver(BundledSQLiteDriver()).setQueryCoroutineContext(Dispatchers.IO).build()
+  return builder
+    .fallbackToDestructiveMigration(dropAllTables = true)
+    .setDriver(BundledSQLiteDriver())
+    .setQueryCoroutineContext(Dispatchers.IO)
+    .build()
 }

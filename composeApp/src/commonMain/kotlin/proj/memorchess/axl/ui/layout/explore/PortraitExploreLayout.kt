@@ -28,12 +28,16 @@ fun PortraitExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutC
         playerTurnIndicator = content.playerTurnIndicator,
         backButton = content.backButton,
         forwardButton = content.forwardButton,
+        evaluationBarToggle = content.evaluationBarToggle,
       )
 
       // State indicators section
       if (this@BoxWithConstraints.maxHeight > 650.dp) {
         ExploreStateIndicators(stateIndicators = content.stateIndicators)
       }
+
+      // Evaluation bar below state indicators
+      content.evaluationPanel(Modifier)
 
       // Main board section with responsive sizing
       ExploreBoardSection(board = content.board)

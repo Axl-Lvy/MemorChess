@@ -21,6 +21,13 @@ class ExploreLayoutContent(
   var stateIndicators: @Composable (Modifier) -> Unit,
   var playerTurnIndicator: @Composable (Modifier) -> Unit,
 
+  // EVALUATION
+  /** Horizontal evaluation bar rendered below the state indicators, or empty when disabled. */
+  var evaluationPanel: @Composable (Modifier) -> Unit = {},
+
+  /** Toggle button that enables/disables the evaluation bar. */
+  var evaluationBarToggle: @Composable (Modifier) -> Unit = {},
+
   // DATABASE ACTIONS
   var saveButton: @Composable (Modifier) -> Unit,
   var deleteButton: @Composable (Modifier) -> Unit,
