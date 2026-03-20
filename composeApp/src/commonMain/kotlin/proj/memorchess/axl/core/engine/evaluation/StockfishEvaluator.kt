@@ -28,6 +28,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
   private var engine: StockfishEngine? = null
   private var searchJob: Job? = null
   private var initJob: Job? = null
+
   private val _evaluation = MutableStateFlow<EvaluationScore?>(null)
 
   /** Current evaluation, or `null` if unavailable. */
