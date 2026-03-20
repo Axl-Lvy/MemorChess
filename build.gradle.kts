@@ -41,7 +41,6 @@ sonar {
 
     // Exclusions for source files - exclude generated files but NOT test directories (already
     // handled by sonar.tests)
-    // Exclude also ui files as jacoco handles them very poorly.
     property(
       "sonar.exclusions",
       "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/main.kt",
@@ -49,7 +48,7 @@ sonar {
 
     property(
       "sonar.coverage.exclusions",
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/ui/**,**/wasmJsMain/**,supabase/functions/**,**/main.kt",
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,supabase/functions/**,**/main.kt",
     )
 
     // PL/SQL specific configuration for SQL files

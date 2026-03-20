@@ -22,6 +22,8 @@ plugins {
   id("jacoco")
 }
 
+jacoco { toolVersion = "0.8.14" }
+
 kotlin {
   // Android configuration
   androidTarget {
@@ -234,6 +236,10 @@ dependencies {
 
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
 
+// Disable the jacoco plugin agent on JVM tests — Kover attaches its own JaCoCo agent via
+// useJacoco(), and two JaCoCo agents on the same JVM crash at class definition time.
+tasks.named<Test>("jvmTest") { extensions.configure<JacocoTaskExtension> { isEnabled = false } }
+
 // Disable configuration cache for all tasks involving wasmJs
 tasks.withType<KotlinWebpack>().configureEach {
   notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")
@@ -289,6 +295,8 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
 }
 
 kover {
+  useJacoco("0.8.14")
+
   reports {
     filters {
       excludes {
@@ -300,7 +308,6 @@ kover {
           "**/*Test*.*",
           "**/di/**",
           "**/generated/**",
-          "**/ui/**",
         )
       }
     }
