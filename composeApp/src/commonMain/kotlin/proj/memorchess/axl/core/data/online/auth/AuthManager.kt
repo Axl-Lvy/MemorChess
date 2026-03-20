@@ -91,7 +91,6 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
     updateSavedTokens()
   }
 
-  /** Persists or clears the session tokens based on the current session and keep-logged-in setting. */
   fun updateSavedTokens() {
     val session = supabaseClient.auth.currentSessionOrNull()
     if (session != null && KEEP_LOGGED_IN_SETTING.getValue()) {
@@ -117,12 +116,10 @@ class AuthManager(private val supabaseClient: SupabaseClient) {
     }
   }
 
-  /** Signs the current user out. */
   suspend fun signOut() {
     supabaseClient.auth.signOut()
   }
 
-  /** Registers a [listener] that is invoked on every [SessionStatus] change. */
   fun registerListener(listener: suspend (SessionStatus) -> Unit) {
     authListeningScope.launch {
       supabaseClient.auth.sessionStatus.collect {

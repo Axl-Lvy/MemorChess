@@ -35,12 +35,22 @@ jobs:
             exit 0
           fi
 
-          # Check if PR title contains [skip-test]
+          # Check PR-specific overrides
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             PR_TITLE="${{ github.event.pull_request.title }}"
+            PR_BODY="${{ github.event.pull_request.body }}"
+
+            # Check if PR title contains [skip-tests]
             if echo "$PR_TITLE" | grep -qi "\[skip-tests\]"; then
               echo "should_run=false" >> $GITHUB_OUTPUT
               echo "PR title contains [skip-tests] - skipping jobs"
+              exit 0
+            fi
+
+            # Check if "Force running tests" checkbox is checked
+            if echo "$PR_BODY" | grep -qE "\- \[x\] Force running tests"; then
+              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "Force running tests checkbox is checked - executing all jobs"
               exit 0
             fi
           fi

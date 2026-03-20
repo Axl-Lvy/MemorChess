@@ -1,0 +1,3 @@
+## Options
+
+- [ ] Force running tests
