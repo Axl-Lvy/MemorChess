@@ -1,51 +1,30 @@
 package proj.memorchess.axl.core.data.online
 
-import io.kotest.assertions.nondeterministic.eventually
-import kotlin.getValue
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import org.koin.core.component.inject
-import org.koin.core.qualifier.named
-import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.database.SupabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
-import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestWithKoin
 
-abstract class TestCompositeDatabase : TestWithKoin() {
+/** Tests for [DatabaseQueryManager] operations against the local database. */
+class TestLocalDatabase : TestWithKoin() {
 
-  val compositeDatabase by inject<DatabaseQueryManager>()
-  val localDatabase by inject<DatabaseQueryManager>(named("local"))
-  val remoteDatabase by inject<SupabaseQueryManager>()
+  private val database by inject<DatabaseQueryManager>()
 
-  abstract class TestCompositeDatabaseAuthenticated : TestCompositeDatabase() {
-    val authManager by inject<AuthManager>()
-
-    override suspend fun setUp() {
-      ensureSignedOut()
-      authManager.signInFromEmail(Secrets.testUserMail, Secrets.testUserPassword)
-      eventually(TEST_TIMEOUT) { assertNotNull(authManager.user) }
-    }
-
-    override suspend fun tearDown() {
-      ensureSignedOut()
-    }
-
-    suspend fun ensureSignedOut() {
-      if (authManager.user != null) {
-        authManager.signOut()
-        eventually(TEST_TIMEOUT) { assertNull(authManager.user) }
-      }
-    }
+  override suspend fun setUp() {
+    assertTrue { database.isActive() }
+    database.deleteAll(null)
   }
 
   @Test
@@ -56,8 +35,8 @@ abstract class TestCompositeDatabase : TestWithKoin() {
       DataNode(engine.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
     // Act
-    compositeDatabase.insertNodes(node)
-    val retrievedNodes = compositeDatabase.getAllNodes(false)
+    database.insertNodes(node)
+    val retrievedNodes = database.getAllNodes(false)
 
     // Assert
     assertEquals(1, retrievedNodes.size)
@@ -70,10 +49,10 @@ abstract class TestCompositeDatabase : TestWithKoin() {
     val engine = GameEngine()
     val positionKey = engine.toPositionKey()
     val node = DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    compositeDatabase.insertNodes(node)
+    database.insertNodes(node)
 
     // Act
-    val retrievedNode = compositeDatabase.getPosition(positionKey)
+    val retrievedNode = database.getPosition(positionKey)
 
     // Assert
     assertNotNull(retrievedNode)
@@ -86,17 +65,17 @@ abstract class TestCompositeDatabase : TestWithKoin() {
     val engine = GameEngine()
     val positionKey = engine.toPositionKey()
     val node = DataNode(positionKey, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
-    compositeDatabase.insertNodes(node)
+    database.insertNodes(node)
 
     // Verify node exists
-    val beforeDelete = compositeDatabase.getPosition(positionKey)
+    val beforeDelete = database.getPosition(positionKey)
     assertNotNull(beforeDelete)
 
     // Act
-    compositeDatabase.deletePosition(positionKey)
+    database.deletePosition(positionKey)
 
     // Assert
-    val afterDelete = compositeDatabase.getPosition(positionKey)
+    val afterDelete = database.getPosition(positionKey)
     assertNull(afterDelete, "Position should be null after deletion")
   }
 
@@ -121,15 +100,14 @@ abstract class TestCompositeDatabase : TestWithKoin() {
     val childNode =
       DataNode(childPosition, PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
 
-    compositeDatabase.insertNodes(rootNode, childNode)
+    database.insertNodes(rootNode, childNode)
 
     // Act
-    compositeDatabase.deleteMove(rootPosition, "e4")
+    database.deleteMove(rootPosition, "e4")
 
-    // Assert - This test depends on implementation details
-    // The move should be marked as deleted in the database
-    val retrievedRootNode = compositeDatabase.getPosition(rootPosition)
-    val retrieveChildNode = compositeDatabase.getPosition(childPosition)
+    // Assert
+    val retrievedRootNode = database.getPosition(rootPosition)
+    val retrieveChildNode = database.getPosition(childPosition)
     assertNotNull(retrievedRootNode, "Root node should still exist after move deletion")
     assertFalse { retrievedRootNode.previousAndNextMoves.nextMoves.any { it.key == "e4" } }
     assertNull(retrieveChildNode, "Child node should be deleted after move deletion")
@@ -139,17 +117,17 @@ abstract class TestCompositeDatabase : TestWithKoin() {
   fun testDeleteAll() = test {
     // Arrange
     val nodes = TestDatabaseQueryManager.vienna().getAllNodes()
-    compositeDatabase.insertNodes(*nodes.toTypedArray())
+    database.insertNodes(*nodes.toTypedArray())
 
     // Verify nodes exist
-    val beforeDelete = compositeDatabase.getAllNodes(false)
+    val beforeDelete = database.getAllNodes(false)
     assertTrue(beforeDelete.isNotEmpty())
 
     // Act
-    compositeDatabase.deleteAll(null)
+    database.deleteAll(null)
 
     // Assert
-    val afterDelete = compositeDatabase.getAllNodes(false)
+    val afterDelete = database.getAllNodes(false)
     assertTrue(afterDelete.isEmpty(), "All nodes should be deleted")
   }
 
@@ -166,19 +144,16 @@ abstract class TestCompositeDatabase : TestWithKoin() {
       )
 
     // Act
-    val beforeInsert = compositeDatabase.getLastUpdate()
+    val beforeInsert = database.getLastUpdate()
     assertNull(beforeInsert)
-    compositeDatabase.insertNodes(node)
-    val afterInsert = compositeDatabase.getLastUpdate()
-    compositeDatabase.deletePosition(node.positionKey)
-    val afterDelete = compositeDatabase.getLastUpdate()
+    database.insertNodes(node)
+    val afterInsert = database.getLastUpdate()
+    database.deletePosition(node.positionKey)
+    val afterDelete = database.getLastUpdate()
 
     // Assert
     assertNotNull(afterInsert, "Should have last update time after inserting nodes")
     assertNotNull(afterDelete, "Should have last update time after deleting nodes")
-
-    // It seems like the clocks from the test and the remote database might not be perfectly
-    // synchronized. So afterDelete might be more recent than afterInsert.
     assertTrue(
       "Last update should be updated after deletion. AfterDelete: $afterDelete AfterInsert: $afterInsert"
     ) {
