@@ -129,5 +129,8 @@ tasks
   .matching { it.name.contains("compile", ignoreCase = true) }
   .configureEach { dependsOn(generateSecretsTask) }
 
-tasks.matching { it.name == "clean" }.configureEach { dependsOn(cleanSecretsTask) }
-
+tasks
+  .matching { it.name == "clean" }
+  .configureEach {
+    dependsOn(cleanSecretsTask)
+  }
