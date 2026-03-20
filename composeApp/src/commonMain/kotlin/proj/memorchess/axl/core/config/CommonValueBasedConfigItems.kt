@@ -28,6 +28,9 @@ class DurationBasedConfigItem(name: String, defaultValue: Duration) :
 class StringBasedConfig(name: String, defaultValue: String) :
   ValueBasedAppConfigItem<String, String>(name, defaultValue)
 
+class IntBasedConfigItem(name: String, defaultValue: Int) :
+  ValueBasedAppConfigItem<Int, Int>(name, defaultValue)
+
 class DoubleBasedConfigItem(name: String, defaultValue: Double) :
   ValueBasedAppConfigItem<Double, Double>(name, defaultValue)
 
