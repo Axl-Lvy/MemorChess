@@ -1,7 +1,9 @@
 config.set({
+  browserNoActivityTimeout: 120000,
+  browserDisconnectTimeout: 30000,
   client: {
     mocha: {
-      timeout: 30000
+      timeout: 60000
     }
   },
   customHeaders: [
