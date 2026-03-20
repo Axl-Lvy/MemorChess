@@ -193,8 +193,19 @@ jobs:
           arch: x86_64
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
+          disable-animations: false
           script: |
+            # Wait for system services to be fully ready before interacting
+            for i in $(seq 1 30); do
+              if adb shell input keyevent 82 >/dev/null 2>&1; then
+                echo "System services ready after $i attempts"
+                break
+              fi
+              sleep 2
+            done
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
             ./gradlew connectedCheck --no-daemon -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
 
       # Process coverage data
