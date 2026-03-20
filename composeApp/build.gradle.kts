@@ -108,6 +108,7 @@ kotlin {
 
       // Chess engine
       implementation(libs.chess.core)
+      implementation(libs.stockfish.multiplatform)
 
       // File picker
       implementation(libs.filekit.dialogs.compose)
@@ -251,6 +252,7 @@ tasks.withType<KotlinJsTest>().configureEach {
 }
 
 tasks.register<JacocoReport>("jacocoAndroidTestReport") {
+  dependsOn("compileDebugKotlinAndroid")
   group = "verification"
   description = "Generate test coverage reports for Android instrumented tests"
 
