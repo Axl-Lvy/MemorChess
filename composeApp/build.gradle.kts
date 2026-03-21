@@ -118,9 +118,11 @@ kotlin {
       implementation(libs.kermit.logging)
 
       // Backend and networking
-      implementation(libs.supabase.database)
-      implementation(libs.supabase.auth)
+      implementation(projects.shared)
       implementation(libs.ktor.client.core)
+      implementation(libs.ktor.client.resources)
+      implementation(libs.ktor.client.content.negotiation)
+      implementation(libs.ktor.serialization.kotlinx.json)
 
       // Dependency injection
       implementation(libs.koin.core)

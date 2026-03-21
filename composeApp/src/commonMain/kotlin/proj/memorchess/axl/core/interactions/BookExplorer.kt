@@ -8,7 +8,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.book.Book
 import proj.memorchess.axl.core.data.book.BookMove
-import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
+import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.MutablePreviousAndNextMoves
 import proj.memorchess.axl.core.graph.nodes.NodeManager
@@ -17,28 +17,22 @@ import proj.memorchess.axl.core.graph.nodes.NodeManager
  * BookExplorer is an interaction manager that allows exploring and downloading book moves.
  *
  * This class handles navigation through book moves and supports downloading them to the user's
- * personal repertoire.
+ * personal repertoire. Books are always read-only on the client.
  */
-class BookExplorer(private val book: Book, val canEdit: Boolean, nodeManager: NodeManager) :
+class BookExplorer(private val book: Book, nodeManager: NodeManager) :
   LinesExplorer(nodeManager = nodeManager) {
-  private val bookQueryManager: SupabaseBookQueryManager by inject()
+  private val bookQueryManager: BookQueryManager by inject()
   private val databaseQueryManager: DatabaseQueryManager by inject()
-
-  init {
-    if (!canEdit) {
-      block()
-    }
-  }
 
   /**
    * Downloads all moves from the book to the user's repertoire.
    *
-   * This converts book moves to DataNodes and stores them in the database.
+   * This converts book moves to DataNodes and stores them in the database. Uses a single
+   * [BookQueryManager.downloadBook] call that registers the download and returns moves atomically.
    */
   suspend fun downloadBookToRepertoire() {
     try {
-      val bookMoves = bookQueryManager.getBookMoves(book.id).groupBy { it.origin }
-      bookQueryManager.registerBookDownload(book.id)
+      val bookMoves = bookQueryManager.downloadBook(book.id).groupBy { it.origin }
       val mutableMoves = mutableMapOf<PositionKey, MutablePreviousAndNextMoves>()
       val depths = mutableMapOf<PositionKey, Int>()
       fillRecursively(PositionKey.START_POSITION, bookMoves, mutableMoves, depths)

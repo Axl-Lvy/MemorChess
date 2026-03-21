@@ -10,11 +10,10 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.core.module.Module
-import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import proj.memorchess.axl.core.config.FeatureFlags
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.navigation.Navigator
@@ -55,7 +54,6 @@ abstract class TestWithKoin : KoinComponent {
   /** Starts Koin with test modules. Use directly only for UI tests that cannot use [test]. */
   protected fun koinSetUp() {
     stopKoin()
-    FeatureFlags.isAuthEnabled = true
     startKoin { modules(*initKoinModules(), initTestModule()) }
     MOVE_ANIMATION_DURATION_SETTING.setValue(Duration.ZERO)
     ToastRendererForTests.clear()
@@ -64,16 +62,17 @@ abstract class TestWithKoin : KoinComponent {
   /** Stops Koin and resets state. Use directly only for UI tests that cannot use [test]. */
   protected fun koinTearDown() {
     stopKoin()
-    FeatureFlags.isAuthEnabled = false
     ToastRendererForTests.clear()
   }
 
   fun initTestModule(): Module {
     return module {
       single<Settings> { TestSettings() }
-      single<DatabaseQueryManager>(named("local")) { TestDatabaseQueryManager.empty() }
+      single<DatabaseQueryManager> { TestDatabaseQueryManager.empty() }
       single<ToastRenderer> { ToastRendererForTests }
       single<Navigator> { RememberLastRouteNavigator() }
+      single { InMemoryBookQueryManager() }
+      single<BookQueryManager> { get<InMemoryBookQueryManager>() }
     }
   }
 

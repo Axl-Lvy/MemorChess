@@ -4,14 +4,17 @@ import co.touchlab.kermit.Logger
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.data.book.BookMove
-import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
+import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
-/** [TreeRepository] backed by a Supabase book. */
+/**
+ * [TreeRepository] backed by a remote book (read-only).
+ *
+ * Write operations ([saveNode], [deleteMove]) are no-ops because books are read-only for clients.
+ */
 class BookTreeRepository(
   private val bookId: Long,
-  private val bookQueryManager: SupabaseBookQueryManager,
+  private val bookQueryManager: BookQueryManager,
   private val toastRenderer: ToastRenderer,
 ) : TreeRepository {
 
@@ -49,32 +52,15 @@ class BookTreeRepository(
   }
 
   override suspend fun saveNode(node: DataNode) {
-    node.previousAndNextMoves.filterValidMoves().previousMoves.forEach { move ->
-      val isGood = move.value.isGood
-      checkNotNull(isGood) { "isGood must be defined to save book moves" }
-      try {
-        bookQueryManager.addMoveToBook(
-          bookId,
-          BookMove(move.value.origin, move.value.destination, move.value.move, isGood),
-        )
-      } catch (e: Exception) {
-        LOGGER.e(e) { "Failed to add move to book" }
-        toastRenderer.info("Failed to add move ${move.value.move} to book")
-      }
-    }
+    // No-op — books are read-only for clients.
   }
 
   override suspend fun deletePosition(positionKey: PositionKey) {
-    // Not applicable for books — moves are deleted individually
+    // No-op — books are read-only for clients.
   }
 
   override suspend fun deleteMove(origin: PositionKey, move: String) {
-    try {
-      bookQueryManager.removeMoveFromBook(bookId, origin, move)
-    } catch (e: Exception) {
-      LOGGER.e(e) { "Failed to delete move $move from book." }
-      toastRenderer.info("Failed to delete move $move from book.")
-    }
+    // No-op — books are read-only for clients.
   }
 }
 

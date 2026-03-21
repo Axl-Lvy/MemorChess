@@ -34,7 +34,7 @@ sonar {
 
     property(
       "sonar.sources",
-      "src/commonMain/kotlin,src/androidMain/kotlin,src/nonJsMain/kotlin,src/wasmJsMain/kotlin,src/jvmMain/kotlin,supabase/functions",
+      "src/commonMain/kotlin,src/androidMain/kotlin,src/nonJsMain/kotlin,src/wasmJsMain/kotlin,src/jvmMain/kotlin,server/src/main/kotlin",
     )
 
     property("sonar.tests", "src/commonTest/kotlin,src/androidTest/kotlin")
@@ -48,10 +48,8 @@ sonar {
 
     property(
       "sonar.coverage.exclusions",
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,supabase/functions/**,**/main.kt",
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/main.kt",
     )
 
-    // PL/SQL specific configuration for SQL files
-    property("sonar.plsql.file.suffixes", ".sql")
   }
 }
