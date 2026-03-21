@@ -1,17 +1,17 @@
 package proj.memorchess.axl
 
 import com.russhwolf.settings.Settings
-import io.github.jan.supabase.SupabaseClient
 import org.koin.core.module.Module
-import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import proj.memorchess.axl.core.config.generated.Secrets
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
-import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.createSupabaseClient
-import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
+import proj.memorchess.axl.core.data.online.KtorBookQueryManager
+import proj.memorchess.axl.core.data.online.UserIdProvider
+import proj.memorchess.axl.core.data.online.createBookApiClient
 import proj.memorchess.axl.core.graph.BookTreeRepository
 import proj.memorchess.axl.core.graph.DbTreeRepository
 import proj.memorchess.axl.core.graph.OpeningTree
@@ -28,15 +28,12 @@ import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
  */
 fun initKoinModules(): Array<Module> {
 
-  val authModule = module {
-    single<SupabaseClient> { createSupabaseClient() }
-    singleOf(::AuthManager)
-  }
-
   val dataModule = module {
     single<DatabaseQueryManager> { getPlatformSpecificLocalDatabase() }
-    single<SupabaseBookQueryManager> { SupabaseBookQueryManager(get(), get()) }
     single<Settings> { getPlatformSpecificSettings() }
+    single { UserIdProvider() }
+    single { createBookApiClient(Secrets.serverUrl, get()) }
+    single<BookQueryManager> { KtorBookQueryManager(get()) }
   }
 
   val nodeModule = module {
@@ -59,5 +56,5 @@ fun initKoinModules(): Array<Module> {
 
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
 
-  return arrayOf(authModule, dataModule, nodeModule, otherModule)
+  return arrayOf(dataModule, nodeModule, otherModule)
 }

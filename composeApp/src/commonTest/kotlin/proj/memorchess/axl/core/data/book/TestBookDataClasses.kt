@@ -126,16 +126,4 @@ class TestBookDataClasses {
     assertEquals("e4", copiedMove.move)
     assertFalse(copiedMove.isGood)
   }
-
-  @Test
-  fun testUserPermissionValues() {
-    assertEquals("BOOK_CREATION", UserPermission.BOOK_CREATION.value)
-  }
-
-  @Test
-  fun testUserPermissionEnumEntries() {
-    val permissions = UserPermission.entries
-    assertEquals(1, permissions.size)
-    assertTrue(permissions.contains(UserPermission.BOOK_CREATION))
-  }
 }

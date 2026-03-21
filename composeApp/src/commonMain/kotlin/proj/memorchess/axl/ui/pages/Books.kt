@@ -5,8 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,9 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,7 +27,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,13 +42,10 @@ import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Download
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.book.Book
-import proj.memorchess.axl.core.data.book.UserPermission
-import proj.memorchess.axl.core.data.online.auth.AuthManager
-import proj.memorchess.axl.core.data.online.database.SupabaseBookQueryManager
+import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.navigation.Navigator
@@ -74,9 +67,6 @@ private class BooksState {
   /** The list of currently loaded books. */
   var books by mutableStateOf<List<Book>>(emptyList())
 
-  /** Whether the current user has permission to create books. */
-  var hasCreationPermission by mutableStateOf(false)
-
   /** Whether a pull-to-refresh operation is in progress. */
   var isRefreshing by mutableStateOf(false)
 
@@ -88,12 +78,6 @@ private class BooksState {
 
   /** The current offset for pagination (number of books already loaded). */
   var currentOffset by mutableStateOf(0L)
-
-  /** Whether the create book dialog is currently shown. */
-  var showCreateDialog by mutableStateOf(false)
-
-  /** The book currently selected for actions (edit/delete), or null if no book is selected. */
-  var selectedBookForActions by mutableStateOf<Book?>(null)
 
   /** The current filter text for searching books by name. */
   var filterText by mutableStateOf("")
@@ -162,13 +146,11 @@ private class BooksState {
  *
  * @property onRefresh Called when the user triggers a pull-to-refresh.
  * @property onBookClick Called when a user clicks on a book.
- * @property onBookLongClick Called when a user long-presses on a book (for edit/delete actions).
  * @property onLoadMore Called when more books should be loaded (pagination trigger).
  */
 private data class BooksContentCallbacks(
   val onRefresh: () -> Unit,
   val onBookClick: (Book) -> Unit,
-  val onBookLongClick: (Book) -> Unit,
   val onLoadMore: () -> Unit,
 )
 
@@ -178,23 +160,19 @@ private data class BooksContentCallbacks(
  * This page provides:
  * - A scrollable list of books with automatic pagination (batches of [BOOKS_PER_BATCH])
  * - Pull-to-refresh functionality to reload the book list
- * - Book creation dialog for users with [UserPermission.BOOK_CREATION] permission
- * - Edit and delete actions for books (accessible via long press)
  * - Navigation to book detail pages
  *
  * The implementation includes race condition prevention to handle rapid user interactions and
  * ensures no duplicate books appear in the list.
  *
- * @param bookQueryManager Manager for book-related database operations. Injected via Koin.
+ * @param bookQueryManager Manager for book-related queries. Injected via Koin.
  * @param navigator Navigation controller for page transitions. Injected via Koin.
- * @param authManager Authentication manager for checking user permissions. Injected via Koin.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Books(
-  bookQueryManager: SupabaseBookQueryManager = koinInject(),
+  bookQueryManager: BookQueryManager = koinInject(),
   navigator: Navigator = koinInject(),
-  authManager: AuthManager = koinInject(),
   toastRenderer: ToastRenderer = koinInject(),
 ) {
   val state = remember { BooksState() }
@@ -243,7 +221,6 @@ fun Books(
    * - Acquires an operation lock to prevent concurrent refresh operations
    * - Resets all pagination state (offset, hasMoreBooks, etc.)
    * - Clears the current book list
-   * - Checks if the user has book creation permission
    * - Loads the first batch of books
    *
    * Called when the page is first loaded or when the user triggers pull-to-refresh.
@@ -252,7 +229,6 @@ fun Books(
     if (!state.canStartOperation()) return
     try {
       state.resetPagination()
-      state.hasCreationPermission = authManager.hasUserPermission(UserPermission.BOOK_CREATION)
       loadMoreBooks()
     } finally {
       state.operationComplete()
@@ -273,13 +249,11 @@ fun Books(
       }
 
       BooksHeader(
-        hasCreationPermission = state.hasCreationPermission,
         filterText = state.filterText,
         onFilterTextChange = { newText ->
           state.filterText = newText
           state.isRefreshing = true
         },
-        onCreateClick = { state.showCreateDialog = true },
       )
 
       BooksContent(
@@ -287,23 +261,12 @@ fun Books(
         isRefreshing = state.isRefreshing,
         isLoadingMore = state.isLoadingMore,
         hasMoreBooks = state.hasMoreBooks,
-        hasCreationPermission = state.hasCreationPermission,
         callbacks =
           BooksContentCallbacks(
             onRefresh = { state.isRefreshing = true },
-            onBookClick = { book ->
-              navigator.navigateTo(Route.BookDetailRoute(book.id, editing = false))
-            },
-            onBookLongClick = { book -> state.selectedBookForActions = book },
+            onBookClick = { book -> navigator.navigateTo(Route.BookDetailRoute(book.id)) },
             onLoadMore = { coroutineScope.launch { loadMoreBooks() } },
           ),
-      )
-
-      BooksDialogs(
-        state = state,
-        bookQueryManager = bookQueryManager,
-        navigator = navigator,
-        coroutineScope = coroutineScope,
       )
     }
   }
@@ -312,22 +275,14 @@ fun Books(
 /**
  * Header section for the Books page.
  *
- * Displays the page title "Books", a search icon to toggle the filter field, and, if the user has
- * creation permission, shows an "Add" button to create new books. The filter field appears below
- * the header with a smooth animation when toggled.
+ * Displays the page title "Books" and a search icon to toggle the filter field. The filter field
+ * appears below the header with a smooth animation when toggled.
  *
- * @param hasCreationPermission Whether the current user has permission to create books.
  * @param filterText The current filter text for searching books.
  * @param onFilterTextChange Callback invoked when the filter text changes.
- * @param onCreateClick Callback invoked when the create button is clicked.
  */
 @Composable
-private fun BooksHeader(
-  hasCreationPermission: Boolean,
-  filterText: String,
-  onFilterTextChange: (String) -> Unit,
-  onCreateClick: () -> Unit,
-) {
+private fun BooksHeader(filterText: String, onFilterTextChange: (String) -> Unit) {
   var showFilterField by remember { mutableStateOf(false) }
 
   Column(modifier = Modifier.fillMaxWidth()) {
@@ -337,15 +292,8 @@ private fun BooksHeader(
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Text("Books", style = MaterialTheme.typography.headlineMedium)
-      Row {
-        IconButton(onClick = { showFilterField = !showFilterField }) {
-          Icon(Icons.Default.Search, contentDescription = "Filter books")
-        }
-        if (hasCreationPermission) {
-          IconButton(onClick = onCreateClick) {
-            Icon(Icons.Default.Add, contentDescription = "Create Book")
-          }
-        }
+      IconButton(onClick = { showFilterField = !showFilterField }) {
+        Icon(Icons.Default.Search, contentDescription = "Filter books")
       }
     }
 
@@ -375,7 +323,6 @@ private fun BooksHeader(
  * @param isRefreshing Whether a refresh operation is currently in progress.
  * @param isLoadingMore Whether more books are currently being loaded.
  * @param hasMoreBooks Whether there are more books available to load.
- * @param hasCreationPermission Whether the user has permission to create/edit books.
  * @param callbacks Collection of callback functions for user interactions.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -385,7 +332,6 @@ private fun BooksContent(
   isRefreshing: Boolean,
   isLoadingMore: Boolean,
   hasMoreBooks: Boolean,
-  hasCreationPermission: Boolean,
   callbacks: BooksContentCallbacks,
 ) {
   if (books.isEmpty()) {
@@ -396,9 +342,7 @@ private fun BooksContent(
         books = books,
         isLoadingMore = isLoadingMore,
         hasMoreBooks = hasMoreBooks,
-        hasCreationPermission = hasCreationPermission,
         onBookClick = callbacks.onBookClick,
-        onBookLongClick = callbacks.onBookLongClick,
         onLoadMore = callbacks.onLoadMore,
       )
     }
@@ -424,14 +368,10 @@ private fun EmptyBooksMessage() {
  * the end ([LOAD_MORE_THRESHOLD] items before the bottom). Shows a loading indicator while more
  * books are being fetched.
  *
- * Each book item is clickable and optionally long-clickable (if user has creation permission).
- *
  * @param books The list of books to display.
  * @param isLoadingMore Whether more books are currently being loaded.
  * @param hasMoreBooks Whether there are more books available to load.
- * @param hasCreationPermission Whether the user has permission to edit/delete books.
  * @param onBookClick Callback invoked when a book is clicked.
- * @param onBookLongClick Callback invoked when a book is long-pressed.
  * @param onLoadMore Callback to trigger loading more books.
  */
 @Composable
@@ -439,22 +379,13 @@ private fun BooksList(
   books: List<Book>,
   isLoadingMore: Boolean,
   hasMoreBooks: Boolean,
-  hasCreationPermission: Boolean,
   onBookClick: (Book) -> Unit,
-  onBookLongClick: (Book) -> Unit,
   onLoadMore: () -> Unit,
 ) {
   LazyColumn(modifier = Modifier.fillMaxSize()) {
     items(books.size, key = { index -> "${books[index].id}-$index" }) { index ->
       val book = books[index]
-      BookListItem(
-        book = book,
-        onClick = { onBookClick(book) },
-        onLongClick =
-          if (hasCreationPermission) {
-            { onBookLongClick(book) }
-          } else null,
-      )
+      BookListItem(book = book, onClick = { onBookClick(book) })
 
       if (shouldLoadMore(index, books.size, hasMoreBooks, isLoadingMore)) {
         LaunchedEffect(Unit) { onLoadMore() }
@@ -504,90 +435,17 @@ private fun LoadingMoreIndicator() {
 }
 
 /**
- * Manages all dialog interactions for the Books page.
- *
- * Handles displaying:
- * - Create book dialog when [BooksState.showCreateDialog] is true
- * - Book actions dialog (edit/delete) when a book is selected in
- *   [BooksState.selectedBookForActions]
- *
- * @param state The current state of the Books page.
- * @param bookQueryManager Manager for book-related database operations.
- * @param navigator Navigation controller for page transitions.
- * @param coroutineScope Coroutine scope for launching asynchronous operations.
- */
-@Composable
-private fun BooksDialogs(
-  state: BooksState,
-  bookQueryManager: SupabaseBookQueryManager,
-  navigator: Navigator,
-  coroutineScope: CoroutineScope,
-  toastRenderer: ToastRenderer = koinInject(),
-) {
-  if (state.showCreateDialog) {
-    CreateBookDialog(
-      onDismiss = { state.showCreateDialog = false },
-      onCreate = { name ->
-        coroutineScope.launch {
-          var bookId: Long? = null
-          try {
-            bookId = bookQueryManager.createBook(name)
-          } catch (e: Exception) {
-            LOGGER.e(e) { "Failed to create book." }
-            toastRenderer.info("Failed to create book.")
-          }
-          if (bookId != null) {
-            state.showCreateDialog = false
-            navigator.navigateTo(Route.BookDetailRoute(bookId, editing = true))
-          }
-        }
-      },
-    )
-  }
-
-  state.selectedBookForActions?.let { book ->
-    BookActionsDialog(
-      book = book,
-      onDismiss = { state.selectedBookForActions = null },
-      onEdit = {
-        state.selectedBookForActions = null
-        navigator.navigateTo(Route.BookDetailRoute(book.id, editing = true))
-      },
-      onDelete = {
-        coroutineScope.launch {
-          try {
-            bookQueryManager.deleteBook(book.id)
-            state.selectedBookForActions = null
-            state.isRefreshing = true
-          } catch (e: Exception) {
-            toastRenderer.info("Failed to delete book ${book.name}")
-            LOGGER.e(e) { "Failed to delete book ${book.id}" }
-          }
-        }
-      },
-    )
-  }
-}
-
-/**
  * Individual book item in the list.
  *
- * Displays a card with the book's name that can be clicked or long-pressed. Regular click navigates
- * to the book detail page. Long press (if enabled) shows edit/delete actions.
+ * Displays a card with the book's name and download count.
  *
  * @param book The book to display.
  * @param onClick Callback invoked when the book card is clicked.
- * @param onLongClick Optional callback invoked when the book card is long-pressed. If null, long
- *   press is disabled.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BookListItem(book: Book, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+private fun BookListItem(book: Book, onClick: () -> Unit) {
   Card(
-    modifier =
-      Modifier.fillMaxWidth()
-        .padding(vertical = 4.dp)
-        .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onClick),
     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
   ) {
     Row(
@@ -607,73 +465,6 @@ private fun BookListItem(book: Book, onClick: () -> Unit, onLongClick: (() -> Un
       }
     }
   }
-}
-
-/**
- * Dialog for creating a new book.
- *
- * Displays a text field for entering the book name and buttons to create or cancel. The create
- * button is only enabled when a non-blank name has been entered.
- *
- * @param onDismiss Callback invoked when the dialog is dismissed (cancel button or outside click).
- * @param onCreate Callback invoked when the create button is clicked, receives the entered book
- *   name.
- */
-@Composable
-private fun CreateBookDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
-  var bookName by remember { mutableStateOf("") }
-
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = { Text("Create New Book") },
-    text = {
-      OutlinedTextField(
-        value = bookName,
-        onValueChange = { bookName = it },
-        label = { Text("Book Name") },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-      )
-    },
-    confirmButton = {
-      TextButton(onClick = { onCreate(bookName) }, enabled = bookName.isNotBlank()) {
-        Text("Create")
-      }
-    },
-    dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-  )
-}
-
-/**
- * Dialog displaying available actions for a selected book.
- *
- * Shows options to edit or delete the selected book, with the book's name displayed in the dialog
- * text. Provides three buttons: Edit, Cancel, and Delete.
- *
- * @param book The book for which actions are being displayed.
- * @param onDismiss Callback invoked when the dialog is dismissed (cancel button or outside click).
- * @param onEdit Callback invoked when the edit button is clicked.
- * @param onDelete Callback invoked when the delete button is clicked.
- */
-@Composable
-private fun BookActionsDialog(
-  book: Book,
-  onDismiss: () -> Unit,
-  onEdit: () -> Unit,
-  onDelete: () -> Unit,
-) {
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = { Text("Book Actions") },
-    text = { Text("What would you like to do with \"${book.name}\"?") },
-    confirmButton = { TextButton(onClick = onEdit) { Text("Edit") } },
-    dismissButton = {
-      Row {
-        TextButton(onClick = onDismiss) { Text("Cancel") }
-        TextButton(onClick = onDelete) { Text("Delete") }
-      }
-    },
-  )
 }
 
 private val LOGGER = Logger.withTag("Books")

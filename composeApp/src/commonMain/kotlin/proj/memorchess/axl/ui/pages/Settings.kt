@@ -29,7 +29,6 @@ import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.graph.nodes.NodeManager
 import proj.memorchess.axl.ui.components.buttons.ImportAndExportButtons
-import proj.memorchess.axl.ui.components.buttons.SignInButton
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
 import proj.memorchess.axl.ui.pages.navigation.Route
@@ -109,9 +108,6 @@ fun Settings(
         )
         Text("Erase all data")
       }
-
-      // --- Sign In Button ---
-      SignInButton()
     }
   }
 }

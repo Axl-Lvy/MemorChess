@@ -16,14 +16,8 @@ package proj.memorchess.axl.core.config
  */
 abstract class SecretsTemplate {
 
-  /** Supabase anon key */
-  open val supabaseApiKey = NOT_FOUND
-
-  /** Mail of the user account used for testing */
-  open val testUserMail = NOT_FOUND
-
-  /** Password of the user account used for testing */
-  open val testUserPassword = NOT_FOUND
+  /** Base URL of the MemorChess API server. */
+  open val serverUrl = NOT_FOUND
 }
 
 /** Default value when a key is not found in **local.properties** */

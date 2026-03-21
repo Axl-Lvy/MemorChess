@@ -13,6 +13,7 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.book.BookQueryManager
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.navigation.Navigator
@@ -70,6 +71,8 @@ abstract class TestWithKoin : KoinComponent {
       single<DatabaseQueryManager> { TestDatabaseQueryManager.empty() }
       single<ToastRenderer> { ToastRendererForTests }
       single<Navigator> { RememberLastRouteNavigator() }
+      single { InMemoryBookQueryManager() }
+      single<BookQueryManager> { get<InMemoryBookQueryManager>() }
     }
   }
 
