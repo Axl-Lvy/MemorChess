@@ -177,12 +177,16 @@ jobs:
       - name: Compile Android + wasm targets
         run: ./gradlew compileDebugKotlinAndroid compileKotlinWasmJs
 
-  # Full tier: Android instrumented tests on cached AVD snapshot
+  # Full tier: Android instrumented tests, sharded across emulators
   android-tests:
     needs: [detect]
     if: needs.detect.outputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      matrix:
+        shard_index: [0, 1, 2, 3]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
@@ -225,7 +229,6 @@ jobs:
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
 
-      # -no-snapshot-save keeps snapshot load (fast boot) but skips the save on exit
       - name: Run tests
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
@@ -235,19 +238,19 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedCheck --no-daemon
+          script: ./gradlew connectedCheck --no-daemon -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
 
-      - name: Collect coverage
+      - name: Rename coverage report
         run: |
-          mkdir -p composeApp/build/outputs/code_coverage/connected/
-          find composeApp/build/outputs/code_coverage/ -name "*.ec" -exec cp {} composeApp/build/outputs/code_coverage/connected/ \;
+          mkdir -p composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/
+          find composeApp/build/outputs/code_coverage/ -name "*.ec" -exec cp {} composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/ \;
 
-      - name: Upload Android coverage
+      - name: Upload coverage to GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-android
+          name: coverage-report-android-${{ matrix.shard_index }}
           path: composeApp/build/outputs/code_coverage/
           retention-days: 1
 
@@ -255,7 +258,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-test-results
+          name: android-test-results-${{ matrix.shard_index }}
           path: composeApp/build/outputs/androidTest-results/connected/*.xml
           retention-days: 1
 
@@ -314,8 +317,9 @@ jobs:
         if: needs.detect.outputs.tier == 'full' && needs.android-tests.result != 'skipped'
         uses: actions/download-artifact@v4
         with:
-          name: android-test-results
+          pattern: android-test-results-*
           path: test-results/android
+          merge-multiple: true
 
       - name: Download Wasm test results
         if: needs.detect.outputs.tier == 'full' && needs.wasm-tests.result != 'skipped'
@@ -382,8 +386,9 @@ jobs:
         if: needs.detect.outputs.tier == 'full'
         uses: actions/download-artifact@v4
         with:
-          name: coverage-report-android
+          pattern: coverage-report-android-*
           path: composeApp/build/outputs/code_coverage/
+          merge-multiple: true
 
       - name: Download JVM Kover report
         uses: actions/download-artifact@v4
