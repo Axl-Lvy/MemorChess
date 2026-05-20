@@ -36,7 +36,7 @@ kotlin {
   jvm()
 
   // iOS configuration
-  listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
+  listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
     iosTarget.binaries.framework {
       baseName = "ComposeApp"
       isStatic = true
@@ -52,12 +52,9 @@ kotlin {
         outputFileName = "composeApp.js"
         devServer =
           (devServer ?: KotlinWebpackConfig.DevServer()).apply {
-            static =
-              (static ?: mutableListOf()).apply {
-                // Serve sources to debug inside browser
-                add(project.rootDir.path)
-                add(project.projectDir.path)
-              }
+            // Serve sources to debug inside browser
+            static(project.rootDir.path)
+            static(project.projectDir.path)
           }
       }
       testTask { useKarma { useFirefoxHeadless() } }
@@ -85,12 +82,12 @@ kotlin {
   sourceSets {
     commonMain.dependencies {
       // Compose dependencies
-      implementation(compose.runtime)
-      implementation(compose.foundation)
-      implementation(compose.material3)
-      implementation(compose.ui)
-      implementation(compose.components.resources)
-      implementation(compose.components.uiToolingPreview)
+      implementation(libs.compose.runtime)
+      implementation(libs.compose.foundation)
+      implementation(libs.compose.material3)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.components.resources)
+      implementation(libs.compose.components.ui.tooling.preview)
 
       // Lifecycle dependencies
       implementation(libs.androidx.lifecycle.viewmodel)
@@ -142,7 +139,7 @@ kotlin {
     }
 
     androidMain.dependencies {
-      implementation(compose.preview)
+      implementation(libs.compose.ui.tooling.preview)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.material3.android)
     }
@@ -156,7 +153,7 @@ kotlin {
 
     commonTest.dependencies {
       implementation(libs.kotlin.test)
-      @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class) implementation(compose.uiTest)
+      implementation(libs.compose.ui.test)
       implementation(libs.kotest.assertions)
     }
 
@@ -216,7 +213,6 @@ dependencies {
   // KSP processors for Room on different platforms
   add("kspAndroid", libs.androidx.room.compiler)
   add("kspIosSimulatorArm64", libs.androidx.room.compiler)
-  add("kspIosX64", libs.androidx.room.compiler)
   add("kspIosArm64", libs.androidx.room.compiler)
   add("kspJvm", libs.androidx.room.compiler)
 

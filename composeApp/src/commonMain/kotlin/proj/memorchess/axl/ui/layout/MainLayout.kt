@@ -14,7 +14,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.window.core.layout.WindowSizeClass
-import androidx.window.core.layout.WindowWidthSizeClass
 
 /**
  * Main layout for the application.
@@ -30,7 +29,9 @@ fun MainLayout(
 ) {
   val isWide by
     remember(windowSizeClass) {
-      derivedStateOf { windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED }
+      derivedStateOf {
+        windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+      }
     }
   Row {
     AnimatedVisibility(

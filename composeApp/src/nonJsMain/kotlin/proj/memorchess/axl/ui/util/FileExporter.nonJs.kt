@@ -6,6 +6,6 @@ import io.github.vinceglb.filekit.writeString
 
 /** Exports [content] via a native save dialog. */
 actual suspend fun exportToFile(content: String, baseName: String, extension: String) {
-  val file = FileKit.openFileSaver(suggestedName = baseName, extension = extension)
+  val file = FileKit.openFileSaver(suggestedName = baseName, defaultExtension = extension)
   file?.writeString(content)
 }

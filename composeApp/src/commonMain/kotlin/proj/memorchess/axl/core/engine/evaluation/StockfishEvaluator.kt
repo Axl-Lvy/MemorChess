@@ -44,16 +44,15 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
   val bestMove: StateFlow<BestMove?> = _bestMove.asStateFlow()
 
   init {
-    initJob =
-      scope.launch {
-        try {
-          engine = getStockfish()
-        } catch (e: Exception) {
-          Logger.w(tag = TAG, throwable = e) {
-            "Stockfish not available on this platform: ${e.message}"
-          }
+    initJob = scope.launch {
+      try {
+        engine = getStockfish()
+      } catch (e: Exception) {
+        Logger.w(tag = TAG, throwable = e) {
+          "Stockfish not available on this platform: ${e.message}"
         }
       }
+    }
   }
 
   /**
@@ -75,25 +74,24 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
     _currentDepth.value = null
     _bestMove.value = null
 
-    searchJob =
-      scope.launch {
-        try {
-          currentEngine.setPosition(fen = fen)
-          val depthArg = if (maxDepth == 0) null else maxDepth
-          val result =
-            currentEngine.search(depth = depthArg) { info ->
-              info.depth?.let { _currentDepth.value = it }
-              val score = info.score ?: return@search
-              _evaluation.value = toEvaluationScore(score, isBlackToMove)
-              if (info.pv.isNotEmpty()) {
-                _bestMove.value = BestMove.fromUci(info.pv.first())
-              }
+    searchJob = scope.launch {
+      try {
+        currentEngine.setPosition(fen = fen)
+        val depthArg = if (maxDepth == 0) null else maxDepth
+        val result =
+          currentEngine.search(depth = depthArg) { info ->
+            info.depth?.let { _currentDepth.value = it }
+            val score = info.score ?: return@search
+            _evaluation.value = toEvaluationScore(score, isBlackToMove)
+            if (info.pv.isNotEmpty()) {
+              _bestMove.value = BestMove.fromUci(info.pv.first())
             }
-          _bestMove.value = BestMove.fromUci(result.bestMove)
-        } catch (e: Exception) {
-          Logger.w(tag = TAG, throwable = e) { "Evaluation failed: ${e.message}" }
-        }
+          }
+        _bestMove.value = BestMove.fromUci(result.bestMove)
+      } catch (e: Exception) {
+        Logger.w(tag = TAG, throwable = e) { "Evaluation failed: ${e.message}" }
       }
+    }
   }
 
   /** Stops the engine and cancels the coroutine scope. */
