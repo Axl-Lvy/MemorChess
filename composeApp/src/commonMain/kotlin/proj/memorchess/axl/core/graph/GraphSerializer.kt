@@ -1,18 +1,19 @@
 package proj.memorchess.axl.core.graph
 
 import kotlin.time.Instant
-import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.date.PreviousAndNextDate
+import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * Serializes and deserializes an opening tree graph to/from a deterministic tab-separated text
+ * Serializes and deserializes an opening tree graph to or from a deterministic tab separated text
  * format.
  *
  * The format has two sections separated by a blank line:
- * - **Node lines**: `<index>\t<positionKey>\t<depth>\t<previousDate>\t<nextDate>\t<updatedAt>`
+ * - **Node lines**:
+ *   `<index>\t<positionKey>\t<depth>\t<dueDate>\t<lastReview>\t<stability>\t<difficulty>\t<reps>\t<lapses>\t<updatedAt>`
+ *   where `<lastReview>` is the literal string `null` for a card that has never been reviewed.
  * - **Edge lines**: `<originIndex>\t<destIndex>\t<move>\t<isGood>\t<updatedAt>`
  *
  * Nodes are sorted by [PositionKey.value] and edges by `(originIndex, destIndex, move)` for
@@ -25,6 +26,8 @@ object GraphSerializer {
   private const val GOOD = "+"
   private const val BAD = "-"
   private const val UNKNOWN = "?"
+  private const val NULL_TOKEN = "null"
+  private const val NODE_FIELD_COUNT = 10
 
   /** Serializes nodes to a deterministic text string. Filters out deleted nodes and moves. */
   fun serialize(nodes: List<DataNode>): String {
@@ -35,13 +38,17 @@ object GraphSerializer {
     val nodeLines =
       sorted.mapIndexed { i, node ->
         val idx = i + 1
-        val dates = node.previousAndNextTrainingDate
+        val card = node.cardState
         listOf(
             idx,
             node.positionKey.value,
             node.depth,
-            dates.previousDate,
-            dates.nextDate,
+            card.dueDate,
+            card.lastReview?.toString() ?: NULL_TOKEN,
+            card.stability,
+            card.difficulty,
+            card.reps,
+            card.lapses,
             node.updatedAt,
           )
           .joinToString(TAB)
@@ -93,7 +100,7 @@ object GraphSerializer {
             previousMoves = prevMovesByKey[key].orEmpty(),
             nextMoves = nextMovesByKey[key].orEmpty(),
           ),
-        previousAndNextTrainingDate = PreviousAndNextDate(entry.previousDate, entry.nextDate),
+        cardState = entry.cardState,
         depth = entry.depth,
         updatedAt = entry.updatedAt,
       )
@@ -105,16 +112,24 @@ object GraphSerializer {
     return buildMap {
       for (line in section.lines()) {
         val parts = line.split(TAB)
-        require(parts.size == 6) { "Invalid node line: $line" }
+        require(parts.size == NODE_FIELD_COUNT) { "Invalid node line: $line" }
         val index = parts[0].toInt()
+        val cardState =
+          CardState(
+            dueDate = Instant.parse(parts[3]),
+            lastReview = if (parts[4] == NULL_TOKEN) null else Instant.parse(parts[4]),
+            stability = parts[5].toDouble(),
+            difficulty = parts[6].toDouble(),
+            reps = parts[7].toInt(),
+            lapses = parts[8].toInt(),
+          )
         put(
           index,
           NodeEntry(
             positionKey = PositionKey(parts[1]),
             depth = parts[2].toInt(),
-            previousDate = LocalDate.parse(parts[3]),
-            nextDate = LocalDate.parse(parts[4]),
-            updatedAt = Instant.parse(parts[5]),
+            cardState = cardState,
+            updatedAt = Instant.parse(parts[9]),
           ),
         )
       }
@@ -170,8 +185,7 @@ object GraphSerializer {
   private data class NodeEntry(
     val positionKey: PositionKey,
     val depth: Int,
-    val previousDate: LocalDate,
-    val nextDate: LocalDate,
+    val cardState: CardState,
     val updatedAt: Instant,
   )
 

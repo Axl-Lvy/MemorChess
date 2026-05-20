@@ -2,23 +2,24 @@ package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardState
 
 /**
  * Data class representing a node in the database.
  *
  * @property positionKey The position.
  * @property previousAndNextMoves The linked moves.
- * @property previousAndNextTrainingDate The date when this node was last trained and when it should
- *   be trained next.
+ * @property cardState Scheduling state used by the active
+ *   [proj.memorchess.axl.core.scheduling.SchedulingAlgorithm]. Holds the next due date and any
+ *   algorithm specific state such as FSRS stability and difficulty.
  * @property depth The minimum depth at which this position can be reached from the root.
  * @constructor Creates a new node.
  */
 data class DataNode(
   val positionKey: PositionKey,
   val previousAndNextMoves: PreviousAndNextMoves,
-  val previousAndNextTrainingDate: PreviousAndNextDate,
+  val cardState: CardState,
   val depth: Int = 0,
   val updatedAt: Instant = DateUtil.now(),
   val isDeleted: Boolean = false,
@@ -35,7 +36,7 @@ data class DataNode(
   private data class EssentialData(
     val positionKey: PositionKey,
     val previousAndNextMoves: PreviousAndNextMoves,
-    val previousAndNextTrainingDate: PreviousAndNextDate,
+    val cardState: CardState,
     val isDeleted: Boolean,
   ) {
     constructor(
@@ -43,7 +44,7 @@ data class DataNode(
     ) : this(
       dataNode.positionKey,
       dataNode.previousAndNextMoves,
-      dataNode.previousAndNextTrainingDate,
+      dataNode.cardState,
       dataNode.isDeleted,
     )
   }

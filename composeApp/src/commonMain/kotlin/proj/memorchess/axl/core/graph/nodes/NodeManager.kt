@@ -108,7 +108,7 @@ class NodeManager(
 
   /** Schedules a node for training. Does **not** modify the [OpeningTree]. */
   fun cacheNode(node: DataNode) {
-    trainingSchedule?.addEntry(TrainingEntry(node.positionKey, node.previousAndNextTrainingDate))
+    trainingSchedule?.addEntry(TrainingEntry(node.positionKey, node.cardState))
   }
 
   /** Checks if a position is known in the tree. */
@@ -121,12 +121,7 @@ class NodeManager(
 
   private fun TrainingEntry.toDataNode(): DataNode? {
     val moves = openingTree.get(positionKey) ?: return null
-    return DataNode(
-      positionKey,
-      moves.toImmutable(),
-      trainingDate,
-      openingTree.getDepth(positionKey),
-    )
+    return DataNode(positionKey, moves.toImmutable(), cardState, openingTree.getDepth(positionKey))
   }
 }
 

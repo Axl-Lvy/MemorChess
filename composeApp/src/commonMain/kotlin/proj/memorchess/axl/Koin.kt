@@ -11,6 +11,8 @@ import proj.memorchess.axl.core.graph.OpeningTree
 import proj.memorchess.axl.core.graph.TrainingSchedule
 import proj.memorchess.axl.core.graph.TreeRepository
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
+import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
@@ -33,7 +35,9 @@ fun initKoinModules(): Array<Module> {
     single { NodeManager(get<OpeningTree>(), get<TreeRepository>(), get<TrainingSchedule>()) }
   }
 
+  val schedulingModule = module { single<SchedulingAlgorithm> { Fsrs6SchedulingAlgorithm() } }
+
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
 
-  return arrayOf(dataModule, nodeModule, otherModule)
+  return arrayOf(dataModule, nodeModule, schedulingModule, otherModule)
 }

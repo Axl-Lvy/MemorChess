@@ -19,9 +19,9 @@ import proj.memorchess.axl.core.data.MoveEntity
 import proj.memorchess.axl.core.data.NodeEntityDao
 import proj.memorchess.axl.core.data.NodeWithMoves
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 class TestNodeEntitiesDataBase {
   private lateinit var nodeEntityDao: NodeEntityDao
@@ -48,7 +48,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+            DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new())
           )
         )
       )
@@ -68,7 +68,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday())
+            DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new())
           )
         )
       )
@@ -90,11 +90,11 @@ class TestNodeEntitiesDataBase {
       DataNode(
         rootPositionKey,
         PreviousAndNextMoves(listOf(), listOf(linkMove.toStoredMove())),
-        PreviousAndNextDate.dummyToday(),
+        CardStateFactory.new(),
         0,
       )
     val childNode =
-      DataNode(game.toPositionKey(), PreviousAndNextMoves(), PreviousAndNextDate.dummyToday(), 0)
+      DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new(), 0)
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))

@@ -4,10 +4,10 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.NextDateCalculator
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.scheduling.ReviewGrade
+import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 
 /**
  * Trainer based on a node.
@@ -20,6 +20,7 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
   InteractionsManager(GameEngine(node.positionKey)) {
 
   private val nodeManager: NodeManager by inject()
+  private val schedulingAlgorithm: SchedulingAlgorithm by inject()
 
   private var isCorrect: Boolean = true
 
@@ -44,20 +45,15 @@ class SingleMoveTrainer(private var node: DataNode, val callBackOnCorrect: (Data
   }
 
   private suspend fun saveNode() {
-    val calculator =
-      if (isCorrect) {
-        NextDateCalculator.SUCCESS
-      } else {
-        NextDateCalculator.FAILURE
-      }
-
-    val nextTrainingDate = calculator.calculateNextDate(node.previousAndNextTrainingDate)
+    val grade = if (isCorrect) ReviewGrade.GOOD else ReviewGrade.AGAIN
+    val now = DateUtil.now()
+    val newState = schedulingAlgorithm.schedule(node.cardState, grade, now)
 
     val dataNode =
       DataNode(
         positionKey = node.positionKey,
         previousAndNextMoves = node.previousAndNextMoves,
-        previousAndNextTrainingDate = PreviousAndNextDate(DateUtil.today(), nextTrainingDate),
+        cardState = newState,
         depth = node.depth,
       )
     nodeManager.cacheNode(dataNode)

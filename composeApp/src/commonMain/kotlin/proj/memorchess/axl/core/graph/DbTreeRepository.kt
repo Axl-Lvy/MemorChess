@@ -17,9 +17,7 @@ class DbTreeRepository(private val database: DatabaseQueryManager) : TreeReposit
       tree.getOrPut(node.positionKey) { moves.toMutable() }
       tree.updateDepth(node.positionKey, node.depth)
       if (moves.nextMoves.any { it.value.isGood == true }) {
-        trainingSchedule?.addEntry(
-          TrainingEntry(node.positionKey, node.previousAndNextTrainingDate)
-        )
+        trainingSchedule?.addEntry(TrainingEntry(node.positionKey, node.cardState))
       }
       LOGGER.i { "Retrieved node: ${node.positionKey}" }
     }

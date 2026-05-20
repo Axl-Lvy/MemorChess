@@ -4,59 +4,45 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlin.time.Instant
-import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Entity representing an [DataNode] ready to be stored in the database.
+ * Entity representing a [DataNode] ready to be stored in the database.
+ *
+ * Scheduling fields are owned by the active
+ * [proj.memorchess.axl.core.scheduling.SchedulingAlgorithm]. Wave A persists the full FSRS card
+ * state on every node so that scheduling decisions are stable across sessions.
  *
  * @property positionKey FEN string uniquely identifying the chess position.
- * @property lastTrainedDate The date when this node was last trained.
- * @property nextTrainedDate The date when this node should be trained next.
+ * @property dueDate Moment when the card is next due for review.
+ * @property lastReview Moment of the most recent review, or `null` for a brand new card.
+ * @property stability FSRS stability of the memory trace, in days.
+ * @property difficulty FSRS card difficulty.
+ * @property reps Total number of recorded reviews.
+ * @property lapses Total number of times the card has been forgotten.
+ * @property depth Minimum graph depth at which this position can be reached from the root.
+ * @property isDeleted Soft delete flag.
+ * @property updatedAt Last modification timestamp.
  */
 @Entity(
   tableName = "NodeEntity",
   indices =
     [
-      Index(value = ["nextTrainedDate"]),
-      Index(value = ["lastTrainedDate"]),
+      Index(value = ["dueDate"]),
       Index(value = ["depth"]),
       Index(value = ["isDeleted"]),
       Index(value = ["updatedAt"]),
     ],
 )
 data class NodeEntity(
-
-  /**
-   * FEN string uniquely identifying the chess position. Used as the primary key.
-   *
-   * Note that it should not be always the exact FEN string: it does not keep useless en passant
-   * information.
-   */
   @PrimaryKey(autoGenerate = false) val positionKey: String,
-
-  /** The date when this node was last trained */
-  val lastTrainedDate: LocalDate = DateUtil.today(),
-
-  /** The date when this node should be trained next */
-  val nextTrainedDate: LocalDate = DateUtil.today(),
-
-  /**
-   * Depth of the node. Theoretically, a node can have many possible depth. Only the minimum one
-   * should be stored.
-   */
+  val dueDate: Instant = DateUtil.now(),
+  val lastReview: Instant? = null,
+  val stability: Double = 0.0,
+  val difficulty: Double = 0.0,
+  val reps: Int = 0,
+  val lapses: Int = 0,
   val depth: Int,
-
-  /** If true, the node is deleted. */
   val isDeleted: Boolean = false,
-
-  /** The date time of the last update. */
   val updatedAt: Instant = DateUtil.now(),
-) {
-
-  init {
-    check(lastTrainedDate <= nextTrainedDate) {
-      "Last trained date cannot be after next trained date"
-    }
-  }
-}
+)

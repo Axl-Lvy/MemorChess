@@ -16,10 +16,9 @@ import kotlin.time.Instant
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardState
 
 // ---------------------------------------------------------------------------
 // External JS interfaces for IndexedDB object stores
@@ -28,11 +27,15 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 /** JS object stored in the "nodes" object store. */
 private external interface JsNodeEntity : JsAny {
   var positionKey: String
-  var lastTrainedDate: Int // epoch days
-  var nextTrainedDate: Int // epoch days
+  var dueDate: Double // epoch seconds
+  var lastReview: Double // epoch seconds, 0 means null (brand new card)
+  var stability: Double
+  var difficulty: Double
+  var reps: Int
+  var lapses: Int
   var depth: Int
   var isDeleted: Boolean
-  var updatedAt: Double // epoch seconds (Double avoids Long→BigInt)
+  var updatedAt: Double // epoch seconds (Double avoids Long to BigInt)
 }
 
 /** JS object stored in the "moves" object store. */
@@ -83,23 +86,29 @@ private fun JsMoveEntity.toDataMove(): DataMove =
 private fun JsNodeEntity.toDataNode(
   previousMoves: List<DataMove>,
   nextMoves: List<DataMove>,
-): DataNode =
-  DataNode(
+): DataNode {
+  val lastReviewSec = lastReview.toLong()
+  return DataNode(
     positionKey = PositionKey(positionKey),
     previousAndNextMoves =
       PreviousAndNextMoves(
         previousMoves.filter { !it.isDeleted },
         nextMoves.filter { !it.isDeleted },
       ),
-    previousAndNextTrainingDate =
-      PreviousAndNextDate(
-        LocalDate.fromEpochDays(lastTrainedDate),
-        LocalDate.fromEpochDays(nextTrainedDate),
+    cardState =
+      CardState(
+        dueDate = Instant.fromEpochSeconds(dueDate.toLong()),
+        lastReview = if (lastReviewSec == 0L) null else Instant.fromEpochSeconds(lastReviewSec),
+        stability = stability,
+        difficulty = difficulty,
+        reps = reps,
+        lapses = lapses,
       ),
     depth = depth,
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
     isDeleted = isDeleted,
   )
+}
 
 // ---------------------------------------------------------------------------
 // Conversion: domain → JS
@@ -109,8 +118,12 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
   val node = this
   return emptyObject<JsNodeEntity>().apply {
     positionKey = node.positionKey.value
-    lastTrainedDate = node.previousAndNextTrainingDate.previousDate.toEpochDays().toInt()
-    nextTrainedDate = node.previousAndNextTrainingDate.nextDate.toEpochDays().toInt()
+    dueDate = node.cardState.dueDate.epochSeconds.toDouble()
+    lastReview = node.cardState.lastReview?.epochSeconds?.toDouble() ?: 0.0
+    stability = node.cardState.stability
+    difficulty = node.cardState.difficulty
+    reps = node.cardState.reps
+    lapses = node.cardState.lapses
     depth = node.depth
     isDeleted = node.isDeleted
     updatedAt = node.updatedAt.epochSeconds.toDouble()
@@ -140,7 +153,7 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
 private const val NODES_STORE = "nodes"
 private const val MOVES_STORE = "moves"
 private const val DB_NAME = "memorchess"
-private const val DB_VERSION = 1
+private const val DB_VERSION = 2
 
 // ---------------------------------------------------------------------------
 // IndexedDB-backed DatabaseQueryManager
@@ -157,11 +170,18 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       initialized = true
       val database =
         openDatabase(DB_NAME, DB_VERSION) { database, oldVersion, _ ->
-          if (oldVersion < 1) {
+          // FSRS migration: schema for nodes changed at version 2. Drop and recreate the nodes
+          // store so old rows do not carry the legacy lastTrainedDate / nextTrainedDate fields.
+          if (oldVersion in 1 until 2) {
+            database.deleteObjectStore(NODES_STORE)
+          }
+          if (oldVersion < 2) {
             val nodesStore = database.createObjectStore(NODES_STORE, KeyPath("positionKey"))
             nodesStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
             nodesStore.createIndex("updatedAt", KeyPath("updatedAt"), unique = false)
-
+            nodesStore.createIndex("dueDate", KeyPath("dueDate"), unique = false)
+          }
+          if (oldVersion < 1) {
             val movesStore =
               database.createObjectStore(MOVES_STORE, KeyPath("origin", "destination"))
             movesStore.createIndex("origin", KeyPath("origin"), unique = false)

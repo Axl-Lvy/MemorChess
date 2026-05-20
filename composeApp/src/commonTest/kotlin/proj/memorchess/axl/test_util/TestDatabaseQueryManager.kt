@@ -6,9 +6,9 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
  * A test in-memory database.
@@ -38,7 +38,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
         DataNode(
           node.positionKey,
           node.previousAndNextMoves,
-          node.previousAndNextTrainingDate,
+          node.cardState,
           node.depth,
           DateUtil.now(),
           true,
@@ -62,7 +62,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
       DataNode(
         origin,
         PreviousAndNextMoves(storedNode.previousAndNextMoves.previousMoves.values, newNextMoves),
-        storedNode.previousAndNextTrainingDate,
+        storedNode.cardState,
         storedNode.depth,
         storedNode.updatedAt,
       )
@@ -80,7 +80,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
             newPreviousMoves,
             destinationNode.previousAndNextMoves.nextMoves.values,
           ),
-          destinationNode.previousAndNextTrainingDate,
+          destinationNode.cardState,
           destinationNode.depth,
           destinationNode.updatedAt,
         )
@@ -158,7 +158,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
           DataNode(
             currentPosition,
             PreviousAndNextMoves(previousMove?.let { listOf(it) } ?: listOf(), listOf(dataMove)),
-            PreviousAndNextDate.dummyToday(),
+            CardStateFactory.new(),
             depth,
           )
         previousMove = dataMove
@@ -189,7 +189,7 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
               DataNode(
                 storedNode.positionKey,
                 PreviousAndNextMoves(previousMoves, newMoves),
-                PreviousAndNextDate.dummyToday(),
+                CardStateFactory.new(),
               )
           }
         }
