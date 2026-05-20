@@ -157,6 +157,56 @@ class TestCachedExplorer {
   }
 
   @Test
+  fun unauthorizedWithoutCacheReturnsUnauthorized() = runTest {
+    val cache = InMemoryExplorerCache()
+    val client =
+      LichessExplorerClient(
+        tokenProvider = { "test-token" },
+        httpClient =
+          HttpClient(
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+      )
+    val explorer = CachedExplorer(client, cache)
+
+    val result = explorer.fetch(ExplorerSource.LICHESS, "fenNoAuth")
+
+    result shouldBe CachedExplorerResult.Unauthorized
+  }
+
+  @Test
+  fun unauthorizedWithStaleCacheReturnsStale() = runTest {
+    val cache =
+      InMemoryExplorerCache().also {
+        it.seed(
+          "fenAuthStale",
+          ExplorerSource.LICHESS,
+          sample,
+          fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
+        )
+      }
+    val client =
+      LichessExplorerClient(
+        tokenProvider = { "test-token" },
+        httpClient =
+          HttpClient(
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+      )
+    val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
+
+    val result = explorer.fetch(ExplorerSource.LICHESS, "fenAuthStale")
+
+    result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
+  }
+
+  @Test
   fun rateLimitedWithoutCacheReturnsRateLimited() = runTest {
     val cache = InMemoryExplorerCache()
     val client =

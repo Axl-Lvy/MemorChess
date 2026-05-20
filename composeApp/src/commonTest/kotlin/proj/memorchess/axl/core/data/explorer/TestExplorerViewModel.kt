@@ -101,4 +101,25 @@ class TestExplorerViewModel {
     val err = vm.state.first { it is ExplorerState.Error } as ExplorerState.Error
     err.source shouldBe ExplorerSource.MASTERS
   }
+
+  @Test
+  fun unauthorizedLeadsToUnauthorizedState() = runTest {
+    val unauthClient =
+      LichessExplorerClient(
+        tokenProvider = { "test-token" },
+        httpClient =
+          HttpClient(
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+      )
+    val cached = CachedExplorer(unauthClient, InMemoryExplorerCache())
+    val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
+
+    vm.setFen("fen with no auth")
+    val unauth = vm.state.first { it is ExplorerState.Unauthorized } as ExplorerState.Unauthorized
+    unauth.source shouldBe ExplorerSource.MASTERS
+  }
 }

@@ -49,6 +49,7 @@ Compose Multiplatform UI. Components in `ui/components/` (board, explore, traini
 
 - **Formatting**: ktfmt with Google style. Pre-commit hook checks formatting on `master`.
 - **Testing**: Kotest assertions, no mocking. UI tests extend `TestFromMainActivity`. AAA pattern.
+- **Numeric edge cases**: Any code that does arithmetic, division, weighting, or formatting on numbers that come from external data (API counts, ratings, percentages, durations, file sizes) must have a test that includes `0`, the lowest non zero value, the value just below and just above each formatting or branching boundary, and a representative large value. Adding a new state, branch, or sealed subclass to a state machine requires a propagation test through every consumer in the same PR. The rule exists because picking a single happy path sample (`white=10, draws=5, black=3`) hides crashes that only fire on edge data like `Modifier.weight(0f)`.
 - **DI**: Koin for dependency injection. Modules defined in `Koin.kt`.
 - **PR titles**: Must follow Conventional Commits (`feat(module): ...`, `fix: ...`).
 - **Secrets**: Add to `SecretsTemplate.kt` with default `NOT_FOUND`, set real value in `local.properties` as `UPPER_SNAKE_CASE`. Generated `Secrets.kt` is gitignored.

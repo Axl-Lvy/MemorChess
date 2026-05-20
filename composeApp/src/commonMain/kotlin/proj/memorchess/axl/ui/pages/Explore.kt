@@ -62,44 +62,47 @@ fun Explore(
       val deletionConfirmationDialog = remember { ConfirmationDialog(okText = "Delete") }
       deletionConfirmationDialog.DrawDialog()
 
-      ExplorerContent(
-        explorer = linesExplorer,
-        saveButton = {
-          Button(
-            onClick = { coroutineScope.launch { linesExplorer.save() } },
-            it,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-          ) {
-            Icon(FeatherIcons.Save, contentDescription = "Save")
-          }
-        },
-        deleteButton = {
-          Button(
-            onClick = {
-              deletionConfirmationDialog.show(
-                confirm = { coroutineScope.launch { linesExplorer.delete() } }
-              ) {
-                var nodesToDelete by remember { mutableStateOf<Int?>(null) }
-                if (nodesToDelete == null) {
-                  CircularProgressIndicator()
-                } else {
-                  val finalNodesToDelete = nodesToDelete ?: 0
-                  Text(
-                    "Are you sure you want to delete $finalNodesToDelete position${if (finalNodesToDelete > 1) "s" else ""}?"
-                  )
+      Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        ExplorerContent(
+          explorer = linesExplorer,
+          saveButton = {
+            Button(
+              onClick = { coroutineScope.launch { linesExplorer.save() } },
+              it,
+              colors =
+                ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            ) {
+              Icon(FeatherIcons.Save, contentDescription = "Save")
+            }
+          },
+          deleteButton = {
+            Button(
+              onClick = {
+                deletionConfirmationDialog.show(
+                  confirm = { coroutineScope.launch { linesExplorer.delete() } }
+                ) {
+                  var nodesToDelete by remember { mutableStateOf<Int?>(null) }
+                  if (nodesToDelete == null) {
+                    CircularProgressIndicator()
+                  } else {
+                    val finalNodesToDelete = nodesToDelete ?: 0
+                    Text(
+                      "Are you sure you want to delete $finalNodesToDelete position${if (finalNodesToDelete > 1) "s" else ""}?"
+                    )
+                  }
+                  LaunchedEffect(nodesToDelete) {
+                    nodesToDelete = linesExplorer.calculateNumberOfNodeToDelete()
+                  }
                 }
-                LaunchedEffect(nodesToDelete) {
-                  nodesToDelete = linesExplorer.calculateNumberOfNodeToDelete()
-                }
-              }
-            },
-            it,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-          ) {
-            Icon(FeatherIcons.Trash, contentDescription = "Delete")
-          }
-        },
-      )
+              },
+              it,
+              colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+            ) {
+              Icon(FeatherIcons.Trash, contentDescription = "Delete")
+            }
+          },
+        )
+      }
 
       LichessExplorerPanel(
         viewModel = explorerViewModel,
