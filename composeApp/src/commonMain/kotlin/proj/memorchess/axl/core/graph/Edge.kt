@@ -2,7 +2,6 @@ package proj.memorchess.axl.core.graph
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.date.DateUtil
 
 /**
  * Immutable edge in the [OpeningTree].
@@ -10,6 +9,10 @@ import proj.memorchess.axl.core.date.DateUtil
  * An edge represents a single move from [from] to [to]. The same logical edge is referenced by both
  * the origin node's outgoing map and the destination node's incoming map; both references hold the
  * same [Edge] instance after any mutation routed through [TreeStore].
+ *
+ * [updatedAt] is intentionally required from every caller so that two Edges built at different
+ * moments do not silently compare unequal because of a hidden clock read. [TreeStore] stamps it
+ * when the edge is created or loaded from disk; tests supply a fixed instant.
  *
  * @property from Position the move is played from.
  * @property move Move in standard algebraic notation.
@@ -24,7 +27,7 @@ data class Edge(
   val from: PositionKey,
   val move: String,
   val to: PositionKey,
-  val isGood: Boolean? = null,
-  val updatedAt: Instant = DateUtil.now(),
+  val isGood: Boolean?,
+  val updatedAt: Instant,
   val isDeleted: Boolean = false,
 )
