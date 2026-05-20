@@ -89,15 +89,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      # Update secrets with the specific TEST_USER_MAIL for this shard
-      - name: Update local.properties for this shard
+      - name: Update local.properties
         run: |
           chmod +x .github/scripts/update_properties.sh
           .github/scripts/update_properties.sh
-        env:
-          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          TEST_USER_MAIL: "testuser19@axl.com"
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -141,15 +136,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Update secrets with the specific TEST_USER_MAIL for this shard
-      - name: Update local.properties for this shard
+      - name: Update local.properties
         run: |
           chmod +x .github/scripts/update_properties.sh
           .github/scripts/update_properties.sh
-        env:
-          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          TEST_USER_MAIL: "testuser${{matrix.shard_index}}@axl.com"
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
       - name: Enable KVM
         run: |
@@ -244,15 +234,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      # Update secrets with the specific TEST_USER_MAIL for this shard
       - name: Update local.properties
         run: |
           chmod +x .github/scripts/update_properties.sh
           .github/scripts/update_properties.sh
-        env:
-          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-          TEST_USER_MAIL: "testuser18@axl.com"
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
