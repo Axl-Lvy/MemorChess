@@ -7,11 +7,13 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
- * A test in-memory database.
+ * Test in memory database. Mirrors the behaviour of the real platform implementations: hard deletes
+ * physically remove rows, soft deletes flip the [DataNode.isDeleted] flag.
  *
  * @constructor Creates an empty test database.
  */
@@ -24,38 +26,61 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
 
   override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     val node = dataNodes[positionKey]
-    return if (node?.isDeleted == false) {
-      node
-    } else {
-      null
+    return if (node?.isDeleted == false) node else null
+  }
+
+  override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {
+    val node = dataNodes[position] ?: return
+    when (mode) {
+      DeleteMode.HARD -> {
+        dataNodes.remove(position)
+        // Hard delete also drops incident edges from other nodes' move maps.
+        for ((key, other) in dataNodes.toMap()) {
+          val nextMoves =
+            other.previousAndNextMoves.nextMoves.values.filter { it.destination != position }
+          val previousMoves =
+            other.previousAndNextMoves.previousMoves.values.filter { it.origin != position }
+          if (
+            nextMoves.size != other.previousAndNextMoves.nextMoves.size ||
+              previousMoves.size != other.previousAndNextMoves.previousMoves.size
+          ) {
+            dataNodes[key] =
+              DataNode(
+                other.positionKey,
+                PreviousAndNextMoves(previousMoves, nextMoves),
+                other.cardState,
+                other.depth,
+                other.updatedAt,
+                other.isDeleted,
+              )
+          }
+        }
+      }
+      DeleteMode.SOFT ->
+        dataNodes[position] =
+          DataNode(
+            node.positionKey,
+            node.previousAndNextMoves,
+            node.cardState,
+            node.depth,
+            DateUtil.now(),
+            true,
+          )
     }
   }
 
-  override suspend fun deletePosition(position: PositionKey) {
-    val node = dataNodes[position]
-    if (node != null) {
-      dataNodes[position] =
-        DataNode(
-          node.positionKey,
-          node.previousAndNextMoves,
-          node.cardState,
-          node.depth,
-          DateUtil.now(),
-          true,
-        )
-    }
-  }
-
-  override suspend fun deleteMove(origin: PositionKey, move: String) {
+  override suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode) {
     val storedNode = dataNodes[origin] ?: return
     var destination: PositionKey? = null
     val newNextMoves =
-      storedNode.previousAndNextMoves.nextMoves.values.filter {
-        return@filter if (it.move == move) {
+      storedNode.previousAndNextMoves.nextMoves.values.mapNotNull {
+        if (it.move != move) it
+        else {
           destination = it.destination
-          false
-        } else {
-          true
+          when (mode) {
+            DeleteMode.HARD -> null
+            DeleteMode.SOFT -> it.copy(isDeleted = true, updatedAt = DateUtil.now())
+          }
         }
       }
     dataNodes[origin] =
@@ -69,25 +94,28 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
     val dest = destination ?: return
     val destinationNode = dataNodes[dest] ?: return
     val newPreviousMoves =
-      destinationNode.previousAndNextMoves.previousMoves.values.filter { it.move != move }
-    if (newPreviousMoves.isEmpty()) {
-      dataNodes.remove(dest)
-    } else {
-      dataNodes[dest] =
-        DataNode(
-          destinationNode.positionKey,
-          PreviousAndNextMoves(
-            newPreviousMoves,
-            destinationNode.previousAndNextMoves.nextMoves.values,
-          ),
-          destinationNode.cardState,
-          destinationNode.depth,
-          destinationNode.updatedAt,
-        )
-    }
+      destinationNode.previousAndNextMoves.previousMoves.values.mapNotNull {
+        if (it.move != move) it
+        else
+          when (mode) {
+            DeleteMode.HARD -> null
+            DeleteMode.SOFT -> it.copy(isDeleted = true, updatedAt = DateUtil.now())
+          }
+      }
+    dataNodes[dest] =
+      DataNode(
+        destinationNode.positionKey,
+        PreviousAndNextMoves(
+          newPreviousMoves,
+          destinationNode.previousAndNextMoves.nextMoves.values,
+        ),
+        destinationNode.cardState,
+        destinationNode.depth,
+        destinationNode.updatedAt,
+      )
   }
 
-  override suspend fun deleteAll(hardFrom: Instant?) {
+  override suspend fun eraseAll() {
     dataNodes.clear()
   }
 

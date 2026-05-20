@@ -12,15 +12,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.delay
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
-import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.Edge
+import proj.memorchess.axl.core.graph.Node
+import proj.memorchess.axl.core.graph.TrainingScheduler
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.training.BoardContainer
@@ -33,30 +39,28 @@ import proj.memorchess.axl.ui.layout.training.TrainingLayoutContent
 import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
-/** Training board */
+/** Training board entry point. Loads the tree on entry. */
 @Composable
-fun TrainingBoardPage(modifier: Modifier = Modifier, nodeManager: NodeManager = koinInject()) {
-  LoadingWidget({ nodeManager.resetCacheFromSource() }) {
+fun TrainingBoardPage(modifier: Modifier = Modifier, treeStore: TreeStore = koinInject()) {
+  LoadingWidget({ treeStore.load() }) {
     val trainingBoard = remember { TrainingBoard() }
     trainingBoard.Draw(modifier = modifier)
   }
 }
 
-/**
- * TrainingBoard manages the state and logic for the training board UI in the application. It
- * handles move validation, scheduling, and reloading for the training session.
- */
+/** State holder for the training session UI. */
 private class TrainingBoard : KoinComponent {
 
   private var state by mutableStateOf(TrainingBoardState.FROM_CORRECT_MOVE)
   private var daysInAdvance by mutableStateOf(0)
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
-  private var previousPlayedMove: DataMove? = null
-  private val nodeManager: NodeManager by inject()
+  private var previousPlayedEdge: Edge? = null
+  private val treeStore: TreeStore by inject()
+  private val trainingScheduler: TrainingScheduler by inject()
   private val localReloader = BasicReloader()
   private val trainerReloader = BasicReloader()
-  private var chosenNode by mutableStateOf<DataNode?>(null)
+  private var chosenNode by mutableStateOf<Node?>(null)
 
   init {
     choseNextNode()
@@ -66,7 +70,7 @@ private class TrainingBoard : KoinComponent {
   fun Draw(modifier: Modifier = Modifier) {
     val numberOfNodesToTrain =
       remember(localReloader.getKey(), daysInAdvance) {
-        nodeManager.getNumberOfNodesToTrain(daysInAdvance)
+        trainingScheduler.pendingCount(dayOffset(daysInAdvance))
       }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing && state.isCorrect) {
@@ -86,14 +90,17 @@ private class TrainingBoard : KoinComponent {
     state = state.toPlayableState()
     localReloader.reload()
     trainerReloader.reload()
-    chosenNode = nodeManager.getNextNodeToLearn(daysInAdvance, previousPlayedMove)
+    val day = dayOffset(daysInAdvance)
+    val previousEdge = previousPlayedEdge
+    val entry =
+      if (previousEdge == null) {
+        trainingScheduler.nextDue(day)
+      } else {
+        trainingScheduler.nextAfter(previousEdge.to, day) ?: trainingScheduler.nextDue(day)
+      }
+    chosenNode = entry?.let { treeStore.current().get(it.positionKey) }
   }
 
-  /**
-   * Composable that displays a message when there are no nodes to train.
-   *
-   * @param modifier Modifier for styling.
-   */
   @Composable
   private fun NoNodeToTrain(modifier: Modifier = Modifier) {
     if (!state.isCorrect && daysInAdvance > 0) {
@@ -138,16 +145,9 @@ private class TrainingBoard : KoinComponent {
     }
   }
 
-  /**
-   * Composable based on a node to train.
-   *
-   * @param nodeToLearn The node to learn.
-   * @param numberOfNodesToTrain The number of nodes to train.
-   * @param modifier Modifier for styling.
-   */
   @Composable
   private fun NodeToTrain(
-    nodeToLearn: DataNode,
+    nodeToLearn: Node,
     numberOfNodesToTrain: Int,
     modifier: Modifier = Modifier,
   ) {
@@ -157,7 +157,7 @@ private class TrainingBoard : KoinComponent {
           state =
             if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
             else TrainingBoardState.SHOW_WRONG_MOVE
-          previousPlayedMove = it
+          previousPlayedEdge = it
         }
       trainer.registerCallBack { reloader.reload() }
       trainer
@@ -187,6 +187,12 @@ private class TrainingBoard : KoinComponent {
       }
     }
   }
+}
+
+private fun dayOffset(daysInAdvance: Int): LocalDate {
+  val tz = TimeZone.currentSystemDefault()
+  val today = (DateUtil.now() + daysInAdvance.days).toLocalDateTime(tz).date
+  return today
 }
 
 private enum class TrainingBoardState(val isCorrect: Boolean, val isShowing: Boolean) {

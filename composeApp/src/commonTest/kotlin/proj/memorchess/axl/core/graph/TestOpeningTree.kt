@@ -3,21 +3,24 @@ package proj.memorchess.axl.core.graph
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import proj.memorchess.axl.core.data.DataMove
+import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
+/** Behavioural tests for the in memory graph, driven through [TreeStore]. */
 class TestOpeningTree {
 
   private val startPos = PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq")
   private val posA = PositionKey("posA b K")
   private val posB = PositionKey("posB w K")
   private val posC = PositionKey("posC b K")
+  private val posD = PositionKey("posD b K")
 
   @Test
-  fun computeStateWithEmptyPreviousMoves() {
-    val tree = OpeningTree()
-    tree.put(startPos, MutablePreviousAndNextMoves())
-    assertEquals(NodeState.FIRST, tree.computeState(startPos, null))
+  fun computeStateWithEmptyIncoming() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.ensurePosition(startPos, 0)
+    assertEquals(NodeState.FIRST, store.current().computeState(startPos, null))
   }
 
   @Test
@@ -27,109 +30,68 @@ class TestOpeningTree {
   }
 
   @Test
-  fun computeStateSavedGood() {
-    val tree = OpeningTree()
-    val moves = MutablePreviousAndNextMoves()
-    moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = true))
-    tree.put(posA, moves)
-    assertEquals(NodeState.SAVED_GOOD, tree.computeState(posA, startPos))
+  fun computeStateSavedGood() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    assertEquals(NodeState.SAVED_GOOD, store.current().computeState(posA, startPos))
   }
 
   @Test
-  fun computeStateSavedBad() {
-    val tree = OpeningTree()
-    val moves = MutablePreviousAndNextMoves()
-    moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = false))
-    tree.put(posA, moves)
-    assertEquals(NodeState.SAVED_BAD, tree.computeState(posA, startPos))
+  fun computeStateSavedBad() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = false, fromDepth = 0)
+    assertEquals(NodeState.SAVED_BAD, store.current().computeState(posA, startPos))
   }
 
   @Test
-  fun computeStateMixedGoodBadReturnsBadState() {
-    val tree = OpeningTree()
-    val moves = MutablePreviousAndNextMoves()
-    moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = true))
-    moves.addPreviousMove(DataMove(posB, posA, "d4", isGood = false))
-    tree.put(posA, moves)
-    assertEquals(NodeState.BAD_STATE, tree.computeState(posA, startPos))
+  fun computeStateMixedGoodBadReturnsBadState() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posB, move = "d4", to = posA, isGood = false, fromDepth = 0)
+    assertEquals(NodeState.BAD_STATE, store.current().computeState(posA, startPos))
   }
 
   @Test
-  fun computeStateSavedGoodButUnknownMove() {
-    val tree = OpeningTree()
-    val moves = MutablePreviousAndNextMoves()
-    moves.addPreviousMove(DataMove(startPos, posA, "e4", isGood = true))
-    tree.put(posA, moves)
-    // arrivedFrom is different from the move's origin
-    assertEquals(NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE, tree.computeState(posA, posB))
+  fun computeStateSavedGoodButUnknownMove() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    assertEquals(NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE, store.current().computeState(posA, posB))
   }
 
   @Test
-  fun countDescendantsLinearChain() {
-    val tree = OpeningTree()
-    val moveAB = DataMove(posA, posB, "e4")
-    val moveBC = DataMove(posB, posC, "e5")
-
-    val movesA = MutablePreviousAndNextMoves()
-    movesA.addNextMove(moveAB)
-    tree.put(posA, movesA)
-
-    val movesB = MutablePreviousAndNextMoves()
-    movesB.addPreviousMove(moveAB)
-    movesB.addNextMove(moveBC)
-    tree.put(posB, movesB)
-
-    val movesC = MutablePreviousAndNextMoves()
-    movesC.addPreviousMove(moveBC)
-    tree.put(posC, movesC)
-
-    assertEquals(3, tree.countDescendants(posA))
+  fun countDescendantsLinearChain() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.addMove(from = posA, move = "e4", to = posB, isGood = true, fromDepth = 0)
+    store.addMove(from = posB, move = "e5", to = posC, isGood = true, fromDepth = 1)
+    assertEquals(3, store.current().countDescendants(posA))
   }
 
   @Test
-  fun countDescendantsStopsAtConvergence() {
-    val tree = OpeningTree()
-    val posD = PositionKey("posD b K")
-    val moveAB = DataMove(posA, posB, "e4")
-    val moveBC = DataMove(posB, posC, "e5")
-    val moveDC = DataMove(posD, posC, "d4")
-
-    val movesA = MutablePreviousAndNextMoves()
-    movesA.addNextMove(moveAB)
-    tree.put(posA, movesA)
-
-    val movesB = MutablePreviousAndNextMoves()
-    movesB.addPreviousMove(moveAB)
-    movesB.addNextMove(moveBC)
-    tree.put(posB, movesB)
-
-    // posC has two parents
-    val movesC = MutablePreviousAndNextMoves()
-    movesC.addPreviousMove(moveBC)
-    movesC.addPreviousMove(moveDC)
-    tree.put(posC, movesC)
-
-    // When counting from posB, posC has another parent so should not be counted
-    assertEquals(1, tree.countDescendants(posB, moveAB))
+  fun countDescendantsStopsAtConvergence() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.addMove(from = posA, move = "e4", to = posB, isGood = true, fromDepth = 0)
+    store.addMove(from = posB, move = "e5", to = posC, isGood = true, fromDepth = 1)
+    store.addMove(from = posD, move = "d4", to = posC, isGood = true, fromDepth = 0)
+    assertEquals(1, store.current().countDescendants(posB, "e4"))
   }
 
   @Test
-  fun getOrCreateUpdatesDepthToMinimum() {
-    val tree = OpeningTree()
-    tree.getOrCreate(posA, 5)
-    assertEquals(5, tree.getDepth(posA))
-    tree.getOrCreate(posA, 2)
-    assertEquals(2, tree.getDepth(posA))
-    // Higher depth should not update
-    tree.getOrCreate(posA, 10)
-    assertEquals(2, tree.getDepth(posA))
+  fun ensurePositionUpdatesDepthToMinimum() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.ensurePosition(posA, 5)
+    assertEquals(5, store.current().getDepth(posA))
+    store.ensurePosition(posA, 2)
+    assertEquals(2, store.current().getDepth(posA))
+    store.ensurePosition(posA, 10)
+    assertEquals(2, store.current().getDepth(posA))
   }
 
   @Test
-  fun clearRemovesAllPositions() {
-    val tree = OpeningTree()
-    tree.put(posA, MutablePreviousAndNextMoves())
-    tree.clear()
-    assertNull(tree.get(posA))
+  fun eraseAllRemovesEverything() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    store.addMove(from = posA, move = "e4", to = posB, isGood = true, fromDepth = 0)
+    store.eraseAll()
+    assertNull(store.current().get(posA))
+    assertNull(store.current().get(posB))
   }
 }

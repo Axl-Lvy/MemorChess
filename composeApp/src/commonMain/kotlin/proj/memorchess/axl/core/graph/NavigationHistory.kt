@@ -1,10 +1,12 @@
 package proj.memorchess.axl.core.graph
 
-import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionKey
 
 /**
- * Tracks navigation through positions with full back/forward history.
+ * Tracks navigation through positions with full back and forward history.
+ *
+ * Holds [PositionKey]s and [Edge]s only. No live references to a tree; consumers ask
+ * [TreeStore.current] when they need graph context.
  *
  * @param startPosition The initial position to start navigating from.
  */
@@ -14,55 +16,55 @@ class NavigationHistory(startPosition: PositionKey) {
   var current: PositionKey = startPosition
     private set
 
-  /** The [DataMove] that was played to arrive at [current]. Null at root. */
-  var arrivedVia: DataMove? = null
+  /** The [Edge] that led to [current]. `null` at root. */
+  var arrivedVia: Edge? = null
     private set
 
-  /** Back-history: stack of (positionWeWereAt, moveWePlayedToLeave). */
-  private val backStack = ArrayDeque<Pair<PositionKey, DataMove>>()
+  /** Back history: stack of (positionWeWereAt, edgeWePlayedToLeave). */
+  private val backStack = ArrayDeque<Pair<PositionKey, Edge>>()
 
-  /** Forward-history: stack of (moveToReplay, positionItLeadsTo). Set by [back]. */
-  private val forwardStack = ArrayDeque<Pair<DataMove, PositionKey>>()
+  /** Forward history: stack of (edgeToReplay, positionItLeadsTo). Filled by [back]. */
+  private val forwardStack = ArrayDeque<Pair<Edge, PositionKey>>()
 
-  /** Navigate forward to a new position by playing a move. */
-  fun push(move: DataMove, destination: PositionKey) {
-    backStack.addLast(current to move)
+  /** Walks forward to a new position by playing [edge]. */
+  fun push(edge: Edge, destination: PositionKey) {
+    backStack.addLast(current to edge)
     forwardStack.clear()
     current = destination
-    arrivedVia = move
+    arrivedVia = edge
   }
 
-  /** Go back. Returns the (position we went back to, move that was undone) or null. */
-  fun back(): Pair<PositionKey, DataMove>? {
-    val (previousPosition, movePlayedFromThere) = backStack.removeLastOrNull() ?: return null
-    forwardStack.addLast(movePlayedFromThere to current)
+  /** Walks one step backward. Returns (positionWeWentBackTo, edgeWeUndid) or `null` at root. */
+  fun back(): Pair<PositionKey, Edge>? {
+    val (previousPosition, edgePlayedFromThere) = backStack.removeLastOrNull() ?: return null
+    forwardStack.addLast(edgePlayedFromThere to current)
     current = previousPosition
     arrivedVia = backStack.lastOrNull()?.second
-    return previousPosition to movePlayedFromThere
+    return previousPosition to edgePlayedFromThere
   }
 
-  /** Go forward. Returns the (move to replay, destination) or null. */
-  fun forward(): Pair<DataMove, PositionKey>? {
-    val (move, destination) = forwardStack.removeLastOrNull() ?: return null
-    backStack.addLast(current to move)
+  /** Walks one step forward. Returns (edgeToReplay, destination) or `null`. */
+  fun forward(): Pair<Edge, PositionKey>? {
+    val (edge, destination) = forwardStack.removeLastOrNull() ?: return null
+    backStack.addLast(current to edge)
     current = destination
-    arrivedVia = move
-    return move to destination
+    arrivedVia = edge
+    return edge to destination
   }
 
-  /** Full back-stack depth (number of moves from root to current). */
+  /** Plies played from root to [current]. */
   val depth: Int
     get() = backStack.size
 
-  /** Returns the back-stack as a list from root to current (not including current). */
-  fun getBackPath(): List<Pair<PositionKey, DataMove>> = backStack.toList()
+  /** Returns the back stack as a list from root to current, excluding current. */
+  fun getBackPath(): List<Pair<PositionKey, Edge>> = backStack.toList()
 
-  /** Clear forward history (e.g. after a delete invalidates descendants). */
+  /** Clears forward history. Used after a delete invalidates descendants. */
   fun clearForward() {
     forwardStack.clear()
   }
 
-  /** Reset to a new position, clearing all history. */
+  /** Resets to a fresh [position], clearing all history. */
   fun reset(position: PositionKey) {
     backStack.clear()
     forwardStack.clear()

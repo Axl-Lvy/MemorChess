@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
+import proj.memorchess.axl.core.graph.DeleteMode
 
 /** Database for non-JS platforms */
 internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
@@ -19,21 +20,34 @@ internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
     return database.getNodeEntityDao().getNode(positionKey.value)?.toStoredNode()
   }
 
-  override suspend fun deletePosition(position: PositionKey) {
-    database.getNodeEntityDao().delete(position.value)
-    database.getNodeEntityDao().removeMoveFrom(position.value)
-    database.getNodeEntityDao().removeMoveTo(position.value)
+  override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {
+    val dao = database.getNodeEntityDao()
+    when (mode) {
+      DeleteMode.HARD -> {
+        dao.hardDeleteMoveFrom(position.value)
+        dao.hardDeleteMoveTo(position.value)
+        dao.hardDeleteNode(position.value)
+      }
+      DeleteMode.SOFT -> {
+        dao.softDeleteNode(position.value)
+        dao.softDeleteMoveFrom(position.value)
+        dao.softDeleteMoveTo(position.value)
+      }
+    }
   }
 
-  override suspend fun deleteMove(origin: PositionKey, move: String) {
-    database.getNodeEntityDao().removeMove(origin.value, move)
+  override suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode) {
+    val dao = database.getNodeEntityDao()
+    when (mode) {
+      DeleteMode.HARD -> dao.hardDeleteMove(origin.value, move)
+      DeleteMode.SOFT -> dao.softDeleteMove(origin.value, move)
+    }
   }
 
-  override suspend fun deleteAll(hardFrom: Instant?) {
-    database.getNodeEntityDao().deleteAllNodes()
-    hardFrom?.let { database.getNodeEntityDao().deleteNewerNodes(it) }
-    database.getNodeEntityDao().deleteAllMoves()
-    hardFrom?.let { database.getNodeEntityDao().deleteNewerMoves(it) }
+  override suspend fun eraseAll() {
+    val dao = database.getNodeEntityDao()
+    dao.eraseAllMoves()
+    dao.eraseAllNodes()
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {

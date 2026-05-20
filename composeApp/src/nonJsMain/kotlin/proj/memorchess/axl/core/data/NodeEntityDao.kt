@@ -46,9 +46,7 @@ interface NodeEntityDao {
   suspend fun insertMoves(items: Collection<MoveEntity>)
 
   /**
-   * Remove a move from the database.
-   *
-   * If the move already exists, it will be replaced.
+   * Soft deletes a move by flipping its `isDeleted` flag.
    *
    * @param origin The move's origin.
    * @param move The move's notation.
@@ -56,56 +54,54 @@ interface NodeEntityDao {
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
   )
-  suspend fun removeMove(origin: String, move: String)
+  suspend fun softDeleteMove(origin: String, move: String)
+
+  /** Hard deletes a move row. */
+  @Query("DELETE FROM MoveEntity WHERE origin = :origin AND move = :move")
+  suspend fun hardDeleteMove(origin: String, move: String)
 
   /**
-   * Remove all moves from a specific origin in the database.
-   *
-   * This will delete all moves that originate from the specified position.
+   * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag.
    *
    * @param origin The FEN string of the origin position.
    */
   @Query("UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin")
-  suspend fun removeMoveFrom(origin: String)
+  suspend fun softDeleteMoveFrom(origin: String)
+
+  /** Hard deletes every move row leaving [origin]. */
+  @Query("DELETE FROM MoveEntity WHERE origin = :origin")
+  suspend fun hardDeleteMoveFrom(origin: String)
 
   /**
-   * Remove all moves to a specific destination in the database.
-   *
-   * This will delete all moves that lead to the specified position.
+   * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag.
    *
    * @param destination The FEN string of the destination position.
    */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND destination = :destination"
   )
-  suspend fun removeMoveTo(destination: String)
+  suspend fun softDeleteMoveTo(destination: String)
+
+  /** Hard deletes every move row arriving at [destination]. */
+  @Query("DELETE FROM MoveEntity WHERE destination = :destination")
+  suspend fun hardDeleteMoveTo(destination: String)
 
   @Transaction
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen AND isDeleted IS FALSE")
   suspend fun getNode(fen: String): NodeWithMoves?
 
-  /**
-   * Retrieves a specific node with its moves by FEN representation.
-   *
-   * @param fen The FEN representation of the node to retrieve.
-   * @return A [NodeWithMoves] containing the node and its associated moves, or null if not found.
-   */
+  /** Soft deletes a node row by flipping its `isDeleted` flag. */
   @Query("UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND positionKey = :fen")
-  suspend fun delete(fen: String)
+  suspend fun softDeleteNode(fen: String)
 
-  /** Marks all nodes as deleted. */
-  @Query(value = "UPDATE NodeEntity SET isDeleted = TRUE") suspend fun deleteAllNodes()
+  /** Hard deletes a node row. */
+  @Query("DELETE FROM NodeEntity WHERE positionKey = :fen") suspend fun hardDeleteNode(fen: String)
 
-  /** Delete all nodes that were updated after a specific date. */
-  @Query(value = "DELETE FROM NodeEntity WHERE updatedAt >= :date")
-  suspend fun deleteNewerNodes(date: Instant)
+  /** Hard wipes every node row. */
+  @Query("DELETE FROM NodeEntity") suspend fun eraseAllNodes()
 
-  /** Marks all moves as deleted. */
-  @Query(value = "UPDATE MoveEntity SET isDeleted = TRUE") suspend fun deleteAllMoves()
-
-  /** Delete all moves that were updated after a specific date. */
-  @Query(value = "DELETE FROM MoveEntity WHERE updatedAt >= :date")
-  suspend fun deleteNewerMoves(date: Instant)
+  /** Hard wipes every move row. */
+  @Query("DELETE FROM MoveEntity") suspend fun eraseAllMoves()
 
   /**
    * Retrieves all nodes with their moves from the database.

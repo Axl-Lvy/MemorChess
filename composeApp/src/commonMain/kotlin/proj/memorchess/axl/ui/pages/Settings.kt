@@ -26,8 +26,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
-import proj.memorchess.axl.core.data.DatabaseQueryManager
-import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.ui.components.buttons.ImportAndExportButtons
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
@@ -35,10 +34,7 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.util.BasicReloader
 
 @Composable
-fun Settings(
-  database: DatabaseQueryManager = koinInject(),
-  nodeManager: NodeManager = koinInject(),
-) {
+fun Settings(treeStore: TreeStore = koinInject()) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
@@ -90,10 +86,7 @@ fun Settings(
       Button(
         onClick = {
           dlg.show("Are you sure you want to erase all data?") {
-            coroutineScope.launch {
-              database.deleteAll(null)
-              nodeManager.resetCacheFromSource()
-            }
+            coroutineScope.launch { treeStore.eraseAll() }
           }
         },
         modifier = Modifier.testTag("eraseAllDataButton").fillMaxWidth(),

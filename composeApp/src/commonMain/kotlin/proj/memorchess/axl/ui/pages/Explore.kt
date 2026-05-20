@@ -14,7 +14,7 @@ import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
@@ -22,8 +22,12 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 
 private val LOGGER = Logger.withTag("Explore")
 
+/**
+ * Free exploration page. Lets the user wander the opening graph, save lines as good, or prune
+ * subtrees. Loads the persisted tree on entry.
+ */
 @Composable
-fun Explore(position: PositionKey? = null, nodeManager: NodeManager = koinInject()) {
+fun Explore(position: PositionKey? = null, treeStore: TreeStore = koinInject()) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -31,9 +35,9 @@ fun Explore(position: PositionKey? = null, nodeManager: NodeManager = koinInject
         .testTag(Route.ExploreRoute.DEFAULT.getLabel()),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    LoadingWidget({ nodeManager.resetCacheFromSource() }) {
-      val initialPosition = extractInitialPosition(position, nodeManager)
-      val linesExplorer = remember { LinesExplorer(initialPosition, nodeManager) }
+    LoadingWidget({ treeStore.load() }) {
+      val initialPosition = extractInitialPosition(position, treeStore)
+      val linesExplorer = remember { LinesExplorer(initialPosition, treeStore) }
       val coroutineScope = rememberCoroutineScope()
 
       val deletionConfirmationDialog = remember { ConfirmationDialog(okText = "Delete") }
@@ -81,10 +85,10 @@ fun Explore(position: PositionKey? = null, nodeManager: NodeManager = koinInject
   }
 }
 
-private fun extractInitialPosition(position: PositionKey?, nodeManager: NodeManager): PositionKey? {
+private fun extractInitialPosition(position: PositionKey?, treeStore: TreeStore): PositionKey? {
   return if (position == null) {
     null
-  } else if (!nodeManager.isKnown(position)) {
+  } else if (!treeStore.current().isKnown(position)) {
     LOGGER.w {
       "Position $position is not stored yet. You must first store it to integrate it in your position tree."
     }

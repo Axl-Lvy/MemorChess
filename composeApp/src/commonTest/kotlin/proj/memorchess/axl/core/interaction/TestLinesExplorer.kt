@@ -2,22 +2,21 @@ package proj.memorchess.axl.core.interaction
 
 import kotlin.test.*
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestLinesExplorer : TestWithKoin() {
   private lateinit var interactionsManager: LinesExplorer
-  private val nodeManager: NodeManager by inject()
+  private val treeStore: TreeStore by inject()
   private val database: DatabaseQueryManager by inject()
 
   private suspend fun initialize() {
-    database.deleteAll(null)
-    nodeManager.resetCacheFromSource()
-    interactionsManager = LinesExplorer(nodeManager = nodeManager)
+    treeStore.eraseAll()
+    treeStore.load()
+    interactionsManager = LinesExplorer(treeStore = treeStore)
   }
 
   override suspend fun setUp() {
@@ -56,7 +55,7 @@ class TestLinesExplorer : TestWithKoin() {
     clickOnTile("e4")
     interactionsManager.save()
 
-    // Verify the move was saved as good
+    // Verify the move was saved as good in the database
     val storedNode = database.getPosition(startPosition)
     val savedMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
     assertEquals(true, savedMove?.isGood, "Move should be saved as good")
@@ -75,7 +74,6 @@ class TestLinesExplorer : TestWithKoin() {
     clickOnTile("c3")
     interactionsManager.save()
 
-    // Verify the move was saved as bad
     verifyStoredNode(startPosition, true, "e4")
     verifyStoredNode(secondPosition, false, "e5")
     verifyStoredNode(thirdPosition, true, "Nc3")
@@ -91,9 +89,10 @@ class TestLinesExplorer : TestWithKoin() {
     clickOnTile("e4")
     interactionsManager.save()
     verifyStoredNode(startPosition, true, "e4")
-    val dataNode: DataNode? = database.getPosition(startPosition)
-    val savedBadMove = dataNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
-    assertNull(savedBadMove)
+    val dataNode = database.getPosition(startPosition)
+    val savedSideMove = dataNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e3" }
+    // e3 was never classified, so it is not persisted.
+    assertNull(savedSideMove)
   }
 
   @Test
@@ -120,8 +119,8 @@ class TestLinesExplorer : TestWithKoin() {
 
   private suspend fun verifyStoredNode(positionKey: PositionKey, isGood: Boolean, move: String) {
     val dataNode = database.getPosition(positionKey)
-    val savedBadMove = dataNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == move }
-    assertEquals(isGood, savedBadMove?.isGood, "Move should be saved as bad")
+    val savedMove = dataNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == move }
+    assertEquals(isGood, savedMove?.isGood, "Move classification mismatch")
   }
 
   private fun assertPawnOnE4() {
@@ -174,41 +173,32 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.playMove("e5")
     interactionsManager.playMove("e4")
     interactionsManager.back()
-    // Now, both lines should converge to the same position
-    // Deleting here should not delete the converged node if still reachable from the other path
     val count1 = interactionsManager.calculateNumberOfNodeToDelete()
     assertEquals(1, count1, "Should only delete the current node, the next one is still reachable")
   }
 
   @Test
   fun testCreateLinesExplorerFromCustomPosition() = test {
-    // Arrange: create a custom position by playing some moves
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.save()
     val customPosition = interactionsManager.engine.toPositionKey()
 
-    // Act: create a new LinesExplorer from this position
-    val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
-    // Assert: explorer's game should be at the custom position
+    val explorerFromCustom = LinesExplorer(customPosition, treeStore)
     assertEquals(customPosition, explorerFromCustom.engine.toPositionKey())
   }
 
   @Test
   fun testGoBackFromStartPosition() = test {
-    // Arrange: create a custom position by playing some moves
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.save()
     val customPosition = interactionsManager.engine.toPositionKey()
 
-    // Act: create a new LinesExplorer from this position
-    val explorerFromCustom = LinesExplorer(customPosition, nodeManager)
-    // Assert: explorer's game should be at the custom position
+    val explorerFromCustom = LinesExplorer(customPosition, treeStore)
     assertEquals(customPosition, explorerFromCustom.engine.toPositionKey())
     explorerFromCustom.back()
     interactionsManager.back()
-    // After going back, the position should be the one before "e5"
     assertEquals(
       explorerFromCustom.engine.toPositionKey(),
       interactionsManager.engine.toPositionKey(),

@@ -12,8 +12,8 @@ import kotlinx.datetime.toLocalDateTime
  * than a sealed hierarchy: any future [SchedulingAlgorithm] implementation either reinterprets
  * these fields (most SRS algorithms expose analogous concepts of stability and difficulty) or
  * stores extra state in its own internal representation while still surfacing a [dueDate] here.
- * Keeping the type flat means [proj.memorchess.axl.core.graph.TrainingSchedule] and the rest of the
- * codebase remain agnostic of which algorithm produced the state.
+ * Keeping the type flat means [proj.memorchess.axl.core.graph.TrainingScheduler] and the rest of
+ * the codebase remain agnostic of which algorithm produced the state.
  *
  * The only field consumers outside of [SchedulingAlgorithm] should read is [dueDate]. All other
  * fields are owned by the algorithm.
