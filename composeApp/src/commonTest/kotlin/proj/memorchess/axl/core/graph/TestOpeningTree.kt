@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
 
 /** Behavioural tests for the in memory graph, driven through [TreeStore]. */
@@ -93,5 +94,13 @@ class TestOpeningTree {
     store.eraseAll()
     assertNull(store.current().get(posA))
     assertNull(store.current().get(posB))
+  }
+
+  @Test
+  fun updateCardStateOnUnknownPositionIsANoOp() = runTest {
+    val store = TreeStore(TestDatabaseQueryManager.empty())
+    // posA is not in the tree. The call should log a warning and return without throwing.
+    store.updateCardState(posA, CardStateFactory.new())
+    assertNull(store.current().get(posA))
   }
 }
