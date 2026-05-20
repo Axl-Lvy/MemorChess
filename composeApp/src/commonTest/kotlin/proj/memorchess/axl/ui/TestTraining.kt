@@ -21,11 +21,9 @@ import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
-import proj.memorchess.axl.test_util.RememberLastRouteNavigator
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Training
-import proj.memorchess.axl.ui.pages.navigation.Navigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 private const val BRAVO_TEXT = "Bravo !"
@@ -34,7 +32,6 @@ private const val BRAVO_TEXT = "Bravo !"
 class TestTraining : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
-  private val navigator: Navigator by inject()
 
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     koinSetUp()
@@ -246,9 +243,6 @@ class TestTraining : TestWithKoin() {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
     clickOnShowOnExplore()
-    assertEquals(
-      (navigator as RememberLastRouteNavigator).lastRoute,
-      Route.ExploreRoute.from(PositionKey.START_POSITION),
-    )
+    assertEquals(navigator.lastRoute, Route.ExploreRoute.from(PositionKey.START_POSITION))
   }
 }

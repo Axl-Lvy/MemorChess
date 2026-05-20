@@ -24,9 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.ui.pages.navigation.Navigator
+import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 @Composable
@@ -36,8 +35,8 @@ fun SuccessIndicatorCard(
   nextMove: () -> Unit,
   failedPosition: PositionKey?,
   modifier: Modifier = Modifier.Companion,
-  navigator: Navigator = koinInject(),
 ) {
+  val navigator = LocalNavigator.current
   if (!isVisible) {
     return
   }

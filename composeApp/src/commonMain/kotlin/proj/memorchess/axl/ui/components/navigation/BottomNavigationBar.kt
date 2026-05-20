@@ -11,17 +11,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import org.koin.compose.koinInject
-import proj.memorchess.axl.ui.pages.navigation.Navigator
+import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 
-/** Bottom navigation bar */
+/** Bottom navigation bar. */
 @Composable
 fun BottomNavigationBar(
   currentRoute: String,
   items: Collection<NavigationBarItemContent>,
   modifier: Modifier = Modifier,
-  navigator: Navigator = koinInject(),
 ) {
+  val navigator = LocalNavigator.current
   NavigationBar(modifier = modifier.fillMaxWidth(), windowInsets = WindowInsets(0, 0, 0, 0)) {
     items
       .sortedBy { it.index }
