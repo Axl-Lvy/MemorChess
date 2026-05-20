@@ -394,7 +394,6 @@ jobs:
         with:
           pattern: coverage-report-android-*
           path: composeApp/build/outputs/code_coverage/
-          merge-multiple: true
 
       - name: Download JVM Kover report
         uses: actions/download-artifact@v4
