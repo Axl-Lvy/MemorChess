@@ -43,11 +43,10 @@ class LichessExplorerClient(
     source: ExplorerSource,
     fen: String,
     plies: Int = DEFAULT_PLIES,
-  ): ExplorerResult =
-    mutex.withLock {
-      throttle()
-      runRequest(source, fen, plies, attempt = 1)
-    }
+  ): ExplorerResult = mutex.withLock {
+    throttle()
+    runRequest(source, fen, plies, attempt = 1)
+  }
 
   private suspend fun runRequest(
     source: ExplorerSource,
