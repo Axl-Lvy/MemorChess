@@ -4,15 +4,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Instant
 import proj.memorchess.axl.core.data.PositionKey
 
 class TestNavigationHistory {
 
+  private val instant = Instant.parse("2026-01-01T00:00:00Z")
   private val startPos = PositionKey("start w K")
   private val posA = PositionKey("posA b K")
   private val posB = PositionKey("posB w K")
-  private val moveToA = Edge(from = startPos, move = "e4", to = posA)
-  private val moveToB = Edge(from = posA, move = "e5", to = posB)
+  private val moveToA =
+    Edge(from = startPos, move = "e4", to = posA, isGood = true, updatedAt = instant)
+  private val moveToB =
+    Edge(from = posA, move = "e5", to = posB, isGood = true, updatedAt = instant)
 
   @Test
   fun pushThenBackReturnsOriginalPosition() {
@@ -55,7 +59,7 @@ class TestNavigationHistory {
     nav.back()
     // Push a different move — should clear forward stack
     val posC = PositionKey("posC b K")
-    val moveToC = Edge(from = startPos, move = "d4", to = posC)
+    val moveToC = Edge(from = startPos, move = "d4", to = posC, isGood = true, updatedAt = instant)
     nav.push(moveToC, posC)
     assertNull(nav.forward())
   }
