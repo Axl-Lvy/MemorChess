@@ -150,13 +150,13 @@ kotlin {
       implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.material3.android)
-      implementation(libs.ktor.client.okhttp)
+      implementation(libs.ktor.client.cio)
     }
 
     jvmMain.dependencies {
       implementation(compose.desktop.currentOs)
       implementation(libs.slf4j.api)
-      implementation(libs.ktor.client.java)
+      implementation(libs.ktor.client.cio)
     }
 
     iosMain.dependencies { implementation(libs.ktor.client.darwin) }
