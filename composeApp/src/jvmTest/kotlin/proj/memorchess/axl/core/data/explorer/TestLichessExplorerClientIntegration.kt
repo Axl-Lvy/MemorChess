@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -33,7 +34,7 @@ class TestLichessExplorerClientIntegration {
   @Test
   fun fetchStartingPositionFromLichessMastersEndpoint() = runTest {
     val token =
-      System.getenv("LICHESS_API_TOKEN")?.takeIf { it.isNotBlank() }
+      System.getenv("LICHESS_API_TOKEN")?.trim()?.takeIf { it.isNotBlank() }
         ?: run {
           println("Skipping live Lichess test: LICHESS_API_TOKEN not set")
           return@runTest
@@ -43,7 +44,9 @@ class TestLichessExplorerClientIntegration {
 
     val result = client.fetch(ExplorerSource.MASTERS, startingFen)
 
-    result.shouldBeInstanceOf<ExplorerResult.Ok>()
+    withClue("Lichess returned non Ok result: $result (token length=${token.length})") {
+      result.shouldBeInstanceOf<ExplorerResult.Ok>()
+    }
     result.response.moves.shouldNotBeEmpty()
     result.response.opening shouldNotBe null
   }
