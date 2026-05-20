@@ -139,6 +139,11 @@ object DateUtil {
     }
   }
 
+  /**
+   * Converts a [LocalDateTime] to an [Instant] using the system's default timezone.
+   *
+   * @return [Instant] representing this date and time in the system default timezone
+   */
   fun LocalDateTime.toInstant(): Instant {
     return this.toInstant(TimeZone.currentSystemDefault())
   }
