@@ -145,6 +145,15 @@ jobs:
       - name: Run JVM tests with coverage
         run: ./gradlew koverXmlReportJvm
 
+      # On the cheap tier the JVM Kover XML is the only coverage source,
+      # so run sonar in-line and skip the separate sonar-analysis job to
+      # save one runner allocation and one recompile.
+      - name: Run sonar (cheap tier only)
+        if: needs.detect.outputs.tier == 'cheap'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
+
       - name: Upload Kover coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -374,18 +383,16 @@ jobs:
           gistURL: https://gist.githubusercontent.com/Axl-Lvy/${{ secrets.GIST_ID }}
           file: badge.svg
 
-  # Sonar analysis: runs on cheap (JVM coverage only) and full (JVM + Android)
+  # Sonar analysis on full tier: aggregates JVM Kover and Android jacoco
+  # reports. On cheap tier sonar runs inside jvm-tests instead.
   sonar-analysis:
     name: Sonar analysis
     runs-on: ubuntu-latest
     needs: [detect, jvm-tests, android-tests]
-    # always() is required to evaluate this if when android-tests is skipped
-    # on the cheap tier
     if: >
-      always() &&
-      needs.detect.outputs.tier != 'noop' &&
+      needs.detect.outputs.tier == 'full' &&
       needs.jvm-tests.result == 'success' &&
-      (needs.android-tests.result == 'success' || needs.android-tests.result == 'skipped')
+      needs.android-tests.result == 'success'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -412,12 +419,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Compile sources and generate Android coverage report
-        run: |
-          if [ "${{ needs.detect.outputs.tier }}" = "full" ]; then
-            ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac jacocoAndroidTestReport
-          else
-            ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac
-          fi
+        run: ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac jacocoAndroidTestReport
 
       - name: Analyze with coverage
         env:
@@ -460,15 +462,16 @@ jobs:
           [ "$FORMAT"  = "success" ] || fail format-check "$FORMAT"
           [ "$JVM"     = "success" ] || fail jvm-tests "$JVM"
           [ "$PUBLISH" = "success" ] || fail publish-test-results "$PUBLISH"
-          [ "$SONAR"   = "success" ] || fail sonar-analysis "$SONAR"
 
           if [ "$TIER" = "cheap" ]; then
+            # sonar runs inside jvm-tests on cheap tier
             [ "$MULTIPLAT" = "success" ] || fail compile-multiplat "$MULTIPLAT"
           fi
 
           if [ "$TIER" = "full" ]; then
             [ "$ANDROID" = "success" ] || fail android-tests "$ANDROID"
             [ "$WASM"    = "success" ] || fail wasm-tests "$WASM"
+            [ "$SONAR"   = "success" ] || fail sonar-analysis "$SONAR"
           fi
 
           echo "All checks passed (tier=$TIER)"
