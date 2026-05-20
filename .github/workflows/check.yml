@@ -28,48 +28,50 @@ jobs:
 
       - name: Check for Kotlin/Java file changes
         id: check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          if [ "${{ github.event_name }}" == "schedule" ]; then
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "Scheduled run - executing all jobs"
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Scheduled run, executing all jobs"
             exit 0
           fi
 
-          # Check PR-specific overrides
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            PR_TITLE="${{ github.event.pull_request.title }}"
-            PR_BODY="${{ github.event.pull_request.body }}"
-
+          # Check PR specific overrides
+          if [ "$EVENT_NAME" = "pull_request" ]; then
             # Check if PR title contains [skip-tests]
-            if echo "$PR_TITLE" | grep -qi "\[skip-tests\]"; then
-              echo "should_run=false" >> $GITHUB_OUTPUT
-              echo "PR title contains [skip-tests] - skipping jobs"
+            if printf '%s' "$PR_TITLE" | grep -qi '\[skip-tests\]'; then
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              echo "PR title contains [skip-tests], skipping jobs"
               exit 0
             fi
 
             # Check if "Force running tests" checkbox is checked
-            if echo "$PR_BODY" | grep -qE "\- \[x\] Force running tests"; then
-              echo "should_run=true" >> $GITHUB_OUTPUT
-              echo "Force running tests checkbox is checked - executing all jobs"
+            if printf '%s' "$PR_BODY" | grep -qE '\- \[x\] Force running tests'; then
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              echo "Force running tests checkbox is checked, executing all jobs"
               exit 0
             fi
           fi
 
-          if [ "${{ github.event_name }}" == "push" ]; then
+          if [ "$EVENT_NAME" = "push" ]; then
             # For push events, compare with the previous commit
             FILES_CHANGED=$(git diff --name-only HEAD~1 HEAD || echo "")
           else
             # For pull requests, compare with the base branch
-            git fetch origin ${{ github.base_ref }}
-            FILES_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD || echo "")
+            git fetch origin "$BASE_REF"
+            FILES_CHANGED=$(git diff --name-only "origin/$BASE_REF"...HEAD || echo "")
           fi
 
           if echo "$FILES_CHANGED" | grep -qE '\.(kt|java)$'; then
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "Kotlin or Java files were modified - executing jobs"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Kotlin or Java files were modified, executing jobs"
           else
-            echo "should_run=false" >> $GITHUB_OUTPUT
-            echo "No Kotlin or Java files modified - skipping jobs"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "No Kotlin or Java files modified, skipping jobs"
           fi
 
   # Run JVM tests with Kover coverage
