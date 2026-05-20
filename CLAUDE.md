@@ -38,7 +38,8 @@ Single Gradle module (`composeApp`) with Kotlin Multiplatform source sets: `comm
 - **`interactions/`** — Game interaction controllers. `InteractionsManager` (abstract) handles tile selection, move execution, and promotion flow. Concrete implementations: `LinesExplorer` (free exploration), `SingleMoveTrainer` (spaced-repetition training).
 - **`data/`** — Persistence layer. Single `DatabaseQueryManager` interface backed by a Room implementation in `nonJsMain`, obtained via `getPlatformSpecificLocalDatabase()`. No remote backend and no synchronization layer.
 - **`config/`** — App configuration and secrets. `SecretsTemplate.kt` defines secret fields; `Secrets.kt` is generated at build time from `local.properties`.
-- **`date/`** — Spaced repetition scheduling (`NextDateCalculator`).
+- **`scheduling/`** — Spaced repetition scheduling. `SchedulingAlgorithm` is the algorithm interface; `Fsrs6SchedulingAlgorithm` is the active FSRS 6 implementation. `CardState` is the per card state (`dueDate`, `lastReview`, `stability`, `difficulty`, `reps`, `lapses`) and `ReviewGrade` is the cross algorithm rating enum (`AGAIN`, `HARD`, `GOOD`, `EASY`).
+- **`date/`** — Date utilities (`DateUtil`) shared across the codebase.
 
 ### UI layer (`ui/`)
 

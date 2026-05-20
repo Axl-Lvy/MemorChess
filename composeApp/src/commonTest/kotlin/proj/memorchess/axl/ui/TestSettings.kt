@@ -6,14 +6,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
-import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Settings
@@ -47,22 +45,10 @@ class TestSettings : TestWithKoin() {
   }
 
   @Test
-  fun testOnSuccessDateFactorSlider() = runTestFromSetup {
-    // Verify the slider exists
-    assertNodeWithTagExists(ON_SUCCESS_DATE_FACTOR_SETTING.name)
-
-    slideToRight(ON_SUCCESS_DATE_FACTOR_SETTING.name)
-    assertTrue(ON_SUCCESS_DATE_FACTOR_SETTING.getValue() > 2.0)
-    slideToLeft(ON_SUCCESS_DATE_FACTOR_SETTING.name)
-    assertTrue(ON_SUCCESS_DATE_FACTOR_SETTING.getValue() < 2.0)
-  }
-
-  @Test
   fun testResetButton() = runTestFromSetup {
 
-    // Set non-default values
+    // Set non default values
     TRAINING_MOVE_DELAY_SETTING.setValue(3.0.seconds)
-    ON_SUCCESS_DATE_FACTOR_SETTING.setValue(2.5)
 
     // Click the reset button
     assertNodeWithTagExists("resetConfigButton").performScrollTo().performClick()
@@ -71,8 +57,7 @@ class TestSettings : TestWithKoin() {
 
     // Verify the values were reset to defaults
     waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
-      TRAINING_MOVE_DELAY_SETTING.defaultValue == TRAINING_MOVE_DELAY_SETTING.getValue() &&
-        ON_SUCCESS_DATE_FACTOR_SETTING.defaultValue == ON_SUCCESS_DATE_FACTOR_SETTING.getValue()
+      TRAINING_MOVE_DELAY_SETTING.defaultValue == TRAINING_MOVE_DELAY_SETTING.getValue()
     }
   }
 
@@ -80,11 +65,7 @@ class TestSettings : TestWithKoin() {
   fun testEraseAllDataButton() = runTestFromSetup {
     runTest {
       database.insertNodes(
-        DataNode(
-          PositionKey.START_POSITION,
-          PreviousAndNextMoves(),
-          PreviousAndNextDate(DateUtil.today(), DateUtil.today()),
-        )
+        DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
       )
     }
     assertNodeWithTagDoesNotExists("confirmDialog")

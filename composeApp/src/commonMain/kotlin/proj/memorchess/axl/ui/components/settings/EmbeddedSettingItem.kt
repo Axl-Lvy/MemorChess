@@ -28,7 +28,6 @@ import proj.memorchess.axl.core.config.ConfigItem
 import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
 import proj.memorchess.axl.core.config.EnumBasedAppConfigItem
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
-import proj.memorchess.axl.core.config.ON_SUCCESS_DATE_FACTOR_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.util.CanDisplayName
 import proj.memorchess.axl.ui.components.buttons.WideScrollBarChild
@@ -44,18 +43,6 @@ enum class EmbeddedSettingItem(
   private val configItem: ConfigItem<*>,
   private val buttonParams: ButtonParameters,
 ) {
-  ON_SUCCESS_DATE_FACTOR(
-    ON_SUCCESS_DATE_FACTOR_SETTING,
-    SliderParameters(
-      1f,
-      5f,
-      7,
-      { ON_SUCCESS_DATE_FACTOR_SETTING.setValue(it.toDouble()) },
-      { (it as Double).toFloat() },
-    ) {
-      "On Success Date Factor: ${(it * 100).toInt() / 100.0}"
-    },
-  ),
   TRAINING_MOVE_DELAY(
     TRAINING_MOVE_DELAY_SETTING,
     SliderParameters(

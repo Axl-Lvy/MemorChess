@@ -5,11 +5,10 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
-import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.date.PreviousAndNextDate
+import proj.memorchess.axl.core.scheduling.CardState
 
 class TestGraphSerializer {
 
@@ -18,10 +17,19 @@ class TestGraphSerializer {
   private val posAfterD4 = PositionKey("rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq")
   private val posAfterE4E5 = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
 
-  private val date1 = LocalDate.parse("2026-01-01")
-  private val date2 = LocalDate.parse("2026-01-05")
   private val instant1 = Instant.parse("2026-01-01T00:00:00Z")
   private val instant2 = Instant.parse("2026-01-02T10:30:00Z")
+  private val instant3 = Instant.parse("2026-01-05T00:00:00Z")
+
+  private fun cardState(due: Instant, lastReview: Instant? = null): CardState =
+    CardState(
+      dueDate = due,
+      lastReview = lastReview,
+      stability = 0.0,
+      difficulty = 0.0,
+      reps = 0,
+      lapses = 0,
+    )
 
   @Test
   fun emptyGraphRoundTrip() {
@@ -32,11 +40,12 @@ class TestGraphSerializer {
 
   @Test
   fun singleNodeNoEdges() {
+    val state = cardState(instant3, instant1)
     val node =
       DataNode(
         positionKey = startPos,
         previousAndNextMoves = PreviousAndNextMoves(),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date2),
+        cardState = state,
         depth = 0,
         updatedAt = instant1,
       )
@@ -46,7 +55,7 @@ class TestGraphSerializer {
     result shouldHaveSize 1
     result[0].positionKey shouldBe startPos
     result[0].depth shouldBe 0
-    result[0].previousAndNextTrainingDate shouldBe PreviousAndNextDate(date1, date2)
+    result[0].cardState shouldBe state
     result[0].previousAndNextMoves.nextMoves.size shouldBe 0
     result[0].previousAndNextMoves.previousMoves.size shouldBe 0
   }
@@ -58,7 +67,7 @@ class TestGraphSerializer {
       DataNode(
         positionKey = startPos,
         previousAndNextMoves = PreviousAndNextMoves(emptyList(), listOf(move)),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+        cardState = cardState(instant1, instant1),
         depth = 0,
         updatedAt = instant1,
       )
@@ -66,7 +75,7 @@ class TestGraphSerializer {
       DataNode(
         positionKey = posAfterE4,
         previousAndNextMoves = PreviousAndNextMoves(listOf(move), emptyList()),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date2),
+        cardState = cardState(instant3, instant1),
         depth = 1,
         updatedAt = instant2,
       )
@@ -92,7 +101,7 @@ class TestGraphSerializer {
         positionKey = startPos,
         previousAndNextMoves =
           PreviousAndNextMoves(emptyList(), listOf(goodMove, badMove, unknownMove)),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+        cardState = cardState(instant1),
         depth = 0,
         updatedAt = instant1,
       )
@@ -102,21 +111,21 @@ class TestGraphSerializer {
         DataNode(
           positionKey = posAfterE4,
           previousAndNextMoves = PreviousAndNextMoves(listOf(goodMove), emptyList()),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+          cardState = cardState(instant1),
           depth = 1,
           updatedAt = instant1,
         ),
         DataNode(
           positionKey = posAfterD4,
           previousAndNextMoves = PreviousAndNextMoves(listOf(badMove), emptyList()),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+          cardState = cardState(instant1),
           depth = 1,
           updatedAt = instant1,
         ),
         DataNode(
           positionKey = posAfterE4E5,
           previousAndNextMoves = PreviousAndNextMoves(listOf(unknownMove), emptyList()),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+          cardState = cardState(instant1),
           depth = 1,
           updatedAt = instant1,
         ),
@@ -137,7 +146,7 @@ class TestGraphSerializer {
       DataNode(
         positionKey = startPos,
         previousAndNextMoves = PreviousAndNextMoves(emptyList(), listOf(move)),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+        cardState = cardState(instant1),
         depth = 0,
         updatedAt = instant1,
       )
@@ -145,7 +154,7 @@ class TestGraphSerializer {
       DataNode(
         positionKey = posAfterE4,
         previousAndNextMoves = PreviousAndNextMoves(listOf(move), emptyList()),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+        cardState = cardState(instant1),
         depth = 1,
         updatedAt = instant1,
       )
@@ -162,7 +171,7 @@ class TestGraphSerializer {
       DataNode(
         positionKey = startPos,
         previousAndNextMoves = PreviousAndNextMoves(),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+        cardState = cardState(instant1),
         depth = 0,
         updatedAt = instant1,
         isDeleted = true,
@@ -183,14 +192,14 @@ class TestGraphSerializer {
         DataNode(
           positionKey = startPos,
           previousAndNextMoves = PreviousAndNextMoves(emptyList(), listOf(deletedMove)),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+          cardState = cardState(instant1),
           depth = 0,
           updatedAt = instant1,
         ),
         DataNode(
           positionKey = posAfterE4,
           previousAndNextMoves = PreviousAndNextMoves(listOf(deletedMove), emptyList()),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+          cardState = cardState(instant1),
           depth = 1,
           updatedAt = instant1,
         ),
@@ -212,28 +221,28 @@ class TestGraphSerializer {
         DataNode(
           positionKey = startPos,
           previousAndNextMoves = PreviousAndNextMoves(emptyList(), listOf(moveE4, moveD4)),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+          cardState = cardState(instant1),
           depth = 0,
           updatedAt = instant1,
         ),
         DataNode(
           positionKey = posAfterE4,
           previousAndNextMoves = PreviousAndNextMoves(listOf(moveE4), listOf(moveE5)),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date2),
+          cardState = cardState(instant3, instant1),
           depth = 1,
           updatedAt = instant1,
         ),
         DataNode(
           positionKey = posAfterD4,
           previousAndNextMoves = PreviousAndNextMoves(listOf(moveD4), emptyList()),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date1),
+          cardState = cardState(instant1),
           depth = 1,
           updatedAt = instant1,
         ),
         DataNode(
           positionKey = posAfterE4E5,
           previousAndNextMoves = PreviousAndNextMoves(listOf(moveE5), emptyList()),
-          previousAndNextTrainingDate = PreviousAndNextDate(date1, date2),
+          cardState = cardState(instant3, instant1),
           depth = 2,
           updatedAt = instant2,
         ),
@@ -252,20 +261,28 @@ class TestGraphSerializer {
   }
 
   @Test
-  fun trainingDatesAndDepthSurviveRoundTrip() {
+  fun cardStateAndDepthSurviveRoundTrip() {
+    val state =
+      CardState(
+        dueDate = instant3,
+        lastReview = instant2,
+        stability = 12.5,
+        difficulty = 6.25,
+        reps = 4,
+        lapses = 1,
+      )
     val node =
       DataNode(
         positionKey = startPos,
         previousAndNextMoves = PreviousAndNextMoves(),
-        previousAndNextTrainingDate = PreviousAndNextDate(date1, date2),
+        cardState = state,
         depth = 7,
         updatedAt = instant2,
       )
 
     val result = GraphSerializer.deserialize(GraphSerializer.serialize(listOf(node)))
 
-    result[0].previousAndNextTrainingDate.previousDate shouldBe date1
-    result[0].previousAndNextTrainingDate.nextDate shouldBe date2
+    result[0].cardState shouldBe state
     result[0].depth shouldBe 7
     result[0].updatedAt shouldBe instant2
   }
@@ -288,14 +305,15 @@ class TestGraphSerializer {
 
   @Test
   fun edgeLineWithWrongColumnCountThrows() {
-    val input = "1\t$startPos\t0\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n\n1\t2"
+    val input =
+      "1\t$startPos\t0\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n\n1\t2"
     shouldThrow<Exception> { GraphSerializer.deserialize(input) }
   }
 
   @Test
   fun edgeReferencingUnknownNodeThrows() {
     val input =
-      "1\t$startPos\t0\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n\n" +
+      "1\t$startPos\t0\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n\n" +
         "1\t99\te4\t+\t2026-01-01T00:00:00Z"
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize(input) }
   }
@@ -303,8 +321,8 @@ class TestGraphSerializer {
   @Test
   fun invalidIsGoodValueThrows() {
     val input =
-      "1\t$startPos\t0\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n" +
-        "2\t$posAfterE4\t1\t2026-01-01\t2026-01-05\t2026-01-01T00:00:00Z\n\n" +
+      "1\t$startPos\t0\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n" +
+        "2\t$posAfterE4\t1\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n\n" +
         "1\t2\te4\tX\t2026-01-01T00:00:00Z"
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize(input) }
   }

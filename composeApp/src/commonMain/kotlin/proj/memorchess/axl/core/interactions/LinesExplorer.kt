@@ -6,11 +6,11 @@ import androidx.compose.runtime.setValue
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.date.PreviousAndNextDate
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.MutablePreviousAndNextMoves
 import proj.memorchess.axl.core.graph.NavigationHistory
 import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /** LinesExplorer is an interaction manager that allows exploring the stored lines. */
 open class LinesExplorer(position: PositionKey? = null, protected val nodeManager: NodeManager) :
@@ -96,7 +96,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val nodeManage
       DataNode(
         navigation.current,
         currentMoves.filterValidMoves(),
-        PreviousAndNextDate.dummyToday(),
+        CardStateFactory.new(),
         nodeManager.getDepth(navigation.current),
       )
     )
@@ -116,7 +116,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val nodeManage
         DataNode(
           position,
           moves.filterValidMoves(),
-          PreviousAndNextDate.dummyToday(),
+          CardStateFactory.new(),
           nodeManager.getDepth(position),
         )
       )

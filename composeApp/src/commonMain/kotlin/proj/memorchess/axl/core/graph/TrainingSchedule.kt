@@ -1,10 +1,12 @@
 package proj.memorchess.axl.core.graph
 
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.daysUntil
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Manages training schedule for spaced-repetition learning.
+ * Manages training schedule for spaced repetition learning.
  *
  * Stores only scheduling metadata ([TrainingEntry]) keyed by day. Does **not** hold live references
  * to graph edges or [DataNode][proj.memorchess.axl.core.data.DataNode] objects, avoiding shared
@@ -20,12 +22,12 @@ class TrainingSchedule(private val openingTree: OpeningTree) {
    * @param entry The training entry to schedule.
    */
   fun addEntry(entry: TrainingEntry) {
-    val daysUntil = DateUtil.daysUntil(entry.trainingDate.nextDate)
+    val daysUntil = daysFromTodayUntil(entry)
     entriesByDay.getOrPut(daysUntil) { mutableMapOf() }[entry.positionKey] = entry
   }
 
   /**
-   * Picks the minimum-depth entry scheduled for the given day and removes it from the schedule.
+   * Picks the minimum depth entry scheduled for the given day and removes it from the schedule.
    *
    * Depth is looked up from [OpeningTree] at query time, so it is always fresh.
    *
@@ -62,5 +64,12 @@ class TrainingSchedule(private val openingTree: OpeningTree) {
   /** Clears all scheduled entries. */
   fun clear() {
     entriesByDay.clear()
+  }
+
+  private fun daysFromTodayUntil(entry: TrainingEntry): Int {
+    val tz = TimeZone.currentSystemDefault()
+    val today = DateUtil.today()
+    val due = entry.cardState.dueLocalDate(tz)
+    return today.daysUntil(due).coerceAtLeast(0)
   }
 }

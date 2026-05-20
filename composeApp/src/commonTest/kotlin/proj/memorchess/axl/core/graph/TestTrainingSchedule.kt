@@ -4,10 +4,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.days
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.date.PreviousAndNextDate
+import proj.memorchess.axl.core.scheduling.CardState
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 class TestTrainingSchedule {
 
@@ -15,11 +17,10 @@ class TestTrainingSchedule {
   private val posA = PositionKey("posA b K")
   private val posB = PositionKey("posB w K")
 
-  private fun makeEntry(
-    positionKey: PositionKey,
-    nextDate: kotlinx.datetime.LocalDate = DateUtil.today(),
-  ): TrainingEntry {
-    return TrainingEntry(positionKey, PreviousAndNextDate(DateUtil.today(), nextDate))
+  private fun makeEntry(positionKey: PositionKey, daysFromNow: Int = 0): TrainingEntry {
+    val due = DateUtil.now() + daysFromNow.days
+    val state: CardState = CardStateFactory.new(due)
+    return TrainingEntry(positionKey, state)
   }
 
   /** Registers a position in the tree with the given depth and a dummy next move. */

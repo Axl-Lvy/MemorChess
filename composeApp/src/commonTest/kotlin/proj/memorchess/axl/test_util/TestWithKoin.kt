@@ -1,6 +1,7 @@
 package proj.memorchess.axl.test_util
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import com.russhwolf.settings.Settings
 import kotlin.time.Duration
 import kotlinx.coroutines.test.TestScope
@@ -15,7 +16,7 @@ import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
-import proj.memorchess.axl.ui.pages.navigation.Navigator
+import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 
 /**
  * Base class for tests that need Koin dependency injection.
@@ -24,6 +25,12 @@ import proj.memorchess.axl.ui.pages.navigation.Navigator
  * need `runComposeUiTest`, use [koinSetUp]/[koinTearDown] directly.
  */
 abstract class TestWithKoin : KoinComponent {
+
+  /**
+   * Recording navigator exposed to the composition tree under [LocalNavigator]. Tests that want to
+   * assert which destination was navigated to read this directly.
+   */
+  protected val navigator: RememberLastRouteNavigator = RememberLastRouteNavigator()
 
   /** Override to add suspend setup logic within [test]'s single coroutine scope. */
   open suspend fun setUp() {}
@@ -56,6 +63,7 @@ abstract class TestWithKoin : KoinComponent {
     startKoin { modules(*initKoinModules(), initTestModule()) }
     MOVE_ANIMATION_DURATION_SETTING.setValue(Duration.ZERO)
     ToastRendererForTests.clear()
+    navigator.lastRoute = null
   }
 
   /** Stops Koin and resets state. Use directly only for UI tests that cannot use [test]. */
@@ -69,13 +77,17 @@ abstract class TestWithKoin : KoinComponent {
       single<Settings> { TestSettings() }
       single<DatabaseQueryManager> { TestDatabaseQueryManager.empty() }
       single<ToastRenderer> { ToastRendererForTests }
-      single<Navigator> { RememberLastRouteNavigator() }
     }
   }
 
+  /**
+   * Wraps a test's composable content so that descendants can resolve [LocalNavigator]. Production
+   * code provides the navigator from [proj.memorchess.axl.ui.App]; tests that render fragments in
+   * isolation provide it here.
+   */
   @OptIn(KoinInternalApi::class)
   @Composable
   fun InitializeApp(block: @Composable () -> Unit) {
-    block()
+    CompositionLocalProvider(LocalNavigator provides navigator) { block() }
   }
 }
