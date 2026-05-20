@@ -102,11 +102,18 @@ class TreeStore(private val database: DatabaseQueryManager) {
   }
 
   /**
-   * Stores [cardState] on the node at [positionKey] and persists it. The node must already exist in
-   * the cache, otherwise this is a no op.
+   * Stores [cardState] on the node at [positionKey] and persists it.
+   *
+   * Logs a warning and skips the write when [positionKey] is not in the cache; that should only
+   * happen if the position was deleted between the scheduler reading it and writing the result
+   * back.
    */
   suspend fun updateCardState(positionKey: PositionKey, cardState: CardState) {
-    val existing = tree.get(positionKey) ?: return
+    val existing = tree.get(positionKey)
+    if (existing == null) {
+      LOGGER.w { "Skipping card state update for unknown position $positionKey" }
+      return
+    }
     tree.put(existing.copy(cardState = cardState))
     persistNode(positionKey)
   }

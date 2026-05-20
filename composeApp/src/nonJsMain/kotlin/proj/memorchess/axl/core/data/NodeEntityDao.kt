@@ -117,7 +117,5 @@ interface NodeEntityDao {
 
   @Query("SELECT MAX(updatedAt) FROM NodeEntity") suspend fun getLastNodeUpdate(): Instant?
 
-  @Query("SELECT * FROM NodeEntity") suspend fun getPositions(): List<NodeEntity>
-
   @Query("SELECT MAX(updatedAt) FROM MoveEntity") suspend fun getLastMoveUpdate(): Instant?
 }
