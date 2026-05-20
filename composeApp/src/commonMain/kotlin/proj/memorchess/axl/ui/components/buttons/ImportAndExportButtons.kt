@@ -28,7 +28,7 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.GraphSerializer
-import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.util.exportToFile
 
@@ -44,7 +44,7 @@ import proj.memorchess.axl.ui.util.exportToFile
 @Composable
 fun ImportAndExportButtons(
   database: DatabaseQueryManager = koinInject(),
-  nodeManager: NodeManager = koinInject(),
+  treeStore: TreeStore = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
@@ -81,7 +81,7 @@ fun ImportAndExportButtons(
               coroutineScope.launch {
                 val nodes = GraphSerializer.deserialize(content)
                 database.insertNodes(*nodes.toTypedArray())
-                nodeManager.resetCacheFromSource()
+                treeStore.load()
               }
             }
           } catch (e: IllegalArgumentException) {

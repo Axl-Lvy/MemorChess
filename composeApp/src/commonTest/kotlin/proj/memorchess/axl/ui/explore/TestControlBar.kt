@@ -11,7 +11,7 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.graph.nodes.NodeManager
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnBack
@@ -25,12 +25,12 @@ import proj.memorchess.axl.ui.playMove
 @OptIn(ExperimentalTestApi::class)
 class TestControlBar : TestWithKoin() {
 
-  private val nodeManager: NodeManager by inject()
+  private val treeStore: TreeStore by inject()
 
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     koinSetUp()
     try {
-      runTest { nodeManager.resetCacheFromSource() }
+      runTest { treeStore.load() }
       runComposeUiTest {
         setContent { InitializeApp { Explore() } }
         playMove("e2", "e4")

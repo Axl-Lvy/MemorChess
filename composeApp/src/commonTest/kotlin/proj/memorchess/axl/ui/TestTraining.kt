@@ -48,7 +48,7 @@ class TestTraining : TestWithKoin() {
 
   suspend fun resetDatabase() {
     // Delete all existing nodes
-    database.deleteAll(null)
+    database.eraseAll()
 
     // Create a test node with e4 as a good move
     val engine = GameEngine()
@@ -223,7 +223,7 @@ class TestTraining : TestWithKoin() {
           dueNowFromLastWeek(),
         )
       runTest {
-        database.deleteAll(null)
+        database.eraseAll()
         database.insertNodes(node)
       }
       runComposeUiTest {

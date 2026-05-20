@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -20,20 +21,18 @@ import proj.memorchess.axl.test_util.TestWithKoin
 class TestSingleMoveTrainer : TestWithKoin() {
   private lateinit var singleMoveTrainer: SingleMoveTrainer
   private val database: DatabaseQueryManager by inject()
+  private val treeStore: TreeStore by inject()
   private lateinit var testNode: DataNode
 
   override suspend fun setUp() {
-    database.deleteAll(DateUtil.farInThePast())
-    // Create a test node with some moves
+    database.eraseAll()
     val engine = GameEngine()
     val startPosition = engine.toPositionKey()
 
-    // Create e4 as a good move
     engine.playSanMove("e4")
     val e4Position = engine.toPositionKey()
     val e4Move = DataMove(startPosition, e4Position, "e4", isGood = true)
 
-    // Create d4 as a bad move
     val engine2 = GameEngine()
     engine2.playSanMove("d4")
     val d4Position = engine2.toPositionKey()
@@ -51,7 +50,6 @@ class TestSingleMoveTrainer : TestWithKoin() {
         lapses = 0,
       )
 
-    // Create the node with both moves
     testNode =
       DataNode(
         positionKey = startPosition,
@@ -60,23 +58,20 @@ class TestSingleMoveTrainer : TestWithKoin() {
       )
 
     database.insertNodes(testNode)
-
-    singleMoveTrainer = SingleMoveTrainer(testNode) {}
+    treeStore.load()
+    val node = treeStore.current().get(testNode.positionKey)
+    checkNotNull(node)
+    singleMoveTrainer = SingleMoveTrainer(node) {}
   }
 
   @Test
   @Ignore
   fun testCorrectMove() = test {
-    // FIXME: the settings need a main activity to be initialized
-
-    // Play the good move e4
     clickOnTile("e2")
     clickOnTile("e4")
 
-    // Verify the move was recognized as correct
     val updatedNode = database.getPosition(testNode.positionKey)
     assertNotNull(updatedNode)
-    // The next due date should be further in the future (success case)
     val due = updatedNode.cardState.dueDate
     assertTrue(
       due > DateUtil.now() + 1.days,
@@ -86,11 +81,9 @@ class TestSingleMoveTrainer : TestWithKoin() {
 
   @Test
   fun testIncorrectMove() = test {
-    // Play the bad move d4
     clickOnTile("d2")
     clickOnTile("d4")
 
-    // Verify the move was recognized as incorrect: card was rescheduled and lapses increased
     val updatedNode = database.getPosition(testNode.positionKey)
     assertNotNull(updatedNode)
     assertTrue(updatedNode.cardState.lapses >= 1, "Lapses should increase on incorrect review")
@@ -99,7 +92,6 @@ class TestSingleMoveTrainer : TestWithKoin() {
 
   @Test
   fun testUnknownMove() = test {
-    // Play a move that's not in the node's next moves
     clickOnTile("c2")
     clickOnTile("c4")
 
