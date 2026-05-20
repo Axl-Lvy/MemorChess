@@ -50,7 +50,7 @@ import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 /**
  * Shared explorer content relying on a [LinesExplorer].
  *
- * @param explorer The explorer instance (LinesExplorer or BookExplorer).
+ * @param explorer The explorer instance.
  * @param saveButton Custom composable for the save button (can be null if not applicable).
  * @param deleteButton Custom composable for the delete button (can be null if not applicable).
  * @param header Optional header content to display above the explorer.

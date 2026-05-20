@@ -47,7 +47,4 @@ interface DatabaseQueryManager {
 
   /** Retrieves the last move update time. */
   suspend fun getLastUpdate(): Instant?
-
-  /** Checks if the database is can be used. */
-  fun isActive(): Boolean
 }

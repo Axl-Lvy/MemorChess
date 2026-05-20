@@ -21,7 +21,6 @@ ksp = "2.3.6"
 kotest = "6.1.5"
 kotlinxDatetime = "0.7.1"
 kotlinxSerializationJson = "1.10.0"
-ktor = "3.4.1"
 material-icons = "1.7.3"
 material3-adaptive = "1.2.0"
 material3Android = "1.4.0"
@@ -31,7 +30,6 @@ slf4jApi = "2.0.17"
 sonar = "7.2.3.7755"
 sqlite = "2.6.2"
 stockfish-multiplatform = "0.1.0-alpha.11"
-supabase = "3.4.1"
 uiTestJunit4Android = "1.10.5"
 xfeather_z = "1.1.1"
 
@@ -59,8 +57,6 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "androidx-room" }
 indexeddb = { module = "com.juul.indexeddb:core", version.ref = "indexeddb" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
-supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt", version.ref = "supabase" }
-supabase-database = { module = "io.github.jan-tennert.supabase:postgrest-kt", version.ref = "supabase" }
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
 
 # --- Koin ---
@@ -76,12 +72,6 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestJunit4Android" }
-
-# --- Networking ---
-ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
-ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 
 # --- Logging ---
 kermit-logging = { module = "co.touchlab:kermit", version.ref = "kermit" }

@@ -175,8 +175,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     return databaseDeferred.await()
   }
 
-  override fun isActive(): Boolean = true
-
   override suspend fun insertNodes(vararg positions: DataNode) {
     val database = db()
     database.writeTransaction(NODES_STORE, MOVES_STORE) {

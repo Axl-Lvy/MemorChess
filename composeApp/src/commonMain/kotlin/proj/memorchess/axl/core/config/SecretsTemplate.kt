@@ -14,17 +14,7 @@ package proj.memorchess.axl.core.config
  *
  * See CONTRIBUTING.md for more details on secrets management.
  */
-abstract class SecretsTemplate {
-
-  /** Supabase anon key */
-  open val supabaseApiKey = NOT_FOUND
-
-  /** Mail of the user account used for testing */
-  open val testUserMail = NOT_FOUND
-
-  /** Password of the user account used for testing */
-  open val testUserPassword = NOT_FOUND
-}
+abstract class SecretsTemplate
 
 /** Default value when a key is not found in **local.properties** */
-private const val NOT_FOUND = "NOT_FOUND_IN_LOCAL_PROPERTIES"
+@Suppress("unused") private const val NOT_FOUND = "NOT_FOUND_IN_LOCAL_PROPERTIES"
