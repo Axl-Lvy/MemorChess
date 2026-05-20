@@ -52,10 +52,6 @@ internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
       })
       ?.truncateToSeconds()
   }
-
-  override fun isActive(): Boolean {
-    return true
-  }
 }
 
 actual fun getPlatformSpecificLocalDatabase(): DatabaseQueryManager {

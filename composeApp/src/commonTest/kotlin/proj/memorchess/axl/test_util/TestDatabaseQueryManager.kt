@@ -17,7 +17,6 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
  */
 class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
   val dataNodes = mutableMapOf<PositionKey, DataNode>()
-  var isActiveState = true
 
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     return dataNodes.values.filter { withDeletedOnes || !it.isDeleted }.toList()
@@ -104,10 +103,6 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
         .flatten()
         .maxOfOrNull { it.updatedAt }
     return DateUtil.maxOf(node, move)
-  }
-
-  override fun isActive(): Boolean {
-    return isActiveState
   }
 
   /**

@@ -117,11 +117,6 @@ kotlin {
       implementation(libs.multiplatform.settings)
       implementation(libs.kermit.logging)
 
-      // Backend and networking
-      implementation(libs.supabase.database)
-      implementation(libs.supabase.auth)
-      implementation(libs.ktor.client.core)
-
       // Dependency injection
       implementation(libs.koin.core)
       implementation(libs.koin.compose)
@@ -150,16 +145,12 @@ kotlin {
       implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.material3.android)
-      implementation(libs.ktor.client.okhttp)
     }
 
     jvmMain.dependencies {
       implementation(compose.desktop.currentOs)
-      implementation(libs.ktor.client.java)
       implementation(libs.slf4j.api)
     }
-
-    iosMain.dependencies { implementation(libs.ktor.client.darwin) }
 
     wasmJsMain.dependencies { implementation(libs.indexeddb) }
 
