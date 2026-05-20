@@ -44,6 +44,7 @@ class TestCachedExplorer {
     var networkCalls = 0
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ ->
@@ -81,6 +82,7 @@ class TestCachedExplorer {
     var networkCalls = 0
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ ->
@@ -117,6 +119,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -137,6 +140,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -157,6 +161,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
@@ -186,6 +191,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
@@ -210,6 +216,7 @@ class TestCachedExplorer {
     var networkCalls = 0
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ ->

@@ -147,6 +147,8 @@ jobs:
           gradle-home-cache-cleanup: false
 
       - name: Run JVM tests with coverage
+        env:
+          LICHESS_API_TOKEN: ${{ secrets.LICHESS_API_TOKEN }}
         run: ./gradlew koverXmlReportJvm
 
       # On the cheap tier the JVM Kover XML is the only coverage source,

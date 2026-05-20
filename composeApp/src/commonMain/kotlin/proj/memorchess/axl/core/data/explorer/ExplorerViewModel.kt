@@ -74,6 +74,7 @@ class ExplorerViewModel(
         is CachedExplorerResult.Stale ->
           ExplorerState.Loaded(source = source, response = result.response, isStale = true)
         is CachedExplorerResult.RateLimited -> ExplorerState.RateLimited(source = source)
+        is CachedExplorerResult.Unauthorized -> ExplorerState.Unauthorized(source = source)
         is CachedExplorerResult.NetworkError ->
           ExplorerState.Error(source = source, message = result.message)
       }
@@ -105,6 +106,9 @@ sealed class ExplorerState {
 
   /** No cached entry and Lichess rate limited the request. */
   data class RateLimited(val source: ExplorerSource) : ExplorerState()
+
+  /** User is not signed in to Lichess, or the token was rejected. UI should prompt sign in. */
+  data class Unauthorized(val source: ExplorerSource) : ExplorerState()
 
   /** No cached entry and the network call failed. */
   data class Error(val source: ExplorerSource, val message: String) : ExplorerState()

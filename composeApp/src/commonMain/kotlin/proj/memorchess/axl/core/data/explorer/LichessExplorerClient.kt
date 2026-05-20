@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -30,6 +31,7 @@ import proj.memorchess.axl.core.date.DateUtil
  */
 class LichessExplorerClient(
   private val httpClient: HttpClient,
+  private val tokenProvider: () -> String? = { null },
   private val minGap: Duration = DEFAULT_MIN_GAP,
   private val maxAttemptsOn429: Int = DEFAULT_MAX_ATTEMPTS_ON_429,
 ) {
@@ -58,29 +60,46 @@ class LichessExplorerClient(
     attempt: Int,
   ): ExplorerResult {
     val url = "$BASE_URL/${source.path}"
+    val token = tokenProvider()
+    if (token == null) {
+      LOGGER.w { "No Lichess token available, cannot call $url" }
+      return ExplorerResult.Unauthorized
+    }
     return try {
       val response: HttpResponse =
         httpClient.get(url) {
           header(HttpHeaders.UserAgent, USER_AGENT)
+          bearerAuth(token)
           parameter("fen", fen)
           parameter("moves", plies)
           parameter("topGames", 0)
+          if (source == ExplorerSource.LICHESS) {
+            // Restrict the Lichess online corpus to the strongest rating bucket. Masters does not
+            // accept this parameter.
+            parameter("ratings", "2500")
+          }
         }
       lastRequestEpochMs = nowEpochMs()
       when {
         response.status.isSuccess() -> ExplorerResult.Ok(response.body())
         response.status == HttpStatusCode.TooManyRequests -> retryOn429(source, fen, plies, attempt)
+        response.status == HttpStatusCode.Unauthorized -> {
+          LOGGER.w { "Lichess explorer returned 401 for $url fen=$fen" }
+          ExplorerResult.Unauthorized
+        }
         else -> {
           LOGGER.w { "Lichess explorer returned ${response.status} for $url fen=$fen" }
           ExplorerResult.NetworkError("HTTP ${response.status.value}")
         }
       }
     } catch (e: ResponseException) {
-      if (e.response.status == HttpStatusCode.TooManyRequests) {
-        retryOn429(source, fen, plies, attempt)
-      } else {
-        LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
-        ExplorerResult.NetworkError(e.message ?: "Request failed")
+      when (e.response.status) {
+        HttpStatusCode.TooManyRequests -> retryOn429(source, fen, plies, attempt)
+        HttpStatusCode.Unauthorized -> ExplorerResult.Unauthorized
+        else -> {
+          LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
+          ExplorerResult.NetworkError(e.message ?: "Request failed")
+        }
       }
     } catch (e: Exception) {
       LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
@@ -143,6 +162,14 @@ sealed class ExplorerResult {
 
   /** Lichess returned HTTP 429 and the retry budget was exhausted. */
   data object RateLimited : ExplorerResult()
+
+  /**
+   * No token available or token rejected by Lichess (HTTP 401).
+   *
+   * The explorer requires OAuth authentication since Lichess gated `explorer.lichess.ovh` behind
+   * sign in. Callers should prompt the user to sign in.
+   */
+  data object Unauthorized : ExplorerResult()
 
   /** Any other failure (network, parse, server error). */
   data class NetworkError(val message: String) : ExplorerResult()

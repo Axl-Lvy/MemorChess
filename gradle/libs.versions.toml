@@ -4,6 +4,7 @@ android-compileSdk = "36"
 android-minSdk = "26"
 android-targetSdk = "36"
 androidx-activityCompose = "1.13.0"
+androidx-browser = "1.9.0"
 androidx-lifecycle = "2.10.0"
 androidx-room = "2.8.4"
 chess-core = "1.0.2"
@@ -40,6 +41,7 @@ xfeather_z = "1.1.1"
 chess-core = { module = "io.github.alluhemanth:chess-core", version.ref = "chess-core" }
 stockfish-multiplatform = { module = "fr.axl-lvy:stockfish-multiplatform", version.ref = "stockfish-multiplatform" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
+androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
 androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
 hotpreview = { module = "de.drick.compose:hotpreview", version.ref = "hotpreview" }
 material3-adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", version.ref = "material3-adaptive" }

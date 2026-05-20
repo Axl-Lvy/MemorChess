@@ -19,6 +19,11 @@ import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import proj.memorchess.axl.core.auth.LICHESS_REDIRECT_URI
+import proj.memorchess.axl.core.auth.LichessOAuthClient
+import proj.memorchess.axl.core.auth.LichessSignInController
+import proj.memorchess.axl.core.auth.OAuthLauncher
+import proj.memorchess.axl.core.auth.OAuthTokenStore
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
@@ -90,7 +95,21 @@ abstract class TestWithKoin : KoinComponent {
       // accidentally hits the real Lichess service. Tests that exercise the explorer rebuild
       // these on their own.
       single { offlineExplorerHttpClient() }
-      single { LichessExplorerClient(get()) }
+      single { OAuthTokenStore(get()) }
+      single { LichessOAuthClient(get()) }
+      single { OAuthLauncher() }
+      single {
+        LichessSignInController(
+          launcher = get(),
+          oauthClient = get(),
+          tokenStore = get(),
+          redirectUri = LICHESS_REDIRECT_URI,
+        )
+      }
+      single {
+        val tokenStore: OAuthTokenStore = get()
+        LichessExplorerClient(httpClient = get(), tokenProvider = { tokenStore.getToken() })
+      }
       single { InMemoryExplorerCache() }
       single { CachedExplorer(get(), get<InMemoryExplorerCache>()) }
     }

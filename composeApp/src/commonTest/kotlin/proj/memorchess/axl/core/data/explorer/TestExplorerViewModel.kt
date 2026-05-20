@@ -26,6 +26,7 @@ class TestExplorerViewModel {
 
   private fun buildClient() =
     LichessExplorerClient(
+      tokenProvider = { "test-token" },
       httpClient =
         HttpClient(
           MockEngine { _ ->
@@ -84,6 +85,7 @@ class TestExplorerViewModel {
   fun networkFailureLeadsToErrorState() = runTest {
     val errClient =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }

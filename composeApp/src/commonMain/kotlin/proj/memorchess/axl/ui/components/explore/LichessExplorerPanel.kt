@@ -150,6 +150,12 @@ private fun Body(state: ExplorerState, onClickMove: (String) -> Unit) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.error,
       )
+    is ExplorerState.Unauthorized ->
+      Text(
+        "Sign in to Lichess from Settings to use the opening explorer.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error,
+      )
     is ExplorerState.Error ->
       Text(
         "Could not load explorer: ${state.message}",
@@ -208,22 +214,33 @@ private fun MoveRow(move: LichessExplorerMove, onClick: () -> Unit) {
 @Composable
 private fun StackedResultBar(move: LichessExplorerMove, modifier: Modifier = Modifier) {
   val total = move.totalGames.coerceAtLeast(1L).toFloat()
+  val whiteWeight = (move.white / total).coerceAtLeast(MIN_WEIGHT)
+  val drawWeight = (move.draws / total).coerceAtLeast(MIN_WEIGHT)
+  val blackWeight = (move.black / total).coerceAtLeast(MIN_WEIGHT)
   Row(modifier = modifier) {
-    Box(
-      modifier =
-        Modifier.weight(move.white / total)
-          .height(12.dp)
-          .background(Color(0xFFE8E8E8), RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp))
-    )
-    Box(modifier = Modifier.weight(move.draws / total).height(12.dp).background(Color(0xFFB0B0B0)))
-    Box(
-      modifier =
-        Modifier.weight(move.black / total)
-          .height(12.dp)
-          .background(Color(0xFF222222), RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
-    )
+    if (move.white > 0) {
+      Box(
+        modifier =
+          Modifier.weight(whiteWeight)
+            .height(12.dp)
+            .background(Color(0xFFE8E8E8), RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp))
+      )
+    }
+    if (move.draws > 0) {
+      Box(modifier = Modifier.weight(drawWeight).height(12.dp).background(Color(0xFFB0B0B0)))
+    }
+    if (move.black > 0) {
+      Box(
+        modifier =
+          Modifier.weight(blackWeight)
+            .height(12.dp)
+            .background(Color(0xFF222222), RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+      )
+    }
   }
 }
+
+private const val MIN_WEIGHT = 0.0001f
 
 private fun Long.toReadableCount(): String =
   when {

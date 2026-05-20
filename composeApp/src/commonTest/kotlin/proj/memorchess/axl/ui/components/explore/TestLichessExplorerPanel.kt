@@ -31,6 +31,41 @@ class TestLichessExplorerPanel {
     )
 
   @Test
+  fun movesWithZeroResultsInOneColorDoNotCrash() = runComposeUiTest {
+    val zeroResponse =
+      LichessExplorerResponse(
+        white = 5,
+        draws = 0,
+        black = 5,
+        moves =
+          listOf(
+            LichessExplorerMove(uci = "e2e4", san = "e4", white = 5, draws = 0, black = 0),
+            LichessExplorerMove(uci = "d2d4", san = "d4", white = 0, draws = 0, black = 5),
+            LichessExplorerMove(uci = "g1f3", san = "Nf3", white = 0, draws = 0, black = 0),
+          ),
+        opening = null,
+      )
+    setContent {
+      LichessExplorerPanelContent(
+        state =
+          ExplorerState.Loaded(
+            source = ExplorerSource.LICHESS,
+            response = zeroResponse,
+            isStale = false,
+          ),
+        source = ExplorerSource.LICHESS,
+        onSetSource = {},
+        onClickMove = {},
+      )
+    }
+    // The bar must render without throwing IllegalArgumentException for zero weights. The rows
+    // themselves are still visible.
+    onAllNodes(hasTestTag("lichess_explorer_move_row:e4")).assertCountEquals(1)
+    onAllNodes(hasTestTag("lichess_explorer_move_row:d4")).assertCountEquals(1)
+    onAllNodes(hasTestTag("lichess_explorer_move_row:Nf3")).assertCountEquals(1)
+  }
+
+  @Test
   fun idleStateShowsHint() = runComposeUiTest {
     setContent {
       LichessExplorerPanelContent(
@@ -106,6 +141,19 @@ class TestLichessExplorerPanel {
       )
     }
     onNode(hasText("Lichess rate limited the request. Try again in a moment.")).assertExists()
+  }
+
+  @Test
+  fun unauthorizedStateShowsSignInPrompt() = runComposeUiTest {
+    setContent {
+      LichessExplorerPanelContent(
+        state = ExplorerState.Unauthorized(source = ExplorerSource.MASTERS),
+        source = ExplorerSource.MASTERS,
+        onSetSource = {},
+        onClickMove = {},
+      )
+    }
+    onNode(hasText("Sign in to Lichess from Settings to use the opening explorer.")).assertExists()
   }
 
   @Test

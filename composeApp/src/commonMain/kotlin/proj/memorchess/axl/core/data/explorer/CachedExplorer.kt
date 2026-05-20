@@ -33,6 +33,8 @@ class CachedExplorer(
       }
       is ExplorerResult.RateLimited ->
         cached?.let { CachedExplorerResult.Stale(it.response) } ?: CachedExplorerResult.RateLimited
+      is ExplorerResult.Unauthorized ->
+        cached?.let { CachedExplorerResult.Stale(it.response) } ?: CachedExplorerResult.Unauthorized
       is ExplorerResult.NetworkError ->
         cached?.let { CachedExplorerResult.Stale(it.response) }
           ?: CachedExplorerResult.NetworkError(networkResult.message)
@@ -61,6 +63,9 @@ sealed class CachedExplorerResult {
 
   /** Lichess rate limited the client and no cached entry exists. */
   data object RateLimited : CachedExplorerResult()
+
+  /** No token available or token rejected by Lichess, and no cached entry exists. */
+  data object Unauthorized : CachedExplorerResult()
 
   /** Network failure and no cached entry exists. */
   data class NetworkError(val message: String) : CachedExplorerResult()

@@ -31,6 +31,7 @@ class TestLichessExplorerClient {
 
   private fun buildClient(engine: MockEngine, minGap: kotlin.time.Duration = 0.milliseconds) =
     LichessExplorerClient(
+      tokenProvider = { "test-token" },
       httpClient =
         HttpClient(engine) {
           install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
@@ -77,6 +78,7 @@ class TestLichessExplorerClient {
     }
     val client =
       LichessExplorerClient(
+        tokenProvider = { "test-token" },
         httpClient =
           HttpClient(engine) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
