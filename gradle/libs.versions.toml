@@ -21,6 +21,7 @@ ksp = "2.3.8"
 kotest = "6.1.11"
 kotlinxDatetime = "0.8.0"
 kotlinxSerializationJson = "1.11.0"
+ktor = "3.4.1"
 material-icons = "1.7.3"
 material3-adaptive = "1.2.0"
 material3Android = "1.4.0"
@@ -76,6 +77,16 @@ androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", v
 # --- Logging ---
 kermit-logging = { module = "co.touchlab:kermit", version.ref = "kermit" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4jApi" }
+
+# --- Networking ---
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
