@@ -5,7 +5,10 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import kotlin.time.Duration
@@ -54,15 +57,21 @@ class LichessExplorerClient(
     plies: Int,
     attempt: Int,
   ): ExplorerResult {
-    val url = "$BASE_URL/${source.path}?fen=${encodeFen(fen)}&moves=$plies&topGames=0"
+    val url = "$BASE_URL/${source.path}"
     return try {
-      val response: HttpResponse = httpClient.get(url)
+      val response: HttpResponse =
+        httpClient.get(url) {
+          header(HttpHeaders.UserAgent, USER_AGENT)
+          parameter("fen", fen)
+          parameter("moves", plies)
+          parameter("topGames", 0)
+        }
       lastRequestEpochMs = nowEpochMs()
       when {
         response.status.isSuccess() -> ExplorerResult.Ok(response.body())
         response.status == HttpStatusCode.TooManyRequests -> retryOn429(source, fen, plies, attempt)
         else -> {
-          LOGGER.w { "Lichess explorer returned ${response.status} for $url" }
+          LOGGER.w { "Lichess explorer returned ${response.status} for $url fen=$fen" }
           ExplorerResult.NetworkError("HTTP ${response.status.value}")
         }
       }
@@ -70,11 +79,11 @@ class LichessExplorerClient(
       if (e.response.status == HttpStatusCode.TooManyRequests) {
         retryOn429(source, fen, plies, attempt)
       } else {
-        LOGGER.w(e) { "Lichess explorer request failed for $url" }
+        LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
         ExplorerResult.NetworkError(e.message ?: "Request failed")
       }
     } catch (e: Exception) {
-      LOGGER.w(e) { "Lichess explorer request failed for $url" }
+      LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
       ExplorerResult.NetworkError(e.message ?: "Request failed")
     }
   }
@@ -105,11 +114,16 @@ class LichessExplorerClient(
 
   private fun nowEpochMs(): Long = DateUtil.now().toEpochMilliseconds()
 
-  private fun encodeFen(fen: String): String = fen.replace(" ", "_")
-
   companion object {
     private const val BASE_URL = "https://explorer.lichess.ovh"
     private const val DEFAULT_PLIES = 12
+
+    /**
+     * Identifies MemorChess to the Lichess explorer service. The Lichess team asks every API client
+     * to set a descriptive User-Agent so they can contact maintainers if something goes wrong;
+     * their CDN rejects requests with a generic library User-Agent on the explorer host.
+     */
+    private const val USER_AGENT = "MemorChess (https://github.com/Axl-Lvy/MemorChess)"
 
     /** Minimum interval between consecutive requests. */
     val DEFAULT_MIN_GAP: Duration = 250.milliseconds
