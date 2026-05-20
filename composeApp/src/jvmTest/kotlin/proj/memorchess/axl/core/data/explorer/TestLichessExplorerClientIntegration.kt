@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.data.explorer
 
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldNotBeEmpty
-import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -40,14 +40,17 @@ class TestLichessExplorerClientIntegration {
           return@runTest
         }
     val client = buildClient(token)
-    val startingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    // After 1.e4: the response carries opening metadata so we can assert both the move list and
+    // the opening name. The bare starting position does not have a parent opening.
+    val afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 
-    val result = client.fetch(ExplorerSource.MASTERS, startingFen)
+    val result = client.fetch(ExplorerSource.MASTERS, afterE4)
 
-    withClue("Lichess returned non Ok result: $result (token length=${token.length})") {
-      result.shouldBeInstanceOf<ExplorerResult.Ok>()
-    }
-    result.response.moves.shouldNotBeEmpty()
-    result.response.opening shouldNotBe null
+    val ok =
+      withClue("Lichess returned non Ok result: $result (token length=${token.length})") {
+        result.shouldBeInstanceOf<ExplorerResult.Ok>()
+      }
+    ok.response.moves.shouldNotBeEmpty()
+    ok.response.opening?.eco shouldBe "B00"
   }
 }
