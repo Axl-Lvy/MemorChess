@@ -131,4 +131,101 @@ class TestCachedExplorer {
 
     result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
   }
+
+  @Test
+  fun networkErrorWithoutCacheReturnsNetworkError() = runTest {
+    val cache = InMemoryExplorerCache()
+    val client =
+      LichessExplorerClient(
+        httpClient =
+          HttpClient(
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+      )
+    val explorer = CachedExplorer(client, cache)
+
+    val result = explorer.fetch(ExplorerSource.MASTERS, "fenX")
+
+    result.shouldBeInstanceOf<CachedExplorerResult.NetworkError>()
+  }
+
+  @Test
+  fun rateLimitedWithoutCacheReturnsRateLimited() = runTest {
+    val cache = InMemoryExplorerCache()
+    val client =
+      LichessExplorerClient(
+        httpClient =
+          HttpClient(
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+        maxAttemptsOn429 = 1,
+      )
+    val explorer = CachedExplorer(client, cache)
+
+    val result = explorer.fetch(ExplorerSource.LICHESS, "fenY")
+
+    result shouldBe CachedExplorerResult.RateLimited
+  }
+
+  @Test
+  fun rateLimitedWithStaleCacheReturnsStale() = runTest {
+    val cache =
+      InMemoryExplorerCache().also {
+        it.seed(
+          "fenZ",
+          ExplorerSource.LICHESS,
+          sample,
+          fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
+        )
+      }
+    val client =
+      LichessExplorerClient(
+        httpClient =
+          HttpClient(
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+        maxAttemptsOn429 = 1,
+      )
+    val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
+
+    val result = explorer.fetch(ExplorerSource.LICHESS, "fenZ")
+
+    result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
+  }
+
+  @Test
+  fun lichessCacheWithinTtlSkipsNetwork() = runTest {
+    val recent = proj.memorchess.axl.core.date.DateUtil.now()
+    val cache =
+      InMemoryExplorerCache().also { it.seed("fenFresh", ExplorerSource.LICHESS, sample, recent) }
+    var networkCalls = 0
+    val client =
+      LichessExplorerClient(
+        httpClient =
+          HttpClient(
+            MockEngine { _ ->
+              networkCalls++
+              respond(content = "", status = HttpStatusCode.InternalServerError)
+            }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+      )
+    val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
+
+    val result = explorer.fetch(ExplorerSource.LICHESS, "fenFresh")
+
+    result.shouldBeInstanceOf<CachedExplorerResult.Fresh>()
+    networkCalls shouldBe 0
+  }
 }

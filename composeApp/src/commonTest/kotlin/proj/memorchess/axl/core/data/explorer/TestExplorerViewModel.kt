@@ -63,4 +63,40 @@ class TestExplorerViewModel {
 
     vm.source.value shouldBe ExplorerSource.LICHESS
   }
+
+  @Test
+  fun sourceSwitchTriggersRefetch() = runTest {
+    val cached = CachedExplorer(buildClient(), InMemoryExplorerCache())
+    val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
+
+    vm.setFen("fen for switch")
+    val firstLoaded = vm.state.first { it is ExplorerState.Loaded } as ExplorerState.Loaded
+    firstLoaded.source shouldBe ExplorerSource.MASTERS
+
+    vm.setSource(ExplorerSource.LICHESS)
+    val secondLoaded =
+      vm.state.first { it is ExplorerState.Loaded && it.source == ExplorerSource.LICHESS }
+        as ExplorerState.Loaded
+    secondLoaded.source shouldBe ExplorerSource.LICHESS
+  }
+
+  @Test
+  fun networkFailureLeadsToErrorState() = runTest {
+    val errClient =
+      LichessExplorerClient(
+        httpClient =
+          HttpClient(
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+          ) {
+            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+          },
+        minGap = 0.milliseconds,
+      )
+    val cached = CachedExplorer(errClient, InMemoryExplorerCache())
+    val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
+
+    vm.setFen("fen with error")
+    val err = vm.state.first { it is ExplorerState.Error } as ExplorerState.Error
+    err.source shouldBe ExplorerSource.MASTERS
+  }
 }

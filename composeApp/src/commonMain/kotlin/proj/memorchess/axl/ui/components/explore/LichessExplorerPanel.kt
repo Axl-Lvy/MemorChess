@@ -55,7 +55,27 @@ fun LichessExplorerPanel(
 ) {
   val state by viewModel.state.collectAsState()
   val source by viewModel.source.collectAsState()
+  LichessExplorerPanelContent(
+    state = state,
+    source = source,
+    onSetSource = viewModel::setSource,
+    onClickMove = onClickMove,
+    modifier = modifier,
+  )
+}
 
+/**
+ * Stateless rendering of the explorer panel. Split out from [LichessExplorerPanel] so tests can
+ * drive each [ExplorerState] without standing up a full [ExplorerViewModel].
+ */
+@Composable
+internal fun LichessExplorerPanelContent(
+  state: ExplorerState,
+  source: ExplorerSource,
+  onSetSource: (ExplorerSource) -> Unit,
+  onClickMove: (String) -> Unit,
+  modifier: Modifier = Modifier,
+) {
   Surface(
     modifier = modifier.fillMaxWidth().testTag(TEST_TAG_ROOT),
     shape = RoundedCornerShape(12.dp),
@@ -63,7 +83,7 @@ fun LichessExplorerPanel(
   ) {
     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       OpeningHeader(state)
-      SourceToggle(selected = source, onSelect = viewModel::setSource)
+      SourceToggle(selected = source, onSelect = onSetSource)
       Body(state, onClickMove = onClickMove)
     }
   }

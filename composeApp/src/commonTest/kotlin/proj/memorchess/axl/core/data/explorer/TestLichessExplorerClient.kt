@@ -57,6 +57,18 @@ class TestLichessExplorerClient {
   }
 
   @Test
+  fun serverErrorReturnsNetworkError() = runTest {
+    val engine = MockEngine { _ ->
+      respond(content = "", status = HttpStatusCode.InternalServerError)
+    }
+    val client = buildClient(engine)
+
+    val result = client.fetch(ExplorerSource.LICHESS, fen = "f")
+
+    result.shouldBeInstanceOf<ExplorerResult.NetworkError>()
+  }
+
+  @Test
   fun rateLimitedAfterRetriesReturnsRateLimited() = runTest {
     var calls = 0
     val engine = MockEngine { _ ->
