@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  Anki Chess (🚧in construction🏗️)
+  Anki Chess (🚧 in construction 🏗️)
   <br>
 </h1>
 
