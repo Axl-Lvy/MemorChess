@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import kotlin.time.Duration
 import org.koin.compose.KoinApplication
+import org.koin.dsl.koinConfiguration
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.navigation.BottomNavigationBar
@@ -29,7 +30,7 @@ import proj.memorchess.axl.ui.theme.AppTheme
  */
 @Composable
 fun KoinStarterApp() {
-  KoinApplication(application = { modules(*initKoinModules()) }) { App() }
+  KoinApplication(configuration = koinConfiguration { modules(*initKoinModules()) }) { App() }
 }
 
 /**
