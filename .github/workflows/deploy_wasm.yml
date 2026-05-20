@@ -12,10 +12,6 @@ permissions:
   pages: write    # Allow deployment to GitHub Pages
   id-token: write # Required by actions/configure-pages
 
-env:
-  GITHUB_ACTOR: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -31,11 +27,7 @@ jobs:
           java-version: '21'
 
       - name: Update local.properties
-        run: |
-          chmod +x .github/scripts/update_properties.sh
-          .github/scripts/update_properties.sh
-        env:
-          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+        run: .github/scripts/update_properties.sh
 
       - name: Change wrapper permissions
         run: chmod +x ./gradlew
@@ -54,18 +46,10 @@ jobs:
       - name: "Send artifact url"
         env:
           TOKEN: ${{ secrets.REPOSITORY_ACCESS_TOKEN }}
+          ARTIFACT_URL: ${{ steps.upload-artifact.outputs.artifact-url }}
         run: |
-          artifactUrl="${{ steps.upload-artifact.outputs.artifact-url }}"
-
-          payload=$(cat <<EOF
-          {
-            "event_type": "update-memorchess",
-            "client_payload": {
-              "message": "$artifactUrl"
-            }
-          }
-          EOF
-          )
+          payload=$(jq -nc --arg url "$ARTIFACT_URL" \
+            '{event_type: "update-memorchess", client_payload: {message: $url}}')
 
           curl -X POST \
             -H "Accept: application/vnd.github+json" \

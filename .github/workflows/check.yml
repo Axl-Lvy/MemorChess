@@ -2,106 +2,139 @@ name: Check code
 
 on:
   pull_request:
-  push:
-    branches: [ master ]
   schedule:
-    - cron: 0 0 * * 1,4
+    - cron: 0 0 * * *
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  GITHUB_ACTOR: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+permissions:
+  contents: read
 
 jobs:
-  # Check if Kotlin or Java files were modified
-  is-check-necessary:
+  # Resolve which tier of checks to run:
+  #   noop  -> no code/build files touched, nothing to verify
+  #   cheap -> only commonMain / jvmMain / tests, run jvm + multiplat compile + sonar
+  #   full  -> platform code or build config touched, run all targets + sonar
+  detect:
     runs-on: ubuntu-latest
     outputs:
-      should_run: ${{ steps.check.outputs.should_run }}
+      tier: ${{ steps.tier.outputs.tier }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Check for Kotlin/Java file changes
-        id: check
+      - name: Compute override
+        id: override
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.base_ref }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           if [ "$EVENT_NAME" = "schedule" ]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Scheduled run, executing all jobs"
+            echo "force=full" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
-          # Check PR specific overrides
           if [ "$EVENT_NAME" = "pull_request" ]; then
-            # Check if PR title contains [skip-tests]
             if printf '%s' "$PR_TITLE" | grep -qi '\[skip-tests\]'; then
-              echo "should_run=false" >> "$GITHUB_OUTPUT"
-              echo "PR title contains [skip-tests], skipping jobs"
+              echo "force=noop" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-
-            # Check if "Force running tests" checkbox is checked
             if printf '%s' "$PR_BODY" | grep -qE '\- \[x\] Force running tests'; then
-              echo "should_run=true" >> "$GITHUB_OUTPUT"
-              echo "Force running tests checkbox is checked, executing all jobs"
+              echo "force=full" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
+          echo "force=" >> "$GITHUB_OUTPUT"
 
-          if [ "$EVENT_NAME" = "push" ]; then
-            # For push events, compare with the previous commit
-            FILES_CHANGED=$(git diff --name-only HEAD~1 HEAD || echo "")
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: steps.override.outputs.force == ''
+        with:
+          filters: |
+            code:
+              - '**/*.kt'
+              - '**/*.kts'
+              - '**/*.java'
+              - '**/*.toml'
+              - '**/*.xml'
+              - '**/*.properties'
+              - 'gradle/wrapper/**'
+              - '.github/workflows/check.yml'
+            platform:
+              - 'composeApp/src/androidMain/**'
+              - 'composeApp/src/iosMain/**'
+              - 'composeApp/src/wasmJsMain/**'
+              - 'composeApp/src/nonJsMain/**'
+              - 'composeApp/src/androidInstrumentedTest/**'
+              - 'composeApp/src/debugMain/**'
+              - '**/AndroidManifest.xml'
+              - '**/*.gradle.kts'
+              - 'gradle/libs.versions.toml'
+              - 'gradle/wrapper/**'
+              - '.github/workflows/check.yml'
+
+      - name: Resolve tier
+        id: tier
+        env:
+          FORCE: ${{ steps.override.outputs.force }}
+          CODE: ${{ steps.filter.outputs.code }}
+          PLATFORM: ${{ steps.filter.outputs.platform }}
+        run: |
+          if [ -n "$FORCE" ]; then
+            echo "tier=$FORCE" >> "$GITHUB_OUTPUT"
+            echo "tier (forced) = $FORCE"
+            exit 0
+          fi
+          if [ "$PLATFORM" = "true" ]; then
+            echo "tier=full" >> "$GITHUB_OUTPUT"
+            echo "tier = full"
+          elif [ "$CODE" = "true" ]; then
+            echo "tier=cheap" >> "$GITHUB_OUTPUT"
+            echo "tier = cheap"
           else
-            # For pull requests, compare with the base branch
-            git fetch origin "$BASE_REF"
-            FILES_CHANGED=$(git diff --name-only "origin/$BASE_REF"...HEAD || echo "")
+            echo "tier=noop" >> "$GITHUB_OUTPUT"
+            echo "tier = noop"
           fi
 
-          if echo "$FILES_CHANGED" | grep -qE '\.(kt|java)$'; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "Kotlin or Java files were modified, executing jobs"
-          else
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "No Kotlin or Java files modified, skipping jobs"
-          fi
-
-  # Run JVM tests with Kover coverage
-  jvm-tests:
-    needs: [is-check-necessary]
-    if: needs.is-check-necessary.outputs.should_run == 'true'
+  # Check code formatting using ktfmt
+  format-check:
+    needs: [detect]
+    if: needs.detect.outputs.tier != 'noop'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run formatter check
+        run: ./gradlew ktfmtCheck
+
+  # Run JVM tests with Kover coverage (designated Gradle cache writer)
+  jvm-tests:
+    needs: [detect]
+    if: needs.detect.outputs.tier != 'noop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Update local.properties
-        run: |
-          chmod +x .github/scripts/update_properties.sh
-          .github/scripts/update_properties.sh
+        run: .github/scripts/update_properties.sh
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
           gradle-home-cache-cleanup: false
-
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
 
       - name: Run JVM tests with coverage
         run: ./gradlew koverXmlReportJvm
@@ -121,25 +154,40 @@ jobs:
           path: composeApp/build/test-results/jvmTest/*.xml
           retention-days: 1
 
-  # Run Android tests in parallel
-  android-tests:
-    needs: [is-check-necessary]
-    if: needs.is-check-necessary.outputs.should_run == 'true'
+  # Cheap tier safety net: compile Android + wasm to catch expect/actual breaks
+  compile-multiplat:
+    needs: [detect]
+    if: needs.detect.outputs.tier == 'cheap'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      matrix:
-        shard_index: [0, 1, 2, 3]
-      fail-fast: false
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
       - name: Update local.properties
-        run: |
-          chmod +x .github/scripts/update_properties.sh
-          .github/scripts/update_properties.sh
+        run: .github/scripts/update_properties.sh
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Compile Android + wasm targets
+        run: ./gradlew compileDebugKotlinAndroid compileKotlinWasmJs
+
+  # Full tier: Android instrumented tests on cached AVD snapshot
+  android-tests:
+    needs: [detect]
+    if: needs.detect.outputs.tier == 'full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update local.properties
+        run: .github/scripts/update_properties.sh
 
       - name: Enable KVM
         run: |
@@ -147,8 +195,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -162,13 +209,10 @@ jobs:
             ~/.android/adb*
           key: avd-30-google-apis
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: false
-          gradle-home-cache-cleanup: false
+          cache-read-only: true
 
-      # Create AVD if needed
       - name: Create AVD and generate snapshot for caching
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
@@ -181,10 +225,7 @@ jobs:
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
 
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
-
-      # Run tests with the specific configuration
+      # -no-snapshot-save keeps snapshot load (fast boot) but skips the save on exit
       - name: Run tests
         env:
           ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 1
@@ -194,20 +235,19 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: false
-          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew connectedCheck --no-daemon -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
+          script: ./gradlew connectedCheck --no-daemon
 
-      # Process coverage data
-      - name: Rename coverage report
+      - name: Collect coverage
         run: |
-          mkdir -p composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/
-          find composeApp/build/outputs/code_coverage/ -name "*.ec" -exec cp {} composeApp/build/outputs/code_coverage/${{ matrix.shard_index }}/ \;
+          mkdir -p composeApp/build/outputs/code_coverage/connected/
+          find composeApp/build/outputs/code_coverage/ -name "*.ec" -exec cp {} composeApp/build/outputs/code_coverage/connected/ \;
 
-      - name: Upload coverage to GitHub
+      - name: Upload Android coverage
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-android-${{ matrix.shard_index }}
+          name: coverage-report-android
           path: composeApp/build/outputs/code_coverage/
           retention-days: 1
 
@@ -215,38 +255,29 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-test-results-${{ matrix.shard_index }}
+          name: android-test-results
           path: composeApp/build/outputs/androidTest-results/connected/*.xml
           retention-days: 1
 
-  # Run wasmJs tests (no coverage - Kover does not support wasmJs)
+  # Full tier: wasmJs tests (no coverage - Kover does not support wasmJs)
   wasm-tests:
-    needs: [is-check-necessary]
-    if: needs.is-check-necessary.outputs.should_run == 'true'
+    needs: [detect]
+    if: needs.detect.outputs.tier == 'full'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Update local.properties
-        run: |
-          chmod +x .github/scripts/update_properties.sh
-          .github/scripts/update_properties.sh
+        run: .github/scripts/update_properties.sh
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: false
-          gradle-home-cache-cleanup: false
-
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
+          cache-read-only: true
 
       - name: Run wasm tests
         run: ./gradlew :composeApp:wasmJsTest --no-configuration-cache
@@ -259,12 +290,14 @@ jobs:
           path: composeApp/build/test-results/wasmJsBrowserTest/*.xml
           retention-days: 1
 
-  # Publish test results
+  # Publish aggregated test results and badge
   publish-test-results:
     name: Publish Test Results
     runs-on: ubuntu-latest
-    needs: [is-check-necessary, android-tests, jvm-tests, wasm-tests]
-    if: always() && needs.is-check-necessary.outputs.should_run == 'true'
+    needs: [detect, jvm-tests, android-tests, wasm-tests]
+    if: >
+      always() && needs.detect.outputs.tier != 'noop' &&
+      (needs.jvm-tests.result == 'success' || needs.jvm-tests.result == 'failure')
     permissions:
       checks: write
       pull-requests: write
@@ -273,22 +306,20 @@ jobs:
     steps:
       - name: Download JVM test results
         uses: actions/download-artifact@v4
-        if: always()
         with:
           name: jvm-test-results
           path: test-results/jvm
 
       - name: Download Android test results
+        if: needs.detect.outputs.tier == 'full' && needs.android-tests.result != 'skipped'
         uses: actions/download-artifact@v4
-        if: always()
         with:
-          pattern: android-test-results-*
+          name: android-test-results
           path: test-results/android
-          merge-multiple: true
 
       - name: Download Wasm test results
+        if: needs.detect.outputs.tier == 'full' && needs.wasm-tests.result != 'skipped'
         uses: actions/download-artifact@v4
-        if: always()
         with:
           name: wasm-test-results
           path: test-results/wasm
@@ -296,7 +327,6 @@ jobs:
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         id: test-results
-        if: always()
         with:
           files: |
             test-results/**/*.xml
@@ -305,7 +335,6 @@ jobs:
 
       - name: Set badge color
         shell: bash
-        if: always()
         run: |
           case ${{ fromJSON( steps.test-results.outputs.json ).conclusion }} in
             success)
@@ -321,7 +350,6 @@ jobs:
 
       - name: Create badge
         uses: emibcn/badge-action@808173dd03e2f30c980d03ee49e181626088eee8
-        if: always()
         with:
           label: Tests
           status: '${{ fromJSON( steps.test-results.outputs.json ).formatted.stats.tests }} tests passed'
@@ -329,31 +357,32 @@ jobs:
           path: badge.svg
 
       - name: Upload badge to Gist
-        if: >
-          always() &&
-          (github.event_name == 'push' && github.ref == 'refs/heads/master' ||
-          github.event_name == 'schedule')
+        if: github.event_name == 'schedule'
         uses: andymckay/append-gist-action@6e8d64427fe47cbacf4ab6b890411f1d67c07f3e
         with:
           token: ${{ secrets.GIST_TOKEN }}
           gistURL: https://gist.githubusercontent.com/Axl-Lvy/${{ secrets.GIST_ID }}
           file: badge.svg
 
-  # Sonar analysis with JVM + Android coverage
+  # Sonar analysis: runs on cheap (JVM coverage only) and full (JVM + Android)
   sonar-analysis:
     name: Sonar analysis
     runs-on: ubuntu-latest
-    needs: [is-check-necessary, android-tests, jvm-tests]
-    if: needs.is-check-necessary.outputs.should_run == 'true'
+    needs: [detect, jvm-tests, android-tests]
+    if: >
+      needs.detect.outputs.tier != 'noop' &&
+      needs.jvm-tests.result == 'success' &&
+      (needs.android-tests.result == 'success' || needs.android-tests.result == 'skipped')
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download android coverage reports
+      - name: Download Android coverage
+        if: needs.detect.outputs.tier == 'full'
         uses: actions/download-artifact@v4
         with:
-          pattern: coverage-report-*
+          name: coverage-report-android
           path: composeApp/build/outputs/code_coverage/
 
       - name: Download JVM Kover report
@@ -362,21 +391,20 @@ jobs:
           name: kover-report-jvm
           path: composeApp/build/reports/kover/
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: 'zulu'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
 
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
-
-      - name: Compile sources and generate JaCoCo XML reports
+      - name: Compile sources and generate Android coverage report
         run: |
-          ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac jacocoAndroidTestReport
+          if [ "${{ needs.detect.outputs.tier }}" = "full" ]; then
+            ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac jacocoAndroidTestReport
+          else
+            ./gradlew --build-cache compileDebugKotlinAndroid compileDebugJavaWithJavac
+          fi
 
       - name: Analyze with coverage
         env:
@@ -389,74 +417,45 @@ jobs:
             ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
           fi
 
-  # Check code formatting using ktfmt
-  format-check:
-    needs: [is-check-necessary]
-    if: needs.is-check-necessary.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
-
-      - name: Run formatter check
-        run: ./gradlew ktfmtCheck
-
-  # Final status check - always succeeds if jobs passed or were skipped
-  # This is the job that should be required in branch protection rules
+  # Final status check - this is the job that should be required in branch protection
   check-status:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [is-check-necessary, jvm-tests, android-tests, wasm-tests, publish-test-results, sonar-analysis, format-check]
+    needs: [detect, format-check, jvm-tests, compile-multiplat, android-tests, wasm-tests, publish-test-results, sonar-analysis]
     if: always()
     steps:
       - name: Check job results
+        env:
+          TIER: ${{ needs.detect.outputs.tier }}
+          FORMAT: ${{ needs.format-check.result }}
+          JVM: ${{ needs.jvm-tests.result }}
+          MULTIPLAT: ${{ needs.compile-multiplat.result }}
+          ANDROID: ${{ needs.android-tests.result }}
+          WASM: ${{ needs.wasm-tests.result }}
+          PUBLISH: ${{ needs.publish-test-results.result }}
+          SONAR: ${{ needs.sonar-analysis.result }}
         run: |
-          # If is-check-necessary said we should skip, that's a success
-          if [ "${{ needs.is-check-necessary.outputs.should_run }}" == "false" ]; then
-            echo "No Kotlin/Java files modified - checks skipped successfully"
+          fail() { echo "$1 failed (result=$2)"; exit 1; }
+
+          echo "Resolved tier: $TIER"
+
+          if [ "$TIER" = "noop" ]; then
+            echo "No code changes detected, skipping checks"
             exit 0
           fi
 
-          # Otherwise, check that all jobs succeeded
-          if [ "${{ needs.jvm-tests.result }}" != "success" ]; then
-            echo "JVM tests failed or were cancelled"
-            exit 1
+          [ "$FORMAT"  = "success" ] || fail format-check "$FORMAT"
+          [ "$JVM"     = "success" ] || fail jvm-tests "$JVM"
+          [ "$PUBLISH" = "success" ] || fail publish-test-results "$PUBLISH"
+          [ "$SONAR"   = "success" ] || fail sonar-analysis "$SONAR"
+
+          if [ "$TIER" = "cheap" ]; then
+            [ "$MULTIPLAT" = "success" ] || fail compile-multiplat "$MULTIPLAT"
           fi
 
-          if [ "${{ needs.android-tests.result }}" != "success" ]; then
-            echo "Android tests failed or were cancelled"
-            exit 1
+          if [ "$TIER" = "full" ]; then
+            [ "$ANDROID" = "success" ] || fail android-tests "$ANDROID"
+            [ "$WASM"    = "success" ] || fail wasm-tests "$WASM"
           fi
 
-          if [ "${{ needs.wasm-tests.result }}" != "success" ]; then
-            echo "WasmJs tests failed or were cancelled"
-            exit 1
-          fi
-
-          if [ "${{ needs.publish-test-results.result }}" != "success" ]; then
-            echo "Publish test results failed or was cancelled"
-            exit 1
-          fi
-
-          if [ "${{ needs.sonar-analysis.result }}" != "success" ]; then
-            echo "Sonar analysis failed or was cancelled"
-            exit 1
-          fi
-
-          if [ "${{ needs.format-check.result }}" != "success" ]; then
-            echo "Format check failed or was cancelled"
-            exit 1
-          fi
-
-          echo "All checks passed successfully"
+          echo "All checks passed (tier=$TIER)"
