@@ -4,7 +4,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionKey
 
 class TestNavigationHistory {
@@ -12,8 +11,8 @@ class TestNavigationHistory {
   private val startPos = PositionKey("start w K")
   private val posA = PositionKey("posA b K")
   private val posB = PositionKey("posB w K")
-  private val moveToA = DataMove(startPos, posA, "e4")
-  private val moveToB = DataMove(posA, posB, "e5")
+  private val moveToA = Edge(from = startPos, move = "e4", to = posA)
+  private val moveToB = Edge(from = posA, move = "e5", to = posB)
 
   @Test
   fun pushThenBackReturnsOriginalPosition() {
@@ -56,7 +55,7 @@ class TestNavigationHistory {
     nav.back()
     // Push a different move — should clear forward stack
     val posC = PositionKey("posC b K")
-    val moveToC = DataMove(startPos, posC, "d4")
+    val moveToC = Edge(from = startPos, move = "d4", to = posC)
     nav.push(moveToC, posC)
     assertNull(nav.forward())
   }

@@ -1,150 +1,169 @@
 package proj.memorchess.axl.core.graph
 
-import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.PositionKey
 
-/** Pure graph of chess positions and moves, keyed by [PositionKey]. */
+/**
+ * Pure in memory graph of chess positions keyed by [PositionKey].
+ *
+ * The tree only knows about [Node] and [Edge]. It has no persistence, no scheduling and no I/O.
+ * Every mutation produces a new immutable [Node]; the tree's internal map is replaced atomically
+ * via [snapshot] and [replaceFrom] when callers want to swap in a freshly loaded graph.
+ *
+ * All mutators are package internal. Production code only mutates the tree through
+ * [TreeStore][TreeStore]. Tests should also go through [TreeStore] to keep persistence and the
+ * cache in sync.
+ */
 class OpeningTree {
 
-  private val positions = mutableMapOf<PositionKey, MutablePreviousAndNextMoves>()
-  private val depths = mutableMapOf<PositionKey, Int>()
+  private var positions: Map<PositionKey, Node> = emptyMap()
+
+  /** Returns the [Node] for [positionKey], or `null` when the position is not in the graph. */
+  fun get(positionKey: PositionKey): Node? = positions[positionKey]
 
   /**
-   * Get-or-create a position, updating depth to the minimum seen.
-   *
-   * @param positionKey The position to get or create.
-   * @param depth The depth at which this position is being reached.
-   * @return The [MutablePreviousAndNextMoves] for the position.
+   * Returns the depth of [positionKey], or [Int.MAX_VALUE] when the position is not in the graph.
    */
-  fun getOrCreate(positionKey: PositionKey, depth: Int): MutablePreviousAndNextMoves {
-    updateDepth(positionKey, depth)
-    return positions.getOrPut(positionKey) { MutablePreviousAndNextMoves() }
-  }
+  fun getDepth(positionKey: PositionKey): Int = positions[positionKey]?.depth ?: Int.MAX_VALUE
 
-  /** Gets moves for the given position, or null if not present. */
-  fun get(positionKey: PositionKey): MutablePreviousAndNextMoves? = positions[positionKey]
-
-  /** Sets moves for the given position. */
-  fun put(positionKey: PositionKey, moves: MutablePreviousAndNextMoves) {
-    positions[positionKey] = moves
-  }
-
-  /** Gets or inserts a default value for the given position. */
-  fun getOrPut(
-    positionKey: PositionKey,
-    default: () -> MutablePreviousAndNextMoves,
-  ): MutablePreviousAndNextMoves {
-    return positions.getOrPut(positionKey, default)
-  }
-
-  /**
-   * Updates the depth of a position to the minimum of the current and the given depth.
-   *
-   * @param positionKey The position to update.
-   * @param depth The new depth candidate.
-   */
-  fun updateDepth(positionKey: PositionKey, depth: Int) {
-    val current = depths[positionKey]
-    if (current == null || current > depth) {
-      depths[positionKey] = depth
-    }
-  }
-
-  /** Returns the depth of a position, or [Int.MAX_VALUE] if unknown. */
-  fun getDepth(positionKey: PositionKey): Int = depths[positionKey] ?: Int.MAX_VALUE
-
-  /** Checks if a position is known in the tree. */
+  /** Checks whether [positionKey] is in the graph. */
   fun isKnown(positionKey: PositionKey): Boolean = positionKey in positions
 
-  /** Removes a position. */
-  fun removePosition(positionKey: PositionKey) {
-    positions.remove(positionKey)
-    depths.remove(positionKey)
-  }
-
-  /** Clears all next moves for the given position. */
-  fun clearNextMoves(positionKey: PositionKey) {
-    positions[positionKey]?.clearNextMoves()
-  }
-
-  /** Clears a specific previous move for the given position. */
-  fun clearPreviousMove(positionKey: PositionKey, moveString: String) {
-    positions[positionKey]?.removePreviousMove(moveString)
-  }
-
-  /** Clears the entire tree. */
-  fun clear() {
-    positions.clear()
-    depths.clear()
-  }
+  /** Returns an immutable snapshot of every node currently in the graph. */
+  fun snapshot(): Map<PositionKey, Node> = positions
 
   /**
-   * Compute state for a position given which position we arrived from.
-   *
-   * @param positionKey The position to compute state for.
-   * @param arrivedFrom The position we arrived from (null at root).
-   * @return The computed [NodeState].
+   * Counts positions in the subtree rooted at [positionKey] that would be deleted in a recursive
+   * delete. A child is only counted if it has no other parents.
    */
-  fun computeState(positionKey: PositionKey, arrivedFrom: PositionKey?): NodeState {
-    val moves = positions[positionKey] ?: return NodeState.UNKNOWN
-    val previousMoves = moves.previousMoves
-    if (previousMoves.isEmpty()) return NodeState.FIRST
-
-    var isGood: Boolean? = null
-    var isPreviousMoveGood: Boolean? = null
-    previousMoves.forEach {
-      if (it.value.isGood == true) {
-        if (isGood == false) return NodeState.BAD_STATE
-        isGood = true
-      } else if (it.value.isGood == false) {
-        if (isGood == true) return NodeState.BAD_STATE
-        isGood = false
-      }
-      if (arrivedFrom != null && arrivedFrom == it.value.origin) {
-        isPreviousMoveGood = it.value.isGood
-      }
-    }
-    return determineState(isGood, isPreviousMoveGood)
-  }
-
-  /**
-   * Count positions in the subtree that would be deleted.
-   *
-   * @param positionKey The root position for deletion counting.
-   * @param viaMove The move that led to this position (null for root of deletion).
-   * @return The number of positions that would be deleted.
-   */
-  fun countDescendants(positionKey: PositionKey, viaMove: DataMove? = null): Int {
-    val moves = positions[positionKey] ?: return 0
-    if (viaMove != null && moves.previousMoves.size > 1) {
+  fun countDescendants(positionKey: PositionKey, viaMove: String? = null): Int {
+    val node = positions[positionKey] ?: return 0
+    if (viaMove != null && node.incoming.size > 1) {
       return 0
     }
     var count = 1
-    moves.nextMoves.values.forEach { nextMove ->
-      count += countDescendants(nextMove.destination, nextMove)
-    }
+    node.outgoing.values.forEach { edge -> count += countDescendants(edge.to, edge.move) }
     return count
   }
 
-  private fun determineState(isGood: Boolean?, isPreviousMoveGood: Boolean?): NodeState {
-    return when (isGood) {
+  /**
+   * Computes the [NodeState] for [positionKey] given which position we arrived from.
+   *
+   * @param positionKey Position to compute the state for.
+   * @param arrivedFrom Origin position the user came from, or `null` when no path is tracked.
+   */
+  fun computeState(positionKey: PositionKey, arrivedFrom: PositionKey?): NodeState {
+    val node = positions[positionKey] ?: return NodeState.UNKNOWN
+    val incoming = node.incoming
+    if (incoming.isEmpty()) return NodeState.FIRST
+
+    var aggregateGood: Boolean? = null
+    var arrivalGood: Boolean? = null
+    for (edge in incoming.values) {
+      when (edge.isGood) {
+        true -> {
+          if (aggregateGood == false) return NodeState.BAD_STATE
+          aggregateGood = true
+        }
+        false -> {
+          if (aggregateGood == true) return NodeState.BAD_STATE
+          aggregateGood = false
+        }
+        null -> Unit
+      }
+      if (arrivedFrom != null && arrivedFrom == edge.from) {
+        arrivalGood = edge.isGood
+      }
+    }
+    return determineState(aggregateGood, arrivalGood)
+  }
+
+  // --- Package internal mutators. Callers must route through TreeStore. ---
+
+  /**
+   * Replaces the entire graph with [newPositions]. Used to swap in a freshly rebuilt cache without
+   * exposing intermediate states.
+   */
+  internal fun replaceFrom(newPositions: Map<PositionKey, Node>) {
+    positions = newPositions
+  }
+
+  /** Empties the graph. */
+  internal fun clear() {
+    positions = emptyMap()
+  }
+
+  /** Returns the node at [positionKey], creating an empty one with the given [depth] if missing. */
+  internal fun ensure(positionKey: PositionKey, depth: Int): Node {
+    val existing = positions[positionKey]
+    if (existing != null) {
+      return if (depth < existing.depth) {
+        existing.copy(depth = depth).also { positions = positions + (positionKey to it) }
+      } else {
+        existing
+      }
+    }
+    val created = Node(positionKey = positionKey, depth = depth)
+    positions = positions + (positionKey to created)
+    return created
+  }
+
+  /** Inserts or replaces the node at [Node.positionKey]. */
+  internal fun put(node: Node) {
+    positions = positions + (node.positionKey to node)
+  }
+
+  /** Removes the node at [positionKey], if any. Does not touch other nodes' edges. */
+  internal fun removeNode(positionKey: PositionKey) {
+    positions = positions - positionKey
+  }
+
+  /**
+   * Adds or replaces [edge] in the graph, updating the endpoint nodes' [Node.outgoing] and
+   * [Node.incoming] maps in lockstep. Nodes are created on demand at [fromDepth] and [fromDepth] +
+   * 1 when missing.
+   */
+  internal fun upsertEdge(edge: Edge, fromDepth: Int) {
+    val from = ensure(edge.from, fromDepth)
+    val to = ensure(edge.to, fromDepth + 1)
+    val newFrom = from.copy(outgoing = from.outgoing + (edge.move to edge))
+    val newTo = to.copy(incoming = to.incoming + (edge.move to edge))
+    positions = positions + mapOf(edge.from to newFrom, edge.to to newTo)
+  }
+
+  /**
+   * Removes the edge identified by [from] + [move] from both endpoints. The endpoint nodes
+   * themselves remain in the graph.
+   */
+  internal fun removeEdge(from: PositionKey, move: String) {
+    val originNode = positions[from] ?: return
+    val edge = originNode.outgoing[move] ?: return
+    val updates = mutableMapOf<PositionKey, Node>()
+    updates[from] = originNode.copy(outgoing = originNode.outgoing - move)
+    val destinationNode = positions[edge.to]
+    if (destinationNode != null) {
+      updates[edge.to] = destinationNode.copy(incoming = destinationNode.incoming - move)
+    }
+    positions = positions + updates
+  }
+
+  private fun determineState(aggregateGood: Boolean?, arrivalGood: Boolean?): NodeState =
+    when (aggregateGood) {
       null ->
-        when (isPreviousMoveGood) {
+        when (arrivalGood) {
           null -> NodeState.UNKNOWN
           else -> NodeState.BAD_STATE
         }
       true ->
-        when (isPreviousMoveGood) {
+        when (arrivalGood) {
           null -> NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE
           true -> NodeState.SAVED_GOOD
           false -> NodeState.BAD_STATE
         }
       false ->
-        when (isPreviousMoveGood) {
+        when (arrivalGood) {
           null -> NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE
           true -> NodeState.BAD_STATE
           false -> NodeState.SAVED_BAD
         }
     }
-  }
 }

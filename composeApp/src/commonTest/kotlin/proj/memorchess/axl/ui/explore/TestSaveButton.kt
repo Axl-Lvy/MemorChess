@@ -10,7 +10,6 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
@@ -31,7 +30,7 @@ class TestSaveButton : TestWithKoin() {
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     koinSetUp()
     try {
-      runTest { database.deleteAll(DateUtil.farInThePast()) }
+      runTest { database.eraseAll() }
       runComposeUiTest {
         setContent { InitializeApp { Explore() } }
         playMove("h2", "h3")

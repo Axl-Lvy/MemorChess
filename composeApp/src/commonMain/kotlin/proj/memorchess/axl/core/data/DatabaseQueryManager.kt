@@ -1,50 +1,54 @@
 package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.graph.DeleteMode
 
-/** Interface for the application's database operations on positions. */
+/**
+ * Low level persistence seam for the opening tree.
+ *
+ * Only [proj.memorchess.axl.core.graph.TreeStore] and the platform specific implementations are
+ * expected to touch this interface. The rest of the application talks to
+ * [proj.memorchess.axl.core.graph.TreeStore].
+ */
 interface DatabaseQueryManager {
 
   /**
    * Retrieves all stored positions.
    *
-   * @return A list of all stored positions as [DataNode] objects.
+   * @param withDeletedOnes When `true`, includes rows flagged with [DataNode.isDeleted].
    */
   suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<DataNode>
 
-  /** Retrieves a specific position. */
+  /** Retrieves a specific position, or `null` when missing or soft deleted. */
   suspend fun getPosition(positionKey: PositionKey): DataNode?
 
   /**
-   * Deletes a specific position by its FEN.
+   * Deletes a single position and any incident moves.
    *
-   * @param position The position to delete.
+   * @param position Position to remove.
+   * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
    */
-  suspend fun deletePosition(position: PositionKey)
+  suspend fun deletePosition(position: PositionKey, mode: DeleteMode = DeleteMode.HARD)
 
   /**
-   * Deletes a node
+   * Deletes a single move.
    *
-   * @param origin The origin of the move
-   * @param move The name of move to delete
+   * @param origin Origin of the move.
+   * @param move Move in standard algebraic notation.
+   * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
    */
-  suspend fun deleteMove(origin: PositionKey, move: String)
+  suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode = DeleteMode.HARD)
+
+  /** Hard wipe of every node and move. */
+  suspend fun eraseAll()
 
   /**
-   * Deletes all positions and moves.
+   * Inserts new positions.
    *
-   * @param hardFrom Everything is not entirely deleted, but marked as deleted. Except for entities
-   *   that where updated after this date.
-   */
-  suspend fun deleteAll(hardFrom: Instant?)
-
-  /**
-   * Inserts a new position.
-   *
-   * @param positions The [DataNode] to insert.
+   * @param positions The [DataNode] objects to insert.
    */
   suspend fun insertNodes(vararg positions: DataNode)
 
-  /** Retrieves the last move update time. */
+  /** Retrieves the latest `updatedAt` across nodes and moves. */
   suspend fun getLastUpdate(): Instant?
 }

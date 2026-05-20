@@ -17,6 +17,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
+import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
 
@@ -258,84 +259,66 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deletePosition(position: PositionKey) {
+  override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {
     val database = db()
     database.writeTransaction(NODES_STORE, MOVES_STORE) {
       val nodesStore = objectStore(NODES_STORE)
       val movesStore = objectStore(MOVES_STORE)
-
-      // Soft-delete the node
-      val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
-      if (jsNode != null && !jsNode.isDeleted) {
-        jsNode.isDeleted = true
-        nodesStore.put(jsNode)
-      }
-
-      // Soft-delete moves from this position (origin)
       val originMoves: List<JsMoveEntity> =
         movesStore.index("origin").getAll(Key(position.value.toJsString())).toList()
-      for (move in originMoves) {
-        if (!move.isDeleted) {
-          move.isDeleted = true
-          movesStore.put(move)
-        }
-      }
-
-      // Soft-delete moves to this position (destination)
       val destMoves: List<JsMoveEntity> =
         movesStore.index("destination").getAll(Key(position.value.toJsString())).toList()
-      for (move in destMoves) {
-        if (!move.isDeleted) {
-          move.isDeleted = true
-          movesStore.put(move)
+
+      when (mode) {
+        DeleteMode.HARD -> {
+          for (move in originMoves + destMoves) {
+            movesStore.delete(Key(move.origin.toJsString(), move.destination.toJsString()))
+          }
+          nodesStore.delete(Key(position.value.toJsString()))
+        }
+        DeleteMode.SOFT -> {
+          val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
+          if (jsNode != null && !jsNode.isDeleted) {
+            jsNode.isDeleted = true
+            nodesStore.put(jsNode)
+          }
+          for (move in originMoves + destMoves) {
+            if (!move.isDeleted) {
+              move.isDeleted = true
+              movesStore.put(move)
+            }
+          }
         }
       }
     }
   }
 
-  override suspend fun deleteMove(origin: PositionKey, move: String) {
+  override suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode) {
     val database = db()
     database.writeTransaction(MOVES_STORE) {
       val movesStore = objectStore(MOVES_STORE)
       val moves: List<JsMoveEntity> =
         movesStore.index("origin").getAll(Key(origin.value.toJsString())).toList()
       for (m in moves) {
-        if (m.move == move && !m.isDeleted) {
-          m.isDeleted = true
-          movesStore.put(m)
+        if (m.move != move) continue
+        when (mode) {
+          DeleteMode.HARD ->
+            movesStore.delete(Key(m.origin.toJsString(), m.destination.toJsString()))
+          DeleteMode.SOFT ->
+            if (!m.isDeleted) {
+              m.isDeleted = true
+              movesStore.put(m)
+            }
         }
       }
     }
   }
 
-  override suspend fun deleteAll(hardFrom: Instant?) {
+  override suspend fun eraseAll() {
     val database = db()
     database.writeTransaction(NODES_STORE, MOVES_STORE) {
-      val nodesStore = objectStore(NODES_STORE)
-      val movesStore = objectStore(MOVES_STORE)
-      val threshold = hardFrom?.epochSeconds?.toDouble()
-
-      // Process all nodes: hard-delete if newer than threshold, else soft-delete
-      val allNodes: List<JsNodeEntity> = nodesStore.getAll().toList()
-      for (node in allNodes) {
-        if (threshold != null && node.updatedAt >= threshold) {
-          nodesStore.delete(Key(node.positionKey.toJsString()))
-        } else if (!node.isDeleted) {
-          node.isDeleted = true
-          nodesStore.put(node)
-        }
-      }
-
-      // Process all moves: hard-delete if newer than threshold, else soft-delete
-      val allMoves: List<JsMoveEntity> = movesStore.getAll().toList()
-      for (move in allMoves) {
-        if (threshold != null && move.updatedAt >= threshold) {
-          movesStore.delete(Key(move.origin.toJsString(), move.destination.toJsString()))
-        } else if (!move.isDeleted) {
-          move.isDeleted = true
-          movesStore.put(move)
-        }
-      }
+      objectStore(MOVES_STORE).clear()
+      objectStore(NODES_STORE).clear()
     }
   }
 
