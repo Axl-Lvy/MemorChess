@@ -379,7 +379,10 @@ jobs:
     name: Sonar analysis
     runs-on: ubuntu-latest
     needs: [detect, jvm-tests, android-tests]
+    # always() is required to evaluate this if when android-tests is skipped
+    # on the cheap tier
     if: >
+      always() &&
       needs.detect.outputs.tier != 'noop' &&
       needs.jvm-tests.result == 'success' &&
       (needs.android-tests.result == 'success' || needs.android-tests.result == 'skipped')
