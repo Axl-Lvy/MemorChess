@@ -35,24 +35,23 @@ object GraphSerializer {
     val sorted = liveNodes.sortedBy { it.positionKey.value }
     val indexByKey = buildMap { sorted.forEachIndexed { i, node -> put(node.positionKey, i + 1) } }
 
-    val nodeLines =
-      sorted.mapIndexed { i, node ->
-        val idx = i + 1
-        val card = node.cardState
-        listOf(
-            idx,
-            node.positionKey.value,
-            node.depth,
-            card.dueDate,
-            card.lastReview?.toString() ?: NULL_TOKEN,
-            card.stability,
-            card.difficulty,
-            card.reps,
-            card.lapses,
-            node.updatedAt,
-          )
-          .joinToString(TAB)
-      }
+    val nodeLines = sorted.mapIndexed { i, node ->
+      val idx = i + 1
+      val card = node.cardState
+      listOf(
+          idx,
+          node.positionKey.value,
+          node.depth,
+          card.dueDate,
+          card.lastReview?.toString() ?: NULL_TOKEN,
+          card.stability,
+          card.difficulty,
+          card.reps,
+          card.lapses,
+          node.updatedAt,
+        )
+        .joinToString(TAB)
+    }
 
     val edges = buildList {
       for (node in sorted) {
