@@ -34,7 +34,7 @@ sonar {
 
     property(
       "sonar.sources",
-      "src/commonMain/kotlin,src/androidMain/kotlin,src/nonJsMain/kotlin,src/wasmJsMain/kotlin,src/jvmMain/kotlin",
+      "src/commonMain/kotlin,src/androidMain/kotlin,src/nonJsMain/kotlin,src/wasmJsMain/kotlin,src/jvmMain/kotlin,src/iosMain/kotlin",
     )
 
     property("sonar.tests", "src/commonTest/kotlin,src/androidTest/kotlin")
@@ -48,7 +48,10 @@ sonar {
 
     property(
       "sonar.coverage.exclusions",
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt",
+      // wasmJsMain and iosMain are excluded from coverage because Kover does not support
+      // Kotlin/JS or Kotlin/Native instrumentation (kotlinx-kover#293). Files in these
+      // source sets are still analyzed for code quality (bugs, smells, vulnerabilities).
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt",
     )
 
     // PL/SQL specific configuration for SQL files
