@@ -51,7 +51,9 @@ sonar {
       // wasmJsMain and iosMain are excluded from coverage because Kover does not support
       // Kotlin/JS or Kotlin/Native instrumentation (kotlinx-kover#293). Files in these
       // source sets are still analyzed for code quality (bugs, smells, vulnerabilities).
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt",
+      // ui/** is excluded because @Composable functions emit synthetic branches that
+      // JaCoCo can't filter, inflating uncovered-condition counts on otherwise covered code.
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt",
     )
 
     // PL/SQL specific configuration for SQL files
