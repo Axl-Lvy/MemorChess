@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>MemorChess — Kinetic · Settings · Mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link href="kinetic-base.css" rel="stylesheet" />
+    <style>
+      body { display: block; }
+
+      .phone-app {
+        position: absolute;
+        inset: 44px 0 0 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        height: calc(100% - 44px);
+        background: var(--bg);
+        background-image: radial-gradient(ellipse 50% 30% at 0% 0%, var(--accent-soft), transparent 70%);
+      }
+
+      /* HEAD */
+      .m-head {
+        padding: 12px 16px 12px;
+        border-bottom: 1px solid var(--line);
+        position: relative;
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .m-head::after {
+        content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent) 70%, transparent);
+        opacity: 0.5;
+      }
+      .m-head .title {
+        flex: 1;
+      }
+      .m-head .tag {
+        font-family: var(--mono); font-size: 9px;
+        color: var(--accent-text); letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .m-head .tag::before { content: "▍"; margin-right: 4px; }
+      .m-head h1 {
+        margin-top: 3px;
+        font-family: var(--display); font-weight: 700;
+        font-size: 28px; line-height: 0.95; letter-spacing: -0.04em;
+      }
+      .m-head h1 em { color: var(--accent-text); font-style: italic; }
+      .m-toggle {
+        background: transparent;
+        border: 1px solid var(--line-bright);
+        color: var(--ink-2);
+        width: 36px; height: 36px;
+        display: grid; place-items: center;
+        cursor: pointer;
+      }
+      .m-toggle svg { width: 15px; height: 15px; }
+      .m-toggle .moon { display: none; }
+      [data-theme="light"] .m-toggle .sun { display: none; }
+      [data-theme="light"] .m-toggle .moon { display: inline-block; }
+
+      .content {
+        overflow-y: auto;
+        padding: 16px 14px 28px;
+        scrollbar-width: thin;
+      }
+      .content::-webkit-scrollbar { width: 4px; }
+      .content::-webkit-scrollbar-thumb { background: var(--line-bright); }
+
+      .section { margin-bottom: 20px; }
+      .section:last-child { margin-bottom: 0; }
+      .section-h {
+        display: flex; align-items: baseline; justify-content: space-between;
+        padding: 0 2px 6px;
+      }
+      .section-h h2 {
+        font-family: var(--display); font-weight: 700;
+        font-size: 13px; letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .section-h h2 b { color: var(--accent-text); }
+      .section-h .n {
+        font-family: var(--mono); font-size: 9px;
+        color: var(--ink-4); letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .group {
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      .group .row {
+        padding: 14px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .group .row:last-child { border-bottom: none; }
+      .row .top {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px;
+      }
+      .row .top .info { flex: 1; }
+      .row .ttl {
+        font-family: var(--display); font-weight: 700;
+        font-size: 14px; letter-spacing: -0.015em;
+        line-height: 1.2;
+      }
+      .row .desc {
+        margin-top: 3px;
+        font-size: 11.5px; color: var(--ink-3);
+        line-height: 1.4;
+      }
+      .row .val {
+        font-family: var(--mono); font-size: 11px;
+        color: var(--accent-text); letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      .segs { margin-top: 12px; }
+
+      /* swatches */
+      .swatches {
+        margin-top: 12px;
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+      }
+      .swatch {
+        position: relative;
+        aspect-ratio: 1;
+        cursor: pointer;
+        border: 1px solid var(--line-bright);
+        overflow: hidden;
+      }
+      .swatch.active {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .swatch .grid-bg {
+        position: absolute; inset: 0;
+        background-image:
+          linear-gradient(45deg, var(--swatch-dark) 25%, transparent 25%),
+          linear-gradient(-45deg, var(--swatch-dark) 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, var(--swatch-dark) 75%),
+          linear-gradient(-45deg, transparent 75%, var(--swatch-dark) 75%);
+        background-size: 12px 12px;
+        background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+        background-color: var(--swatch-light);
+      }
+      .swatch .nm {
+        position: absolute; bottom: 3px; left: 5px; right: 5px;
+        font-family: var(--mono); font-size: 8px;
+        color: rgba(255, 255, 255, 0.92);
+        letter-spacing: 0.08em; text-transform: uppercase;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      }
+      .swatch.active::after {
+        content: "✓";
+        position: absolute; top: 3px; right: 4px;
+        font-weight: 700; color: var(--accent-text);
+        background: var(--panel); padding: 1px 3px;
+        font-size: 9px; line-height: 1;
+      }
+
+      /* slider compact */
+      .slider-row { margin-top: 12px; gap: 14px; }
+      .slider { height: 22px; }
+      .slider .track, .slider .fill { height: 3px; }
+      .slider .thumb { width: 12px; height: 12px; }
+      .slider-row .value { font-size: 20px; min-width: 56px; }
+      .slider-row .value small { font-size: 11px; }
+
+      /* lichess account */
+      .lichess {
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        gap: 12px; align-items: center;
+      }
+      .lichess .avatar {
+        width: 44px; height: 44px;
+        background: radial-gradient(ellipse at 30% 30%, var(--cyan), #1f6f7c);
+        border: 1px solid var(--line-bright);
+        display: grid; place-items: center;
+        font-family: var(--display); font-weight: 700;
+        font-size: 19px; color: #001318;
+      }
+      .lichess .nm {
+        font-family: var(--display); font-weight: 700;
+        font-size: 15px; letter-spacing: -0.015em;
+      }
+      .lichess .nm .at { color: var(--ink-3); font-weight: 400; font-size: 13px; }
+      .lichess .meta {
+        font-family: var(--mono); font-size: 9.5px;
+        color: var(--ink-3); margin-top: 3px;
+      }
+      .lichess .meta b { color: var(--cyan); }
+
+      .btn-row {
+        margin-top: 12px;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      }
+      .btn {
+        height: 38px;
+        font-size: 11px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      /* danger group */
+      .danger-group {
+        background:
+          linear-gradient(135deg, var(--red-soft), transparent 70%),
+          var(--panel);
+        border: 1px solid var(--red-dim);
+        position: relative;
+      }
+      .danger-group::before {
+        content: "";
+        position: absolute; top: 0; left: 0; bottom: 0; width: 3px;
+        background: var(--red);
+      }
+      .danger-group .row { border-bottom: 1px solid var(--red-dim); }
+      .danger-group .row:last-child { border-bottom: none; }
+      .danger-group .row.danger-action .ttl { color: var(--red); }
+
+      /* stats grid */
+      .stats-row {
+        margin-top: 12px;
+        display: grid; grid-template-columns: repeat(4, 1fr);
+        gap: 1px; background: var(--line);
+        border: 1px solid var(--line);
+      }
+      .stats-row .m {
+        padding: 10px 8px;
+        background: var(--panel);
+      }
+      .stats-row .k {
+        font-family: var(--mono); font-size: 8.5px;
+        color: var(--ink-4); letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .stats-row .v {
+        margin-top: 4px;
+        font-family: var(--display); font-weight: 700;
+        font-size: 15px; letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .stats-row .v.accent { color: var(--accent-text); }
+
+      .live-hint {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        border: 1px dashed var(--accent-dim);
+        background: var(--accent-soft);
+        color: var(--accent-text);
+        font-family: var(--mono); font-size: 10px;
+        letter-spacing: 0.04em;
+        line-height: 1.4;
+      }
+      .live-hint b { font-weight: 600; }
+    </style>
+  </head>
+  <body class="phone-host">
+    <div class="phone bg-glow">
+      <div class="statusbar">
+        <span>09:42</span>
+        <div class="icons">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 12h2v2H2zM5 9h2v5H5zM8 6h2v8H8zM11 3h2v11h-2z"/></svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 12.5c-3 0-5.5-2-6-4 1-1 3-2 6-2s5 1 6 2c-.5 2-3 4-6 4z"/><circle cx="8" cy="11" r="0.8" fill="currentColor"/></svg>
+          <svg viewBox="0 0 22 12" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="19" height="11" rx="2.5"/><rect x="2" y="2" width="14" height="8" rx="1" fill="currentColor"/><rect x="20" y="4" width="2" height="4" rx="0.5" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="notch"></div>
+
+      <div class="phone-app">
+        <header class="m-head">
+          <div class="title">
+            <div class="tag">configuration</div>
+            <h1>Set<em>tings</em></h1>
+          </div>
+          <button class="m-toggle" id="themeToggle">
+            <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>
+            <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10z"/></svg>
+          </button>
+        </header>
+
+        <section class="content">
+          <div class="live-hint">
+            Tap <b>LIGHT / DARK / SYSTEM</b> below — the live preview switches themes instantly.
+          </div>
+
+          <!-- DISPLAY -->
+          <div class="section">
+            <div class="section-h">
+              <h2><b>01</b> · Display</h2>
+              <span class="n">appearance</span>
+            </div>
+            <div class="group">
+              <div class="row">
+                <div class="top">
+                  <span class="ttl">App theme</span>
+                  <span class="val" id="themeLabel">DARK</span>
+                </div>
+                <div class="segs three" id="themeSegs">
+                  <button class="seg" data-theme="light">LIGHT</button>
+                  <button class="seg active" data-theme="dark">DARK</button>
+                  <button class="seg" data-theme="system">SYSTEM</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="top">
+                  <span class="ttl">Move animation</span>
+                  <span class="val">280 ms</span>
+                </div>
+                <p class="desc">Slide speed when the engine plays.</p>
+                <div class="slider-row">
+                  <div class="slider">
+                    <div class="track"></div>
+                    <div class="fill" style="width: 36%"></div>
+                    <div class="thumb" style="left: 36%"></div>
+                  </div>
+                  <div class="value">280<small>ms</small></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOARD -->
+          <div class="section">
+            <div class="section-h">
+              <h2><b>02</b> · Board</h2>
+              <span class="n">style</span>
+            </div>
+            <div class="group">
+              <div class="row">
+                <div class="top">
+                  <span class="ttl">Color scheme</span>
+                  <span class="val">SLATE</span>
+                </div>
+                <div class="swatches">
+                  <button class="swatch" style="--swatch-light: #ece1c8; --swatch-dark: #8e6f4a;"><div class="grid-bg"></div><span class="nm">Wood</span></button>
+                  <button class="swatch active" style="--swatch-light: #d7dde6; --swatch-dark: #3a4150;"><div class="grid-bg"></div><span class="nm">Slate</span></button>
+                  <button class="swatch" style="--swatch-light: #e8edf2; --swatch-dark: #4d6b91;"><div class="grid-bg"></div><span class="nm">Blue</span></button>
+                  <button class="swatch" style="--swatch-light: #e9e9e9; --swatch-dark: #4d8049;"><div class="grid-bg"></div><span class="nm">Green</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TRAINING -->
+          <div class="section">
+            <div class="section-h">
+              <h2><b>03</b> · Training</h2>
+              <span class="n">practice</span>
+            </div>
+            <div class="group">
+              <div class="row">
+                <div class="top">
+                  <span class="ttl">Auto-advance delay</span>
+                  <span class="val">1.0 s</span>
+                </div>
+                <p class="desc">Delay after a correct move.</p>
+                <div class="slider-row">
+                  <div class="slider">
+                    <div class="track"></div>
+                    <div class="fill" style="width: 25%"></div>
+                    <div class="thumb" style="left: 25%"></div>
+                  </div>
+                  <div class="value">1.0<small>s</small></div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="top">
+                  <span class="ttl">Algorithm</span>
+                  <span class="val">FSRS 6</span>
+                </div>
+                <div class="segs two">
+                  <button class="seg">SM-2</button>
+                  <button class="seg active">FSRS 6</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ENGINE -->
+          <div class="section">
+            <div class="section-h">
+              <h2><b>04</b> · Engine</h2>
+              <span class="n">stockfish 16</span>
+            </div>
+            <div class="group">
+              <div class="row">
+                <div class="top">
+                  <div class="info">
+                    <div class="ttl">Evaluation bar</div>
+                    <div class="desc">Show eval next to the board.</div>
+                  </div>
+                  <div class="toggle on"></div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="top">
+                  <div class="info">
+                    <div class="ttl">Best-move arrow</div>
+                    <div class="desc">Overlay engine's top move.</div>
+                  </div>
+                  <div class="toggle"></div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="top">
+                  <span class="ttl">Max depth</span>
+                  <span class="val">22 plies</span>
+                </div>
+                <p class="desc">Higher = more accurate, more CPU.</p>
+                <div class="slider-row">
+                  <div class="slider">
+                    <div class="track"></div>
+                    <div class="fill" style="width: 67%"></div>
+                    <div class="thumb" style="left: 67%"></div>
+                  </div>
+                  <div class="value">22<small>plies</small></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LICHESS -->
+          <div class="section">
+            <div class="section-h">
+              <h2><b>05</b> · Lichess</h2>
+              <span class="n">connected</span>
+            </div>
+            <div class="group">
+              <div class="row">
+                <div class="lichess">
+                  <div class="avatar">A</div>
+                  <div>
+                    <div class="nm">axl_lvy <span class="at">@lichess.org</span></div>
+                    <div class="meta">Blitz <b>1840</b> · Rapid <b>1920</b></div>
+                  </div>
+                </div>
+                <div class="btn-row">
+                  <button class="btn outline">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                    REFRESH
+                  </button>
+                  <button class="btn danger outline">DISCONNECT</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- IMPORT EXPORT -->
+          <div class="section">
+            <div class="section-h">
+              <h2><b>06</b> · Storage</h2>
+              <span class="n">import / export</span>
+            </div>
+            <div class="group">
+              <div class="row">
+                <div class="top">
+                  <span class="ttl">Repertoire data</span>
+                  <span class="val">2.4 MB</span>
+                </div>
+                <p class="desc">Backup or transfer your lines.</p>
+                <div class="btn-row">
+                  <button class="btn primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>
+                    EXPORT
+                  </button>
+                  <button class="btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V8M18 14l-6-6-6 6M4 4h16"/></svg>
+                    IMPORT
+                  </button>
+                </div>
+                <div class="stats-row">
+                  <div class="m"><div class="k">positions</div><div class="v accent">1,842</div></div>
+                  <div class="m"><div class="k">lines</div><div class="v">312</div></div>
+                  <div class="m"><div class="k">backup</div><div class="v">12d</div></div>
+                  <div class="m"><div class="k">size</div><div class="v">2.4MB</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DANGER -->
+          <div class="section">
+            <div class="section-h">
+              <h2 style="color: var(--red);"><b style="color: var(--red);">07</b> · Danger zone</h2>
+              <span class="n" style="color: var(--red);">irreversible</span>
+            </div>
+            <div class="danger-group">
+              <div class="row">
+                <div class="top">
+                  <div class="info">
+                    <div class="ttl">Reset settings</div>
+                    <div class="desc">Restore factory defaults. Repertoire untouched.</div>
+                  </div>
+                  <button class="btn outline" style="padding: 0 12px;">RESET</button>
+                </div>
+              </div>
+              <div class="row danger-action">
+                <div class="top">
+                  <div class="info">
+                    <div class="ttl">Erase all data</div>
+                    <div class="desc">Wipes every position, line, and training record.</div>
+                  </div>
+                  <button class="btn danger" style="padding: 0 12px;">ERASE</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top: 22px; text-align: center;">
+            <div style="font-family: var(--mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.18em; text-transform: uppercase;">
+              MemorChess · v2.4.0 · build 1842
+            </div>
+          </div>
+        </section>
+
+        <nav class="bottomnav">
+          <button class="nav-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+            <span>Explore</span>
+          </button>
+          <button class="nav-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 19l4-4 3 3 7-9M14 9h5v5"/></svg>
+            <span>Train</span>
+          </button>
+          <button class="nav-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5v14M9 5v14M14 5v14M19 6l1 13"/></svg>
+            <span>Library</span>
+          </button>
+          <button class="nav-btn active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.4.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.4-.9a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>
+            <span>Settings</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <div class="proposal-marker">Kinetic · <b>Settings</b> · mobile</div>
+
+    <script>
+      const root = document.documentElement;
+      const themeBtn = document.getElementById("themeToggle");
+      themeBtn.addEventListener("click", () => {
+        const cur = root.getAttribute("data-theme") || "dark";
+        applyTheme(cur === "dark" ? "light" : "dark");
+        syncSegs(cur === "dark" ? "light" : "dark");
+      });
+
+      const segs = document.getElementById("themeSegs");
+      const themeLabel = document.getElementById("themeLabel");
+      segs.addEventListener("click", (e) => {
+        const btn = e.target.closest(".seg");
+        if (!btn) return;
+        const theme = btn.dataset.theme;
+        Array.from(segs.children).forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        if (theme === "system") {
+          const sys = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          applyTheme(sys);
+          themeLabel.textContent = "SYSTEM";
+        } else {
+          applyTheme(theme);
+          themeLabel.textContent = theme.toUpperCase();
+        }
+      });
+
+      function applyTheme(t) { root.setAttribute("data-theme", t); }
+      function syncSegs(t) {
+        Array.from(segs.children).forEach(c => {
+          c.classList.toggle("active", c.dataset.theme === t);
+        });
+        themeLabel.textContent = t.toUpperCase();
+      }
+    </script>
+  </body>
+</html>

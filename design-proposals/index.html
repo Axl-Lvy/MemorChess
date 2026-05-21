@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MemorChess — Kinetic · Design system map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter+Tight:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link href="kinetic-base.css" rel="stylesheet" />
+    <style>
+      html, body { overflow: auto; min-height: 100vh; height: auto; }
+      body {
+        background-image:
+          radial-gradient(ellipse 50% 40% at 0% 0%, var(--accent-soft), transparent 70%),
+          radial-gradient(ellipse 50% 40% at 100% 100%, rgba(76, 214, 232, 0.05), transparent 70%);
+      }
+
+      .index-bar {
+        position: sticky; top: 0; z-index: 10;
+        background: var(--bg-2);
+        border-bottom: 1px solid var(--line);
+        padding: 14px 36px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 24px;
+      }
+      .index-bar::after {
+        content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent) 20%, var(--accent) 60%, transparent);
+        opacity: 0.5;
+      }
+      .index-bar .meta {
+        display: flex; gap: 22px;
+        font-family: var(--mono); font-size: 10.5px;
+        color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase;
+        justify-content: center;
+      }
+      .index-bar .meta b { color: var(--ink); }
+      .index-bar .meta .accent { color: var(--accent-text); }
+      .index-bar .meta .accent::before {
+        content: "● "; color: var(--accent-text);
+      }
+      .index-toggle-row { display: flex; align-items: center; gap: 14px; }
+
+      .wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 60px 40px 100px;
+        position: relative;
+        z-index: 2;
+      }
+
+      header.hero { margin-bottom: 50px; }
+      .hero .eyebrow { margin-bottom: 18px; }
+      h1 {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: clamp(48px, 6vw, 84px);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+      }
+      h1 em { font-style: italic; color: var(--accent-text); }
+      .lede {
+        margin-top: 22px;
+        max-width: 64ch;
+        font-size: 15.5px; line-height: 1.55;
+        color: var(--ink-2);
+      }
+      .lede code {
+        font-family: var(--mono); font-size: 12.5px;
+        color: var(--accent-text); background: var(--bg-2);
+        padding: 1px 6px;
+      }
+
+      .system-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        margin-top: 32px;
+        border: 1px solid var(--line);
+      }
+      .sys {
+        padding: 16px 18px;
+        border-right: 1px solid var(--line);
+      }
+      .sys:last-child { border-right: none; }
+      .sys .k {
+        font-family: var(--mono); font-size: 9.5px;
+        color: var(--ink-3); letter-spacing: 0.18em; text-transform: uppercase;
+      }
+      .sys .v {
+        margin-top: 6px;
+        font-family: var(--display); font-weight: 700;
+        font-size: 22px; letter-spacing: -0.025em; line-height: 1.05;
+      }
+      .sys.accent .v { color: var(--accent-text); }
+      .sys .sw {
+        margin-top: 8px;
+        display: flex; gap: 4px;
+      }
+      .sys .sw span {
+        width: 18px; height: 18px;
+        border: 1px solid var(--line-bright);
+      }
+
+      /* update list */
+      .changelog {
+        margin-top: 30px;
+        padding: 20px 22px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--accent);
+      }
+      .changelog h3 {
+        font-family: var(--display); font-weight: 700;
+        font-size: 16px; letter-spacing: -0.02em;
+        margin-bottom: 10px;
+      }
+      .changelog h3 em { color: var(--accent-text); font-style: italic; }
+      .changelog ul { list-style: none; }
+      .changelog li {
+        padding: 6px 0;
+        font-size: 12.5px; color: var(--ink-2);
+        line-height: 1.5;
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 10px;
+        align-items: baseline;
+      }
+      .changelog li::before {
+        content: "▸";
+        color: var(--accent-text);
+        font-weight: 700;
+      }
+      .changelog li code {
+        font-family: var(--mono); font-size: 11px;
+        color: var(--accent-text); background: var(--bg-2);
+        padding: 1px 5px;
+      }
+
+      .screens {
+        display: flex;
+        flex-direction: column;
+        gap: 56px;
+        margin-top: 64px;
+      }
+      .screen {
+        display: grid;
+        grid-template-columns: 280px 1fr 1fr;
+        gap: 24px;
+        align-items: stretch;
+      }
+      @media (max-width: 1000px) {
+        .screen { grid-template-columns: 1fr; }
+      }
+      .screen .info {
+        padding: 24px 28px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        position: relative;
+      }
+      .screen .info::before {
+        content: ""; position: absolute;
+        top: 0; left: 0; bottom: 0; width: 3px;
+        background: var(--accent);
+      }
+      .screen .info .n {
+        font-family: var(--mono); font-size: 10px;
+        color: var(--accent-text); letter-spacing: 0.18em; text-transform: uppercase;
+      }
+      .screen .info h2 {
+        margin-top: 6px;
+        font-family: var(--display); font-weight: 700;
+        font-size: 32px; letter-spacing: -0.035em; line-height: 0.98;
+      }
+      .screen .info h2 em { color: var(--accent-text); font-style: italic; }
+      .screen .info p {
+        margin-top: 10px;
+        font-size: 13px; color: var(--ink-3); line-height: 1.5;
+      }
+      .screen .info .tags {
+        margin-top: 14px;
+        display: flex; flex-wrap: wrap; gap: 5px;
+      }
+      .screen .info .tags span {
+        font-family: var(--mono); font-size: 9px;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--ink-3); padding: 4px 8px;
+        border: 1px solid var(--line-bright);
+      }
+
+      .preview {
+        background: var(--bg-2);
+        border: 1px solid var(--line);
+        overflow: hidden;
+        position: relative;
+        min-height: 320px;
+        display: flex; flex-direction: column;
+      }
+      .preview .head {
+        padding: 12px 16px;
+        display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        background: var(--bg);
+      }
+      .preview .head .kind {
+        font-family: var(--mono); font-size: 10px;
+        color: var(--ink-2); letter-spacing: 0.14em;
+        text-transform: uppercase;
+        display: inline-flex; align-items: center; gap: 8px;
+      }
+      .preview .head .kind svg { width: 13px; height: 13px; }
+      .preview .head .lab {
+        font-family: var(--mono); font-size: 9px;
+        color: var(--accent-text); letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .preview iframe {
+        flex: 1; border: none; background: var(--bg);
+        width: 100%;
+      }
+      .preview.desktop {
+        aspect-ratio: 16 / 10;
+      }
+      .preview.desktop iframe {
+        transform: scale(0.42);
+        transform-origin: top left;
+        width: 238%;
+        height: 238%;
+      }
+      .preview.mobile {
+        aspect-ratio: 9 / 11;
+      }
+      .preview.mobile iframe {
+        height: 100%;
+      }
+      .preview .open {
+        position: absolute; bottom: 14px; right: 14px;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 8px 14px;
+        background: var(--accent); color: var(--on-accent);
+        font-family: var(--display); font-weight: 700;
+        font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+        text-decoration: none;
+        box-shadow: 4px 4px 0 var(--bg);
+        z-index: 3;
+      }
+      .preview .open:hover { background: var(--accent-glow); }
+      .preview .open svg { width: 12px; height: 12px; }
+
+      .archive {
+        margin-top: 80px;
+        padding: 24px 28px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      .archive h3 {
+        font-family: var(--display); font-weight: 700;
+        font-size: 18px; letter-spacing: -0.02em;
+        margin-bottom: 8px;
+      }
+      .archive p {
+        font-size: 12.5px; color: var(--ink-3); margin-bottom: 16px;
+      }
+      .archive-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      .archive-grid a {
+        padding: 10px 14px;
+        background: var(--bg-2);
+        border: 1px solid var(--line);
+        text-decoration: none;
+        color: var(--ink-2);
+        font-family: var(--mono); font-size: 11px;
+        letter-spacing: 0.04em;
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .archive-grid a:hover { border-color: var(--accent); color: var(--ink); }
+      .archive-grid a svg { width: 11px; height: 11px; }
+
+      .footnote {
+        margin-top: 60px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+        font-family: var(--mono); font-size: 11px;
+        color: var(--ink-3); line-height: 1.7;
+        letter-spacing: 0.03em;
+      }
+      .footnote b { color: var(--accent-text); font-weight: 600; }
+      .footnote code {
+        background: var(--bg-2); padding: 1px 5px;
+        color: var(--ink-2);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="index-bar">
+      <div class="brand">
+        <div class="brand-mark"><span>M</span></div>
+        <div class="brand-text">
+          <div class="brand-name">MEMOR<span class="slash">/</span>CHESS</div>
+          <div class="brand-version">design system · kinetic</div>
+        </div>
+      </div>
+      <div class="meta">
+        <span>theme · <b>Kinetic</b></span>
+        <span>screens · <b>3 / 3</b></span>
+        <span class="accent">dark + light themes</span>
+      </div>
+      <div class="index-toggle-row">
+        <button class="theme-toggle" id="themeToggle">
+          <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>
+          <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10z"/></svg>
+          <span class="label">SWITCH</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <header class="hero">
+        <div class="eyebrow">Kinetic / locked in</div>
+        <h1>Every screen,<br/>in <em>Kinetic</em>.</h1>
+        <p class="lede">
+          Three pages — <code>Explore</code>, <code>Train</code>, <code>Settings</code> — each in
+          desktop and mobile. Board is always pinned. Long lines now scroll horizontally with fade
+          edges, current-move auto-snap, and a <code>PGN</code> button that opens the full move
+          list as an overlay. Every screen supports <code>light</code> and <code>dark</code> themes
+          via a single CSS variable swap.
+        </p>
+
+        <div class="system-row">
+          <div class="sys accent">
+            <div class="k">accent · dark</div>
+            <div class="v">#FF5B26</div>
+            <div class="sw">
+              <span style="background:#ff5b26"></span>
+              <span style="background:#ff7a4d"></span>
+              <span style="background:#993515"></span>
+              <span style="background:#6b2030"></span>
+            </div>
+          </div>
+          <div class="sys">
+            <div class="k">light · futuristic</div>
+            <div class="v">#EEF2F7</div>
+            <div class="sw">
+              <span style="background:#eef2f7"></span>
+              <span style="background:#c2cad6"></span>
+              <span style="background:#00b8d4"></span>
+              <span style="background:#ff5b26"></span>
+            </div>
+          </div>
+          <div class="sys">
+            <div class="k">typography</div>
+            <div class="v" style="font-size: 16px;">Bricolage · Inter Tight · JBMono</div>
+          </div>
+          <div class="sys">
+            <div class="k">status</div>
+            <div class="v" style="color: var(--green);">ready for port</div>
+          </div>
+        </div>
+
+        <div class="changelog">
+          <h3>What's <em>new</em> in this revision</h3>
+          <ul>
+            <li><b>Light theme rebuilt as futuristic.</b> Out: warm cream paper. In: cool ice white with blue undertones (<code>#EEF2F7</code> bg, <code>#0A0E16</code> ink), tech-grid background, electric cyan <code>#00B8D4</code> as secondary accent, neon orange <code>#FF5B26</code> popping against ice. Cards now cast cyan-tinted hard shadows. Board squares are cool slate-blue.</li>
+            <li><b>Training screen ruthlessly simplified.</b> Removed FSRS card, 30-day heatmap, repertoire health bars, states preview, and the session stats banner. Desktop is now a single centered column with one large counter + bigger board. Mobile keeps just board, turn pill, action buttons.</li>
+            <li>Brand mark, board accent stripe, and topbar underline now use a cyan→orange gradient with a soft glow — same on dark, more pronounced on light.</li>
+            <li>Primary buttons in light mode cast a soft orange glow; "Your move" tag glows too.</li>
+            <li><code>.trail</code> component (kept from prior revision) handles long move lines: horizontal scroll, fade-edge mask, current-move auto-snap, opening-name pin on left, <code>PGN</code> button that opens a full notation overlay.</li>
+          </ul>
+        </div>
+      </header>
+
+      <section class="screens">
+        <!-- EXPLORE -->
+        <div class="screen">
+          <div class="info">
+            <div class="n">screen 01 / explore</div>
+            <h2>Free <em>exploration</em></h2>
+            <p>
+              Wander the opening graph, save lines, prune dead branches. Long lines no longer cramp
+              the header — the trail scrolls horizontally with fade edges and an opening-name pin.
+              Lichess masters stats and Stockfish evaluation share space without ever pushing the
+              board out of view.
+            </p>
+            <div class="tags">
+              <span>pinned board</span>
+              <span>moves trail</span>
+              <span>PGN overlay</span>
+              <span>lichess panel</span>
+              <span>3-stat header</span>
+            </div>
+          </div>
+          <div class="preview desktop">
+            <div class="head">
+              <span class="kind">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21h8M12 17v4"/></svg>
+                Desktop · 1440 × 900
+              </span>
+              <span class="lab">explore</span>
+            </div>
+            <iframe src="03-kinetic.html" loading="lazy" scrolling="no"></iframe>
+            <a class="open" href="03-kinetic.html" target="_blank">
+              Open
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+            </a>
+          </div>
+          <div class="preview mobile">
+            <div class="head">
+              <span class="kind">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>
+                Mobile · 390 × 844
+              </span>
+              <span class="lab">explore</span>
+            </div>
+            <iframe src="03-kinetic-mobile.html" loading="lazy"></iframe>
+            <a class="open" href="03-kinetic-mobile.html" target="_blank">
+              Open
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- TRAINING -->
+        <div class="screen">
+          <div class="info">
+            <div class="n">screen 02 / training</div>
+            <h2>Spaced <em>practice</em></h2>
+            <p>
+              Stripped to essentials. One counter, one board, one turn pill, three action buttons.
+              No FSRS card, no heatmap, no health bars. Single centered column on desktop so the
+              board can be as big as the viewport allows; the user does one thing here — play the
+              trained move — and everything else gets out of the way.
+            </p>
+            <div class="tags">
+              <span>minimal</span>
+              <span>big board</span>
+              <span>one counter</span>
+              <span>moves trail</span>
+            </div>
+          </div>
+          <div class="preview desktop">
+            <div class="head">
+              <span class="kind">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21h8M12 17v4"/></svg>
+                Desktop · 1440 × 900
+              </span>
+              <span class="lab">training</span>
+            </div>
+            <iframe src="kinetic-training-desktop.html" loading="lazy" scrolling="no"></iframe>
+            <a class="open" href="kinetic-training-desktop.html" target="_blank">
+              Open
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+            </a>
+          </div>
+          <div class="preview mobile">
+            <div class="head">
+              <span class="kind">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>
+                Mobile · 390 × 844
+              </span>
+              <span class="lab">training</span>
+            </div>
+            <iframe src="kinetic-training-mobile.html" loading="lazy"></iframe>
+            <a class="open" href="kinetic-training-mobile.html" target="_blank">
+              Open
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="screen">
+          <div class="info">
+            <div class="n">screen 03 / settings</div>
+            <h2>Config <em>&amp; data</em></h2>
+            <p>
+              Seven sections: Display, Board, Training, Engine, Lichess, Storage, Danger zone.
+              The LIGHT / DARK / SYSTEM segmented control actually switches the theme live — open
+              this screen and try it. Cards in 2-column grids are now height-matched, sliders use a
+              fixed-width value column, and the danger zone is visually quarantined.
+            </p>
+            <div class="tags">
+              <span>live theme switch</span>
+              <span>height-matched grid</span>
+              <span>toggles · sliders · swatches</span>
+              <span>danger zone</span>
+            </div>
+          </div>
+          <div class="preview desktop">
+            <div class="head">
+              <span class="kind">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="13" rx="1"/><path d="M8 21h8M12 17v4"/></svg>
+                Desktop · 1440 × 900
+              </span>
+              <span class="lab">settings</span>
+            </div>
+            <iframe src="kinetic-settings-desktop.html" loading="lazy" scrolling="no"></iframe>
+            <a class="open" href="kinetic-settings-desktop.html" target="_blank">
+              Open
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+            </a>
+          </div>
+          <div class="preview mobile">
+            <div class="head">
+              <span class="kind">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>
+                Mobile · 390 × 844
+              </span>
+              <span class="lab">settings</span>
+            </div>
+            <iframe src="kinetic-settings-mobile.html" loading="lazy"></iframe>
+            <a class="open" href="kinetic-settings-mobile.html" target="_blank">
+              Open
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <div class="archive">
+        <h3>Archived directions</h3>
+        <p>The other two propositions, kept for reference. Not under active development.</p>
+        <div class="archive-grid">
+          <a href="01-atelier.html" target="_blank">
+            Atelier · desktop
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </a>
+          <a href="01-atelier-mobile.html" target="_blank">
+            Atelier · mobile
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </a>
+          <a href="02-le-journal.html" target="_blank">
+            Le Journal · desktop
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </a>
+          <a href="02-le-journal-mobile.html" target="_blank">
+            Le Journal · mobile
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <p class="footnote">
+        <b>Note on theme switching.</b> The toggle at the top right only switches <i>this</i> page.
+        Each individual screen has its own theme toggle in its own top bar. The Settings screen
+        also has a LIGHT/DARK/SYSTEM segmented control that swaps the live preview. When porting
+        to Compose, the same <code>[data-theme]</code> switching pattern maps directly to a
+        Compose <code>MaterialTheme</code> wrapper that observes the theme setting and feeds the
+        correct <code>ColorScheme</code> downstream.
+      </p>
+    </div>
+
+    <script>
+      const root = document.documentElement;
+      document.getElementById("themeToggle").addEventListener("click", () => {
+        const cur = root.getAttribute("data-theme") || "dark";
+        root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+      });
+    </script>
+  </body>
+</html>

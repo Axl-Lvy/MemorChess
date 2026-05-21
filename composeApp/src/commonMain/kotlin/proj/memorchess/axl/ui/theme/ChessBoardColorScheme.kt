@@ -18,6 +18,20 @@ enum class ChessBoardColorScheme(
   val arrowColor: Color,
   override val displayName: String,
 ) : CanDisplayName {
+  KINETIC_DARK(
+    lightSquareColor = Color(0xFFD7DDE6),
+    darkSquareColor = Color(0xFF3A4150),
+    selectedBorderColor = Color(0xFFFF5B26),
+    arrowColor = Color(0x80FF5B26),
+    displayName = "Kinetic Dark",
+  ),
+  KINETIC_LIGHT(
+    lightSquareColor = Color(0xFFE5EDF5),
+    darkSquareColor = Color(0xFF5E6A82),
+    selectedBorderColor = Color(0xFFFF5B26),
+    arrowColor = Color(0x8000B8D4),
+    displayName = "Kinetic Light",
+  ),
   GRASS(
     lightSquareColor = Color(0xFFEEEED2),
     darkSquareColor = Color(0xff5e803d),

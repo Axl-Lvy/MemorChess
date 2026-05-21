@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>MemorChess — Le Journal · mobile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,300..800;1,6..72,300..800&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #f3ede1;
+        --paper-2: #ece4d3;
+        --paper-3: #e2d8c2;
+        --ink: #0e0c0a;
+        --ink-2: #2a2520;
+        --ink-3: #5b5247;
+        --ink-4: #8c8273;
+        --rule: #1a1612;
+        --rule-light: #bfb39d;
+        --oxblood: #7c2a26;
+        --oxblood-dim: #a85f5b;
+        --gold-ink: #a9803a;
+        --display: "Instrument Serif", "Times New Roman", serif;
+        --serif: "Newsreader", "Times New Roman", serif;
+        --body: "Geist", system-ui, sans-serif;
+        --mono: "Geist Mono", ui-monospace, monospace;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background: #18120a;
+      }
+      body {
+        color: var(--ink);
+        font-family: var(--body);
+        font-size: 12.5px;
+        line-height: 1.4;
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 844px;
+        background: var(--paper);
+        overflow: hidden;
+        border-radius: 44px;
+        box-shadow:
+          0 0 0 10px #0e0c0a,
+          0 0 0 11px #2a2520,
+          0 40px 120px -20px rgba(0, 0, 0, 0.8);
+      }
+      .phone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 60;
+        opacity: 0.45;
+        mix-blend-mode: multiply;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/><feColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.12 0 0 0 0 0.08 0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      }
+      @media (max-width: 480px) {
+        body {
+          background: var(--paper);
+        }
+        .phone {
+          width: 100vw;
+          height: 100vh;
+          height: 100dvh;
+          border-radius: 0;
+          box-shadow: none;
+        }
+      }
+
+      .statusbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px 0 32px;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink);
+        z-index: 5;
+        letter-spacing: 0.02em;
+      }
+      .statusbar .icons {
+        display: inline-flex;
+        gap: 5px;
+      }
+      .statusbar .icons svg {
+        width: 14px;
+        height: 14px;
+      }
+      .notch {
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 28px;
+        background: #0e0c0a;
+        border-radius: 14px;
+        z-index: 4;
+      }
+
+      .app {
+        position: absolute;
+        inset: 44px 0 0 0;
+        display: grid;
+        grid-template-rows: auto auto auto auto 1fr auto;
+        height: calc(100% - 44px);
+      }
+
+      /* masthead */
+      .mast {
+        padding: 8px 18px 6px;
+        border-bottom: 1px solid var(--rule);
+        text-align: center;
+        position: relative;
+      }
+      .mast .meta-l,
+      .mast .meta-r {
+        position: absolute;
+        top: 10px;
+        font-family: var(--mono);
+        font-size: 8.5px;
+        color: var(--ink-3);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .mast .meta-l {
+        left: 18px;
+      }
+      .mast .meta-r {
+        right: 18px;
+      }
+      .mast .meta-r b {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .mast .title {
+        font-family: var(--display);
+        font-size: 32px;
+        font-style: italic;
+        line-height: 1;
+        letter-spacing: -0.02em;
+      }
+      .mast .title .roman {
+        font-style: normal;
+        color: var(--oxblood);
+      }
+      .mast .sub {
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 9px;
+        color: var(--ink-3);
+        margin-top: 1px;
+      }
+      .mast .double {
+        margin-top: 6px;
+        height: 3px;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+      }
+      .mast .tabs {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        font-family: var(--mono);
+        font-size: 8.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--ink-3);
+        padding: 0 4px;
+      }
+      .mast .tabs a {
+        color: var(--ink-3);
+        text-decoration: none;
+        padding-bottom: 2px;
+      }
+      .mast .tabs a.active {
+        color: var(--ink);
+        border-bottom: 2px solid var(--oxblood);
+      }
+
+      /* article head */
+      .article-head {
+        padding: 12px 20px 8px;
+      }
+      .article-head .eb {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--oxblood);
+      }
+      .article-head h1 {
+        margin-top: 4px;
+        font-family: var(--display);
+        font-size: 28px;
+        font-weight: 400;
+        line-height: 0.98;
+        letter-spacing: -0.018em;
+      }
+      .article-head h1 .it {
+        font-style: italic;
+      }
+      .article-head .moves-strip {
+        margin-top: 8px;
+        padding: 6px 0;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: var(--ink-2);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 10px;
+      }
+      .moves-strip .ply {
+        color: var(--ink-4);
+        font-size: 9px;
+        margin-right: 2px;
+      }
+      .moves-strip .now {
+        color: var(--oxblood);
+        font-weight: 600;
+        background: var(--paper-3);
+        padding: 0 3px;
+      }
+
+      /* board */
+      .board-wrap {
+        padding: 8px 18px 0;
+        display: grid;
+        grid-template-columns: 14px 1fr;
+        gap: 8px;
+        align-items: center;
+      }
+      .eval-bar {
+        height: 100%;
+        background: var(--paper-3);
+        border: 1px solid var(--rule);
+        position: relative;
+        align-self: stretch;
+        overflow: hidden;
+      }
+      .eval-bar .b {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 44%;
+        background: var(--ink);
+      }
+      .eval-bar .w {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 56%;
+        background: #fff;
+        border-top: 1px solid var(--rule);
+      }
+      .eval-bar .v {
+        position: absolute;
+        bottom: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: var(--mono);
+        font-size: 8.5px;
+        color: var(--oxblood);
+        font-weight: 500;
+      }
+      .board-figure {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        padding: 10px 10px 14px;
+        border: 1px solid var(--rule);
+        background: var(--paper);
+        box-shadow: 0 2px 0 var(--rule-light);
+      }
+      .board {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+        border: 1px solid var(--rule);
+      }
+      .sq {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        line-height: 1;
+      }
+      .sq.light {
+        background: #ece1c8;
+      }
+      .sq.dark {
+        background: #8e6f4a;
+      }
+      .sq.highlight::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(124, 42, 38, 0.22);
+      }
+      .sq .piece-white {
+        color: #fff;
+        text-shadow:
+          0 1px 0 rgba(0, 0, 0, 0.5),
+          0 0 1px rgba(0, 0, 0, 0.4);
+      }
+      .sq .piece-black {
+        color: #14100c;
+      }
+      .sq .file-label,
+      .sq .rank-label {
+        position: absolute;
+        font-family: var(--mono);
+        font-size: 7px;
+        opacity: 0.6;
+      }
+      .sq.light .file-label,
+      .sq.light .rank-label {
+        color: #5b3a1f;
+      }
+      .sq.dark .file-label,
+      .sq.dark .rank-label {
+        color: #f0d9b5;
+      }
+      .sq .file-label {
+        bottom: 1px;
+        right: 2px;
+      }
+      .sq .rank-label {
+        top: 1px;
+        left: 2px;
+      }
+      .figure-caption {
+        position: absolute;
+        bottom: 2px;
+        left: 10px;
+        right: 10px;
+        text-align: center;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 9px;
+        color: var(--ink-3);
+      }
+
+      /* controls */
+      .controls {
+        margin: 10px 18px 0;
+        padding-top: 8px;
+        border-top: 1px solid var(--rule);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .turn-line {
+        font-family: var(--display);
+        font-style: italic;
+        font-size: 15px;
+      }
+      .turn-line .roman {
+        font-style: normal;
+        color: var(--oxblood);
+      }
+      .ctrls {
+        display: flex;
+      }
+      .ctrl {
+        width: 34px;
+        height: 34px;
+        background: transparent;
+        border: 1px solid var(--rule);
+        margin-left: -1px;
+        color: var(--ink);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .ctrl svg {
+        width: 14px;
+        height: 14px;
+      }
+      .ctrl.save {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .ctrl.delete {
+        color: var(--oxblood);
+      }
+
+      /* tabs + info */
+      .info-tabs {
+        padding: 10px 18px 0;
+        display: flex;
+        gap: 14px;
+        border-bottom: 1px solid var(--rule);
+      }
+      .info-tab {
+        padding-bottom: 6px;
+        font-family: var(--mono);
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--ink-3);
+        position: relative;
+        cursor: pointer;
+      }
+      .info-tab.active {
+        color: var(--ink);
+      }
+      .info-tab.active::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: var(--oxblood);
+      }
+      .info-tab .b {
+        font-size: 9px;
+        color: var(--oxblood);
+        margin-left: 3px;
+      }
+
+      .info {
+        overflow-y: auto;
+        padding: 10px 20px 16px;
+        scrollbar-width: thin;
+      }
+      .info::-webkit-scrollbar {
+        width: 4px;
+      }
+      .info::-webkit-scrollbar-thumb {
+        background: var(--rule-light);
+      }
+
+      .sec-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .sec-num {
+        font-family: var(--display);
+        font-size: 22px;
+        font-style: italic;
+        color: var(--oxblood);
+        line-height: 1;
+      }
+      .sec-title {
+        font-family: var(--display);
+        font-size: 20px;
+        font-weight: 400;
+      }
+      .sec-title .it {
+        font-style: italic;
+      }
+      .lede {
+        font-family: var(--serif);
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--ink-2);
+        margin-bottom: 8px;
+      }
+      .lede::first-letter {
+        font-family: var(--display);
+        font-size: 38px;
+        line-height: 0.85;
+        float: left;
+        padding: 1px 6px 0 0;
+        color: var(--oxblood);
+      }
+
+      .moves-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .moves-table td {
+        padding: 7px 0;
+        border-bottom: 1px solid var(--rule-light);
+        vertical-align: baseline;
+        font-family: var(--serif);
+        font-size: 12.5px;
+        color: var(--ink);
+      }
+      .moves-table td.san {
+        font-family: var(--display);
+        font-size: 16px;
+        width: 32%;
+      }
+      .moves-table td.san sup {
+        font-family: var(--mono);
+        font-size: 8px;
+        color: var(--oxblood);
+        letter-spacing: 0.06em;
+        margin-left: 2px;
+      }
+      .moves-table td.right {
+        text-align: right;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-3);
+        width: 22%;
+      }
+
+      .section {
+        padding-top: 14px;
+        margin-top: 14px;
+        border-top: 1px solid var(--rule);
+      }
+
+      .stat-row {
+        display: grid;
+        grid-template-columns: 38px 1fr 46px;
+        gap: 8px;
+        align-items: center;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--rule-light);
+      }
+      .stat-row .move {
+        font-family: var(--display);
+        font-style: italic;
+        font-size: 14px;
+      }
+      .stat-bar {
+        height: 12px;
+        display: flex;
+        border: 1px solid var(--rule);
+      }
+      .stat-bar .w {
+        background: #fff;
+      }
+      .stat-bar .d {
+        background: var(--ink-4);
+      }
+      .stat-bar .b {
+        background: var(--ink);
+      }
+      .stat-row .n {
+        text-align: right;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--ink-3);
+      }
+
+      .pull-quote {
+        font-family: var(--display);
+        font-style: italic;
+        font-size: 16px;
+        line-height: 1.25;
+        border-left: 2px solid var(--oxblood);
+        padding: 2px 0 2px 10px;
+        margin: 10px 0;
+      }
+      .pull-quote .attrib {
+        display: block;
+        font-family: var(--mono);
+        font-style: normal;
+        font-size: 8.5px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-4);
+        margin-top: 6px;
+      }
+
+      /* bottom nav */
+      .bottomnav {
+        height: 70px;
+        padding-bottom: 14px;
+        border-top: 1px solid var(--rule);
+        background: var(--paper);
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .nav-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        color: var(--ink-3);
+        position: relative;
+      }
+      .nav-btn svg {
+        width: 19px;
+        height: 19px;
+      }
+      .nav-btn span {
+        font-family: var(--mono);
+        font-size: 8.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .nav-btn.active {
+        color: var(--ink);
+      }
+      .nav-btn.active::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 30%;
+        right: 30%;
+        height: 2px;
+        background: var(--oxblood);
+      }
+
+      .proposal-marker {
+        position: fixed;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--paper);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        background: var(--ink);
+        padding: 5px 10px;
+      }
+      .proposal-marker b {
+        color: #ec8a83;
+        font-weight: 500;
+      }
+      @media (max-width: 480px) {
+        .proposal-marker {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="phone">
+      <div class="statusbar">
+        <span>09:41</span>
+        <div class="icons">
+          <svg viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 12h2v2H2zM5 9h2v5H5zM8 6h2v8H8zM11 3h2v11h-2z" />
+          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M8 12.5c-3 0-5.5-2-6-4 1-1 3-2 6-2s5 1 6 2c-.5 2-3 4-6 4z" />
+            <circle cx="8" cy="11" r="0.8" fill="currentColor" />
+          </svg>
+          <svg viewBox="0 0 22 12" fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="0.5" y="0.5" width="19" height="11" rx="2.5" />
+            <rect x="2" y="2" width="14" height="8" rx="1" fill="currentColor" />
+            <rect x="20" y="4" width="2" height="4" rx="0.5" fill="currentColor" />
+          </svg>
+        </div>
+      </div>
+      <div class="notch"></div>
+
+      <div class="app">
+        <header class="mast">
+          <div class="meta-l">Vol. VII · № 142</div>
+          <div class="meta-r"><b>23</b> due</div>
+          <div class="title"><span class="roman">M</span>emor Chess</div>
+          <div class="sub">— a study of the opening repertoire —</div>
+          <div class="double"></div>
+          <nav class="tabs">
+            <a class="active">Explore</a>
+            <a>Train</a>
+            <a>Library</a>
+            <a>Studies</a>
+            <a>Settings</a>
+          </nav>
+        </header>
+
+        <section class="article-head">
+          <div class="eb">Book III · § 04 · Italian</div>
+          <h1>The quiet <span class="it">variation</span></h1>
+          <div class="moves-strip">
+            <span><span class="ply">1.</span>e4 e5</span>
+            <span><span class="ply">2.</span>Nf3 Nc6</span>
+            <span><span class="ply">3.</span>Bc4 Bc5</span>
+            <span><span class="ply">4.</span><span class="now">d3</span></span>
+          </div>
+        </section>
+
+        <div class="board-wrap">
+          <div class="eval-bar">
+            <div class="b"></div>
+            <div class="w"></div>
+            <span class="v">+0.32</span>
+          </div>
+          <figure class="board-figure">
+            <div class="board" id="board"></div>
+            <figcaption class="figure-caption">Fig. 14 — after 4.d3</figcaption>
+          </figure>
+        </div>
+
+        <div class="controls">
+          <div class="turn-line"><span class="roman">IV.</span> White to move</div>
+          <div class="ctrls">
+            <button class="ctrl" title="Flip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M7 4v16M17 4v16M7 4l-3 3M17 20l3-3" />
+              </svg>
+            </button>
+            <button class="ctrl" title="Back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <button class="ctrl" title="Forward">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+            <button class="ctrl save">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M5 4h11l3 3v13H5z" />
+                <path d="M8 4v6h8V4" />
+              </svg>
+            </button>
+            <button class="ctrl delete">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div style="display: contents">
+          <nav class="info-tabs">
+            <span class="info-tab active">I · Repertoire<span class="b">6</span></span>
+            <span class="info-tab">II · Masters</span>
+            <span class="info-tab">III · Notes</span>
+          </nav>
+          <section class="info">
+            <div class="sec-head">
+              <span class="sec-num">I.</span>
+              <span class="sec-title">Saved <span class="it">continuations</span></span>
+            </div>
+            <p class="lede">
+              Four canonical replies after 4.d3 — two trained to mastery, the rest in rotation.
+            </p>
+            <table class="moves-table">
+              <tr>
+                <td class="san">Nf6 <sup>main</sup></td>
+                <td>natural development</td>
+                <td class="right">2 days</td>
+              </tr>
+              <tr>
+                <td class="san">d6</td>
+                <td>solid, slower</td>
+                <td class="right">5 days</td>
+              </tr>
+              <tr>
+                <td class="san">Bd6</td>
+                <td>positional § III</td>
+                <td class="right">12 days</td>
+              </tr>
+              <tr>
+                <td class="san">a6</td>
+                <td>prepares Ba7</td>
+                <td class="right">today</td>
+              </tr>
+              <tr>
+                <td class="san">Qe7</td>
+                <td>new — untrained</td>
+                <td class="right">—</td>
+              </tr>
+            </table>
+
+            <div class="section">
+              <div class="sec-head">
+                <span class="sec-num">II.</span>
+                <span class="sec-title"><span class="it">Master</span> games</span>
+              </div>
+              <div class="stat-row">
+                <span class="move">Nf6</span>
+                <span class="stat-bar"
+                  ><span class="w" style="width: 41%"></span
+                  ><span class="d" style="width: 38%"></span
+                  ><span class="b" style="width: 21%"></span
+                ></span>
+                <span class="n">1,941</span>
+              </div>
+              <div class="stat-row">
+                <span class="move">d6</span>
+                <span class="stat-bar"
+                  ><span class="w" style="width: 35%"></span
+                  ><span class="d" style="width: 42%"></span
+                  ><span class="b" style="width: 23%"></span
+                ></span>
+                <span class="n">512</span>
+              </div>
+              <div class="stat-row">
+                <span class="move">Bd6</span>
+                <span class="stat-bar"
+                  ><span class="w" style="width: 28%"></span
+                  ><span class="d" style="width: 48%"></span
+                  ><span class="b" style="width: 24%"></span
+                ></span>
+                <span class="n">203</span>
+              </div>
+              <div class="stat-row">
+                <span class="move">a6</span>
+                <span class="stat-bar"
+                  ><span class="w" style="width: 22%"></span
+                  ><span class="d" style="width: 53%"></span
+                  ><span class="b" style="width: 25%"></span
+                ></span>
+                <span class="n">141</span>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="sec-head">
+                <span class="sec-num">III.</span>
+                <span class="sec-title"><span class="it">Notes</span></span>
+              </div>
+              <div class="pull-quote">
+                "The Italian is not slow — it is patient."
+                <span class="attrib">— FSRS daily review · ¶ 7</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <nav class="bottomnav">
+          <div class="nav-btn active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 3v18M3 12h18" />
+            </svg>
+            <span>Explore</span>
+          </div>
+          <div class="nav-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M5 19l4-4 3 3 7-9M14 9h5v5" />
+            </svg>
+            <span>Train</span>
+          </div>
+          <div class="nav-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 5v14M9 5v14M14 5v14M19 6l1 13" />
+            </svg>
+            <span>Library</span>
+          </div>
+          <div class="nav-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.4.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.4-.9a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"
+              />
+            </svg>
+            <span>Settings</span>
+          </div>
+        </nav>
+      </div>
+    </div>
+
+    <div class="proposal-marker">Proposal <b>II — Le Journal · mobile</b></div>
+
+    <script>
+      const board = document.getElementById("board");
+      const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+      const layout = [
+        ["r", "·", "b", "q", "k", "·", "·", "r"],
+        ["p", "p", "p", "p", "·", "p", "p", "p"],
+        ["·", "·", "n", "·", "·", "n", "·", "·"],
+        ["·", "·", "b", "·", "p", "·", "·", "·"],
+        ["·", "·", "B", "·", "P", "·", "·", "·"],
+        ["·", "·", "·", "P", "·", "N", "·", "·"],
+        ["P", "P", "P", "·", "·", "P", "P", "P"],
+        ["R", "N", "B", "Q", "K", "·", "·", "R"],
+      ];
+      const sym = {
+        K: "♔",
+        Q: "♕",
+        R: "♖",
+        B: "♗",
+        N: "♘",
+        P: "♙",
+        k: "♚",
+        q: "♛",
+        r: "♜",
+        b: "♝",
+        n: "♞",
+        p: "♟",
+      };
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const sq = document.createElement("div");
+          const light = (row + col) % 2 === 0;
+          sq.className = "sq " + (light ? "light" : "dark");
+          if ((row === 4 && col === 2) || (row === 3 && col === 2)) sq.classList.add("highlight");
+          if (col === 0) {
+            const r = document.createElement("span");
+            r.className = "rank-label";
+            r.textContent = 8 - row;
+            sq.appendChild(r);
+          }
+          if (row === 7) {
+            const f = document.createElement("span");
+            f.className = "file-label";
+            f.textContent = files[col];
+            sq.appendChild(f);
+          }
+          const ch = layout[row][col];
+          if (ch !== "·") {
+            const p = document.createElement("span");
+            p.textContent = sym[ch];
+            p.className = ch === ch.toUpperCase() ? "piece-white" : "piece-black";
+            sq.appendChild(p);
+          }
+          board.appendChild(sq);
+        }
+      }
+    </script>
+  </body>
+</html>
