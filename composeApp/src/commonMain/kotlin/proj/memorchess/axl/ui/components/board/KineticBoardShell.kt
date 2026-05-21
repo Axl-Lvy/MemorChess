@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
@@ -46,6 +47,8 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  *   italian/quiet"`).
  * @param cornerTagAccent Optional accent suffix appended to [cornerTag] in `accentText` colour
  *   (e.g. a move count like `"12"`).
+ * @param cornerTagColor Optional override for the [cornerTag] text colour. Defaults to `ink3` when
+ *   `null`. Useful for status tags that need to convey state (green = saved, red = error, …).
  * @param yourMovePill Optional accent pill at the top-centre (e.g. `"YOUR MOVE"`).
  * @param content The inner board area (typically a board grid).
  */
@@ -55,6 +58,7 @@ fun KineticBoardShell(
   compact: Boolean = false,
   cornerTag: String? = null,
   cornerTagAccent: String? = null,
+  cornerTagColor: Color? = null,
   yourMovePill: String? = null,
   content: @Composable () -> Unit,
 ) {
@@ -118,7 +122,8 @@ fun KineticBoardShell(
         Row(verticalAlignment = Alignment.CenterVertically) {
           Text(
             text = cornerTag.uppercase(),
-            style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.ink3),
+            style =
+              typography.monoSm.copy(fontSize = 9.5.sp, color = cornerTagColor ?: palette.ink3),
           )
           if (cornerTagAccent != null) {
             Text(

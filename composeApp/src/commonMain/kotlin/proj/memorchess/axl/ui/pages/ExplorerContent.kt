@@ -20,6 +20,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BarChart2
@@ -37,6 +38,7 @@ import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
 import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
+import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.BestMoveArrowData
 import proj.memorchess.axl.ui.components.board.Board
@@ -54,6 +56,7 @@ import proj.memorchess.axl.ui.components.explore.MovesTrail
 import proj.memorchess.axl.ui.layout.explore.ExploreLayoutContent
 import proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout
 import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
+import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
 /**
  * Shared explorer content relying on a [LinesExplorer].
@@ -106,6 +109,14 @@ fun ExplorerContent(
   // a local list that grows with each new playMove and reset alongside the explorer.
   val playedMoves = remember { mutableStateListOf<MoveDisplay>() }
   var playerTurnWhite by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
+
+  // Read the live save-state of the current position. `LinesExplorer.state` is
+  // mutableStateOf-backed
+  // so this reactively recomposes when the user navigates, saves, or deletes.
+  val palette = LocalKineticPalette.current
+  val nodeState = explorer.state
+  val cornerTagLabel = nodeStateLabel(nodeState)
+  val cornerTagColor = nodeStateColor(nodeState, palette)
 
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }
 
@@ -164,7 +175,8 @@ fun ExplorerContent(
               modifier = innerModifier,
             )
           },
-          cornerTagText = "EXPLORE",
+          cornerTagText = cornerTagLabel,
+          cornerTagColor = cornerTagColor,
           compact = false,
           evalEnabled = evalBarEnabled,
           evalRatio = computeEvalRatio(evaluation),
@@ -220,7 +232,7 @@ fun ExplorerContent(
         )
       },
       statBadges = { badgeModifier -> ExploreStatBadgesRow(modifier = badgeModifier) },
-      cornerTagText = "EXPLORE",
+      cornerTagText = cornerTagLabel,
     )
 
   header()
@@ -230,6 +242,41 @@ fun ExplorerContent(
     else LandscapeExploreLayout(Modifier.fillMaxSize(), content)
   }
 }
+
+/**
+ * Maps a [NodeState] to the short uppercase label shown in the board shell's corner tag. Mirrors
+ * the wording of the legacy [proj.memorchess.axl.ui.components.board.StateIndicator] but compressed
+ * to fit in the small mono tag: SAVED / PARTIAL / NEW / UNKNOWN MOVE / BAD.
+ */
+private fun nodeStateLabel(state: NodeState): String =
+  when (state) {
+    NodeState.FIRST -> "START"
+    NodeState.SAVED_GOOD -> "SAVED"
+    NodeState.SAVED_BAD -> "PARTIAL"
+    NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE -> "SAVED · NEW MOVE"
+    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> "PARTIAL · NEW MOVE"
+    NodeState.UNKNOWN -> "NOT SAVED"
+    NodeState.BAD_STATE -> "CONFLICT"
+  }
+
+/**
+ * Maps a [NodeState] to the color used to tint the corner-tag label. Green = position is part of a
+ * fully-saved good line; accent (orange) = saved but only partially good; ink3 = unknown / new
+ * position; red = conflicting (the same position is reached by both a good and a bad line).
+ */
+private fun nodeStateColor(
+  state: NodeState,
+  palette: proj.memorchess.axl.ui.theme.KineticPalette,
+): Color =
+  when (state) {
+    NodeState.FIRST,
+    NodeState.SAVED_GOOD -> palette.green
+    NodeState.SAVED_BAD,
+    NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE,
+    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> palette.accentText
+    NodeState.UNKNOWN -> palette.ink3
+    NodeState.BAD_STATE -> palette.red
+  }
 
 /**
  * Approximate eval ratio from an [EvaluationScore]. Returns `0.5f` when null. Maps centipawns into

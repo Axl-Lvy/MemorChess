@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import proj.memorchess.axl.ui.components.board.KineticBoardShell
@@ -22,6 +23,8 @@ import proj.memorchess.axl.ui.components.board.KineticEvalRail
  *
  * @param board Composable that paints the board; receives a `Modifier` sized to the inner area.
  * @param cornerTagText Optional text shown as the shell corner tag.
+ * @param cornerTagColor Optional tint applied to the corner tag text. Used to surface the node save
+ *   state (e.g. green when saved, red when bad).
  * @param compact When `true`, uses the compact board shell (tighter padding/shadow).
  * @param evalEnabled When `true`, an eval rail is rendered to the left of the board.
  * @param evalRatio Position of the eval marker (`0f` = all black, `1f` = all white).
@@ -33,6 +36,7 @@ fun ExploreBoardSection(
   modifier: Modifier = Modifier,
   board: @Composable (Modifier) -> Unit,
   cornerTagText: String? = null,
+  cornerTagColor: Color? = null,
   compact: Boolean = false,
   evalEnabled: Boolean = false,
   evalRatio: Float = 0.5f,
@@ -59,6 +63,7 @@ fun ExploreBoardSection(
           modifier = Modifier.fillMaxHeight().aspectRatio(1f),
           compact = compact,
           cornerTag = cornerTagText,
+          cornerTagColor = cornerTagColor,
         ) {
           board(Modifier.fillMaxWidth().aspectRatio(1f))
         }
