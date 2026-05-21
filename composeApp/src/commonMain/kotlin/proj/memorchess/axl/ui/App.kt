@@ -17,6 +17,7 @@ import org.koin.dsl.koinConfiguration
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.navigation.BottomNavigationBar
+import proj.memorchess.axl.ui.components.navigation.KineticSideBar
 import proj.memorchess.axl.ui.components.navigation.KineticTopBar
 import proj.memorchess.axl.ui.components.navigation.KineticTopBarNavItem
 import proj.memorchess.axl.ui.components.navigation.NavigationBarItemContent
@@ -93,6 +94,13 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
           )
         },
         bottomBar = { BottomNavigationBar(currentRoute, NavigationBarItemContent.entries) },
+        sideBar = {
+          KineticSideBar(
+            items = sortedNavItems,
+            currentRoute = currentRoute,
+            onSelect = { navigator.navigateTo(it.destination) },
+          )
+        },
       ) { innerPadding ->
         Router(modifier = Modifier.padding(innerPadding), navController = navController)
       }
