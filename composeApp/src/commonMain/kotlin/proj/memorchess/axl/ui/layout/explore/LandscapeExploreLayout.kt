@@ -3,68 +3,42 @@ package proj.memorchess.axl.ui.layout.explore
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import proj.memorchess.axl.ui.components.explore.ExploreActionButtons
-import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
-import proj.memorchess.axl.ui.components.explore.ExploreHeader
-import proj.memorchess.axl.ui.components.explore.ExploreNextMovesSection
-import proj.memorchess.axl.ui.components.explore.ExploreStateIndicators
 
+/**
+ * Desktop / landscape Kinetic explore layout. Composes the moves trail, board (with optional eval
+ * rail) and control bar in a tall left column; the [ExploreLayoutContent.sideInfo] slot fills a
+ * fixed-width right rail.
+ */
 @Composable
 fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
-  Row(
-    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-    verticalAlignment = Alignment.CenterVertically,
-    modifier = modifier.fillMaxSize().padding(16.dp),
-  ) {
-    // Left side: Board section (takes up most space but constrained by ratio)
-    ExploreBoardSection(
-      board = content.board,
-      modifier =
-        Modifier.fillMaxHeight() // Use 90% of available height to determine max size
-          .aspectRatio(1f)
-          .weight(2f, fill = false),
-    )
-
-    // Right side: All controls in a scrollable column with ratio-based constraint
+  Row(modifier = modifier.fillMaxSize()) {
     Column(
-      verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Top),
-      modifier =
-        Modifier.weight(1f, fill = false)
-          .fillMaxHeight()
-          .aspectRatio(1f)
-          .verticalScroll(rememberScrollState()),
+      modifier = Modifier.weight(1f).fillMaxHeight().padding(28.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-      // Header with control buttons and player turn indicator
-      ExploreHeader(
-        reverseButton = content.reverseButton,
-        resetButton = content.resetButton,
-        playerTurnIndicator = content.playerTurnIndicator,
-        backButton = content.backButton,
-        forwardButton = content.forwardButton,
-        evaluationBarToggle = content.evaluationBarToggle,
-      )
-
-      // State indicators section
-      ExploreStateIndicators(stateIndicators = content.stateIndicators)
-
-      // Evaluation bar below state indicators
-      content.evaluationPanel(Modifier)
-
-      // Next moves section with horizontal scrolling
-      ExploreNextMovesSection(nextMoveButtons = content.nextMoveButtons)
-
-      // Action buttons section (save/delete)
-      ExploreActionButtons(saveButton = content.saveButton, deleteButton = content.deleteButton)
+      content.movesTrail(Modifier.fillMaxWidth())
+      Spacer(modifier = Modifier.height(8.dp))
+      Row(
+        modifier = Modifier.weight(1f).fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+      ) {
+        content.board(Modifier.fillMaxHeight())
+      }
+      Spacer(modifier = Modifier.height(8.dp))
+      content.controlBar(Modifier.fillMaxWidth())
     }
+    content.sideInfo(
+      Modifier.width(420.dp).fillMaxHeight().padding(vertical = 28.dp, horizontal = 0.dp)
+    )
   }
 }
