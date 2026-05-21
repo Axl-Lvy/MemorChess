@@ -191,7 +191,14 @@ private class TrainingBoard : KoinComponent {
       trainer.registerCallBack { reloader.reload() }
       trainer
     }
-    trainer.updateNode(nodeToLearn)
+    // Swap the trainer's node only when the training entry actually changes. Calling updateNode on
+    // every recomposition (e.g. when `state` flips to SHOW_CORRECT_MOVE right after the user's
+    // move)
+    // would re-trigger its "engine drifted past node" reset path — that's what caused the
+    // user-visible "move plays → rollback → both moves animate together" glitch: the rollback came
+    // from the reset, and the combined animation came from the next entry's updateNode diffing the
+    // pre-move position against the next training position.
+    LaunchedEffect(nodeToLearn) { trainer.updateNode(nodeToLearn) }
     val inverted = remember(nodeToLearn) { trainer.engine.playerTurn == Player.BLACK }
 
     val totalAttempts = successCount + failCount
