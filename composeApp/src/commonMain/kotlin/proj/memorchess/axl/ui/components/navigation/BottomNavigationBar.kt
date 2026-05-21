@@ -1,19 +1,15 @@
 package proj.memorchess.axl.ui.components.navigation
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 
-/** Bottom navigation bar. */
+/**
+ * App-level bottom navigation bar. Delegates rendering to [KineticBottomNav] and wires the active
+ * route into [LocalNavigator]; the wrapper exists so call sites in `App.kt` remain unchanged and
+ * Android instrumented tests can keep referencing the `bottom_navigation_bar_item_*` test tags.
+ */
 @Composable
 fun BottomNavigationBar(
   currentRoute: String,
@@ -21,19 +17,12 @@ fun BottomNavigationBar(
   modifier: Modifier = Modifier,
 ) {
   val navigator = LocalNavigator.current
-  NavigationBar(modifier = modifier.fillMaxWidth(), windowInsets = WindowInsets(0, 0, 0, 0)) {
-    items
-      .sortedBy { it.index }
-      .forEach { item ->
-        val isSelected by
-          remember(currentRoute) { derivedStateOf { currentRoute == item.destination.getLabel() } }
-        NavigationBarItem(
-          selected = isSelected,
-          icon = item.icon,
-          label = { Text(item.destination.getLabel()) },
-          onClick = { navigator.navigateTo(item.destination) },
-          modifier = Modifier.testTag("bottom_navigation_bar_item_${item.destination.getLabel()}"),
-        )
-      }
-  }
+  val sorted = items.sortedBy { it.index }
+  KineticBottomNav(
+    items = sorted,
+    currentRoute = currentRoute,
+    onSelect = { navigator.navigateTo(it.destination) },
+    modifier = modifier,
+    itemModifier = { Modifier.testTag("bottom_navigation_bar_item_${it.destination.getLabel()}") },
+  )
 }

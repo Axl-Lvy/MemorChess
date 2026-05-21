@@ -79,6 +79,8 @@ private fun NavCellIcon(item: NavigationBarItemContent, tint: Color) {
  *   destination label to determine the active cell.
  * @param onSelect Invoked when the user taps a cell.
  * @param modifier Optional layout modifier.
+ * @param itemModifier Optional per-cell modifier, e.g. for attaching `Modifier.testTag(...)` to
+ *   individual cells from a calling wrapper.
  */
 @Composable
 fun KineticBottomNav(
@@ -86,6 +88,7 @@ fun KineticBottomNav(
   currentRoute: String,
   onSelect: (NavigationBarItemContent) -> Unit,
   modifier: Modifier = Modifier,
+  itemModifier: (NavigationBarItemContent) -> Modifier = { Modifier },
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -110,6 +113,7 @@ fun KineticBottomNav(
         modifier =
           Modifier.weight(1f)
             .fillMaxHeight()
+            .then(itemModifier(item))
             .clickable(enabled = true, onClick = { onSelect(item) })
             .drawBehind {
               if (active) {
@@ -156,6 +160,8 @@ fun KineticBottomNav(
  *   destination label to determine the active cell.
  * @param onSelect Invoked when the user taps a cell.
  * @param modifier Optional layout modifier.
+ * @param itemModifier Optional per-cell modifier, e.g. for attaching `Modifier.testTag(...)` from a
+ *   calling wrapper.
  */
 @Composable
 fun KineticSideNav(
@@ -163,6 +169,7 @@ fun KineticSideNav(
   currentRoute: String,
   onSelect: (NavigationBarItemContent) -> Unit,
   modifier: Modifier = Modifier,
+  itemModifier: (NavigationBarItemContent) -> Modifier = { Modifier },
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -186,6 +193,7 @@ fun KineticSideNav(
         modifier =
           Modifier.fillMaxWidth()
             .height(SIDE_CELL_HEIGHT)
+            .then(itemModifier(item))
             .clickable(enabled = true, onClick = { onSelect(item) })
             .drawBehind {
               if (active) {
