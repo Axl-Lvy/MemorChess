@@ -5,7 +5,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -52,7 +51,10 @@ fun MainLayout(
         bottomBar()
       }
     },
-    contentWindowInsets = WindowInsets.safeDrawing,
+    // The top and bottom bars consume the system bar insets themselves via
+    // `windowInsetsPadding(statusBars/navigationBars)` so we pass empty insets to the scaffold —
+    // otherwise the content area would be padded twice.
+    contentWindowInsets = WindowInsets(0),
   ) { innerPadding ->
     content(innerPadding)
   }

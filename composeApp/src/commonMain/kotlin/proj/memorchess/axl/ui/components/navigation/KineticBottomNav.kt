@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -94,15 +97,20 @@ fun KineticBottomNav(
   val typography = LocalKineticTypography.current
   Row(
     modifier =
-      modifier.fillMaxWidth().height(BAR_HEIGHT).background(palette.bg2).drawBehind {
-        // Top border (1.dp line) painted along the bar's top edge.
-        val strokePx = BORDER_PX.toPx()
-        drawRect(
-          color = palette.line,
-          topLeft = androidx.compose.ui.geometry.Offset(0f, 0f),
-          size = androidx.compose.ui.geometry.Size(size.width, strokePx),
-        )
-      },
+      modifier
+        .fillMaxWidth()
+        .background(palette.bg2)
+        .windowInsetsPadding(WindowInsets.navigationBars)
+        .height(BAR_HEIGHT)
+        .drawBehind {
+          // Top border (1.dp line) painted along the bar's top edge.
+          val strokePx = BORDER_PX.toPx()
+          drawRect(
+            color = palette.line,
+            topLeft = androidx.compose.ui.geometry.Offset(0f, 0f),
+            size = androidx.compose.ui.geometry.Size(size.width, strokePx),
+          )
+        },
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.SpaceEvenly,
   ) {
