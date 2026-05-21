@@ -1,11 +1,10 @@
 package proj.memorchess.axl.ui.components.board.control
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,14 +27,20 @@ import proj.memorchess.axl.core.graph.Node
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
+import proj.memorchess.axl.ui.components.buttons.KineticButton
+import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
+import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
+import proj.memorchess.axl.ui.components.explore.MovesTrail
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.training.BoardContainer
-import proj.memorchess.axl.ui.components.training.DaysInAdvanceCard
-import proj.memorchess.axl.ui.components.training.MovesToTrainCard
-import proj.memorchess.axl.ui.components.training.SuccessIndicatorCard
+import proj.memorchess.axl.ui.components.training.KineticProgressRail
+import proj.memorchess.axl.ui.components.training.TrainingCounterRow
+import proj.memorchess.axl.ui.components.training.TrainingCtrlBar
 import proj.memorchess.axl.ui.layout.training.LandscapeTrainingLayout
 import proj.memorchess.axl.ui.layout.training.PortraitTrainingLayout
 import proj.memorchess.axl.ui.layout.training.TrainingLayoutContent
+import proj.memorchess.axl.ui.theme.LocalKineticPalette
+import proj.memorchess.axl.ui.theme.LocalKineticTypography
 import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
@@ -62,6 +67,12 @@ private class TrainingBoard : KoinComponent {
   private val trainerReloader = BasicReloader()
   private var chosenNode by mutableStateOf<Node?>(null)
 
+  // Session counters — live for the lifetime of this `TrainingBoard` instance (i.e. the lifetime
+  // of the page). When the user leaves Training and comes back, the page is recreated and these
+  // reset to 0.
+  private var successCount by mutableStateOf(0)
+  private var failCount by mutableStateOf(0)
+
   init {
     choseNextNode()
   }
@@ -72,6 +83,19 @@ private class TrainingBoard : KoinComponent {
       remember(localReloader.getKey(), daysInAdvance) {
         trainingScheduler.pendingCount(dayOffset(daysInAdvance))
       }
+    // Count each attempt exactly once: increment on the transition into a SHOW_* state. Using
+    // LaunchedEffect(state) means we react only when `state` actually changes value, and the
+    // `isShowing` guard ensures FROM_* → FROM_* transitions are ignored. After incrementing we
+    // continue the existing "auto-advance on correct" behavior.
+    LaunchedEffect(state) {
+      if (state.isShowing) {
+        if (state.isCorrect) {
+          successCount += 1
+        } else {
+          failCount += 1
+        }
+      }
+    }
     LaunchedEffect(reloader.getKey()) {
       if (state.isShowing && state.isCorrect) {
         delay(moveDelay)
@@ -107,7 +131,12 @@ private class TrainingBoard : KoinComponent {
       daysInAdvance = 1
       return
     }
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    val palette = LocalKineticPalette.current
+    val typography = LocalKineticTypography.current
+    Box(
+      modifier = modifier.fillMaxSize().background(palette.bg),
+      contentAlignment = Alignment.Center,
+    ) {
       Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -119,28 +148,28 @@ private class TrainingBoard : KoinComponent {
           modifier = Modifier.size(64.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-          text = "Bravo !",
-          style = MaterialTheme.typography.headlineMedium,
-          color = MaterialTheme.colorScheme.onBackground,
-        )
+        Text(text = "Bravo !", style = typography.displayLg.copy(color = palette.ink))
         Spacer(modifier = Modifier.height(8.dp))
         Text(
           text = "You have finished today's training!",
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onBackground,
+          style = typography.body.copy(color = palette.ink2),
           textAlign = TextAlign.Center,
         )
-        Button(
+        Spacer(modifier = Modifier.height(16.dp))
+        KineticButton(
           onClick = {
             daysInAdvance++
             choseNextNode()
           },
-          modifier = Modifier.padding(top = 16.dp),
+          style = KineticButtonStyle.Primary,
         ) {
-          Text("Increment a day")
+          KineticButtonLabel("Increment a day")
         }
-        Text("Days in advance: $daysInAdvance")
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+          text = "Days in advance: $daysInAdvance",
+          style = typography.monoSm.copy(color = palette.ink3),
+        )
       }
     }
   }
@@ -164,23 +193,56 @@ private class TrainingBoard : KoinComponent {
     }
     trainer.updateNode(nodeToLearn)
     val inverted = remember(nodeToLearn) { trainer.engine.playerTurn == Player.BLACK }
-    val content =
-      TrainingLayoutContent(
-        board = { BoardContainer(inverted, trainer, it) },
-        daysInAdvance = { DaysInAdvanceCard(this@TrainingBoard.daysInAdvance, it) },
-        successIndicator = {
-          SuccessIndicatorCard(
-            state.isCorrect,
-            state.isShowing,
-            { choseNextNode() },
-            chosenNode?.positionKey,
-            it,
-          )
-        },
-        movesToTrain = { MovesToTrainCard(numberOfNodesToTrain, it) },
-      )
+
+    val totalAttempts = successCount + failCount
+    val denominator = totalAttempts + numberOfNodesToTrain
+    val progress =
+      if (denominator > 0) {
+        (totalAttempts.toFloat() / denominator.toFloat()).coerceIn(0f, 1f)
+      } else {
+        0f
+      }
+    val playerTurn = trainer.engine.playerTurn
+
     BoxWithConstraints {
-      if (maxHeight > maxWidth) {
+      val portrait = maxHeight > maxWidth
+      val content =
+        TrainingLayoutContent(
+          board = { mod ->
+            BoardContainer(
+              inverted = inverted,
+              trainer = trainer,
+              modifier = mod,
+              compact = portrait,
+              cornerTagText = "TRAINING",
+            )
+          },
+          counters = { mod ->
+            TrainingCounterRow(
+              successCount = successCount,
+              failCount = failCount,
+              leftCount = numberOfNodesToTrain,
+              modifier = mod,
+            )
+          },
+          progress = { mod -> KineticProgressRail(progress = progress, modifier = mod) },
+          movesTrail = { mod ->
+            // v1: empty trail. Acceptable per the Explore precedent; the Training visual port does
+            // not yet surface the line history.
+            MovesTrail(moves = emptyList(), currentIndex = -1, onSeek = {}, modifier = mod)
+          },
+          controlBar = { mod ->
+            TrainingCtrlBar(
+              playerTurn = playerTurn,
+              onSkip = { choseNextNode() },
+              onHint = {}, // stub for v1
+              onReveal = {}, // stub for v1
+              modifier = mod,
+            )
+          },
+          cornerTagText = "TRAINING",
+        )
+      if (portrait) {
         PortraitTrainingLayout(content = content, modifier = modifier)
       } else {
         LandscapeTrainingLayout(content = content, modifier = modifier)

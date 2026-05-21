@@ -3,45 +3,36 @@ package proj.memorchess.axl.ui.layout.training
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+/**
+ * Landscape Training layout — same single centered column as the portrait layout, with looser
+ * padding and slightly larger gutter spacing. The board still dominates the central area.
+ *
+ * @param modifier Modifier applied to the outer [Column].
+ * @param content Slot bag rendered into this layout.
+ */
 @Composable
 fun LandscapeTrainingLayout(modifier: Modifier = Modifier, content: TrainingLayoutContent) {
-  Row(
-    modifier = modifier.fillMaxSize().padding(16.dp),
-    horizontalArrangement = Arrangement.spacedBy(20.dp),
+  Column(
+    modifier =
+      modifier.fillMaxSize().widthIn(max = 1100.dp).padding(horizontal = 28.dp, vertical = 16.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(12.dp),
   ) {
-    // Board Section - Takes up most of the space
-    Box(modifier = Modifier.weight(3f).fillMaxHeight()) {
-      content.board(Modifier.fillMaxSize().aspectRatio(1f, true))
+    content.counters(Modifier.fillMaxWidth())
+    content.progress(Modifier.fillMaxWidth())
+    content.movesTrail(Modifier.fillMaxWidth())
+    Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+      content.board(Modifier.fillMaxSize())
     }
-
-    // Side Panel with Information Cards
-    Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Top) {
-      Box(modifier = Modifier.weight(2f)) {
-        Column {
-          // Moves to train at the top
-          content.movesToTrain(Modifier.fillMaxWidth())
-          Spacer(modifier = Modifier.height(16.dp))
-
-          // Days in advance in the middle
-          content.daysInAdvance(Modifier.fillMaxWidth())
-        }
-      }
-      Box(modifier = Modifier.weight(1f)) {
-        // Success indicator at the bottom
-        content.successIndicator(Modifier.fillMaxWidth())
-      }
-    }
+    content.controlBar(Modifier.fillMaxWidth())
   }
 }
