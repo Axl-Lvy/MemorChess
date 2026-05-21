@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -64,7 +63,6 @@ fun KineticCounterBlock(
   Column(
     modifier =
       modifier
-        .wrapContentWidth()
         .background(palette.panel)
         .border(1.dp, palette.line)
         .drawBehind {

@@ -145,16 +145,17 @@ fun KineticButton(
         .height(height)
         .defaultMinSize(minWidth = height)
         .alpha(if (enabled) 1f else 0.5f)
-        .background(color = bg)
-        .border(BorderStroke(1.dp, borderColor))
-        .then(if (iconOnly) Modifier.width(height) else Modifier.padding(horizontal = 14.dp))
+        .then(if (iconOnly) Modifier.width(height) else Modifier)
         .clickable(
           interactionSource = interactionSource,
           indication = indication,
           enabled = enabled,
           role = Role.Button,
           onClick = onClick,
-        ),
+        )
+        .background(color = bg)
+        .border(BorderStroke(1.dp, borderColor))
+        .then(if (iconOnly) Modifier else Modifier.padding(horizontal = 14.dp)),
     contentAlignment = Alignment.Center,
   ) {
     CompositionLocalProvider(

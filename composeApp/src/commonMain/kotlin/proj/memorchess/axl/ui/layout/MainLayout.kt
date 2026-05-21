@@ -3,21 +3,24 @@ package proj.memorchess.axl.ui.layout
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.window.core.layout.WindowSizeClass
 
 /**
  * Main layout for the application.
  *
- * Always renders a top bar above the content. On narrow screens a bottom bar is also rendered.
+ * Always renders a top bar above the content. On narrow screens a bottom bar is also rendered. Both
+ * top and bottom bars are slotted into a Material 3 [Scaffold] so the system bars (status bar,
+ * gesture nav) automatically get the right insets — the topBar is no longer drawn under the Android
+ * status bar.
  *
  * @param windowSizeClass Window size class driving wide/narrow behaviour. Defaults to the current
  *   window's adaptive info.
@@ -38,20 +41,19 @@ fun MainLayout(
         windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
       }
     }
-  Column(modifier = Modifier) {
-    topBar()
-    Scaffold(
-      bottomBar = {
-        AnimatedVisibility(
-          visible = !isWide,
-          enter = slideInVertically(initialOffsetY = { it }),
-          exit = slideOutVertically(targetOffsetY = { it }),
-        ) {
-          bottomBar()
-        }
+  Scaffold(
+    topBar = topBar,
+    bottomBar = {
+      AnimatedVisibility(
+        visible = !isWide,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+      ) {
+        bottomBar()
       }
-    ) { innerPadding ->
-      content(innerPadding)
-    }
+    },
+    contentWindowInsets = WindowInsets.safeDrawing,
+  ) { innerPadding ->
+    content(innerPadding)
   }
 }

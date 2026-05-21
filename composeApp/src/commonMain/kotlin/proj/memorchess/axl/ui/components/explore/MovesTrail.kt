@@ -115,6 +115,13 @@ fun MovesTrail(
   openingName: String? = null,
   pgnText: String? = null,
 ) {
+  // Self-hide when there's nothing meaningful to display. The trail still occupies its container
+  // slot via the caller's [modifier], so layouts using `Modifier.fillMaxWidth()` won't suddenly
+  // jump in height — but it doesn't paint the arrows/PGN/opening-pin chrome over empty content.
+  if (moves.isEmpty() && openingName.isNullOrEmpty() && pgnText.isNullOrEmpty()) {
+    return
+  }
+
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val listState = rememberLazyListState()
