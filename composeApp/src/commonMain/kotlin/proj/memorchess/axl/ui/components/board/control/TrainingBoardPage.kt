@@ -21,6 +21,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.Node
@@ -199,7 +200,15 @@ private class TrainingBoard : KoinComponent {
     // from the reset, and the combined animation came from the next entry's updateNode diffing the
     // pre-move position against the next training position.
     LaunchedEffect(nodeToLearn) { trainer.updateNode(nodeToLearn) }
-    val inverted = remember(nodeToLearn) { trainer.engine.playerTurn == Player.BLACK }
+    // Derive board orientation from nodeToLearn directly, not from `trainer.engine`. The trainer's
+    // engine has not yet been swapped to the new entry at this point in composition (updateNode
+    // runs in the LaunchedEffect, after composition), so reading trainer.engine.playerTurn here
+    // returns the player-to-move of the OLD engine — i.e. the opponent's color after the user's
+    // last move. That mis-derivation was causing the board to flip whenever a new entry loaded.
+    val inverted =
+      remember(nodeToLearn.positionKey) {
+        GameEngine(nodeToLearn.positionKey).playerTurn == Player.BLACK
+      }
 
     val totalAttempts = successCount + failCount
     val denominator = totalAttempts + numberOfNodesToTrain
