@@ -21,7 +21,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Auto update pull request branches
-        uses: maruloop/autoupdate-action@v1
-        with:
-          github_token: ${{ steps.app-token.outputs.token }}
-          pr_filter: "all"
+        uses: docker://chinthakagodawita/autoupdate-action:v1
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_FILTER: "all"
