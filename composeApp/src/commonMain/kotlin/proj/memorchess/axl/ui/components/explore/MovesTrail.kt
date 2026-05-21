@@ -85,17 +85,17 @@ private val ArrowSize = 24.dp
  *    The strip fades its leftmost and rightmost ~16.dp into the trail background via a
  *    `drawWithContent` gradient overlay so chips dissolve at the boundary instead of butting
  *    against the arrows.
- *    - Current move ([currentIndex] == index): solid `accent` background with `onAccent` text and
- *      `accent` border.
- *    - Guess move ([MoveDisplay.isGuess]): dashed `ink4` border drawn via [drawBehind] with a
- *      dashed [PathEffect], and the SAN gets a trailing `" ?"`.
+ *     - Current move ([currentIndex] == index): solid `accent` background with `onAccent` text and
+ *       `accent` border.
+ *     - Guess move ([MoveDisplay.isGuess]): dashed `ink4` border drawn via [drawBehind] with a
+ *       dashed [PathEffect], and the SAN gets a trailing `" ?"`.
  *
- *    Whenever [currentIndex] changes the strip auto-scrolls so the current chip is visible.
+ *   Whenever [currentIndex] changes the strip auto-scrolls so the current chip is visible.
  * 3. **Left/right arrows** — `◀ ▶` 24.dp icon buttons that page the scroll by roughly one viewport
  *    in each direction.
- * 4. **PGN button** — only rendered when [pgnText] is non-null. Opens a dismissable [Dialog] with
- *    a scrollable two-column move list (white / black) styled on `panel` with a 1.dp `line`
- *    border, mirroring the `.pgn-overlay`/`.pgn-card` rule set.
+ * 4. **PGN button** — only rendered when [pgnText] is non-null. Opens a dismissable [Dialog] with a
+ *    scrollable two-column move list (white / black) styled on `panel` with a 1.dp `line` border,
+ *    mirroring the `.pgn-overlay`/`.pgn-card` rule set.
  *
  * The whole container is 36.dp tall with a `bg2` background and a 1.dp `line` bottom border.
  *
@@ -131,20 +131,16 @@ fun MovesTrail(
 
   Row(
     modifier =
-      modifier
-        .fillMaxWidth()
-        .height(TrailHeight)
-        .background(palette.bg2)
-        .drawBehind {
-          // 1.dp bottom border in `line` (matches `.trail` `border-bottom`).
-          val strokePx = 1.dp.toPx()
-          drawLine(
-            color = palette.line,
-            start = Offset(0f, size.height - strokePx / 2f),
-            end = Offset(size.width, size.height - strokePx / 2f),
-            strokeWidth = strokePx,
-          )
-        },
+      modifier.fillMaxWidth().height(TrailHeight).background(palette.bg2).drawBehind {
+        // 1.dp bottom border in `line` (matches `.trail` `border-bottom`).
+        val strokePx = 1.dp.toPx()
+        drawLine(
+          color = palette.line,
+          start = Offset(0f, size.height - strokePx / 2f),
+          end = Offset(size.width, size.height - strokePx / 2f),
+          strokeWidth = strokePx,
+        )
+      },
     verticalAlignment = Alignment.CenterVertically,
   ) {
     if (openingName != null) {
@@ -175,36 +171,34 @@ fun MovesTrail(
 
     Box(
       modifier =
-        Modifier.weight(1f)
-          .fillMaxHeight()
-          .drawWithContent {
-            drawContent()
-            val fadePx = EdgeFadeWidth.toPx().coerceAtMost(size.width / 2f)
-            if (fadePx > 0f) {
-              // Left fade: bg2 -> transparent
-              drawRect(
-                brush =
-                  Brush.horizontalGradient(
-                    colors = listOf(palette.bg2, Color.Transparent),
-                    startX = 0f,
-                    endX = fadePx,
-                  ),
-                topLeft = Offset(0f, 0f),
-                size = Size(fadePx, size.height),
-              )
-              // Right fade: transparent -> bg2
-              drawRect(
-                brush =
-                  Brush.horizontalGradient(
-                    colors = listOf(Color.Transparent, palette.bg2),
-                    startX = size.width - fadePx,
-                    endX = size.width,
-                  ),
-                topLeft = Offset(size.width - fadePx, 0f),
-                size = Size(fadePx, size.height),
-              )
-            }
-          },
+        Modifier.weight(1f).fillMaxHeight().drawWithContent {
+          drawContent()
+          val fadePx = EdgeFadeWidth.toPx().coerceAtMost(size.width / 2f)
+          if (fadePx > 0f) {
+            // Left fade: bg2 -> transparent
+            drawRect(
+              brush =
+                Brush.horizontalGradient(
+                  colors = listOf(palette.bg2, Color.Transparent),
+                  startX = 0f,
+                  endX = fadePx,
+                ),
+              topLeft = Offset(0f, 0f),
+              size = Size(fadePx, size.height),
+            )
+            // Right fade: transparent -> bg2
+            drawRect(
+              brush =
+                Brush.horizontalGradient(
+                  colors = listOf(Color.Transparent, palette.bg2),
+                  startX = size.width - fadePx,
+                  endX = size.width,
+                ),
+              topLeft = Offset(size.width - fadePx, 0f),
+              size = Size(fadePx, size.height),
+            )
+          }
+        },
       contentAlignment = Alignment.CenterStart,
     ) {
       LazyRow(
@@ -215,11 +209,7 @@ fun MovesTrail(
         modifier = Modifier.fillMaxWidth(),
       ) {
         itemsIndexed(moves) { index, move ->
-          MoveChip(
-            move = move,
-            isCurrent = index == currentIndex,
-            onClick = { onSeek(index) },
-          )
+          MoveChip(move = move, isCurrent = index == currentIndex, onClick = { onSeek(index) })
         }
       }
     }
@@ -246,10 +236,7 @@ fun MovesTrail(
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
       ) {
-        Text(
-          text = "PGN",
-          style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.ink3),
-        )
+        Text(text = "PGN", style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.ink3))
       }
     }
   }
@@ -330,10 +317,7 @@ private fun TrailArrow(onClick: () -> Unit, isLeft: Boolean) {
   ) {
     // Render a simple Unicode glyph rather than pulling in a vector resource — keeps this
     // component self-contained and matches the `◀ ▶` characters cited in the brief.
-    Text(
-      text = if (isLeft) "◀" else "▶",
-      style = TextStyle(fontSize = 10.sp, color = palette.ink3),
-    )
+    Text(text = if (isLeft) "◀" else "▶", style = TextStyle(fontSize = 10.sp, color = palette.ink3))
   }
 }
 
@@ -361,8 +345,13 @@ private fun PgnDialog(
         .map { (number, entries) ->
           val white = entries.firstOrNull { it.value.isWhiteMove }
           val black = entries.firstOrNull { !it.value.isWhiteMove }
-          PgnRow(number = number, white = white?.value, whiteIndex = white?.index ?: -1,
-            black = black?.value, blackIndex = black?.index ?: -1)
+          PgnRow(
+            number = number,
+            white = white?.value,
+            whiteIndex = white?.index ?: -1,
+            black = black?.value,
+            blackIndex = black?.index ?: -1,
+          )
         }
     }
 
@@ -372,7 +361,7 @@ private fun PgnDialog(
         Modifier.fillMaxWidth()
           .heightIn(max = 600.dp)
           .background(palette.panel)
-          .border(width = 1.dp, color = palette.line),
+          .border(width = 1.dp, color = palette.line)
     ) {
       Row(
         modifier =
@@ -401,13 +390,10 @@ private fun PgnDialog(
         modifier =
           Modifier.fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .padding(horizontal = 20.dp, vertical = 18.dp)
       ) {
         if (rows.isEmpty()) {
-          Text(
-            text = pgnText,
-            style = typography.mono.copy(fontSize = 13.sp, color = palette.ink2),
-          )
+          Text(text = pgnText, style = typography.mono.copy(fontSize = 13.sp, color = palette.ink2))
         } else {
           rows.forEach { row -> PgnRowView(row = row, currentIndex = currentIndex) }
         }
@@ -471,7 +457,7 @@ private fun PlyCell(
   modifier: Modifier,
   move: MoveDisplay?,
   isCurrent: Boolean,
-  baseStyle: androidx.compose.ui.text.TextStyle,
+  baseStyle: TextStyle,
 ) {
   val palette = LocalKineticPalette.current
   val color = if (isCurrent) palette.accentText else palette.ink
