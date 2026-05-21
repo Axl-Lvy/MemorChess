@@ -48,7 +48,6 @@ import proj.memorchess.axl.ui.components.board.StateIndicator
 import proj.memorchess.axl.ui.components.buttons.ControlButton
 import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
 import proj.memorchess.axl.ui.components.explore.ExploreCtrlBar
-import proj.memorchess.axl.ui.components.explore.ExploreInfoTabs
 import proj.memorchess.axl.ui.components.explore.ExploreSidebar
 import proj.memorchess.axl.ui.components.explore.ExploreStatBadgesRow
 import proj.memorchess.axl.ui.components.explore.MoveDisplay
@@ -223,7 +222,7 @@ fun ExplorerContent(
         )
       },
       mobileInfo = { infoModifier ->
-        ExploreInfoTabs(
+        ExploreSidebar(
           modifier = infoModifier,
           nextMoves = nextMoves.toList(),
           onPlayMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
