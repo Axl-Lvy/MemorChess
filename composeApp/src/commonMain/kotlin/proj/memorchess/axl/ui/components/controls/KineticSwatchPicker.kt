@@ -6,12 +6,14 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
@@ -83,10 +85,12 @@ fun <T> KineticSwatchPicker(
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val indication = LocalIndication.current
+  val scrollState = rememberScrollState()
 
   Row(
-    modifier = modifier.alpha(if (enabled) 1f else 0.5f),
-    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    modifier =
+      modifier.alpha(if (enabled) 1f else 0.5f).horizontalScroll(scrollState, enabled = enabled),
+    horizontalArrangement = Arrangement.spacedBy(16.dp),
     verticalAlignment = Alignment.Top,
   ) {
     options.forEach { swatch ->

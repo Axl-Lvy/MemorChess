@@ -23,14 +23,14 @@ enum class ChessBoardColorScheme(
     darkSquareColor = Color(0xFF3A4150),
     selectedBorderColor = Color(0xFFFF5B26),
     arrowColor = Color(0x80FF5B26),
-    displayName = "Kinetic Dark",
+    displayName = "Default Dark",
   ),
   KINETIC_LIGHT(
     lightSquareColor = Color(0xFFE5EDF5),
     darkSquareColor = Color(0xFF5E6A82),
     selectedBorderColor = Color(0xFFFF5B26),
     arrowColor = Color(0x8000B8D4),
-    displayName = "Kinetic Light",
+    displayName = "Default Light",
   ),
   GRASS(
     lightSquareColor = Color(0xFFEEEED2),

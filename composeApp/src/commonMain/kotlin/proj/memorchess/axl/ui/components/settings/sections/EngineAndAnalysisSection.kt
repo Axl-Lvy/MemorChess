@@ -28,7 +28,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * arrow) and a slider for engine max depth.
  *
  * The depth slider snaps to integer values; selecting the maximum (26) maps to "infinite" depth,
- * persisted as `0` and shown as "∞ plies" to mirror the contract documented on
+ * persisted as `0` and shown as "∞" to mirror the contract documented on
  * [ENGINE_MAX_DEPTH_SETTING].
  *
  * @param reloadKey value used to force re-reading the persisted settings on external reloads.
@@ -81,7 +81,6 @@ fun EngineAndAnalysisSection(reloadKey: Any) {
         val intVal = it.roundToInt()
         if (intVal >= 26) "∞" else intVal.toString()
       },
-      unit = "plies",
       minLabel = "5",
       maxLabel = "∞",
       sliderTestTag = ENGINE_MAX_DEPTH_SETTING.name,
