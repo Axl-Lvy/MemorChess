@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -27,6 +28,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -90,7 +92,7 @@ fun <T> KineticSwatchPicker(
   Row(
     modifier =
       modifier.alpha(if (enabled) 1f else 0.5f).horizontalScroll(scrollState, enabled = enabled),
-    horizontalArrangement = Arrangement.spacedBy(16.dp),
+    horizontalArrangement = Arrangement.spacedBy(24.dp),
     verticalAlignment = Alignment.Top,
   ) {
     options.forEach { swatch ->
@@ -101,6 +103,7 @@ fun <T> KineticSwatchPicker(
       val interactionSource = remember(swatch.value) { MutableInteractionSource() }
 
       Column(
+        modifier = Modifier.width(SWATCH_COLUMN_WIDTH),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
       ) {
@@ -143,8 +146,20 @@ fun <T> KineticSwatchPicker(
           }
         }
 
-        Text(text = swatch.label.uppercase(), style = typography.monoSm.copy(color = labelColor))
+        Text(
+          text = swatch.label.uppercase(),
+          style = typography.monoSm.copy(color = labelColor),
+          maxLines = 2,
+          textAlign = TextAlign.Center,
+        )
       }
     }
   }
 }
+
+/**
+ * Fixed width for each swatch column. Wider than the 48.dp tile so labels like "DEFAULT LIGHT" fit
+ * on a single line, but constant across all options so the tile-to-tile gaps stay uniform
+ * regardless of how long any one label is.
+ */
+private val SWATCH_COLUMN_WIDTH = 84.dp
