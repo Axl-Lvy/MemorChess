@@ -6,14 +6,11 @@ package proj.memorchess.axl.core.data
 import com.juul.indexeddb.Cursor
 import com.juul.indexeddb.Database
 import com.juul.indexeddb.Key
-import com.juul.indexeddb.KeyPath
-import com.juul.indexeddb.openDatabase
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.JsAny
 import kotlin.js.JsArray
 import kotlin.js.toJsString
 import kotlin.time.Instant
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
@@ -151,10 +148,11 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
 // Constants
 // ---------------------------------------------------------------------------
 
-private const val NODES_STORE = "nodes"
-private const val MOVES_STORE = "moves"
-private const val DB_NAME = "memorchess"
-private const val DB_VERSION = 2
+internal const val NODES_STORE = "nodes"
+internal const val MOVES_STORE = "moves"
+internal const val EXPLORER_CACHE_STORE = "explorerCache"
+internal const val DB_NAME = "memorchess"
+internal const val DB_VERSION = 3
 
 // ---------------------------------------------------------------------------
 // IndexedDB-backed DatabaseQueryManager
@@ -163,38 +161,7 @@ private const val DB_VERSION = 2
 /** Local database for wasmJs backed by IndexedDB. */
 object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
-  private val databaseDeferred = CompletableDeferred<Database>()
-  private var initialized = false
-
-  private suspend fun db(): Database {
-    if (!initialized) {
-      initialized = true
-      val database =
-        openDatabase(DB_NAME, DB_VERSION) { database, oldVersion, _ ->
-          // FSRS migration: schema for nodes changed at version 2. Drop and recreate the nodes
-          // store so old rows do not carry the legacy lastTrainedDate / nextTrainedDate fields.
-          if (oldVersion in 1 until 2) {
-            database.deleteObjectStore(NODES_STORE)
-          }
-          if (oldVersion < 2) {
-            val nodesStore = database.createObjectStore(NODES_STORE, KeyPath("positionKey"))
-            nodesStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
-            nodesStore.createIndex("updatedAt", KeyPath("updatedAt"), unique = false)
-            nodesStore.createIndex("dueDate", KeyPath("dueDate"), unique = false)
-          }
-          if (oldVersion < 1) {
-            val movesStore =
-              database.createObjectStore(MOVES_STORE, KeyPath("origin", "destination"))
-            movesStore.createIndex("origin", KeyPath("origin"), unique = false)
-            movesStore.createIndex("destination", KeyPath("destination"), unique = false)
-            movesStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
-            movesStore.createIndex("updatedAt", KeyPath("updatedAt"), unique = false)
-          }
-        }
-      databaseDeferred.complete(database)
-    }
-    return databaseDeferred.await()
-  }
+  private suspend fun db(): Database = getIndexedDb()
 
   override suspend fun insertNodes(vararg positions: DataNode) {
     val database = db()

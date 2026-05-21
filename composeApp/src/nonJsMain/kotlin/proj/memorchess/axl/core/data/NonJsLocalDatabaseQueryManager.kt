@@ -7,7 +7,7 @@ import proj.memorchess.axl.core.graph.DeleteMode
 /** Database for non-JS platforms */
 internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
 
-  private val database = getRoomDatabase(databaseBuilder())
+  private val database = customDatabase
 
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     val allNodes = database.getNodeEntityDao().getAllNodes()

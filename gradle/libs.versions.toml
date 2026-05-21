@@ -4,6 +4,7 @@ android-compileSdk = "36"
 android-minSdk = "26"
 android-targetSdk = "36"
 androidx-activityCompose = "1.13.0"
+androidx-browser = "1.9.0"
 androidx-lifecycle = "2.10.0"
 androidx-room = "2.8.4"
 chess-core = "1.0.2"
@@ -22,6 +23,7 @@ ksp = "2.3.8"
 kotest = "6.1.11"
 kotlinxDatetime = "0.8.0"
 kotlinxSerializationJson = "1.11.0"
+ktor = "3.4.1"
 material-icons = "1.7.3"
 material3-adaptive = "1.2.0"
 material3Android = "1.4.0"
@@ -39,6 +41,7 @@ xfeather_z = "1.1.1"
 chess-core = { module = "io.github.alluhemanth:chess-core", version.ref = "chess-core" }
 stockfish-multiplatform = { module = "fr.axl-lvy:stockfish-multiplatform", version.ref = "stockfish-multiplatform" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
+androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
 androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
 hotpreview = { module = "de.drick.compose:hotpreview", version.ref = "hotpreview" }
 material3-adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", version.ref = "material3-adaptive" }
@@ -87,6 +90,15 @@ androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", v
 # --- Logging ---
 kermit-logging = { module = "co.touchlab:kermit", version.ref = "kermit" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4jApi" }
+
+# --- Networking ---
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

@@ -14,8 +14,11 @@ import compose.icons.feathericons.Trash
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.explorer.CachedExplorer
+import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
+import proj.memorchess.axl.ui.components.explore.LichessExplorerPanel
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.pages.navigation.Route
@@ -27,7 +30,11 @@ private val LOGGER = Logger.withTag("Explore")
  * subtrees. Loads the persisted tree on entry.
  */
 @Composable
-fun Explore(position: PositionKey? = null, treeStore: TreeStore = koinInject()) {
+fun Explore(
+  position: PositionKey? = null,
+  treeStore: TreeStore = koinInject(),
+  cachedExplorer: CachedExplorer = koinInject(),
+) {
   Column(
     modifier =
       Modifier.fillMaxSize()
@@ -39,47 +46,68 @@ fun Explore(position: PositionKey? = null, treeStore: TreeStore = koinInject()) 
       val initialPosition = extractInitialPosition(position, treeStore)
       val linesExplorer = remember { LinesExplorer(initialPosition, treeStore) }
       val coroutineScope = rememberCoroutineScope()
+      val explorerViewModel =
+        remember(cachedExplorer, coroutineScope) {
+          ExplorerViewModel(cachedExplorer, coroutineScope)
+        }
+
+      // Seed the view model with the starting FEN and refresh it on every move.
+      LaunchedEffect(linesExplorer) { explorerViewModel.setFen(linesExplorer.engine.toFen().value) }
+      remember {
+        linesExplorer.registerCallBack {
+          explorerViewModel.setFen(linesExplorer.engine.toFen().value)
+        }
+      }
 
       val deletionConfirmationDialog = remember { ConfirmationDialog(okText = "Delete") }
       deletionConfirmationDialog.DrawDialog()
 
-      ExplorerContent(
-        explorer = linesExplorer,
-        saveButton = {
-          Button(
-            onClick = { coroutineScope.launch { linesExplorer.save() } },
-            it,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-          ) {
-            Icon(FeatherIcons.Save, contentDescription = "Save")
-          }
-        },
-        deleteButton = {
-          Button(
-            onClick = {
-              deletionConfirmationDialog.show(
-                confirm = { coroutineScope.launch { linesExplorer.delete() } }
-              ) {
-                var nodesToDelete by remember { mutableStateOf<Int?>(null) }
-                if (nodesToDelete == null) {
-                  CircularProgressIndicator()
-                } else {
-                  val finalNodesToDelete = nodesToDelete ?: 0
-                  Text(
-                    "Are you sure you want to delete $finalNodesToDelete position${if (finalNodesToDelete > 1) "s" else ""}?"
-                  )
+      Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        ExplorerContent(
+          explorer = linesExplorer,
+          saveButton = {
+            Button(
+              onClick = { coroutineScope.launch { linesExplorer.save() } },
+              it,
+              colors =
+                ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            ) {
+              Icon(FeatherIcons.Save, contentDescription = "Save")
+            }
+          },
+          deleteButton = {
+            Button(
+              onClick = {
+                deletionConfirmationDialog.show(
+                  confirm = { coroutineScope.launch { linesExplorer.delete() } }
+                ) {
+                  var nodesToDelete by remember { mutableStateOf<Int?>(null) }
+                  if (nodesToDelete == null) {
+                    CircularProgressIndicator()
+                  } else {
+                    val finalNodesToDelete = nodesToDelete ?: 0
+                    Text(
+                      "Are you sure you want to delete $finalNodesToDelete position${if (finalNodesToDelete > 1) "s" else ""}?"
+                    )
+                  }
+                  LaunchedEffect(nodesToDelete) {
+                    nodesToDelete = linesExplorer.calculateNumberOfNodeToDelete()
+                  }
                 }
-                LaunchedEffect(nodesToDelete) {
-                  nodesToDelete = linesExplorer.calculateNumberOfNodeToDelete()
-                }
-              }
-            },
-            it,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-          ) {
-            Icon(FeatherIcons.Trash, contentDescription = "Delete")
-          }
-        },
+              },
+              it,
+              colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+            ) {
+              Icon(FeatherIcons.Trash, contentDescription = "Delete")
+            }
+          },
+        )
+      }
+
+      LichessExplorerPanel(
+        viewModel = explorerViewModel,
+        onClickMove = { san -> coroutineScope.launch { linesExplorer.playMove(san) } },
+        modifier = Modifier.padding(top = 8.dp),
       )
     }
   }

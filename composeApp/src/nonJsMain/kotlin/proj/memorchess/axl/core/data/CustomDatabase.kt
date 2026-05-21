@@ -8,12 +8,20 @@ import androidx.room.TypeConverters
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import proj.memorchess.axl.core.data.explorer.ExplorerCacheDao
+import proj.memorchess.axl.core.data.explorer.ExplorerCacheEntity
 
-@Database(entities = [NodeEntity::class, MoveEntity::class], version = 3, autoMigrations = [])
+@Database(
+  entities = [NodeEntity::class, MoveEntity::class, ExplorerCacheEntity::class],
+  version = 4,
+  autoMigrations = [],
+)
 @TypeConverters(DateConverters::class)
 @ConstructedBy(DatabaseConstructor::class)
 abstract class CustomDatabase : RoomDatabase() {
   abstract fun getNodeEntityDao(): NodeEntityDao
+
+  abstract fun getExplorerCacheDao(): ExplorerCacheDao
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

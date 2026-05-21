@@ -147,6 +147,8 @@ jobs:
           gradle-home-cache-cleanup: false
 
       - name: Run JVM tests with coverage
+        env:
+          LICHESS_API_TOKEN: ${{ secrets.LICHESS_API_TOKEN }}
         run: ./gradlew koverXmlReportJvm
 
       # On the cheap tier the JVM Kover XML is the only coverage source,
@@ -244,7 +246,7 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 4096
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
 
@@ -257,7 +259,7 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: false
-          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -memory 4096 -partition-size 4096
           disable-animations: true
           script: ./gradlew connectedCheck --no-daemon -PshardIndex=${{ matrix.shard_index }} -PnumShards=4
 

@@ -45,10 +45,13 @@ Single Gradle module (`composeApp`) with Kotlin Multiplatform source sets: `comm
 
 Compose Multiplatform UI. Components in `ui/components/` (board, explore, training, navigation, popup, settings). Pages in `ui/pages/`. DI via Koin (`Koin.kt`).
 
+**`ui/**` is excluded from Sonar coverage** because `@Composable` functions emit synthetic branches that JaCoCo can't filter, which made the uncovered-condition counts meaningless. That means there is **no automated safety net for UI code** — coverage gating, new-code coverage thresholds, and uncovered-line reports all skip this folder. When writing or modifying anything under `ui/`, deliberately think through every branch: empty/loading/error states, zero and boundary values (per the numeric-edge-cases rule), every `when` arm, every nullable, every conditional `Modifier`, every state transition. The cost of a regression here is the same as anywhere else; the difference is that nothing will catch it for you.
+
 ## Key Conventions
 
 - **Formatting**: ktfmt with Google style. Pre-commit hook checks formatting on `master`.
 - **Testing**: Kotest assertions, no mocking. UI tests extend `TestFromMainActivity`. AAA pattern.
+- **Numeric edge cases**: Any code that does arithmetic, division, weighting, or formatting on numbers that come from external data (API counts, ratings, percentages, durations, file sizes) must have a test that includes `0`, the lowest non zero value, the value just below and just above each formatting or branching boundary, and a representative large value. Adding a new state, branch, or sealed subclass to a state machine requires a propagation test through every consumer in the same PR. The rule exists because picking a single happy path sample (`white=10, draws=5, black=3`) hides crashes that only fire on edge data like `Modifier.weight(0f)`.
 - **DI**: Koin for dependency injection. Modules defined in `Koin.kt`.
 - **PR titles**: Must follow Conventional Commits (`feat(module): ...`, `fix: ...`).
 - **Secrets**: Add to `SecretsTemplate.kt` with default `NOT_FOUND`, set real value in `local.properties` as `UPPER_SNAKE_CASE`. Generated `Secrets.kt` is gitignored.

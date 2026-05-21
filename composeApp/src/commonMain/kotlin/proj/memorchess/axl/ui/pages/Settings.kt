@@ -30,6 +30,7 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.ui.components.buttons.ImportAndExportButtons
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.settings.EmbeddedSettingItem
+import proj.memorchess.axl.ui.components.settings.LichessAccountSection
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.util.BasicReloader
 
@@ -56,6 +57,10 @@ fun Settings(treeStore: TreeStore = koinInject()) {
         it.Draw(reloader.getKey())
         Spacer(modifier = Modifier.height(16.dp))
       }
+
+      LichessAccountSection()
+
+      Spacer(modifier = Modifier.height(16.dp))
 
       // Reset Button
       Button(

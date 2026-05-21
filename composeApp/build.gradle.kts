@@ -119,6 +119,11 @@ kotlin {
       implementation(libs.koin.compose)
       implementation(libs.koin.compose.viewmodel)
       implementation(libs.koin.compose.viewmodel.navigation)
+
+      // Networking
+      implementation(libs.ktor.client.core)
+      implementation(libs.ktor.client.content.negotiation)
+      implementation(libs.ktor.serialization.kotlinx.json)
     }
 
     // Debug source set configuration
@@ -142,19 +147,28 @@ kotlin {
       implementation(libs.compose.ui.tooling.preview)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.material3.android)
+      implementation(libs.androidx.browser)
+      implementation(libs.ktor.client.cio)
     }
 
     jvmMain.dependencies {
       implementation(compose.desktop.currentOs)
       implementation(libs.slf4j.api)
+      implementation(libs.ktor.client.cio)
     }
 
-    wasmJsMain.dependencies { implementation(libs.indexeddb) }
+    iosMain.dependencies { implementation(libs.ktor.client.darwin) }
+
+    wasmJsMain.dependencies {
+      implementation(libs.indexeddb)
+      implementation(libs.ktor.client.js)
+    }
 
     commonTest.dependencies {
       implementation(libs.kotlin.test)
       implementation(libs.compose.ui.test)
       implementation(libs.kotest.assertions)
+      implementation(libs.ktor.client.mock)
     }
 
     sourceSets.all {
