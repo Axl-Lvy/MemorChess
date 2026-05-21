@@ -1,0 +1,53 @@
+package proj.memorchess.axl.ui.components.settings.sections
+
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
+import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
+import proj.memorchess.axl.ui.components.controls.KineticSlider
+
+/**
+ * Training Behavior settings section content.
+ *
+ * Currently only exposes the auto-advance delay slider backed by [TRAINING_MOVE_DELAY_SETTING].
+ *
+ * **Deliberate omissions:**
+ * - No scheduling-algorithm picker. The HTML proposal shows an SM-2 / FSRS 6 segmented control, but
+ *   FSRS 6 is the only algorithm and the user has explicitly excluded surfacing this choice. Do not
+ *   re-add it without removing this comment.
+ * - No "Days in advance" slider. The HTML proposal shows one; that value is currently in-page state
+ *   only and persisting it would require adding a new `ConfigItem` under `core/config/`, which is
+ *   out of scope for the v1 settings page rebuild. Follow-up: thread a persisted setting in once
+ *   the config layer is unlocked.
+ *
+ * @param reloadKey value used to force re-reading the persisted setting on external reloads.
+ */
+@Composable
+fun TrainingBehaviorSection(reloadKey: Any) {
+  var value by
+    remember(reloadKey) {
+      mutableStateOf(TRAINING_MOVE_DELAY_SETTING.getValue().inWholeMilliseconds.toFloat() / 1_000f)
+    }
+
+  KineticSlider(
+    value = value,
+    onValueChange = {
+      value = it
+      TRAINING_MOVE_DELAY_SETTING.setValue(it.toDouble().seconds)
+    },
+    modifier = Modifier.fillMaxWidth(),
+    range = 0f..5f,
+    label = "Auto-advance delay",
+    valueFormatter = { ((it * 100).roundToInt() / 100.0).toString() },
+    unit = "s",
+    minLabel = "0s",
+    maxLabel = "5s",
+    sliderTestTag = TRAINING_MOVE_DELAY_SETTING.name,
+  )
+}

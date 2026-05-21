@@ -5,4 +5,5 @@ package proj.memorchess.axl.ui.components.settings
  *
  * The only way to use it is through pattern matching over its implementations.
  */
+@Deprecated("Legacy companion to EmbeddedSettingItem; superseded by per-section composables.")
 sealed interface ButtonParameters

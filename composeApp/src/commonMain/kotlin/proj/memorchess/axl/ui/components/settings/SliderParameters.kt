@@ -10,6 +10,7 @@ package proj.memorchess.axl.ui.components.settings
  * @property convertToUnit Function to convert the value from settings to float
  * @property displayText Function to generate the text to display based on the value
  */
+@Deprecated("Replaced by KineticSlider call sites under ui/components/settings/sections/.")
 class SliderParameters(
   val min: Float,
   val max: Float,

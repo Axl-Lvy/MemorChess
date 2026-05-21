@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -54,6 +55,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * @param minLabel small mono label under the left edge of the track.
  * @param maxLabel small mono label under the right edge of the track.
  * @param enabled when false, dims the control and disables interaction.
+ * @param sliderTestTag optional test tag attached to the slider input region (the track row); used
+ *   by UI tests so that `slideToLeft`/`slideToRight` can locate the draggable area directly.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +71,7 @@ fun KineticSlider(
   minLabel: String = valueFormatter(range.start),
   maxLabel: String = valueFormatter(range.endInclusive),
   enabled: Boolean = true,
+  sliderTestTag: String? = null,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -101,7 +105,12 @@ fun KineticSlider(
     }
 
     // Row 2: track + fill + thumb overlaid with a transparent Material 3 Slider for input.
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(14.dp)) {
+    BoxWithConstraints(
+      modifier =
+        Modifier.fillMaxWidth()
+          .height(14.dp)
+          .then(if (sliderTestTag != null) Modifier.testTag(sliderTestTag) else Modifier)
+    ) {
       val trackWidth = maxWidth
       val fillWidth = trackWidth * fraction
       // Track (panel3).

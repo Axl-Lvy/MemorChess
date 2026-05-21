@@ -39,6 +39,10 @@ import proj.memorchess.axl.ui.components.buttons.WideScrollableRow
  * @property configItem The corresponding config item
  * @property buttonParams The button parameters
  */
+@Deprecated(
+  "Replaced by the explicit per-section composables under ui/components/settings/sections/. " +
+    "Kept only because the underlying ConfigItems are still referenced via ALL_SETTINGS_ITEMS.reset()."
+)
 enum class EmbeddedSettingItem(
   private val configItem: ConfigItem<*>,
   private val buttonParams: ButtonParameters,

@@ -41,6 +41,10 @@ import proj.memorchess.axl.ui.util.exportToFile
  * **Import** opens a file picker filtered to `.memorchess` files, asks for confirmation, then
  * deserializes and merges the nodes into the database (existing positions are overwritten).
  */
+@Deprecated(
+  "Replaced by proj.memorchess.axl.ui.components.settings.sections.ImportExportSection " +
+    "which embeds the same wiring inside the Kinetic settings card."
+)
 @Composable
 fun ImportAndExportButtons(
   database: DatabaseQueryManager = koinInject(),
