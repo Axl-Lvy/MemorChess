@@ -1,12 +1,8 @@
-package proj.memorchess.axl.ui.components.buttons
+package proj.memorchess.axl.ui.components.settings.sections
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -15,9 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
-import compose.icons.FeatherIcons
-import compose.icons.feathericons.Download
-import compose.icons.feathericons.Upload
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
@@ -29,28 +22,34 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.GraphSerializer
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.ui.components.buttons.KineticButton
+import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.util.exportToFile
 
 /**
- * Row with Export and Import buttons for opening-tree data.
+ * Import / Export settings section content.
  *
- * **Export** serializes all nodes via [GraphSerializer] and saves them to a `.memorchess` file
- * using a platform file-saver dialog (or browser download on wasmJs).
+ * Two large Kinetic buttons (Export, Import) stacked in a Row. The action is **local** — opening
+ * trees are serialized to / loaded from `.memorchess` files on the device's filesystem. There is no
+ * Lichess account involvement here.
  *
- * **Import** opens a file picker filtered to `.memorchess` files, asks for confirmation, then
- * deserializes and merges the nodes into the database (existing positions are overwritten).
+ * Earlier revisions included a 4-cell placeholder meta grid (positions / lines / last backup /
+ * size) but every cell rendered as `"—"` because the persistence layer doesn't expose those metrics
+ * without touching `core/`. The grid was visual noise and was removed; surface it again once the
+ * real metrics are available.
  */
 @Composable
-fun ImportAndExportButtons(
+fun ImportExportSection(
   database: DatabaseQueryManager = koinInject(),
   treeStore: TreeStore = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
-  Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-    Button(
+
+  Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    KineticButton(
       onClick = {
         coroutineScope.launch {
           val nodes = database.getAllNodes()
@@ -59,18 +58,13 @@ fun ImportAndExportButtons(
           exportToFile(content, baseName, "memorchess")
         }
       },
-      modifier = Modifier.testTag("exportButton").weight(1f),
-      elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+      modifier = Modifier.weight(1f).testTag("exportButton"),
+      style = KineticButtonStyle.Default,
+      large = true,
     ) {
-      Icon(
-        FeatherIcons.Upload,
-        contentDescription = "Export",
-        modifier = Modifier.padding(end = 8.dp),
-      )
-      Text("Export")
+      Text(text = "EXPORT REPERTOIRE")
     }
-
-    Button(
+    KineticButton(
       onClick = {
         coroutineScope.launch {
           try {
@@ -90,15 +84,11 @@ fun ImportAndExportButtons(
           }
         }
       },
-      modifier = Modifier.testTag("importButton").weight(1f),
-      elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+      modifier = Modifier.weight(1f).testTag("importButton"),
+      style = KineticButtonStyle.Default,
+      large = true,
     ) {
-      Icon(
-        FeatherIcons.Download,
-        contentDescription = "Import",
-        modifier = Modifier.padding(end = 8.dp),
-      )
-      Text("Import")
+      Text(text = "IMPORT FILE")
     }
   }
 }

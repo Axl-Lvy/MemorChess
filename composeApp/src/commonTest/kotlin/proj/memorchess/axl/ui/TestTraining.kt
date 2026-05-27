@@ -112,7 +112,8 @@ class TestTraining : TestWithKoin() {
   fun testFailTraining() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
-    clickOnNextNode()
+    // No manual click — Training auto-advances Anki-style on wrong moves. With only one card in
+    // the deck the "no more cards" Bravo screen appears once the wrong move is graded AGAIN.
     assertNodeWithTextExists(BRAVO_TEXT)
     waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
       val positions = getAllPositions()
@@ -126,34 +127,31 @@ class TestTraining : TestWithKoin() {
   fun testIncrementDay() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
-    clickOnNextNode()
+    // Wrong move auto-advances; with only one card the Bravo screen appears.
     assertNodeWithTextExists(BRAVO_TEXT)
-    assertNodeWithTextExists("Increment a day").performClick()
+    assertNodeWithTextExists("INCREMENT A DAY").performClick()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e4")
     assertNodeWithTextExists("Days in advance: 1")
   }
 
   /**
-   * Verifies the day counter reset behavior on a failed review. Disabled in Wave A because the
-   * legacy assertion required the card to be rescheduled exactly two days out, which was an
-   * artefact of the previous fixed factor calculator. FSRS picks an interval based on stability, so
-   * the precise number of days varies; the underlying reset on fail logic itself is unchanged in
-   * [TrainingBoardPage][proj.memorchess.axl.ui.components.board.control.TrainingBoardPage].
+   * Verifies the day counter reset behavior on a failed review. Already disabled because the legacy
+   * assertion required exact-2-day rescheduling that FSRS no longer guarantees. Kept here because
+   * the no-manual-click flow now matches the rest of the suite — re-enable when a stable assertion
+   * can be written against the current scheduler.
    */
   @kotlin.test.Ignore
   @Test
   fun testResetDayOnFail() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
-    clickOnNextNode()
-    assertNodeWithTextExists("Increment a day").performClick()
+    assertNodeWithTextExists("INCREMENT A DAY").performClick()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e4")
     assertNodeWithTextExists(BRAVO_TEXT)
-    assertNodeWithTextExists("Increment a day").performClick()
+    assertNodeWithTextExists("INCREMENT A DAY").performClick()
     playMove("e2", "e3")
-    clickOnNextNode()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
   }
 
@@ -238,11 +236,18 @@ class TestTraining : TestWithKoin() {
     }
   }
 
+  /**
+   * Verifies that the failed position can be opened in Explore. Disabled because the pre-Kinetic
+   * "Go to explore" button on the wrong-move feedback card was dropped — Training now auto-advances
+   * on wrong moves and exposes no inspect affordance. Re-enable once a jump-to-failed-position
+   * entry point exists in the new layout.
+   */
+  @kotlin.test.Ignore
   @Test
   fun testShowRightMoveInExplorer() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
-    clickOnShowOnExplore()
+    @Suppress("DEPRECATION") clickOnShowOnExplore()
     assertEquals(navigator.lastRoute, Route.ExploreRoute.from(PositionKey.START_POSITION))
   }
 }

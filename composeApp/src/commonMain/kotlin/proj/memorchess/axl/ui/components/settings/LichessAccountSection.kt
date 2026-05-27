@@ -1,14 +1,13 @@
 package proj.memorchess.axl.ui.components.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -17,21 +16,30 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.auth.LichessAccount
 import proj.memorchess.axl.core.auth.LichessSignInController
 import proj.memorchess.axl.core.auth.OAuthTokenStore
 import proj.memorchess.axl.core.auth.SignInResult
+import proj.memorchess.axl.ui.components.buttons.KineticButton
+import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
+import proj.memorchess.axl.ui.theme.LocalKineticPalette
+import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
- * Settings row for the Lichess account.
+ * Lichess account row.
  *
- * Shows the username when signed in (with a Sign out button) or a Sign in button otherwise. The
- * sign in button kicks off the platform OAuth flow via [LichessSignInController].
+ * Visual layer follows the Kinetic settings card: a 56.dp square cyan-tinted avatar (showing the
+ * first letter of the username, or "?" when signed out), the username on top in `display`, a small
+ * mono status line below, and a [Row] of [KineticButton]s on the right (sign-in / sign-out).
+ *
+ * All OAuth wiring is unchanged from the previous Material version — only the rendering changed.
  */
 @Composable
 fun LichessAccountSection(
@@ -75,51 +83,110 @@ internal fun LichessAccountSectionContent(
   onSignIn: () -> Unit,
   onSignOut: () -> Unit,
 ) {
-  Card(modifier = Modifier.fillMaxWidth().testTag("lichess_account_section")) {
-    Column(
-      modifier = Modifier.fillMaxWidth().padding(16.dp),
-      verticalArrangement = Arrangement.spacedBy(8.dp),
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  val signedIn = account != null
+
+  Column(
+    modifier = Modifier.fillMaxWidth().testTag("lichess_account_section"),
+    verticalArrangement = Arrangement.spacedBy(10.dp),
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-      Text(text = "Lichess account", style = MaterialTheme.typography.titleMedium)
-      if (account != null) {
-        Text(
-          text = account.username?.let { "Signed in as $it" } ?: "Signed in",
-          modifier = Modifier.testTag("lichess_account_username"),
-        )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-          Button(
-            onClick = onSignOut,
-            modifier = Modifier.testTag("lichess_sign_out_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-          ) {
-            Text("Sign out")
-          }
-        }
-      } else {
-        Text(
-          text =
-            "Sign in to enable the Lichess opening explorer. Required since Lichess gated the " +
-              "explorer behind authentication.",
-          style = MaterialTheme.typography.bodySmall,
-        )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-          Button(
-            onClick = onSignIn,
-            enabled = !pending,
-            modifier = Modifier.testTag("lichess_sign_in_button"),
-          ) {
-            Text(if (pending) "Signing in..." else "Sign in with Lichess")
-          }
-        }
-      }
-      if (lastError != null) {
-        Text(
-          text = lastError,
-          color = MaterialTheme.colorScheme.error,
-          style = MaterialTheme.typography.bodySmall,
-          modifier = Modifier.testTag("lichess_account_error"),
-        )
-      }
+      LichessAvatar(initial = avatarInitial(account))
+      LichessAccountIdentity(account = account, signedIn = signedIn, modifier = Modifier.weight(1f))
+      LichessAccountAction(
+        signedIn = signedIn,
+        pending = pending,
+        onSignIn = onSignIn,
+        onSignOut = onSignOut,
+      )
     }
+
+    if (lastError != null) {
+      Text(
+        text = lastError,
+        style = typography.bodySm.copy(color = palette.red),
+        modifier = Modifier.testTag("lichess_account_error"),
+      )
+    }
+  }
+}
+
+/** First letter of the username uppercased, or "?" when signed out. */
+private fun avatarInitial(account: LichessAccount?): String =
+  account?.username?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+
+/** Username and connection-status lines shown between the avatar and the action button. */
+@Composable
+private fun LichessAccountIdentity(
+  account: LichessAccount?,
+  signedIn: Boolean,
+  modifier: Modifier = Modifier,
+) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  Column(modifier = modifier) {
+    Text(
+      text = account?.username ?: "Not signed in",
+      style = typography.display.copy(color = palette.ink, fontSize = 16.sp),
+      modifier = if (signedIn) Modifier.testTag("lichess_account_username") else Modifier,
+    )
+    Text(
+      text =
+        if (signedIn) {
+          "Connected to lichess.org"
+        } else {
+          "Sign in to enable the Lichess opening explorer."
+        },
+      style = typography.monoSm.copy(color = palette.ink3),
+    )
+  }
+}
+
+/** Sign-in / sign-out button, switching on [signedIn]. */
+@Composable
+private fun LichessAccountAction(
+  signedIn: Boolean,
+  pending: Boolean,
+  onSignIn: () -> Unit,
+  onSignOut: () -> Unit,
+) {
+  if (signedIn) {
+    KineticButton(
+      onClick = onSignOut,
+      style = KineticButtonStyle.DangerOutline,
+      modifier = Modifier.testTag("lichess_sign_out_button"),
+    ) {
+      Text(text = "DISCONNECT")
+    }
+  } else {
+    KineticButton(
+      onClick = onSignIn,
+      enabled = !pending,
+      style = KineticButtonStyle.Default,
+      modifier = Modifier.testTag("lichess_sign_in_button"),
+    ) {
+      Text(text = if (pending) "SIGNING IN…" else "SIGN IN")
+    }
+  }
+}
+
+/** Small 56.dp square avatar with the user's initial; mirrors `.lichess-avatar` from the HTML. */
+@Composable
+private fun LichessAvatar(initial: String) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  Box(
+    modifier =
+      Modifier.size(56.dp)
+        .background(color = palette.cyan)
+        .border(width = 1.dp, color = palette.lineBright),
+    contentAlignment = Alignment.Center,
+  ) {
+    Text(text = initial, style = typography.brand.copy(color = palette.bg, fontSize = 22.sp))
   }
 }

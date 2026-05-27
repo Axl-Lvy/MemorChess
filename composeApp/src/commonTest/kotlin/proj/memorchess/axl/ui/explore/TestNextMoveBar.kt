@@ -2,9 +2,7 @@ package proj.memorchess.axl.ui.explore
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
@@ -15,9 +13,7 @@ import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.ui.assertNextMoveExist
-import proj.memorchess.axl.ui.assertNodeWithTagExists
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnBack
 import proj.memorchess.axl.ui.clickOnReset
@@ -85,7 +81,7 @@ class TestNextMoveBar : TestWithKoin() {
   }
 
   @Test
-  fun testScrollToLastNextMove() = runTestFromSetup {
+  fun testManyNextMovesAreAllReachable() = runTestFromSetup {
     clickOnBack()
     for (col in listOf("a", "b", "c", "d", "e", "f", "g", "h")) {
       playMove("${col}2", "${col}3")
@@ -95,9 +91,9 @@ class TestNextMoveBar : TestWithKoin() {
       clickOnSave()
       clickOnBack()
     }
+    // The continuations now reflow as a FlowRow of chips (no hard column count), so every saved
+    // move — first and last alike — is laid out and reachable without a dedicated scroll container.
     assertNextMoveExist("a3")
-    assertNodeWithTagExists("NextMovesBar")
-      .performScrollToNode(hasTestTag(getNextMoveDescription("h4")))
     assertNextMoveExist("h4").performClick()
     assertPieceMoved("h2", "h4", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }

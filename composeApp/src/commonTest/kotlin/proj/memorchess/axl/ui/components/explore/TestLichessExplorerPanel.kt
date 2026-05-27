@@ -12,6 +12,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerState
 import proj.memorchess.axl.core.data.explorer.LichessExplorerMove
 import proj.memorchess.axl.core.data.explorer.LichessExplorerResponse
 import proj.memorchess.axl.core.data.explorer.LichessOpening
+import proj.memorchess.axl.ui.setKineticContent
 
 /** Renders [LichessExplorerPanelContent] in each [ExplorerState] and asserts the visible text. */
 @OptIn(ExperimentalTestApi::class)
@@ -45,7 +46,7 @@ class TestLichessExplorerPanel {
           ),
         opening = null,
       )
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state =
           ExplorerState.Loaded(
@@ -67,7 +68,7 @@ class TestLichessExplorerPanel {
 
   @Test
   fun idleStateShowsHint() = runComposeUiTest {
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state = ExplorerState.Idle,
         source = ExplorerSource.MASTERS,
@@ -80,7 +81,7 @@ class TestLichessExplorerPanel {
 
   @Test
   fun loadingStateShowsHeader() = runComposeUiTest {
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state = ExplorerState.Loading(fen = "f", source = ExplorerSource.LICHESS),
         source = ExplorerSource.LICHESS,
@@ -88,12 +89,12 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    onNode(hasText("Lichess explorer")).assertExists()
+    onNode(hasText("LICHESS EXPLORER")).assertExists()
   }
 
   @Test
   fun loadedStateRendersOpeningAndMoves() = runComposeUiTest {
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state =
           ExplorerState.Loaded(
@@ -114,7 +115,7 @@ class TestLichessExplorerPanel {
 
   @Test
   fun loadedEmptyStateShowsPlaceholder() = runComposeUiTest {
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state =
           ExplorerState.Loaded(
@@ -132,7 +133,7 @@ class TestLichessExplorerPanel {
 
   @Test
   fun rateLimitedStateShowsMessage() = runComposeUiTest {
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state = ExplorerState.RateLimited(source = ExplorerSource.MASTERS),
         source = ExplorerSource.MASTERS,
@@ -145,7 +146,7 @@ class TestLichessExplorerPanel {
 
   @Test
   fun unauthorizedStateShowsSignInPrompt() = runComposeUiTest {
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state = ExplorerState.Unauthorized(source = ExplorerSource.MASTERS),
         source = ExplorerSource.MASTERS,
@@ -158,7 +159,7 @@ class TestLichessExplorerPanel {
 
   @Test
   fun errorStateShowsMessage() = runComposeUiTest {
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state = ExplorerState.Error(source = ExplorerSource.MASTERS, message = "boom"),
         source = ExplorerSource.MASTERS,
@@ -172,7 +173,7 @@ class TestLichessExplorerPanel {
   @Test
   fun clickingMoveRowCallsOnClickMoveWithSan() = runComposeUiTest {
     var clicked: String? = null
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state =
           ExplorerState.Loaded(
@@ -192,7 +193,7 @@ class TestLichessExplorerPanel {
   @Test
   fun clickingSourceChipCallsOnSetSource() = runComposeUiTest {
     var selected: ExplorerSource? = null
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state = ExplorerState.Idle,
         source = ExplorerSource.MASTERS,

@@ -1,70 +1,56 @@
 package proj.memorchess.axl.ui.layout.explore
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import proj.memorchess.axl.ui.components.explore.ExploreActionButtons
-import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
-import proj.memorchess.axl.ui.components.explore.ExploreHeader
-import proj.memorchess.axl.ui.components.explore.ExploreNextMovesSection
-import proj.memorchess.axl.ui.components.explore.ExploreStateIndicators
 
+/** Threshold below which the layout switches to phone-landscape paddings + narrower side panel. */
+private val COMPACT_HEIGHT_THRESHOLD = 480.dp
+
+/**
+ * Desktop / landscape Kinetic explore layout. Composes the moves trail, board (with optional eval
+ * rail), and control bar in a tall left column; the [ExploreLayoutContent.sideInfo] slot fills a
+ * fixed-width right rail.
+ *
+ * Two variants based on available height:
+ * - **Tall (height >= 480.dp)**: 28.dp paddings, 420.dp side panel — desktop and tablet.
+ * - **Compact (height < 480.dp)**: 12.dp paddings, 280.dp side panel — phone landscape, where the
+ *   board is the priority and the side info gets a tighter strip.
+ */
 @Composable
 fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
-  Row(
-    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-    verticalAlignment = Alignment.CenterVertically,
-    modifier = modifier.fillMaxSize().padding(16.dp),
-  ) {
-    // Left side: Board section (takes up most space but constrained by ratio)
-    ExploreBoardSection(
-      board = content.board,
-      modifier =
-        Modifier.fillMaxHeight() // Use 90% of available height to determine max size
-          .aspectRatio(1f)
-          .weight(2f, fill = false),
-    )
+  BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+    val compact = maxHeight < COMPACT_HEIGHT_THRESHOLD
+    val pad = if (compact) 12.dp else 28.dp
+    val sideWidth = if (compact) 280.dp else 420.dp
+    val spacing = if (compact) 6.dp else 8.dp
 
-    // Right side: All controls in a scrollable column with ratio-based constraint
-    Column(
-      verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Top),
-      modifier =
-        Modifier.weight(1f, fill = false)
-          .fillMaxHeight()
-          .aspectRatio(1f)
-          .verticalScroll(rememberScrollState()),
-    ) {
-      // Header with control buttons and player turn indicator
-      ExploreHeader(
-        reverseButton = content.reverseButton,
-        resetButton = content.resetButton,
-        playerTurnIndicator = content.playerTurnIndicator,
-        backButton = content.backButton,
-        forwardButton = content.forwardButton,
-        evaluationBarToggle = content.evaluationBarToggle,
+    Row(modifier = Modifier.fillMaxSize()) {
+      Column(
+        modifier = Modifier.weight(1f).fillMaxHeight().padding(pad),
+        verticalArrangement = Arrangement.spacedBy(spacing),
+      ) {
+        content.movesTrail(Modifier.fillMaxWidth())
+        Row(
+          modifier = Modifier.weight(1f).fillMaxWidth(),
+          horizontalArrangement = Arrangement.Center,
+        ) {
+          content.board(Modifier.fillMaxHeight())
+        }
+        content.controlBar(Modifier.fillMaxWidth())
+      }
+      content.sideInfo(
+        Modifier.width(sideWidth).fillMaxHeight().padding(vertical = pad, horizontal = 0.dp)
       )
-
-      // State indicators section
-      ExploreStateIndicators(stateIndicators = content.stateIndicators)
-
-      // Evaluation bar below state indicators
-      content.evaluationPanel(Modifier)
-
-      // Next moves section with horizontal scrolling
-      ExploreNextMovesSection(nextMoveButtons = content.nextMoveButtons)
-
-      // Action buttons section (save/delete)
-      ExploreActionButtons(saveButton = content.saveButton, deleteButton = content.deleteButton)
     }
   }
 }

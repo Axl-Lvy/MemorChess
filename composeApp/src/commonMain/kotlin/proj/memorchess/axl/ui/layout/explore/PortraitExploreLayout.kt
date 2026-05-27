@@ -1,52 +1,32 @@
 package proj.memorchess.axl.ui.layout.explore
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import proj.memorchess.axl.ui.components.explore.ExploreActionButtons
-import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
-import proj.memorchess.axl.ui.components.explore.ExploreHeader
-import proj.memorchess.axl.ui.components.explore.ExploreNextMovesSection
-import proj.memorchess.axl.ui.components.explore.ExploreStateIndicators
 
+/**
+ * Mobile / portrait Kinetic explore layout. Stacks moves trail, board (with thin eval rail),
+ * control bar, and mobile info tabs vertically.
+ *
+ * The stat-badges row (eval / positions / retention) is intentionally NOT rendered here. Those
+ * values are placeholders today and the row added visual noise without conveying information; it
+ * stays in [ExploreLayoutContent] for the desktop layout, which surfaces the same values in the
+ * top-bar pills instead.
+ */
 @Composable
 fun PortraitExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
-  BoxWithConstraints {
-    Column(
-      verticalArrangement = Arrangement.spacedBy(if (this.maxHeight > 700.dp) 12.dp else 2.dp),
-      modifier = modifier.fillMaxSize().padding(2.dp),
-    ) {
-      // Header with control buttons and player turn indicator
-      ExploreHeader(
-        reverseButton = content.reverseButton,
-        resetButton = content.resetButton,
-        playerTurnIndicator = content.playerTurnIndicator,
-        backButton = content.backButton,
-        forwardButton = content.forwardButton,
-        evaluationBarToggle = content.evaluationBarToggle,
-      )
-
-      // State indicators section
-      if (this@BoxWithConstraints.maxHeight > 650.dp) {
-        ExploreStateIndicators(stateIndicators = content.stateIndicators)
-      }
-
-      // Evaluation bar below state indicators
-      content.evaluationPanel(Modifier)
-
-      // Main board section with responsive sizing
-      ExploreBoardSection(board = content.board)
-
-      // Next moves section with horizontal scrolling
-      ExploreNextMovesSection(nextMoveButtons = content.nextMoveButtons)
-
-      // Action buttons section (save/delete)
-      ExploreActionButtons(saveButton = content.saveButton, deleteButton = content.deleteButton)
-    }
+  Column(
+    modifier = modifier.fillMaxSize().padding(8.dp),
+    verticalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
+    content.movesTrail(Modifier.fillMaxWidth())
+    content.board(Modifier.fillMaxWidth())
+    content.controlBar(Modifier.fillMaxWidth())
+    content.mobileInfo(Modifier.fillMaxWidth().weight(1f))
   }
 }

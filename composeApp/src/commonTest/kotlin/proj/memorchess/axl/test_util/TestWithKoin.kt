@@ -31,6 +31,7 @@ import proj.memorchess.axl.core.data.explorer.LichessExplorerClient
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
+import proj.memorchess.axl.ui.theme.AppTheme
 
 /**
  * Base class for tests that need Koin dependency injection.
@@ -123,13 +124,16 @@ abstract class TestWithKoin : KoinComponent {
     }
 
   /**
-   * Wraps a test's composable content so that descendants can resolve [LocalNavigator]. Production
-   * code provides the navigator from [proj.memorchess.axl.ui.App]; tests that render fragments in
-   * isolation provide it here.
+   * Wraps a test's composable content so that descendants can resolve [LocalNavigator] and the
+   * Kinetic theme locals ([LocalKineticPalette], [LocalKineticTypography]). Production code
+   * provides both from [proj.memorchess.axl.ui.App]; tests that render fragments in isolation need
+   * them too — without [AppTheme] any Composable that reads
+   * [proj.memorchess.axl.ui.theme.LocalKineticTypography] crashes at the `staticCompositionLocalOf`
+   * default.
    */
   @OptIn(KoinInternalApi::class)
   @Composable
   fun InitializeApp(block: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalNavigator provides navigator) { block() }
+    CompositionLocalProvider(LocalNavigator provides navigator) { AppTheme { block() } }
   }
 }

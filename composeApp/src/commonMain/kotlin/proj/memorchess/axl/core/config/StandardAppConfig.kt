@@ -15,7 +15,7 @@ val MOVE_ANIMATION_DURATION_SETTING =
 val APP_THEME_SETTING = EnumBasedAppConfigItem.from("appTheme", AppThemeSetting.SYSTEM)
 
 val CHESS_BOARD_COLOR_SETTING =
-  EnumBasedAppConfigItem.from("chessBoardColor", ChessBoardColorScheme.WOOD)
+  EnumBasedAppConfigItem.from("chessBoardColor", ChessBoardColorScheme.KINETIC_DARK)
 
 /** Whether the evaluation bar is shown next to the board. */
 val EVAL_BAR_ENABLED_SETTING = BooleanBasedConfigItem("evalBarEnabled", false)
