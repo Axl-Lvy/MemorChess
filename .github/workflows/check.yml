@@ -315,12 +315,19 @@ jobs:
           retention-days: 1
 
   # Full tier: iOS simulator tests (no coverage - Kover does not support Kotlin/Native)
+  # Compose Multiplatform 1.11 / Kotlin 2.3.21 link against iOS 26 SDK symbols
+  # (e.g. UIViewLayoutRegion), so this needs Xcode 26 — macos-latest (Xcode 16.x)
+  # fails at link time. macos-26 ships Xcode 26; pin it explicitly for reproducibility.
   ios-tests:
     needs: [detect]
     if: needs.detect.outputs.tier == 'full'
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0'
 
       - uses: actions/setup-java@v4
         with:
