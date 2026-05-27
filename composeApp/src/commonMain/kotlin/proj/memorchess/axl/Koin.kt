@@ -12,6 +12,8 @@ import proj.memorchess.axl.core.auth.LichessOAuthClient
 import proj.memorchess.axl.core.auth.LichessSignInController
 import proj.memorchess.axl.core.auth.OAuthLauncher
 import proj.memorchess.axl.core.auth.OAuthTokenStore
+import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
+import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
@@ -38,7 +40,14 @@ fun initKoinModules(): Array<Module> {
     single<Settings> { getPlatformSpecificSettings() }
   }
 
-  val schedulingModule = module { single<SchedulingAlgorithm> { Fsrs6SchedulingAlgorithm() } }
+  val schedulingModule = module {
+    single<SchedulingAlgorithm> {
+      Fsrs6SchedulingAlgorithm(
+        enableFuzz = { FUZZ_ENABLED_SETTING.getValue() },
+        enableShortTerm = { SHORT_TERM_ENABLED_SETTING.getValue() },
+      )
+    }
+  }
 
   val graphModule = module {
     single { TreeStore(get()) }

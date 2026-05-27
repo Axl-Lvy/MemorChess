@@ -47,6 +47,15 @@ internal object IndexedDbInstance {
           if (oldVersion < 3) {
             database.createObjectStore(EXPLORER_CACHE_STORE, KeyPath("key"))
           }
+          // Version 4: CardPhase state machine. Node objects gained `phase` and `step`; the app is
+          // not in production, so drop and recreate the nodes store rather than migrating rows.
+          if (oldVersion in 3 until 4) {
+            database.deleteObjectStore(NODES_STORE)
+            val nodesStore = database.createObjectStore(NODES_STORE, KeyPath("positionKey"))
+            nodesStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
+            nodesStore.createIndex("updatedAt", KeyPath("updatedAt"), unique = false)
+            nodesStore.createIndex("dueDate", KeyPath("dueDate"), unique = false)
+          }
         }
       deferred.complete(database)
     }

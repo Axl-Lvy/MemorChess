@@ -2,7 +2,6 @@ package proj.memorchess.axl.core.graph
 
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.daysUntil
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.ReviewGrade
@@ -24,25 +23,52 @@ class TrainingScheduler(
 ) {
 
   /**
-   * Returns the [TrainingEntry] with the smallest depth that is due on or before [day], or `null`
-   * when there is nothing to train. The entry is **not** removed from the schedule: removal is
-   * driven by writing a future due date through [grade].
+   * Returns the next [TrainingEntry] to train, or `null` when there is nothing left for [day].
+   *
+   * Selection runs in three tiers so that the in-session learning loop drains in step order without
+   * starving the day's review queue:
+   * 1. **Ready learning cards** — a [proj.memorchess.axl.core.scheduling.CardPhase.LEARNING] or
+   *    `RELEARNING` card whose sub-day due moment has arrived. The earliest due wins, so a card on
+   *    a one minute step surfaces before one on a ten minute step.
+   * 2. **Review and new cards** due on or before [day] — picked by smallest graph depth to follow
+   *    the natural opening order.
+   * 3. **Pending learning cards** — sub-day cards not yet due. Falling through to these guarantees
+   *    a just-failed card always resurfaces in the same session rather than ending it early, again
+   *    earliest-due first.
+   *
+   * The entry is **not** removed from the schedule: a card leaves the session only when [grade]
+   * graduates it to a day grained review interval.
    */
-  fun nextDue(day: LocalDate = DateUtil.today()): TrainingEntry? =
-    trainableEntries(day).minByOrNull { treeStore.current().getDepth(it.positionKey) }
+  fun nextDue(day: LocalDate = DateUtil.today()): TrainingEntry? {
+    val now = DateUtil.now()
+    val candidates = candidates(day).toList()
+    if (candidates.isEmpty()) return null
+
+    val readyLearning = candidates.filter {
+      it.cardState.isInSession() && it.cardState.dueDate <= now
+    }
+    if (readyLearning.isNotEmpty()) return readyLearning.minByOrNull { it.cardState.dueDate }
+
+    val reviewLike = candidates.filterNot { it.cardState.isInSession() }
+    if (reviewLike.isNotEmpty()) {
+      return reviewLike.minByOrNull { treeStore.current().getDepth(it.positionKey) }
+    }
+
+    return candidates.minByOrNull { it.cardState.dueDate }
+  }
 
   /**
-   * Returns a trainable entry reachable from one of [position]'s outgoing edges, due on or before
-   * [day]. Picking such an entry preserves the natural opening order during a session.
+   * Returns a trainable entry reachable from one of [position]'s outgoing edges. Picking such an
+   * entry preserves the natural opening order during a session.
    */
   fun nextAfter(position: PositionKey, day: LocalDate = DateUtil.today()): TrainingEntry? {
     val node = treeStore.current().get(position) ?: return null
     val reachable = node.outgoing.values.map { it.to }.toSet()
-    return trainableEntries(day).firstOrNull { it.positionKey in reachable }
+    return candidates(day).firstOrNull { it.positionKey in reachable }
   }
 
-  /** Counts trainable entries due on or before [day]. */
-  fun pendingCount(day: LocalDate = DateUtil.today()): Int = trainableEntries(day).count()
+  /** Counts entries still to train for [day]: review/new cards due plus any in-session card. */
+  fun pendingCount(day: LocalDate = DateUtil.today()): Int = candidates(day).count()
 
   /**
    * Persists the result of a review for [position]. Computes the next [CardState][CardState]
@@ -55,21 +81,17 @@ class TrainingScheduler(
     treeStore.updateCardState(position, nextState)
   }
 
-  private fun trainableEntries(day: LocalDate): Sequence<TrainingEntry> =
+  /**
+   * Positions eligible to train for [day]. A position qualifies when it has at least one good
+   * outgoing edge and is either an in-session learning card (always eligible until it graduates) or
+   * a review/new card due on or before [day].
+   */
+  private fun candidates(day: LocalDate): Sequence<TrainingEntry> =
     treeStore.current().snapshot().values.asSequence().mapNotNull { node ->
       val hasGoodOutgoing = node.outgoing.values.any { it.isGood == true && !it.isDeleted }
       if (!hasGoodOutgoing) return@mapNotNull null
-      val due = node.cardState.dueLocalDate(timeZone)
-      if (due > day) null else TrainingEntry(node.positionKey, node.cardState)
+      val card = node.cardState
+      val eligible = card.isInSession() || card.dueLocalDate(timeZone) <= day
+      if (!eligible) null else TrainingEntry(node.positionKey, card)
     }
-
-  /**
-   * Number of calendar days from [DateUtil.today] until [entry]'s due date, clamped to zero. Kept
-   * for backwards compatibility with the legacy TrainingBoardPage day counter.
-   */
-  fun daysUntilDue(entry: TrainingEntry): Int {
-    val today = DateUtil.today()
-    val due = entry.cardState.dueLocalDate(timeZone)
-    return today.daysUntil(due).coerceAtLeast(0)
-  }
 }
