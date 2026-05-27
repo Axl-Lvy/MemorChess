@@ -9,6 +9,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
@@ -21,7 +22,12 @@ import kotlin.time.Instant
 class TestFsrs6SchedulingAlgorithm {
 
   private val now = Instant.parse("2026-05-20T10:00:00Z")
+
+  /** Default algorithm: short term scheduler on, fuzz off (matches the canonical FSRS defaults). */
   private val algorithm = Fsrs6SchedulingAlgorithm()
+
+  /** Long term only variant, used to assert day grained intervals and the pre-Phase-3 behavior. */
+  private val longTerm = Fsrs6SchedulingAlgorithm(enableShortTerm = { false })
 
   @Test
   fun initialStateIsDueImmediatelyWithNoReview() {
@@ -32,6 +38,8 @@ class TestFsrs6SchedulingAlgorithm {
     state.lapses shouldBe 0
     state.stability shouldBe 0.0
     state.difficulty shouldBe 0.0
+    state.phase shouldBe CardPhase.NEW
+    state.step shouldBe 0
   }
 
   @Test
@@ -54,12 +62,14 @@ class TestFsrs6SchedulingAlgorithm {
 
   @Test
   fun easyGivesLongerIntervalThanGoodThanHardThanAgain() {
-    val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    // Day grained interval ordering is a long term concept (the monotonic clamp across grades), so
+    // assert it on the long term variant.
+    val first = longTerm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
     val afterOneInterval = now + 10.days
-    val again = algorithm.schedule(first, ReviewGrade.AGAIN, afterOneInterval)
-    val hard = algorithm.schedule(first, ReviewGrade.HARD, afterOneInterval)
-    val good = algorithm.schedule(first, ReviewGrade.GOOD, afterOneInterval)
-    val easy = algorithm.schedule(first, ReviewGrade.EASY, afterOneInterval)
+    val again = longTerm.schedule(first, ReviewGrade.AGAIN, afterOneInterval)
+    val hard = longTerm.schedule(first, ReviewGrade.HARD, afterOneInterval)
+    val good = longTerm.schedule(first, ReviewGrade.GOOD, afterOneInterval)
+    val easy = longTerm.schedule(first, ReviewGrade.EASY, afterOneInterval)
 
     again.dueDate shouldBeLessThanOrEqualTo hard.dueDate
     hard.dueDate shouldBeLessThanOrEqualTo good.dueDate
@@ -99,12 +109,15 @@ class TestFsrs6SchedulingAlgorithm {
   }
 
   @Test
-  fun freshCardAgainProducesShortInterval() {
-    // The Wave A UI tests depend on AGAIN on a brand new card producing a 1 day interval.
-    val state = algorithm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
-    val days = (state.dueDate - now).inWholeDays
-    // weights[0] = 0.212 for AGAIN initial stability; with default FACTOR this rounds to 1 day.
-    days shouldBe 1L
+  fun freshCardAgainProducesOneDayIntervalInLongTermMode() {
+    // With the short term scheduler off, AGAIN on a brand new card graduates straight to a day
+    // grained interval. weights[0] = 0.212 for AGAIN initial stability; with the default FACTOR
+    // this
+    // rounds to 1 day. (With the short term scheduler on, the same grade instead yields a sub-day
+    // learning step — see newCardAgainStaysOnFirstStep.)
+    val state = longTerm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
+    state.phase shouldBe CardPhase.REVIEW
+    (state.dueDate - now).inWholeDays shouldBe 1L
   }
 
   /**
@@ -145,6 +158,9 @@ class TestFsrs6SchedulingAlgorithm {
 
   private val fuzzy = Fsrs6SchedulingAlgorithm(enableFuzz = { true })
 
+  private val longTermFuzzy =
+    Fsrs6SchedulingAlgorithm(enableFuzz = { true }, enableShortTerm = { false })
+
   /** EASY initial stability 8.2956 over FACTOR rounds to an 8 day interval with no fuzz applied. */
   @Test
   fun fuzzIsOffByDefault() {
@@ -173,13 +189,13 @@ class TestFsrs6SchedulingAlgorithm {
   }
 
   /**
-   * AGAIN initial stability rounds to a 1 day interval, well below the 2.5 day fuzz threshold, so
-   * enabling fuzz changes nothing.
+   * On the long term day grained path, AGAIN rounds to a 1 day interval, well below the 2.5 day
+   * fuzz threshold, so enabling fuzz changes nothing.
    */
   @Test
   fun fuzzLeavesSubThresholdIntervalsUntouched() {
-    val unfuzzed = algorithm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
-    val fuzzed = fuzzy.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
+    val unfuzzed = longTerm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
+    val fuzzed = longTermFuzzy.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
     fuzzed.dueDate shouldBe unfuzzed.dueDate
     (fuzzed.dueDate - now).inWholeDays shouldBe 1L
   }
@@ -187,15 +203,85 @@ class TestFsrs6SchedulingAlgorithm {
   /** Fuzz is applied before the monotonic clamp, so AGAIN < HARD < GOOD < EASY still holds. */
   @Test
   fun fuzzStillRespectsMonotonicOrdering() {
-    val first = fuzzy.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    val first = longTermFuzzy.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
     val moment = now + 10.days
-    val again = fuzzy.schedule(first, ReviewGrade.AGAIN, moment)
-    val hard = fuzzy.schedule(first, ReviewGrade.HARD, moment)
-    val good = fuzzy.schedule(first, ReviewGrade.GOOD, moment)
-    val easy = fuzzy.schedule(first, ReviewGrade.EASY, moment)
+    val again = longTermFuzzy.schedule(first, ReviewGrade.AGAIN, moment)
+    val hard = longTermFuzzy.schedule(first, ReviewGrade.HARD, moment)
+    val good = longTermFuzzy.schedule(first, ReviewGrade.GOOD, moment)
+    val easy = longTermFuzzy.schedule(first, ReviewGrade.EASY, moment)
 
     again.dueDate shouldBeLessThanOrEqualTo hard.dueDate
     hard.dueDate shouldBeLessThanOrEqualTo good.dueDate
     good.dueDate shouldBeLessThanOrEqualTo easy.dueDate
+  }
+
+  // Phase 3: short term scheduler and CardPhase state machine (issue #134 gaps 1 and 2).
+
+  /**
+   * A new card answered GOOD advances onto the second learning step (ten minutes), not to review.
+   */
+  @Test
+  fun newCardGoodEntersLearning() {
+    val state = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    state.phase shouldBe CardPhase.LEARNING
+    state.step shouldBe 1
+    (state.dueDate - now) shouldBe 10.minutes
+  }
+
+  /** A new card answered AGAIN sits on the first learning step (one minute) and counts a lapse. */
+  @Test
+  fun newCardAgainStaysOnFirstStep() {
+    val state = algorithm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
+    state.phase shouldBe CardPhase.LEARNING
+    state.step shouldBe 0
+    (state.dueDate - now) shouldBe 1.minutes
+    state.lapses shouldBe 1
+  }
+
+  /** EASY graduates a new card immediately to a day grained review interval. */
+  @Test
+  fun newCardEasyGraduatesImmediately() {
+    val state = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    state.phase shouldBe CardPhase.REVIEW
+    (state.dueDate - now).inWholeDays shouldBeGreaterThanOrEqualTo 1L
+  }
+
+  /** Two correct answers walk a new card through both learning steps and graduate it to review. */
+  @Test
+  fun learningGraduatesAfterPassingAllSteps() {
+    val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    val second = algorithm.schedule(first, ReviewGrade.GOOD, first.dueDate)
+    second.phase shouldBe CardPhase.REVIEW
+    (second.dueDate - first.dueDate).inWholeDays shouldBeGreaterThanOrEqualTo 1L
+  }
+
+  /** A lapse on a graduated card drops it into relearning on the ten minute step. */
+  @Test
+  fun reviewLapseEntersRelearning() {
+    val graduated = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    val lapsed = algorithm.schedule(graduated, ReviewGrade.AGAIN, graduated.dueDate)
+    lapsed.phase shouldBe CardPhase.RELEARNING
+    lapsed.step shouldBe 0
+    (lapsed.dueDate - graduated.dueDate) shouldBe 10.minutes
+    lapsed.lapses shouldBe 1
+  }
+
+  /** Passing the single relearning step returns a lapsed card to a day grained review interval. */
+  @Test
+  fun relearningGoodReturnsToReview() {
+    val graduated = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    val lapsed = algorithm.schedule(graduated, ReviewGrade.AGAIN, graduated.dueDate)
+    val relearned = algorithm.schedule(lapsed, ReviewGrade.GOOD, lapsed.dueDate)
+    relearned.phase shouldBe CardPhase.REVIEW
+    (relearned.dueDate - lapsed.dueDate).inWholeDays shouldBeGreaterThanOrEqualTo 1L
+  }
+
+  /** With the short term scheduler off, the first review graduates straight to review. */
+  @Test
+  fun shortTermDisabledGraduatesOnFirstReview() {
+    val state = longTerm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    state.phase shouldBe CardPhase.REVIEW
+    state.step shouldBe 0
+    (state.dueDate - now).inWholeDays shouldBeGreaterThanOrEqualTo 1L
   }
 }

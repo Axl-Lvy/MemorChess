@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.data
 import androidx.room.Embedded
 import androidx.room.Relation
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
 /** Entity representing a node with its associated moves. */
@@ -26,6 +27,8 @@ data class NodeWithMoves(
         difficulty = node.difficulty,
         reps = node.reps,
         lapses = node.lapses,
+        phase = runCatching { CardPhase.valueOf(node.phase) }.getOrDefault(CardPhase.NEW),
+        step = node.step,
       ),
       node.depth,
       node.updatedAt,
@@ -45,6 +48,8 @@ data class NodeWithMoves(
           difficulty = card.difficulty,
           reps = card.reps,
           lapses = card.lapses,
+          phase = card.phase.name,
+          step = card.step,
           depth = dataNode.depth,
           isDeleted = dataNode.isDeleted,
           updatedAt = dataNode.updatedAt,

@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.scheduling.CardPhase
 
 /**
  * Entity representing a [DataNode] ready to be stored in the database.
@@ -20,6 +21,9 @@ import proj.memorchess.axl.core.date.DateUtil
  * @property difficulty FSRS card difficulty.
  * @property reps Total number of recorded reviews.
  * @property lapses Total number of times the card has been forgotten.
+ * @property phase Name of the [proj.memorchess.axl.core.scheduling.CardPhase] in the FSRS state
+ *   machine.
+ * @property step Index into the active learning or relearning step ladder.
  * @property depth Minimum graph depth at which this position can be reached from the root.
  * @property isDeleted Soft delete flag.
  * @property updatedAt Last modification timestamp.
@@ -42,6 +46,8 @@ data class NodeEntity(
   val difficulty: Double = 0.0,
   val reps: Int = 0,
   val lapses: Int = 0,
+  val phase: String = CardPhase.NEW.name,
+  val step: Int = 0,
   val depth: Int,
   val isDeleted: Boolean = false,
   val updatedAt: Instant = DateUtil.now(),

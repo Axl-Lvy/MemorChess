@@ -7,7 +7,9 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.round
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
@@ -30,12 +32,23 @@ import kotlin.time.Instant
  *   interval fuzz is applied. Defaults to off, matching ts-fsrs' `default_enable_fuzz = false`. It
  *   is a supplier rather than a flat flag so a user toggling the setting takes effect immediately
  *   on the long lived singleton without a restart.
+ * @property enableShortTerm Supplier read on every [schedule] call deciding whether the short term
+ *   (learning steps) scheduler runs. Defaults to on, matching ts-fsrs' `default_enable_short_term =
+ *   true`. When off, every review graduates straight to a day grained [CardPhase.REVIEW] interval,
+ *   reproducing the original long term only behavior. Same supplier rationale as [enableFuzz].
+ * @property learningSteps Sub-day intervals a new card walks through before graduating. A correct
+ *   answer advances one step; passing the last step graduates the card to [CardPhase.REVIEW].
+ * @property relearningSteps Sub-day intervals a lapsed review card walks through before returning
+ *   to [CardPhase.REVIEW].
  */
 class Fsrs6SchedulingAlgorithm(
   private val weights: DoubleArray = DEFAULT_WEIGHTS,
   private val requestRetention: Double = DEFAULT_REQUEST_RETENTION,
   private val maximumInterval: Int = DEFAULT_MAXIMUM_INTERVAL,
   private val enableFuzz: () -> Boolean = { false },
+  private val enableShortTerm: () -> Boolean = { true },
+  private val learningSteps: List<Duration> = DEFAULT_LEARNING_STEPS,
+  private val relearningSteps: List<Duration> = DEFAULT_RELEARNING_STEPS,
 ) : SchedulingAlgorithm {
 
   init {
@@ -66,16 +79,126 @@ class Fsrs6SchedulingAlgorithm(
       difficulty = 0.0,
       reps = 0,
       lapses = 0,
+      phase = CardPhase.NEW,
+      step = 0,
     )
 
   override fun schedule(previous: CardState?, grade: ReviewGrade, now: Instant): CardState {
     val base = previous ?: initial(now)
-    return if (base.lastReview == null) {
+    return if (enableShortTerm()) {
+      shortTermReview(base, grade, now)
+    } else if (base.lastReview == null) {
       firstReview(base, grade, now)
     } else {
       laterReview(base, grade, now)
     }
   }
+
+  /**
+   * Short term path: advances the FSRS memory state exactly as the long term path does, then routes
+   * the card through the learning, review or relearning steps based on its current
+   * [CardState.phase] to pick the next due moment. Sub-day steps keep the card in the active
+   * session; graduating to [CardPhase.REVIEW] produces a day grained interval and removes it from
+   * the session.
+   */
+  private fun shortTermReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
+    val lastReview = base.lastReview
+    val elapsedDays =
+      if (lastReview == null) 0.0
+      else max(0.0, (now - lastReview).inWholeMilliseconds / MILLIS_PER_DAY)
+    val stability =
+      if (lastReview == null) initStability(grade)
+      else {
+        val retrievability = forgettingCurve(elapsedDays, base.stability)
+        if (grade == ReviewGrade.AGAIN) {
+          nextForgetStability(base.difficulty, base.stability, retrievability)
+        } else {
+          nextRecallStability(base.difficulty, base.stability, retrievability, grade)
+        }
+      }
+    val difficulty =
+      if (lastReview == null) initDifficulty(grade) else nextDifficulty(base.difficulty, grade)
+    val fuzz = fuzzFactor(base.stability, base.difficulty, base.reps, elapsedDays)
+    val outcome = route(base.phase, base.step, grade, stability, elapsedDays, fuzz)
+    val isLapse = grade == ReviewGrade.AGAIN
+    return CardState(
+      dueDate = now + outcome.delay,
+      lastReview = now,
+      stability = stability,
+      difficulty = difficulty,
+      reps = base.reps + 1,
+      lapses = base.lapses + if (isLapse) 1 else 0,
+      phase = outcome.phase,
+      step = outcome.step,
+    )
+  }
+
+  /** Routes a graded review to its next due delay, phase and step within the state machine. */
+  private fun route(
+    phase: CardPhase,
+    step: Int,
+    grade: ReviewGrade,
+    stability: Double,
+    elapsedDays: Double,
+    fuzz: Double,
+  ): StepOutcome =
+    when (phase) {
+      CardPhase.NEW,
+      CardPhase.LEARNING ->
+        learningRoute(learningSteps, step, grade, CardPhase.LEARNING, stability, elapsedDays, fuzz)
+      CardPhase.RELEARNING ->
+        learningRoute(
+          relearningSteps,
+          step,
+          grade,
+          CardPhase.RELEARNING,
+          stability,
+          elapsedDays,
+          fuzz,
+        )
+      CardPhase.REVIEW ->
+        if (grade == ReviewGrade.AGAIN && relearningSteps.isNotEmpty()) {
+          StepOutcome(relearningSteps.first(), CardPhase.RELEARNING, 0)
+        } else {
+          graduate(stability, elapsedDays, fuzz)
+        }
+    }
+
+  /**
+   * Walks a card through a learning or relearning [steps] ladder. AGAIN drops back to the first
+   * step, HARD repeats the current step, GOOD advances one (graduating past the last), and EASY
+   * graduates immediately. An empty ladder graduates on any grade.
+   */
+  private fun learningRoute(
+    steps: List<Duration>,
+    step: Int,
+    grade: ReviewGrade,
+    learningPhase: CardPhase,
+    stability: Double,
+    elapsedDays: Double,
+    fuzz: Double,
+  ): StepOutcome {
+    if (steps.isEmpty()) return graduate(stability, elapsedDays, fuzz)
+    return when (grade) {
+      ReviewGrade.AGAIN -> StepOutcome(steps.first(), learningPhase, 0)
+      ReviewGrade.HARD -> {
+        val held = step.coerceIn(steps.indices)
+        StepOutcome(steps[held], learningPhase, held)
+      }
+      ReviewGrade.GOOD -> {
+        val next = step + 1
+        if (next >= steps.size) graduate(stability, elapsedDays, fuzz)
+        else StepOutcome(steps[next], learningPhase, next)
+      }
+      ReviewGrade.EASY -> graduate(stability, elapsedDays, fuzz)
+    }
+  }
+
+  /**
+   * Produces a graduated [CardPhase.REVIEW] outcome with a day grained interval from [stability].
+   */
+  private fun graduate(stability: Double, elapsedDays: Double, fuzz: Double): StepOutcome =
+    StepOutcome(intervalDays(stability, elapsedDays, fuzz).days, CardPhase.REVIEW, 0)
 
   private fun firstReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
     val initialStabilities = ReviewGrade.entries.associateWith { initStability(it) }
@@ -93,6 +216,8 @@ class Fsrs6SchedulingAlgorithm(
       difficulty = initialDifficulties.getValue(grade),
       reps = base.reps + 1,
       lapses = base.lapses + if (isLapse) 1 else 0,
+      phase = CardPhase.REVIEW,
+      step = 0,
     )
   }
 
@@ -121,6 +246,8 @@ class Fsrs6SchedulingAlgorithm(
       difficulty = difficulty,
       reps = base.reps + 1,
       lapses = base.lapses + if (isLapse) 1 else 0,
+      phase = CardPhase.REVIEW,
+      step = 0,
     )
   }
 
@@ -340,8 +467,17 @@ class Fsrs6SchedulingAlgorithm(
 
     const val DEFAULT_REQUEST_RETENTION: Double = 0.9
     const val DEFAULT_MAXIMUM_INTERVAL: Int = 36500
+
+    /** Default learning steps for a new card, matching ts-fsrs' `default_learning_steps`. */
+    val DEFAULT_LEARNING_STEPS: List<Duration> = listOf(1.minutes, 10.minutes)
+
+    /** Default relearning steps for a lapsed card, matching ts-fsrs' `default_relearning_steps`. */
+    val DEFAULT_RELEARNING_STEPS: List<Duration> = listOf(10.minutes)
   }
 
   /** A single fuzz band: intervals between [start] and [end] days widen the spread by [factor]. */
   private data class FuzzRange(val start: Double, val end: Double, val factor: Double)
+
+  /** The next due [delay], [phase] and learning [step] produced by routing a graded review. */
+  private data class StepOutcome(val delay: Duration, val phase: CardPhase, val step: Int)
 }
