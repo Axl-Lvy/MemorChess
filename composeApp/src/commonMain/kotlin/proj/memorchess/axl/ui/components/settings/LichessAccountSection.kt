@@ -96,43 +96,14 @@ internal fun LichessAccountSectionContent(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-      LichessAvatar(initial = account?.username?.firstOrNull()?.uppercaseChar()?.toString() ?: "?")
-
-      Column(modifier = Modifier.weight(1f)) {
-        Text(
-          text = account?.username ?: "Not signed in",
-          style = typography.display.copy(color = palette.ink, fontSize = 16.sp),
-          modifier = if (signedIn) Modifier.testTag("lichess_account_username") else Modifier,
-        )
-        Text(
-          text =
-            if (signedIn) {
-              "Connected to lichess.org"
-            } else {
-              "Sign in to enable the Lichess opening explorer."
-            },
-          style = typography.monoSm.copy(color = palette.ink3),
-        )
-      }
-
-      if (signedIn) {
-        KineticButton(
-          onClick = onSignOut,
-          style = KineticButtonStyle.DangerOutline,
-          modifier = Modifier.testTag("lichess_sign_out_button"),
-        ) {
-          Text(text = "DISCONNECT")
-        }
-      } else {
-        KineticButton(
-          onClick = onSignIn,
-          enabled = !pending,
-          style = KineticButtonStyle.Default,
-          modifier = Modifier.testTag("lichess_sign_in_button"),
-        ) {
-          Text(text = if (pending) "SIGNING IN…" else "SIGN IN")
-        }
-      }
+      LichessAvatar(initial = avatarInitial(account))
+      LichessAccountIdentity(account = account, signedIn = signedIn, modifier = Modifier.weight(1f))
+      LichessAccountAction(
+        signedIn = signedIn,
+        pending = pending,
+        onSignIn = onSignIn,
+        onSignOut = onSignOut,
+      )
     }
 
     if (lastError != null) {
@@ -141,6 +112,65 @@ internal fun LichessAccountSectionContent(
         style = typography.bodySm.copy(color = palette.red),
         modifier = Modifier.testTag("lichess_account_error"),
       )
+    }
+  }
+}
+
+/** First letter of the username uppercased, or "?" when signed out. */
+private fun avatarInitial(account: LichessAccount?): String =
+  account?.username?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+
+/** Username and connection-status lines shown between the avatar and the action button. */
+@Composable
+private fun LichessAccountIdentity(
+  account: LichessAccount?,
+  signedIn: Boolean,
+  modifier: Modifier = Modifier,
+) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  Column(modifier = modifier) {
+    Text(
+      text = account?.username ?: "Not signed in",
+      style = typography.display.copy(color = palette.ink, fontSize = 16.sp),
+      modifier = if (signedIn) Modifier.testTag("lichess_account_username") else Modifier,
+    )
+    Text(
+      text =
+        if (signedIn) {
+          "Connected to lichess.org"
+        } else {
+          "Sign in to enable the Lichess opening explorer."
+        },
+      style = typography.monoSm.copy(color = palette.ink3),
+    )
+  }
+}
+
+/** Sign-in / sign-out button, switching on [signedIn]. */
+@Composable
+private fun LichessAccountAction(
+  signedIn: Boolean,
+  pending: Boolean,
+  onSignIn: () -> Unit,
+  onSignOut: () -> Unit,
+) {
+  if (signedIn) {
+    KineticButton(
+      onClick = onSignOut,
+      style = KineticButtonStyle.DangerOutline,
+      modifier = Modifier.testTag("lichess_sign_out_button"),
+    ) {
+      Text(text = "DISCONNECT")
+    }
+  } else {
+    KineticButton(
+      onClick = onSignIn,
+      enabled = !pending,
+      style = KineticButtonStyle.Default,
+      modifier = Modifier.testTag("lichess_sign_in_button"),
+    ) {
+      Text(text = if (pending) "SIGNING IN…" else "SIGN IN")
     }
   }
 }

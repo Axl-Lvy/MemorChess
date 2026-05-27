@@ -19,6 +19,7 @@ import proj.memorchess.axl.core.config.BEST_MOVE_ARROW_ENABLED_SETTING
 import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
 import proj.memorchess.axl.core.config.EVAL_BAR_ENABLED_SETTING
 import proj.memorchess.axl.ui.components.controls.KineticSlider
+import proj.memorchess.axl.ui.components.controls.KineticSliderLabels
 import proj.memorchess.axl.ui.components.controls.KineticToggle
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -76,13 +77,16 @@ fun EngineAndAnalysisSection(reloadKey: Any) {
       },
       modifier = Modifier.fillMaxWidth(),
       range = 5f..26f,
-      label = "Engine depth",
-      valueFormatter = {
-        val intVal = it.roundToInt()
-        if (intVal >= 26) "∞" else intVal.toString()
-      },
-      minLabel = "5",
-      maxLabel = "∞",
+      labels =
+        KineticSliderLabels(
+          label = "Engine depth",
+          valueFormatter = {
+            val intVal = it.roundToInt()
+            if (intVal >= 26) "∞" else intVal.toString()
+          },
+          minLabel = "5",
+          maxLabel = "∞",
+        ),
       sliderTestTag = ENGINE_MAX_DEPTH_SETTING.name,
     )
   }

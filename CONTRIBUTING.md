@@ -28,22 +28,13 @@ The project roadmap can be found on [Notion](https://www.notion.so/MemorChess-20
   ./gradlew desktopTest connectedAndroidTest
   ```
 
-## 🔐 Secrets Management
+## 🔐 Credentials
 
-- The project uses a secrets generation system to handle sensitive information like API keys.
-- Secrets are defined in `SecretsTemplate.kt` and generated at build time from values in `local.properties`.
-- To add a new secret:
-  1. Add the property to `SecretsTemplate.kt` with a default value of `NOT_FOUND`
-  2. Add the actual value to your `local.properties` file using UPPER_SNAKE_CASE format
-  3. The build system will automatically convert UPPER_SNAKE_CASE to camelCase in the generated `Secrets.kt`
-- Example:
-  ```kotlin
-  // In SecretsTemplate.kt
-  open val myApiKey = NOT_FOUND
-
-  // In local.properties
-  MY_API_KEY=your_actual_api_key_here
-  ```
+- The project has no secrets-generation system. Any credential required at runtime (e.g. the live
+  Lichess Opening Explorer test uses `LICHESS_API_TOKEN`) is read straight from the process
+  environment via `System.getenv`.
+- Locally, export the variable in your shell or run configuration before running the affected task.
+- In CI, the variables are injected from GitHub Actions secrets of the same name.
 
 ## 🎉 Thanks for Contributing!
 

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -69,8 +70,6 @@ fun <T> KineticSegmentedControl(
   enabled: Boolean = true,
 ) {
   val palette = LocalKineticPalette.current
-  val typography = LocalKineticTypography.current
-  val indication = LocalIndication.current
   val hasSubtext = subtext != null
   val rowHeight = if (hasSubtext) 44.dp else 36.dp
 
@@ -84,50 +83,76 @@ fun <T> KineticSegmentedControl(
     verticalAlignment = Alignment.CenterVertically,
   ) {
     options.forEachIndexed { index, option ->
-      val isActive = option == selected
-      val background = if (isActive) palette.accent else Color.Transparent
-      val labelColor = if (isActive) palette.onAccent else palette.ink3
-      val subtextColor = if (isActive) palette.onAccent.copy(alpha = 0.7f) else palette.ink4
-      val labelWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold
-      val interactionSource = remember(option) { MutableInteractionSource() }
-
-      Box(
-        modifier =
-          Modifier.fillMaxHeight()
-            .weight(1f)
-            .background(color = background)
-            .clickable(
-              interactionSource = interactionSource,
-              indication = indication,
-              enabled = enabled,
-              role = Role.RadioButton,
-              onClick = { onSelect(option) },
-            )
-            .padding(horizontal = 8.dp, vertical = 9.dp),
-        contentAlignment = Alignment.Center,
-      ) {
-        CompositionLocalProvider(
-          LocalContentColor provides labelColor,
-          LocalTextStyle provides
-            typography.display.copy(fontSize = 12.sp, fontWeight = labelWeight, color = labelColor),
-        ) {
-          Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-          ) {
-            Text(text = label(option))
-            if (subtext != null) {
-              Text(
-                text = subtext(option).uppercase(),
-                style = typography.monoSm.copy(color = subtextColor),
-              )
-            }
-          }
-        }
-      }
+      KineticSegment(
+        label = label(option),
+        subtext = subtext?.invoke(option),
+        isActive = option == selected,
+        enabled = enabled,
+        onClick = { onSelect(option) },
+      )
 
       if (index < options.lastIndex) {
         Box(modifier = Modifier.fillMaxHeight().width(1.dp).background(palette.lineBright))
+      }
+    }
+  }
+}
+
+/**
+ * One segment of a [KineticSegmentedControl]. Extracted so the active/idle styling branches don't
+ * inflate the parent's cognitive complexity.
+ *
+ * @param label main display label.
+ * @param subtext optional uppercase mono caption shown beneath the label.
+ * @param isActive whether this segment is the selected one.
+ * @param enabled whether clicks are accepted.
+ * @param onClick invoked when the segment is tapped.
+ */
+@Composable
+private fun RowScope.KineticSegment(
+  label: String,
+  subtext: String?,
+  isActive: Boolean,
+  enabled: Boolean,
+  onClick: () -> Unit,
+) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  val indication = LocalIndication.current
+  val background = if (isActive) palette.accent else Color.Transparent
+  val labelColor = if (isActive) palette.onAccent else palette.ink3
+  val subtextColor = if (isActive) palette.onAccent.copy(alpha = 0.7f) else palette.ink4
+  val labelWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold
+  val interactionSource = remember { MutableInteractionSource() }
+
+  Box(
+    modifier =
+      Modifier.fillMaxHeight()
+        .weight(1f)
+        .background(color = background)
+        .clickable(
+          interactionSource = interactionSource,
+          indication = indication,
+          enabled = enabled,
+          role = Role.RadioButton,
+          onClick = onClick,
+        )
+        .padding(horizontal = 8.dp, vertical = 9.dp),
+    contentAlignment = Alignment.Center,
+  ) {
+    CompositionLocalProvider(
+      LocalContentColor provides labelColor,
+      LocalTextStyle provides
+        typography.display.copy(fontSize = 12.sp, fontWeight = labelWeight, color = labelColor),
+    ) {
+      Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+      ) {
+        Text(text = label)
+        if (subtext != null) {
+          Text(text = subtext.uppercase(), style = typography.monoSm.copy(color = subtextColor))
+        }
       }
     }
   }

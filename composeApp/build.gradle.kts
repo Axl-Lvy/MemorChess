@@ -314,5 +314,3 @@ kover {
     }
   }
 }
-
-apply(from = "pre-compile.gradle.kts")

@@ -27,6 +27,23 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
+ * Text and formatting configuration for a [KineticSlider].
+ *
+ * @property label descriptive label for the slider, shown top-left.
+ * @property valueFormatter formats the value for the big readout and default min/max labels.
+ * @property unit optional unit shown after the value (e.g. "ms"); rendered in `monoSm` `ink3`.
+ * @property minLabel small mono label under the left edge; defaults to the formatted range start.
+ * @property maxLabel small mono label under the right edge; defaults to the formatted range end.
+ */
+data class KineticSliderLabels(
+  val label: String,
+  val valueFormatter: (Float) -> String = { it.toString() },
+  val unit: String = "",
+  val minLabel: String? = null,
+  val maxLabel: String? = null,
+)
+
+/**
  * Kinetic slider control. Mirrors `.slider`, `.slider .track`, `.slider .fill`, `.slider .thumb`,
  * `.slider .label-min`, `.slider .label-max`, and `.slider-row .value` from
  * `design-proposals/kinetic-base.css`.
@@ -46,13 +63,9 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  *
  * @param value current slider value, clamped into [range].
  * @param onValueChange called whenever the user drags the slider.
+ * @param labels text and formatting configuration (label, value formatter, unit, edge labels).
  * @param modifier external modifier applied to the root column.
  * @param range valid value range, defaults to `0f..1f`.
- * @param label descriptive label for the slider, shown top-left.
- * @param valueFormatter formats [value] for the big readout and default min/max labels.
- * @param unit optional unit shown after the value (e.g. "ms"); rendered in `monoSm` `ink3`.
- * @param minLabel small mono label under the left edge of the track.
- * @param maxLabel small mono label under the right edge of the track.
  * @param enabled when false, dims the control and disables interaction.
  * @param sliderTestTag optional test tag attached to the slider input region.
  */
@@ -61,19 +74,19 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 fun KineticSlider(
   value: Float,
   onValueChange: (Float) -> Unit,
+  labels: KineticSliderLabels,
   modifier: Modifier = Modifier,
   range: ClosedFloatingPointRange<Float> = 0f..1f,
-  label: String,
-  valueFormatter: (Float) -> String = { it.toString() },
-  unit: String = "",
-  minLabel: String = valueFormatter(range.start),
-  maxLabel: String = valueFormatter(range.endInclusive),
   enabled: Boolean = true,
   sliderTestTag: String? = null,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val clamped = value.coerceIn(range.start, range.endInclusive)
+  val valueFormatter = labels.valueFormatter
+  val unit = labels.unit
+  val minLabel = labels.minLabel ?: valueFormatter(range.start)
+  val maxLabel = labels.maxLabel ?: valueFormatter(range.endInclusive)
 
   val sliderColors =
     SliderDefaults.colors(
@@ -96,7 +109,7 @@ fun KineticSlider(
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      Text(text = label, style = typography.body.copy(color = palette.ink2))
+      Text(text = labels.label, style = typography.body.copy(color = palette.ink2))
       Row(verticalAlignment = Alignment.Bottom) {
         Text(
           text = valueFormatter(clamped),

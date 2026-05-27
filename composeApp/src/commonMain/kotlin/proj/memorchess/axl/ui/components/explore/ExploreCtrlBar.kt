@@ -27,30 +27,40 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
+ * Callbacks for the [ExploreCtrlBar] buttons.
+ *
+ * @property onReset Invoked when the reset button is tapped.
+ * @property onReverse Invoked when the reverse (flip board) button is tapped.
+ * @property onBack Invoked when the back arrow is tapped.
+ * @property onForward Invoked when the forward arrow is tapped.
+ * @property onToggleEval Invoked when the eval-bar toggle is tapped.
+ * @property onSave Invoked when the save button is tapped (Primary style).
+ * @property onDelete Invoked when the delete button is tapped (Danger style).
+ */
+data class ExploreCtrlBarActions(
+  val onReset: () -> Unit,
+  val onReverse: () -> Unit,
+  val onBack: () -> Unit,
+  val onForward: () -> Unit,
+  val onToggleEval: () -> Unit,
+  val onSave: () -> Unit,
+  val onDelete: () -> Unit,
+)
+
+/**
  * Compact Kinetic control bar replacing the loose reset / reverse / back / forward / eval-toggle /
  * save / delete row. Each control uses an icon-only [KineticButton]; the player turn indicator sits
  * mid-row as a small panel pill showing whose move it is.
  *
- * @param onReset Invoked when the reset button is tapped.
- * @param onReverse Invoked when the reverse (flip board) button is tapped.
- * @param onBack Invoked when the back arrow is tapped.
- * @param onForward Invoked when the forward arrow is tapped.
- * @param onToggleEval Invoked when the eval-bar toggle is tapped.
+ * @param actions Callbacks for each button.
  * @param evalEnabled `true` if the eval bar is currently enabled (drives Primary vs Default style).
- * @param onSave Invoked when the save button is tapped (Primary style).
- * @param onDelete Invoked when the delete button is tapped (Danger style).
  * @param playerTurnWhite `true` when it is white's move, used for the central player-turn pill.
+ * @param modifier External modifier applied to the row.
  */
 @Composable
 fun ExploreCtrlBar(
-  onReset: () -> Unit,
-  onReverse: () -> Unit,
-  onBack: () -> Unit,
-  onForward: () -> Unit,
-  onToggleEval: () -> Unit,
+  actions: ExploreCtrlBarActions,
   evalEnabled: Boolean,
-  onSave: () -> Unit,
-  onDelete: () -> Unit,
   playerTurnWhite: Boolean,
   modifier: Modifier = Modifier,
 ) {
@@ -62,16 +72,16 @@ fun ExploreCtrlBar(
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(6.dp),
   ) {
-    KineticButton(onClick = onReset, iconOnly = true) {
+    KineticButton(onClick = actions.onReset, iconOnly = true) {
       Icon(FeatherIcons.Rewind, contentDescription = "Reset")
     }
-    KineticButton(onClick = onReverse, iconOnly = true) {
+    KineticButton(onClick = actions.onReverse, iconOnly = true) {
       Icon(FeatherIcons.Repeat, contentDescription = "Reverse")
     }
-    KineticButton(onClick = onBack, iconOnly = true) {
+    KineticButton(onClick = actions.onBack, iconOnly = true) {
       Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
     }
-    KineticButton(onClick = onForward, iconOnly = true) {
+    KineticButton(onClick = actions.onForward, iconOnly = true) {
       Icon(FeatherIcons.ArrowRight, contentDescription = "Forward")
     }
 
@@ -89,7 +99,7 @@ fun ExploreCtrlBar(
     }
 
     KineticButton(
-      onClick = onToggleEval,
+      onClick = actions.onToggleEval,
       iconOnly = true,
       style = if (evalEnabled) KineticButtonStyle.Primary else KineticButtonStyle.Default,
     ) {
@@ -99,10 +109,10 @@ fun ExploreCtrlBar(
     // Filler — pushes save/delete to the right.
     Box(modifier = Modifier.weight(1f).fillMaxWidth())
 
-    KineticButton(onClick = onSave, style = KineticButtonStyle.Primary, iconOnly = true) {
+    KineticButton(onClick = actions.onSave, style = KineticButtonStyle.Primary, iconOnly = true) {
       Icon(FeatherIcons.Save, contentDescription = "Save")
     }
-    KineticButton(onClick = onDelete, style = KineticButtonStyle.Danger, iconOnly = true) {
+    KineticButton(onClick = actions.onDelete, style = KineticButtonStyle.Danger, iconOnly = true) {
       Icon(FeatherIcons.Trash, contentDescription = "Delete")
     }
   }

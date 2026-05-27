@@ -17,6 +17,7 @@ import proj.memorchess.axl.core.config.APP_THEME_SETTING
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.components.controls.KineticSlider
+import proj.memorchess.axl.ui.components.controls.KineticSliderLabels
 import proj.memorchess.axl.ui.theme.AppThemeSetting
 
 /**
@@ -57,11 +58,14 @@ fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {
         MOVE_ANIMATION_DURATION_SETTING.setValue(it.toDouble().seconds)
       },
       range = 0f..2f,
-      label = "Move animation",
-      valueFormatter = { (it * 1000).roundToInt().toString() },
-      unit = "ms",
-      minLabel = "0",
-      maxLabel = "2000ms",
+      labels =
+        KineticSliderLabels(
+          label = "Move animation",
+          valueFormatter = { (it * 1000).roundToInt().toString() },
+          unit = "ms",
+          minLabel = "0",
+          maxLabel = "2000ms",
+        ),
       sliderTestTag = MOVE_ANIMATION_DURATION_SETTING.name,
     )
   }

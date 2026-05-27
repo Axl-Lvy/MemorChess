@@ -48,6 +48,8 @@ import proj.memorchess.axl.ui.components.board.StateIndicator
 import proj.memorchess.axl.ui.components.buttons.ControlButton
 import proj.memorchess.axl.ui.components.explore.ExploreBoardSection
 import proj.memorchess.axl.ui.components.explore.ExploreCtrlBar
+import proj.memorchess.axl.ui.components.explore.ExploreCtrlBarActions
+import proj.memorchess.axl.ui.components.explore.ExploreEvalState
 import proj.memorchess.axl.ui.components.explore.ExploreSidebar
 import proj.memorchess.axl.ui.components.explore.ExploreStatBadgesRow
 import proj.memorchess.axl.ui.components.explore.MoveDisplay
@@ -177,10 +179,13 @@ fun ExplorerContent(
           cornerTagText = cornerTagLabel,
           cornerTagColor = cornerTagColor,
           compact = false,
-          evalEnabled = evalBarEnabled,
-          evalRatio = computeEvalRatio(evaluation),
-          evalDisplayValue = evaluation?.let { formatEvaluationScore(it) },
-          railThin = false,
+          eval =
+            ExploreEvalState(
+              enabled = evalBarEnabled,
+              ratio = computeEvalRatio(evaluation),
+              displayValue = evaluation?.let { formatEvaluationScore(it) },
+              thin = false,
+            ),
         )
       },
       movesTrail = { trailModifier ->
@@ -196,19 +201,22 @@ fun ExplorerContent(
       controlBar = { ctrlModifier ->
         ExploreCtrlBar(
           modifier = ctrlModifier,
-          onReset = { explorer.reset() },
-          onReverse = { inverted = !inverted },
-          onBack = { explorer.back() },
-          onForward = { explorer.forward() },
-          onToggleEval = {
-            val next = !evalBarEnabled
-            evalBarEnabled = next
-            EVAL_BAR_ENABLED_SETTING.setValue(next)
-            evaluator = updateEvaluator(next, evaluator, maxDepth)
-          },
+          actions =
+            ExploreCtrlBarActions(
+              onReset = { explorer.reset() },
+              onReverse = { inverted = !inverted },
+              onBack = { explorer.back() },
+              onForward = { explorer.forward() },
+              onToggleEval = {
+                val next = !evalBarEnabled
+                evalBarEnabled = next
+                EVAL_BAR_ENABLED_SETTING.setValue(next)
+                evaluator = updateEvaluator(next, evaluator, maxDepth)
+              },
+              onSave = onSave,
+              onDelete = onDelete,
+            ),
           evalEnabled = evalBarEnabled,
-          onSave = onSave,
-          onDelete = onDelete,
           playerTurnWhite = playerTurnWhite,
         )
       },

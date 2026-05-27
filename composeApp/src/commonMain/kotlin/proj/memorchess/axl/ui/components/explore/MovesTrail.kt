@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.ui.theme.KineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -176,59 +179,18 @@ fun MovesTrail(
       isLeft = true,
     )
 
-    Box(
-      modifier =
-        Modifier.weight(1f).fillMaxHeight().drawWithContent {
-          drawContent()
-          val fadePx = EdgeFadeWidth.toPx().coerceAtMost(size.width / 2f)
-          if (fadePx > 0f) {
-            // Left fade: bg2 -> transparent
-            drawRect(
-              brush =
-                Brush.horizontalGradient(
-                  colors = listOf(palette.bg2, Color.Transparent),
-                  startX = 0f,
-                  endX = fadePx,
-                ),
-              topLeft = Offset(0f, 0f),
-              size = Size(fadePx, size.height),
-            )
-            // Right fade: transparent -> bg2
-            drawRect(
-              brush =
-                Brush.horizontalGradient(
-                  colors = listOf(Color.Transparent, palette.bg2),
-                  startX = size.width - fadePx,
-                  endX = size.width,
-                ),
-              topLeft = Offset(size.width - fadePx, 0f),
-              size = Size(fadePx, size.height),
-            )
-          }
-        },
-      contentAlignment = Alignment.CenterStart,
-    ) {
-      LazyRow(
-        state = listState,
-        horizontalArrangement = Arrangement.spacedBy(ChipSpacing),
-        verticalAlignment = Alignment.CenterVertically,
-        contentPadding = PaddingValues(horizontal = EdgeFadeWidth),
-        modifier = Modifier.fillMaxWidth(),
-      ) {
-        itemsIndexed(moves) { index, move ->
-          MoveChip(move = move, isCurrent = index == currentIndex, onClick = { onSeek(index) })
-        }
-      }
-    }
+    TrailChipStrip(
+      listState = listState,
+      moves = moves,
+      currentIndex = currentIndex,
+      onSeek = onSeek,
+      palette = palette,
+    )
 
     TrailArrow(
       onClick = {
-        scope.launch {
-          val lastVisible =
-            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-              ?: listState.firstVisibleItemIndex
-          val target = (lastVisible + 4).coerceAtMost((moves.size - 1).coerceAtLeast(0))
-          if (moves.isNotEmpty()) listState.animateScrollToItem(target)
+        if (moves.isNotEmpty()) {
+          scope.launch { listState.animateScrollToItem(nextScrollTarget(listState, moves.size)) }
         }
       },
       isLeft = false,
@@ -251,6 +213,71 @@ fun MovesTrail(
   if (pgnText != null && pgnOpen) {
     PgnDialog(pgnText = pgnText, moves = moves, currentIndex = currentIndex) { pgnOpen = false }
   }
+}
+
+/**
+ * Scrollable chip strip with edge fades. Extracted from [MovesTrail] so its nested fade-drawing and
+ * per-chip selection logic don't inflate the parent's cognitive complexity.
+ */
+@Composable
+private fun RowScope.TrailChipStrip(
+  listState: LazyListState,
+  moves: List<MoveDisplay>,
+  currentIndex: Int,
+  onSeek: (Int) -> Unit,
+  palette: KineticPalette,
+) {
+  Box(
+    modifier =
+      Modifier.weight(1f).fillMaxHeight().drawWithContent {
+        drawContent()
+        val fadePx = EdgeFadeWidth.toPx().coerceAtMost(size.width / 2f)
+        if (fadePx > 0f) {
+          // Left fade: bg2 -> transparent
+          drawRect(
+            brush =
+              Brush.horizontalGradient(
+                colors = listOf(palette.bg2, Color.Transparent),
+                startX = 0f,
+                endX = fadePx,
+              ),
+            topLeft = Offset(0f, 0f),
+            size = Size(fadePx, size.height),
+          )
+          // Right fade: transparent -> bg2
+          drawRect(
+            brush =
+              Brush.horizontalGradient(
+                colors = listOf(Color.Transparent, palette.bg2),
+                startX = size.width - fadePx,
+                endX = size.width,
+              ),
+            topLeft = Offset(size.width - fadePx, 0f),
+            size = Size(fadePx, size.height),
+          )
+        }
+      },
+    contentAlignment = Alignment.CenterStart,
+  ) {
+    LazyRow(
+      state = listState,
+      horizontalArrangement = Arrangement.spacedBy(ChipSpacing),
+      verticalAlignment = Alignment.CenterVertically,
+      contentPadding = PaddingValues(horizontal = EdgeFadeWidth),
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      itemsIndexed(moves) { index, move ->
+        MoveChip(move = move, isCurrent = index == currentIndex, onClick = { onSeek(index) })
+      }
+    }
+  }
+}
+
+/** Computes the next-page scroll target for the right arrow, clamped to the last move index. */
+private fun nextScrollTarget(listState: LazyListState, moveCount: Int): Int {
+  val lastVisible =
+    listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: listState.firstVisibleItemIndex
+  return (lastVisible + 4).coerceAtMost((moveCount - 1).coerceAtLeast(0))
 }
 
 /** Single move chip — renders one ply with its number prefix, current/guess states, and click. */

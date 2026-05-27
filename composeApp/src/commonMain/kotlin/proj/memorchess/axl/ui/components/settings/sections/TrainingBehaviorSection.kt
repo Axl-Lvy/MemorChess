@@ -11,6 +11,7 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.ui.components.controls.KineticSlider
+import proj.memorchess.axl.ui.components.controls.KineticSliderLabels
 
 /**
  * Training Behavior settings section content.
@@ -43,11 +44,14 @@ fun TrainingBehaviorSection(reloadKey: Any) {
     },
     modifier = Modifier.fillMaxWidth(),
     range = 0f..5f,
-    label = "Auto-advance delay",
-    valueFormatter = { ((it * 100).roundToInt() / 100.0).toString() },
-    unit = "s",
-    minLabel = "0s",
-    maxLabel = "5s",
+    labels =
+      KineticSliderLabels(
+        label = "Auto-advance delay",
+        valueFormatter = { ((it * 100).roundToInt() / 100.0).toString() },
+        unit = "s",
+        minLabel = "0s",
+        maxLabel = "5s",
+      ),
     sliderTestTag = TRAINING_MOVE_DELAY_SETTING.name,
   )
 }

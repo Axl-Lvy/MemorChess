@@ -86,17 +86,11 @@ fun SettingsSidebar(
       modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
     )
 
-    groups.forEachIndexed { groupIndex, group ->
+    groups.forEach { group ->
       Text(
         text = group.title.uppercase(),
         style = typography.monoSm.copy(color = palette.ink4),
-        modifier =
-          Modifier.padding(
-            start = 22.dp,
-            end = 22.dp,
-            top = if (groupIndex == 0) 14.dp else 14.dp,
-            bottom = 6.dp,
-          ),
+        modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 6.dp),
       )
       group.sections.forEach { item ->
         SidebarItem(item = item, active = item.id == selectedId, onClick = { onSelect(item.id) })
