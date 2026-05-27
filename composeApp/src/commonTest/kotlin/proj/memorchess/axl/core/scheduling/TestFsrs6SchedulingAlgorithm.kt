@@ -2,11 +2,13 @@ package proj.memorchess.axl.core.scheduling
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
 import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 
 /**
@@ -103,5 +105,97 @@ class TestFsrs6SchedulingAlgorithm {
     val days = (state.dueDate - now).inWholeDays
     // weights[0] = 0.212 for AGAIN initial stability; with default FACTOR this rounds to 1 day.
     days shouldBe 1L
+  }
+
+  /**
+   * A GOOD review with lower retrievability (more elapsed time) yields more stability, so stability
+   * is strictly monotonic in elapsed time. A half day review landing strictly between the zero day
+   * and one day reviews proves the elapsed count is fractional, not truncated to an integer
+   * (truncation would make the half day case identical to the zero day case).
+   */
+  @Test
+  fun fractionalElapsedDaysSitBetweenTheBoundingIntegerDays() {
+    val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    val lastReview = checkNotNull(first.lastReview)
+
+    val atZero = algorithm.schedule(first, ReviewGrade.GOOD, lastReview)
+    val atHalfDay = algorithm.schedule(first, ReviewGrade.GOOD, lastReview + 12.hours)
+    val atOneDay = algorithm.schedule(first, ReviewGrade.GOOD, lastReview + 1.days)
+    val atOneYear = algorithm.schedule(first, ReviewGrade.GOOD, lastReview + 365.days)
+
+    atHalfDay.stability shouldBeGreaterThan atZero.stability
+    atOneDay.stability shouldBeGreaterThan atHalfDay.stability
+    atOneYear.stability shouldBeGreaterThan atOneDay.stability
+  }
+
+  /**
+   * Negative elapsed time (clock skew or a re-grade) must not blow up the forgetting curve; it is
+   * clamped to zero, so the result matches a same-instant review.
+   */
+  @Test
+  fun reviewingBeforeLastReviewClampsElapsedDaysToZero() {
+    val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    val lastReview = checkNotNull(first.lastReview)
+
+    val atZero = algorithm.schedule(first, ReviewGrade.GOOD, lastReview)
+    val before = algorithm.schedule(first, ReviewGrade.GOOD, lastReview - 5.days)
+
+    before.stability shouldBe atZero.stability
+  }
+
+  private val fuzzy = Fsrs6SchedulingAlgorithm(enableFuzz = { true })
+
+  /** EASY initial stability 8.2956 over FACTOR rounds to an 8 day interval with no fuzz applied. */
+  @Test
+  fun fuzzIsOffByDefault() {
+    val state = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    (state.dueDate - now).inWholeDays shouldBe 8L
+  }
+
+  /** Scheduling the same card twice yields the same fuzzed interval; the spread is reproducible. */
+  @Test
+  fun fuzzIsDeterministicForTheSameCard() {
+    val a = fuzzy.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    val b = fuzzy.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    a.dueDate shouldBe b.dueDate
+  }
+
+  /**
+   * Raw EASY interval is 8.46 days. The 2.5-to-7 band at 15% and the 7-to-20 band at 10% give a
+   * delta of 1.82, so the fuzzed interval lands between 7 and 10 days inclusive.
+   */
+  @Test
+  fun fuzzKeepsTheIntervalInsideTheCanonicalBand() {
+    val state = fuzzy.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    val days = (state.dueDate - now).inWholeDays
+    days shouldBeGreaterThanOrEqualTo 7L
+    days shouldBeLessThanOrEqualTo 10L
+  }
+
+  /**
+   * AGAIN initial stability rounds to a 1 day interval, well below the 2.5 day fuzz threshold, so
+   * enabling fuzz changes nothing.
+   */
+  @Test
+  fun fuzzLeavesSubThresholdIntervalsUntouched() {
+    val unfuzzed = algorithm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
+    val fuzzed = fuzzy.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
+    fuzzed.dueDate shouldBe unfuzzed.dueDate
+    (fuzzed.dueDate - now).inWholeDays shouldBe 1L
+  }
+
+  /** Fuzz is applied before the monotonic clamp, so AGAIN < HARD < GOOD < EASY still holds. */
+  @Test
+  fun fuzzStillRespectsMonotonicOrdering() {
+    val first = fuzzy.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    val moment = now + 10.days
+    val again = fuzzy.schedule(first, ReviewGrade.AGAIN, moment)
+    val hard = fuzzy.schedule(first, ReviewGrade.HARD, moment)
+    val good = fuzzy.schedule(first, ReviewGrade.GOOD, moment)
+    val easy = fuzzy.schedule(first, ReviewGrade.EASY, moment)
+
+    again.dueDate shouldBeLessThanOrEqualTo hard.dueDate
+    hard.dueDate shouldBeLessThanOrEqualTo good.dueDate
+    good.dueDate shouldBeLessThanOrEqualTo easy.dueDate
   }
 }

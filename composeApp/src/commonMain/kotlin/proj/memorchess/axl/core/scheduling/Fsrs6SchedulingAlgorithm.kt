@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.scheduling
 
 import kotlin.math.exp
 import kotlin.math.expm1
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -25,11 +26,16 @@ import kotlin.time.Instant
  * @property weights 21 element parameter vector. Defaults to the canonical FSRS 6 weights.
  * @property requestRetention Desired probability of recall when the next review is scheduled.
  * @property maximumInterval Hard cap, in days, on the next interval.
+ * @property enableFuzz Supplier read on every [schedule] call deciding whether the canonical FSRS
+ *   interval fuzz is applied. Defaults to off, matching ts-fsrs' `default_enable_fuzz = false`. It
+ *   is a supplier rather than a flat flag so a user toggling the setting takes effect immediately
+ *   on the long lived singleton without a restart.
  */
 class Fsrs6SchedulingAlgorithm(
   private val weights: DoubleArray = DEFAULT_WEIGHTS,
   private val requestRetention: Double = DEFAULT_REQUEST_RETENTION,
   private val maximumInterval: Int = DEFAULT_MAXIMUM_INTERVAL,
+  private val enableFuzz: () -> Boolean = { false },
 ) : SchedulingAlgorithm {
 
   init {
@@ -74,8 +80,11 @@ class Fsrs6SchedulingAlgorithm(
   private fun firstReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
     val initialStabilities = ReviewGrade.entries.associateWith { initStability(it) }
     val initialDifficulties = ReviewGrade.entries.associateWith { initDifficulty(it) }
+    val fuzz = fuzzFactor(base.stability, base.difficulty, base.reps, elapsedDays = 0.0)
     val intervals =
-      monotonicIntervals(initialStabilities.mapValues { (_, s) -> rawIntervalDays(s) })
+      monotonicIntervals(
+        initialStabilities.mapValues { (_, s) -> intervalDays(s, elapsedDays = 0.0, fuzz) }
+      )
     val isLapse = grade == ReviewGrade.AGAIN
     return CardState(
       dueDate = now + intervals.getValue(grade).days,
@@ -89,8 +98,8 @@ class Fsrs6SchedulingAlgorithm(
 
   private fun laterReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
     val lastReview = checkNotNull(base.lastReview)
-    val elapsedDays = max(0L, (now - lastReview).inWholeDays)
-    val retrievability = forgettingCurve(elapsedDays.toDouble(), base.stability)
+    val elapsedDays = max(0.0, (now - lastReview).inWholeMilliseconds / MILLIS_PER_DAY)
+    val retrievability = forgettingCurve(elapsedDays, base.stability)
 
     val stabilities =
       ReviewGrade.entries.associateWith { candidate ->
@@ -100,7 +109,9 @@ class Fsrs6SchedulingAlgorithm(
           nextRecallStability(base.difficulty, base.stability, retrievability, candidate)
         }
       }
-    val intervals = monotonicIntervals(stabilities.mapValues { (_, s) -> rawIntervalDays(s) })
+    val fuzz = fuzzFactor(base.stability, base.difficulty, base.reps, elapsedDays)
+    val intervals =
+      monotonicIntervals(stabilities.mapValues { (_, s) -> intervalDays(s, elapsedDays, fuzz) })
     val difficulty = nextDifficulty(base.difficulty, grade)
     val isLapse = grade == ReviewGrade.AGAIN
     return CardState(
@@ -192,11 +203,73 @@ class Fsrs6SchedulingAlgorithm(
     return max(next, MIN_STABILITY)
   }
 
-  /** Raw interval in days from a target stability, before monotonic ordering or maximum clamp. */
-  private fun rawIntervalDays(stability: Double): Long {
+  /**
+   * Interval in days from a target stability, before monotonic ordering or maximum clamp. Applies
+   * the canonical fuzz when [enableFuzz] is on; otherwise rounds the raw stability over factor
+   * ratio exactly as the unfuzzed path always did.
+   *
+   * @param fuzz Deterministic unit value in `[0, 1)` shared across the four grades of a single
+   *   review so that the fuzz spread is keyed on the card, not on the grade.
+   */
+  private fun intervalDays(stability: Double, elapsedDays: Double, fuzz: Double): Long {
     val raw = stability / factor
-    val rounded = round(raw).toLong()
-    return rounded.coerceAtLeast(1L)
+    return if (enableFuzz()) applyFuzz(raw, elapsedDays, fuzz)
+    else round(raw).toLong().coerceAtLeast(1L)
+  }
+
+  /**
+   * Canonical FSRS interval fuzz, ported from ts-fsrs (`help.ts` `get_fuzz_range` and
+   * `algorithm.ts` `apply_fuzz`). Intervals below [FUZZ_MIN_INTERVAL] days are returned unfuzzed.
+   * Otherwise the interval is spread by a band that widens with the interval ([FUZZ_RANGES]), then
+   * a deterministic [fuzz] factor picks a day inside `[minIvl, maxIvl]`. The `interval >
+   * elapsedDays` guard keeps the fuzzed interval from scheduling the card before it was actually
+   * due.
+   */
+  private fun applyFuzz(interval: Double, elapsedDays: Double, fuzz: Double): Long {
+    if (interval < FUZZ_MIN_INTERVAL) return round(interval).toLong().coerceAtLeast(1L)
+    var delta = 1.0
+    for (range in FUZZ_RANGES) {
+      delta += range.factor * max(min(interval, range.end) - range.start, 0.0)
+    }
+    var minIvl = max(2.0, round(interval - delta))
+    val maxIvl = min(round(interval + delta), maximumInterval.toDouble())
+    if (interval > elapsedDays) minIvl = max(minIvl, elapsedDays + 1.0)
+    minIvl = min(minIvl, maxIvl)
+    return floor(fuzz * (maxIvl - minIvl + 1.0) + minIvl).toLong().coerceAtLeast(1L)
+  }
+
+  /**
+   * Deterministic unit value in `[0, 1)` derived purely from the pre review card state.
+   *
+   * FSRS keys its fuzz on the card identity (ts-fsrs seeds an `alea` PRNG from the card id and
+   * review count); the [SchedulingAlgorithm] interface deliberately does not expose the position
+   * key, so we seed from the card's own stability, difficulty, review count and elapsed days
+   * instead. This still satisfies the functional requirement — the same card recomputed yields the
+   * same fuzz — and de bunches cards once their review histories diverge. Two brand new cards
+   * graded identically on the same day will, however, receive the same fuzz; per position spreading
+   * would require threading the position key through [schedule].
+   */
+  private fun fuzzFactor(
+    stability: Double,
+    difficulty: Double,
+    reps: Int,
+    elapsedDays: Double,
+  ): Double {
+    var h = FUZZ_SEED_INIT
+    h = mix(h xor stability.toRawBits())
+    h = mix(h xor difficulty.toRawBits())
+    h = mix(h xor reps.toLong())
+    h = mix(h xor elapsedDays.toRawBits())
+    // Top 53 bits over 2^53 gives a uniform double in [0, 1).
+    return (h ushr 11).toDouble() / TWO_POW_53
+  }
+
+  /** SplitMix64 finalizing mix, used to turn the seed accumulator into a well spread hash. */
+  private fun mix(value: Long): Long {
+    var z = value
+    z = (z xor (z ushr 30)) * -0x40a7b892e31b1a47L
+    z = (z xor (z ushr 27)) * -0x6b2fb644ecceee15L
+    return z xor (z ushr 31)
   }
 
   private fun Double.clamp(lo: Double, hi: Double): Double =
@@ -237,7 +310,38 @@ class Fsrs6SchedulingAlgorithm(
     private const val DIFFICULTY_MIN: Double = 1.0
     private const val DIFFICULTY_MAX: Double = 10.0
 
+    /**
+     * Milliseconds in one day, used to derive fractional elapsed days from a
+     * [kotlin.time.Duration].
+     */
+    private const val MILLIS_PER_DAY: Double = 86_400_000.0
+
+    /**
+     * Intervals strictly below this many days are never fuzzed (ts-fsrs `apply_fuzz` threshold).
+     */
+    private const val FUZZ_MIN_INTERVAL: Double = 2.5
+
+    /**
+     * Fuzz bands from ts-fsrs (`help.ts` `FUZZ_RANGES`). The spread factor shrinks as intervals
+     * grow: 15% in `[2.5, 7)`, 10% in `[7, 20)`, 5% from 20 days onward.
+     */
+    private val FUZZ_RANGES: List<FuzzRange> =
+      listOf(
+        FuzzRange(start = 2.5, end = 7.0, factor = 0.15),
+        FuzzRange(start = 7.0, end = 20.0, factor = 0.1),
+        FuzzRange(start = 20.0, end = Double.POSITIVE_INFINITY, factor = 0.05),
+      )
+
+    /** Golden ratio derived odd constant seeding the [fuzzFactor] accumulator. */
+    private const val FUZZ_SEED_INIT: Long = -0x61c8864680b583ebL
+
+    /** `2.0^53`, the divisor turning a 53 bit hash into a uniform double in `[0, 1)`. */
+    private const val TWO_POW_53: Double = 9_007_199_254_740_992.0
+
     const val DEFAULT_REQUEST_RETENTION: Double = 0.9
     const val DEFAULT_MAXIMUM_INTERVAL: Int = 36500
   }
+
+  /** A single fuzz band: intervals between [start] and [end] days widen the spread by [factor]. */
+  private data class FuzzRange(val start: Double, val end: Double, val factor: Double)
 }
