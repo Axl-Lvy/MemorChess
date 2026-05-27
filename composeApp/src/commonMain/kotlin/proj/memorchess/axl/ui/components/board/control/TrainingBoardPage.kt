@@ -97,8 +97,12 @@ private class TrainingBoard : KoinComponent {
         }
       }
     }
+    // Anki-style auto-advance: after the user plays — correct or not — we wait moveDelay then move
+    // on to the next entry. The wrong card has already been graded AGAIN by the trainer's
+    // afterPlayMove, so the scheduler will re-surface it on its own schedule; no need for a manual
+    // "Next" button. Auto-advance fires for both SHOW_CORRECT_MOVE and SHOW_WRONG_MOVE states.
     LaunchedEffect(reloader.getKey()) {
-      if (state.isShowing && state.isCorrect) {
+      if (state.isShowing) {
         delay(moveDelay)
         choseNextNode()
       }

@@ -4,6 +4,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import proj.memorchess.axl.ui.components.board.LocalPiecePainters
+import proj.memorchess.axl.ui.components.board.rememberPiecePainters
 
 /**
  * CompositionLocal exposing the active [KineticPalette]. Defaults to the dark palette so accidental
@@ -26,9 +28,11 @@ fun KineticTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
   val kineticTypography = kineticTypography()
   val m3Typography = kineticM3Typography(kineticTypography)
   val colorScheme = if (darkTheme) darkColorScheme else lightColorScheme
+  val piecePainters = rememberPiecePainters()
   CompositionLocalProvider(
     LocalKineticPalette provides palette,
     LocalKineticTypography provides kineticTypography,
+    LocalPiecePainters provides piecePainters,
   ) {
     MaterialTheme(colorScheme = colorScheme, typography = m3Typography, shapes = kineticShapes) {
       content()
