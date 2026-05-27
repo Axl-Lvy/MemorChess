@@ -14,6 +14,7 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.pages.SETTINGS_SECTION_LIST_TAG
 import proj.memorchess.axl.ui.pages.Settings
 
 @OptIn(ExperimentalTestApi::class)
@@ -50,8 +51,10 @@ class TestSettings : TestWithKoin() {
     // Set non default values
     TRAINING_MOVE_DELAY_SETTING.setValue(3.0.seconds)
 
-    // Click the reset button
-    assertNodeWithTagExists("resetConfigButton").performScrollTo().performClick()
+    // The Danger Zone is the last LazyColumn section, so it is not composed until scrolled into
+    // view. Scroll the list to the reset button before interacting with it.
+    onNodeWithTag(SETTINGS_SECTION_LIST_TAG).performScrollToNode(hasTestTag("resetConfigButton"))
+    assertNodeWithTagExists("resetConfigButton").performClick()
     assertNodeWithTagExists("confirmDialog")
     assertNodeWithTextExists("OK").performClick()
 
@@ -70,8 +73,12 @@ class TestSettings : TestWithKoin() {
     }
     assertNodeWithTagDoesNotExists("confirmDialog")
 
+    // The Danger Zone is the last LazyColumn section, so it is not composed until scrolled into
+    // view. Scroll the list to the erase button before interacting with it.
+    onNodeWithTag(SETTINGS_SECTION_LIST_TAG).performScrollToNode(hasTestTag("eraseAllDataButton"))
+
     // Verify the confirmation dialog appears and click on "Cancel"
-    assertNodeWithTagExists("eraseAllDataButton").performScrollTo().performClick()
+    assertNodeWithTagExists("eraseAllDataButton").performClick()
     assertNodeWithTagExists("confirmDialog")
     assertNodeWithTextExists("Cancel").performClick()
 

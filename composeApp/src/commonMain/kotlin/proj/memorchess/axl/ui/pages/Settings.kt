@@ -40,6 +40,13 @@ import proj.memorchess.axl.ui.components.settings.sections.TrainingBehaviorSecti
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.util.BasicReloader
 
+/**
+ * Test tag on the scrollable [LazyColumn] of settings sections. Exposed so tests can scroll the
+ * list to a section that is initially off-screen (and therefore not yet composed) before
+ * interacting with it.
+ */
+internal const val SETTINGS_SECTION_LIST_TAG = "settingsSectionList"
+
 /** Identifier for one settings section in the page model. */
 private data class SettingsPageSection(
   val id: String,
@@ -147,7 +154,10 @@ private fun SectionList(reloader: BasicReloader, lazyListState: LazyListState) {
   val reloadKey = reloader.getKey()
   LazyColumn(
     state = lazyListState,
-    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp),
+    modifier =
+      Modifier.fillMaxSize()
+        .padding(horizontal = 16.dp, vertical = 16.dp)
+        .testTag(SETTINGS_SECTION_LIST_TAG),
     verticalArrangement = Arrangement.spacedBy(16.dp),
   ) {
     items(items = PAGE_SECTIONS, key = { it.id }) { section ->

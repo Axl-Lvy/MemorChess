@@ -2,6 +2,7 @@
 
 package proj.memorchess.axl.ui
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -23,7 +24,26 @@ import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
+import proj.memorchess.axl.ui.theme.KineticTheme
 import proj.memorchess.axl.ui.util.hasClickLabel
+
+// THEME
+
+/**
+ * Sets the test content wrapped in [KineticTheme] so Composables that read the Kinetic theme locals
+ * ([proj.memorchess.axl.ui.theme.LocalKineticPalette],
+ * [proj.memorchess.axl.ui.theme.LocalKineticTypography]) resolve instead of crashing at their
+ * `staticCompositionLocalOf` default.
+ *
+ * Unlike [proj.memorchess.axl.ui.theme.AppTheme], [KineticTheme] reads no config and needs no Koin,
+ * so it is safe for tests that render fragments in isolation without a Koin container. A fixed
+ * light theme keeps rendering deterministic across hosts.
+ *
+ * @param content The composable under test.
+ */
+fun ComposeUiTest.setKineticContent(content: @Composable () -> Unit) {
+  setContent { KineticTheme(darkTheme = false) { content() } }
+}
 
 // BOARD
 
@@ -53,24 +73,24 @@ fun ComposeUiTest.promoteTo(pieceName: String) {
 
 /** Clicks the button to reverse/flip the chess board orientation. */
 fun ComposeUiTest.clickOnReverse() {
-  waitUntilNodeExists(hasTestTag("Reverse board")).assertExists().performClick()
+  waitUntilNodeExists(hasContentDescription("Reverse")).assertExists().performClick()
 }
 
 /** Clicks the back button to undo the last move. */
 fun ComposeUiTest.clickOnBack() {
-  waitUntilNodeExists(hasTestTag("Back")).assertExists().performClick()
+  waitUntilNodeExists(hasContentDescription("Back")).assertExists().performClick()
   waitForIdle()
 }
 
-/** Clicks the next button to redo a previously undone move. */
+/** Clicks the forward button to redo a previously undone move. */
 fun ComposeUiTest.clickOnNext() {
-  waitUntilNodeExists(hasTestTag("Next")).assertExists().performClick()
+  waitUntilNodeExists(hasContentDescription("Forward")).assertExists().performClick()
   waitForIdle()
 }
 
 /** Clicks the reset button to return the board to its initial state. */
 fun ComposeUiTest.clickOnReset() {
-  waitUntilNodeExists(hasTestTag("Reset board")).assertExists().performClick()
+  waitUntilNodeExists(hasContentDescription("Reset")).assertExists().performClick()
   waitForIdle()
 }
 

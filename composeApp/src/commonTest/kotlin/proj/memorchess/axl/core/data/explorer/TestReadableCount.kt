@@ -5,6 +5,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.runComposeUiTest
 import kotlin.test.Test
 import proj.memorchess.axl.ui.components.explore.LichessExplorerPanelContent
+import proj.memorchess.axl.ui.setKineticContent
 
 /**
  * Renders the panel with rows whose game counts hit each `toReadableCount` formatting branch.
@@ -32,7 +33,7 @@ class TestReadableCount {
           ),
         opening = null,
       )
-    setContent {
+    setKineticContent {
       LichessExplorerPanelContent(
         state =
           ExplorerState.Loaded(

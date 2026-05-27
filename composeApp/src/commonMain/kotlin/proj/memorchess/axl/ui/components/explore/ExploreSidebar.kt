@@ -19,7 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.description_board_next_move
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
@@ -127,6 +131,7 @@ private fun ContinuationsContent(nextMoves: List<String>, onPlay: (String) -> Un
           Modifier.background(palette.panel2)
             .border(width = 1.dp, color = palette.line)
             .clickable { onPlay(san) }
+            .testTag(stringResource(Res.string.description_board_next_move, san))
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
       ) {
