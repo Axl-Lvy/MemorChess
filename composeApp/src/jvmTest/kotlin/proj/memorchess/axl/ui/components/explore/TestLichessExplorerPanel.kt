@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.explore
 
-import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
@@ -14,23 +13,6 @@ import proj.memorchess.axl.core.data.explorer.LichessExplorerMove
 import proj.memorchess.axl.core.data.explorer.LichessExplorerResponse
 import proj.memorchess.axl.core.data.explorer.LichessOpening
 import proj.memorchess.axl.ui.setKineticContent
-
-/**
- * Waits until at least one node with [text] is present, then asserts it exists.
- *
- * Display copy is now loaded through `stringResource`, which resolves asynchronously on the wasmJs
- * target (the resource bundle is fetched, not read synchronously from the classpath as on JVM /
- * Android). A bare `onNode(hasText(...)).assertExists()` therefore races the first resource-less
- * composition. Polling until the text appears makes the assertion deterministic on every target.
- *
- * The timeout is generous because the first resource access in a wasmJs browser run pays a one-time
- * bundle-fetch cost that can exceed a few seconds under CI load; `waitUntil` returns as soon as the
- * text appears, so the high ceiling costs nothing on the common (fast) path.
- */
-@OptIn(ExperimentalTestApi::class)
-private fun ComposeUiTest.awaitText(text: String) {
-  waitUntil(timeoutMillis = 30_000) { onAllNodes(hasText(text)).fetchSemanticsNodes().isNotEmpty() }
-}
 
 /** Renders [LichessExplorerPanelContent] in each [ExplorerState] and asserts the visible text. */
 @OptIn(ExperimentalTestApi::class)
@@ -94,7 +76,7 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("Make a move to load popular replies.")
+    onNode(hasText("Make a move to load popular replies.")).assertExists()
   }
 
   @Test
@@ -107,7 +89,7 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("LICHESS EXPLORER")
+    onNode(hasText("LICHESS EXPLORER")).assertExists()
   }
 
   @Test
@@ -125,8 +107,8 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("ECO B00")
-    awaitText("King's Pawn")
+    onNode(hasText("King's Pawn")).assertExists()
+    onNode(hasText("ECO B00")).assertExists()
     onAllNodes(hasTestTag("lichess_explorer_move_row:e4")).assertCountEquals(1)
     onAllNodes(hasTestTag("lichess_explorer_move_row:d4")).assertCountEquals(1)
   }
@@ -146,7 +128,7 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("No games found for this position.")
+    onNode(hasText("No games found for this position.")).assertExists()
   }
 
   @Test
@@ -159,7 +141,7 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("Lichess rate limited the request. Try again in a moment.")
+    onNode(hasText("Lichess rate limited the request. Try again in a moment.")).assertExists()
   }
 
   @Test
@@ -172,7 +154,7 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("Sign in to Lichess from Settings to use the opening explorer.")
+    onNode(hasText("Sign in to Lichess from Settings to use the opening explorer.")).assertExists()
   }
 
   @Test
@@ -185,7 +167,7 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("Could not load explorer: boom")
+    onNode(hasText("Could not load explorer: boom")).assertExists()
   }
 
   @Test
@@ -219,7 +201,6 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    awaitText("Lichess")
     onAllNodes(hasText("Lichess"))[0].performClick()
     kotlin.test.assertEquals(ExplorerSource.LICHESS, selected)
   }
