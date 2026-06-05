@@ -22,10 +22,14 @@ import proj.memorchess.axl.ui.setKineticContent
  * target (the resource bundle is fetched, not read synchronously from the classpath as on JVM /
  * Android). A bare `onNode(hasText(...)).assertExists()` therefore races the first resource-less
  * composition. Polling until the text appears makes the assertion deterministic on every target.
+ *
+ * The timeout is generous because the first resource access in a wasmJs browser run pays a one-time
+ * bundle-fetch cost that can exceed a few seconds under CI load; `waitUntil` returns as soon as the
+ * text appears, so the high ceiling costs nothing on the common (fast) path.
  */
 @OptIn(ExperimentalTestApi::class)
 private fun ComposeUiTest.awaitText(text: String) {
-  waitUntil(timeoutMillis = 5_000) { onAllNodes(hasText(text)).fetchSemanticsNodes().isNotEmpty() }
+  waitUntil(timeoutMillis = 30_000) { onAllNodes(hasText(text)).fetchSemanticsNodes().isNotEmpty() }
 }
 
 /** Renders [LichessExplorerPanelContent] in each [ExplorerState] and asserts the visible text. */
