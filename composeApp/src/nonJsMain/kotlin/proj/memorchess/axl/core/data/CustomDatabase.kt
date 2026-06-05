@@ -14,7 +14,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCacheEntity
 @Database(
   entities = [NodeEntity::class, MoveEntity::class, ExplorerCacheEntity::class],
   version = 5,
-  autoMigrations = [],
+  exportSchema = false,
 )
 @TypeConverters(DateConverters::class)
 @ConstructedBy(DatabaseConstructor::class)

@@ -19,3 +19,6 @@ captures
 .scannerwork/
 kotlin-js-store
 .claude/settings.local.json
+
+# Room schema export is disabled (exportSchema = false); these must never be committed.
+composeApp/schemas/
