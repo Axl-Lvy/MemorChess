@@ -30,6 +30,20 @@ val BEST_MOVE_ARROW_ENABLED_SETTING = BooleanBasedConfigItem("bestMoveArrowEnabl
  */
 val ENGINE_MAX_DEPTH_SETTING = IntBasedConfigItem("engineMaxDepth", 20)
 
+/**
+ * Whether the FSRS scheduler applies interval fuzz, the small random spread that stops cards
+ * reviewed together from bunching on the same future day. Off by default, matching canonical
+ * FSRS 6.
+ */
+val FUZZ_ENABLED_SETTING = BooleanBasedConfigItem("schedulingFuzzEnabled", false)
+
+/**
+ * Whether the FSRS scheduler runs its short-term (learning steps) path. When on, a freshly failed
+ * or brand-new position keeps reappearing within the session on sub-day steps until it graduates to
+ * a day grained interval. On by default, matching canonical FSRS 6.
+ */
+val SHORT_TERM_ENABLED_SETTING = BooleanBasedConfigItem("schedulingShortTermEnabled", true)
+
 val ALL_SETTINGS_ITEMS =
   listOf(
     TRAINING_MOVE_DELAY_SETTING,
@@ -37,6 +51,8 @@ val ALL_SETTINGS_ITEMS =
     APP_THEME_SETTING,
     CHESS_BOARD_COLOR_SETTING,
     ENGINE_MAX_DEPTH_SETTING,
+    FUZZ_ENABLED_SETTING,
+    SHORT_TERM_ENABLED_SETTING,
   )
 
 internal expect fun getPlatformSpecificSettings(): Settings

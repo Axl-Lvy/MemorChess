@@ -9,6 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.time.Duration
 import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
@@ -35,6 +36,7 @@ class TestTraining : TestWithKoin() {
 
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
     koinSetUp()
+    disableShortTermScheduler()
     try {
       runTest { resetDatabase() }
       runComposeUiTest {
@@ -44,6 +46,18 @@ class TestTraining : TestWithKoin() {
     } finally {
       koinTearDown()
     }
+  }
+
+  /**
+   * Forces the long-term scheduler for these UI tests. They verify training interaction mechanics
+   * (move play, feedback, promotion, the day counter) where one answer finishes a single-card deck.
+   * With the short-term scheduler on (the production default) a card stays in the session on
+   * sub-day learning steps until it graduates, so it never reaches the "Bravo!" screen after a
+   * single answer. The in-session relearning behavior itself is covered by the scheduler and
+   * algorithm unit tests; here it would only add timing flakiness.
+   */
+  private fun disableShortTermScheduler() {
+    SHORT_TERM_ENABLED_SETTING.setValue(false)
   }
 
   suspend fun resetDatabase() {
@@ -158,6 +172,7 @@ class TestTraining : TestWithKoin() {
   @Test
   fun testShowNextMove() {
     koinSetUp()
+    disableShortTermScheduler()
     try {
       TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
       // Insert a second move in the database
@@ -208,6 +223,7 @@ class TestTraining : TestWithKoin() {
   @Test
   fun testPromotion() {
     koinSetUp()
+    disableShortTermScheduler()
     try {
       val engine = GameEngine(PositionKey("k7/7P/8/8/8/8/8/7K w KQkq"))
       val startPosition = engine.toPositionKey()

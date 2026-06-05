@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.map
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,8 @@ private external interface JsNodeEntity : JsAny {
   var difficulty: Double
   var reps: Int
   var lapses: Int
+  var phase: String // CardPhase name
+  var step: Int
   var depth: Int
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds (Double avoids Long to BigInt)
@@ -101,6 +104,8 @@ private fun JsNodeEntity.toDataNode(
         difficulty = difficulty,
         reps = reps,
         lapses = lapses,
+        phase = runCatching { CardPhase.valueOf(phase) }.getOrDefault(CardPhase.NEW),
+        step = step,
       ),
     depth = depth,
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
@@ -122,6 +127,8 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
     difficulty = node.cardState.difficulty
     reps = node.cardState.reps
     lapses = node.cardState.lapses
+    phase = node.cardState.phase.name
+    step = node.cardState.step
     depth = node.depth
     isDeleted = node.isDeleted
     updatedAt = node.updatedAt.epochSeconds.toDouble()
@@ -152,7 +159,7 @@ internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 3
+internal const val DB_VERSION = 4
 
 // ---------------------------------------------------------------------------
 // IndexedDB-backed DatabaseQueryManager

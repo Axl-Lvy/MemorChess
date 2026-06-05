@@ -5,10 +5,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.TimeZone
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.scheduling.CardPhase
+import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.test_util.TestDatabaseQueryManager
@@ -87,4 +91,57 @@ class TestTrainingScheduler {
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
     assertEquals(2, scheduler.pendingCount())
   }
+
+  // Phase 3 propagation: the tiered selection over CardPhase states (issue #134 gaps 1 and 2).
+
+  @Test
+  fun readyLearningCardWithEarlierDueComesFirst() = runTest {
+    val (store, scheduler) = newScheduler()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    val now = DateUtil.now()
+    // Both are ready (overdue) learning cards. startPos has the smaller depth, but posA is due
+    // earlier, so the earliest-due card wins regardless of depth.
+    store.updateCardState(startPos, learningCard(now - 1.minutes))
+    store.updateCardState(posA, learningCard(now - 5.minutes))
+    assertEquals(posA, scheduler.nextDue()?.positionKey)
+  }
+
+  @Test
+  fun pendingLearningDoesNotPreemptDueReviewCards() = runTest {
+    val (store, scheduler) = newScheduler()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    // startPos is a fresh (review-like) card due today; posA is a learning card not yet due. The
+    // review card must be served first rather than re-showing the just-failed card too early.
+    store.updateCardState(posA, learningCard(DateUtil.now() + 10.minutes))
+    assertEquals(startPos, scheduler.nextDue()?.positionKey)
+  }
+
+  @Test
+  fun pendingLearningResurfacesEarliestDueWhenNothingElseIsDue() = runTest {
+    val (store, scheduler) = newScheduler()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.addMove(from = posB, move = "Nf3", to = posC, isGood = true, fromDepth = 2)
+    val now = DateUtil.now()
+    // No review card is due (startPos pushed far into the future); only sub-day learning cards
+    // remain, both not yet due. The earliest-due learning card resurfaces — one minute before ten.
+    store.updateCardState(startPos, CardStateFactory.new(now + 5.days))
+    store.updateCardState(posA, learningCard(now + 10.minutes))
+    store.updateCardState(posB, learningCard(now + 1.minutes))
+    assertEquals(posB, scheduler.nextDue()?.positionKey)
+  }
+
+  private fun learningCard(due: Instant): CardState =
+    CardState(
+      dueDate = due,
+      lastReview = due,
+      stability = 1.0,
+      difficulty = 5.0,
+      reps = 1,
+      lapses = 0,
+      phase = CardPhase.RELEARNING,
+      step = 0,
+    )
 }
