@@ -13,6 +13,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.settings_erase_button
+import memorchess.composeapp.generated.resources.settings_erase_confirm
+import memorchess.composeapp.generated.resources.settings_erase_description
+import memorchess.composeapp.generated.resources.settings_erase_title
+import memorchess.composeapp.generated.resources.settings_reset_button
+import memorchess.composeapp.generated.resources.settings_reset_confirm
+import memorchess.composeapp.generated.resources.settings_reset_description
+import memorchess.composeapp.generated.resources.settings_reset_title
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.graph.TreeStore
@@ -43,17 +53,19 @@ fun DangerZoneSection(treeStore: TreeStore = koinInject(), onReset: () -> Unit =
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
   val palette = LocalKineticPalette.current
+  val resetConfirm = stringResource(Res.string.settings_reset_confirm)
+  val eraseConfirm = stringResource(Res.string.settings_erase_confirm)
 
   Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
     DangerRow(
-      title = "Reset all settings to defaults",
+      title = stringResource(Res.string.settings_reset_title),
       titleColor = palette.ink,
-      description = "Your repertoire is untouched.",
-      buttonLabel = "RESET",
+      description = stringResource(Res.string.settings_reset_description),
+      buttonLabel = stringResource(Res.string.settings_reset_button),
       buttonStyle = KineticButtonStyle.DangerOutline,
       buttonTestTag = "resetConfigButton",
       onClick = {
-        dlg.show("Are you sure you want to reset all settings?") {
+        dlg.show(resetConfirm) {
           ALL_SETTINGS_ITEMS.forEach { it.reset() }
           onReset()
         }
@@ -61,17 +73,13 @@ fun DangerZoneSection(treeStore: TreeStore = koinInject(), onReset: () -> Unit =
     )
 
     DangerRow(
-      title = "Erase all data",
+      title = stringResource(Res.string.settings_erase_title),
       titleColor = palette.red,
-      description = "Wipes every position and every training record. Cannot be undone.",
-      buttonLabel = "ERASE",
+      description = stringResource(Res.string.settings_erase_description),
+      buttonLabel = stringResource(Res.string.settings_erase_button),
       buttonStyle = KineticButtonStyle.Danger,
       buttonTestTag = "eraseAllDataButton",
-      onClick = {
-        dlg.show("Are you sure you want to erase all data?") {
-          coroutineScope.launch { treeStore.eraseAll() }
-        }
-      },
+      onClick = { dlg.show(eraseConfirm) { coroutineScope.launch { treeStore.eraseAll() } } },
     )
   }
 }

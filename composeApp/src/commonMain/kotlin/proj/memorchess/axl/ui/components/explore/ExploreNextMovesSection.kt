@@ -16,6 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.explore_no_next_moves
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -43,7 +46,10 @@ fun ExploreNextMovesSection(
           .padding(12.dp),
       contentAlignment = Alignment.Center,
     ) {
-      Text(text = "No next moves", style = typography.monoSm.copy(color = palette.ink3))
+      Text(
+        text = stringResource(Res.string.explore_no_next_moves),
+        style = typography.monoSm.copy(color = palette.ink3),
+      )
     }
     return
   }

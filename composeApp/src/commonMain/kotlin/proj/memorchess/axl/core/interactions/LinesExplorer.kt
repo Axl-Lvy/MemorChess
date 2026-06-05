@@ -3,6 +3,11 @@ package proj.memorchess.axl.core.interactions
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.toast_deleted
+import memorchess.composeapp.generated.resources.toast_no_next_move
+import memorchess.composeapp.generated.resources.toast_no_previous_move
+import memorchess.composeapp.generated.resources.toast_saved
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.Edge
@@ -30,7 +35,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
       val previousEdge =
         treeStore.current().get(navigation.current)?.incoming?.values?.firstOrNull()
       if (previousEdge == null) {
-        toastRenderer.info("No previous move.")
+        toastRenderer.info(Res.string.toast_no_previous_move)
         return
       }
       navigation.reset(previousEdge.from)
@@ -46,7 +51,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
   fun forward() {
     val popped = navigation.forward()
     if (popped == null) {
-      toastRenderer.info("No next move.")
+      toastRenderer.info(Res.string.toast_no_next_move)
       return
     }
     val (edge, _) = popped
@@ -106,7 +111,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
     }
 
     state = treeStore.current().computeState(navigation.current, navigation.arrivedVia?.from)
-    toastRenderer.info("Saved")
+    toastRenderer.info(Res.string.toast_saved)
   }
 
   /** Deletes the current position's children and the position itself. */
@@ -121,7 +126,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
     treeStore.deleteNode(current)
     navigation.clearForward()
     state = treeStore.current().computeState(navigation.current, navigation.arrivedVia?.from)
-    toastRenderer.info("Deleted")
+    toastRenderer.info(Res.string.toast_deleted)
     callCallBacks()
   }
 

@@ -16,6 +16,14 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.training_congratulations
+import memorchess.composeapp.generated.resources.training_corner_tag
+import memorchess.composeapp.generated.resources.training_days_in_advance
+import memorchess.composeapp.generated.resources.training_finished_subtitle
+import memorchess.composeapp.generated.resources.training_finished_title
+import memorchess.composeapp.generated.resources.training_increment_day
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -148,15 +156,18 @@ private class TrainingBoard : KoinComponent {
       ) {
         Icon(
           imageVector = Icons.Default.Done,
-          contentDescription = "Congratulations",
+          contentDescription = stringResource(Res.string.training_congratulations),
           tint = goodTint,
           modifier = Modifier.size(64.dp),
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Bravo !", style = typography.displayLg.copy(color = palette.ink))
+        Text(
+          text = stringResource(Res.string.training_finished_title),
+          style = typography.displayLg.copy(color = palette.ink),
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-          text = "You have finished today's training!",
+          text = stringResource(Res.string.training_finished_subtitle),
           style = typography.body.copy(color = palette.ink2),
           textAlign = TextAlign.Center,
         )
@@ -168,11 +179,11 @@ private class TrainingBoard : KoinComponent {
           },
           style = KineticButtonStyle.Primary,
         ) {
-          KineticButtonLabel("Increment a day")
+          KineticButtonLabel(stringResource(Res.string.training_increment_day))
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-          text = "Days in advance: $daysInAdvance",
+          text = stringResource(Res.string.training_days_in_advance, daysInAdvance),
           style = typography.monoSm.copy(color = palette.ink3),
         )
       }
@@ -185,6 +196,7 @@ private class TrainingBoard : KoinComponent {
     numberOfNodesToTrain: Int,
     modifier: Modifier = Modifier,
   ) {
+    val cornerTag = stringResource(Res.string.training_corner_tag)
     val trainer = remember {
       val trainer =
         SingleMoveTrainer(nodeToLearn) {
@@ -234,7 +246,7 @@ private class TrainingBoard : KoinComponent {
               trainer = trainer,
               modifier = mod,
               compact = portrait,
-              cornerTagText = "TRAINING",
+              cornerTagText = cornerTag,
             )
           },
           counters = { mod ->
@@ -260,7 +272,7 @@ private class TrainingBoard : KoinComponent {
               modifier = mod,
             )
           },
-          cornerTagText = "TRAINING",
+          cornerTagText = cornerTag,
         )
       if (portrait) {
         PortraitTrainingLayout(content = content, modifier = modifier)

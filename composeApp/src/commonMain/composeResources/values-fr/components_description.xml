@@ -1,0 +1,24 @@
+<resources>
+  <!-- Board -->
+  <string name="description_board_controllable_board">Échiquier contrôlable</string>
+  <string name="description_board_reverse">Retourner l'échiquier</string>
+  <string name="description_board_reset">Réinitialiser l'échiquier</string>
+  <string name="description_board_back">Précédent</string>
+  <string name="description_board_next">Suivant</string>
+  <string name="description_board_save">Enregistrer</string>
+  <string name="description_board_delete">Supprimer</string>
+  <string name="description_board_next_move">Jouer %1$s</string>
+  <string name="description_board_tile">Case %1$s</string>
+  <string name="description_board_piece">Pièce %1$s</string>
+
+  <!-- Navigation -->
+
+  <!-- Explore control bar -->
+  <string name="description_reset">Réinitialiser</string>
+  <string name="description_reverse">Retourner</string>
+  <string name="description_forward">Suivant</string>
+  <string name="description_toggle_eval_bar">Activer/désactiver la barre d'évaluation</string>
+
+  <!-- Settings -->
+  <string name="settings_preferences_file">preferences</string>
+</resources>

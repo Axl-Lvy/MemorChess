@@ -1,10 +1,12 @@
 package proj.memorchess.axl.ui.components.popup
 
+import org.jetbrains.compose.resources.StringResource
+
 /** Popup renderer. */
 fun interface ToastRenderer {
-  fun toast(message: String, type: ToastType)
+  fun toast(message: StringResource, type: ToastType)
 
-  fun info(message: String) {
+  fun info(message: StringResource) {
     toast(message, ToastType.INFO)
   }
 }

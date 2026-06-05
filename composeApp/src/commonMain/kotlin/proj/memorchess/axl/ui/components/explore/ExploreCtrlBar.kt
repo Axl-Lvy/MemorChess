@@ -21,6 +21,17 @@ import compose.icons.feathericons.Repeat
 import compose.icons.feathericons.Rewind
 import compose.icons.feathericons.Save
 import compose.icons.feathericons.Trash
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.description_board_back
+import memorchess.composeapp.generated.resources.description_board_delete
+import memorchess.composeapp.generated.resources.description_board_save
+import memorchess.composeapp.generated.resources.description_forward
+import memorchess.composeapp.generated.resources.description_reset
+import memorchess.composeapp.generated.resources.description_reverse
+import memorchess.composeapp.generated.resources.description_toggle_eval_bar
+import memorchess.composeapp.generated.resources.explore_black
+import memorchess.composeapp.generated.resources.explore_white
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
@@ -73,16 +84,22 @@ fun ExploreCtrlBar(
     horizontalArrangement = Arrangement.spacedBy(6.dp),
   ) {
     KineticButton(onClick = actions.onReset, iconOnly = true) {
-      Icon(FeatherIcons.Rewind, contentDescription = "Reset")
+      Icon(FeatherIcons.Rewind, contentDescription = stringResource(Res.string.description_reset))
     }
     KineticButton(onClick = actions.onReverse, iconOnly = true) {
-      Icon(FeatherIcons.Repeat, contentDescription = "Reverse")
+      Icon(FeatherIcons.Repeat, contentDescription = stringResource(Res.string.description_reverse))
     }
     KineticButton(onClick = actions.onBack, iconOnly = true) {
-      Icon(FeatherIcons.ArrowLeft, contentDescription = "Back")
+      Icon(
+        FeatherIcons.ArrowLeft,
+        contentDescription = stringResource(Res.string.description_board_back),
+      )
     }
     KineticButton(onClick = actions.onForward, iconOnly = true) {
-      Icon(FeatherIcons.ArrowRight, contentDescription = "Forward")
+      Icon(
+        FeatherIcons.ArrowRight,
+        contentDescription = stringResource(Res.string.description_forward),
+      )
     }
 
     Box(
@@ -93,7 +110,9 @@ fun ExploreCtrlBar(
       contentAlignment = Alignment.Center,
     ) {
       Text(
-        text = if (playerTurnWhite) "WHITE" else "BLACK",
+        text =
+          if (playerTurnWhite) stringResource(Res.string.explore_white)
+          else stringResource(Res.string.explore_black),
         style = typography.monoSm.copy(color = palette.ink2),
       )
     }
@@ -103,17 +122,26 @@ fun ExploreCtrlBar(
       iconOnly = true,
       style = if (evalEnabled) KineticButtonStyle.Primary else KineticButtonStyle.Default,
     ) {
-      Icon(FeatherIcons.BarChart2, contentDescription = "Toggle evaluation bar")
+      Icon(
+        FeatherIcons.BarChart2,
+        contentDescription = stringResource(Res.string.description_toggle_eval_bar),
+      )
     }
 
     // Filler — pushes save/delete to the right.
     Box(modifier = Modifier.weight(1f).fillMaxWidth())
 
     KineticButton(onClick = actions.onSave, style = KineticButtonStyle.Primary, iconOnly = true) {
-      Icon(FeatherIcons.Save, contentDescription = "Save")
+      Icon(
+        FeatherIcons.Save,
+        contentDescription = stringResource(Res.string.description_board_save),
+      )
     }
     KineticButton(onClick = actions.onDelete, style = KineticButtonStyle.Danger, iconOnly = true) {
-      Icon(FeatherIcons.Trash, contentDescription = "Delete")
+      Icon(
+        FeatherIcons.Trash,
+        contentDescription = stringResource(Res.string.description_board_delete),
+      )
     }
   }
 }

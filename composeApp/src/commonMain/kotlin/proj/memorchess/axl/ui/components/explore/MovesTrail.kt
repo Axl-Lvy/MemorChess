@@ -47,6 +47,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.dialog_close
+import memorchess.composeapp.generated.resources.explore_pgn
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.KineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -205,7 +209,10 @@ fun MovesTrail(
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
       ) {
-        Text(text = "PGN", style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.ink3))
+        Text(
+          text = stringResource(Res.string.explore_pgn),
+          style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.ink3),
+        )
       }
     }
   }
@@ -414,9 +421,15 @@ private fun PgnDialog(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
       ) {
-        Text(text = "PGN", style = typography.display.copy(color = palette.ink))
+        Text(
+          text = stringResource(Res.string.explore_pgn),
+          style = typography.display.copy(color = palette.ink),
+        )
         TextButton(onClick = onDismiss) {
-          Text(text = "Close", style = typography.monoSm.copy(color = palette.ink2))
+          Text(
+            text = stringResource(Res.string.dialog_close),
+            style = typography.monoSm.copy(color = palette.ink2),
+          )
         }
       }
 

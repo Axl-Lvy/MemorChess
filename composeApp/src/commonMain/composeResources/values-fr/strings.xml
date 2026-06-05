@@ -1,0 +1,172 @@
+<resources>
+  <!-- Brand / shell -->
+  <string name="brand_wordmark_first">MEMOR</string>
+  <string name="brand_wordmark_second">CHESS</string>
+  <string name="brand_version_label">0.0.1 · MULTIPLATEFORME</string>
+
+  <!-- Navigation -->
+  <string name="nav_explore">Explorer</string>
+  <string name="nav_training">Entraînement</string>
+  <string name="nav_settings">Réglages</string>
+  <string name="nav_button_content_description">Bouton %1$s</string>
+
+  <!-- Dialogs / generic actions -->
+  <string name="dialog_ok">OK</string>
+  <string name="dialog_cancel">Annuler</string>
+  <string name="dialog_delete">Supprimer</string>
+  <string name="dialog_close">Fermer</string>
+
+  <!-- Settings: section titles -->
+  <string name="settings_section_display">Affichage et thème</string>
+  <string name="settings_section_board">Style de l'échiquier</string>
+  <string name="settings_section_training">Comportement d'entraînement</string>
+  <string name="settings_section_engine">Moteur et analyse</string>
+  <string name="settings_section_lichess">Compte Lichess</string>
+  <string name="settings_section_io">Import / export</string>
+  <string name="settings_section_danger">Zone de danger</string>
+
+  <!-- Settings: sidebar -->
+  <string name="settings_sidebar_caption">CONFIGURATION</string>
+  <string name="settings_sidebar_title">Réglages</string>
+  <string name="settings_group_appearance">Apparence</string>
+  <string name="settings_group_practice">Pratique</string>
+  <string name="settings_group_accounts">Comptes</string>
+  <string name="settings_group_storage">Stockage</string>
+  <string name="settings_nav_display">Affichage</string>
+  <string name="settings_nav_board">Échiquier</string>
+  <string name="settings_nav_training">Entraînement</string>
+  <string name="settings_nav_engine">Moteur</string>
+  <string name="settings_nav_lichess">Lichess</string>
+  <string name="settings_nav_io">Import / Export</string>
+  <string name="settings_nav_danger">Zone de danger</string>
+
+  <!-- Settings: controls -->
+  <string name="settings_move_animation">Animation des coups</string>
+  <string name="settings_eval_bar">Barre d'évaluation</string>
+  <string name="settings_best_move_arrow">Flèche du meilleur coup</string>
+  <string name="settings_engine_depth">Profondeur du moteur</string>
+  <string name="settings_auto_advance_delay">Délai d'avance automatique</string>
+  <string name="settings_relearn_failed">Réapprendre les cartes échouées dans la session</string>
+  <string name="settings_fuzz">Disperser les intervalles de révision (fuzz)</string>
+  <string name="settings_unit_ms">ms</string>
+  <string name="settings_unit_seconds">s</string>
+  <string name="settings_slider_zero">0</string>
+  <string name="settings_move_animation_max">2000 ms</string>
+  <string name="settings_engine_depth_min">5</string>
+  <string name="settings_engine_depth_infinite">∞</string>
+  <string name="settings_auto_advance_min">0 s</string>
+  <string name="settings_auto_advance_max">5 s</string>
+
+  <!-- Settings: import / export -->
+  <string name="settings_export">EXPORTER LE RÉPERTOIRE</string>
+  <string name="settings_import">IMPORTER UN FICHIER</string>
+  <string name="settings_import_confirm">Importer les ouvertures depuis %1$s ? Les données seront fusionnées avec les données existantes.</string>
+  <string name="settings_import_invalid">Format de fichier invalide : %1$s</string>
+
+  <!-- Settings: danger zone -->
+  <string name="settings_reset_title">Réinitialiser tous les réglages par défaut</string>
+  <string name="settings_reset_description">Votre répertoire reste intact.</string>
+  <string name="settings_reset_button">RÉINITIALISER</string>
+  <string name="settings_reset_confirm">Voulez-vous vraiment réinitialiser tous les réglages ?</string>
+  <string name="settings_erase_title">Effacer toutes les données</string>
+  <string name="settings_erase_description">Supprime chaque position et chaque historique d'entraînement. Action irréversible.</string>
+  <string name="settings_erase_button">EFFACER</string>
+  <string name="settings_erase_confirm">Voulez-vous vraiment effacer toutes les données ?</string>
+
+  <!-- Lichess account -->
+  <string name="lichess_not_signed_in">Non connecté</string>
+  <string name="lichess_connected">Connecté à lichess.org</string>
+  <string name="lichess_sign_in_prompt">Connectez-vous pour activer l'explorateur d'ouvertures Lichess.</string>
+  <string name="lichess_disconnect">DÉCONNEXION</string>
+  <string name="lichess_sign_in">CONNEXION</string>
+  <string name="lichess_signing_in">CONNEXION…</string>
+  <string name="lichess_sign_in_cancelled">Connexion annulée</string>
+
+  <!-- Lichess sign-in errors -->
+  <string name="auth_missing_code">Lichess n'a pas renvoyé de code d'autorisation</string>
+  <string name="auth_state_mismatch">Incohérence de l'état OAuth (CSRF possible)</string>
+  <string name="auth_browser_unavailable">Impossible d'ouvrir le navigateur</string>
+  <string name="auth_oauth_failed">Échec du flux OAuth</string>
+  <string name="auth_token_rejected">Lichess a rejeté le jeton immédiatement après l'avoir émis</string>
+  <string name="auth_sign_in_failed">Échec de la connexion : %1$s</string>
+
+  <!-- Training -->
+  <string name="training_success">RÉUSSIS</string>
+  <string name="training_fail">ÉCHECS</string>
+  <string name="training_left">RESTANTS</string>
+  <string name="training_skip">PASSER</string>
+  <string name="training_hint">INDICE</string>
+  <string name="training_reveal">RÉVÉLER</string>
+  <string name="training_white_to_move">AUX BLANCS DE JOUER</string>
+  <string name="training_black_to_move">AUX NOIRS DE JOUER</string>
+  <string name="training_finished_title">Bravo !</string>
+  <string name="training_finished_subtitle">Vous avez terminé l'entraînement du jour !</string>
+  <string name="training_congratulations">Félicitations</string>
+  <string name="training_increment_day">Avancer d'un jour</string>
+  <string name="training_days_in_advance">Jours d'avance : %1$d</string>
+  <string name="training_corner_tag">ENTRAÎNEMENT</string>
+
+  <!-- Explore: Lichess explorer panel -->
+  <string name="explore_lichess_title">EXPLORATEUR LICHESS</string>
+  <string name="explore_eco">ECO %1$s</string>
+  <string name="explore_source_masters">Maîtres</string>
+  <string name="explore_source_lichess">Lichess</string>
+  <string name="explore_idle">Jouez un coup pour charger les réponses populaires.</string>
+  <string name="explore_rate_limited">Lichess a limité la requête. Réessayez dans un instant.</string>
+  <string name="explore_unauthorized">Connectez-vous à Lichess depuis les réglages pour utiliser l'explorateur d'ouvertures.</string>
+  <string name="explore_error">Impossible de charger l'explorateur : %1$s</string>
+  <string name="explore_no_games">Aucune partie trouvée pour cette position.</string>
+
+  <!-- Explore: side info / continuations -->
+  <string name="explore_no_next_moves">Aucun coup suivant</string>
+  <string name="explore_tab_continuations">Suites</string>
+  <string name="explore_tab_lichess">Lichess</string>
+  <string name="explore_tab_notes">Notes</string>
+  <string name="explore_notes_coming_soon">Notes à venir</string>
+  <string name="explore_no_continuations">Aucune suite enregistrée pour cette position.</string>
+
+  <!-- Explore: PGN + stat badges + ctrl bar -->
+  <string name="explore_pgn">PGN</string>
+  <string name="explore_stat_eval">ÉVAL</string>
+  <string name="explore_stat_pos">POS</string>
+  <string name="explore_stat_ret">RET</string>
+  <string name="explore_white">BLANCS</string>
+  <string name="explore_black">NOIRS</string>
+
+  <!-- Explore: delete confirmation (plural) -->
+  <plurals name="explore_delete_confirm">
+    <item quantity="one">Voulez-vous vraiment supprimer %1$d position ?</item>
+    <item quantity="other">Voulez-vous vraiment supprimer %1$d positions ?</item>
+  </plurals>
+
+  <!-- Board: state indicator labels -->
+  <string name="state_first">Début</string>
+  <string name="state_saved">Enregistré</string>
+  <string name="state_partial">Partiellement enregistré</string>
+  <string name="state_saved_unknown">Enregistré (coup inconnu)</string>
+  <string name="state_partial_unknown">Partiellement enregistré (coup inconnu)</string>
+  <string name="state_unknown">Inconnu</string>
+  <string name="state_bad">État incorrect</string>
+
+  <!-- Board: compact corner tags -->
+  <string name="tag_start">DÉBUT</string>
+  <string name="tag_saved">ENREGISTRÉ</string>
+  <string name="tag_partial">PARTIEL</string>
+  <string name="tag_saved_new">ENREGISTRÉ · NOUVEAU COUP</string>
+  <string name="tag_partial_new">PARTIEL · NOUVEAU COUP</string>
+  <string name="tag_not_saved">NON ENREGISTRÉ</string>
+  <string name="tag_conflict">CONFLIT</string>
+
+  <!-- Promotion -->
+  <string name="promotion_promote_to">Promouvoir en %1$s</string>
+  <string name="piece_queen">dame</string>
+  <string name="piece_rook">tour</string>
+  <string name="piece_bishop">fou</string>
+  <string name="piece_knight">cavalier</string>
+
+  <!-- Core toasts -->
+  <string name="toast_no_previous_move">Aucun coup précédent.</string>
+  <string name="toast_no_next_move">Aucun coup suivant.</string>
+  <string name="toast_saved">Enregistré</string>
+  <string name="toast_deleted">Supprimé</string>
+</resources>

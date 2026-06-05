@@ -20,6 +20,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.settings_sidebar_caption
+import memorchess.composeapp.generated.resources.settings_sidebar_title
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -30,7 +35,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * @property label display label in the sidebar.
  * @property number two digit mono number shown on the right of the item.
  */
-data class SettingsNavItem(val id: String, val label: String, val number: String)
+data class SettingsNavItem(val id: String, val label: StringResource, val number: String)
 
 /**
  * A logical group of [SettingsNavItem]s sharing a header in the sidebar (e.g. "Appearance",
@@ -39,7 +44,7 @@ data class SettingsNavItem(val id: String, val label: String, val number: String
  * @property title small uppercase mono caption shown above the group.
  * @property sections nav items, in display order.
  */
-data class SettingsNavGroup(val title: String, val sections: List<SettingsNavItem>)
+data class SettingsNavGroup(val title: StringResource, val sections: List<SettingsNavItem>)
 
 /**
  * Desktop sidebar nav for the Settings page. Mirrors the `.sidebar`, `.side-head`, `.sn-label`, and
@@ -76,19 +81,19 @@ fun SettingsSidebar(
         .padding(vertical = 24.dp)
   ) {
     Text(
-      text = "CONFIGURATION",
+      text = stringResource(Res.string.settings_sidebar_caption),
       style = typography.monoSm.copy(color = palette.accentText),
       modifier = Modifier.padding(horizontal = 22.dp),
     )
     Text(
-      text = "Settings",
+      text = stringResource(Res.string.settings_sidebar_title),
       style = typography.displayLg.copy(color = palette.ink),
       modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp),
     )
 
     groups.forEach { group ->
       Text(
-        text = group.title.uppercase(),
+        text = stringResource(group.title).uppercase(),
         style = typography.monoSm.copy(color = palette.ink4),
         modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 6.dp),
       )
@@ -123,7 +128,7 @@ private fun SidebarItem(item: SettingsNavItem, active: Boolean, onClick: () -> U
     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     horizontalArrangement = Arrangement.SpaceBetween,
   ) {
-    Text(text = item.label, style = typography.display.copy(color = labelColor))
+    Text(text = stringResource(item.label), style = typography.display.copy(color = labelColor))
     Text(text = item.number, style = typography.monoSm.copy(color = numColor))
   }
 }

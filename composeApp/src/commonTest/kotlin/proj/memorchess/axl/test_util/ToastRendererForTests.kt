@@ -1,5 +1,6 @@
 package proj.memorchess.axl.test_util
 
+import org.jetbrains.compose.resources.StringResource
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.ToastType
 
@@ -7,9 +8,9 @@ import proj.memorchess.axl.ui.components.popup.ToastType
 object ToastRendererForTests : ToastRenderer {
 
   /** List of toasted messages with their types. */
-  val messages = mutableListOf<Pair<ToastType, String>>()
+  val messages = mutableListOf<Pair<ToastType, StringResource>>()
 
-  override fun toast(message: String, type: ToastType) {
+  override fun toast(message: StringResource, type: ToastType) {
     this.messages.add(type to message)
   }
 

@@ -16,6 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.dialog_delete
+import memorchess.composeapp.generated.resources.explore_delete_confirm
+import org.jetbrains.compose.resources.pluralStringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
@@ -59,7 +63,9 @@ fun Explore(
         }
       }
 
-      val deletionConfirmationDialog = remember { ConfirmationDialog(okText = "Delete") }
+      val deletionConfirmationDialog = remember {
+        ConfirmationDialog(okText = Res.string.dialog_delete)
+      }
       deletionConfirmationDialog.DrawDialog()
 
       ExplorerContent(
@@ -76,7 +82,11 @@ fun Explore(
             } else {
               val finalNodesToDelete = nodesToDelete ?: 0
               Text(
-                "Are you sure you want to delete $finalNodesToDelete position${if (finalNodesToDelete > 1) "s" else ""}?"
+                pluralStringResource(
+                  Res.plurals.explore_delete_confirm,
+                  finalNodesToDelete,
+                  finalNodesToDelete,
+                )
               )
             }
             LaunchedEffect(nodesToDelete) {

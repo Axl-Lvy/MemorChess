@@ -11,6 +11,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.settings_best_move_arrow
+import memorchess.composeapp.generated.resources.settings_engine_depth
+import memorchess.composeapp.generated.resources.settings_engine_depth_infinite
+import memorchess.composeapp.generated.resources.settings_engine_depth_min
+import memorchess.composeapp.generated.resources.settings_eval_bar
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.BEST_MOVE_ARROW_ENABLED_SETTING
 import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
 import proj.memorchess.axl.core.config.EVAL_BAR_ENABLED_SETTING
@@ -42,10 +49,13 @@ fun EngineAndAnalysisSection(reloadKey: Any) {
         }
       )
     }
+  val depthLabel = stringResource(Res.string.settings_engine_depth)
+  val depthMin = stringResource(Res.string.settings_engine_depth_min)
+  val infinite = stringResource(Res.string.settings_engine_depth_infinite)
 
   Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
     KineticToggleRow(
-      label = "Evaluation bar",
+      label = stringResource(Res.string.settings_eval_bar),
       checked = evalEnabled,
       onCheckedChange = {
         evalEnabled = it
@@ -54,7 +64,7 @@ fun EngineAndAnalysisSection(reloadKey: Any) {
       testTag = EVAL_BAR_ENABLED_SETTING.name,
     )
     KineticToggleRow(
-      label = "Best-move arrow",
+      label = stringResource(Res.string.settings_best_move_arrow),
       checked = arrowEnabled,
       onCheckedChange = {
         arrowEnabled = it
@@ -73,13 +83,13 @@ fun EngineAndAnalysisSection(reloadKey: Any) {
       range = 5f..26f,
       labels =
         KineticSliderLabels(
-          label = "Engine depth",
+          label = depthLabel,
           valueFormatter = {
             val intVal = it.roundToInt()
-            if (intVal >= 26) "∞" else intVal.toString()
+            if (intVal >= 26) infinite else intVal.toString()
           },
-          minLabel = "5",
-          maxLabel = "∞",
+          minLabel = depthMin,
+          maxLabel = infinite,
         ),
       sliderTestTag = ENGINE_MAX_DEPTH_SETTING.name,
     )

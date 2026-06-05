@@ -5,6 +5,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.training_fail
+import memorchess.composeapp.generated.resources.training_left
+import memorchess.composeapp.generated.resources.training_success
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Three-counter row used by the Kinetic Training page.
@@ -32,19 +37,19 @@ fun TrainingCounterRow(
 ) {
   Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
     KineticCounterBlock(
-      label = "SUCCESS",
+      label = stringResource(Res.string.training_success),
       value = successCount,
       tone = KineticCounterTone.Success,
       modifier = Modifier.weight(1f),
     )
     KineticCounterBlock(
-      label = "FAIL",
+      label = stringResource(Res.string.training_fail),
       value = failCount,
       tone = KineticCounterTone.Fail,
       modifier = Modifier.weight(1f),
     )
     KineticCounterBlock(
-      label = "LEFT",
+      label = stringResource(Res.string.training_left),
       value = leftCount,
       tone = KineticCounterTone.Neutral,
       modifier = Modifier.weight(1f),

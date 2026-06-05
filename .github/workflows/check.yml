@@ -121,6 +121,21 @@ jobs:
       - name: Run formatter check
         run: ./gradlew ktfmtCheck
 
+  # Verify every translation locale mirrors the base `values/` resources:
+  # same keys, in the same order, for every resource file. Cheap and
+  # dependency-free, so it runs unconditionally (not gated by the detect tier).
+  translations-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Check translation completeness
+        run: python .github/scripts/check_translations.py
+
   # Run JVM tests with Kover coverage (designated Gradle cache writer)
   jvm-tests:
     needs: [detect]

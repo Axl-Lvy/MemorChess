@@ -17,6 +17,13 @@ import io.github.vinceglb.filekit.dialogs.openFilePicker
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.readString
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.settings_export
+import memorchess.composeapp.generated.resources.settings_import
+import memorchess.composeapp.generated.resources.settings_import_confirm
+import memorchess.composeapp.generated.resources.settings_import_invalid
+import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
@@ -62,7 +69,7 @@ fun ImportExportSection(
       style = KineticButtonStyle.Default,
       large = true,
     ) {
-      Text(text = "EXPORT REPERTOIRE")
+      Text(text = stringResource(Res.string.settings_export))
     }
     KineticButton(
       onClick = {
@@ -71,7 +78,7 @@ fun ImportExportSection(
             val file =
               FileKit.openFilePicker(type = FileKitType.File("memorchess")) ?: return@launch
             val content = file.readString()
-            dlg.show("Import openings from ${file.name}? This will merge with existing data.") {
+            dlg.show(getString(Res.string.settings_import_confirm, file.name)) {
               coroutineScope.launch {
                 val nodes = GraphSerializer.deserialize(content)
                 database.insertNodes(*nodes.toTypedArray())
@@ -80,7 +87,7 @@ fun ImportExportSection(
             }
           } catch (e: IllegalArgumentException) {
             Logger.e("Import failed", e)
-            dlg.show("Invalid file format: ${e.message}") {}
+            dlg.show(getString(Res.string.settings_import_invalid, e.message ?: "")) {}
           }
         }
       },
@@ -88,7 +95,7 @@ fun ImportExportSection(
       style = KineticButtonStyle.Default,
       large = true,
     ) {
-      Text(text = "IMPORT FILE")
+      Text(text = stringResource(Res.string.settings_import))
     }
   }
 }

@@ -22,6 +22,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.lichess_connected
+import memorchess.composeapp.generated.resources.lichess_disconnect
+import memorchess.composeapp.generated.resources.lichess_not_signed_in
+import memorchess.composeapp.generated.resources.lichess_sign_in
+import memorchess.composeapp.generated.resources.lichess_sign_in_cancelled
+import memorchess.composeapp.generated.resources.lichess_sign_in_prompt
+import memorchess.composeapp.generated.resources.lichess_signing_in
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.auth.LichessAccount
 import proj.memorchess.axl.core.auth.LichessSignInController
@@ -31,6 +41,9 @@ import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
+
+/** Holds a sign-in error as a [StringResource] plus an optional format argument. */
+private data class SignInError(val res: StringResource, val arg: String?)
 
 /**
  * Lichess account row.
@@ -49,20 +62,24 @@ fun LichessAccountSection(
   val account by tokenStore.account.collectAsState()
   val scope = rememberCoroutineScope()
   var pending by remember { mutableStateOf(false) }
-  var lastError by remember { mutableStateOf<String?>(null) }
+  var lastError by remember { mutableStateOf<SignInError?>(null) }
+  val lastErrorText: String? = lastError?.let { err ->
+    if (err.arg != null) stringResource(err.res, err.arg) else stringResource(err.res)
+  }
 
   LichessAccountSectionContent(
     account = account,
     pending = pending,
-    lastError = lastError,
+    lastError = lastErrorText,
     onSignIn = {
       pending = true
       lastError = null
       scope.launch {
         when (val result = signInController.signIn()) {
           SignInResult.Success -> Unit
-          SignInResult.Cancelled -> lastError = "Sign in cancelled"
-          is SignInResult.Failed -> lastError = result.message
+          SignInResult.Cancelled ->
+            lastError = SignInError(Res.string.lichess_sign_in_cancelled, null)
+          is SignInResult.Failed -> lastError = SignInError(result.message, result.arg)
         }
         pending = false
       }
@@ -131,16 +148,16 @@ private fun LichessAccountIdentity(
   val typography = LocalKineticTypography.current
   Column(modifier = modifier) {
     Text(
-      text = account?.username ?: "Not signed in",
+      text = account?.username ?: stringResource(Res.string.lichess_not_signed_in),
       style = typography.display.copy(color = palette.ink, fontSize = 16.sp),
       modifier = if (signedIn) Modifier.testTag("lichess_account_username") else Modifier,
     )
     Text(
       text =
         if (signedIn) {
-          "Connected to lichess.org"
+          stringResource(Res.string.lichess_connected)
         } else {
-          "Sign in to enable the Lichess opening explorer."
+          stringResource(Res.string.lichess_sign_in_prompt)
         },
       style = typography.monoSm.copy(color = palette.ink3),
     )
@@ -161,7 +178,7 @@ private fun LichessAccountAction(
       style = KineticButtonStyle.DangerOutline,
       modifier = Modifier.testTag("lichess_sign_out_button"),
     ) {
-      Text(text = "DISCONNECT")
+      Text(text = stringResource(Res.string.lichess_disconnect))
     }
   } else {
     KineticButton(
@@ -170,7 +187,11 @@ private fun LichessAccountAction(
       style = KineticButtonStyle.Default,
       modifier = Modifier.testTag("lichess_sign_in_button"),
     ) {
-      Text(text = if (pending) "SIGNING IN…" else "SIGN IN")
+      Text(
+        text =
+          if (pending) stringResource(Res.string.lichess_signing_in)
+          else stringResource(Res.string.lichess_sign_in)
+      )
     }
   }
 }

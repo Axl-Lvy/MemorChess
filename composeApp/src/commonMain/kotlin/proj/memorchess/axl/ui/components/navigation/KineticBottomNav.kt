@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -144,7 +145,7 @@ fun KineticBottomNav(
         NavCellIcon(item, tint)
         Spacer(modifier = Modifier.height(ICON_LABEL_SPACER))
         Text(
-          text = item.destination.getLabel().uppercase(),
+          text = stringResource(item.destination.displayNameRes()).uppercase(),
           style = typography.monoSm.copy(color = tint),
         )
       }
@@ -223,7 +224,7 @@ fun KineticSideNav(
         NavCellIcon(item, tint)
         Spacer(modifier = Modifier.height(ICON_LABEL_SPACER))
         Text(
-          text = item.destination.getLabel().uppercase(),
+          text = stringResource(item.destination.displayNameRes()).uppercase(),
           style = typography.monoSm.copy(color = tint),
         )
       }

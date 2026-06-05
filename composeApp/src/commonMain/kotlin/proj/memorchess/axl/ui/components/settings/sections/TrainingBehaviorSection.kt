@@ -12,6 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.settings_auto_advance_delay
+import memorchess.composeapp.generated.resources.settings_auto_advance_max
+import memorchess.composeapp.generated.resources.settings_auto_advance_min
+import memorchess.composeapp.generated.resources.settings_fuzz
+import memorchess.composeapp.generated.resources.settings_relearn_failed
+import memorchess.composeapp.generated.resources.settings_unit_seconds
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
@@ -46,6 +54,10 @@ fun TrainingBehaviorSection(reloadKey: Any) {
   var fuzzEnabled by remember(reloadKey) { mutableStateOf(FUZZ_ENABLED_SETTING.getValue()) }
   var shortTermEnabled by
     remember(reloadKey) { mutableStateOf(SHORT_TERM_ENABLED_SETTING.getValue()) }
+  val delayLabel = stringResource(Res.string.settings_auto_advance_delay)
+  val sUnit = stringResource(Res.string.settings_unit_seconds)
+  val minLabel = stringResource(Res.string.settings_auto_advance_min)
+  val maxLabel = stringResource(Res.string.settings_auto_advance_max)
 
   Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
     KineticSlider(
@@ -58,16 +70,16 @@ fun TrainingBehaviorSection(reloadKey: Any) {
       range = 0f..5f,
       labels =
         KineticSliderLabels(
-          label = "Auto-advance delay",
+          label = delayLabel,
           valueFormatter = { ((it * 100).roundToInt() / 100.0).toString() },
-          unit = "s",
-          minLabel = "0s",
-          maxLabel = "5s",
+          unit = sUnit,
+          minLabel = minLabel,
+          maxLabel = maxLabel,
         ),
       sliderTestTag = TRAINING_MOVE_DELAY_SETTING.name,
     )
     KineticToggleRow(
-      label = "Relearn failed cards in session",
+      label = stringResource(Res.string.settings_relearn_failed),
       checked = shortTermEnabled,
       onCheckedChange = {
         shortTermEnabled = it
@@ -76,7 +88,7 @@ fun TrainingBehaviorSection(reloadKey: Any) {
       testTag = SHORT_TERM_ENABLED_SETTING.name,
     )
     KineticToggleRow(
-      label = "Spread review intervals (fuzz)",
+      label = stringResource(Res.string.settings_fuzz),
       checked = fuzzEnabled,
       onCheckedChange = {
         fuzzEnabled = it

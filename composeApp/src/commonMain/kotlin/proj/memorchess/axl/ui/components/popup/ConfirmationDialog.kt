@@ -9,11 +9,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.dialog_cancel
+import memorchess.composeapp.generated.resources.dialog_ok
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 
-/** A confirmation dialog that can be shown with a confirmation action. */
+/**
+ * A confirmation dialog that can be shown with a confirmation action.
+ *
+ * @param okText String resource for the confirm button label (defaults to [Res.string.dialog_ok]).
+ * @param cancelText String resource for the dismiss button label (defaults to
+ *   [Res.string.dialog_cancel]).
+ */
 class ConfirmationDialog(
-  private val okText: String = "OK",
-  private val cancelText: String = "Cancel",
+  private val okText: StringResource = Res.string.dialog_ok,
+  private val cancelText: StringResource = Res.string.dialog_cancel,
 ) {
   private var show by mutableStateOf(false)
   private var content by mutableStateOf<@Composable () -> Unit>({})
@@ -55,7 +66,7 @@ class ConfirmationDialog(
               show = false
             }
           ) {
-            Text(okText)
+            Text(stringResource(okText))
           }
         },
         dismissButton = {
@@ -65,7 +76,7 @@ class ConfirmationDialog(
               show = false
             }
           ) {
-            Text(cancelText)
+            Text(stringResource(cancelText))
           }
         },
         title = { content() },

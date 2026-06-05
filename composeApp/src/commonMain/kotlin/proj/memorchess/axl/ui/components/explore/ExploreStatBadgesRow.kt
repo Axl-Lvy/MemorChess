@@ -10,6 +10,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.explore_stat_eval
+import memorchess.composeapp.generated.resources.explore_stat_pos
+import memorchess.composeapp.generated.resources.explore_stat_ret
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.components.navigation.KineticTopBarPill
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
@@ -33,8 +38,12 @@ fun ExploreStatBadgesRow(modifier: Modifier = Modifier) {
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.End,
   ) {
-    KineticTopBarPill(label = "EVAL", value = "+0.0", hot = false)
-    KineticTopBarPill(label = "POS", value = "—", hot = false)
-    KineticTopBarPill(label = "RET", value = "—", hot = false)
+    KineticTopBarPill(
+      label = stringResource(Res.string.explore_stat_eval),
+      value = "+0.0",
+      hot = false,
+    )
+    KineticTopBarPill(label = stringResource(Res.string.explore_stat_pos), value = "—", hot = false)
+    KineticTopBarPill(label = stringResource(Res.string.explore_stat_ret), value = "—", hot = false)
   }
 }

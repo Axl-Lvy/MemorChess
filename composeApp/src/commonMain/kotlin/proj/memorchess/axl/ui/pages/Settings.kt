@@ -26,6 +26,27 @@ import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.settings_group_accounts
+import memorchess.composeapp.generated.resources.settings_group_appearance
+import memorchess.composeapp.generated.resources.settings_group_practice
+import memorchess.composeapp.generated.resources.settings_group_storage
+import memorchess.composeapp.generated.resources.settings_nav_board
+import memorchess.composeapp.generated.resources.settings_nav_danger
+import memorchess.composeapp.generated.resources.settings_nav_display
+import memorchess.composeapp.generated.resources.settings_nav_engine
+import memorchess.composeapp.generated.resources.settings_nav_io
+import memorchess.composeapp.generated.resources.settings_nav_lichess
+import memorchess.composeapp.generated.resources.settings_nav_training
+import memorchess.composeapp.generated.resources.settings_section_board
+import memorchess.composeapp.generated.resources.settings_section_danger
+import memorchess.composeapp.generated.resources.settings_section_display
+import memorchess.composeapp.generated.resources.settings_section_engine
+import memorchess.composeapp.generated.resources.settings_section_io
+import memorchess.composeapp.generated.resources.settings_section_lichess
+import memorchess.composeapp.generated.resources.settings_section_training
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.components.settings.LichessAccountSection
 import proj.memorchess.axl.ui.components.settings.SettingsNavGroup
 import proj.memorchess.axl.ui.components.settings.SettingsNavItem
@@ -50,50 +71,53 @@ internal const val SETTINGS_SECTION_LIST_TAG = "settingsSectionList"
 /** Identifier for one settings section in the page model. */
 private data class SettingsPageSection(
   val id: String,
-  val title: String,
+  val title: StringResource,
   val description: String? = null,
   val danger: Boolean = false,
 )
 
 private val PAGE_SECTIONS: List<SettingsPageSection> =
   listOf(
-    SettingsPageSection(id = "display", title = "Display & theme"),
-    SettingsPageSection(id = "board", title = "Board style"),
-    SettingsPageSection(id = "training", title = "Training behavior"),
-    SettingsPageSection(id = "engine", title = "Engine & analysis"),
-    SettingsPageSection(id = "lichess", title = "Lichess account"),
-    SettingsPageSection(id = "io", title = "Import / export"),
-    SettingsPageSection(id = "danger", title = "Danger zone", danger = true),
+    SettingsPageSection(id = "display", title = Res.string.settings_section_display),
+    SettingsPageSection(id = "board", title = Res.string.settings_section_board),
+    SettingsPageSection(id = "training", title = Res.string.settings_section_training),
+    SettingsPageSection(id = "engine", title = Res.string.settings_section_engine),
+    SettingsPageSection(id = "lichess", title = Res.string.settings_section_lichess),
+    SettingsPageSection(id = "io", title = Res.string.settings_section_io),
+    SettingsPageSection(id = "danger", title = Res.string.settings_section_danger, danger = true),
   )
 
 private val NAV_GROUPS: List<SettingsNavGroup> =
   listOf(
     SettingsNavGroup(
-      title = "Appearance",
+      title = Res.string.settings_group_appearance,
       sections =
         listOf(
-          SettingsNavItem(id = "display", label = "Display", number = "01"),
-          SettingsNavItem(id = "board", label = "Board", number = "02"),
+          SettingsNavItem(id = "display", label = Res.string.settings_nav_display, number = "01"),
+          SettingsNavItem(id = "board", label = Res.string.settings_nav_board, number = "02"),
         ),
     ),
     SettingsNavGroup(
-      title = "Practice",
+      title = Res.string.settings_group_practice,
       sections =
         listOf(
-          SettingsNavItem(id = "training", label = "Training", number = "03"),
-          SettingsNavItem(id = "engine", label = "Engine", number = "04"),
+          SettingsNavItem(id = "training", label = Res.string.settings_nav_training, number = "03"),
+          SettingsNavItem(id = "engine", label = Res.string.settings_nav_engine, number = "04"),
         ),
     ),
     SettingsNavGroup(
-      title = "Accounts",
-      sections = listOf(SettingsNavItem(id = "lichess", label = "Lichess", number = "05")),
-    ),
-    SettingsNavGroup(
-      title = "Storage",
+      title = Res.string.settings_group_accounts,
       sections =
         listOf(
-          SettingsNavItem(id = "io", label = "Import / Export", number = "06"),
-          SettingsNavItem(id = "danger", label = "Danger zone", number = "07"),
+          SettingsNavItem(id = "lichess", label = Res.string.settings_nav_lichess, number = "05")
+        ),
+    ),
+    SettingsNavGroup(
+      title = Res.string.settings_group_storage,
+      sections =
+        listOf(
+          SettingsNavItem(id = "io", label = Res.string.settings_nav_io, number = "06"),
+          SettingsNavItem(id = "danger", label = Res.string.settings_nav_danger, number = "07"),
         ),
     ),
   )
@@ -162,7 +186,7 @@ private fun SectionList(reloader: BasicReloader, lazyListState: LazyListState) {
   ) {
     items(items = PAGE_SECTIONS, key = { it.id }) { section ->
       SettingsSection(
-        title = section.title,
+        title = stringResource(section.title),
         description = section.description,
         danger = section.danger,
         modifier = Modifier.fillMaxWidth(),
