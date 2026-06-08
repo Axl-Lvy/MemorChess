@@ -8,6 +8,7 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
 class TestGraphSerializer {
@@ -262,6 +263,8 @@ class TestGraphSerializer {
 
   @Test
   fun cardStateAndDepthSurviveRoundTrip() {
+    // Non-default phase and step so the round trip would catch a dropped column: a card mid
+    // relearning must not silently reset to NEW/0 on export then import.
     val state =
       CardState(
         dueDate = instant3,
@@ -270,6 +273,8 @@ class TestGraphSerializer {
         difficulty = 6.25,
         reps = 4,
         lapses = 1,
+        phase = CardPhase.RELEARNING,
+        step = 1,
       )
     val node =
       DataNode(
@@ -285,6 +290,35 @@ class TestGraphSerializer {
     result[0].cardState shouldBe state
     result[0].depth shouldBe 7
     result[0].updatedAt shouldBe instant2
+  }
+
+  @Test
+  fun everyCardPhaseSurvivesRoundTrip() {
+    for (phase in CardPhase.entries) {
+      val state =
+        CardState(
+          dueDate = instant3,
+          lastReview = instant2,
+          stability = 1.0,
+          difficulty = 5.0,
+          reps = 1,
+          lapses = 0,
+          phase = phase,
+          step = 0,
+        )
+      val node =
+        DataNode(
+          positionKey = startPos,
+          previousAndNextMoves = PreviousAndNextMoves(),
+          cardState = state,
+          depth = 0,
+          updatedAt = instant2,
+        )
+
+      val result = GraphSerializer.deserialize(GraphSerializer.serialize(listOf(node)))
+
+      result[0].cardState.phase shouldBe phase
+    }
   }
 
   @Test

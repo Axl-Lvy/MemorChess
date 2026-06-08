@@ -7,6 +7,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.round
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
@@ -32,6 +33,12 @@ import kotlin.time.Instant
  *   interval fuzz is applied. Defaults to off, matching ts-fsrs' `default_enable_fuzz = false`. It
  *   is a supplier rather than a flat flag so a user toggling the setting takes effect immediately
  *   on the long lived singleton without a restart.
+ * @property nextFuzz Source of the per-review fuzz pick, a unit value in `[0, 1)` drawn once per
+ *   [schedule] call and shared across the four candidate grades so the spread is keyed on the
+ *   review event, not the grade. Defaults to a fresh draw from [Random.Default]; production seeds a
+ *   single process-wide [Random] from the wall clock at app start so that two cards graded
+ *   identically on the same day still scatter across their fuzz band. Tests inject a fixed-seed
+ *   [Random] for reproducibility.
  * @property enableShortTerm Supplier read on every [schedule] call deciding whether the short term
  *   (learning steps) scheduler runs. Defaults to on, matching ts-fsrs' `default_enable_short_term =
  *   true`. When off, every review graduates straight to a day grained [CardPhase.REVIEW] interval,
@@ -46,6 +53,7 @@ class Fsrs6SchedulingAlgorithm(
   private val requestRetention: Double = DEFAULT_REQUEST_RETENTION,
   private val maximumInterval: Int = DEFAULT_MAXIMUM_INTERVAL,
   private val enableFuzz: () -> Boolean = { false },
+  private val nextFuzz: () -> Double = { Random.Default.nextDouble() },
   private val enableShortTerm: () -> Boolean = { true },
   private val learningSteps: List<Duration> = DEFAULT_LEARNING_STEPS,
   private val relearningSteps: List<Duration> = DEFAULT_RELEARNING_STEPS,
@@ -118,9 +126,11 @@ class Fsrs6SchedulingAlgorithm(
       }
     val difficulty =
       if (lastReview == null) initDifficulty(grade) else nextDifficulty(base.difficulty, grade)
-    val fuzz = fuzzFactor(base.stability, base.difficulty, base.reps, elapsedDays)
+    val fuzz = nextFuzz()
     val outcome = route(base.phase, base.step, grade, stability, elapsedDays, fuzz)
-    val isLapse = grade == ReviewGrade.AGAIN
+    // A lapse is a forgotten *graduated* card, matching canonical FSRS. Failing during initial
+    // learning or while already relearning does not add another lapse.
+    val isLapse = grade == ReviewGrade.AGAIN && base.phase == CardPhase.REVIEW
     return CardState(
       dueDate = now + outcome.delay,
       lastReview = now,
@@ -203,7 +213,7 @@ class Fsrs6SchedulingAlgorithm(
   private fun firstReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
     val initialStabilities = ReviewGrade.entries.associateWith { initStability(it) }
     val initialDifficulties = ReviewGrade.entries.associateWith { initDifficulty(it) }
-    val fuzz = fuzzFactor(base.stability, base.difficulty, base.reps, elapsedDays = 0.0)
+    val fuzz = nextFuzz()
     val intervals =
       monotonicIntervals(
         initialStabilities.mapValues { (_, s) -> intervalDays(s, elapsedDays = 0.0, fuzz) }
@@ -234,7 +244,7 @@ class Fsrs6SchedulingAlgorithm(
           nextRecallStability(base.difficulty, base.stability, retrievability, candidate)
         }
       }
-    val fuzz = fuzzFactor(base.stability, base.difficulty, base.reps, elapsedDays)
+    val fuzz = nextFuzz()
     val intervals =
       monotonicIntervals(stabilities.mapValues { (_, s) -> intervalDays(s, elapsedDays, fuzz) })
     val difficulty = nextDifficulty(base.difficulty, grade)
@@ -365,40 +375,6 @@ class Fsrs6SchedulingAlgorithm(
     return floor(fuzz * (maxIvl - minIvl + 1.0) + minIvl).toLong().coerceAtLeast(1L)
   }
 
-  /**
-   * Deterministic unit value in `[0, 1)` derived purely from the pre review card state.
-   *
-   * FSRS keys its fuzz on the card identity (ts-fsrs seeds an `alea` PRNG from the card id and
-   * review count); the [SchedulingAlgorithm] interface deliberately does not expose the position
-   * key, so we seed from the card's own stability, difficulty, review count and elapsed days
-   * instead. This still satisfies the functional requirement — the same card recomputed yields the
-   * same fuzz — and de bunches cards once their review histories diverge. Two brand new cards
-   * graded identically on the same day will, however, receive the same fuzz; per position spreading
-   * would require threading the position key through [schedule].
-   */
-  private fun fuzzFactor(
-    stability: Double,
-    difficulty: Double,
-    reps: Int,
-    elapsedDays: Double,
-  ): Double {
-    var h = FUZZ_SEED_INIT
-    h = mix(h xor stability.toRawBits())
-    h = mix(h xor difficulty.toRawBits())
-    h = mix(h xor reps.toLong())
-    h = mix(h xor elapsedDays.toRawBits())
-    // Top 53 bits over 2^53 gives a uniform double in [0, 1).
-    return (h ushr 11).toDouble() / TWO_POW_53
-  }
-
-  /** SplitMix64 finalizing mix, used to turn the seed accumulator into a well spread hash. */
-  private fun mix(value: Long): Long {
-    var z = value
-    z = (z xor (z ushr 30)) * -0x40a7b892e31b1a47L
-    z = (z xor (z ushr 27)) * -0x6b2fb644ecceee15L
-    return z xor (z ushr 31)
-  }
-
   private fun Double.clamp(lo: Double, hi: Double): Double =
     if (this < lo) lo else if (this > hi) hi else this
 
@@ -458,12 +434,6 @@ class Fsrs6SchedulingAlgorithm(
         FuzzRange(start = 7.0, end = 20.0, factor = 0.1),
         FuzzRange(start = 20.0, end = Double.POSITIVE_INFINITY, factor = 0.05),
       )
-
-    /** Golden ratio derived odd constant seeding the [fuzzFactor] accumulator. */
-    private const val FUZZ_SEED_INIT: Long = -0x61c8864680b583ebL
-
-    /** `2.0^53`, the divisor turning a 53 bit hash into a uniform double in `[0, 1)`. */
-    private const val TWO_POW_53: Double = 9_007_199_254_740_992.0
 
     const val DEFAULT_REQUEST_RETENTION: Double = 0.9
     const val DEFAULT_MAXIMUM_INTERVAL: Int = 36500
