@@ -15,6 +15,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.test_util.TestWithKoin
 
@@ -48,6 +49,9 @@ class TestSingleMoveTrainer : TestWithKoin() {
         difficulty = 5.0,
         reps = 1,
         lapses = 0,
+        // A graduated card due for review: a wrong answer is a genuine lapse (REVIEW ->
+        // relearning).
+        phase = CardPhase.REVIEW,
       )
 
     testNode =

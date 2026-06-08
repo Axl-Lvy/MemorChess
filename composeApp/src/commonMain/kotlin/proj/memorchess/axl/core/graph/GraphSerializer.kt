@@ -4,6 +4,7 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
@@ -12,8 +13,9 @@ import proj.memorchess.axl.core.scheduling.CardState
  *
  * The format has two sections separated by a blank line:
  * - **Node lines**:
- *   `<index>\t<positionKey>\t<depth>\t<dueDate>\t<lastReview>\t<stability>\t<difficulty>\t<reps>\t<lapses>\t<updatedAt>`
- *   where `<lastReview>` is the literal string `null` for a card that has never been reviewed.
+ *   `<index>\t<positionKey>\t<depth>\t<dueDate>\t<lastReview>\t<stability>\t<difficulty>\t<reps>\t<lapses>\t<phase>\t<step>\t<updatedAt>`
+ *   where `<lastReview>` is the literal string `null` for a card that has never been reviewed and
+ *   `<phase>` is a [proj.memorchess.axl.core.scheduling.CardPhase] name.
  * - **Edge lines**: `<originIndex>\t<destIndex>\t<move>\t<isGood>\t<updatedAt>`
  *
  * Nodes are sorted by [PositionKey.value] and edges by `(originIndex, destIndex, move)` for
@@ -27,7 +29,7 @@ object GraphSerializer {
   private const val BAD = "-"
   private const val UNKNOWN = "?"
   private const val NULL_TOKEN = "null"
-  private const val NODE_FIELD_COUNT = 10
+  private const val NODE_FIELD_COUNT = 12
 
   /** Serializes nodes to a deterministic text string. Filters out deleted nodes and moves. */
   fun serialize(nodes: List<DataNode>): String {
@@ -48,6 +50,8 @@ object GraphSerializer {
           card.difficulty,
           card.reps,
           card.lapses,
+          card.phase.name,
+          card.step,
           node.updatedAt,
         )
         .joinToString(TAB)
@@ -121,6 +125,8 @@ object GraphSerializer {
             difficulty = parts[6].toDouble(),
             reps = parts[7].toInt(),
             lapses = parts[8].toInt(),
+            phase = runCatching { CardPhase.valueOf(parts[9]) }.getOrDefault(CardPhase.NEW),
+            step = parts[10].toInt(),
           )
         put(
           index,
@@ -128,7 +134,7 @@ object GraphSerializer {
             positionKey = PositionKey(parts[1]),
             depth = parts[2].toInt(),
             cardState = cardState,
-            updatedAt = Instant.parse(parts[9]),
+            updatedAt = Instant.parse(parts[11]),
           ),
         )
       }
