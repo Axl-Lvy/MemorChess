@@ -64,6 +64,19 @@ object KineticMotion {
   /** A constant-velocity [tween] over [travel], for the screen-transition accent [sweep]. */
   fun <T> sweepTween(): FiniteAnimationSpec<T> = tween(travel.ms(), easing = sweep)
 
+  /**
+   * No-op enter that keeps an incoming `NavHost` destination composed for the full [travel] window
+   * without any visible fade (alpha stays at 1). It exists only to give the two-panel curtain wipe
+   * a running transition clock to drive the clip from — the visual is done by the wipe-reveal clip,
+   * not by this fade.
+   */
+  fun holdEnter(): EnterTransition = fadeIn(animationSpec = sweepTween(), initialAlpha = 1f)
+
+  /**
+   * No-op exit mirroring [holdEnter]: keeps the outgoing destination fully visible for [travel].
+   */
+  fun holdExit(): ExitTransition = fadeOut(animationSpec = sweepTween(), targetAlpha = 1f)
+
   /** Scale a HUD element registers in from, just short of full size. */
   private const val HUD_INITIAL_SCALE: Float = 0.94f
 
