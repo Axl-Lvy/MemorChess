@@ -9,7 +9,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -46,8 +45,22 @@ fun BoardGrid(
   val tilePositions = remember { mutableMapOf<BoardLocation, DpOffset>() }
 
   val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
-  Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-    DrawTileGrid(state, scope, tilePositions)
+  BoxWithConstraints(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    // Derive every tile's offset from a single measurement. The board is uniform, so each tile is
+    // maxWidth / 8; recording positions this way avoids the 64 per-tile BoxWithConstraints
+    // (subcompositions) that used to make navigating to a board screen hitch. Offsets are a
+    // coordinate space consumed only as deltas by AnimatedPiece, so they are independent of board
+    // inversion.
+    val tileSize = maxWidth / 8
+    remember(tileSize) {
+      for (row in 0..7) {
+        for (col in 0..7) {
+          tilePositions[BoardLocation(row, col)] = DpOffset(tileSize * col, -tileSize * row)
+        }
+      }
+      tileSize
+    }
+    DrawTileGrid(state, scope)
     DrawPieceGrid(state, animationDuration, tilePositions)
     BestMoveArrow(bestMoveArrow, state.inverted, Modifier.fillMaxSize())
   }
@@ -57,21 +70,14 @@ fun BoardGrid(
  * Composable function that draws the grid of tiles on the chessboard.
  *
  * Iterates over all board locations, rendering each tile and handling click events. Highlights the
- * selected tile and updates tile positions for piece animation.
+ * selected tile. Tile pixel positions for piece animation are derived once by [BoardGrid] from a
+ * single measurement rather than per tile here.
  *
  * @param state The board state containing tile information and selection.
  * @param scope Coroutine scope for handling tile click events asynchronously.
- * @param tilePositions (out) Mutable map to store the positions of each tile for animation
- *   purposes.
  */
 @Composable
-private fun DrawTileGrid(
-  state: BoardGridState,
-  scope: CoroutineScope,
-  tilePositions: MutableMap<BoardLocation, DpOffset>,
-) {
-  var tileWidth = remember<Dp?> { null }
-  var tileHeight = remember<Dp?> { null }
+private fun DrawTileGrid(state: BoardGridState, scope: CoroutineScope) {
   DrawGrid(
     boxModifier = {
       val location = state.getBoardLocationAt(it)
@@ -87,15 +93,7 @@ private fun DrawTileGrid(
         )
     }
   ) {
-    val location = state.getBoardLocationAt(it)
-    BoxWithConstraints {
-      if (tileWidth == null || tileHeight == null) {
-        tileWidth = maxWidth
-        tileHeight = maxHeight
-      }
-      tilePositions[location] = DpOffset(tileWidth * location.col, -tileHeight * location.row)
-    }
-    Tile(location)
+    Tile(state.getBoardLocationAt(it))
   }
 }
 
