@@ -1,5 +1,7 @@
 package proj.memorchess.axl.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
@@ -26,6 +28,7 @@ import proj.memorchess.axl.ui.components.navigation.BottomNavigationBar
 import proj.memorchess.axl.ui.components.navigation.KineticSideBar
 import proj.memorchess.axl.ui.components.navigation.KineticTopBar
 import proj.memorchess.axl.ui.components.navigation.KineticTopBarNavItem
+import proj.memorchess.axl.ui.components.navigation.KineticWipeOverlay
 import proj.memorchess.axl.ui.components.navigation.NavigationBarItemContent
 import proj.memorchess.axl.ui.layout.MainLayout
 import proj.memorchess.axl.ui.pages.navigation.DelegateNavigator
@@ -33,6 +36,7 @@ import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 import proj.memorchess.axl.ui.pages.navigation.Navigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.pages.navigation.Router
+import proj.memorchess.axl.ui.pages.navigation.routeOrdinal
 import proj.memorchess.axl.ui.theme.AppTheme
 
 /**
@@ -117,7 +121,10 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
           )
         },
       ) { innerPadding ->
-        Router(modifier = Modifier.padding(innerPadding), navController = navController)
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+          Router(navController = navController)
+          KineticWipeOverlay(activeIndex = navBackStackEntry?.routeOrdinal() ?: 1)
+        }
       }
       LaunchedEffect(navigator) { onNavHostReady(navigator) }
     }
