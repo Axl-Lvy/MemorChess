@@ -130,7 +130,11 @@ class TestDatabaseQueryManager private constructor() : DatabaseQueryManager {
         .map { (it.previousAndNextMoves.previousMoves + it.previousAndNextMoves.nextMoves).values }
         .flatten()
         .maxOfOrNull { it.updatedAt }
-    return DateUtil.maxOf(node, move)
+    return when {
+      node == null -> move
+      move == null -> node
+      else -> maxOf(node, move)
+    }
   }
 
   /**

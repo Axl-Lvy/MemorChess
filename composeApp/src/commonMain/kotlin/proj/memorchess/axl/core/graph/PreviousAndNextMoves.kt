@@ -28,13 +28,6 @@ data class PreviousAndNextMoves(
     nextMoves: Collection<DataMove>,
   ) : this(previousMoves.associateBy { it.move }, nextMoves.associateBy { it.move })
 
-  /** Returns a new instance containing only moves where [DataMove.isGood] is not null. */
-  fun filterValidMoves(): PreviousAndNextMoves =
-    PreviousAndNextMoves(
-      previousMoves.values.filter { it.isGood != null },
-      nextMoves.values.filter { it.isGood != null },
-    )
-
   /** Returns a new instance containing only non deleted moves. */
   fun filterNotDeleted(): PreviousAndNextMoves =
     PreviousAndNextMoves(
