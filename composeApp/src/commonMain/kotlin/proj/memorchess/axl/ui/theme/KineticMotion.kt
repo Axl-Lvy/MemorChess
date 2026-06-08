@@ -12,8 +12,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -38,8 +36,8 @@ object KineticMotion {
   /** In-screen swaps: dialogs, loading reveal, settings section changes. */
   val register: Duration = 180.milliseconds
 
-  /** Screen-to-screen telemetry wipe. */
-  val travel: Duration = 240.milliseconds
+  /** Screen-to-screen accent sweep — long enough to read as a deliberate scan across the screen. */
+  val travel: Duration = 420.milliseconds
 
   /**
    * Signature easing: an instant attack that settles hard, with no overshoot. Used for everything
@@ -58,45 +56,13 @@ object KineticMotion {
    */
   val sweep: Easing = LinearEasing
 
-  /**
-   * Fraction of the container a wiping screen/section travels. Kept small: the motion reads as a
-   * panel registering into place behind a hard edge, not a full-screen slide.
-   */
-  const val WIPE_OFFSET_FRACTION: Float = 0.14f
-
   private fun Duration.ms(): Int = inWholeMilliseconds.toInt()
 
   /** A [tween] over [register] using the signature [attack] easing. */
   fun <T> registerTween(): FiniteAnimationSpec<T> = tween(register.ms(), easing = attack)
 
-  /** A [tween] over [travel] using the signature [attack] easing. */
-  fun <T> travelTween(): FiniteAnimationSpec<T> = tween(travel.ms(), easing = attack)
-
-  /**
-   * Enter half of an axis wipe: content registers in from the leading edge (right when [forward],
-   * left otherwise) over [travel], fading up behind the advancing edge.
-   *
-   * @param forward Whether navigation is moving toward a higher-ordinal destination.
-   */
-  fun axisWipeEnter(forward: Boolean): EnterTransition {
-    val sign = if (forward) 1 else -1
-    return slideInHorizontally(animationSpec = travelTween()) { width ->
-      (sign * width * WIPE_OFFSET_FRACTION).toInt()
-    } + fadeIn(animationSpec = travelTween())
-  }
-
-  /**
-   * Exit half of an axis wipe: the outgoing content slides a short distance opposite the incoming
-   * one and fades to nothing over [travel].
-   *
-   * @param forward Whether navigation is moving toward a higher-ordinal destination.
-   */
-  fun axisWipeExit(forward: Boolean): ExitTransition {
-    val sign = if (forward) 1 else -1
-    return slideOutHorizontally(animationSpec = travelTween()) { width ->
-      (-sign * width * WIPE_OFFSET_FRACTION).toInt()
-    } + fadeOut(animationSpec = travelTween())
-  }
+  /** A constant-velocity [tween] over [travel], for the screen-transition accent [sweep]. */
+  fun <T> sweepTween(): FiniteAnimationSpec<T> = tween(travel.ms(), easing = sweep)
 
   /** Scale a HUD element registers in from, just short of full size. */
   private const val HUD_INITIAL_SCALE: Float = 0.94f

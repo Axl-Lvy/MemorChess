@@ -1,6 +1,7 @@
 package proj.memorchess.axl.ui.pages.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
@@ -13,7 +14,6 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.pages.Settings
 import proj.memorchess.axl.ui.pages.Training
-import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
  * Ordinal of a destination along the navigation bar (Explore `0`, Training `1`, Settings `2`).
@@ -35,21 +35,17 @@ internal fun NavBackStackEntry.routeOrdinal(): Int {
 }
 
 /**
- * True when the transition moves toward a higher-ordinal destination (or stays on the same one).
- */
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.isForward(): Boolean =
-  targetState.routeOrdinal() >= initialState.routeOrdinal()
-
-/**
  * Renders the navigation graph.
  *
  * The [navController] is owned by the caller (normally [proj.memorchess.axl.ui.App]) so that its
  * lifecycle stays composition scoped. Descendants that need to issue navigation actions read the
  * [Navigator] from [LocalNavigator] instead of going through this parameter.
  *
- * Screen transitions use the Kinetic directional axis wipe ([KineticMotion.axisWipeEnter] /
- * [KineticMotion.axisWipeExit]); the direction follows the tab ordinal so moving Explore → Settings
- * wipes one way and the reverse wipes the other.
+ * Screen swaps are **instant** on purpose: Training and Explore each host a full 64-tile board, and
+ * letting `NavHost` cross-animate two of them keeps both composed at once — the source of visible
+ * jank. The transition motion is supplied entirely by the cheap, draw-phase
+ * [proj.memorchess.axl.ui.components.navigation.KineticWipeOverlay] accent sweep painted over the
+ * swap, so only one screen is ever composed.
  */
 @Composable
 fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
@@ -57,10 +53,10 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
     navController = navController,
     startDestination = Route.TrainingRoute,
     modifier = modifier,
-    enterTransition = { KineticMotion.axisWipeEnter(isForward()) },
-    exitTransition = { KineticMotion.axisWipeExit(isForward()) },
-    popEnterTransition = { KineticMotion.axisWipeEnter(isForward()) },
-    popExitTransition = { KineticMotion.axisWipeExit(isForward()) },
+    enterTransition = { EnterTransition.None },
+    exitTransition = { ExitTransition.None },
+    popEnterTransition = { EnterTransition.None },
+    popExitTransition = { ExitTransition.None },
   ) {
     trainingRoute()
     settingsRoute()
