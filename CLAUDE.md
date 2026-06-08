@@ -61,3 +61,4 @@ Compose Multiplatform UI. Components in `ui/components/` (board, explore, traini
 - **Test-only code**: A method that is only used in tests is a bad pattern. Do not introduce `public`/`internal` methods solely for testing; instead, test through the public API.
 - **Formatting**: Always run `./gradlew ktfmtFormat` before compiling, building, or testing.
 - **KDoc**: Always add KDoc on all public declarations and every non-trivial `@Composable` function.
+- **No force pushes**: Never force push (`git push --force` / `--force-with-lease`) to any branch, and never run history-rewriting commands (`git rebase`, `git commit --amend`, `git reset --hard` on pushed commits) that would require a force push to upload. Add commits on top instead. If a force push seems genuinely necessary, stop and ask the user first.
