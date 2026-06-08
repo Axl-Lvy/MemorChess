@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.popup
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,33 +53,31 @@ class ConfirmationDialog(
 
   @Composable
   fun DrawDialog() {
-    if (show) {
-      AlertDialog(
-        modifier = Modifier.testTag("confirmDialog"),
-        onDismissRequest = {},
-        confirmButton = {
-          TextButton(
-            onClick = {
-              onConfirm()
-              onConfirm = {}
-              show = false
-            }
-          ) {
-            Text(stringResource(okText))
+    KineticDialog(
+      visible = show,
+      onDismissRequest = {},
+      modifier = Modifier.testTag("confirmDialog"),
+      buttons = {
+        TextButton(
+          onClick = {
+            onConfirm = {}
+            show = false
           }
-        },
-        dismissButton = {
-          TextButton(
-            onClick = {
-              onConfirm = {}
-              show = false
-            }
-          ) {
-            Text(stringResource(cancelText))
+        ) {
+          Text(stringResource(cancelText))
+        }
+        TextButton(
+          onClick = {
+            onConfirm()
+            onConfirm = {}
+            show = false
           }
-        },
-        title = { content() },
-      )
+        ) {
+          Text(stringResource(okText))
+        }
+      },
+    ) {
+      content()
     }
   }
 }
