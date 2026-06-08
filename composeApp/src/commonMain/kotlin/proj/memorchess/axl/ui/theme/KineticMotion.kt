@@ -10,6 +10,8 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import kotlin.time.Duration
@@ -95,4 +97,23 @@ object KineticMotion {
       (-sign * width * WIPE_OFFSET_FRACTION).toInt()
     } + fadeOut(animationSpec = travelTween())
   }
+
+  /** Scale a HUD element registers in from, just short of full size. */
+  private const val HUD_INITIAL_SCALE: Float = 0.94f
+
+  /**
+   * "Power-on" enter for HUD surfaces (dialogs, the promotion selector): fades up while registering
+   * in from [HUD_INITIAL_SCALE] over [register] with the signature [attack] easing — a fast, hard
+   * settle with no overshoot.
+   */
+  fun hudEnter(): EnterTransition =
+    fadeIn(animationSpec = registerTween()) +
+      scaleIn(initialScale = HUD_INITIAL_SCALE, animationSpec = registerTween())
+
+  /**
+   * "Power-off" exit mirroring [hudEnter]: fades out while collapsing back to [HUD_INITIAL_SCALE].
+   */
+  fun hudExit(): ExitTransition =
+    fadeOut(animationSpec = registerTween()) +
+      scaleOut(targetScale = HUD_INITIAL_SCALE, animationSpec = registerTween())
 }

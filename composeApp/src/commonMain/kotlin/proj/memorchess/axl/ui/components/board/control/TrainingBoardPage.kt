@@ -247,6 +247,8 @@ private class TrainingBoard : KoinComponent {
               modifier = mod,
               compact = portrait,
               cornerTagText = cornerTag,
+              attempt = totalAttempts,
+              success = state.isCorrect,
             )
           },
           counters = { mod ->

@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.board
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
@@ -12,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +24,7 @@ import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.core.engine.BoardUtils
+import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
  * Displays the chess board grid with interactive tiles and animated pieces.
@@ -127,7 +128,7 @@ private fun DrawPieceGrid(
         val tileName = BoardUtils.tileName(location.row, location.col)
         Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at $tileName"))
       } else if (animationDuration != Duration.ZERO && state.piecesToMove.contains(location)) {
-        AnimatedPiece(state, location, tilePositions)
+        AnimatedPiece(state, location, tilePositions, animationDuration)
       }
     }
   }
@@ -169,14 +170,15 @@ private fun DrawGrid(
  * @param state The current board grid state containing piece and move information.
  * @param location The board location of the piece to animate.
  * @param tilePositions Map of board locations to their pixel offsets on the board.
+ * @param animationDuration Duration of the slide, sourced once from the caller.
  */
 @Composable
 private fun AnimatedPiece(
   state: BoardGridState,
   location: BoardLocation,
   tilePositions: Map<BoardLocation, DpOffset>,
+  animationDuration: Duration,
 ) {
-  val animationDuration = remember { MOVE_ANIMATION_DURATION_SETTING.getValue() }
   val destinationLocation = state.piecesToMove[location]
   val startPos = tilePositions[location]
   checkNotNull(startPos) { "Tile at $location not positioned yet" }
@@ -197,7 +199,7 @@ private fun AnimatedPiece(
         tween(
           durationMillis = animationDuration.inWholeMilliseconds.toInt(),
           delayMillis = 0,
-          easing = LinearEasing,
+          easing = KineticMotion.pieceGlide,
         ),
     )
   val y by
@@ -213,13 +215,21 @@ private fun AnimatedPiece(
         tween(
           durationMillis = animationDuration.inWholeMilliseconds.toInt(),
           delayMillis = 0,
-          easing = LinearEasing,
+          easing = KineticMotion.pieceGlide,
         ),
     )
   val pieceToMove = state.tileToPiece[destinationLocation]
   checkNotNull(pieceToMove) { "No piece at $destinationLocation" }
   val offsetMultiplier = if (state.inverted) -1 else 1
-  Piece(pieceToMove, Modifier.offset(x * offsetMultiplier, y * offsetMultiplier).fillMaxSize())
+  // Read the animated offsets inside the placement lambda so the slide runs in the layout phase
+  // (no per-frame recomposition of the piece).
+  Piece(
+    pieceToMove,
+    Modifier.offset {
+        IntOffset((x * offsetMultiplier).roundToPx(), (y * offsetMultiplier).roundToPx())
+      }
+      .fillMaxSize(),
+  )
   LaunchedEffect(Unit) {
     moved = true // NOSONAR: Compose state triggers recomposition
     delay(animationDuration)

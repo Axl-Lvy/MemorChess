@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.min
 import proj.memorchess.axl.core.interactions.InteractionsManager
 import proj.memorchess.axl.ui.components.board.Board
 import proj.memorchess.axl.ui.components.board.KineticBoardShell
+import proj.memorchess.axl.ui.components.board.registeredFlash
 
 /**
  * Wraps the chess board inside a [KineticBoardShell] for the Training page.
@@ -27,6 +28,8 @@ import proj.memorchess.axl.ui.components.board.KineticBoardShell
  * @param compact When `true`, uses the compact [KineticBoardShell] variant (tighter padding /
  *   shadow). Callers pass `true` in portrait, `false` in landscape.
  * @param cornerTagText Optional text rendered as the shell corner tag (e.g. `"TRAINING"`).
+ * @param attempt Monotonic counter of graded moves; a change pulses the [registeredFlash] border.
+ * @param success Whether the move that produced the current [attempt] was correct.
  */
 @Composable
 fun BoardContainer(
@@ -35,11 +38,16 @@ fun BoardContainer(
   modifier: Modifier = Modifier,
   compact: Boolean = false,
   cornerTagText: String? = null,
+  attempt: Int = 0,
+  success: Boolean = true,
 ) {
   Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
     BoxWithConstraints {
       val side = min(maxWidth, maxHeight)
-      Box(modifier = Modifier.size(side), contentAlignment = Alignment.Center) {
+      Box(
+        modifier = Modifier.size(side).registeredFlash(attempt = attempt, success = success),
+        contentAlignment = Alignment.Center,
+      ) {
         KineticBoardShell(
           modifier = Modifier.fillMaxHeight().aspectRatio(1f),
           compact = compact,
