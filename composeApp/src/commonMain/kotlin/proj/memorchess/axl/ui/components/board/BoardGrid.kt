@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.board
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
@@ -10,8 +9,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +23,7 @@ import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.core.engine.BoardUtils
+import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
  * Displays the chess board grid with interactive tiles and animated pieces.
@@ -45,8 +45,22 @@ fun BoardGrid(
   val tilePositions = remember { mutableMapOf<BoardLocation, DpOffset>() }
 
   val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
-  Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-    DrawTileGrid(state, scope, tilePositions)
+  BoxWithConstraints(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    // Derive every tile's offset from a single measurement. The board is uniform, so each tile is
+    // maxWidth / 8; recording positions this way avoids the 64 per-tile BoxWithConstraints
+    // (subcompositions) that used to make navigating to a board screen hitch. Offsets are a
+    // coordinate space consumed only as deltas by AnimatedPiece, so they are independent of board
+    // inversion.
+    val tileSize = maxWidth / 8
+    remember(tileSize) {
+      for (row in 0..7) {
+        for (col in 0..7) {
+          tilePositions[BoardLocation(row, col)] = DpOffset(tileSize * col, -tileSize * row)
+        }
+      }
+      tileSize
+    }
+    DrawTileGrid(state, scope)
     DrawPieceGrid(state, animationDuration, tilePositions)
     BestMoveArrow(bestMoveArrow, state.inverted, Modifier.fillMaxSize())
   }
@@ -56,21 +70,14 @@ fun BoardGrid(
  * Composable function that draws the grid of tiles on the chessboard.
  *
  * Iterates over all board locations, rendering each tile and handling click events. Highlights the
- * selected tile and updates tile positions for piece animation.
+ * selected tile. Tile pixel positions for piece animation are derived once by [BoardGrid] from a
+ * single measurement rather than per tile here.
  *
  * @param state The board state containing tile information and selection.
  * @param scope Coroutine scope for handling tile click events asynchronously.
- * @param tilePositions (out) Mutable map to store the positions of each tile for animation
- *   purposes.
  */
 @Composable
-private fun DrawTileGrid(
-  state: BoardGridState,
-  scope: CoroutineScope,
-  tilePositions: MutableMap<BoardLocation, DpOffset>,
-) {
-  var tileWidth = remember<Dp?> { null }
-  var tileHeight = remember<Dp?> { null }
+private fun DrawTileGrid(state: BoardGridState, scope: CoroutineScope) {
   DrawGrid(
     boxModifier = {
       val location = state.getBoardLocationAt(it)
@@ -86,15 +93,7 @@ private fun DrawTileGrid(
         )
     }
   ) {
-    val location = state.getBoardLocationAt(it)
-    BoxWithConstraints {
-      if (tileWidth == null || tileHeight == null) {
-        tileWidth = maxWidth
-        tileHeight = maxHeight
-      }
-      tilePositions[location] = DpOffset(tileWidth * location.col, -tileHeight * location.row)
-    }
-    Tile(location)
+    Tile(state.getBoardLocationAt(it))
   }
 }
 
@@ -127,7 +126,7 @@ private fun DrawPieceGrid(
         val tileName = BoardUtils.tileName(location.row, location.col)
         Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at $tileName"))
       } else if (animationDuration != Duration.ZERO && state.piecesToMove.contains(location)) {
-        AnimatedPiece(state, location, tilePositions)
+        AnimatedPiece(state, location, tilePositions, animationDuration)
       }
     }
   }
@@ -169,14 +168,15 @@ private fun DrawGrid(
  * @param state The current board grid state containing piece and move information.
  * @param location The board location of the piece to animate.
  * @param tilePositions Map of board locations to their pixel offsets on the board.
+ * @param animationDuration Duration of the slide, sourced once from the caller.
  */
 @Composable
 private fun AnimatedPiece(
   state: BoardGridState,
   location: BoardLocation,
   tilePositions: Map<BoardLocation, DpOffset>,
+  animationDuration: Duration,
 ) {
-  val animationDuration = remember { MOVE_ANIMATION_DURATION_SETTING.getValue() }
   val destinationLocation = state.piecesToMove[location]
   val startPos = tilePositions[location]
   checkNotNull(startPos) { "Tile at $location not positioned yet" }
@@ -197,7 +197,7 @@ private fun AnimatedPiece(
         tween(
           durationMillis = animationDuration.inWholeMilliseconds.toInt(),
           delayMillis = 0,
-          easing = LinearEasing,
+          easing = KineticMotion.pieceGlide,
         ),
     )
   val y by
@@ -213,13 +213,21 @@ private fun AnimatedPiece(
         tween(
           durationMillis = animationDuration.inWholeMilliseconds.toInt(),
           delayMillis = 0,
-          easing = LinearEasing,
+          easing = KineticMotion.pieceGlide,
         ),
     )
   val pieceToMove = state.tileToPiece[destinationLocation]
   checkNotNull(pieceToMove) { "No piece at $destinationLocation" }
   val offsetMultiplier = if (state.inverted) -1 else 1
-  Piece(pieceToMove, Modifier.offset(x * offsetMultiplier, y * offsetMultiplier).fillMaxSize())
+  // Read the animated offsets inside the placement lambda so the slide runs in the layout phase
+  // (no per-frame recomposition of the piece).
+  Piece(
+    pieceToMove,
+    Modifier.offset {
+        IntOffset((x * offsetMultiplier).roundToPx(), (y * offsetMultiplier).roundToPx())
+      }
+      .fillMaxSize(),
+  )
   LaunchedEffect(Unit) {
     moved = true // NOSONAR: Compose state triggers recomposition
     delay(animationDuration)

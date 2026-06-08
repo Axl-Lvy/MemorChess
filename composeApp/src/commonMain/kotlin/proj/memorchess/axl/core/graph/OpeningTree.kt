@@ -18,7 +18,7 @@ class OpeningTree {
   private var positions: Map<PositionKey, Node> = emptyMap()
 
   /** Returns the [Node] for [positionKey], or `null` when the position is not in the graph. */
-  fun get(positionKey: PositionKey): Node? = positions[positionKey]
+  operator fun get(positionKey: PositionKey): Node? = positions[positionKey]
 
   /**
    * Returns the depth of [positionKey], or [Int.MAX_VALUE] when the position is not in the graph.

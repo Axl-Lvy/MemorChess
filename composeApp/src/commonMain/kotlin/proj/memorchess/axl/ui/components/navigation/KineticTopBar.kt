@@ -133,10 +133,14 @@ fun KineticTopBar(
       horizontalArrangement = Arrangement.spacedBy(0.dp),
     ) {
       navItems.forEach { item ->
+        // The back-stack route is the lower-case serial name; nav-item routes use the capitalised
+        // label, so match case-insensitively.
+        val active = item.route.equals(activeRoute, ignoreCase = true)
         TopNavLink(
           item = item,
-          active = item.route == activeRoute,
-          onClick = { onNavigate(item.route) },
+          active = active,
+          // No-op when already on this route — don't re-navigate to the current screen.
+          onClick = { if (!active) onNavigate(item.route) },
         )
       }
     }

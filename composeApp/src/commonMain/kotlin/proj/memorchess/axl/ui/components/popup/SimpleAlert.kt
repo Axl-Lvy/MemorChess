@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.popup
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,14 +27,14 @@ class SimpleAlert {
 
   @Composable
   fun DrawDialog() {
-    if (show) {
-      AlertDialog(
-        onDismissRequest = {},
-        confirmButton = {
-          TextButton(onClick = { show = false }) { Text(stringResource(Res.string.dialog_ok)) }
-        },
-        title = { Text(text) },
-      )
+    KineticDialog(
+      visible = show,
+      onDismissRequest = { show = false },
+      buttons = {
+        TextButton(onClick = { show = false }) { Text(stringResource(Res.string.dialog_ok)) }
+      },
+    ) {
+      Text(text)
     }
   }
 }

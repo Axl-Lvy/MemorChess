@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.components.board
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import proj.memorchess.axl.core.interactions.InteractionsManager
+import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
  * Chess board with optional best-move arrow overlay.
@@ -28,7 +30,12 @@ fun Board(
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
     BoardGrid(state = state, bestMoveArrow = bestMoveArrow, modifier = Modifier.fillMaxSize())
 
-    if (interactionsManager.needPromotion.value) {
+    AnimatedVisibility(
+      visible = interactionsManager.needPromotion.value,
+      enter = KineticMotion.hudEnter(),
+      exit = KineticMotion.hudExit(),
+      modifier = Modifier.fillMaxSize(),
+    ) {
       Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         PromotionSelector(state)
       }

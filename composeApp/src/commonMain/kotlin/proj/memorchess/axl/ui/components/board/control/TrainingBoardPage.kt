@@ -135,7 +135,7 @@ private class TrainingBoard : KoinComponent {
       } else {
         trainingScheduler.nextAfter(previousEdge.to, day) ?: trainingScheduler.nextDue(day)
       }
-    chosenNode = entry?.let { treeStore.current().get(it.positionKey) }
+    chosenNode = entry?.let { treeStore.current()[it.positionKey] }
   }
 
   @Composable
@@ -247,6 +247,8 @@ private class TrainingBoard : KoinComponent {
               modifier = mod,
               compact = portrait,
               cornerTagText = cornerTag,
+              attempt = totalAttempts,
+              success = state.isCorrect,
             )
           },
           counters = { mod ->

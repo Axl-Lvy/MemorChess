@@ -52,11 +52,12 @@ private val SIDE_WIDTH = 72.dp
 private val SIDE_CELL_HEIGHT = 72.dp
 
 /**
- * Returns `true` when [currentRoute] resolves to the same destination as [item]. Mirrors the
- * convention used by the legacy nav bars (`currentRoute == item.destination.getLabel()`).
+ * Returns `true` when [currentRoute] resolves to the same destination as [item]. The route fed in
+ * from the back stack is the destination's serial name (lower-case, e.g. `"training"`) while
+ * `getLabel()` is capitalised (`"Training"`), so the match is case-insensitive.
  */
 private fun isActive(item: NavigationBarItemContent, currentRoute: String): Boolean =
-  currentRoute == item.destination.getLabel()
+  currentRoute.equals(item.destination.getLabel(), ignoreCase = true)
 
 /**
  * Renders [item]'s icon constrained to [ICON_SIZE] and tinted with [tint]. The enum's icon lambda
@@ -123,7 +124,9 @@ fun KineticBottomNav(
           Modifier.weight(1f)
             .fillMaxHeight()
             .then(itemModifier(item))
-            .clickable(enabled = true, onClick = { onSelect(item) })
+            // Tapping the cell for the screen you are already on is a no-op (avoids a pointless
+            // re-navigation + transition); the node stays clickable so its test tag is tappable.
+            .clickable(enabled = true, onClick = { if (!active) onSelect(item) })
             .drawBehind {
               if (active) {
                 // Active indicator: 2.dp accent bar across 28%→72% of the cell's top edge,
@@ -203,7 +206,9 @@ fun KineticSideNav(
           Modifier.fillMaxWidth()
             .height(SIDE_CELL_HEIGHT)
             .then(itemModifier(item))
-            .clickable(enabled = true, onClick = { onSelect(item) })
+            // Tapping the cell for the screen you are already on is a no-op (avoids a pointless
+            // re-navigation + transition); the node stays clickable so its test tag is tappable.
+            .clickable(enabled = true, onClick = { if (!active) onSelect(item) })
             .drawBehind {
               if (active) {
                 // Active indicator: 2.dp accent vertical bar across 28%→72% of the cell's
