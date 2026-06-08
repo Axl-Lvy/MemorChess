@@ -7,6 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.dialog_ok
+import org.jetbrains.compose.resources.stringResource
 
 /** A simple alert dialog that can be shown with a message. */
 class SimpleAlert {
@@ -28,7 +31,9 @@ class SimpleAlert {
     if (show) {
       AlertDialog(
         onDismissRequest = {},
-        confirmButton = { TextButton(onClick = { show = false }) { Text("OK") } },
+        confirmButton = {
+          TextButton(onClick = { show = false }) { Text(stringResource(Res.string.dialog_ok)) }
+        },
         title = { Text(text) },
       )
     }

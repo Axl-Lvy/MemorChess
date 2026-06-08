@@ -92,6 +92,56 @@ class TestLichessSignInController {
   }
 
   @Test
+  fun everyLaunchErrorSurfacesFailed() = runTest {
+    // Exercises every OAuthLaunchError -> StringResource mapping arm of toMessage().
+    for (error in OAuthLaunchError.entries) {
+      val tokenStore = OAuthTokenStore(TestSettings())
+      val controller =
+        LichessSignInController(
+          launch = { _, _, _ -> OAuthLaunchResult.Error(error) },
+          oauthClient = LichessOAuthClient(httpClient(successEngine())),
+          tokenStore = tokenStore,
+          redirectUri = "memorchess://oauth",
+        )
+
+      val result = controller.signIn()
+
+      result.shouldBeInstanceOf<SignInResult.Failed>()
+      tokenStore.getToken() shouldBe null
+    }
+  }
+
+  @Test
+  fun tokenRejectedAfterIssuanceClearsStoreAndFails() = runTest {
+    val tokenStore = OAuthTokenStore(TestSettings())
+    // Token exchange succeeds, but the immediate /api/account call is rejected with 401.
+    val engine = MockEngine { request ->
+      when (request.url.encodedPath) {
+        "/api/token" ->
+          respond(
+            content = ByteReadChannel(tokenJson),
+            status = HttpStatusCode.OK,
+            headers = headersOf("Content-Type", "application/json"),
+          )
+        "/api/account" -> respond(content = "", status = HttpStatusCode.Unauthorized)
+        else -> error("Unexpected ${request.url}")
+      }
+    }
+    val controller =
+      LichessSignInController(
+        launch = { _, _, _ -> OAuthLaunchResult.Ok("code-abc") },
+        oauthClient = LichessOAuthClient(httpClient(engine)),
+        tokenStore = tokenStore,
+        redirectUri = "memorchess://oauth",
+      )
+
+    val result = controller.signIn()
+
+    result.shouldBeInstanceOf<SignInResult.Failed>()
+    tokenStore.getToken() shouldBe null
+  }
+
+  @Test
   fun signOutClearsStore() {
     val tokenStore = OAuthTokenStore(TestSettings())
     tokenStore.save("tok-xyz", username = "alice")

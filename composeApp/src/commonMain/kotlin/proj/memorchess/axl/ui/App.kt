@@ -12,6 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import androidx.window.core.layout.WindowSizeClass
 import kotlin.time.Duration
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.brand_version_label
+import memorchess.composeapp.generated.resources.nav_explore
+import memorchess.composeapp.generated.resources.nav_settings
+import memorchess.composeapp.generated.resources.nav_training
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.KoinApplication
 import org.koin.dsl.koinConfiguration
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
@@ -28,8 +34,6 @@ import proj.memorchess.axl.ui.pages.navigation.Navigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.pages.navigation.Router
 import proj.memorchess.axl.ui.theme.AppTheme
-
-private const val VERSION_LABEL = "0.0.1 · MULTIPLATFORM"
 
 /**
  * Top level entry point that starts Koin with the application's process scoped modules and renders
@@ -68,13 +72,24 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
             windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
           }
         }
+      val exploreLabel = stringResource(Res.string.nav_explore)
+      val trainingLabel = stringResource(Res.string.nav_training)
+      val settingsLabel = stringResource(Res.string.nav_settings)
+      val labelByRouteKey =
+        mapOf(
+          Route.TrainingRoute.getLabel() to trainingLabel,
+          Route.ExploreRoute.DEFAULT.getLabel() to exploreLabel,
+          Route.SettingsRoute.getLabel() to settingsLabel,
+        )
       val sortedNavItems = remember { NavigationBarItemContent.entries.sortedBy { it.index } }
       val navItems =
-        remember(sortedNavItems) {
+        remember(sortedNavItems, labelByRouteKey) {
           sortedNavItems.map { entry ->
             KineticTopBarNavItem(
               route = entry.destination.getLabel(),
-              label = entry.destination.getLabel().uppercase(),
+              label =
+                (labelByRouteKey[entry.destination.getLabel()] ?: entry.destination.getLabel())
+                  .uppercase(),
               number = (entry.index + 1).toString().padStart(2, '0'),
             )
           }
@@ -89,7 +104,7 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
                 .firstOrNull { it.destination.getLabel() == route }
                 ?.let { entry -> navigator.navigateTo(entry.destination) }
             },
-            versionLabel = VERSION_LABEL,
+            versionLabel = stringResource(Res.string.brand_version_label),
             compact = !isWide,
           )
         },

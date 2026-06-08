@@ -34,6 +34,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.brand_wordmark_first
+import memorchess.composeapp.generated.resources.brand_wordmark_second
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.components.brand.BrandMark
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -157,12 +161,14 @@ private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp, versionLabel: Stri
     BrandMark(size = markSize)
     Spacer(modifier = Modifier.width(12.dp))
     Column {
+      val first = stringResource(Res.string.brand_wordmark_first)
+      val second = stringResource(Res.string.brand_wordmark_second)
       val wordmark: AnnotatedString = buildAnnotatedString {
-        withStyle(SpanStyle(color = palette.ink)) { append("MEMOR") }
+        withStyle(SpanStyle(color = palette.ink)) { append(first) }
         withStyle(SpanStyle(color = palette.accent, fontWeight = FontWeight.ExtraBold)) {
           append("/")
         }
-        withStyle(SpanStyle(color = palette.ink)) { append("CHESS") }
+        withStyle(SpanStyle(color = palette.ink)) { append(second) }
       }
       Text(text = wordmark, style = typography.brand)
       if (versionLabel.isNotEmpty()) {

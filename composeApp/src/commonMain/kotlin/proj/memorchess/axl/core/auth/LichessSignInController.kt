@@ -3,6 +3,14 @@ package proj.memorchess.axl.core.auth
 import co.touchlab.kermit.Logger
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.auth_browser_unavailable
+import memorchess.composeapp.generated.resources.auth_missing_code
+import memorchess.composeapp.generated.resources.auth_oauth_failed
+import memorchess.composeapp.generated.resources.auth_sign_in_failed
+import memorchess.composeapp.generated.resources.auth_state_mismatch
+import memorchess.composeapp.generated.resources.auth_token_rejected
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Drives the end to end OAuth sign in:
@@ -71,7 +79,8 @@ class LichessSignInController(
     val token =
       when (exchange) {
         is TokenExchangeResult.Ok -> exchange.accessToken
-        is TokenExchangeResult.Error -> return SignInResult.Failed(exchange.message)
+        is TokenExchangeResult.Error ->
+          return SignInResult.Failed(Res.string.auth_sign_in_failed, exchange.message)
       }
     tokenStore.save(token, username = null)
     val account = oauthClient.fetchAccount(token)
@@ -79,7 +88,7 @@ class LichessSignInController(
       is AccountResult.Ok -> tokenStore.setUsername(account.username)
       AccountResult.Unauthorized -> {
         tokenStore.clear()
-        return SignInResult.Failed("Lichess rejected the token immediately after issuing it")
+        return SignInResult.Failed(Res.string.auth_token_rejected)
       }
       is AccountResult.Error -> {
         LOGGER.w { "Could not fetch account after sign in: ${account.message}" }
@@ -97,12 +106,12 @@ class LichessSignInController(
   private fun generateState(): String =
     Base64.UrlSafe.encode(randomBytes(STATE_BYTE_LENGTH)).trimEnd('=')
 
-  private fun OAuthLaunchError.toMessage(): String =
+  private fun OAuthLaunchError.toMessage(): StringResource =
     when (this) {
-      OAuthLaunchError.MISSING_CODE -> "Lichess did not return an authorization code"
-      OAuthLaunchError.STATE_MISMATCH -> "OAuth state mismatch (possible CSRF)"
-      OAuthLaunchError.BROWSER_UNAVAILABLE -> "Could not open the browser"
-      OAuthLaunchError.PLATFORM_ERROR -> "OAuth flow failed"
+      OAuthLaunchError.MISSING_CODE -> Res.string.auth_missing_code
+      OAuthLaunchError.STATE_MISMATCH -> Res.string.auth_state_mismatch
+      OAuthLaunchError.BROWSER_UNAVAILABLE -> Res.string.auth_browser_unavailable
+      OAuthLaunchError.PLATFORM_ERROR -> Res.string.auth_oauth_failed
     }
 
   private companion object {
@@ -118,8 +127,11 @@ sealed class SignInResult {
   /** User dismissed the browser before authorizing. */
   data object Cancelled : SignInResult()
 
-  /** Sign in failed; [message] is suitable for display. */
-  data class Failed(val message: String) : SignInResult()
+  /**
+   * Sign in failed; [message] is a [StringResource] suitable for display. [arg] is an optional
+   * format argument to be passed to [stringResource] when resolving the message.
+   */
+  data class Failed(val message: StringResource, val arg: String? = null) : SignInResult()
 }
 
 private val LOGGER = Logger.withTag("LichessSignInController")

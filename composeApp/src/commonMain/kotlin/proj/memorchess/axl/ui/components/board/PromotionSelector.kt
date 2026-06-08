@@ -17,6 +17,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.piece_bishop
+import memorchess.composeapp.generated.resources.piece_knight
+import memorchess.composeapp.generated.resources.piece_queen
+import memorchess.composeapp.generated.resources.piece_rook
+import memorchess.composeapp.generated.resources.promotion_promote_to
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 
@@ -39,7 +46,17 @@ fun PromotionSelector(state: BoardGridState) {
         .padding(16.dp)
   ) {
     possibilities.forEachIndexed { index, (kind, piece) ->
-      val label = "Promote to ${kind.name.lowercase()}"
+      val pieceName =
+        stringResource(
+          when (kind) {
+            PieceKind.QUEEN -> Res.string.piece_queen
+            PieceKind.ROOK -> Res.string.piece_rook
+            PieceKind.BISHOP -> Res.string.piece_bishop
+            PieceKind.KNIGHT -> Res.string.piece_knight
+            else -> Res.string.piece_queen
+          }
+        )
+      val label = stringResource(Res.string.promotion_promote_to, pieceName)
 
       Box(
         modifier =

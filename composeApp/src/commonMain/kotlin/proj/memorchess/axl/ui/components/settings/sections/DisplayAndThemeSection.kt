@@ -13,6 +13,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.settings_move_animation
+import memorchess.composeapp.generated.resources.settings_move_animation_max
+import memorchess.composeapp.generated.resources.settings_slider_zero
+import memorchess.composeapp.generated.resources.settings_unit_ms
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.APP_THEME_SETTING
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
@@ -37,6 +43,10 @@ fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {
         MOVE_ANIMATION_DURATION_SETTING.getValue().inWholeMilliseconds.toFloat() / 1_000f
       )
     }
+  val moveAnimationLabel = stringResource(Res.string.settings_move_animation)
+  val msUnit = stringResource(Res.string.settings_unit_ms)
+  val zeroLabel = stringResource(Res.string.settings_slider_zero)
+  val maxLabel = stringResource(Res.string.settings_move_animation_max)
 
   Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
     KineticSegmentedControl(
@@ -60,11 +70,11 @@ fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {
       range = 0f..2f,
       labels =
         KineticSliderLabels(
-          label = "Move animation",
+          label = moveAnimationLabel,
           valueFormatter = { (it * 1000).roundToInt().toString() },
-          unit = "ms",
-          minLabel = "0",
-          maxLabel = "2000ms",
+          unit = msUnit,
+          minLabel = zeroLabel,
+          maxLabel = maxLabel,
         ),
       sliderTestTag = MOVE_ANIMATION_DURATION_SETTING.name,
     )

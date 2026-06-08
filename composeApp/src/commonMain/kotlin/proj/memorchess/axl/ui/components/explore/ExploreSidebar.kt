@@ -23,6 +23,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
+import memorchess.composeapp.generated.resources.explore_no_continuations
+import memorchess.composeapp.generated.resources.explore_notes_coming_soon
+import memorchess.composeapp.generated.resources.explore_tab_continuations
+import memorchess.composeapp.generated.resources.explore_tab_lichess
+import memorchess.composeapp.generated.resources.explore_tab_notes
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
@@ -30,10 +35,10 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /** Tabs shown in the Explore side info panel. */
-enum class ExploreInfoTab(val title: String) {
-  CONTINUATIONS("Continuations"),
-  LICHESS("Lichess"),
-  NOTES("Notes"),
+enum class ExploreInfoTab {
+  CONTINUATIONS,
+  LICHESS,
+  NOTES,
 }
 
 /**
@@ -66,6 +71,9 @@ fun ExploreSidebar(
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   var selected by remember { mutableStateOf(ExploreInfoTab.CONTINUATIONS) }
+  val continuationsLabel = stringResource(Res.string.explore_tab_continuations)
+  val lichessLabel = stringResource(Res.string.explore_tab_lichess)
+  val notesLabel = stringResource(Res.string.explore_tab_notes)
 
   Column(
     modifier =
@@ -77,7 +85,13 @@ fun ExploreSidebar(
       selected = selected,
       onSelect = { selected = it },
       modifier = Modifier.fillMaxWidth(),
-      label = { it.title },
+      label = {
+        when (it) {
+          ExploreInfoTab.CONTINUATIONS -> continuationsLabel
+          ExploreInfoTab.LICHESS -> lichessLabel
+          ExploreInfoTab.NOTES -> notesLabel
+        }
+      },
     )
 
     when (selected) {
@@ -94,7 +108,10 @@ fun ExploreSidebar(
           modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
           contentAlignment = Alignment.Center,
         ) {
-          Text(text = "Notes coming soon", style = typography.monoSm.copy(color = palette.ink3))
+          Text(
+            text = stringResource(Res.string.explore_notes_coming_soon),
+            style = typography.monoSm.copy(color = palette.ink3),
+          )
         }
     }
   }
@@ -113,7 +130,7 @@ private fun ContinuationsContent(nextMoves: List<String>, onPlay: (String) -> Un
       contentAlignment = Alignment.Center,
     ) {
       Text(
-        text = "No continuations stored at this position.",
+        text = stringResource(Res.string.explore_no_continuations),
         style = typography.monoSm.copy(color = palette.ink3),
       )
     }

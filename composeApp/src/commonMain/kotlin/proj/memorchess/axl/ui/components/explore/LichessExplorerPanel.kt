@@ -24,6 +24,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.explore_eco
+import memorchess.composeapp.generated.resources.explore_error
+import memorchess.composeapp.generated.resources.explore_idle
+import memorchess.composeapp.generated.resources.explore_lichess_title
+import memorchess.composeapp.generated.resources.explore_no_games
+import memorchess.composeapp.generated.resources.explore_rate_limited
+import memorchess.composeapp.generated.resources.explore_source_lichess
+import memorchess.composeapp.generated.resources.explore_source_masters
+import memorchess.composeapp.generated.resources.explore_unauthorized
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.data.explorer.ExplorerSource
 import proj.memorchess.axl.core.data.explorer.ExplorerState
 import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
@@ -99,17 +110,25 @@ private fun OpeningHeader(state: ExplorerState) {
       else -> null
     }
   if (opening == null) {
-    Text(text = "LICHESS EXPLORER", style = typography.monoSm.copy(color = palette.accentText))
+    Text(
+      text = stringResource(Res.string.explore_lichess_title),
+      style = typography.monoSm.copy(color = palette.accentText),
+    )
   } else {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
       Text(text = opening.name, style = typography.display.copy(color = palette.ink))
-      Text(text = "ECO ${opening.eco}", style = typography.monoSm.copy(color = palette.ink3))
+      Text(
+        text = stringResource(Res.string.explore_eco, opening.eco),
+        style = typography.monoSm.copy(color = palette.ink3),
+      )
     }
   }
 }
 
 @Composable
 private fun SourceToggle(selected: ExplorerSource, onSelect: (ExplorerSource) -> Unit) {
+  val mastersLabel = stringResource(Res.string.explore_source_masters)
+  val lichessLabel = stringResource(Res.string.explore_source_lichess)
   KineticSegmentedControl(
     options = listOf(ExplorerSource.MASTERS, ExplorerSource.LICHESS),
     selected = selected,
@@ -117,8 +136,8 @@ private fun SourceToggle(selected: ExplorerSource, onSelect: (ExplorerSource) ->
     modifier = Modifier.fillMaxWidth(),
     label = {
       when (it) {
-        ExplorerSource.MASTERS -> "Masters"
-        ExplorerSource.LICHESS -> "Lichess"
+        ExplorerSource.MASTERS -> mastersLabel
+        ExplorerSource.LICHESS -> lichessLabel
       }
     },
   )
@@ -131,7 +150,7 @@ private fun Body(state: ExplorerState, onClickMove: (String) -> Unit) {
   when (state) {
     is ExplorerState.Idle ->
       Text(
-        "Make a move to load popular replies.",
+        stringResource(Res.string.explore_idle),
         style = typography.bodySm.copy(color = palette.ink3),
       )
     is ExplorerState.Loading ->
@@ -141,17 +160,17 @@ private fun Body(state: ExplorerState, onClickMove: (String) -> Unit) {
     is ExplorerState.Loaded -> LoadedBody(response = state.response, onClickMove = onClickMove)
     is ExplorerState.RateLimited ->
       Text(
-        "Lichess rate limited the request. Try again in a moment.",
+        stringResource(Res.string.explore_rate_limited),
         style = typography.bodySm.copy(color = palette.red),
       )
     is ExplorerState.Unauthorized ->
       Text(
-        "Sign in to Lichess from Settings to use the opening explorer.",
+        stringResource(Res.string.explore_unauthorized),
         style = typography.bodySm.copy(color = palette.red),
       )
     is ExplorerState.Error ->
       Text(
-        "Could not load explorer: ${state.message}",
+        stringResource(Res.string.explore_error, state.message),
         style = typography.bodySm.copy(color = palette.red),
       )
   }
@@ -162,7 +181,10 @@ private fun LoadedBody(response: LichessExplorerResponse, onClickMove: (String) 
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   if (response.moves.isEmpty()) {
-    Text("No games found for this position.", style = typography.bodySm.copy(color = palette.ink3))
+    Text(
+      stringResource(Res.string.explore_no_games),
+      style = typography.bodySm.copy(color = palette.ink3),
+    )
     return
   }
   LazyColumn(

@@ -1,15 +1,23 @@
 package proj.memorchess.axl.ui.components.popup
 
 import android.widget.Toast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import proj.memorchess.axl.MAIN_ACTIVITY
 
 private var currentToast: Toast? = null
+private val toastScope = CoroutineScope(Dispatchers.Main)
 
 actual fun getPlatformSpecificToastRenderer() = ToastRenderer { message, _ ->
-  MAIN_ACTIVITY.runOnUiThread {
-    currentToast?.cancel()
-    val newToast = Toast.makeText(MAIN_ACTIVITY, message, Toast.LENGTH_LONG)
-    newToast.show()
-    currentToast = newToast
+  toastScope.launch {
+    val text = getString(message)
+    MAIN_ACTIVITY.runOnUiThread {
+      currentToast?.cancel()
+      val newToast = Toast.makeText(MAIN_ACTIVITY, text, Toast.LENGTH_LONG)
+      newToast.show()
+      currentToast = newToast
+    }
   }
 }

@@ -12,6 +12,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.training_black_to_move
+import memorchess.composeapp.generated.resources.training_hint
+import memorchess.composeapp.generated.resources.training_reveal
+import memorchess.composeapp.generated.resources.training_skip
+import memorchess.composeapp.generated.resources.training_white_to_move
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
@@ -48,7 +55,9 @@ fun TrainingCtrlBar(
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
-  val turnLabel = if (playerTurn == Player.BLACK) "BLACK TO MOVE" else "WHITE TO MOVE"
+  val turnLabel =
+    if (playerTurn == Player.BLACK) stringResource(Res.string.training_black_to_move)
+    else stringResource(Res.string.training_white_to_move)
 
   Row(
     modifier =
@@ -60,7 +69,7 @@ fun TrainingCtrlBar(
     horizontalArrangement = Arrangement.spacedBy(8.dp),
   ) {
     KineticButton(onClick = onSkip, style = KineticButtonStyle.Default) {
-      KineticButtonLabel("SKIP")
+      KineticButtonLabel(stringResource(Res.string.training_skip))
     }
     Box(
       modifier =
@@ -73,10 +82,10 @@ fun TrainingCtrlBar(
       Text(text = turnLabel, style = typography.monoSm.copy(fontSize = 10.sp, color = palette.ink2))
     }
     KineticButton(onClick = onHint, style = KineticButtonStyle.Default) {
-      KineticButtonLabel("HINT")
+      KineticButtonLabel(stringResource(Res.string.training_hint))
     }
     KineticButton(onClick = onReveal, style = KineticButtonStyle.Primary) {
-      KineticButtonLabel("REVEAL")
+      KineticButtonLabel(stringResource(Res.string.training_reveal))
     }
   }
 }

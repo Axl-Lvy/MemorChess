@@ -10,10 +10,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.icon_main
+import memorchess.composeapp.generated.resources.nav_button_content_description
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.pages.navigation.Route
-
-private const val BUTTON_SUFFIX = " button"
 
 enum class NavigationBarItemContent(
   val destination: Route,
@@ -26,7 +26,11 @@ enum class NavigationBarItemContent(
     icon = {
       Icon(
         Icons.Rounded.Search,
-        contentDescription = Route.ExploreRoute.DEFAULT.getLabel() + BUTTON_SUFFIX,
+        contentDescription =
+          stringResource(
+            Res.string.nav_button_content_description,
+            stringResource(Route.ExploreRoute.DEFAULT.displayNameRes()),
+          ),
       )
     },
   ),
@@ -36,7 +40,11 @@ enum class NavigationBarItemContent(
     icon = {
       Icon(
         painterResource(Res.drawable.icon_main),
-        contentDescription = Route.TrainingRoute.getLabel() + BUTTON_SUFFIX,
+        contentDescription =
+          stringResource(
+            Res.string.nav_button_content_description,
+            stringResource(Route.TrainingRoute.displayNameRes()),
+          ),
         modifier = Modifier.size(32.dp),
       )
     },
@@ -47,7 +55,11 @@ enum class NavigationBarItemContent(
     icon = {
       Icon(
         Icons.Rounded.Settings,
-        contentDescription = Route.SettingsRoute.getLabel() + BUTTON_SUFFIX,
+        contentDescription =
+          stringResource(
+            Res.string.nav_button_content_description,
+            stringResource(Route.SettingsRoute.displayNameRes()),
+          ),
       )
     },
   ),

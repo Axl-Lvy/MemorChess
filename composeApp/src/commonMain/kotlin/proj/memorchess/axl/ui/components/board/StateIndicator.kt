@@ -12,6 +12,15 @@ import compose.icons.feathericons.AlertCircle
 import compose.icons.feathericons.ArrowRightCircle
 import compose.icons.feathericons.CheckCircle
 import compose.icons.feathericons.HelpCircle
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.state_bad
+import memorchess.composeapp.generated.resources.state_first
+import memorchess.composeapp.generated.resources.state_partial
+import memorchess.composeapp.generated.resources.state_partial_unknown
+import memorchess.composeapp.generated.resources.state_saved
+import memorchess.composeapp.generated.resources.state_saved_unknown
+import memorchess.composeapp.generated.resources.state_unknown
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.ui.theme.goodTint
 
@@ -27,16 +36,32 @@ fun StateIndicator(modifier: Modifier = Modifier, state: NodeState) {
   val unknownColor = MaterialTheme.colorScheme.outline
   val (color, icon, label) =
     when (state) {
-      NodeState.FIRST -> Triple(goodTint, FeatherIcons.ArrowRightCircle, "Start")
-      NodeState.SAVED_GOOD -> Triple(goodTint, FeatherIcons.CheckCircle, "Saved")
-      NodeState.SAVED_BAD -> Triple(goodTint, FeatherIcons.CheckCircle, "Partially saved")
+      NodeState.FIRST ->
+        Triple(goodTint, FeatherIcons.ArrowRightCircle, stringResource(Res.string.state_first))
+      NodeState.SAVED_GOOD ->
+        Triple(goodTint, FeatherIcons.CheckCircle, stringResource(Res.string.state_saved))
+      NodeState.SAVED_BAD ->
+        Triple(goodTint, FeatherIcons.CheckCircle, stringResource(Res.string.state_partial))
       NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE ->
-        Triple(unknownColor, FeatherIcons.HelpCircle, "Saved (Unknown Move)")
+        Triple(
+          unknownColor,
+          FeatherIcons.HelpCircle,
+          stringResource(Res.string.state_saved_unknown),
+        )
       NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE ->
-        Triple(unknownColor, FeatherIcons.HelpCircle, "Partially saved (Unknown Move)")
-      NodeState.UNKNOWN -> Triple(unknownColor, FeatherIcons.HelpCircle, "Unknown")
+        Triple(
+          unknownColor,
+          FeatherIcons.HelpCircle,
+          stringResource(Res.string.state_partial_unknown),
+        )
+      NodeState.UNKNOWN ->
+        Triple(unknownColor, FeatherIcons.HelpCircle, stringResource(Res.string.state_unknown))
       NodeState.BAD_STATE ->
-        Triple(MaterialTheme.colorScheme.error, FeatherIcons.AlertCircle, "Bad State")
+        Triple(
+          MaterialTheme.colorScheme.error,
+          FeatherIcons.AlertCircle,
+          stringResource(Res.string.state_bad),
+        )
     }
   BoardTopping(modifier = modifier, backGroundColor = color.copy(alpha = 0.15f)) {
     Icon(icon, contentDescription = label, tint = color)

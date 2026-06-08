@@ -28,6 +28,15 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
+import memorchess.composeapp.generated.resources.description_toggle_eval_bar
+import memorchess.composeapp.generated.resources.tag_conflict
+import memorchess.composeapp.generated.resources.tag_not_saved
+import memorchess.composeapp.generated.resources.tag_partial
+import memorchess.composeapp.generated.resources.tag_partial_new
+import memorchess.composeapp.generated.resources.tag_saved
+import memorchess.composeapp.generated.resources.tag_saved_new
+import memorchess.composeapp.generated.resources.tag_start
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.BEST_MOVE_ARROW_ENABLED_SETTING
 import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
@@ -116,7 +125,7 @@ fun ExplorerContent(
   // so this reactively recomposes when the user navigates, saves, or deletes.
   val palette = LocalKineticPalette.current
   val nodeState = explorer.state
-  val cornerTagLabel = nodeStateLabel(nodeState)
+  val cornerTagLabel = stringResource(nodeStateLabel(nodeState))
   val cornerTagColor = nodeStateColor(nodeState, palette)
 
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }
@@ -255,15 +264,15 @@ fun ExplorerContent(
  * the wording of the legacy [proj.memorchess.axl.ui.components.board.StateIndicator] but compressed
  * to fit in the small mono tag: SAVED / PARTIAL / NEW / UNKNOWN MOVE / BAD.
  */
-private fun nodeStateLabel(state: NodeState): String =
+private fun nodeStateLabel(state: NodeState): StringResource =
   when (state) {
-    NodeState.FIRST -> "START"
-    NodeState.SAVED_GOOD -> "SAVED"
-    NodeState.SAVED_BAD -> "PARTIAL"
-    NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE -> "SAVED · NEW MOVE"
-    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> "PARTIAL · NEW MOVE"
-    NodeState.UNKNOWN -> "NOT SAVED"
-    NodeState.BAD_STATE -> "CONFLICT"
+    NodeState.FIRST -> Res.string.tag_start
+    NodeState.SAVED_GOOD -> Res.string.tag_saved
+    NodeState.SAVED_BAD -> Res.string.tag_partial
+    NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE -> Res.string.tag_saved_new
+    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> Res.string.tag_partial_new
+    NodeState.UNKNOWN -> Res.string.tag_not_saved
+    NodeState.BAD_STATE -> Res.string.tag_conflict
   }
 
 /**
@@ -338,7 +347,10 @@ private fun EvalBarToggleButton(
     onCheckedChange = onCheckedChange,
     modifier = modifier,
   ) {
-    Icon(imageVector = FeatherIcons.BarChart2, contentDescription = "Toggle evaluation bar")
+    Icon(
+      imageVector = FeatherIcons.BarChart2,
+      contentDescription = stringResource(Res.string.description_toggle_eval_bar),
+    )
   }
 }
 
