@@ -4,6 +4,7 @@ import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
+import kotlin.random.Random
 import kotlinx.serialization.json.Json
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -21,6 +22,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCache
 import proj.memorchess.axl.core.data.explorer.LichessExplorerClient
 import proj.memorchess.axl.core.data.explorer.getPlatformSpecificExplorerCache
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
@@ -40,10 +42,16 @@ fun initKoinModules(): Array<Module> {
     single<Settings> { getPlatformSpecificSettings() }
   }
 
+  // One process-wide generator seeded from the wall clock at app start. A shared advancing RNG (not
+  // a per-card hash) is what lets cards graded identically on the same day scatter across their
+  // fuzz band instead of bunching on one due day.
+  val schedulingRandom = Random(DateUtil.now().toEpochMilliseconds())
+
   val schedulingModule = module {
     single<SchedulingAlgorithm> {
       Fsrs6SchedulingAlgorithm(
         enableFuzz = { FUZZ_ENABLED_SETTING.getValue() },
+        nextFuzz = { schedulingRandom.nextDouble() },
         enableShortTerm = { SHORT_TERM_ENABLED_SETTING.getValue() },
       )
     }

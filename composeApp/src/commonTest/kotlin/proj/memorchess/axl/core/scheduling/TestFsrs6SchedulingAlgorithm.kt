@@ -6,6 +6,7 @@ import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
 import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -54,8 +55,11 @@ class TestFsrs6SchedulingAlgorithm {
   }
 
   @Test
-  fun firstReviewWithAgainCountsAsLapse() {
-    val state = algorithm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
+  fun firstReviewWithAgainCountsAsLapseInLongTermMode() {
+    // The long term path graduates the first review straight to REVIEW, so a fresh AGAIN there is a
+    // forgotten review and counts a lapse. The short term default instead opens learning and counts
+    // no lapse until a graduated card is forgotten — see newCardAgainStaysOnFirstStep.
+    val state = longTerm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
     state.lapses shouldBe 1
     state.reps shouldBe 1
   }
@@ -156,10 +160,12 @@ class TestFsrs6SchedulingAlgorithm {
     before.stability shouldBe atZero.stability
   }
 
-  private val fuzzy = Fsrs6SchedulingAlgorithm(enableFuzz = { true })
+  // Fuzz on with a constant midpoint pick, so the fuzzed interval is deterministic and exercises
+  // the fuzz path without depending on a particular RNG draw.
+  private val fuzzy = Fsrs6SchedulingAlgorithm(enableFuzz = { true }, nextFuzz = { 0.5 })
 
   private val longTermFuzzy =
-    Fsrs6SchedulingAlgorithm(enableFuzz = { true }, enableShortTerm = { false })
+    Fsrs6SchedulingAlgorithm(enableFuzz = { true }, nextFuzz = { 0.5 }, enableShortTerm = { false })
 
   /** EASY initial stability 8.2956 over FACTOR rounds to an 8 day interval with no fuzz applied. */
   @Test
@@ -168,12 +174,34 @@ class TestFsrs6SchedulingAlgorithm {
     (state.dueDate - now).inWholeDays shouldBe 8L
   }
 
-  /** Scheduling the same card twice yields the same fuzzed interval; the spread is reproducible. */
+  /**
+   * Two algorithms sharing the same RNG seed produce the same fuzzed interval: it is reproducible.
+   */
   @Test
-  fun fuzzIsDeterministicForTheSameCard() {
-    val a = fuzzy.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
-    val b = fuzzy.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
-    a.dueDate shouldBe b.dueDate
+  fun fuzzIsReproducibleUnderAFixedSeed() {
+    val a = Fsrs6SchedulingAlgorithm(enableFuzz = { true }, nextFuzz = Random(42)::nextDouble)
+    val b = Fsrs6SchedulingAlgorithm(enableFuzz = { true }, nextFuzz = Random(42)::nextDouble)
+    val stateA = a.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    val stateB = b.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    stateA.dueDate shouldBe stateB.dueDate
+  }
+
+  /**
+   * The whole point of fuzz: identical fresh cards graded the same way on the same day must not all
+   * land on one due day. Scheduling the same fresh EASY card repeatedly off a shared advancing RNG
+   * produces more than one distinct interval — the old per-card-state hash gave every fresh card
+   * the same value and so failed to de-bunch them.
+   */
+  @Test
+  fun fuzzSpreadsIdenticalFreshCardsAcrossDifferentDays() {
+    val rng = Random(1)
+    val algo = Fsrs6SchedulingAlgorithm(enableFuzz = { true }, nextFuzz = rng::nextDouble)
+    val intervals =
+      (1..20).map {
+        (algo.schedule(previous = null, grade = ReviewGrade.EASY, now = now).dueDate - now)
+          .inWholeDays
+      }
+    intervals.toSet().size shouldBeGreaterThan 1
   }
 
   /**
@@ -228,14 +256,17 @@ class TestFsrs6SchedulingAlgorithm {
     (state.dueDate - now) shouldBe 10.minutes
   }
 
-  /** A new card answered AGAIN sits on the first learning step (one minute) and counts a lapse. */
+  /**
+   * A new card answered AGAIN sits on the first learning step (one minute). Failing during initial
+   * learning is not a lapse — canonical FSRS counts a lapse only for a forgotten graduated card.
+   */
   @Test
   fun newCardAgainStaysOnFirstStep() {
     val state = algorithm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
     state.phase shouldBe CardPhase.LEARNING
     state.step shouldBe 0
     (state.dueDate - now) shouldBe 1.minutes
-    state.lapses shouldBe 1
+    state.lapses shouldBe 0
   }
 
   /** EASY graduates a new card immediately to a day grained review interval. */
@@ -264,6 +295,17 @@ class TestFsrs6SchedulingAlgorithm {
     lapsed.step shouldBe 0
     (lapsed.dueDate - graduated.dueDate) shouldBe 10.minutes
     lapsed.lapses shouldBe 1
+  }
+
+  /** Failing again while already relearning does not add a second lapse. */
+  @Test
+  fun failingInRelearningDoesNotDoubleCountLapses() {
+    val graduated = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
+    val lapsed = algorithm.schedule(graduated, ReviewGrade.AGAIN, graduated.dueDate)
+    val stillRelearning = algorithm.schedule(lapsed, ReviewGrade.AGAIN, lapsed.dueDate)
+    lapsed.lapses shouldBe 1
+    stillRelearning.phase shouldBe CardPhase.RELEARNING
+    stillRelearning.lapses shouldBe 1
   }
 
   /** Passing the single relearning step returns a lapsed card to a day grained review interval. */
