@@ -55,7 +55,12 @@ class ConfirmationDialog(
   fun DrawDialog() {
     KineticDialog(
       visible = show,
-      onDismissRequest = {},
+      // Tapping outside the dialog or pressing system back dismisses it as a cancel: drop the
+      // pending confirm action and hide, exactly like the Cancel button.
+      onDismissRequest = {
+        onConfirm = {}
+        show = false
+      },
       modifier = Modifier.testTag("confirmDialog"),
       buttons = {
         TextButton(

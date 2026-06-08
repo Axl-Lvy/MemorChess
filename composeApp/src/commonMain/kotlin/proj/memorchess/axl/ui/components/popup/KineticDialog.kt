@@ -24,6 +24,13 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.kineticShadow
 
 /**
+ * Space reserved on the panel's shadow side so the hard offset shadow ([kineticShadow] with `big =
+ * true`, a 12.dp offset plus a 1.dp border) renders fully inside the dialog window instead of being
+ * clipped by its tight content-wrapping bounds.
+ */
+private val SHADOW_ROOM = 14.dp
+
+/**
  * Kinetic "power-on" dialog: a hard-edged panel with a flat offset shadow and a bright accent strip
  * along its top edge, that registers in and out with [KineticMotion.hudEnter] / [hudExit] instead
  * of snapping. The platform scrim appears immediately under it.
@@ -63,19 +70,29 @@ fun KineticDialog(
         enter = KineticMotion.hudEnter(),
         exit = KineticMotion.hudExit(),
       ) {
-        Column(
-          modifier = modifier.fillMaxWidth().background(palette.panel).kineticShadow(big = true)
-        ) {
-          // Bright HUD strip flush to the top edge.
-          Box(Modifier.fillMaxWidth().height(2.dp).background(palette.accentGlow))
-          Column(modifier = Modifier.padding(20.dp)) {
-            content()
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-              content = buttons,
-            )
+        // Reserve room on the shadow side so the hard offset block renders in full. The Dialog
+        // window wraps its content tightly; without this padding the bottom/right shadow strip
+        // falls outside the window and is clipped — which both looked broken at rest and made the
+        // shadow appear to "snap in" only once the enter scale settled. With the padding inside the
+        // AnimatedVisibility subtree the shadow now scales and fades together with the panel.
+        Box(modifier = Modifier.padding(end = SHADOW_ROOM, bottom = SHADOW_ROOM)) {
+          Column(
+            // kineticShadow must precede background so the hard offset block is drawn *behind* the
+            // panel fill (the panel then paints over the overlap, leaving only the offset strip).
+            // With background first the shadow painted on top of the panel.
+            modifier = modifier.fillMaxWidth().kineticShadow(big = true).background(palette.panel)
+          ) {
+            // Bright HUD strip flush to the top edge.
+            Box(Modifier.fillMaxWidth().height(2.dp).background(palette.accentGlow))
+            Column(modifier = Modifier.padding(20.dp)) {
+              content()
+              Spacer(modifier = Modifier.height(16.dp))
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                content = buttons,
+              )
+            }
           }
         }
       }
