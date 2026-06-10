@@ -46,7 +46,15 @@
     {
       "matchManagers": ["gradle", "gradle-wrapper"],
       "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "gradle non-major"
+      "groupName": "gradle non-major",
+      "automerge": true,
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true,
+      "minimumReleaseAge": "3 days"
     },
     {
       "matchPackageNames": ["org.jetbrains.kotlinx:kotlinx-datetime"],
