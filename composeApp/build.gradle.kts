@@ -232,6 +232,7 @@ dependencies {
 
   // Test dependencies
   androidTestImplementation(libs.androidx.ui.test.junit4.android)
+  androidTestImplementation(libs.androidx.espresso.intents)
   debugImplementation(libs.androidx.ui.test.manifest)
 }
 
