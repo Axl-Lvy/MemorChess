@@ -40,6 +40,11 @@
     {
       "groupName": "ktor",
       "matchPackageNames": ["io.ktor*"]
+    },
+    {
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "gradle non-major"
     }
   ]
 }
