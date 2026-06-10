@@ -7,6 +7,14 @@
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
+  "hostRules": [
+    {
+      "matchHost": "maven.pkg.github.com",
+      "hostType": "maven",
+      "username": "Axl-Lvy",
+      "password": "{{ secrets.GH_PACKAGES_TOKEN }}"
+    }
+  ],
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
