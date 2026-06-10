@@ -7,6 +7,8 @@
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
+  "labels": ["renovate"],
+  "gitIgnoredAuthors": ["266536929+auto-update[bot]@users.noreply.github.com"],
   "hostRules": [
     {
       "matchHost": "maven.pkg.github.com",
