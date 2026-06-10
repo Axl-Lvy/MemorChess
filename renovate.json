@@ -45,6 +45,10 @@
       "matchManagers": ["gradle", "gradle-wrapper"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "gradle non-major"
+    },
+    {
+      "matchPackageNames": ["org.jetbrains.kotlinx:kotlinx-datetime"],
+      "allowedVersions": "!/compat/"
     }
   ]
 }
