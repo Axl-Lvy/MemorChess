@@ -25,3 +25,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_FILTER: "all"
+          EXCLUDED_LABELS: "renovate"
