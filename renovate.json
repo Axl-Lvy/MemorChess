@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Paris",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "ci",
+      "groupName": "github actions"
+    },
+    {
+      "groupName": "kotlin",
+      "matchPackageNames": [
+        "org.jetbrains.kotlin:*",
+        "org.jetbrains.kotlin.*",
+        "com.google.devtools.ksp*"
+      ]
+    },
+    {
+      "groupName": "compose",
+      "matchPackageNames": ["org.jetbrains.compose*", "org.jetbrains.androidx.*"]
+    },
+    {
+      "groupName": "androidx",
+      "matchPackageNames": ["androidx.*", "com.android.*"]
+    },
+    {
+      "groupName": "ktor",
+      "matchPackageNames": ["io.ktor*"]
+    }
+  ]
+}
