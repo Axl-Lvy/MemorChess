@@ -296,6 +296,29 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   onlyIf { executionData.files.any { it.exists() } }
 }
 
+// With AGP 9, the scanner's Kotlin Multiplatform and Android auto-detections each report
+// androidMain (and androidInstrumentedTest), so the same directory is indexed twice and the
+// analysis aborts. Listing the non-Android source sets explicitly disables the KMP detection,
+// while the Android detection still appends the android directories on top of these lists,
+// which is why no android source set may appear here.
+extensions.configure<org.sonarqube.gradle.SonarExtension> {
+  properties {
+    property(
+      "sonar.sources",
+      listOf(
+          "src/commonMain/kotlin",
+          "src/debugMain/kotlin",
+          "src/iosMain/kotlin",
+          "src/jvmMain/kotlin",
+          "src/nonJsMain/kotlin",
+          "src/wasmJsMain/kotlin",
+        )
+        .joinToString(","),
+    )
+    property("sonar.tests", listOf("src/commonTest/kotlin", "src/jvmTest/kotlin").joinToString(","))
+  }
+}
+
 kover {
   useJacoco("0.8.14")
 

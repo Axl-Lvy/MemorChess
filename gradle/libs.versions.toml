@@ -1,5 +1,7 @@
 [versions]
-agp = "8.13.2"
+# IntelliJ IDEA 2026.1 supports AGP only up to the 9.0.x line; do not bump further
+# until the bundled Android plugin catches up
+agp = "9.0.1"
 android-compileSdk = "36"
 android-minSdk = "26"
 android-targetSdk = "36"
