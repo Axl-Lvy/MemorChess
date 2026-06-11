@@ -1,0 +1,58 @@
+name: UI performance benchmark
+
+# Manual trigger only: benchmarks take long, need an emulator, and their numbers on shared
+# CI hardware are only useful for relative comparisons, so they stay out of the PR checks.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Consumed by settings.gradle.kts to authenticate against the
+# Stockfish-Multiplatform GitHub Packages repository.
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  macrobenchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update local.properties
+        run: .github/scripts/update_properties.sh
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+
+      # suppressErrors=EMULATOR is required because Macrobenchmark refuses emulators by
+      # default; treat the resulting numbers as relative indicators, not absolute values.
+      - name: Run macrobenchmarks on the Gradle Managed Device
+        run: |
+          ./gradlew :macrobenchmark:pixel6Api34BenchmarkAndroidTest \
+            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
+            -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: macrobenchmark-results
+          path: |
+            macrobenchmark/build/outputs/**/*.json
+            macrobenchmark/build/outputs/**/*.perfetto-trace
+          retention-days: 30

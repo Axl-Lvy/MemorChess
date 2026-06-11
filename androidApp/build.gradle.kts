@@ -33,6 +33,15 @@ android {
   buildTypes {
     getByName("release") { isMinifyEnabled = false }
     getByName("debug") { enableAndroidTestCoverage = true }
+    // Build measured by the :macrobenchmark module. Initialized from release so the numbers
+    // are representative, signed with the debug config so it installs on any device, and kept
+    // explicitly not debuggable because Macrobenchmark rejects debuggable targets.
+    create("benchmark") {
+      initWith(getByName("release"))
+      signingConfig = signingConfigs.getByName("debug")
+      matchingFallbacks += listOf("release")
+      isDebuggable = false
+    }
   }
 
   compileOptions {
@@ -133,8 +142,15 @@ extensions.configure<org.sonarqube.gradle.SonarExtension> {
 dependencies {
   implementation(project(":composeApp"))
   implementation(libs.compose.runtime)
+  implementation(libs.compose.foundation)
+  implementation(libs.compose.ui)
   implementation(libs.androidx.activity.compose)
   implementation(libs.filekit.dialogs.compose)
+
+  // Makes the Compose runtime emit per composable trace sections in the benchmark build so
+  // the :macrobenchmark TraceSectionMetric can measure board composition. Benchmark variant
+  // only: release and debug builds are unaffected.
+  "benchmarkImplementation"(libs.compose.runtime.tracing)
 
   androidTestImplementation(libs.kotlin.test.junit)
   androidTestImplementation(libs.androidx.room.runtime)
