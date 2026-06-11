@@ -141,6 +141,11 @@ dependencies {
   // only: release and debug builds are unaffected.
   "benchmarkImplementation"(libs.compose.runtime.tracing)
 
+  // Ships the Perfetto SDK native library inside the benchmark APK. Without it the
+  // benchmark library sideloads the (older) binary it bundles, which the app's
+  // tracing-perfetto runtime rejects with a checksum verification error.
+  "benchmarkImplementation"(libs.androidx.tracing.perfetto.binary)
+
   androidTestImplementation(libs.kotlin.test.junit)
   androidTestImplementation(libs.androidx.room.runtime)
   androidTestImplementation(libs.androidx.ui.test.junit4.android)
