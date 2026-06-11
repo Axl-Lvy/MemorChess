@@ -170,6 +170,9 @@ kotlin {
     wasmJsMain.dependencies {
       implementation(libs.indexeddb)
       implementation(libs.ktor.client.js)
+      // Satisfies the tslib@2 peer dependency declared by memfs (via webpack-dev-server),
+      // which yarn otherwise reports as unmet on every install.
+      implementation(devNpm("tslib", "2.8.1"))
     }
 
     commonTest.dependencies {
@@ -209,6 +212,12 @@ tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl
 // Disable the jacoco plugin agent on JVM tests — Kover attaches its own JaCoCo agent via
 // useJacoco(), and two JaCoCo agents on the same JVM crash at class definition time.
 tasks.named<Test>("jvmTest") { extensions.configure<JacocoTaskExtension> { isEnabled = false } }
+
+// Skiko loads its native library through java.lang.System::load, which JDK 24+ flags as
+// restricted and will block by default in a future release.
+tasks.withType<Test>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAMED") }
+
+tasks.withType<JavaExec>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAMED") }
 
 // Disable configuration cache for all tasks involving wasmJs
 tasks.withType<KotlinWebpack>().configureEach {

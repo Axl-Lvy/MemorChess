@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.data.explorer
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
 import proj.memorchess.axl.ui.components.explore.LichessExplorerPanelContent
 import proj.memorchess.axl.ui.setKineticContent

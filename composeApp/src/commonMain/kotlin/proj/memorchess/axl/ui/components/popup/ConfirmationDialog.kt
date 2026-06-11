@@ -64,19 +64,21 @@ class ConfirmationDialog(
       modifier = Modifier.testTag("confirmDialog"),
       buttons = {
         TextButton(
+          modifier = Modifier.testTag("confirmDialogCancelButton"),
           onClick = {
             onConfirm = {}
             show = false
-          }
+          },
         ) {
           Text(stringResource(cancelText))
         }
         TextButton(
+          modifier = Modifier.testTag("confirmDialogOkButton"),
           onClick = {
             onConfirm()
             onConfirm = {}
             show = false
-          }
+          },
         ) {
           Text(stringResource(okText))
         }

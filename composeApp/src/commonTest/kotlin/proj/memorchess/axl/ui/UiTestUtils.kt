@@ -20,6 +20,7 @@ import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import androidx.compose.ui.test.waitUntilDoesNotExist
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration
+import kotlin.time.TimeSource
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
@@ -248,6 +249,31 @@ private fun ComposeUiTest.slide(sliderTestTag: String, widthFactor: Float) {
   val width = node.fetchSemanticsNode().size.width
   LOGGER.e { "$width" }
   node.performTouchInput { click(Offset(width * widthFactor, 0f)) }
+}
+
+/**
+ * Like [ComposeUiTest.waitUntil] but accepts a suspending condition.
+ *
+ * [ComposeUiTest.waitUntil] takes a plain lambda, which forces conditions that need suspend APIs
+ * (such as the database) to spin up a nested `runTest`. That cannot work on wasmJs where nothing
+ * can block: the nested test body runs asynchronously and the condition reads a stale value. Tests
+ * running inside the suspending `runComposeUiTest` block call this instead and poll the suspend API
+ * directly, pumping composition between polls.
+ *
+ * @param timeOut The maximum time to wait for the condition to become true
+ * @param condition The suspending condition to poll
+ */
+suspend fun ComposeUiTest.waitUntilSuspending(
+  timeOut: Duration = TEST_TIMEOUT,
+  condition: suspend () -> Boolean,
+) {
+  val mark = TimeSource.Monotonic.markNow()
+  while (!condition()) {
+    if (mark.elapsedNow() > timeOut) {
+      throw AssertionError("Condition still not satisfied after $timeOut")
+    }
+    waitForIdle()
+  }
 }
 
 /**

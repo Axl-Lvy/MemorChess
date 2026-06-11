@@ -3,11 +3,10 @@ package proj.memorchess.axl.ui
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
@@ -22,7 +21,6 @@ import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
-import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Training
 import proj.memorchess.axl.ui.pages.navigation.Route
@@ -34,15 +32,13 @@ class TestTraining : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
 
-  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+  private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     disableShortTermScheduler()
     try {
-      runTest { resetDatabase() }
-      runComposeUiTest {
-        setContent { InitializeApp { Training() } }
-        block()
-      }
+      resetDatabase()
+      setContent { InitializeApp { Training() } }
+      block()
     } finally {
       koinTearDown()
     }
@@ -105,21 +101,14 @@ class TestTraining : TestWithKoin() {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e4")
     assertNodeWithTextExists(BRAVO_TEXT)
-    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
-      val positions = getAllPositions()
+    waitUntilSuspending {
+      val positions = database.getAllNodes(false)
       val now = DateUtil.now()
       positions.size == 1 &&
         positions[0].positionKey == PositionKey.START_POSITION &&
         positions[0].cardState.dueDate > now &&
         positions[0].cardState.lapses == 0
     }
-  }
-
-  private fun getAllPositions(): List<DataNode> {
-    var positions: List<DataNode>? = null
-    runTest { positions = database.getAllNodes(false) }
-    checkNotNull(positions)
-    return positions
   }
 
   @Test
@@ -129,8 +118,8 @@ class TestTraining : TestWithKoin() {
     // No manual click — Training auto-advances Anki-style on wrong moves. With only one card in
     // the deck the "no more cards" Bravo screen appears once the wrong move is graded AGAIN.
     assertNodeWithTextExists(BRAVO_TEXT)
-    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
-      val positions = getAllPositions()
+    waitUntilSuspending {
+      val positions = database.getAllNodes(false)
       positions.size == 1 &&
         positions[0].positionKey == PositionKey.START_POSITION &&
         positions[0].cardState.lapses >= 1
@@ -170,7 +159,7 @@ class TestTraining : TestWithKoin() {
   }
 
   @Test
-  fun testShowNextMove() {
+  fun testShowNextMove() = runComposeUiTest {
     koinSetUp()
     disableShortTermScheduler()
     try {
@@ -193,35 +182,31 @@ class TestTraining : TestWithKoin() {
           PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
           dueNowFromLastWeek(),
         )
-      runTest {
-        resetDatabase()
-        database.insertNodes(testNode)
-      }
-      runComposeUiTest {
-        setContent { InitializeApp { Training() } }
+      resetDatabase()
+      database.insertNodes(testNode)
+      setContent { InitializeApp { Training() } }
 
-        try {
-          assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
-          playMove("e7", "e5")
-        } catch (_: Throwable) {
-          playMove("e2", "e4")
-        }
-        assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-        try {
-          assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
-          playMove("e7", "e5")
-        } catch (_: Throwable) {
-          playMove("e2", "e4")
-        }
-        assertNodeWithTextExists(BRAVO_TEXT)
+      try {
+        assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
+        playMove("e7", "e5")
+      } catch (_: Throwable) {
+        playMove("e2", "e4")
       }
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+      try {
+        assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
+        playMove("e7", "e5")
+      } catch (_: Throwable) {
+        playMove("e2", "e4")
+      }
+      assertNodeWithTextExists(BRAVO_TEXT)
     } finally {
       koinTearDown()
     }
   }
 
   @Test
-  fun testPromotion() {
+  fun testPromotion() = runComposeUiTest {
     koinSetUp()
     disableShortTermScheduler()
     try {
@@ -236,17 +221,13 @@ class TestTraining : TestWithKoin() {
           PreviousAndNextMoves(listOf(), listOf(startMove)),
           dueNowFromLastWeek(),
         )
-      runTest {
-        database.eraseAll()
-        database.insertNodes(node)
-      }
-      runComposeUiTest {
-        setContent { InitializeApp { Training() } }
-        assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-        playMove("h7", "h8")
-        promoteTo("queen")
-        assertNodeWithTextExists(BRAVO_TEXT)
-      }
+      database.eraseAll()
+      database.insertNodes(node)
+      setContent { InitializeApp { Training() } }
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+      playMove("h7", "h8")
+      promoteTo("queen")
+      assertNodeWithTextExists(BRAVO_TEXT)
     } finally {
       koinTearDown()
     }

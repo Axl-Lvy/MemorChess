@@ -5,7 +5,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
 import proj.memorchess.axl.core.data.explorer.ExplorerSource
 import proj.memorchess.axl.core.data.explorer.ExplorerState
