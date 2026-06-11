@@ -128,17 +128,6 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   onlyIf { executionData.files.any { it.exists() } }
 }
 
-// The scanner's Android detection already contributes src/main and src/androidTest for
-// this module, so listing them explicitly would index every file twice and abort the
-// analysis. Empty values also stop the root configuration, which lists composeApp source
-// sets that do not exist here, from being inherited.
-extensions.configure<org.sonarqube.gradle.SonarExtension> {
-  properties {
-    property("sonar.sources", "")
-    property("sonar.tests", "")
-  }
-}
-
 dependencies {
   implementation(project(":composeApp"))
   implementation(libs.compose.runtime)
