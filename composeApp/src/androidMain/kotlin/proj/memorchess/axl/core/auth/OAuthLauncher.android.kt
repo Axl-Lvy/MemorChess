@@ -4,7 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import kotlinx.coroutines.CompletableDeferred
-import proj.memorchess.axl.MAIN_ACTIVITY
+import proj.memorchess.axl.AndroidContextProvider
 
 /**
  * Android OAuth launcher.
@@ -28,7 +28,7 @@ actual class OAuthLauncher {
           CustomTabsIntent.Builder().build().apply {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
           }
-        intent.launchUrl(MAIN_ACTIVITY, Uri.parse(authorizationUrl))
+        intent.launchUrl(AndroidContextProvider.context, Uri.parse(authorizationUrl))
       } catch (e: Exception) {
         deferred.complete(OAuthLaunchResult.Error(OAuthLaunchError.BROWSER_UNAVAILABLE))
       }
