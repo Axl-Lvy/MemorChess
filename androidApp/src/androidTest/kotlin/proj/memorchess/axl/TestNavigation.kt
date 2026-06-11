@@ -11,8 +11,8 @@ import kotlin.test.Test
 import org.junit.Rule
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getTileDescription
+import proj.memorchess.axl.test_util.hasClickLabel
 import proj.memorchess.axl.ui.pages.navigation.Route
-import proj.memorchess.axl.ui.util.hasClickLabel
 
 @OptIn(ExperimentalTestApi::class)
 class TestNavigation {

@@ -13,8 +13,8 @@ import kotlin.test.Test
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
+import proj.memorchess.axl.test_util.SETTINGS_SECTION_LIST_TAG
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
-import proj.memorchess.axl.ui.pages.SETTINGS_SECTION_LIST_TAG
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 /**

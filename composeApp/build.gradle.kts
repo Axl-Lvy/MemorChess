@@ -3,14 +3,14 @@ import org.jetbrains.compose.reload.gradle.ComposeHotRun
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
-  alias(libs.plugins.androidApplication)
+  alias(libs.plugins.androidKmpLibrary)
   alias(libs.plugins.composeMultiplatform)
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.kotlinX.serialization.plugin)
@@ -26,10 +26,14 @@ jacoco { toolVersion = "0.8.15" }
 
 kotlin {
   // Android configuration
-  androidTarget {
-    @OptIn(ExperimentalKotlinGradlePluginApi::class)
-    instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
+  androidLibrary {
+    namespace = "proj.memorchess.axl.library"
+    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    minSdk = libs.versions.android.minSdk.get().toInt()
     compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
+    // Package Compose Multiplatform resources into the AAR (CMP-9547). Without this the
+    // resources are missing from the final APK and the app crashes at runtime.
+    androidResources.enable = true
   }
 
   // JVM/Desktop configuration
@@ -62,16 +66,18 @@ kotlin {
     binaries.executable()
   }
 
-  // Hierarchy template configuration
+  // Hierarchy template configuration. withAndroidTarget() only matches the legacy
+  // KotlinAndroidTarget, so the new AGP provided androidLibrary target is matched by
+  // platform type instead.
   @OptIn(ExperimentalKotlinGradlePluginApi::class)
   applyDefaultHierarchyTemplate {
     common {
       group("debug") {
-        withAndroidTarget()
+        withCompilations { it.target.platformType == KotlinPlatformType.androidJvm }
         withJvm()
       }
       group("nonJs") {
-        withAndroidTarget()
+        withCompilations { it.target.platformType == KotlinPlatformType.androidJvm }
         withJvm()
         group("ios") { withIos() }
       }
@@ -140,7 +146,9 @@ kotlin {
         implementation(libs.androidx.room.runtime)
         implementation(libs.sqlite.bundled)
       }
-      configurations { implementation { exclude(group = "org.jetbrains", module = "annotations") } }
+      configurations.named("nonJsMainImplementation") {
+        exclude(group = "org.jetbrains", module = "annotations")
+      }
     }
 
     androidMain.dependencies {
@@ -180,41 +188,6 @@ kotlin {
   compilerOptions { freeCompilerArgs.add("-Xexpect-actual-classes") }
 }
 
-android {
-  namespace = "proj.memorchess.axl"
-  compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-  defaultConfig {
-    applicationId = "proj.memorchess.axl"
-    minSdk = libs.versions.android.minSdk.get().toInt()
-    targetSdk = libs.versions.android.targetSdk.get().toInt()
-    versionCode = 1
-    versionName = "0.0.1"
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    testInstrumentationRunnerArguments["numShards"] =
-      project.findProperty("numShards")?.toString() ?: "1"
-    testInstrumentationRunnerArguments["shardIndex"] =
-      project.findProperty("shardIndex")?.toString() ?: "0"
-  }
-
-  packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
-
-  buildTypes {
-    getByName("release") { isMinifyEnabled = false }
-    getByName("debug") { enableAndroidTestCoverage = true }
-  }
-
-  compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-  }
-
-  testOptions {
-    unitTests.isReturnDefaultValues = true
-    unitTests.isIncludeAndroidResources = true
-  }
-}
-
 // Code formatting configuration
 ktfmt { googleStyle() }
 
@@ -229,11 +202,6 @@ dependencies {
   add("kspIosSimulatorArm64", libs.androidx.room.compiler)
   add("kspIosArm64", libs.androidx.room.compiler)
   add("kspJvm", libs.androidx.room.compiler)
-
-  // Test dependencies
-  androidTestImplementation(libs.androidx.ui.test.junit4.android)
-  androidTestImplementation(libs.androidx.espresso.intents)
-  debugImplementation(libs.androidx.ui.test.manifest)
 }
 
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
@@ -253,59 +221,15 @@ tasks.withType<KotlinJsTest>().configureEach {
   )
 }
 
-tasks.register<JacocoReport>("jacocoAndroidTestReport") {
-  dependsOn("compileDebugKotlinAndroid")
-  group = "verification"
-  description = "Generate test coverage reports for Android instrumented tests"
-
-  reports {
-    xml.required.set(true)
-    html.required.set(true)
-  }
-
-  val fileFilter =
-    listOf(
-      "**/R.class",
-      "**/Res.class",
-      "**/BuildConfig.*",
-      "**/Manifest*.*",
-      "**/*Test*.*",
-      "android/**/*.*",
-      "**/generated/**",
-      "**/build/**",
-      "**/tmp/**",
-    )
-
-  val debugTree =
-    fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") { exclude(fileFilter) }
-
-  val mainSrc = "${project.projectDir}/src/commonMain/kotlin"
-  val androidSrc = "${project.projectDir}/src/androidMain/kotlin"
-  val nonJsSrc = "${project.projectDir}/src/jsMain/kotlin"
-  val jvmSrc = "${project.projectDir}/src/jvmMain/kotlin"
-
-  sourceDirectories.setFrom(files(listOf(mainSrc, androidSrc, nonJsSrc, jvmSrc)))
-  classDirectories.setFrom(files(listOf(debugTree)))
-
-  // Use both possible locations for coverage execution data
-  executionData.setFrom(
-    fileTree(layout.buildDirectory.get()) { include("outputs/code_coverage/**/*.ec") }
-  )
-
-  // Only run if coverage data exists
-  onlyIf { executionData.files.any { it.exists() } }
-}
-
-// With AGP 9, the scanner's Kotlin Multiplatform and Android auto-detections each report
-// androidMain (and androidInstrumentedTest), so the same directory is indexed twice and the
-// analysis aborts. Listing the non-Android source sets explicitly disables the KMP detection,
-// while the Android detection still appends the android directories on top of these lists,
-// which is why no android source set may appear here.
+// Listing the source sets explicitly disables the scanner's Kotlin Multiplatform
+// auto-detection, which keeps the indexed directories under our control after the
+// androidApp module split.
 extensions.configure<org.sonarqube.gradle.SonarExtension> {
   properties {
     property(
       "sonar.sources",
       listOf(
+          "src/androidMain/kotlin",
           "src/commonMain/kotlin",
           "src/debugMain/kotlin",
           "src/iosMain/kotlin",

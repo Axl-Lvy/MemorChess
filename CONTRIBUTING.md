@@ -25,7 +25,7 @@ The project roadmap can be found on [Notion](https://www.notion.so/MemorChess-20
 
 - Run both desktop and Android tests before submitting your PR:
   ```sh
-  ./gradlew desktopTest connectedAndroidTest
+  ./gradlew desktopTest :androidApp:connectedCheck
   ```
 
 ## 🔐 Credentials

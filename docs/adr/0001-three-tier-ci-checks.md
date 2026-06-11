@@ -38,13 +38,13 @@ runs `dorny/paths-filter@v3` against the diff:
   version catalog. Runs `format-check`, `jvm-tests` (with Kover and
   Sonar inline), `compile-multiplat` (a debug Android and wasm compile
   to catch `expect`/`actual` regressions), and `publish-test-results`.
-- **full**: anything in `androidMain`, `iosMain`, `wasmJsMain`,
-  `nonJsMain`, `androidInstrumentedTest`, `debugMain`, an Android
+- **full**: anything in the `androidApp` module, `androidMain`,
+  `iosMain`, `wasmJsMain`, `nonJsMain`, `debugMain`, an Android
   manifest, any `*.gradle.kts`, `gradle/libs.versions.toml`, or
   `.github/workflows/check.yml` touched. Runs the cheap-tier set plus
-  `android-tests` (4-shard matrix), `wasm-tests`, and a standalone
-  `sonar-analysis` job that aggregates JVM Kover with the per shard
-  Android jacoco reports. Scheduled cron runs and the
+  `android-tests` (4-shard matrix in `androidApp`), `wasm-tests`, and
+  a standalone `sonar-analysis` job that aggregates JVM Kover with the
+  per shard Android jacoco reports. Scheduled cron runs and the
   `[x] Force running tests` PR body checkbox also pin to full.
 
 The `[skip-tests]` PR title override (forces noop) was kept.

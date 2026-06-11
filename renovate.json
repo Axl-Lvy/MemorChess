@@ -62,7 +62,12 @@
     },
     {
       "description": "IntelliJ IDEA 2026.1 supports AGP only up to the 9.0.x line",
-      "matchPackageNames": ["com.android.application", "com.android.library", "com.android.tools.build:gradle"],
+      "matchDepNames": [
+        "com.android.application",
+        "com.android.library",
+        "com.android.kotlin.multiplatform.library",
+        "com.android.tools.build:gradle"
+      ],
       "allowedVersions": "<9.1"
     }
   ]

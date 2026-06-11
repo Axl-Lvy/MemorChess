@@ -2,7 +2,7 @@ plugins {
   // this is necessary to avoid the plugins to be loaded multiple times
   // in each subproject's classloader
   alias(libs.plugins.androidApplication) apply false
-  alias(libs.plugins.androidLibrary) apply false
+  alias(libs.plugins.androidKmpLibrary) apply false
   alias(libs.plugins.composeMultiplatform) apply false
   alias(libs.plugins.composeCompiler) apply false
   alias(libs.plugins.kotlinMultiplatform) apply false
@@ -28,7 +28,7 @@ sonar {
     // Coverage configuration - using absolute path from project root
     property(
       "sonar.coverage.jacoco.xmlReportPaths",
-      "${projectDir}/composeApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml," +
+      "${projectDir}/androidApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml," +
         "${projectDir}/composeApp/build/reports/kover/reportJvm.xml",
     )
 
