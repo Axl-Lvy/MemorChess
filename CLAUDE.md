@@ -17,7 +17,7 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 
 # Run tests
 ./gradlew desktopTest                          # JVM/desktop tests
-./gradlew connectedAndroidTest                 # Android instrumented tests
+./gradlew :androidApp:connectedCheck           # Android instrumented tests
 
 # Run a single test class (desktop)
 ./gradlew desktopTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"
@@ -29,7 +29,12 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 
 ## Architecture
 
-Single Gradle module (`composeApp`) with Kotlin Multiplatform source sets: `commonMain`, `androidMain`, `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews).
+Two Gradle modules:
+
+- **`composeApp`** is the Kotlin Multiplatform library holding all shared code. Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews).
+- **`androidApp`** is the thin Android application shell: `MainActivity` (initializes `AndroidContextProvider` and FileKit), launcher manifest and resources, and the instrumented tests (`src/androidTest`). It applies `com.android.application` and relies on the Kotlin support built into AGP 9.
+
+The AGP version is capped below 9.1 (renovate rule) because IntelliJ IDEA only syncs AGP versions its Android plugin supports.
 
 ### Core layer (`core/`)
 
@@ -50,7 +55,7 @@ Compose Multiplatform UI. Components in `ui/components/` (board, explore, traini
 ## Key Conventions
 
 - **Formatting**: ktfmt with Google style. Pre-commit hook checks formatting on `master`.
-- **Testing**: Kotest assertions, no mocking. UI tests extend `TestFromMainActivity`. AAA pattern.
+- **Testing**: Kotest assertions, no mocking. Android UI tests live in `androidApp/src/androidTest` and use `createAndroidComposeRule<MainActivity>()`. AAA pattern.
 - **Numeric edge cases**: Any code that does arithmetic, division, weighting, or formatting on numbers that come from external data (API counts, ratings, percentages, durations, file sizes) must have a test that includes `0`, the lowest non zero value, the value just below and just above each formatting or branching boundary, and a representative large value. Adding a new state, branch, or sealed subclass to a state machine requires a propagation test through every consumer in the same PR. The rule exists because picking a single happy path sample (`white=10, draws=5, black=3`) hides crashes that only fire on edge data like `Modifier.weight(0f)`.
 - **Database migrations**: The app is **not in production yet** — there are no real users and no data worth preserving. Change the Room (`nonJsMain`) and IndexedDB (`wasmJsMain`) schemas freely **without writing migrations**; recreating the local database on schema change is acceptable. Do not invest in `Migration` objects until the app actually ships. Room runs with `exportSchema = false` and `fallbackToDestructiveMigration(dropAllTables = true)`; **do not re-enable schema export** (no `schemas/*.json` files should ever be generated or committed). IndexedDB has a single destructive `recreate` upgrade (`IndexedDbInstance`): bump `DB_VERSION` to apply a schema change — never add per-version branches.
 - **DI**: Koin for dependency injection. Modules defined in `Koin.kt`.
