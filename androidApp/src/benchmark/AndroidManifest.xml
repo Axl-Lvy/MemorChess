@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Merged on top of the main manifest for the benchmark build type only. Macrobenchmark
+     requires the target app to be profileable from the shell while staying non debuggable. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
+
+  <application>
+    <profileable
+      android:shell="true"
+      android:enabled="true"
+      tools:targetApi="30" />
+  </application>
+
+</manifest>

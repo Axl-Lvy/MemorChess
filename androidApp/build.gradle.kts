@@ -33,6 +33,15 @@ android {
   buildTypes {
     getByName("release") { isMinifyEnabled = false }
     getByName("debug") { enableAndroidTestCoverage = true }
+    // Build measured by the :macrobenchmark module. Initialized from release so the numbers
+    // are representative, signed with the debug config so it installs on any device, and kept
+    // explicitly not debuggable because Macrobenchmark rejects debuggable targets.
+    create("benchmark") {
+      initWith(getByName("release"))
+      signingConfig = signingConfigs.getByName("debug")
+      matchingFallbacks += listOf("release")
+      isDebuggable = false
+    }
   }
 
   compileOptions {
@@ -119,22 +128,23 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   onlyIf { executionData.files.any { it.exists() } }
 }
 
-// The scanner's Android detection already contributes src/main and src/androidTest for
-// this module, so listing them explicitly would index every file twice and abort the
-// analysis. Empty values also stop the root configuration, which lists composeApp source
-// sets that do not exist here, from being inherited.
-extensions.configure<org.sonarqube.gradle.SonarExtension> {
-  properties {
-    property("sonar.sources", "")
-    property("sonar.tests", "")
-  }
-}
-
 dependencies {
   implementation(project(":composeApp"))
   implementation(libs.compose.runtime)
+  implementation(libs.compose.foundation)
+  implementation(libs.compose.ui)
   implementation(libs.androidx.activity.compose)
   implementation(libs.filekit.dialogs.compose)
+
+  // Makes the Compose runtime emit per composable trace sections in the benchmark build so
+  // the :macrobenchmark TraceSectionMetric can measure board composition. Benchmark variant
+  // only: release and debug builds are unaffected.
+  "benchmarkImplementation"(libs.compose.runtime.tracing)
+
+  // Ships the Perfetto SDK native library inside the benchmark APK. Without it the
+  // benchmark library sideloads the (older) binary it bundles, which the app's
+  // tracing-perfetto runtime rejects with a checksum verification error.
+  "benchmarkImplementation"(libs.androidx.tracing.perfetto.binary)
 
   androidTestImplementation(libs.kotlin.test.junit)
   androidTestImplementation(libs.androidx.room.runtime)
