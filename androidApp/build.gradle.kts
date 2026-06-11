@@ -6,7 +6,10 @@ plugins {
   alias(libs.plugins.androidApplication)
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.ktfmt)
+  id("jacoco")
 }
+
+jacoco { toolVersion = "0.8.15" }
 
 android {
   namespace = "proj.memorchess.axl"
@@ -57,6 +60,73 @@ val ktfmtCheckAndroidSources =
 tasks.named("ktfmtFormat") { dependsOn(ktfmtFormatAndroidSources) }
 
 tasks.named("ktfmtCheck") { dependsOn(ktfmtCheckAndroidSources) }
+
+tasks.register<JacocoReport>("jacocoAndroidTestReport") {
+  dependsOn("compileDebugKotlin")
+  dependsOn(":composeApp:compileAndroidMain")
+  group = "verification"
+  description =
+    "Generate test coverage reports for Android instrumented tests across androidApp and composeApp"
+
+  reports {
+    xml.required.set(true)
+    html.required.set(true)
+  }
+
+  val fileFilter =
+    listOf(
+      "**/R.class",
+      "**/Res.class",
+      "**/BuildConfig.*",
+      "**/Manifest*.*",
+      "**/*Test*.*",
+      "android/**/*.*",
+      "**/generated/**",
+      "**/build/**",
+      "**/tmp/**",
+    )
+
+  val appClasses =
+    fileTree(
+      "${layout.buildDirectory.get()}/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+    ) {
+      exclude(fileFilter)
+    }
+  val libraryClasses =
+    fileTree("${rootProject.projectDir}/composeApp/build/classes/kotlin/android/main") {
+      exclude(fileFilter)
+    }
+
+  val composeAppSrc = "${rootProject.projectDir}/composeApp/src"
+
+  sourceDirectories.setFrom(
+    files(
+      "$composeAppSrc/commonMain/kotlin",
+      "$composeAppSrc/androidMain/kotlin",
+      "$composeAppSrc/nonJsMain/kotlin",
+      "$composeAppSrc/debugMain/kotlin",
+      "${project.projectDir}/src/main/kotlin",
+    )
+  )
+  classDirectories.setFrom(files(appClasses, libraryClasses))
+
+  // Use both possible locations for coverage execution data
+  executionData.setFrom(
+    fileTree(layout.buildDirectory.get()) { include("outputs/code_coverage/**/*.ec") }
+  )
+
+  // Only run if coverage data exists
+  onlyIf { executionData.files.any { it.exists() } }
+}
+
+// The root sonar configuration lists composeApp source sets that do not exist in this
+// module, so this module declares its own directories.
+extensions.configure<org.sonarqube.gradle.SonarExtension> {
+  properties {
+    property("sonar.sources", "src/main/kotlin")
+    property("sonar.tests", "src/androidTest/kotlin")
+  }
+}
 
 dependencies {
   implementation(project(":composeApp"))
