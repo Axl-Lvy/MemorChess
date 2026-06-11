@@ -28,15 +28,19 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 
 # UI performance benchmarks (Android device/emulator only, see macrobenchmark/README.md)
 ./gradlew :macrobenchmark:connectedBenchmarkAndroidTest
+
+# Core logic microbenchmarks (plain JVM, see microbenchmark/README.md)
+./gradlew :microbenchmark:benchmark
 ```
 
 ## Architecture
 
-Three Gradle modules:
+Four Gradle modules:
 
 - **`composeApp`** is the Kotlin Multiplatform library holding all shared code. Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews).
 - **`androidApp`** is the thin Android application shell: `MainActivity` (initializes `AndroidContextProvider` and FileKit), launcher manifest and resources, and the instrumented tests (`src/androidTest`). It applies `com.android.application` and relies on the Kotlin support built into AGP 9. Besides `debug` and `release` it has a `benchmark` build type (release performance, debug signing, profileable) measured by `:macrobenchmark`.
 - **`macrobenchmark`** is a `com.android.test` module holding UI performance benchmarks (`FrameTimingMetric`, `TraceSectionMetric` via Compose composition tracing) that run against the `benchmark` build of `androidApp` on a device or emulator. See `macrobenchmark/README.md`.
+- **`microbenchmark`** is a JVM only kotlinx-benchmark (JMH) module measuring the pure Kotlin core of `composeApp` (`GameEngine`, `OpeningTree`/`TreeStore`, `Fsrs6SchedulingAlgorithm`, FEN handling) with deterministic fixtures. It catches algorithmic regressions only; JVM numbers are not ART numbers. See `microbenchmark/README.md`.
 
 The AGP version is capped below 9.1 (renovate rule) because IntelliJ IDEA only syncs AGP versions its Android plugin supports.
 

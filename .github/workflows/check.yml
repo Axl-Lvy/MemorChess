@@ -191,8 +191,8 @@ jobs:
           retention-days: 1
 
   # Cheap tier safety net: compile Android + wasm to catch expect/actual breaks, plus the
-  # macrobenchmark module, which no test job builds because its benchmarks only execute on
-  # the manually triggered benchmark workflow.
+  # macrobenchmark and microbenchmark modules, which no test job builds because their
+  # benchmarks only execute on the manually triggered benchmark workflow.
   compile-multiplat:
     needs: [detect]
     if: needs.detect.outputs.tier == 'cheap'
@@ -212,12 +212,12 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Compile Android + wasm targets and the macrobenchmark module
-        run: ./gradlew :androidApp:compileDebugKotlin compileKotlinWasmJs :macrobenchmark:assembleBenchmark
+      - name: Compile Android + wasm targets and the benchmark modules
+        run: ./gradlew :androidApp:compileDebugKotlin compileKotlinWasmJs :macrobenchmark:assembleBenchmark :microbenchmark:assemble
 
-  # Full tier counterpart for the macrobenchmark module only: build config changes (gradle
+  # Full tier counterpart for the benchmark modules only: build config changes (gradle
   # files, version catalog) resolve to the full tier, where the test jobs compile every
-  # target except this one, so without this job a breaking version bump would pass CI.
+  # target except these, so without this job a breaking version bump would pass CI.
   compile-benchmark:
     needs: [detect]
     if: needs.detect.outputs.tier == 'full'
@@ -237,8 +237,8 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Assemble the macrobenchmark module
-        run: ./gradlew :macrobenchmark:assembleBenchmark
+      - name: Assemble the benchmark modules
+        run: ./gradlew :macrobenchmark:assembleBenchmark :microbenchmark:assemble
 
   # Full tier: Android instrumented tests, sharded across emulators
   android-tests:

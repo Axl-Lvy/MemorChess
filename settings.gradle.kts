@@ -52,3 +52,5 @@ include(":composeApp")
 include(":androidApp")
 
 include(":macrobenchmark")
+
+include(":microbenchmark")
