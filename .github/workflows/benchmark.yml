@@ -1,107 +1,68 @@
 name: Performance benchmarks
 
-# Manual trigger only: benchmarks take long, the macro job needs an emulator, and their
-# numbers on shared CI hardware are only useful for relative comparisons, so they stay out
-# of the PR checks.
+# Daily baseline run on master, plus manual dispatch. Benchmark numbers on shared CI
+# hardware are only useful for relative comparisons, so each master run is summarized
+# and recorded on the benchmark-data branch; opt-in PR runs (benchmark-pr.yml) compare
+# against the rolling window of those baselines.
 on:
   workflow_dispatch:
+    inputs:
+      record_baseline:
+        description: Record this run in the benchmark-data baseline (master only)
+        type: boolean
+        default: true
+  schedule:
+    - cron: '0 3 * * *'
 
 permissions:
   contents: read
 
-# Consumed by settings.gradle.kts to authenticate against the
-# Stockfish-Multiplatform GitHub Packages repository.
-env:
-  GITHUB_ACTOR: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
-  macrobenchmark:
+  run:
+    uses: ./.github/workflows/benchmark-run.yml
+    secrets: inherit
+
+  # Appends this run's summary to the benchmark-data branch. Guarded to master so the
+  # baseline always describes master; a manual dispatch on any other branch still runs
+  # the benchmarks and uploads the artifact but never touches the baseline. Manual
+  # dispatches on master record too, which allows seeding the baseline window quickly.
+  record-baseline:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    needs: run
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || inputs.record_baseline)
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
 
-      - name: Update local.properties
-        run: .github/scripts/update_properties.sh
-
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - uses: actions/setup-java@v5
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: true
-
-      # suppressErrors=EMULATOR is required because Macrobenchmark refuses emulators by
-      # default; treat the resulting numbers as relative indicators, not absolute values.
-      - name: Run macrobenchmarks on the Gradle Managed Device
-        run: |
-          ./gradlew :macrobenchmark:pixel6Api34BenchmarkAndroidTest \
-            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
-            -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR
-
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: macrobenchmark-results
-          path: |
-            macrobenchmark/build/outputs/**/*.json
-            macrobenchmark/build/outputs/**/*.perfetto-trace
-          retention-days: 30
-
-  # JVM microbenchmarks for the pure Kotlin core: no emulator, no KVM, runs in parallel
-  # with the macrobenchmark job.
-  microbenchmark:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
       - uses: actions/checkout@v6
-
-      - name: Update local.properties
-        run: .github/scripts/update_properties.sh
-
-      - uses: actions/setup-java@v5
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          ref: benchmark-data
+          path: benchmark-data
 
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: true
-
-      - name: Run JVM microbenchmarks
-        run: ./gradlew :microbenchmark:benchmark
-
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: microbenchmark-results
-          path: microbenchmark/build/reports/benchmarks/**/*.json
-          retention-days: 30
-
-  # The two benchmark jobs run in parallel and cannot write to the same artifact, so a
-  # final job merges their uploads into the single benchmark-results artifact consumers
-  # download. Each source artifact lands in its own subdirectory.
-  merge-results:
-    runs-on: ubuntu-latest
-    needs: [macrobenchmark, microbenchmark]
-    if: always() && (needs.macrobenchmark.result != 'cancelled' || needs.microbenchmark.result != 'cancelled')
-    steps:
-      - name: Merge benchmark artifacts
-        uses: actions/upload-artifact/merge@v7
+      - uses: actions/download-artifact@v8
         with:
           name: benchmark-results
-          pattern: '{macrobenchmark,microbenchmark}-results'
-          separate-directories: true
-          delete-merged: true
-          retention-days: 30
+          path: results
+
+      - name: Extract run summary
+        run: |
+          stamp="$(date -u +%Y-%m-%dT%H-%M)"
+          python3 .github/scripts/extract_benchmark_summary.py \
+            --macro-dir results/macrobenchmark-results \
+            --micro-dir results/microbenchmark-results \
+            --commit "$GITHUB_SHA" \
+            --date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --runner "$RUNNER_OS" \
+            --output "benchmark-data/runs/${stamp}_${GITHUB_SHA::8}.json" \
+            --prune-dir benchmark-data/runs \
+            --prune-days 60
+
+      - name: Commit baseline entry
+        working-directory: benchmark-data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add runs
+          git commit -m "chore: record benchmark baseline for ${GITHUB_SHA::8}"
+          git push origin benchmark-data

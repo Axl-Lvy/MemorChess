@@ -1,0 +1,95 @@
+name: PR benchmarks
+
+# Opt-in PR benchmark comparison: tick "Run benchmarks" in the PR description to run
+# the full benchmark suite (benchmark-run.yml, same procedure as the daily master
+# baseline) and get a sticky comment comparing the results against the rolling window
+# of master baselines stored on the benchmark-data branch. The verdict is advisory
+# only and never blocks a merge.
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Cheap gate so unticked PRs cost seconds, mirroring the "Force running tests"
+  # checkbox handling in check.yml.
+  opt-in:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check the benchmark checkbox
+        id: check
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s' "$PR_BODY" | grep -qE '\- \[x\] Run benchmarks'; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  run:
+    needs: opt-in
+    if: needs.opt-in.outputs.enabled == 'true'
+    uses: ./.github/workflows/benchmark-run.yml
+    secrets: inherit
+
+  compare:
+    runs-on: ubuntu-latest
+    needs: run
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/checkout@v6
+        with:
+          ref: benchmark-data
+          path: benchmark-data
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: benchmark-results
+          path: results
+
+      - name: Build comparison comment
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 .github/scripts/extract_benchmark_summary.py \
+            --macro-dir results/macrobenchmark-results \
+            --micro-dir results/microbenchmark-results \
+            --commit "$PR_HEAD_SHA" \
+            --date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --runner "$RUNNER_OS" \
+            --output pr-summary.json
+          python3 .github/scripts/compare_benchmarks.py \
+            --pr-summary pr-summary.json \
+            --baseline-dir benchmark-data/runs \
+            --window 10 \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --output comment.md
+
+      # Updates the existing comparison comment when one exists (found via the hidden
+      # HTML marker on its first line) instead of stacking a new comment per run.
+      - name: Upsert PR comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          marker='<!-- benchmark-comparison -->'
+          existing="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" | head -n1)"
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -F body=@comment.md
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -F body=@comment.md
+          fi

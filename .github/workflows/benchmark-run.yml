@@ -1,0 +1,109 @@
+name: Benchmark run
+
+# Reusable benchmark execution shared by the daily baseline workflow (benchmark.yml)
+# and the opt-in PR comparison workflow (benchmark-pr.yml), so baseline and PR numbers
+# always come from the exact same measurement procedure. Produces the merged
+# benchmark-results artifact with macrobenchmark-results/ and microbenchmark-results/
+# subdirectories.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Consumed by settings.gradle.kts to authenticate against the
+# Stockfish-Multiplatform GitHub Packages repository.
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  macrobenchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update local.properties
+        run: .github/scripts/update_properties.sh
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+
+      # suppressErrors=EMULATOR is required because Macrobenchmark refuses emulators by
+      # default; treat the resulting numbers as relative indicators, not absolute values.
+      - name: Run macrobenchmarks on the Gradle Managed Device
+        run: |
+          ./gradlew :macrobenchmark:pixel6Api34BenchmarkAndroidTest \
+            -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
+            -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: macrobenchmark-results
+          path: |
+            macrobenchmark/build/outputs/**/*.json
+            macrobenchmark/build/outputs/**/*.perfetto-trace
+          retention-days: 30
+
+  # JVM microbenchmarks for the pure Kotlin core: no emulator, no KVM, runs in parallel
+  # with the macrobenchmark job.
+  microbenchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update local.properties
+        run: .github/scripts/update_properties.sh
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+
+      - name: Run JVM microbenchmarks
+        run: ./gradlew :microbenchmark:benchmark
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: microbenchmark-results
+          path: microbenchmark/build/reports/benchmarks/**/*.json
+          retention-days: 30
+
+  # The two benchmark jobs run in parallel and cannot write to the same artifact, so a
+  # final job merges their uploads into the single benchmark-results artifact consumers
+  # download. Each source artifact lands in its own subdirectory.
+  merge-results:
+    runs-on: ubuntu-latest
+    needs: [macrobenchmark, microbenchmark]
+    if: always() && (needs.macrobenchmark.result != 'cancelled' || needs.microbenchmark.result != 'cancelled')
+    steps:
+      - name: Merge benchmark artifacts
+        uses: actions/upload-artifact/merge@v7
+        with:
+          name: benchmark-results
+          pattern: '{macrobenchmark,microbenchmark}-results'
+          separate-directories: true
+          delete-merged: true
+          retention-days: 30
