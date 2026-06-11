@@ -76,16 +76,6 @@ tasks.named("ktfmtFormat") { dependsOn(ktfmtFormatBenchmarkSources) }
 
 tasks.named("ktfmtCheck") { dependsOn(ktfmtCheckBenchmarkSources) }
 
-// Benchmarks are not application code: keep them out of the Sonar analysis. Empty values
-// also stop the root configuration, which lists composeApp source sets that do not exist
-// here, from being inherited.
-extensions.configure<org.sonarqube.gradle.SonarExtension> {
-  properties {
-    property("sonar.sources", "")
-    property("sonar.tests", "")
-  }
-}
-
 dependencies {
   implementation(libs.androidx.benchmark.macro.junit4)
   implementation(libs.androidx.test.ext.junit)

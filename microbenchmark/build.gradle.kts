@@ -55,16 +55,6 @@ benchmark {
 
 ktfmt { googleStyle() }
 
-// Benchmarks are not application code: keep them out of the Sonar analysis. Empty values
-// also stop the root configuration, which lists composeApp source sets that do not exist
-// here, from being inherited.
-extensions.configure<org.sonarqube.gradle.SonarExtension> {
-  properties {
-    property("sonar.sources", "")
-    property("sonar.tests", "")
-  }
-}
-
 dependencies {
   implementation(projects.composeApp)
   implementation(libs.kotlinx.benchmark.runtime)
