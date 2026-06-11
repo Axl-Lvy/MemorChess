@@ -34,6 +34,7 @@ sonar = "7.3.1.8318"
 sqlite = "2.6.2"
 stockfish-multiplatform = "0.1.0-alpha.14"
 uiTestJunit4Android = "1.11.2"
+espresso = "3.7.0"
 xfeather_z = "1.1.1"
 
 [libraries]
@@ -86,6 +87,7 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestJunit4Android" }
+androidx-espresso-intents = { module = "androidx.test.espresso:espresso-intents", version.ref = "espresso" }
 
 # --- Logging ---
 kermit-logging = { module = "co.touchlab:kermit", version.ref = "kermit" }
