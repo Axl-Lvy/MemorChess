@@ -190,10 +190,12 @@ jobs:
           path: composeApp/build/test-results/jvmTest/*.xml
           retention-days: 1
 
-  # Cheap tier safety net: compile Android + wasm to catch expect/actual breaks
+  # Compile safety net, both tiers: Android + wasm to catch expect/actual breaks, and the
+  # macrobenchmark module, which no other job builds because its benchmarks only execute on
+  # the manually triggered benchmark workflow.
   compile-multiplat:
     needs: [detect]
-    if: needs.detect.outputs.tier == 'cheap'
+    if: needs.detect.outputs.tier != 'noop'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -210,8 +212,8 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Compile Android + wasm targets
-        run: ./gradlew :androidApp:compileDebugKotlin compileKotlinWasmJs
+      - name: Compile Android + wasm targets and the macrobenchmark module
+        run: ./gradlew :androidApp:compileDebugKotlin compileKotlinWasmJs :macrobenchmark:assembleBenchmark
 
   # Full tier: Android instrumented tests, sharded across emulators
   android-tests:
@@ -526,14 +528,10 @@ jobs:
             exit 0
           fi
 
-          [ "$FORMAT"  = "success" ] || fail format-check "$FORMAT"
-          [ "$JVM"     = "success" ] || fail jvm-tests "$JVM"
-          [ "$PUBLISH" = "success" ] || fail publish-test-results "$PUBLISH"
-
-          if [ "$TIER" = "cheap" ]; then
-            # sonar runs inside jvm-tests on cheap tier
-            [ "$MULTIPLAT" = "success" ] || fail compile-multiplat "$MULTIPLAT"
-          fi
+          [ "$FORMAT"    = "success" ] || fail format-check "$FORMAT"
+          [ "$JVM"       = "success" ] || fail jvm-tests "$JVM"
+          [ "$MULTIPLAT" = "success" ] || fail compile-multiplat "$MULTIPLAT"
+          [ "$PUBLISH"   = "success" ] || fail publish-test-results "$PUBLISH"
 
           if [ "$TIER" = "full" ]; then
             [ "$ANDROID" = "success" ] || fail android-tests "$ANDROID"
