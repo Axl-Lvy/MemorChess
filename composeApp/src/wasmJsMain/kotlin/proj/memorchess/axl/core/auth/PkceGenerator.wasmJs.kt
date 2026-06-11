@@ -14,7 +14,7 @@ internal actual fun randomBytes(size: Int): ByteArray {
   cryptoGetRandomValues(buffer)
   val result = ByteArray(size)
   for (i in 0 until size) {
-    result[i] = buffer[i].toByte()
+    result[i] = buffer[i]
   }
   return result
 }

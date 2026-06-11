@@ -159,7 +159,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: false
-          gradle-home-cache-cleanup: false
+          cache-cleanup: never
 
       - name: Run JVM tests with coverage
         env:

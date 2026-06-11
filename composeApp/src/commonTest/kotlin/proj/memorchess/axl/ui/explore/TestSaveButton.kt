@@ -2,10 +2,9 @@ package proj.memorchess.axl.ui.explore
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertNull
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -13,12 +12,12 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnSave
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
+import proj.memorchess.axl.ui.waitUntilSuspending
 
 @OptIn(ExperimentalTestApi::class)
 class TestSaveButton : TestWithKoin() {
@@ -27,16 +26,14 @@ class TestSaveButton : TestWithKoin() {
   private val afterH6Position = PositionKey("rnbqkbnr/ppppppp1/7p/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq")
   private val database: DatabaseQueryManager by inject()
 
-  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+  private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
-      runTest { database.eraseAll() }
-      runComposeUiTest {
-        setContent { InitializeApp { Explore() } }
-        playMove("h2", "h3")
-        assertPieceMoved("h2", "h3", ChessPiece(PieceKind.PAWN, Player.WHITE))
-        block()
-      }
+      database.eraseAll()
+      setContent { InitializeApp { Explore() } }
+      playMove("h2", "h3")
+      assertPieceMoved("h2", "h3", ChessPiece(PieceKind.PAWN, Player.WHITE))
+      block()
     } finally {
       koinTearDown()
     }
@@ -44,11 +41,11 @@ class TestSaveButton : TestWithKoin() {
 
   @Test
   fun testSaveGood() = runTestFromSetup {
-    assertNull(getPosition(afterH3Position))
+    assertNull(database.getPosition(afterH3Position))
     var savedPosition: DataNode? = null
-    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+    waitUntilSuspending {
       clickOnSave()
-      savedPosition = getPosition(afterH3Position)
+      savedPosition = database.getPosition(afterH3Position)
       savedPosition != null
     }
     check(savedPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
@@ -58,23 +55,17 @@ class TestSaveButton : TestWithKoin() {
   fun testPropagateSave() = runTestFromSetup {
     playMove("h7", "h6")
     assertPieceMoved("h7", "h6", ChessPiece(PieceKind.PAWN, Player.BLACK))
-    assertNull(getPosition(afterH3Position))
-    assertNull(getPosition(afterH6Position))
+    assertNull(database.getPosition(afterH3Position))
+    assertNull(database.getPosition(afterH6Position))
     var savedLastPosition: DataNode? = null
     var savedFirstPosition: DataNode? = null
-    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+    waitUntilSuspending {
       clickOnSave()
-      savedLastPosition = getPosition(afterH6Position)
-      savedFirstPosition = getPosition(afterH3Position)
+      savedLastPosition = database.getPosition(afterH6Position)
+      savedFirstPosition = database.getPosition(afterH3Position)
       savedLastPosition != null && savedFirstPosition != null
     }
     check(savedLastPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == true })
     check(savedFirstPosition!!.previousAndNextMoves.previousMoves.values.all { it.isGood == false })
-  }
-
-  private fun getPosition(p: PositionKey): DataNode? {
-    var result: DataNode? = null
-    runTest { result = database.getPosition(p) }
-    return result
   }
 }

@@ -1,10 +1,10 @@
 package proj.memorchess.axl.ui
 
 import androidx.compose.ui.test.*
+import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataNode
@@ -22,13 +22,11 @@ class TestSettings : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
 
-  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+  private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
-      runComposeUiTest {
-        setContent { InitializeApp { Settings() } }
-        block()
-      }
+      setContent { InitializeApp { Settings() } }
+      block()
     } finally {
       koinTearDown()
     }
@@ -56,7 +54,7 @@ class TestSettings : TestWithKoin() {
     onNodeWithTag(SETTINGS_SECTION_LIST_TAG).performScrollToNode(hasTestTag("resetConfigButton"))
     assertNodeWithTagExists("resetConfigButton").performClick()
     assertNodeWithTagExists("confirmDialog")
-    assertNodeWithTextExists("OK").performClick()
+    assertNodeWithTagExists("confirmDialogOkButton").performClick()
 
     // Verify the values were reset to defaults
     waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
@@ -66,11 +64,9 @@ class TestSettings : TestWithKoin() {
 
   @Test
   fun testEraseAllDataButton() = runTestFromSetup {
-    runTest {
-      database.insertNodes(
-        DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
-      )
-    }
+    database.insertNodes(
+      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+    )
     assertNodeWithTagDoesNotExists("confirmDialog")
 
     // The Danger Zone is the last LazyColumn section, so it is not composed until scrolled into
@@ -80,24 +76,18 @@ class TestSettings : TestWithKoin() {
     // Verify the confirmation dialog appears and click on "Cancel"
     assertNodeWithTagExists("eraseAllDataButton").performClick()
     assertNodeWithTagExists("confirmDialog")
-    assertNodeWithTextExists("Cancel").performClick()
+    assertNodeWithTagExists("confirmDialogCancelButton").performClick()
 
+    val positionsAfterCancel = database.getAllNodes(false)
     assertTrue("Database should not have been cleared after cancel") {
-      getAllPositions().isNotEmpty()
+      positionsAfterCancel.isNotEmpty()
     }
 
     // Verify the confirmation dialog appears and click OK
     assertNodeWithTagExists("eraseAllDataButton").performClick()
-    assertNodeWithTextExists("OK").performClick()
+    assertNodeWithTagExists("confirmDialogOkButton").performClick()
 
     // Verify the database is cleared
-    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) { getAllPositions().isEmpty() }
-  }
-
-  private fun getAllPositions(): List<DataNode> {
-    var result: List<DataNode>? = null
-    runTest { result = database.getAllNodes(false) }
-    checkNotNull(result)
-    return result
+    waitUntilSuspending { database.getAllNodes(false).isEmpty() }
   }
 }

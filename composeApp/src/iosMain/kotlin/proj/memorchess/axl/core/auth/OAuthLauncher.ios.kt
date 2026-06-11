@@ -51,7 +51,7 @@ actual class OAuthLauncher {
   private fun parseCallback(url: NSURL, expectedState: String): OAuthLaunchResult {
     val components = NSURLComponents.componentsWithURL(url, resolvingAgainstBaseURL = false)
     val items = components?.queryItems?.filterIsInstance<NSURLQueryItem>().orEmpty()
-    val params = items.associate { (it.name ?: "") to (it.value ?: "") }
+    val params = items.associate { it.name to (it.value ?: "") }
     val code = params["code"]
     val state = params["state"]
     return when {

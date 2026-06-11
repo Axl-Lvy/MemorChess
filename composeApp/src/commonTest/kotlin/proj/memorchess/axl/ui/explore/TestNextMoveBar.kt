@@ -3,15 +3,13 @@ package proj.memorchess.axl.ui.explore
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
-import kotlinx.coroutines.test.runTest
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertNextMoveExist
 import proj.memorchess.axl.ui.assertPieceMoved
@@ -20,32 +18,27 @@ import proj.memorchess.axl.ui.clickOnReset
 import proj.memorchess.axl.ui.clickOnSave
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
+import proj.memorchess.axl.ui.waitUntilSuspending
 
 @OptIn(ExperimentalTestApi::class)
 class TestNextMoveBar : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
 
-  private fun ComposeUiTest.setUp() {
-    runTest { database.eraseAll() }
+  private suspend fun ComposeUiTest.setUp() {
+    database.eraseAll()
     setContent { InitializeApp { Explore() } }
     playMove("e2", "e4")
     assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
     clickOnSave()
-    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
-      var size = 0
-      runTest { size = database.getAllNodes(false).size }
-      size == 2
-    }
+    waitUntilSuspending { database.getAllNodes(false).size == 2 }
   }
 
-  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) {
+  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
-      runComposeUiTest {
-        setUp()
-        block()
-      }
+      setUp()
+      block()
     } finally {
       koinTearDown()
     }
