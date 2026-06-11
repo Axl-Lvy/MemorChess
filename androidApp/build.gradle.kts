@@ -119,12 +119,14 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   onlyIf { executionData.files.any { it.exists() } }
 }
 
-// The root sonar configuration lists composeApp source sets that do not exist in this
-// module, so this module declares its own directories.
+// The scanner's Android detection already contributes src/main and src/androidTest for
+// this module, so listing them explicitly would index every file twice and abort the
+// analysis. Empty values also stop the root configuration, which lists composeApp source
+// sets that do not exist here, from being inherited.
 extensions.configure<org.sonarqube.gradle.SonarExtension> {
   properties {
-    property("sonar.sources", "src/main/kotlin")
-    property("sonar.tests", "src/androidTest/kotlin")
+    property("sonar.sources", "")
+    property("sonar.tests", "")
   }
 }
 
