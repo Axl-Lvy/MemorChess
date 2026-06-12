@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.description_board_piece
 import memorchess.composeapp.generated.resources.description_board_tile
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.CHESS_BOARD_COLOR_SETTING
@@ -80,6 +81,9 @@ fun BoardGrid(
  * only invalidates the draw phase. Tile pixel positions for piece animation are derived once by
  * [BoardGrid] from a single measurement rather than per tile here.
  *
+ * The click label template is resolved through [stringResource] once for the whole grid and
+ * formatted per tile, because per-cell resource lookups dominated the board composition time.
+ *
  * @param state The board state containing tile information and selection.
  * @param scope Coroutine scope for handling tile click events asynchronously.
  */
@@ -87,6 +91,7 @@ fun BoardGrid(
 private fun DrawTileGrid(state: BoardGridState, scope: CoroutineScope) {
   val colors = CHESS_BOARD_COLOR_SETTING.getValue()
   val borderWidth = with(LocalDensity.current) { 3.dp.toPx() }
+  val tileDescriptionTemplate = stringResource(Res.string.description_board_tile)
   DrawGrid(
     modifier =
       Modifier.drawBehind {
@@ -120,7 +125,7 @@ private fun DrawTileGrid(state: BoardGridState, scope: CoroutineScope) {
       val location = state.getBoardLocationAt(it)
       val coords = Pair(location.row, location.col)
       val tileName = BoardUtils.tileName(location.row, location.col)
-      val clickLabel = stringResource(Res.string.description_board_tile, tileName)
+      val clickLabel = formatSingleArgTemplate(tileDescriptionTemplate, tileName)
       clickable(onClickLabel = clickLabel, onClick = { scope.launch { state.onTileClick(coords) } })
     },
   ) {}
@@ -132,6 +137,10 @@ private fun DrawTileGrid(state: BoardGridState, scope: CoroutineScope) {
  * Renders each piece at its corresponding tile location. Handles piece animation when a move
  * occurs, and displays the piece at its destination after the animation completes.
  *
+ * The piece content description template is resolved through [stringResource] once for the whole
+ * grid and formatted per piece, because per-cell resource lookups dominated the board composition
+ * time.
+ *
  * @param state The board state containing piece and move information.
  * @param animationDuration Duration for animating piece movement between tiles.
  * @param tilePositions Map of board locations to their pixel positions for animation.
@@ -142,6 +151,7 @@ private fun DrawPieceGrid(
   animationDuration: Duration,
   tilePositions: Map<BoardLocation, DpOffset>,
 ) {
+  val pieceDescriptionTemplate = stringResource(Res.string.description_board_piece)
   DrawGrid({ this }) {
     val location = state.getBoardLocationAt(it)
     Box(modifier = Modifier.aspectRatio(1f).weight(1f)) {
@@ -153,9 +163,13 @@ private fun DrawPieceGrid(
               !state.piecesToMove.values.contains(location)))
       ) {
         val tileName = BoardUtils.tileName(location.row, location.col)
-        Piece(piece, Modifier.fillMaxSize().testTag("Piece $piece at $tileName"))
+        Piece(
+          piece,
+          Modifier.fillMaxSize().testTag("Piece $piece at $tileName"),
+          contentDescription = formatSingleArgTemplate(pieceDescriptionTemplate, piece.toString()),
+        )
       } else if (animationDuration != Duration.ZERO && state.piecesToMove.contains(location)) {
-        AnimatedPiece(state, location, tilePositions, animationDuration)
+        AnimatedPiece(state, location, tilePositions, animationDuration, pieceDescriptionTemplate)
       }
     }
   }
@@ -200,6 +214,7 @@ private fun DrawGrid(
  * @param location The board location of the piece to animate.
  * @param tilePositions Map of board locations to their pixel offsets on the board.
  * @param animationDuration Duration of the slide, sourced once from the caller.
+ * @param pieceDescriptionTemplate Content description template, resolved once by the caller.
  */
 @Composable
 private fun AnimatedPiece(
@@ -207,6 +222,7 @@ private fun AnimatedPiece(
   location: BoardLocation,
   tilePositions: Map<BoardLocation, DpOffset>,
   animationDuration: Duration,
+  pieceDescriptionTemplate: String,
 ) {
   val destinationLocation = state.piecesToMove[location]
   val startPos = tilePositions[location]
@@ -258,10 +274,22 @@ private fun AnimatedPiece(
         IntOffset((x * offsetMultiplier).roundToPx(), (y * offsetMultiplier).roundToPx())
       }
       .fillMaxSize(),
+    contentDescription = formatSingleArgTemplate(pieceDescriptionTemplate, pieceToMove.toString()),
   )
   LaunchedEffect(Unit) {
     moved = true // NOSONAR: Compose state triggers recomposition
     delay(animationDuration)
     state.piecesToMove.remove(location)
   }
+}
+
+/**
+ * Formats a single-placeholder string resource template without going through the resource
+ * formatter, so bulk callers pay the resource lookup only once for the template.
+ *
+ * @param template Raw resource string containing a `%1$s` placeholder.
+ * @param argument Value substituted for the placeholder.
+ */
+private fun formatSingleArgTemplate(template: String, argument: String): String {
+  return template.replace($$"%1$s", argument)
 }
