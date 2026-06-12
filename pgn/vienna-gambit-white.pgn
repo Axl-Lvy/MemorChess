@@ -1,0 +1,18 @@
+[Event "MemorChess Repertoire"]
+[Site "repertoire-data"]
+[White "Vienna Gambit"]
+[Black "Various"]
+[Result "*"]
+
+1. e4 e5 2. Nc3 Nf6 3. f4 { The Vienna Gambit. White offers the f pawn to
+seize the center and open the f file. } 3... d5 (3... exf4 4. e5 Ng8 (4...
+Qe7 5. Qe2 Ng8 6. Nf3 d6 7. d4 dxe5 8. dxe5 Nc6 9. Nd5) 5. Nf3 d6 6. d4
+dxe5 7. Qe2 { The queen pressures e5 and prepares to win the pawn back with
+interest. } 7... Bb4 8. Qxe5+ Qe7 9. Qxe7+ Nxe7 10. Bxf4) (3... d6 4. Nf3
+Nc6 5. Bb5 Bd7 6. d3 Be7 7. O-O O-O 8. f5 { Closing the center; White will
+storm the kingside with the pawns. } 8... a6 9. Bxc6 Bxc6) 4. fxe5 Nxe4
+5. Qf3 { Attacking the knight on e4 and eyeing the long diagonal. } 5...
+Nxc3 (5... Nc6 6. Bb5 Nxc3 7. bxc3 Qd7 8. Ne2 a6 9. Bxc6 Qxc6 10. O-O)
+6. bxc3 Be7 7. d4 { A big pawn center; the e5 pawn cramps Black. } 7... O-O
+8. Bd3 f5 9. exf6 { Capturing en passant keeps the initiative and opens
+lines toward the black king. } 9... Bxf6 10. Ne2 *

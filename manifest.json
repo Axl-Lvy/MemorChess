@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "repertoires": [
+    {
+      "id": "london-system-white",
+      "name": "London System",
+      "color": "white",
+      "description": "A solid system for White built around d4, Bf4 and the e3 c3 pawn triangle. The same setup works against almost any Black defense.",
+      "moveCount": 73,
+      "file": "pgn/london-system-white.pgn"
+    },
+    {
+      "id": "vienna-gambit-white",
+      "name": "Vienna Gambit",
+      "color": "white",
+      "description": "An aggressive gambit for White starting with e4, Nc3 and f4. White offers a pawn to seize the center and attack along the f file.",
+      "moveCount": 66,
+      "file": "pgn/vienna-gambit-white.pgn"
+    },
+    {
+      "id": "caro-kann-black",
+      "name": "Caro-Kann",
+      "color": "black",
+      "description": "A rock solid defense for Black against e4 based on c6 and d5. Black gets a healthy pawn structure and an active light squared bishop.",
+      "moveCount": 74,
+      "file": "pgn/caro-kann-black.pgn"
+    },
+    {
+      "id": "scandinavian-black",
+      "name": "Scandinavian",
+      "color": "black",
+      "description": "A direct defense for Black that meets e4 with d5 on the first move. The classical Qa5 setup gives clear plans and an easy development scheme.",
+      "moveCount": 56,
+      "file": "pgn/scandinavian-black.pgn"
+    }
+  ]
+}

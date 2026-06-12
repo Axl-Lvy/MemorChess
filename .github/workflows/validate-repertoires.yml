@@ -1,0 +1,26 @@
+name: Validate repertoires
+
+# The repertoire-data branch holds static content only, so the single gate is
+# the Python validation script: manifest consistency, PGN legality, move counts.
+on:
+  push:
+    branches: [repertoire-data]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install python-chess
+        run: pip install chess
+
+      - name: Validate manifest and PGN files
+        run: python validate.py

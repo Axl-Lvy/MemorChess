@@ -1,0 +1,16 @@
+[Event "MemorChess Repertoire"]
+[Site "repertoire-data"]
+[White "Various"]
+[Black "Scandinavian"]
+[Result "*"]
+
+1. e4 d5 { The Scandinavian. Black challenges the center immediately and
+steers the game into familiar territory. } 2. exd5 (2. Nc3 d4 3. Nce2 e5
+4. Ng3 Nc6 5. Bc4 Nf6 6. d3 Bc5) 2... Qxd5 3. Nc3 (3. Nf3 Bg4 4. Be2 Nc6
+5. d4 O-O-O 6. c4 Qf5) 3... Qa5 { The classical retreat. The queen stays
+active and may later swing to c7. } 4. d4 Nf6 5. Nf3 (5. Bc4 c6 6. Nge2 Bf5
+7. Bf4 e6 8. O-O Be7) 5... c6 { Securing a retreat square for the queen and
+controlling d5. } 6. Bc4 Bf5 7. Bd2 (7. Ne5 e6 8. g4 Bg6 9. h4 Nbd7
+10. Nxd7 Nxd7) 7... e6 8. Qe2 Bb4 9. O-O-O Nbd7 10. a3 Bxc3 11. Bxc3 Qc7
+{ The standard regrouping. The queen is safe on c7 and Black is ready to
+castle long or short. } *
