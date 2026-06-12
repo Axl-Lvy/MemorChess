@@ -140,8 +140,16 @@ private class TrainingBoard : KoinComponent {
 
   @Composable
   private fun NoNodeToTrain(modifier: Modifier = Modifier) {
-    if (!state.isCorrect && daysInAdvance > 0) {
-      daysInAdvance = 1
+    if (!state.isCorrect && daysInAdvance > 1) {
+      // A failed review while training days in advance collapses the window back to one day, so
+      // the user reviews the forgotten card again soon instead of keeping on burning future days.
+      // This must also re-run node selection: writing daysInAdvance alone only recomposes, and
+      // when the deck at the collapsed window is empty the early return would otherwise leave the
+      // screen blank.
+      LaunchedEffect(Unit) {
+        daysInAdvance = 1
+        choseNextNode()
+      }
       return
     }
     val palette = LocalKineticPalette.current
