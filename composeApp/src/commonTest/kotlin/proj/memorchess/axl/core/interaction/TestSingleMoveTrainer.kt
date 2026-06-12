@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.interaction
 
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -69,7 +68,6 @@ class TestSingleMoveTrainer : TestWithKoin() {
   }
 
   @Test
-  @Ignore
   fun testCorrectMove() = test {
     clickOnTile("e2")
     clickOnTile("e4")
