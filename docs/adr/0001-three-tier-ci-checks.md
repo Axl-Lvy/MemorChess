@@ -42,9 +42,9 @@ runs `dorny/paths-filter@v3` against the diff:
   `iosMain`, `wasmJsMain`, `nonJsMain`, `debugMain`, an Android
   manifest, any `*.gradle.kts`, `gradle/libs.versions.toml`, or
   `.github/workflows/check.yml` touched. Runs the cheap-tier set plus
-  `android-tests` (4-shard matrix in `androidApp`), `wasm-tests`, and
+  `android-tests` (single emulator in `androidApp`), `wasm-tests`, and
   a standalone `sonar-analysis` job that aggregates JVM Kover with the
-  per shard Android jacoco reports. Scheduled cron runs and the
+  Android jacoco reports. Scheduled cron runs and the
   `[x] Force running tests` PR body checkbox also pin to full.
 
 The `[skip-tests]` PR title override (forces noop) was kept.
@@ -75,9 +75,10 @@ sense once the tier topology was in place:
 Three things that were tried and reverted:
 
 - Collapsing the 4-shard Android matrix to a single emulator. The
-  codebase has 132 instrumented tests; the single emulator hangs at
+  codebase has 132 instrumented tests; the single emulator hung at
   test 31 (related to `TestStockfishEvaluator`, tracked in
-  issue #138). The matrix stays at 4.
+  issue #138). The matrix stayed at 4 until issue #138 was fixed,
+  after which the job was collapsed to a single emulator.
 - Using `-no-snapshot-save` to actually load the cached AVD snapshot.
   The snapshot saved by the create AVD step is incompatible with the
   test run step ("Failed to load snapshot 'default_boot'"), so the
