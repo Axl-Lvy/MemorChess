@@ -1,7 +1,6 @@
 package proj.memorchess.axl.macrobenchmark
 
 import androidx.benchmark.macro.ExperimentalMetricApi
-import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.TraceSectionMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
@@ -19,9 +18,10 @@ import org.junit.runner.RunWith
  * per composable. No marker code exists in the app itself.
  *
  * Each iteration starts on Settings (no board) and measures the navigation into Explore, so the
- * board is composed from scratch inside the measured window. Composition tracing adds a small
- * overhead to every composable, so treat the accompanying frame timing numbers as relative
- * indicators only; [ScreenNavigationBenchmark] is the clean frame timing source.
+ * board is composed from scratch inside the measured window. This benchmark deliberately carries no
+ * [androidx.benchmark.macro.FrameTimingMetric]: composition tracing skews frame numbers, and on CI
+ * emulators the frame timeline regularly produces no expect/actual slices at all, which fails the
+ * whole run. [ScreenNavigationBenchmark] is the frame timing source.
  */
 @OptIn(ExperimentalMetricApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -33,8 +33,7 @@ class BoardCompositionBenchmark {
   fun boardCompositionOnExploreEntry() {
     benchmarkRule.measureRepeated(
       packageName = TARGET_PACKAGE,
-      metrics =
-        listOf(TraceSectionMetric("%BoardGrid%", TraceSectionMetric.Mode.Sum), FrameTimingMetric()),
+      metrics = listOf(TraceSectionMetric("%BoardGrid%", TraceSectionMetric.Mode.Sum)),
       iterations = 10,
       startupMode = StartupMode.WARM,
       setupBlock = {

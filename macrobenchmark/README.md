@@ -68,6 +68,6 @@ The `benchmark.yml` workflow wires this up on GitHub Actions behind a manual tri
 
 - Compare numbers from the same device only. Emulator runs depend on host load.
 - `frameDurationCpuMs` percentiles (P50/P90/P95/P99) are the headline numbers for navigation.
-- For `BoardCompositionBenchmark`, composition tracing itself adds a small overhead to every
-  composable, so use its `FrameTimingMetric` values as relative indicators only;
-  `ScreenNavigationBenchmark` is the clean frame timing source.
+- `BoardCompositionBenchmark` deliberately reports no `FrameTimingMetric`: composition tracing
+  adds overhead to every composable, and on CI emulators the frame timeline regularly yields no
+  expect/actual slices, failing the run. `ScreenNavigationBenchmark` is the frame timing source.
