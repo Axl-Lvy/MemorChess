@@ -2,6 +2,10 @@ name: Check code
 
 on:
   pull_request:
+    # `edited` re-resolves the tier when the PR description or title changes, so ticking
+    # "Force running tests" (or adding [skip-tests] to the title) takes effect without
+    # pushing a new commit. Same pattern as benchmark-pr.yml.
+    types: [opened, synchronize, reopened, edited]
   schedule:
     - cron: 0 0 * * *
 
