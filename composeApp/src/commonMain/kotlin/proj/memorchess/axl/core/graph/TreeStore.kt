@@ -78,6 +78,10 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * durable, an exploration edge does not. The destination node is created on demand at depth
    * [fromDepth] + 1.
    *
+   * When the edge already exists its [Edge.createdAt] is preserved. This is load bearing:
+   * exploration replays a line by re-upserting every edge on the way, so a fresh stamp on each
+   * upsert would reshuffle the introduction order of new cards just by browsing.
+   *
    * @param from Position the move is played from.
    * @param move SAN of the move.
    * @param to Position reached by playing [move].
@@ -92,7 +96,16 @@ class TreeStore(private val database: DatabaseQueryManager) {
     isGood: Boolean?,
     fromDepth: Int,
   ): Edge {
-    val edge = Edge(from = from, move = move, to = to, isGood = isGood, updatedAt = DateUtil.now())
+    val createdAt = tree.get(from)?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
+    val edge =
+      Edge(
+        from = from,
+        move = move,
+        to = to,
+        isGood = isGood,
+        createdAt = createdAt,
+        updatedAt = DateUtil.now(),
+      )
     tree.upsertEdge(edge, fromDepth)
     if (isGood != null) {
       persistNode(from)
@@ -159,6 +172,7 @@ private fun DataMove.toEdge(): Edge =
     move = move,
     to = destination,
     isGood = isGood,
+    createdAt = createdAt,
     updatedAt = updatedAt,
     isDeleted = isDeleted,
   )
@@ -170,6 +184,7 @@ private fun Edge.toDataMove(): DataMove =
     move = move,
     isGood = isGood,
     isDeleted = isDeleted,
+    createdAt = createdAt,
     updatedAt = updatedAt,
   )
 

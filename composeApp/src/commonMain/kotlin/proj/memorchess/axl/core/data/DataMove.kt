@@ -26,6 +26,14 @@ data class DataMove(
   /** Whether the move has been deleted. */
   val isDeleted: Boolean = false,
 
+  /**
+   * Date at which this move was first added.
+   *
+   * Excluded from equality like [updatedAt]: two moves describing the same transition are the same
+   * move regardless of when they were recorded.
+   */
+  val createdAt: Instant = DateUtil.now(),
+
   /** Date at which this move was updated */
   val updatedAt: Instant = DateUtil.now(),
 ) {

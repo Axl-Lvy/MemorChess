@@ -322,6 +322,43 @@ class TestGraphSerializer {
   }
 
   @Test
+  fun edgeCreatedAtSurvivesRoundTrip() {
+    // DataMove equality ignores timestamps, so the round trip is asserted on the field itself.
+    val move =
+      DataMove(
+        startPos,
+        posAfterE4,
+        "e4",
+        isGood = true,
+        createdAt = instant1,
+        updatedAt = instant2,
+      )
+    val nodes =
+      listOf(
+        DataNode(
+          positionKey = startPos,
+          previousAndNextMoves = PreviousAndNextMoves(emptyList(), listOf(move)),
+          cardState = cardState(instant1),
+          depth = 0,
+          updatedAt = instant1,
+        ),
+        DataNode(
+          positionKey = posAfterE4,
+          previousAndNextMoves = PreviousAndNextMoves(listOf(move), emptyList()),
+          cardState = cardState(instant1),
+          depth = 1,
+          updatedAt = instant1,
+        ),
+      )
+
+    val result = GraphSerializer.deserialize(GraphSerializer.serialize(nodes))
+
+    val resultStart = result.first { it.positionKey == startPos }
+    resultStart.previousAndNextMoves.nextMoves["e4"]!!.createdAt shouldBe instant1
+    resultStart.previousAndNextMoves.nextMoves["e4"]!!.updatedAt shouldBe instant2
+  }
+
+  @Test
   fun invalidInputThrows() {
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize("garbage") }
   }
@@ -339,27 +376,29 @@ class TestGraphSerializer {
 
   @Test
   fun edgeLineWithWrongColumnCountThrows() {
-    val input =
-      "1\t$startPos\t0\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n\n1\t2"
+    val input = "${validNodeLine(1, startPos)}\n\n1\t2"
     shouldThrow<Exception> { GraphSerializer.deserialize(input) }
   }
 
   @Test
   fun edgeReferencingUnknownNodeThrows() {
     val input =
-      "1\t$startPos\t0\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n\n" +
-        "1\t99\te4\t+\t2026-01-01T00:00:00Z"
+      "${validNodeLine(1, startPos)}\n\n" +
+        "1\t99\te4\t+\t2026-01-01T00:00:00Z\t2026-01-01T00:00:00Z"
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize(input) }
   }
 
   @Test
   fun invalidIsGoodValueThrows() {
     val input =
-      "1\t$startPos\t0\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n" +
-        "2\t$posAfterE4\t1\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\t2026-01-01T00:00:00Z\n\n" +
-        "1\t2\te4\tX\t2026-01-01T00:00:00Z"
+      "${validNodeLine(1, startPos)}\n${validNodeLine(2, posAfterE4)}\n\n" +
+        "1\t2\te4\tX\t2026-01-01T00:00:00Z\t2026-01-01T00:00:00Z"
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize(input) }
   }
+
+  private fun validNodeLine(index: Int, positionKey: PositionKey): String =
+    "$index\t${positionKey.value}\t0\t2026-01-01T00:00:00Z\tnull\t0.0\t0.0\t0\t0\tNEW\t0\t" +
+      "2026-01-01T00:00:00Z"
 
   @Test
   fun emptyStringThrows() {

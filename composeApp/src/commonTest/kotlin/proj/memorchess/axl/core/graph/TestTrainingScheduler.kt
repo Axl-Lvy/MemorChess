@@ -9,6 +9,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.TimeZone
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardPhase
@@ -132,6 +134,86 @@ class TestTrainingScheduler {
     store.updateCardState(posB, learningCard(now + 1.minutes))
     assertEquals(posB, scheduler.nextDue()?.positionKey)
   }
+
+  @Test
+  fun nextDueServesDueReviewCardsBeforeNewCards() = runTest {
+    val (store, scheduler) = newScheduler()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    // startPos is a brand new card at depth 0; posA is a graduated review card due in the past at
+    // depth 1. The due review wins even though the new card is shallower.
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(posA, scheduler.nextDue()?.positionKey)
+  }
+
+  @Test
+  fun nextDuePicksNewCardsByIntroductionOrderNotDepth() = runTest {
+    // Older branch: the e4 line with trainable positions at depths 1 and 2. Newer branch: the d4
+    // line with a trainable position at depth 1. Once startPos and posA are no longer due, the
+    // remaining new cards are posB (depth 2, older line) and posC (depth 1, newer line). The
+    // older line continues before the newer branch starts, even though posC is shallower.
+    val t1 = Instant.parse("2026-01-01T00:00:00Z")
+    val t2 = Instant.parse("2026-01-02T00:00:00Z")
+    val endOfOldLine = PositionKey("endOld w K")
+    val endOfNewLine = PositionKey("endNew w K")
+    val e4 = dataMove(startPos, "e4", posA, t1)
+    val e5 = dataMove(posA, "e5", posB, t1)
+    val g3 = dataMove(posB, "g3", endOfOldLine, t1)
+    val d4 = dataMove(startPos, "d4", posC, t2)
+    val d5 = dataMove(posC, "d5", endOfNewLine, t2)
+    val database = TestDatabaseQueryManager.empty()
+    database.insertNodes(
+      dataNode(startPos, 0, emptyList(), listOf(e4, d4)),
+      dataNode(posA, 1, listOf(e4), listOf(e5)),
+      dataNode(posB, 2, listOf(e5), listOf(g3)),
+      dataNode(endOfOldLine, 3, listOf(g3), emptyList()),
+      dataNode(posC, 1, listOf(d4), listOf(d5)),
+      dataNode(endOfNewLine, 2, listOf(d5), emptyList()),
+    )
+    val store = TreeStore(database)
+    store.load()
+    val scheduler =
+      TrainingScheduler(store, Fsrs6SchedulingAlgorithm(), TimeZone.currentSystemDefault())
+    val now = DateUtil.now()
+    store.updateCardState(startPos, CardStateFactory.new(now + 5.days))
+    store.updateCardState(posA, CardStateFactory.new(now + 5.days))
+    assertEquals(posB, scheduler.nextDue()?.positionKey)
+  }
+
+  private fun dataMove(from: PositionKey, san: String, to: PositionKey, createdAt: Instant) =
+    DataMove(
+      origin = from,
+      destination = to,
+      move = san,
+      isGood = true,
+      createdAt = createdAt,
+      updatedAt = createdAt,
+    )
+
+  private fun dataNode(
+    key: PositionKey,
+    depth: Int,
+    incoming: List<DataMove>,
+    outgoing: List<DataMove>,
+  ) =
+    DataNode(
+      positionKey = key,
+      previousAndNextMoves = PreviousAndNextMoves(incoming, outgoing),
+      cardState = CardStateFactory.new(),
+      depth = depth,
+    )
+
+  private fun reviewCard(due: Instant): CardState =
+    CardState(
+      dueDate = due,
+      lastReview = due - 1.days,
+      stability = 1.0,
+      difficulty = 5.0,
+      reps = 1,
+      lapses = 0,
+      phase = CardPhase.REVIEW,
+      step = 0,
+    )
 
   private fun learningCard(due: Instant): CardState =
     CardState(
