@@ -22,10 +22,6 @@ android {
     versionCode = 1
     versionName = "0.0.1"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    testInstrumentationRunnerArguments["numShards"] =
-      project.findProperty("numShards")?.toString() ?: "1"
-    testInstrumentationRunnerArguments["shardIndex"] =
-      project.findProperty("shardIndex")?.toString() ?: "0"
   }
 
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
