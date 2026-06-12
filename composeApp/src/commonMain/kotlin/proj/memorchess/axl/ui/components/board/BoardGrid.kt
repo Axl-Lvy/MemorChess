@@ -282,3 +282,14 @@ private fun AnimatedPiece(
     state.piecesToMove.remove(location)
   }
 }
+
+/**
+ * Formats a single-placeholder string resource template without going through the resource
+ * formatter, so bulk callers pay the resource lookup only once for the template.
+ *
+ * @param template Raw resource string containing a `%1$s` placeholder.
+ * @param argument Value substituted for the placeholder.
+ */
+private fun formatSingleArgTemplate(template: String, argument: String): String {
+  return template.replace($$"%1$s", argument)
+}

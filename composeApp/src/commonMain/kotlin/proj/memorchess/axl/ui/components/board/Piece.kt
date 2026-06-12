@@ -16,10 +16,7 @@ import proj.memorchess.axl.core.engine.ChessPiece
  *
  * @param piece The piece to render.
  * @param modifier Modifier for customizing the image.
- * @param contentDescription Accessibility description. Callers that mount many pieces at once
- *   should resolve the description template once and format it per piece with
- *   [formatSingleArgTemplate], because per-piece [stringResource] lookups are slow in bulk. When
- *   null, the description is resolved here.
+ * @param contentDescription Accessibility description.
  */
 @Composable
 fun Piece(piece: ChessPiece, modifier: Modifier = Modifier, contentDescription: String? = null) {
@@ -33,15 +30,4 @@ fun Piece(piece: ChessPiece, modifier: Modifier = Modifier, contentDescription: 
     contentScale = ContentScale.Fit,
     modifier = modifier,
   )
-}
-
-/**
- * Formats a single-placeholder string resource template without going through the resource
- * formatter, so bulk callers pay the resource lookup only once for the template.
- *
- * @param template Raw resource string containing a `%1$s` placeholder.
- * @param argument Value substituted for the placeholder.
- */
-internal fun formatSingleArgTemplate(template: String, argument: String): String {
-  return template.replace("%1\$s", argument)
 }
