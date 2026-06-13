@@ -59,6 +59,20 @@ sealed interface Route {
     override fun displayNameRes() = Res.string.nav_library
   }
 
+  /**
+   * Read-only viewer for a single catalog repertoire. Reached from the library; not part of the
+   * bottom navigation bar.
+   *
+   * @property repertoireId Id of the repertoire to display, as listed in the catalog manifest.
+   */
+  @Serializable
+  @SerialName("repertoireView")
+  data class RepertoireViewRoute(@SerialName("id") val repertoireId: String) : Route {
+    override fun getLabel(): String = "RepertoireView"
+
+    override fun displayNameRes() = Res.string.nav_library
+  }
+
   /** Settings route. */
   @Serializable
   @SerialName("settings")
