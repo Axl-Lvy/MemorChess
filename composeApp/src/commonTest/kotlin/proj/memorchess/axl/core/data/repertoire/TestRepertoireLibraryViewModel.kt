@@ -392,6 +392,63 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   }
 
   @Test
+  fun requestPreviewWhileOneIsLoadingIsIgnored() = test {
+    val gate = CompletableDeferred<Unit>()
+    var fetchCalls = 0
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = {
+          fetchCalls++
+          gate.await()
+          CatalogResult.Ok(emptyList())
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.requestPreview(london)
+    viewModel.requestPreview(london)
+    gate.complete(Unit)
+    viewModel.previewStates.first { it[london.id] is RepertoirePreviewState.Ready }
+
+    fetchCalls shouldBe 1
+  }
+
+  @Test
+  fun requestPreviewSurfacesAComputationFailure() = test {
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { CatalogResult.Ok(emptyList()) },
+        previewGames = { _, _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.requestPreview(london)
+    val state = viewModel.previewStates.first { it[london.id] is RepertoirePreviewState.Failed }
+
+    state[london.id] shouldBe
+      RepertoirePreviewState.Failed(
+        InstallError.ImportFailed("Illegal move Qx9 at ply 4 in game 1")
+      )
+  }
+
+  @Test
+  fun requestPreviewMapsAMalformedManifestToMalformedPgn() = test {
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { CatalogResult.MalformedManifest("bad") },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.requestPreview(london)
+    val state = viewModel.previewStates.first { it[london.id] is RepertoirePreviewState.Failed }
+
+    state[london.id] shouldBe RepertoirePreviewState.Failed(InstallError.MalformedPgn("bad"))
+  }
+
+  @Test
   fun failedInstallCanBeRetriedToSuccess() = test {
     val store = InstalledRepertoireStore()
     var failNext = true

@@ -165,14 +165,7 @@ class RepertoireLibraryViewModel(
   }
 
   private suspend fun runInstall(descriptor: RepertoireDescriptor) {
-    val games =
-      when (val result = fetchPgn(descriptor.file)) {
-        is CatalogResult.Ok -> result.value
-        else -> {
-          fail(descriptor.id, result.toInstallError())
-          return
-        }
-      }
+    val games = fetchGames(descriptor) { fail(descriptor.id, it) } ?: return
     setInstallState(descriptor.id, RepertoireInstallState.Importing)
     val summary =
       try {
@@ -191,13 +184,8 @@ class RepertoireLibraryViewModel(
 
   private suspend fun runPreview(descriptor: RepertoireDescriptor) {
     val games =
-      when (val result = fetchPgn(descriptor.file)) {
-        is CatalogResult.Ok -> result.value
-        else -> {
-          setPreviewState(descriptor.id, RepertoirePreviewState.Failed(result.toInstallError()))
-          return
-        }
-      }
+      fetchGames(descriptor) { setPreviewState(descriptor.id, RepertoirePreviewState.Failed(it)) }
+        ?: return
     val preview =
       try {
         previewGames(descriptor.color, games)
@@ -214,6 +202,36 @@ class RepertoireLibraryViewModel(
     setPreviewState(descriptor.id, RepertoirePreviewState.Ready(preview))
   }
 
+  /**
+   * Downloads and parses the PGN of [descriptor], shared by install and preview. On a non success
+   * fetch it reports the matching [InstallError] through [onError] and returns `null`; otherwise it
+   * returns the parsed games. A PGN fetch never reports [CatalogResult.MalformedManifest], but it
+   * is mapped defensively for exhaustiveness.
+   */
+  private suspend fun fetchGames(
+    descriptor: RepertoireDescriptor,
+    onError: (InstallError) -> Unit,
+  ): List<PgnGame>? =
+    when (val result = fetchPgn(descriptor.file)) {
+      is CatalogResult.Ok -> result.value
+      is CatalogResult.NetworkError -> {
+        onError(InstallError.Network(result.message))
+        null
+      }
+      is CatalogResult.HttpError -> {
+        onError(InstallError.Http(result.status))
+        null
+      }
+      is CatalogResult.MalformedPgn -> {
+        onError(InstallError.MalformedPgn(result.message))
+        null
+      }
+      is CatalogResult.MalformedManifest -> {
+        onError(InstallError.MalformedPgn(result.message))
+        null
+      }
+    }
+
   private fun fail(id: String, error: InstallError) {
     setInstallState(id, RepertoireInstallState.Failed(error))
   }
@@ -226,20 +244,6 @@ class RepertoireLibraryViewModel(
     internalPreviewStates.value = internalPreviewStates.value + (id to state)
   }
 }
-
-/**
- * Maps a non success catalog fetch to the matching [InstallError]. A PGN fetch never reports
- * [CatalogResult.MalformedManifest], but it is mapped defensively for exhaustiveness, and
- * [CatalogResult.Ok] is not an error.
- */
-private fun CatalogResult<*>.toInstallError(): InstallError =
-  when (this) {
-    is CatalogResult.NetworkError -> InstallError.Network(message)
-    is CatalogResult.HttpError -> InstallError.Http(status)
-    is CatalogResult.MalformedPgn -> InstallError.MalformedPgn(message)
-    is CatalogResult.MalformedManifest -> InstallError.MalformedPgn(message)
-    is CatalogResult.Ok -> error("Ok is not an install error")
-  }
 
 /** State of the catalog list. Consumed by Compose. */
 sealed class LibraryCatalogState {
