@@ -1,12 +1,17 @@
 package proj.memorchess.axl.ui.components.settings.sections
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -18,14 +23,26 @@ import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.readString
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.lichess_study_http_error
+import memorchess.composeapp.generated.resources.lichess_study_import_failed
+import memorchess.composeapp.generated.resources.lichess_study_import_success
+import memorchess.composeapp.generated.resources.lichess_study_invalid_url
+import memorchess.composeapp.generated.resources.lichess_study_malformed_pgn
+import memorchess.composeapp.generated.resources.lichess_study_network_error
+import memorchess.composeapp.generated.resources.lichess_study_not_found
 import memorchess.composeapp.generated.resources.settings_export
 import memorchess.composeapp.generated.resources.settings_import
 import memorchess.composeapp.generated.resources.settings_import_confirm
 import memorchess.composeapp.generated.resources.settings_import_invalid
+import memorchess.composeapp.generated.resources.settings_lichess_study_field
+import memorchess.composeapp.generated.resources.settings_lichess_study_import
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.study.LichessStudyImportResult
+import proj.memorchess.axl.core.data.study.LichessStudyImporter
+import proj.memorchess.axl.core.data.study.LichessStudyResult
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.GraphSerializer
 import proj.memorchess.axl.core.graph.TreeStore
@@ -38,8 +55,9 @@ import proj.memorchess.axl.ui.util.exportToFile
  * Import / Export settings section content.
  *
  * Two large Kinetic buttons (Export, Import) stacked in a Row. The action is **local** — opening
- * trees are serialized to / loaded from `.memorchess` files on the device's filesystem. There is no
- * Lichess account involvement here.
+ * trees are serialized to / loaded from `.memorchess` files on the device's filesystem. Below them,
+ * a text field imports a public Lichess study by URL or id; this calls the Lichess API but needs no
+ * account.
  *
  * Earlier revisions included a 4-cell placeholder meta grid (positions / lines / last backup /
  * size) but every cell rendered as `"—"` because the persistence layer doesn't expose those metrics
@@ -50,10 +68,25 @@ import proj.memorchess.axl.ui.util.exportToFile
 fun ImportExportSection(
   database: DatabaseQueryManager = koinInject(),
   treeStore: TreeStore = koinInject(),
+  studyImporter: LichessStudyImporter = koinInject(),
 ) {
-  val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
+
+  Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    FileButtonsRow(database, treeStore, dlg)
+    LichessStudyImportField(studyImporter)
+  }
+}
+
+/** The Export and Import file buttons of the Import / Export section. */
+@Composable
+private fun FileButtonsRow(
+  database: DatabaseQueryManager,
+  treeStore: TreeStore,
+  dlg: ConfirmationDialog,
+) {
+  val coroutineScope = rememberCoroutineScope()
 
   Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
     KineticButton(
@@ -99,3 +132,77 @@ fun ImportExportSection(
     }
   }
 }
+
+/**
+ * Text field and button that import a public Lichess study by URL or id.
+ *
+ * The button is disabled while the input is blank or an import is in flight, so a double tap cannot
+ * start two imports. The outcome of the last import, success summary or typed error, is rendered
+ * below the button.
+ */
+@Composable
+private fun LichessStudyImportField(studyImporter: LichessStudyImporter) {
+  val coroutineScope = rememberCoroutineScope()
+  var input by remember { mutableStateOf("") }
+  var importing by remember { mutableStateOf(false) }
+  var resultMessage by remember { mutableStateOf<String?>(null) }
+
+  Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    OutlinedTextField(
+      value = input,
+      onValueChange = { input = it },
+      label = { Text(text = stringResource(Res.string.settings_lichess_study_field)) },
+      singleLine = true,
+      enabled = !importing,
+      modifier = Modifier.fillMaxWidth().testTag("lichessStudyInput"),
+    )
+    KineticButton(
+      onClick = {
+        if (importing || input.isBlank()) {
+          return@KineticButton
+        }
+        importing = true
+        resultMessage = null
+        coroutineScope.launch {
+          try {
+            resultMessage = describeStudyImport(studyImporter.import(input))
+          } finally {
+            importing = false
+          }
+        }
+      },
+      enabled = !importing && input.isNotBlank(),
+      modifier = Modifier.fillMaxWidth().testTag("lichessStudyImportButton"),
+      style = KineticButtonStyle.Default,
+    ) {
+      Text(text = stringResource(Res.string.settings_lichess_study_import))
+    }
+    val message = resultMessage
+    if (message != null) {
+      Text(text = message, modifier = Modifier.testTag("lichessStudyImportResult"))
+    }
+  }
+}
+
+/** Maps a study import outcome to the localized message shown under the import button. */
+private suspend fun describeStudyImport(result: LichessStudyImportResult): String =
+  when (result) {
+    is LichessStudyImportResult.Success ->
+      getString(
+        Res.string.lichess_study_import_success,
+        result.summary.movesAdded,
+        result.summary.movesAlreadyPresent,
+      )
+    is LichessStudyImportResult.ImportFailed ->
+      getString(Res.string.lichess_study_import_failed, result.message)
+    is LichessStudyImportResult.FetchFailed ->
+      when (val error = result.error) {
+        is LichessStudyResult.InvalidUrl -> getString(Res.string.lichess_study_invalid_url)
+        is LichessStudyResult.NotFound -> getString(Res.string.lichess_study_not_found)
+        is LichessStudyResult.HttpError ->
+          getString(Res.string.lichess_study_http_error, error.status)
+        is LichessStudyResult.NetworkError -> getString(Res.string.lichess_study_network_error)
+        is LichessStudyResult.MalformedPgn ->
+          getString(Res.string.lichess_study_malformed_pgn, error.message)
+      }
+  }

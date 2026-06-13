@@ -25,6 +25,8 @@ import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
+import proj.memorchess.axl.core.data.study.LichessStudyClient
+import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
@@ -65,6 +67,11 @@ fun initKoinModules(): Array<Module> {
     single { TrainingScheduler(get(), get()) }
   }
 
+  val studyModule = module {
+    single { LichessStudyClient(get()) }
+    single { LichessStudyImporter(get(), get()) }
+  }
+
   val authModule = module {
     single { OAuthTokenStore(get()) }
     single { LichessOAuthClient(get()) }
@@ -103,6 +110,7 @@ fun initKoinModules(): Array<Module> {
     dataModule,
     schedulingModule,
     graphModule,
+    studyModule,
     authModule,
     explorerModule,
     repertoireModule,
