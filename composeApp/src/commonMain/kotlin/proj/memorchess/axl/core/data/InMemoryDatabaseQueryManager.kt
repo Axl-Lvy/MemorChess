@@ -72,20 +72,13 @@ open class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     nodes.clear()
   }
 
-  override suspend fun getLastUpdate(): Instant? {
-    val nodeMax = nodes.values.maxOfOrNull { it.updatedAt }
-    val moveMax =
-      nodes.values
-        .flatMap {
-          (it.previousAndNextMoves.previousMoves + it.previousAndNextMoves.nextMoves).values
-        }
-        .maxOfOrNull { it.updatedAt }
-    return when {
-      nodeMax == null -> moveMax
-      moveMax == null -> nodeMax
-      else -> maxOf(nodeMax, moveMax)
-    }
-  }
+  override suspend fun getLastUpdate(): Instant? =
+    nodes.values
+      .flatMap { node ->
+        val moves = node.previousAndNextMoves
+        listOf(node.updatedAt) + (moves.previousMoves + moves.nextMoves).values.map { it.updatedAt }
+      }
+      .maxOrNull()
 
   private fun PreviousAndNextMoves.withoutNext(
     move: String,
