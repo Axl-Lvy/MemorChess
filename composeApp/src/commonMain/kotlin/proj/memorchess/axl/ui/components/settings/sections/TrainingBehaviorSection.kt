@@ -17,12 +17,17 @@ import memorchess.composeapp.generated.resources.settings_auto_advance_delay
 import memorchess.composeapp.generated.resources.settings_auto_advance_max
 import memorchess.composeapp.generated.resources.settings_auto_advance_min
 import memorchess.composeapp.generated.resources.settings_fuzz
+import memorchess.composeapp.generated.resources.settings_max_new_moves_per_day
+import memorchess.composeapp.generated.resources.settings_max_total_moves_per_day
 import memorchess.composeapp.generated.resources.settings_relearn_failed
 import memorchess.composeapp.generated.resources.settings_unit_seconds
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
+import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
+import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
+import proj.memorchess.axl.ui.components.controls.KineticNumberField
 import proj.memorchess.axl.ui.components.controls.KineticSlider
 import proj.memorchess.axl.ui.components.controls.KineticSliderLabels
 import proj.memorchess.axl.ui.components.controls.KineticToggleRow
@@ -31,8 +36,9 @@ import proj.memorchess.axl.ui.components.controls.KineticToggleRow
  * Training Behavior settings section content.
  *
  * Exposes the auto-advance delay slider backed by [TRAINING_MOVE_DELAY_SETTING], the short-term
- * learning-steps toggle backed by [SHORT_TERM_ENABLED_SETTING], and the scheduling fuzz toggle
- * backed by [FUZZ_ENABLED_SETTING].
+ * learning-steps toggle backed by [SHORT_TERM_ENABLED_SETTING], the scheduling fuzz toggle backed
+ * by [FUZZ_ENABLED_SETTING], and the two daily training limits backed by
+ * [MAX_NEW_MOVES_PER_DAY_SETTING] and [MAX_TOTAL_MOVES_PER_DAY_SETTING].
  *
  * **Deliberate omissions:**
  * - No scheduling-algorithm picker. The HTML proposal shows an SM-2 / FSRS 6 segmented control, but
@@ -54,6 +60,10 @@ fun TrainingBehaviorSection(reloadKey: Any) {
   var fuzzEnabled by remember(reloadKey) { mutableStateOf(FUZZ_ENABLED_SETTING.getValue()) }
   var shortTermEnabled by
     remember(reloadKey) { mutableStateOf(SHORT_TERM_ENABLED_SETTING.getValue()) }
+  var maxNewMovesPerDay by
+    remember(reloadKey) { mutableStateOf(MAX_NEW_MOVES_PER_DAY_SETTING.getValue()) }
+  var maxTotalMovesPerDay by
+    remember(reloadKey) { mutableStateOf(MAX_TOTAL_MOVES_PER_DAY_SETTING.getValue()) }
   val delayLabel = stringResource(Res.string.settings_auto_advance_delay)
   val sUnit = stringResource(Res.string.settings_unit_seconds)
   val minLabel = stringResource(Res.string.settings_auto_advance_min)
@@ -95,6 +105,24 @@ fun TrainingBehaviorSection(reloadKey: Any) {
         FUZZ_ENABLED_SETTING.setValue(it)
       },
       testTag = FUZZ_ENABLED_SETTING.name,
+    )
+    KineticNumberField(
+      value = maxNewMovesPerDay,
+      onValueCommit = {
+        maxNewMovesPerDay = it
+        MAX_NEW_MOVES_PER_DAY_SETTING.setValue(it)
+      },
+      label = stringResource(Res.string.settings_max_new_moves_per_day),
+      testTag = MAX_NEW_MOVES_PER_DAY_SETTING.name,
+    )
+    KineticNumberField(
+      value = maxTotalMovesPerDay,
+      onValueCommit = {
+        maxTotalMovesPerDay = it
+        MAX_TOTAL_MOVES_PER_DAY_SETTING.setValue(it)
+      },
+      label = stringResource(Res.string.settings_max_total_moves_per_day),
+      testTag = MAX_TOTAL_MOVES_PER_DAY_SETTING.name,
     )
   }
 }
