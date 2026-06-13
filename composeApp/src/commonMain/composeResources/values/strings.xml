@@ -8,6 +8,7 @@
   <string name="nav_explore">Explore</string>
   <string name="nav_training">Training</string>
   <string name="nav_settings">Settings</string>
+  <string name="nav_library">Library</string>
   <string name="nav_button_content_description">%1$s button</string>
 
   <!-- Dialogs / generic actions -->
@@ -163,6 +164,32 @@
   <string name="piece_rook">rook</string>
   <string name="piece_bishop">bishop</string>
   <string name="piece_knight">knight</string>
+
+  <!-- Repertoire library -->
+  <string name="library_title">REPERTOIRE LIBRARY</string>
+  <string name="library_subtitle">Ready made repertoires you can add to your training.</string>
+  <string name="library_stale_hint">Showing a previously downloaded catalog. It may be out of date.</string>
+  <string name="library_empty">The catalog is empty for now. Check back later.</string>
+  <string name="library_error_network">Could not reach the catalog: %1$s</string>
+  <string name="library_error_http">The catalog server answered with error %1$d.</string>
+  <string name="library_error_malformed">The catalog could not be read: %1$s</string>
+  <string name="library_retry">RETRY</string>
+  <string name="library_installed_badge">INSTALLED</string>
+  <string name="library_install">Install</string>
+  <string name="library_color_white">WHITE</string>
+  <string name="library_color_black">BLACK</string>
+  <string name="library_fetching">Downloading…</string>
+  <string name="library_importing">Importing…</string>
+  <string name="library_install_summary">Moves added: %1$d · Already present: %2$d</string>
+  <string name="library_install_error_network">Download failed: %1$s</string>
+  <string name="library_install_error_http">Download failed with HTTP error %1$d.</string>
+  <string name="library_install_error_malformed_pgn">This repertoire file could not be read: %1$s</string>
+  <string name="library_install_error_import">Import failed: %1$s</string>
+  <string name="library_preview_question">Add this repertoire to your openings? Existing moves and their training history are kept.</string>
+  <plurals name="library_move_count">
+    <item quantity="one">%1$d move</item>
+    <item quantity="other">%1$d moves</item>
+  </plurals>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">No previous move.</string>
