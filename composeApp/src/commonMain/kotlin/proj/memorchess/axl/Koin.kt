@@ -24,6 +24,11 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCache
 import proj.memorchess.axl.core.data.explorer.LichessExplorerClient
 import proj.memorchess.axl.core.data.explorer.getPlatformSpecificExplorerCache
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
+import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
+import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
+import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
+import proj.memorchess.axl.core.data.study.LichessStudyClient
+import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
@@ -71,6 +76,11 @@ fun initKoinModules(): Array<Module> {
     }
   }
 
+  val studyModule = module {
+    single { LichessStudyClient(get()) }
+    single { LichessStudyImporter(get(), get()) }
+  }
+
   val authModule = module {
     single { OAuthTokenStore(get()) }
     single { LichessOAuthClient(get()) }
@@ -97,7 +107,22 @@ fun initKoinModules(): Array<Module> {
     single { CachedExplorer(get(), get()) }
   }
 
+  val repertoireModule = module {
+    single { RepertoireCatalogClient(httpClient = get()) }
+    single { CachedRepertoireCatalog(get()) }
+    single { InstalledRepertoireStore() }
+  }
+
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
 
-  return arrayOf(dataModule, schedulingModule, graphModule, authModule, explorerModule, otherModule)
+  return arrayOf(
+    dataModule,
+    schedulingModule,
+    graphModule,
+    studyModule,
+    authModule,
+    explorerModule,
+    repertoireModule,
+    otherModule,
+  )
 }

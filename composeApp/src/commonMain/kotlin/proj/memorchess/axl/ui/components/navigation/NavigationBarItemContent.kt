@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -49,9 +50,23 @@ enum class NavigationBarItemContent(
       )
     },
   ),
+  Library(
+    destination = Route.LibraryRoute,
+    index = 2,
+    icon = {
+      Icon(
+        Icons.Rounded.Star,
+        contentDescription =
+          stringResource(
+            Res.string.nav_button_content_description,
+            stringResource(Route.LibraryRoute.displayNameRes()),
+          ),
+      )
+    },
+  ),
   Settings(
     destination = Route.SettingsRoute,
-    index = 2,
+    index = 3,
     icon = {
       Icon(
         Icons.Rounded.Settings,

@@ -8,6 +8,7 @@
   <string name="nav_explore">Explorer</string>
   <string name="nav_training">Entraînement</string>
   <string name="nav_settings">Réglages</string>
+  <string name="nav_library">Bibliothèque</string>
   <string name="nav_button_content_description">Bouton %1$s</string>
 
   <!-- Dialogs / generic actions -->
@@ -62,6 +63,15 @@
   <string name="settings_import">IMPORTER UN FICHIER</string>
   <string name="settings_import_confirm">Importer les ouvertures depuis %1$s ? Les données seront fusionnées avec les données existantes.</string>
   <string name="settings_import_invalid">Format de fichier invalide : %1$s</string>
+  <string name="settings_lichess_study_field">URL ou identifiant d'une étude Lichess</string>
+  <string name="settings_lichess_study_import">IMPORTER UNE ÉTUDE</string>
+  <string name="lichess_study_import_success">%1$d nouveaux coups importés, %2$d déjà présents.</string>
+  <string name="lichess_study_invalid_url">URL ou identifiant d'étude invalide.</string>
+  <string name="lichess_study_not_found">Étude introuvable. Elle est sans doute privée.</string>
+  <string name="lichess_study_http_error">Lichess a renvoyé une erreur (HTTP %1$d).</string>
+  <string name="lichess_study_network_error">Erreur réseau. Vérifiez votre connexion et réessayez.</string>
+  <string name="lichess_study_malformed_pgn">Impossible de lire le PGN de l'étude : %1$s</string>
+  <string name="lichess_study_import_failed">Échec de l'import : %1$s</string>
 
   <!-- Settings: danger zone -->
   <string name="settings_reset_title">Réinitialiser tous les réglages par défaut</string>
@@ -163,6 +173,32 @@
   <string name="piece_rook">tour</string>
   <string name="piece_bishop">fou</string>
   <string name="piece_knight">cavalier</string>
+
+  <!-- Repertoire library -->
+  <string name="library_title">BIBLIOTHÈQUE DE RÉPERTOIRES</string>
+  <string name="library_subtitle">Des répertoires prêts à l'emploi à ajouter à votre entraînement.</string>
+  <string name="library_stale_hint">Catalogue affiché depuis un téléchargement précédent. Il peut être obsolète.</string>
+  <string name="library_empty">Le catalogue est vide pour le moment. Revenez plus tard.</string>
+  <string name="library_error_network">Impossible de joindre le catalogue : %1$s</string>
+  <string name="library_error_http">Le serveur du catalogue a répondu avec l'erreur %1$d.</string>
+  <string name="library_error_malformed">Le catalogue n'a pas pu être lu : %1$s</string>
+  <string name="library_retry">RÉESSAYER</string>
+  <string name="library_installed_badge">INSTALLÉ</string>
+  <string name="library_install">Installer</string>
+  <string name="library_color_white">BLANCS</string>
+  <string name="library_color_black">NOIRS</string>
+  <string name="library_fetching">Téléchargement…</string>
+  <string name="library_importing">Import en cours…</string>
+  <string name="library_install_summary">Coups ajoutés : %1$d · Déjà présents : %2$d</string>
+  <string name="library_install_error_network">Échec du téléchargement : %1$s</string>
+  <string name="library_install_error_http">Échec du téléchargement avec l'erreur HTTP %1$d.</string>
+  <string name="library_install_error_malformed_pgn">Ce fichier de répertoire n'a pas pu être lu : %1$s</string>
+  <string name="library_install_error_import">Échec de l'import : %1$s</string>
+  <string name="library_preview_question">Ajouter ce répertoire à vos ouvertures ? Les coups existants et leur historique d'entraînement sont conservés.</string>
+  <plurals name="library_move_count">
+    <item quantity="one">%1$d coup</item>
+    <item quantity="other">%1$d coups</item>
+  </plurals>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">Aucun coup précédent.</string>

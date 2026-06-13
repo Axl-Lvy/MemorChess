@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.nav_explore
+import memorchess.composeapp.generated.resources.nav_library
 import memorchess.composeapp.generated.resources.nav_settings
 import memorchess.composeapp.generated.resources.nav_training
 import org.jetbrains.compose.resources.StringResource
@@ -47,6 +48,15 @@ sealed interface Route {
     override fun getLabel(): String = "Explore"
 
     override fun displayNameRes() = Res.string.nav_explore
+  }
+
+  /** Repertoire library route. */
+  @Serializable
+  @SerialName("library")
+  data object LibraryRoute : Route {
+    override fun getLabel(): String = "Library"
+
+    override fun displayNameRes() = Res.string.nav_library
   }
 
   /** Settings route. */
