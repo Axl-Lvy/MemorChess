@@ -46,6 +46,7 @@ class Fsrs6SchedulingBenchmark {
           CardState(
             dueDate = now,
             lastReview = now - ((i % 30) + 1).days,
+            firstReview = now - ((i % 60) + 1).days,
             stability = 0.4 + i * 0.37,
             difficulty = 1.0 + (i % 91) / 10.0,
             reps = i,

@@ -27,6 +27,7 @@ class TestNodeWithMovesMapping {
       CardState(
         dueDate = due,
         lastReview = due,
+        firstReview = due,
         stability = 3.5,
         difficulty = 6.0,
         reps = 4,
@@ -61,6 +62,7 @@ class TestNodeWithMovesMapping {
         CardState(
           dueDate = due,
           lastReview = due,
+          firstReview = due,
           stability = 1.0,
           difficulty = 5.0,
           reps = 1,

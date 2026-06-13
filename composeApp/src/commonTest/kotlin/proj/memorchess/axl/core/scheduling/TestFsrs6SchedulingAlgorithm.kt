@@ -44,6 +44,29 @@ class TestFsrs6SchedulingAlgorithm {
   }
 
   @Test
+  fun firstReviewIsStampedOnFirstGrading() {
+    val state = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    state.firstReview shouldBe now
+  }
+
+  @Test
+  fun firstReviewIsStampedWhenShortTermIsDisabled() {
+    val first = longTerm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    first.firstReview shouldBe now
+    val later = longTerm.schedule(first, ReviewGrade.GOOD, now + 10.days)
+    later.firstReview shouldBe now
+  }
+
+  @Test
+  fun firstReviewIsNeverOverwrittenOnLaterReviews() {
+    val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
+    val second = algorithm.schedule(first, ReviewGrade.GOOD, now + 10.minutes)
+    val third = algorithm.schedule(second, ReviewGrade.AGAIN, now + 2.days)
+    second.firstReview shouldBe now
+    third.firstReview shouldBe now
+  }
+
+  @Test
   fun firstReviewWithGoodPushesDueDateIntoTheFuture() {
     val state = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
     state.lastReview shouldBe now

@@ -13,9 +13,9 @@ import proj.memorchess.axl.core.scheduling.CardState
  *
  * The format has two sections separated by a blank line:
  * - **Node lines**:
- *   `<index>\t<positionKey>\t<depth>\t<dueDate>\t<lastReview>\t<stability>\t<difficulty>\t<reps>\t<lapses>\t<phase>\t<step>\t<updatedAt>`
- *   where `<lastReview>` is the literal string `null` for a card that has never been reviewed and
- *   `<phase>` is a [proj.memorchess.axl.core.scheduling.CardPhase] name.
+ *   `<index>\t<positionKey>\t<depth>\t<dueDate>\t<lastReview>\t<stability>\t<difficulty>\t<reps>\t<lapses>\t<phase>\t<step>\t<updatedAt>\t<firstReview>`
+ *   where `<lastReview>` and `<firstReview>` are the literal string `null` for a card that has
+ *   never been reviewed and `<phase>` is a [proj.memorchess.axl.core.scheduling.CardPhase] name.
  * - **Edge lines**: `<originIndex>\t<destIndex>\t<move>\t<isGood>\t<updatedAt>\t<createdAt>`
  *
  * Nodes are sorted by [PositionKey.value] and edges by `(originIndex, destIndex, move)` for
@@ -29,7 +29,7 @@ object GraphSerializer {
   private const val BAD = "-"
   private const val UNKNOWN = "?"
   private const val NULL_TOKEN = "null"
-  private const val NODE_FIELD_COUNT = 12
+  private const val NODE_FIELD_COUNT = 13
   private const val EDGE_FIELD_COUNT = 6
 
   /** Serializes nodes to a deterministic text string. Filters out deleted nodes and moves. */
@@ -54,6 +54,7 @@ object GraphSerializer {
           card.phase.name,
           card.step,
           node.updatedAt,
+          card.firstReview?.toString() ?: NULL_TOKEN,
         )
         .joinToString(TAB)
     }
@@ -131,6 +132,7 @@ object GraphSerializer {
           CardState(
             dueDate = Instant.parse(parts[3]),
             lastReview = if (parts[4] == NULL_TOKEN) null else Instant.parse(parts[4]),
+            firstReview = if (parts[12] == NULL_TOKEN) null else Instant.parse(parts[12]),
             stability = parts[5].toDouble(),
             difficulty = parts[6].toDouble(),
             reps = parts[7].toInt(),

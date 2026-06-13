@@ -2,8 +2,10 @@ package proj.memorchess.axl.core.interaction
 
 import kotlin.test.Test
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.graph.TrainingScheduler
@@ -28,6 +30,17 @@ class TestTrainingNodeOrder : TestWithKoin() {
     val entry = scheduler.nextDue()
     assertNotNull(entry)
     assertTrue { entry.positionKey == PositionKey.START_POSITION }
+  }
+
+  @Test
+  fun testSchedulerHonorsNewLimitSetting() = test {
+    // The injected scheduler reads the cap from the config item. Vienna positions are all brand
+    // new, so dropping the new limit to zero empties the queue; restoring it brings them back.
+    assertNotNull(scheduler.nextDue())
+    MAX_NEW_MOVES_PER_DAY_SETTING.setValue(0)
+    assertNull(scheduler.nextDue())
+    MAX_NEW_MOVES_PER_DAY_SETTING.reset()
+    assertNotNull(scheduler.nextDue())
   }
 
   @Test

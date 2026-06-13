@@ -46,6 +46,18 @@ val FUZZ_ENABLED_SETTING = BooleanBasedConfigItem("schedulingFuzzEnabled", false
 val SHORT_TERM_ENABLED_SETTING = BooleanBasedConfigItem("schedulingShortTermEnabled", true)
 
 /**
+ * Maximum number of new positions introduced per day by the trainer. Zero means no new position is
+ * introduced at all.
+ */
+val MAX_NEW_MOVES_PER_DAY_SETTING = IntBasedConfigItem("maxNewMovesPerDay", 10)
+
+/**
+ * Maximum number of distinct positions trained per day, reviews and new positions combined. Zero
+ * means nothing is served, except cards mid learning steps which always finish their session.
+ */
+val MAX_TOTAL_MOVES_PER_DAY_SETTING = IntBasedConfigItem("maxTotalMovesPerDay", 100)
+
+/**
  * Cached repertoire catalog manifest, stored as its raw JSON string. Internal state written by the
  * repertoire catalog cache, never shown in the settings UI. Empty means no cached manifest.
  */
@@ -67,6 +79,8 @@ val ALL_SETTINGS_ITEMS =
     ENGINE_MAX_DEPTH_SETTING,
     FUZZ_ENABLED_SETTING,
     SHORT_TERM_ENABLED_SETTING,
+    MAX_NEW_MOVES_PER_DAY_SETTING,
+    MAX_TOTAL_MOVES_PER_DAY_SETTING,
     REPERTOIRE_MANIFEST_CACHE_SETTING,
     REPERTOIRE_MANIFEST_FETCHED_AT_SETTING,
     INSTALLED_REPERTOIRES_SETTING,
