@@ -51,13 +51,15 @@ class CachedRepertoireCatalog(
       is CatalogResult.HttpError ->
         cached?.let { CachedManifestResult.Stale(it.manifest) }
           ?: CachedManifestResult.HttpError(result.status)
-      is CatalogResult.MalformedManifest ->
+      // MalformedPgn never occurs for manifest fetches; included for exhaustiveness.
+      is CatalogResult.MalformedManifest,
+      is CatalogResult.MalformedPgn -> {
+        val message =
+          if (result is CatalogResult.MalformedManifest) result.message
+          else (result as CatalogResult.MalformedPgn).message
         cached?.let { CachedManifestResult.Stale(it.manifest) }
-          ?: CachedManifestResult.MalformedManifest(result.message)
-      // A manifest fetch never reports MalformedPgn; mapped defensively for exhaustiveness.
-      is CatalogResult.MalformedPgn ->
-        cached?.let { CachedManifestResult.Stale(it.manifest) }
-          ?: CachedManifestResult.MalformedManifest(result.message)
+          ?: CachedManifestResult.MalformedManifest(message)
+      }
     }
   }
 
