@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.TestScope
 import proj.memorchess.axl.core.config.INSTALLED_REPERTOIRES_SETTING
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportException
+import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestWithKoin
 
@@ -44,8 +45,11 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   private fun TestScope.buildViewModel(
     loadManifest: suspend () -> CachedManifestResult,
     fetchPgn: suspend (String) -> CatalogResult<List<PgnGame>> = { CatalogResult.Ok(emptyList()) },
-    importGames: suspend (List<PgnGame>) -> PgnImportSummary = {
+    importGames: suspend (RepertoireColor, List<PgnGame>) -> PgnImportSummary = { _, _ ->
       PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
+    },
+    previewGames: suspend (RepertoireColor, List<PgnGame>) -> PgnImportPreview = { _, _ ->
+      PgnImportPreview(totalMoves = 4, movesInCommon = 1)
     },
     store: InstalledRepertoireStore = InstalledRepertoireStore(),
   ) =
@@ -53,6 +57,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       loadManifest = loadManifest,
       fetchPgn = fetchPgn,
       importGames = importGames,
+      previewGames = previewGames,
       installedStore = store,
       scope = backgroundScope,
     )
@@ -175,7 +180,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        importGames = { PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2) },
+        importGames = { _, _ -> PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2) },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -186,6 +191,25 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     state[london.id] shouldBe
       RepertoireInstallState.Installed(PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2))
     store.isInstalled(london.id) shouldBe true
+  }
+
+  @Test
+  fun installForwardsTheRepertoireColorToTheImporter() = test {
+    var importedColor: RepertoireColor? = null
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(caroKann)) },
+        importGames = { color, _ ->
+          importedColor = color
+          PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(caroKann)
+    viewModel.installStates.first { it[caroKann.id] is RepertoireInstallState.Installed }
+
+    importedColor shouldBe RepertoireColor.BLACK
   }
 
   @Test
@@ -248,7 +272,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        importGames = { throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
+        importGames = { _, _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -287,7 +311,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   }
 
   @Test
-  fun installOnAnAlreadyInstalledRepertoireIsIgnored() = test {
+  fun installOnAnAlreadyInstalledRepertoireReinstalls() = test {
     val store = InstalledRepertoireStore()
     store.markInstalled(london.id)
     var fetchCalls = 0
@@ -298,16 +322,73 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
           fetchCalls++
           CatalogResult.Ok(emptyList())
         },
+        importGames = { _, _ -> PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 6) },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
-
-    viewModel.install(london)
-    testScheduler.advanceUntilIdle()
-
-    fetchCalls shouldBe 0
+    // The catalog seeds an Installed(summary = null) state from persistence.
     viewModel.installStates.value[london.id] shouldBe
       RepertoireInstallState.Installed(summary = null)
+
+    viewModel.install(london)
+    val state = viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+
+    // Reinstall re-fetches and re-imports, restoring removed moves and reporting the fresh summary.
+    fetchCalls shouldBe 1
+    state[london.id] shouldBe
+      RepertoireInstallState.Installed(PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 6))
+    store.isInstalled(london.id) shouldBe true
+  }
+
+  @Test
+  fun requestPreviewPublishesTheOverlap() = test {
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(caroKann)) },
+        fetchPgn = { CatalogResult.Ok(emptyList()) },
+        previewGames = { _, _ -> PgnImportPreview(totalMoves = 12, movesInCommon = 5) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.requestPreview(caroKann)
+    val state = viewModel.previewStates.first { it[caroKann.id] is RepertoirePreviewState.Ready }
+
+    state[caroKann.id] shouldBe
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 12, movesInCommon = 5))
+  }
+
+  @Test
+  fun requestPreviewForwardsTheRepertoireColor() = test {
+    var previewedColor: RepertoireColor? = null
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(caroKann)) },
+        previewGames = { color, _ ->
+          previewedColor = color
+          PgnImportPreview(totalMoves = 1, movesInCommon = 0)
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.requestPreview(caroKann)
+    viewModel.previewStates.first { it[caroKann.id] is RepertoirePreviewState.Ready }
+
+    previewedColor shouldBe RepertoireColor.BLACK
+  }
+
+  @Test
+  fun requestPreviewSurfacesAFetchFailure() = test {
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { CatalogResult.HttpError(404) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.requestPreview(london)
+    val state = viewModel.previewStates.first { it[london.id] is RepertoirePreviewState.Failed }
+
+    state[london.id] shouldBe RepertoirePreviewState.Failed(InstallError.Http(404))
   }
 
   @Test
