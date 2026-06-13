@@ -69,6 +69,18 @@ import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
 /**
+ * Read-only configuration for [ExplorerContent]. When non-null the explorer becomes a viewer: the
+ * Save and Delete controls and the node save-state indicators are hidden because the underlying
+ * graph is a throwaway copy that nothing can mutate.
+ *
+ * @property initialInverted Initial board orientation; `true` opens from black's side (used to show
+ *   a black repertoire from black's perspective).
+ * @property cornerTag Overrides the board shell corner tag, since the node save-state label is not
+ *   meaningful in read-only mode (the repertoire name is shown instead).
+ */
+data class ExplorerViewerMode(val initialInverted: Boolean = false, val cornerTag: String? = null)
+
+/**
  * Shared explorer content relying on a [LinesExplorer].
  *
  * @param explorer The explorer instance.
@@ -76,13 +88,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
  * @param onSave Invoked when the Kinetic control bar Save button is tapped.
  * @param onDelete Invoked when the Kinetic control bar Delete button is tapped.
  * @param header Optional header content rendered above the layout (legacy).
- * @param readOnly When `true`, the page is a viewer: the save and delete controls and the node
- *   save-state indicators are hidden. Used by the repertoire viewer, where the graph is a throwaway
- *   copy of a PGN and nothing can be mutated.
- * @param initialInverted Initial board orientation; `true` shows the board from black's side. Used
- *   to open a black repertoire from black's perspective.
- * @param cornerTag When non-null, overrides the board shell corner tag (the node save-state label
- *   is not meaningful in read-only mode, so the repertoire name is shown instead).
+ * @param viewerMode When non-null, renders the read-only viewer variant; see [ExplorerViewerMode].
  */
 @Composable
 fun ExplorerContent(
@@ -91,11 +97,10 @@ fun ExplorerContent(
   onSave: () -> Unit,
   onDelete: () -> Unit,
   header: @Composable () -> Unit = {},
-  readOnly: Boolean = false,
-  initialInverted: Boolean = false,
-  cornerTag: String? = null,
+  viewerMode: ExplorerViewerMode? = null,
 ) {
-  var inverted by remember { mutableStateOf(initialInverted) }
+  val readOnly = viewerMode != null
+  var inverted by remember { mutableStateOf(viewerMode?.initialInverted ?: false) }
   val coroutineScope = rememberCoroutineScope()
   val nextMoves = remember { mutableStateListOf(*explorer.getNextMoves().toTypedArray()) }
   var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
@@ -135,7 +140,8 @@ fun ExplorerContent(
   // so this reactively recomposes when the user navigates, saves, or deletes.
   val palette = LocalKineticPalette.current
   val nodeState = explorer.state
-  val cornerTagLabel = if (readOnly) cornerTag else stringResource(nodeStateLabel(nodeState))
+  val cornerTagLabel =
+    if (readOnly) viewerMode?.cornerTag else stringResource(nodeStateLabel(nodeState))
   val cornerTagColor = if (readOnly) palette.ink2 else nodeStateColor(nodeState, palette)
 
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }

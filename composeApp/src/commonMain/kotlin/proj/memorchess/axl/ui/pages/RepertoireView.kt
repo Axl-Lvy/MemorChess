@@ -109,9 +109,11 @@ private fun RepertoireViewReady(
     explorerViewModel = explorerViewModel,
     onSave = {},
     onDelete = {},
-    readOnly = true,
-    initialInverted = descriptor.color == RepertoireColor.BLACK,
-    cornerTag = descriptor.name,
+    viewerMode =
+      ExplorerViewerMode(
+        initialInverted = descriptor.color == RepertoireColor.BLACK,
+        cornerTag = descriptor.name,
+      ),
   )
 }
 
@@ -166,7 +168,10 @@ private suspend fun loadRepertoire(
         return RepertoireViewState.Error(RepertoireViewError.Http(manifest.status))
       is CachedManifestResult.MalformedManifest ->
         return RepertoireViewState.Error(RepertoireViewError.MalformedManifest(manifest.message))
-    } ?: return RepertoireViewState.Error(RepertoireViewError.NotFound(repertoireId))
+    }
+  if (descriptor == null) {
+    return RepertoireViewState.Error(RepertoireViewError.NotFound(repertoireId))
+  }
 
   val games =
     when (val result = client.fetchPgn(descriptor.file)) {
