@@ -96,7 +96,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
     isGood: Boolean?,
     fromDepth: Int,
   ): Edge {
-    val createdAt = tree.get(from)?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
+    val createdAt = tree[from]?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
     val edge =
       Edge(
         from = from,
