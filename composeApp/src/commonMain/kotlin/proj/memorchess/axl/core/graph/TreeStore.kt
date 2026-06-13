@@ -78,6 +78,10 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * durable, an exploration edge does not. The destination node is created on demand at depth
    * [fromDepth] + 1.
    *
+   * When the edge already exists its [Edge.createdAt] is preserved. This is load bearing:
+   * exploration replays a line by re-upserting every edge on the way, so a fresh stamp on each
+   * upsert would reshuffle the introduction order of new cards just by browsing.
+   *
    * @param from Position the move is played from.
    * @param move SAN of the move.
    * @param to Position reached by playing [move].
@@ -92,7 +96,16 @@ class TreeStore(private val database: DatabaseQueryManager) {
     isGood: Boolean?,
     fromDepth: Int,
   ): Edge {
-    val edge = Edge(from = from, move = move, to = to, isGood = isGood, updatedAt = DateUtil.now())
+    val createdAt = tree[from]?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
+    val edge =
+      Edge(
+        from = from,
+        move = move,
+        to = to,
+        isGood = isGood,
+        createdAt = createdAt,
+        updatedAt = DateUtil.now(),
+      )
     tree.upsertEdge(edge, fromDepth)
     if (isGood != null) {
       persistNode(from)
@@ -116,12 +129,14 @@ class TreeStore(private val database: DatabaseQueryManager) {
     val now = DateUtil.now()
     val touched = linkedSetOf<PositionKey>()
     for (insertion in moves) {
+      val createdAt = tree[insertion.from]?.outgoing?.get(insertion.move)?.createdAt ?: now
       val edge =
         Edge(
           from = insertion.from,
           move = insertion.move,
           to = insertion.to,
           isGood = insertion.isGood,
+          createdAt = createdAt,
           updatedAt = now,
         )
       tree.upsertEdge(edge, insertion.fromDepth)
@@ -130,7 +145,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
         touched += insertion.to
       }
     }
-    val nodesToPersist = touched.mapNotNull { tree.get(it)?.toDataNode() }
+    val nodesToPersist = touched.mapNotNull { tree[it]?.toDataNode() }
     if (nodesToPersist.isNotEmpty()) {
       database.insertNodes(*nodesToPersist.toTypedArray())
     }
@@ -144,7 +159,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * back.
    */
   suspend fun updateCardState(positionKey: PositionKey, cardState: CardState) {
-    val existing = tree.get(positionKey)
+    val existing = tree[positionKey]
     if (existing == null) {
       LOGGER.w { "Skipping card state update for unknown position $positionKey" }
       return
@@ -163,7 +178,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * Deletes the node at [positionKey] and every incident edge, in both the cache and the database.
    */
   suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.HARD) {
-    val node = tree.get(positionKey)
+    val node = tree[positionKey]
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {
         tree.removeEdge(positionKey, edge.move)
@@ -183,7 +198,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
   }
 
   private suspend fun persistNode(positionKey: PositionKey) {
-    val node = tree.get(positionKey) ?: return
+    val node = tree[positionKey] ?: return
     database.insertNodes(node.toDataNode())
   }
 }
@@ -214,6 +229,7 @@ private fun DataMove.toEdge(): Edge =
     move = move,
     to = destination,
     isGood = isGood,
+    createdAt = createdAt,
     updatedAt = updatedAt,
     isDeleted = isDeleted,
   )
@@ -225,6 +241,7 @@ private fun Edge.toDataMove(): DataMove =
     move = move,
     isGood = isGood,
     isDeleted = isDeleted,
+    createdAt = createdAt,
     updatedAt = updatedAt,
   )
 

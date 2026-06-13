@@ -16,7 +16,7 @@ import proj.memorchess.axl.core.scheduling.CardState
  *   `<index>\t<positionKey>\t<depth>\t<dueDate>\t<lastReview>\t<stability>\t<difficulty>\t<reps>\t<lapses>\t<phase>\t<step>\t<updatedAt>`
  *   where `<lastReview>` is the literal string `null` for a card that has never been reviewed and
  *   `<phase>` is a [proj.memorchess.axl.core.scheduling.CardPhase] name.
- * - **Edge lines**: `<originIndex>\t<destIndex>\t<move>\t<isGood>\t<updatedAt>`
+ * - **Edge lines**: `<originIndex>\t<destIndex>\t<move>\t<isGood>\t<updatedAt>\t<createdAt>`
  *
  * Nodes are sorted by [PositionKey.value] and edges by `(originIndex, destIndex, move)` for
  * determinism.
@@ -30,6 +30,7 @@ object GraphSerializer {
   private const val UNKNOWN = "?"
   private const val NULL_TOKEN = "null"
   private const val NODE_FIELD_COUNT = 12
+  private const val EDGE_FIELD_COUNT = 6
 
   /** Serializes nodes to a deterministic text string. Filters out deleted nodes and moves. */
   fun serialize(nodes: List<DataNode>): String {
@@ -62,7 +63,16 @@ object GraphSerializer {
         val originIdx = indexByKey[node.positionKey]!!
         for (dataMove in node.previousAndNextMoves.filterNotDeleted().nextMoves.values) {
           val destIdx = indexByKey[dataMove.destination] ?: continue
-          add(Edge(originIdx, destIdx, dataMove.move, dataMove.isGood, dataMove.updatedAt))
+          add(
+            Edge(
+              originIdx,
+              destIdx,
+              dataMove.move,
+              dataMove.isGood,
+              dataMove.updatedAt,
+              dataMove.createdAt,
+            )
+          )
         }
       }
     }
@@ -145,7 +155,7 @@ object GraphSerializer {
     if (section.isEmpty()) return emptyList()
     return section.lines().map { line ->
       val parts = line.split(TAB)
-      require(parts.size == 5) { "Invalid edge line: $line" }
+      require(parts.size == EDGE_FIELD_COUNT) { "Invalid edge line: $line" }
       val originIndex = parts[0].toInt()
       val destIndex = parts[1].toInt()
       require(originIndex in nodeEntries && destIndex in nodeEntries) {
@@ -157,6 +167,7 @@ object GraphSerializer {
         move = parts[2],
         isGood = parseIsGood(parts[3]),
         updatedAt = Instant.parse(parts[4]),
+        createdAt = Instant.parse(parts[5]),
       )
     }
   }
@@ -182,9 +193,11 @@ object GraphSerializer {
     val move: String,
     val isGood: Boolean?,
     val updatedAt: Instant,
+    val createdAt: Instant,
   ) {
     fun toLine(): String =
-      listOf(originIndex, destIndex, move, isGoodToChar(isGood), updatedAt).joinToString(TAB)
+      listOf(originIndex, destIndex, move, isGoodToChar(isGood), updatedAt, createdAt)
+        .joinToString(TAB)
   }
 
   private data class NodeEntry(
@@ -200,7 +213,9 @@ object GraphSerializer {
     val move: String,
     val isGood: Boolean?,
     val updatedAt: Instant,
+    val createdAt: Instant,
   ) {
-    fun toDataMove(): DataMove = DataMove(origin, destination, move, isGood, updatedAt = updatedAt)
+    fun toDataMove(): DataMove =
+      DataMove(origin, destination, move, isGood, createdAt = createdAt, updatedAt = updatedAt)
   }
 }

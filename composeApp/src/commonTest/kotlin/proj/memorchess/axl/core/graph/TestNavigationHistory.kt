@@ -14,9 +14,23 @@ class TestNavigationHistory {
   private val posA = PositionKey("posA b K")
   private val posB = PositionKey("posB w K")
   private val moveToA =
-    Edge(from = startPos, move = "e4", to = posA, isGood = true, updatedAt = instant)
+    Edge(
+      from = startPos,
+      move = "e4",
+      to = posA,
+      isGood = true,
+      createdAt = instant,
+      updatedAt = instant,
+    )
   private val moveToB =
-    Edge(from = posA, move = "e5", to = posB, isGood = true, updatedAt = instant)
+    Edge(
+      from = posA,
+      move = "e5",
+      to = posB,
+      isGood = true,
+      createdAt = instant,
+      updatedAt = instant,
+    )
 
   @Test
   fun pushThenBackReturnsOriginalPosition() {
@@ -59,7 +73,15 @@ class TestNavigationHistory {
     nav.back()
     // Push a different move — should clear forward stack
     val posC = PositionKey("posC b K")
-    val moveToC = Edge(from = startPos, move = "d4", to = posC, isGood = true, updatedAt = instant)
+    val moveToC =
+      Edge(
+        from = startPos,
+        move = "d4",
+        to = posC,
+        isGood = true,
+        createdAt = instant,
+        updatedAt = instant,
+      )
     nav.push(moveToC, posC)
     assertNull(nav.forward())
   }

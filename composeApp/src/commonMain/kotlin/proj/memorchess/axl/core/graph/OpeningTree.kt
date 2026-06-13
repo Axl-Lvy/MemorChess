@@ -46,6 +46,48 @@ class OpeningTree {
   }
 
   /**
+   * Computes a deterministic introduction order over every position in the graph.
+   *
+   * The order is a depth first traversal from [PositionKey.START_POSITION]: a whole line is
+   * numbered from the start position to its end before the traversal backtracks to the next branch.
+   * Sibling branches are visited oldest [Edge.createdAt] first, with the move SAN as a tiebreak, so
+   * lines are introduced in the order they were added to the repertoire. Deleted edges are not
+   * followed. A transposition is numbered at its first visit only. Positions not reachable from the
+   * start position are appended at the end, ordered by depth then position key.
+   *
+   * Recomputed from scratch on every call. If this ever shows up in the opening tree benchmark,
+   * memoize on the snapshot identity.
+   *
+   * @return Index of every position in the introduction order, starting at 0.
+   */
+  fun introductionOrder(): Map<PositionKey, Int> {
+    val order = mutableMapOf<PositionKey, Int>()
+    val stack = ArrayDeque<PositionKey>()
+    if (PositionKey.START_POSITION in positions) {
+      stack.addLast(PositionKey.START_POSITION)
+    }
+    while (stack.isNotEmpty()) {
+      val key = stack.removeLast()
+      if (key in order) continue
+      order[key] = order.size
+      val node = positions[key] ?: continue
+      val children =
+        node.outgoing.values
+          .filterNot { it.isDeleted }
+          .sortedWith(compareBy({ it.createdAt }, { it.move }))
+      // Reversed so that the oldest branch is popped first.
+      for (edge in children.asReversed()) {
+        if (edge.to !in order) stack.addLast(edge.to)
+      }
+    }
+    positions.keys
+      .filter { it !in order }
+      .sortedWith(compareBy({ getDepth(it) }, { it.value }))
+      .forEach { order[it] = order.size }
+    return order
+  }
+
+  /**
    * Computes the [NodeState] for [positionKey] given which position we arrived from.
    *
    * @param positionKey Position to compute the state for.

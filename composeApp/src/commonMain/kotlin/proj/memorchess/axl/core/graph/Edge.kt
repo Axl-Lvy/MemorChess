@@ -20,6 +20,9 @@ import proj.memorchess.axl.core.data.PositionKey
  * @property isGood Whether the move is part of the user's intended repertoire. `null` for a move
  *   that was explored but not yet classified. A `false` value flags a move kept around as a known
  *   mistake to drill against.
+ * @property createdAt Moment the edge was first added to the repertoire. Unlike [updatedAt], it is
+ *   preserved by [TreeStore.addMove] across re-upserts, which makes it a stable sibling order for
+ *   the introduction of new cards (see [OpeningTree.introductionOrder]).
  * @property updatedAt Last time the edge was written. Stamped by [TreeStore].
  * @property isDeleted Tombstone flag used by [DeleteMode.SOFT].
  */
@@ -28,6 +31,7 @@ data class Edge(
   val move: String,
   val to: PositionKey,
   val isGood: Boolean?,
+  val createdAt: Instant,
   val updatedAt: Instant,
   val isDeleted: Boolean = false,
 )

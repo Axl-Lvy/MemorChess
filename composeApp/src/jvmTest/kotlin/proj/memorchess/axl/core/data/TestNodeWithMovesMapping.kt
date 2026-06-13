@@ -38,6 +38,23 @@ class TestNodeWithMovesMapping {
   }
 
   @Test
+  fun moveCreatedAtSurvivesTheRoundTrip() {
+    val createdAt = Instant.parse("2026-05-01T08:00:00Z")
+    val move =
+      DataMove(
+        origin = PositionKey("posA b K"),
+        destination = PositionKey("posB w K"),
+        move = "e4",
+        isGood = true,
+        createdAt = createdAt,
+        updatedAt = due,
+      )
+    val roundTripped = MoveEntity.convertToEntity(move).toStoredMove()
+    roundTripped.createdAt shouldBe createdAt
+    roundTripped.updatedAt shouldBe due
+  }
+
+  @Test
   fun everyPhaseRoundTripsToItself() {
     for (phase in CardPhase.entries) {
       val card =

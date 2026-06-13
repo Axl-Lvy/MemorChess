@@ -46,6 +46,7 @@ private external interface JsMoveEntity : JsAny {
   var move: String
   var isGood: Boolean
   var isDeleted: Boolean
+  var createdAt: Double // epoch seconds (Double avoids Long→BigInt)
   var updatedAt: Double // epoch seconds (Double avoids Long→BigInt)
 }
 
@@ -81,6 +82,7 @@ private fun JsMoveEntity.toDataMove(): DataMove =
     move = move,
     isGood = isGood,
     isDeleted = isDeleted,
+    createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
   )
 
@@ -147,6 +149,7 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
     move = dataMove.move
     isGood = isGoodValue
     isDeleted = dataMove.isDeleted
+    createdAt = dataMove.createdAt.epochSeconds.toDouble()
     updatedAt = dataMove.updatedAt.epochSeconds.toDouble()
   }
 }
@@ -159,7 +162,7 @@ internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 4
+internal const val DB_VERSION = 5
 
 // ---------------------------------------------------------------------------
 // IndexedDB-backed DatabaseQueryManager

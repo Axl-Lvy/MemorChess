@@ -34,6 +34,9 @@ data class MoveEntity(
   /** If true, the node is deleted. */
   val isDeleted: Boolean = false,
 
+  /** The date time at which the move was first added. */
+  val createdAt: Instant = DateUtil.now(),
+
   /** The date time of the last update. */
   val updatedAt: Instant = DateUtil.now(),
 ) {
@@ -46,6 +49,7 @@ data class MoveEntity(
       move,
       isGood,
       isDeleted,
+      createdAt,
       updatedAt,
     )
   }
@@ -63,6 +67,7 @@ data class MoveEntity(
         dataMove.move,
         isGood,
         dataMove.isDeleted,
+        dataMove.createdAt,
         dataMove.updatedAt,
       )
     }
