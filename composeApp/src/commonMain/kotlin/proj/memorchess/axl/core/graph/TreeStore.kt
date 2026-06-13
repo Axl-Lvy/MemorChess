@@ -159,7 +159,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * back.
    */
   suspend fun updateCardState(positionKey: PositionKey, cardState: CardState) {
-    val existing = tree.get(positionKey)
+    val existing = tree[positionKey]
     if (existing == null) {
       LOGGER.w { "Skipping card state update for unknown position $positionKey" }
       return
@@ -178,7 +178,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * Deletes the node at [positionKey] and every incident edge, in both the cache and the database.
    */
   suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.HARD) {
-    val node = tree.get(positionKey)
+    val node = tree[positionKey]
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {
         tree.removeEdge(positionKey, edge.move)
@@ -198,7 +198,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
   }
 
   private suspend fun persistNode(positionKey: PositionKey) {
-    val node = tree.get(positionKey) ?: return
+    val node = tree[positionKey] ?: return
     database.insertNodes(node.toDataNode())
   }
 }
