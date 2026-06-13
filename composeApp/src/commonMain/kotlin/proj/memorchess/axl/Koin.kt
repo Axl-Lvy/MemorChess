@@ -22,6 +22,9 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCache
 import proj.memorchess.axl.core.data.explorer.LichessExplorerClient
 import proj.memorchess.axl.core.data.explorer.getPlatformSpecificExplorerCache
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
+import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
+import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
+import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
@@ -88,7 +91,21 @@ fun initKoinModules(): Array<Module> {
     single { CachedExplorer(get(), get()) }
   }
 
+  val repertoireModule = module {
+    single { RepertoireCatalogClient(httpClient = get()) }
+    single { CachedRepertoireCatalog(get()) }
+    single { InstalledRepertoireStore() }
+  }
+
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
 
-  return arrayOf(dataModule, schedulingModule, graphModule, authModule, explorerModule, otherModule)
+  return arrayOf(
+    dataModule,
+    schedulingModule,
+    graphModule,
+    authModule,
+    explorerModule,
+    repertoireModule,
+    otherModule,
+  )
 }

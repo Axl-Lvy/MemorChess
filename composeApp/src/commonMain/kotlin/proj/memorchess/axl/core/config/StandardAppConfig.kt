@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.config
 import com.russhwolf.settings.Settings
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 import proj.memorchess.axl.ui.theme.AppThemeSetting
 import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 
@@ -44,6 +45,19 @@ val FUZZ_ENABLED_SETTING = BooleanBasedConfigItem("schedulingFuzzEnabled", false
  */
 val SHORT_TERM_ENABLED_SETTING = BooleanBasedConfigItem("schedulingShortTermEnabled", true)
 
+/**
+ * Cached repertoire catalog manifest, stored as its raw JSON string. Internal state written by the
+ * repertoire catalog cache, never shown in the settings UI. Empty means no cached manifest.
+ */
+val REPERTOIRE_MANIFEST_CACHE_SETTING = StringBasedConfig("repertoireManifestCache", "")
+
+/** Moment the cached repertoire catalog manifest was fetched, used for staleness checks. */
+val REPERTOIRE_MANIFEST_FETCHED_AT_SETTING =
+  TimeBasedConfig("repertoireManifestFetchedAt", Instant.DISTANT_PAST)
+
+/** Comma joined ids of the catalog repertoires installed on this device. */
+val INSTALLED_REPERTOIRES_SETTING = StringBasedConfig("installedRepertoireIds", "")
+
 val ALL_SETTINGS_ITEMS =
   listOf(
     TRAINING_MOVE_DELAY_SETTING,
@@ -53,6 +67,9 @@ val ALL_SETTINGS_ITEMS =
     ENGINE_MAX_DEPTH_SETTING,
     FUZZ_ENABLED_SETTING,
     SHORT_TERM_ENABLED_SETTING,
+    REPERTOIRE_MANIFEST_CACHE_SETTING,
+    REPERTOIRE_MANIFEST_FETCHED_AT_SETTING,
+    INSTALLED_REPERTOIRES_SETTING,
   )
 
 internal expect fun getPlatformSpecificSettings(): Settings
