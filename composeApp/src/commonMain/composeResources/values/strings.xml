@@ -63,6 +63,15 @@
   <string name="settings_import">IMPORT FILE</string>
   <string name="settings_import_confirm">Import openings from %1$s? This will merge with existing data.</string>
   <string name="settings_import_invalid">Invalid file format: %1$s</string>
+  <string name="settings_lichess_study_field">Lichess study URL or ID</string>
+  <string name="settings_lichess_study_import">IMPORT STUDY</string>
+  <string name="lichess_study_import_success">Imported %1$d new moves, %2$d already present.</string>
+  <string name="lichess_study_invalid_url">Invalid study URL or ID.</string>
+  <string name="lichess_study_not_found">Study not found. It may be private.</string>
+  <string name="lichess_study_http_error">Lichess returned an error (HTTP %1$d).</string>
+  <string name="lichess_study_network_error">Network error. Check your connection and try again.</string>
+  <string name="lichess_study_malformed_pgn">Could not read the study PGN: %1$s</string>
+  <string name="lichess_study_import_failed">Import failed: %1$s</string>
 
   <!-- Settings: danger zone -->
   <string name="settings_reset_title">Reset all settings to defaults</string>
