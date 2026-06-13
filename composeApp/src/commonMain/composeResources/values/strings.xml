@@ -49,6 +49,8 @@
   <string name="settings_auto_advance_delay">Auto-advance delay</string>
   <string name="settings_relearn_failed">Relearn failed cards in session</string>
   <string name="settings_fuzz">Spread review intervals (fuzz)</string>
+  <string name="settings_max_new_moves_per_day">New moves per day</string>
+  <string name="settings_max_total_moves_per_day">Total moves per day</string>
   <string name="settings_unit_ms">ms</string>
   <string name="settings_unit_seconds">s</string>
   <string name="settings_slider_zero">0</string>
