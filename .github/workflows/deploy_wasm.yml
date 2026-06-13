@@ -12,12 +12,6 @@ permissions:
   pages: write    # Allow deployment to GitHub Pages
   id-token: write # Required by actions/configure-pages
 
-# Consumed by settings.gradle.kts to authenticate against the
-# Stockfish-Multiplatform GitHub Packages repository.
-env:
-  GITHUB_ACTOR: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest

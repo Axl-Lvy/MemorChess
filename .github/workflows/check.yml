@@ -16,12 +16,6 @@ concurrency:
 permissions:
   contents: read
 
-# Consumed by settings.gradle.kts to authenticate against the
-# Stockfish-Multiplatform GitHub Packages repository.
-env:
-  GITHUB_ACTOR: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   # Resolve which tier of checks to run:
   #   noop  -> no code/build files touched, nothing to verify
