@@ -71,6 +71,18 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   @Test
+  fun hardDeletingALeafKeepsUnrelatedMovesOfOtherNodes() = runTest {
+    val database = seededLine()
+    database.deletePosition(key2, DeleteMode.HARD)
+    assertNull(database.getPosition(key2))
+    // key0 never referenced key2, so its e4 move (to key1) survives the cascade untouched.
+    assertEquals(setOf("e4"), database.getPosition(key0)!!.previousAndNextMoves.nextMoves.keys)
+    // key1 keeps its incoming e4 but loses its outgoing e5, which pointed at the removed key2.
+    assertEquals(setOf("e4"), database.getPosition(key1)!!.previousAndNextMoves.previousMoves.keys)
+    assertTrue(database.getPosition(key1)!!.previousAndNextMoves.nextMoves.isEmpty())
+  }
+
+  @Test
   fun softDeletingAPositionHidesItButKeepsTheRow() = runTest {
     val database = seededLine()
     database.deletePosition(key1, DeleteMode.SOFT)
@@ -112,6 +124,32 @@ class TestInMemoryDatabaseQueryManager {
     database.deleteMove(key0, "Qh5", DeleteMode.HARD)
     database.deleteMove(keyAfter("d4"), "d5", DeleteMode.HARD)
     assertEquals(setOf("e4"), database.getPosition(key0)!!.previousAndNextMoves.nextMoves.keys)
+  }
+
+  @Test
+  fun deletingAMoveWhoseDestinationIsAbsentUpdatesOnlyTheOrigin() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    // Only the origin exists; its e4 edge points at a key1 node that was never inserted.
+    database.insertNodes(node(key0, previous = listOf(), next = listOf(moveE4)))
+    database.deleteMove(key0, "e4", DeleteMode.HARD)
+    assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.isEmpty())
+    assertNull(database.getPosition(key1))
+  }
+
+  @Test
+  fun hardDeletingOneOfSeveralMovesKeepsTheOthers() = runTest {
+    val keyD4 = keyAfter("d4")
+    val moveD4 = DataMove(key0, keyD4, "d4", isGood = true)
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      node(key0, previous = listOf(), next = listOf(moveE4, moveD4)),
+      node(key1, previous = listOf(moveE4), next = listOf()),
+      node(keyD4, previous = listOf(moveD4), next = listOf()),
+    )
+    database.deleteMove(key0, "e4", DeleteMode.HARD)
+    // d4 is left in place; only the matching e4 is removed from the origin.
+    assertEquals(setOf("d4"), database.getPosition(key0)!!.previousAndNextMoves.nextMoves.keys)
+    assertTrue(database.getPosition(key1)!!.previousAndNextMoves.previousMoves.isEmpty())
   }
 
   @Test
