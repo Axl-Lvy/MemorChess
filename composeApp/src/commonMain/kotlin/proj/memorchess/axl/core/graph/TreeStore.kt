@@ -145,7 +145,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
         touched += insertion.to
       }
     }
-    val nodesToPersist = touched.mapNotNull { tree.get(it)?.toDataNode() }
+    val nodesToPersist = touched.mapNotNull { tree[it]?.toDataNode() }
     if (nodesToPersist.isNotEmpty()) {
       database.insertNodes(*nodesToPersist.toTypedArray())
     }
