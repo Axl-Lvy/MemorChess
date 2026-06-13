@@ -24,6 +24,7 @@ import proj.memorchess.axl.core.auth.LichessOAuthClient
 import proj.memorchess.axl.core.auth.LichessSignInController
 import proj.memorchess.axl.core.auth.OAuthLauncher
 import proj.memorchess.axl.core.auth.OAuthTokenStore
+import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
@@ -83,6 +84,7 @@ abstract class TestWithKoin : KoinComponent {
 
   /** Stops Koin and resets state. Use directly only for UI tests that cannot use [test]. */
   protected fun koinTearDown() {
+    ALL_SETTINGS_ITEMS.forEach { it.reset() }
     stopKoin()
     ToastRendererForTests.clear()
   }
