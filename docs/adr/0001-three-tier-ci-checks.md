@@ -83,10 +83,6 @@ Three things that were tried and reverted:
   The snapshot saved by the create AVD step is incompatible with the
   test run step ("Failed to load snapshot 'default_boot'"), so the
   emulator cold boots either way. Kept `-no-snapshot`.
-- Removing the workflow level `GITHUB_ACTOR` / `GITHUB_TOKEN` env. It
-  is consumed by `settings.gradle.kts` to authenticate against the
-  Stockfish-Multiplatform GitHub Packages repository.
-
 ## Consequences
 
 Verified wall times on this PR:
