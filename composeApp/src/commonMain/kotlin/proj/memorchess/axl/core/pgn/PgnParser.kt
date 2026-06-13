@@ -264,13 +264,13 @@ private class Parser(private val text: String) {
     advance()
     val value = buildString {
       while (true) {
-        val c = peek() ?: throw PgnParseException("Unterminated tag pair", startLine, startColumn)
+        val c = peek() ?: throw PgnParseException(UNTERMINATED_TAG_PAIR, startLine, startColumn)
         advance()
         when (c) {
           '"' -> return@buildString
           '\\' -> {
             val escaped =
-              peek() ?: throw PgnParseException("Unterminated tag pair", startLine, startColumn)
+              peek() ?: throw PgnParseException(UNTERMINATED_TAG_PAIR, startLine, startColumn)
             advance()
             append(escaped)
           }
@@ -288,7 +288,7 @@ private class Parser(private val text: String) {
 
   private fun skipSpacesInTag(startLine: Int, startColumn: Int) {
     while (true) {
-      val c = peek() ?: throw PgnParseException("Unterminated tag pair", startLine, startColumn)
+      val c = peek() ?: throw PgnParseException(UNTERMINATED_TAG_PAIR, startLine, startColumn)
       if (c == ' ' || c == '\t') advance() else return
     }
   }
@@ -337,6 +337,9 @@ private class Parser(private val text: String) {
   }
 
   private companion object {
+    /** Error raised when a tag pair is left open at the end of the input. */
+    const val UNTERMINATED_TAG_PAIR = "Unterminated tag pair"
+
     /** Characters that end a movetext word in addition to whitespace. */
     const val WORD_TERMINATORS = "(){}[];$"
 
