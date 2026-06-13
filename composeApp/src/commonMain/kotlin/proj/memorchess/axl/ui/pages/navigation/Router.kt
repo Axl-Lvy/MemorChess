@@ -17,12 +17,14 @@ import androidx.navigation.toRoute
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.ui.components.navigation.wipeReveal
 import proj.memorchess.axl.ui.pages.Explore
+import proj.memorchess.axl.ui.pages.RepertoireLibrary
 import proj.memorchess.axl.ui.pages.Settings
 import proj.memorchess.axl.ui.pages.Training
 import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
- * Ordinal of a destination along the navigation bar (Explore `0`, Training `1`, Settings `2`).
+ * Ordinal of a destination along the navigation bar (Explore `0`, Training `1`, Library `2`,
+ * Settings `3`).
  *
  * Drives the direction of the screen transition: navigating toward a higher ordinal reveals the new
  * screen from the right, toward a lower one from the left. Matched against the destination route
@@ -35,7 +37,8 @@ internal fun NavBackStackEntry.routeOrdinal(): Int {
   return when {
     route.contains("explore") -> 0
     route.contains("training") -> 1
-    route.contains("settings") -> 2
+    route.contains("library") -> 2
+    route.contains("settings") -> 3
     else -> 1
   }
 }
@@ -76,6 +79,11 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
   ) {
     composable<Route.TrainingRoute> {
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Training() }
+    }
+    composable<Route.LibraryRoute> {
+      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
+        RepertoireLibrary()
+      }
     }
     composable<Route.SettingsRoute> {
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Settings() }
