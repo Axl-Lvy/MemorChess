@@ -5,8 +5,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
@@ -20,10 +20,10 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Training
-import proj.memorchess.axl.ui.pages.navigation.Route
 
 private const val BRAVO_TEXT = "Bravo !"
 
@@ -32,11 +32,14 @@ class TestTraining : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
 
-  private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
+  private fun runTestFromSetup(
+    cardState: CardState? = null,
+    block: suspend ComposeUiTest.() -> Unit,
+  ) = runComposeUiTest {
     koinSetUp()
     disableShortTermScheduler()
     try {
-      resetDatabase()
+      resetDatabase(cardState ?: dueNowFromLastWeek())
       setContent { InitializeApp { Training() } }
       block()
     } finally {
@@ -56,7 +59,7 @@ class TestTraining : TestWithKoin() {
     SHORT_TERM_ENABLED_SETTING.setValue(false)
   }
 
-  suspend fun resetDatabase() {
+  suspend fun resetDatabase(cardState: CardState = dueNowFromLastWeek()) {
     // Delete all existing nodes
     database.eraseAll()
 
@@ -70,11 +73,7 @@ class TestTraining : TestWithKoin() {
 
     // Create the node with the move
     val testNode =
-      DataNode(
-        positionKey = startPos,
-        PreviousAndNextMoves(listOf(), listOf(e4Move)),
-        dueNowFromLastWeek(),
-      )
+      DataNode(positionKey = startPos, PreviousAndNextMoves(listOf(), listOf(e4Move)), cardState)
 
     // Save the node to the database
     database.insertNodes(testNode)
@@ -93,6 +92,25 @@ class TestTraining : TestWithKoin() {
       difficulty = 0.0,
       reps = 0,
       lapses = 0,
+    )
+  }
+
+  /**
+   * Graduated card due in two days, mature enough (high stability) that failing it reschedules it
+   * three days out under FSRS 6 with default weights and fuzz off. Drives the day counter reset
+   * scenario: the card only surfaces when training two days in advance, and a failure there pushes
+   * it beyond the window again, emptying the deck.
+   */
+  private fun matureReviewCardDueInTwoDays(): CardState {
+    val now = DateUtil.now()
+    return CardState(
+      dueDate = now + 2.days,
+      lastReview = now,
+      stability = 60.0,
+      difficulty = 5.0,
+      reps = 5,
+      lapses = 0,
+      phase = CardPhase.REVIEW,
     )
   }
 
@@ -139,24 +157,28 @@ class TestTraining : TestWithKoin() {
   }
 
   /**
-   * Verifies the day counter reset behavior on a failed review. Already disabled because the legacy
-   * assertion required exact-2-day rescheduling that FSRS no longer guarantees. Kept here because
-   * the no-manual-click flow now matches the rest of the suite — re-enable when a stable assertion
-   * can be written against the current scheduler.
+   * Verifies the day counter reset behavior on a failed review: failing a card while training two
+   * days in advance collapses the counter back to one. The card is mature, so the failure
+   * reschedules it beyond the two day window and empties the deck, which is what triggers the
+   * reset.
    */
-  @kotlin.test.Ignore
   @Test
-  fun testResetDayOnFail() = runTestFromSetup {
-    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-    playMove("e2", "e3")
-    assertNodeWithTextExists("INCREMENT A DAY").performClick()
-    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-    playMove("e2", "e4")
-    assertNodeWithTextExists(BRAVO_TEXT)
-    assertNodeWithTextExists("INCREMENT A DAY").performClick()
-    playMove("e2", "e3")
-    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-  }
+  fun testResetDayOnFail() =
+    runTestFromSetup(matureReviewCardDueInTwoDays()) {
+      // Nothing is due today nor tomorrow: the card only surfaces two days in advance.
+      assertNodeWithTextExists(BRAVO_TEXT)
+      assertNodeWithTextExists("Days in advance: 0")
+      assertNodeWithTextExists("INCREMENT A DAY").performClick()
+      assertNodeWithTextExists("Days in advance: 1")
+      assertNodeWithTextExists("INCREMENT A DAY").performClick()
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+      playMove("e2", "e3")
+      // The failed card is rescheduled past the window, so the deck empties and the counter
+      // collapses back to one instead of staying at two.
+      assertNodeWithTextExists(BRAVO_TEXT)
+      assertNodeWithTextExists("Days in advance: 1")
+      assertNodeWithTextDoesNotExists("Days in advance: 2")
+    }
 
   @Test
   fun testShowNextMove() = runComposeUiTest {
@@ -231,20 +253,5 @@ class TestTraining : TestWithKoin() {
     } finally {
       koinTearDown()
     }
-  }
-
-  /**
-   * Verifies that the failed position can be opened in Explore. Disabled because the pre-Kinetic
-   * "Go to explore" button on the wrong-move feedback card was dropped — Training now auto-advances
-   * on wrong moves and exposes no inspect affordance. Re-enable once a jump-to-failed-position
-   * entry point exists in the new layout.
-   */
-  @kotlin.test.Ignore
-  @Test
-  fun testShowRightMoveInExplorer() = runTestFromSetup {
-    assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-    playMove("e2", "e3")
-    @Suppress("DEPRECATION") clickOnShowOnExplore()
-    assertEquals(navigator.lastRoute, Route.ExploreRoute.from(PositionKey.START_POSITION))
   }
 }
