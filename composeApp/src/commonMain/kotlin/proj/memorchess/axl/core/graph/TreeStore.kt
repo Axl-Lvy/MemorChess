@@ -96,7 +96,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
     isGood: Boolean?,
     fromDepth: Int,
   ): Edge {
-    val createdAt = tree.get(from)?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
+    val createdAt = tree[from]?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
     val edge =
       Edge(
         from = from,
@@ -115,6 +115,43 @@ class TreeStore(private val database: DatabaseQueryManager) {
   }
 
   /**
+   * Adds every move in [moves] to the cache, then persists all touched nodes in one batch.
+   *
+   * Behaves like calling [addMove] for each element, except that every node touched by a classified
+   * move is written to the database exactly once, through a single
+   * [DatabaseQueryManager.insertNodes] call. Existing nodes keep their [CardState]; only their edge
+   * maps and, when a shorter path is found, their depth are updated.
+   *
+   * @param moves Insertions to apply, in order.
+   */
+  suspend fun addMoves(moves: List<MoveInsertion>) {
+    if (moves.isEmpty()) return
+    val now = DateUtil.now()
+    val touched = linkedSetOf<PositionKey>()
+    for (insertion in moves) {
+      val createdAt = tree[insertion.from]?.outgoing?.get(insertion.move)?.createdAt ?: now
+      val edge =
+        Edge(
+          from = insertion.from,
+          move = insertion.move,
+          to = insertion.to,
+          isGood = insertion.isGood,
+          createdAt = createdAt,
+          updatedAt = now,
+        )
+      tree.upsertEdge(edge, insertion.fromDepth)
+      if (insertion.isGood != null) {
+        touched += insertion.from
+        touched += insertion.to
+      }
+    }
+    val nodesToPersist = touched.mapNotNull { tree[it]?.toDataNode() }
+    if (nodesToPersist.isNotEmpty()) {
+      database.insertNodes(*nodesToPersist.toTypedArray())
+    }
+  }
+
+  /**
    * Stores [cardState] on the node at [positionKey] and persists it.
    *
    * Logs a warning and skips the write when [positionKey] is not in the cache; that should only
@@ -122,7 +159,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * back.
    */
   suspend fun updateCardState(positionKey: PositionKey, cardState: CardState) {
-    val existing = tree.get(positionKey)
+    val existing = tree[positionKey]
     if (existing == null) {
       LOGGER.w { "Skipping card state update for unknown position $positionKey" }
       return
@@ -141,7 +178,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * Deletes the node at [positionKey] and every incident edge, in both the cache and the database.
    */
   suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.HARD) {
-    val node = tree.get(positionKey)
+    val node = tree[positionKey]
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {
         tree.removeEdge(positionKey, edge.move)
@@ -161,10 +198,30 @@ class TreeStore(private val database: DatabaseQueryManager) {
   }
 
   private suspend fun persistNode(positionKey: PositionKey) {
-    val node = tree.get(positionKey) ?: return
+    val node = tree[positionKey] ?: return
     database.insertNodes(node.toDataNode())
   }
 }
+
+/**
+ * One move to insert through [TreeStore.addMoves].
+ *
+ * Mirrors the parameters of [TreeStore.addMove] so a batch element carries exactly the same
+ * information as a single insertion.
+ *
+ * @property from Position the move is played from.
+ * @property move SAN of the move.
+ * @property to Position reached by playing [move].
+ * @property isGood Classification of the move. `null` means exploration only.
+ * @property fromDepth Depth of [from] used when the node has to be inserted.
+ */
+data class MoveInsertion(
+  val from: PositionKey,
+  val move: String,
+  val to: PositionKey,
+  val isGood: Boolean?,
+  val fromDepth: Int,
+)
 
 private fun DataMove.toEdge(): Edge =
   Edge(

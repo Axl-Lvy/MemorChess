@@ -15,6 +15,7 @@ import kotlin.time.Duration
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.brand_version_label
 import memorchess.composeapp.generated.resources.nav_explore
+import memorchess.composeapp.generated.resources.nav_library
 import memorchess.composeapp.generated.resources.nav_settings
 import memorchess.composeapp.generated.resources.nav_training
 import org.jetbrains.compose.resources.stringResource
@@ -74,11 +75,13 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
         }
       val exploreLabel = stringResource(Res.string.nav_explore)
       val trainingLabel = stringResource(Res.string.nav_training)
+      val libraryLabel = stringResource(Res.string.nav_library)
       val settingsLabel = stringResource(Res.string.nav_settings)
       val labelByRouteKey =
         mapOf(
           Route.TrainingRoute.getLabel() to trainingLabel,
           Route.ExploreRoute.DEFAULT.getLabel() to exploreLabel,
+          Route.LibraryRoute.getLabel() to libraryLabel,
           Route.SettingsRoute.getLabel() to settingsLabel,
         )
       val sortedNavItems = remember { NavigationBarItemContent.entries.sortedBy { it.index } }
