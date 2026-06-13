@@ -35,7 +35,8 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
       return
     }
     navigation.push(edge, edge.to)
-    state = treeStore.current().computeState(navigation.current, navigation.arrivedVia?.from)
+    // After the push, navigation.arrivedVia is exactly this edge, so edge.from is the parent.
+    state = treeStore.current().computeState(navigation.current, edge.from)
     callCallBacks()
   }
 
