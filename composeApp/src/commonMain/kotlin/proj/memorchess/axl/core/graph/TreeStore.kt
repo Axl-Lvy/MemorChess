@@ -129,12 +129,14 @@ class TreeStore(private val database: DatabaseQueryManager) {
     val now = DateUtil.now()
     val touched = linkedSetOf<PositionKey>()
     for (insertion in moves) {
+      val createdAt = tree[insertion.from]?.outgoing?.get(insertion.move)?.createdAt ?: now
       val edge =
         Edge(
           from = insertion.from,
           move = insertion.move,
           to = insertion.to,
           isGood = insertion.isGood,
+          createdAt = createdAt,
           updatedAt = now,
         )
       tree.upsertEdge(edge, insertion.fromDepth)
