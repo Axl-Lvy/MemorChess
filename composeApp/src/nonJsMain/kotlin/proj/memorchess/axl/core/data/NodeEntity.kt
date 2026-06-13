@@ -17,6 +17,7 @@ import proj.memorchess.axl.core.scheduling.CardPhase
  * @property positionKey FEN string uniquely identifying the chess position.
  * @property dueDate Moment when the card is next due for review.
  * @property lastReview Moment of the most recent review, or `null` for a brand new card.
+ * @property firstReview Moment of the very first review, or `null` for a never reviewed card.
  * @property stability FSRS stability of the memory trace, in days.
  * @property difficulty FSRS card difficulty.
  * @property reps Total number of recorded reviews.
@@ -42,6 +43,7 @@ data class NodeEntity(
   @PrimaryKey(autoGenerate = false) val positionKey: String,
   val dueDate: Instant = DateUtil.now(),
   val lastReview: Instant? = null,
+  val firstReview: Instant? = null,
   val stability: Double = 0.0,
   val difficulty: Double = 0.0,
   val reps: Int = 0,

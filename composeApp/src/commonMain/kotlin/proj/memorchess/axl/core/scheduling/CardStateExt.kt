@@ -21,6 +21,7 @@ object CardStateFactory {
     CardState(
       dueDate = now,
       lastReview = null,
+      firstReview = null,
       stability = 0.0,
       difficulty = 0.0,
       reps = 0,

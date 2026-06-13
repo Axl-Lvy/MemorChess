@@ -44,6 +44,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
       CardState(
         dueDate = now,
         lastReview = sevenDaysAgo,
+        firstReview = sevenDaysAgo,
         stability = 7.0,
         difficulty = 5.0,
         reps = 1,

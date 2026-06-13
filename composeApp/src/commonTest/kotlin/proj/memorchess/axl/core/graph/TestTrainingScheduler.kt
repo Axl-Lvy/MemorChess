@@ -8,7 +8,12 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.UtcOffset
+import kotlinx.datetime.asTimeZone
+import kotlinx.datetime.toInstant
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
@@ -26,10 +31,14 @@ class TestTrainingScheduler {
   private val posB = PositionKey("posB w K")
   private val posC = PositionKey("posC b K")
 
-  private fun newScheduler(): Pair<TreeStore, TrainingScheduler> {
+  private fun newScheduler(
+    maxNew: Int = Int.MAX_VALUE,
+    maxTotal: Int = Int.MAX_VALUE,
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
+  ): Pair<TreeStore, TrainingScheduler> {
     val store = TreeStore(TestDatabaseQueryManager.empty())
     val scheduler =
-      TrainingScheduler(store, Fsrs6SchedulingAlgorithm(), TimeZone.currentSystemDefault())
+      TrainingScheduler(store, Fsrs6SchedulingAlgorithm(), timeZone, { maxNew }, { maxTotal })
     return store to scheduler
   }
 
@@ -180,6 +189,151 @@ class TestTrainingScheduler {
     assertEquals(posB, scheduler.nextDue()?.positionKey)
   }
 
+  // Daily caps: how many new moves and how many total moves are served per day.
+
+  @Test
+  fun newLimitZeroServesNoNewCards() = runTest {
+    val (store, scheduler) = newScheduler(maxNew = 0)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    assertEquals(0, scheduler.pendingCount())
+    assertNull(scheduler.nextDue())
+  }
+
+  @Test
+  fun newLimitOneServesExactlyOneNewCard() = runTest {
+    val (store, scheduler) = newScheduler(maxNew = 1)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    assertEquals(1, scheduler.pendingCount())
+    assertEquals(startPos, scheduler.nextDue()?.positionKey)
+  }
+
+  @Test
+  fun newLimitExactlyAtBoundaryServesAllNewCards() = runTest {
+    val (store, scheduler) = newScheduler(maxNew = 2)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    assertEquals(2, scheduler.pendingCount())
+  }
+
+  @Test
+  fun newLimitOneAboveBoundaryServesAllNewCards() = runTest {
+    val (store, scheduler) = newScheduler(maxNew = 3)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    assertEquals(2, scheduler.pendingCount())
+  }
+
+  @Test
+  fun largeNewLimitServesEverything() = runTest {
+    val (store, scheduler) = newScheduler(maxNew = 1_000_000)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    assertEquals(2, scheduler.pendingCount())
+  }
+
+  @Test
+  fun totalLimitZeroStillServesInSessionLearningCards() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 0)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    // posA is mid learning and ready. Even with the total cap at zero it must finish its steps,
+    // while the brand new startPos card stays blocked.
+    store.updateCardState(posA, learningCard(DateUtil.now() - 1.minutes))
+    assertEquals(1, scheduler.pendingCount())
+    assertEquals(posA, scheduler.nextDue()?.positionKey)
+  }
+
+  @Test
+  fun totalLimitConsumedByReviewsBeforeNewCards() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 1)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    // startPos is a due review; posA is a brand new card. With only one slot left, the review is
+    // served and the new card is held back.
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(1, scheduler.pendingCount())
+    assertEquals(startPos, scheduler.nextDue()?.positionKey)
+  }
+
+  @Test
+  fun totalLimitReachedByCardsTrainedTodayServesNothing() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 1)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.addMove(from = posC, move = "Nf3", to = posB, isGood = true, fromDepth = 0)
+    // posC was already trained today (and is not due again), so it consumes the single daily slot
+    // and nothing else is served.
+    store.updateCardState(posC, reviewedTodayCard())
+    assertEquals(0, scheduler.pendingCount())
+    assertNull(scheduler.nextDue())
+  }
+
+  @Test
+  fun pendingCountReflectsTheNewCap() = runTest {
+    val (store, scheduler) = newScheduler(maxNew = 1, maxTotal = 5)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.addMove(from = posB, move = "Nf3", to = posC, isGood = true, fromDepth = 2)
+    assertEquals(1, scheduler.pendingCount())
+  }
+
+  @Test
+  fun nextAfterRespectsTheCaps() = runTest {
+    val (store, scheduler) = newScheduler(maxNew = 0)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    assertNull(scheduler.nextAfter(startPos))
+  }
+
+  @Test
+  fun countsResetAtLocalMidnight() = runTest {
+    // A fixed offset zone, distinct from UTC, so the rollover is keyed on the configured zone
+    // rather than UTC. A named IANA zone would need a timezone database the wasmJs browser lacks.
+    val zone = UtcOffset(hours = 1).asTimeZone()
+    val (store, scheduler) = newScheduler(maxNew = 1, maxTotal = 1, timeZone = zone)
+    val today = LocalDate(2026, 6, 13)
+    val yesterdayLate = LocalDateTime(2026, 6, 12, 23, 59).toInstant(zone)
+    // posC was introduced and trained yesterday at 23:59 local. After midnight that no longer
+    // counts against today's budget.
+    store.addMove(from = posC, move = "Nf3", to = posB, isGood = true, fromDepth = 0)
+    store.updateCardState(
+      posC,
+      CardState(
+        dueDate = yesterdayLate + 5.days,
+        lastReview = yesterdayLate,
+        firstReview = yesterdayLate,
+        stability = 10.0,
+        difficulty = 5.0,
+        reps = 2,
+        lapses = 0,
+        phase = CardPhase.REVIEW,
+        step = 0,
+      ),
+    )
+    val todayMorning = LocalDateTime(2026, 6, 13, 9, 0).toInstant(zone)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.updateCardState(startPos, CardStateFactory.new(todayMorning))
+    assertEquals(1, scheduler.pendingCount(today))
+    assertEquals(startPos, scheduler.nextDue(today)?.positionKey)
+  }
+
+  private fun reviewedTodayCard(): CardState {
+    val now = DateUtil.now()
+    return CardState(
+      dueDate = now + 5.days,
+      lastReview = now,
+      firstReview = now,
+      stability = 10.0,
+      difficulty = 5.0,
+      reps = 2,
+      lapses = 0,
+      phase = CardPhase.REVIEW,
+      step = 0,
+    )
+  }
+
   private fun dataMove(from: PositionKey, san: String, to: PositionKey, createdAt: Instant) =
     DataMove(
       origin = from,
@@ -207,6 +361,7 @@ class TestTrainingScheduler {
     CardState(
       dueDate = due,
       lastReview = due - 1.days,
+      firstReview = due - 1.days,
       stability = 1.0,
       difficulty = 5.0,
       reps = 1,
@@ -219,6 +374,7 @@ class TestTrainingScheduler {
     CardState(
       dueDate = due,
       lastReview = due,
+      firstReview = due,
       stability = 1.0,
       difficulty = 5.0,
       reps = 1,

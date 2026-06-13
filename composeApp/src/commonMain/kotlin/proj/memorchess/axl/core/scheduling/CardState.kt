@@ -20,6 +20,10 @@ import kotlinx.datetime.toLocalDateTime
  *
  * @property dueDate Moment when the card is next due for review.
  * @property lastReview Moment of the most recent review, or `null` for a brand new card.
+ * @property firstReview Moment of the very first review ever recorded, or `null` for a card that
+ *   has never been reviewed. Stamped once by the scheduling algorithm and never changed afterwards;
+ *   drives the daily new card count. [lastReview] cannot serve that purpose because learning steps
+ *   re-review a card several times the same day.
  * @property stability FSRS stability of the memory trace, in days.
  * @property difficulty FSRS card difficulty, conventionally clamped to the interval one through
  *   ten.
@@ -33,6 +37,7 @@ import kotlinx.datetime.toLocalDateTime
 data class CardState(
   val dueDate: Instant,
   val lastReview: Instant?,
+  val firstReview: Instant?,
   val stability: Double,
   val difficulty: Double,
   val reps: Int,

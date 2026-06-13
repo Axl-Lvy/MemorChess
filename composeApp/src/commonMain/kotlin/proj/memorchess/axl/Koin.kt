@@ -14,6 +14,8 @@ import proj.memorchess.axl.core.auth.LichessSignInController
 import proj.memorchess.axl.core.auth.OAuthLauncher
 import proj.memorchess.axl.core.auth.OAuthTokenStore
 import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
+import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
+import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -59,7 +61,14 @@ fun initKoinModules(): Array<Module> {
 
   val graphModule = module {
     single { TreeStore(get()) }
-    single { TrainingScheduler(get(), get()) }
+    single {
+      TrainingScheduler(
+        treeStore = get(),
+        algorithm = get(),
+        maxNewMovesPerDay = { MAX_NEW_MOVES_PER_DAY_SETTING.getValue() },
+        maxTotalMovesPerDay = { MAX_TOTAL_MOVES_PER_DAY_SETTING.getValue() },
+      )
+    }
   }
 
   val authModule = module {

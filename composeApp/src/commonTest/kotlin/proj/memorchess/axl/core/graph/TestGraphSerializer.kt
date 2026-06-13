@@ -26,6 +26,7 @@ class TestGraphSerializer {
     CardState(
       dueDate = due,
       lastReview = lastReview,
+      firstReview = lastReview,
       stability = 0.0,
       difficulty = 0.0,
       reps = 0,
@@ -269,6 +270,7 @@ class TestGraphSerializer {
       CardState(
         dueDate = instant3,
         lastReview = instant2,
+        firstReview = instant1,
         stability = 12.5,
         difficulty = 6.25,
         reps = 4,
@@ -293,12 +295,33 @@ class TestGraphSerializer {
   }
 
   @Test
+  fun nullFirstReviewSurvivesRoundTrip() {
+    // A brand new card has a null firstReview; the round trip must keep it null rather than
+    // inventing a date.
+    val state = cardState(instant3, lastReview = null)
+    val node =
+      DataNode(
+        positionKey = startPos,
+        previousAndNextMoves = PreviousAndNextMoves(),
+        cardState = state,
+        depth = 0,
+        updatedAt = instant1,
+      )
+
+    val result = GraphSerializer.deserialize(GraphSerializer.serialize(listOf(node)))
+
+    result[0].cardState.firstReview shouldBe null
+    result[0].cardState shouldBe state
+  }
+
+  @Test
   fun everyCardPhaseSurvivesRoundTrip() {
     for (phase in CardPhase.entries) {
       val state =
         CardState(
           dueDate = instant3,
           lastReview = instant2,
+          firstReview = instant1,
           stability = 1.0,
           difficulty = 5.0,
           reps = 1,

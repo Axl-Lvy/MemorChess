@@ -28,6 +28,7 @@ private external interface JsNodeEntity : JsAny {
   var positionKey: String
   var dueDate: Double // epoch seconds
   var lastReview: Double // epoch seconds, 0 means null (brand new card)
+  var firstReview: Double // epoch seconds, 0 means null (never reviewed card)
   var stability: Double
   var difficulty: Double
   var reps: Int
@@ -91,6 +92,7 @@ private fun JsNodeEntity.toDataNode(
   nextMoves: List<DataMove>,
 ): DataNode {
   val lastReviewSec = lastReview.toLong()
+  val firstReviewSec = firstReview.toLong()
   return DataNode(
     positionKey = PositionKey(positionKey),
     previousAndNextMoves =
@@ -102,6 +104,7 @@ private fun JsNodeEntity.toDataNode(
       CardState(
         dueDate = Instant.fromEpochSeconds(dueDate.toLong()),
         lastReview = if (lastReviewSec == 0L) null else Instant.fromEpochSeconds(lastReviewSec),
+        firstReview = if (firstReviewSec == 0L) null else Instant.fromEpochSeconds(firstReviewSec),
         stability = stability,
         difficulty = difficulty,
         reps = reps,
@@ -125,6 +128,7 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
     positionKey = node.positionKey.value
     dueDate = node.cardState.dueDate.epochSeconds.toDouble()
     lastReview = node.cardState.lastReview?.epochSeconds?.toDouble() ?: 0.0
+    firstReview = node.cardState.firstReview?.epochSeconds?.toDouble() ?: 0.0
     stability = node.cardState.stability
     difficulty = node.cardState.difficulty
     reps = node.cardState.reps
@@ -162,7 +166,7 @@ internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 5
+internal const val DB_VERSION = 6
 
 // ---------------------------------------------------------------------------
 // IndexedDB-backed DatabaseQueryManager

@@ -23,6 +23,7 @@ data class NodeWithMoves(
       CardState(
         dueDate = node.dueDate,
         lastReview = node.lastReview,
+        firstReview = node.firstReview,
         stability = node.stability,
         difficulty = node.difficulty,
         reps = node.reps,
@@ -44,6 +45,7 @@ data class NodeWithMoves(
           positionKey = dataNode.positionKey.value,
           dueDate = card.dueDate,
           lastReview = card.lastReview,
+          firstReview = card.firstReview,
           stability = card.stability,
           difficulty = card.difficulty,
           reps = card.reps,

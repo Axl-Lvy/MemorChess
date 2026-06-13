@@ -83,6 +83,7 @@ class Fsrs6SchedulingAlgorithm(
     CardState(
       dueDate = now,
       lastReview = null,
+      firstReview = null,
       stability = 0.0,
       difficulty = 0.0,
       reps = 0,
@@ -134,6 +135,7 @@ class Fsrs6SchedulingAlgorithm(
     return CardState(
       dueDate = now + outcome.delay,
       lastReview = now,
+      firstReview = base.firstReview ?: now,
       stability = stability,
       difficulty = difficulty,
       reps = base.reps + 1,
@@ -222,6 +224,7 @@ class Fsrs6SchedulingAlgorithm(
     return CardState(
       dueDate = now + intervals.getValue(grade).days,
       lastReview = now,
+      firstReview = base.firstReview ?: now,
       stability = initialStabilities.getValue(grade),
       difficulty = initialDifficulties.getValue(grade),
       reps = base.reps + 1,
@@ -252,6 +255,7 @@ class Fsrs6SchedulingAlgorithm(
     return CardState(
       dueDate = now + intervals.getValue(grade).days,
       lastReview = now,
+      firstReview = base.firstReview ?: now,
       stability = stabilities.getValue(grade),
       difficulty = difficulty,
       reps = base.reps + 1,

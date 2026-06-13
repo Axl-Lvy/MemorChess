@@ -51,7 +51,7 @@ The AGP version is capped below 9.1 (renovate rule) because IntelliJ IDEA only s
 - **`interactions/`** — Game interaction controllers. `InteractionsManager` (abstract) handles tile selection, move execution, and promotion flow. Concrete implementations: `LinesExplorer` (free exploration, talks to `TreeStore`), `SingleMoveTrainer` (spaced-repetition training, talks to `TrainingScheduler`).
 - **`data/`** — Low level persistence seam. `DatabaseQueryManager` is implemented by a Room backed store in `nonJsMain` and an IndexedDB backed one in `wasmJsMain`; only `TreeStore` and the platform impls touch this interface. No remote backend and no synchronization layer.
 - **`config/`** — App configuration. `ConfigItem` is the typed persisted-setting abstraction; `StandardAppConfig` declares the concrete settings (and `ALL_SETTINGS_ITEMS` used by the reset flow).
-- **`scheduling/`** — Spaced repetition scheduling. `SchedulingAlgorithm` is the algorithm interface; `Fsrs6SchedulingAlgorithm` is the active FSRS 6 implementation. `CardState` is the per card state (`dueDate`, `lastReview`, `stability`, `difficulty`, `reps`, `lapses`) and `ReviewGrade` is the cross algorithm rating enum (`AGAIN`, `HARD`, `GOOD`, `EASY`).
+- **`scheduling/`** — Spaced repetition scheduling. `SchedulingAlgorithm` is the algorithm interface; `Fsrs6SchedulingAlgorithm` is the active FSRS 6 implementation. `CardState` is the per card state (`dueDate`, `lastReview`, `firstReview`, `stability`, `difficulty`, `reps`, `lapses`) and `ReviewGrade` is the cross algorithm rating enum (`AGAIN`, `HARD`, `GOOD`, `EASY`).
 - **`date/`** — Date utilities (`DateUtil`) shared across the codebase.
 
 ### UI layer (`ui/`)

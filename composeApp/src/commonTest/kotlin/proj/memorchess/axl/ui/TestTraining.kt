@@ -88,6 +88,7 @@ class TestTraining : TestWithKoin() {
     return CardState(
       dueDate = now,
       lastReview = null,
+      firstReview = null,
       stability = 0.0,
       difficulty = 0.0,
       reps = 0,
@@ -106,6 +107,7 @@ class TestTraining : TestWithKoin() {
     return CardState(
       dueDate = now + 2.days,
       lastReview = now,
+      firstReview = now - 30.days,
       stability = 60.0,
       difficulty = 5.0,
       reps = 5,
