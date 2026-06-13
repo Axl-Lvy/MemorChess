@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -23,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Eye
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.library_color_black
 import memorchess.composeapp.generated.resources.library_color_white
@@ -45,6 +48,7 @@ import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.library_stale_hint
 import memorchess.composeapp.generated.resources.library_subtitle
 import memorchess.composeapp.generated.resources.library_title
+import memorchess.composeapp.generated.resources.library_view
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -63,6 +67,7 @@ import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
+import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -100,11 +105,13 @@ fun RepertoireLibrary(
     }
   val catalogState by viewModel.catalogState.collectAsState()
   val installStates by viewModel.installStates.collectAsState()
+  val navigator = LocalNavigator.current
   RepertoireLibraryContent(
     catalogState = catalogState,
     installStates = installStates,
     onInstall = viewModel::install,
     onRetry = viewModel::refresh,
+    onView = { descriptor -> navigator.navigateTo(Route.RepertoireViewRoute(descriptor.id)) },
     modifier = Modifier.fillMaxSize().testTag(Route.LibraryRoute.getLabel()),
   )
 }
@@ -120,6 +127,7 @@ internal fun RepertoireLibraryContent(
   onInstall: (RepertoireDescriptor) -> Unit,
   onRetry: () -> Unit,
   modifier: Modifier = Modifier,
+  onView: (RepertoireDescriptor) -> Unit = {},
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -166,6 +174,7 @@ internal fun RepertoireLibraryContent(
               PreviewDialogContent(descriptor)
             }
           },
+          onView = onView,
         )
     }
   }
@@ -193,6 +202,7 @@ private fun CatalogList(
   state: LibraryCatalogState.Loaded,
   installStates: Map<String, RepertoireInstallState>,
   onInstallRequest: (RepertoireDescriptor) -> Unit,
+  onView: (RepertoireDescriptor) -> Unit,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -220,6 +230,7 @@ private fun CatalogList(
             descriptor = descriptor,
             installState = installStates[descriptor.id] ?: RepertoireInstallState.NotInstalled,
             onInstallRequest = { onInstallRequest(descriptor) },
+            onView = { onView(descriptor) },
           )
         }
       }
@@ -236,6 +247,7 @@ private fun RepertoireCard(
   descriptor: RepertoireDescriptor,
   installState: RepertoireInstallState,
   onInstallRequest: () -> Unit,
+  onView: () -> Unit,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -261,6 +273,16 @@ private fun RepertoireCard(
       ColorTag(descriptor.color)
       if (installState is RepertoireInstallState.Installed) {
         InstalledBadge()
+      }
+      KineticButton(
+        onClick = onView,
+        iconOnly = true,
+        modifier = Modifier.testTag("$TEST_TAG_CARD:${descriptor.id}:view"),
+      ) {
+        Icon(
+          imageVector = FeatherIcons.Eye,
+          contentDescription = stringResource(Res.string.library_view),
+        )
       }
     }
     Text(text = descriptor.description, style = typography.bodySm.copy(color = palette.ink3))

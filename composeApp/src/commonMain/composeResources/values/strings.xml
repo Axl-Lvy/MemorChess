@@ -197,14 +197,19 @@
   <string name="library_install_error_malformed_pgn">This repertoire file could not be read: %1$s</string>
   <string name="library_install_error_import">Import failed: %1$s</string>
   <string name="library_preview_question">Add this repertoire to your openings? Existing moves and their training history are kept.</string>
+  <string name="library_view">Browse this repertoire</string>
   <plurals name="library_move_count">
     <item quantity="one">%1$d move</item>
     <item quantity="other">%1$d moves</item>
   </plurals>
+
+  <!-- Repertoire viewer -->
+  <string name="repertoire_view_not_found">Repertoire \"%1$s\" is not in the catalog anymore.</string>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">No previous move.</string>
   <string name="toast_no_next_move">No next move.</string>
   <string name="toast_saved">Saved</string>
   <string name="toast_deleted">Deleted</string>
+  <string name="toast_not_in_repertoire">That move is not in this repertoire.</string>
 </resources>

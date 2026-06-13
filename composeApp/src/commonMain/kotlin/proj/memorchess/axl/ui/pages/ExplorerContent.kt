@@ -69,6 +69,18 @@ import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
 /**
+ * Read-only configuration for [ExplorerContent]. When non-null the explorer becomes a viewer: the
+ * Save and Delete controls and the node save-state indicators are hidden because the underlying
+ * graph is a throwaway copy that nothing can mutate.
+ *
+ * @property initialInverted Initial board orientation; `true` opens from black's side (used to show
+ *   a black repertoire from black's perspective).
+ * @property cornerTag Overrides the board shell corner tag, since the node save-state label is not
+ *   meaningful in read-only mode (the repertoire name is shown instead).
+ */
+data class ExplorerViewerMode(val initialInverted: Boolean = false, val cornerTag: String? = null)
+
+/**
  * Shared explorer content relying on a [LinesExplorer].
  *
  * @param explorer The explorer instance.
@@ -76,6 +88,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
  * @param onSave Invoked when the Kinetic control bar Save button is tapped.
  * @param onDelete Invoked when the Kinetic control bar Delete button is tapped.
  * @param header Optional header content rendered above the layout (legacy).
+ * @param viewerMode When non-null, renders the read-only viewer variant; see [ExplorerViewerMode].
  */
 @Composable
 fun ExplorerContent(
@@ -84,8 +97,10 @@ fun ExplorerContent(
   onSave: () -> Unit,
   onDelete: () -> Unit,
   header: @Composable () -> Unit = {},
+  viewerMode: ExplorerViewerMode? = null,
 ) {
-  var inverted by remember { mutableStateOf(false) }
+  val readOnly = viewerMode != null
+  var inverted by remember { mutableStateOf(viewerMode?.initialInverted ?: false) }
   val coroutineScope = rememberCoroutineScope()
   val nextMoves = remember { mutableStateListOf(*explorer.getNextMoves().toTypedArray()) }
   var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
@@ -125,8 +140,9 @@ fun ExplorerContent(
   // so this reactively recomposes when the user navigates, saves, or deletes.
   val palette = LocalKineticPalette.current
   val nodeState = explorer.state
-  val cornerTagLabel = stringResource(nodeStateLabel(nodeState))
-  val cornerTagColor = nodeStateColor(nodeState, palette)
+  val cornerTagLabel =
+    if (readOnly) viewerMode?.cornerTag else stringResource(nodeStateLabel(nodeState))
+  val cornerTagColor = if (readOnly) palette.ink2 else nodeStateColor(nodeState, palette)
 
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }
 
@@ -159,7 +175,7 @@ fun ExplorerContent(
         }
       },
       playerTurnIndicator = { PlayerTurnIndicator(explorer) },
-      stateIndicators = { StateIndicator(it, explorer.state) },
+      stateIndicators = { if (!readOnly) StateIndicator(it, explorer.state) },
       evaluationPanel = {
         if (evalBarEnabled) {
           EvaluationBar(evaluation = evaluation, currentDepth = currentDepth, modifier = it)
@@ -227,6 +243,7 @@ fun ExplorerContent(
             ),
           evalEnabled = evalBarEnabled,
           playerTurnWhite = playerTurnWhite,
+          showSaveDelete = !readOnly,
         )
       },
       sideInfo = { sideModifier ->
