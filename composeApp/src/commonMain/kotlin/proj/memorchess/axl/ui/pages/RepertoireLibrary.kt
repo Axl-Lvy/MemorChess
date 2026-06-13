@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -40,7 +41,11 @@ import memorchess.composeapp.generated.resources.library_install_error_network
 import memorchess.composeapp.generated.resources.library_install_summary
 import memorchess.composeapp.generated.resources.library_installed_badge
 import memorchess.composeapp.generated.resources.library_move_count
+import memorchess.composeapp.generated.resources.library_preview_checking
+import memorchess.composeapp.generated.resources.library_preview_in_common
+import memorchess.composeapp.generated.resources.library_preview_in_common_error
 import memorchess.composeapp.generated.resources.library_preview_question
+import memorchess.composeapp.generated.resources.library_reinstall
 import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.library_stale_hint
 import memorchess.composeapp.generated.resources.library_subtitle
@@ -57,6 +62,8 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireInstallState
 import proj.memorchess.axl.core.data.repertoire.RepertoireLibraryViewModel
+import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImporter
 import proj.memorchess.axl.ui.components.buttons.KineticButton
@@ -89,10 +96,15 @@ fun RepertoireLibrary(
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
         fetchPgn = client::fetchPgn,
-        importGames = { games ->
+        importGames = { color, games ->
           // The importer merges into the loaded tree, so refresh it from disk first.
           treeStore.load()
-          PgnImporter(treeStore).import(games)
+          PgnImporter(treeStore).import(games, color.toPlayer())
+        },
+        previewGames = { color, games ->
+          // The overlap is read against the loaded tree, so refresh it from disk first.
+          treeStore.load()
+          PgnImporter(treeStore).preview(games, color.toPlayer())
         },
         installedStore = installedStore,
         scope = coroutineScope,
@@ -100,14 +112,24 @@ fun RepertoireLibrary(
     }
   val catalogState by viewModel.catalogState.collectAsState()
   val installStates by viewModel.installStates.collectAsState()
+  val previewStates by viewModel.previewStates.collectAsState()
   RepertoireLibraryContent(
     catalogState = catalogState,
     installStates = installStates,
+    previewStates = previewStates,
     onInstall = viewModel::install,
+    onPreviewRequest = viewModel::requestPreview,
     onRetry = viewModel::refresh,
     modifier = Modifier.fillMaxSize().testTag(Route.LibraryRoute.getLabel()),
   )
 }
+
+/** Maps the catalog's [RepertoireColor] to the engine [Player] the importer classifies against. */
+private fun RepertoireColor.toPlayer(): Player =
+  when (this) {
+    RepertoireColor.WHITE -> Player.WHITE
+    RepertoireColor.BLACK -> Player.BLACK
+  }
 
 /**
  * Stateless rendering of the library page. Split out from [RepertoireLibrary] so tests can drive
@@ -117,7 +139,9 @@ fun RepertoireLibrary(
 internal fun RepertoireLibraryContent(
   catalogState: LibraryCatalogState,
   installStates: Map<String, RepertoireInstallState>,
+  previewStates: Map<String, RepertoirePreviewState>,
   onInstall: (RepertoireDescriptor) -> Unit,
+  onPreviewRequest: (RepertoireDescriptor) -> Unit,
   onRetry: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -125,6 +149,9 @@ internal fun RepertoireLibraryContent(
   val typography = LocalKineticTypography.current
   val previewDialog = remember { ConfirmationDialog(okText = Res.string.library_install) }
   previewDialog.DrawDialog()
+  // The dialog keeps the content lambda from the moment it was shown, so read the latest preview
+  // through this holder to reflect the Loading -> Ready transition while the dialog stays open.
+  val latestPreviewStates = rememberUpdatedState(previewStates)
   Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(
       text = stringResource(Res.string.library_title),
@@ -162,8 +189,9 @@ internal fun RepertoireLibraryContent(
           state = catalogState,
           installStates = installStates,
           onInstallRequest = { descriptor ->
+            onPreviewRequest(descriptor)
             previewDialog.show(confirm = { onInstall(descriptor) }) {
-              PreviewDialogContent(descriptor)
+              PreviewDialogContent(descriptor, latestPreviewStates.value[descriptor.id])
             }
           },
         )
@@ -330,20 +358,25 @@ private fun InstallStatusRow(installState: RepertoireInstallState, onInstallRequ
       InstallProgressLine(stringResource(Res.string.library_fetching))
     is RepertoireInstallState.Importing ->
       InstallProgressLine(stringResource(Res.string.library_importing))
-    is RepertoireInstallState.Installed -> {
-      val summary = installState.summary
-      if (summary != null) {
-        Text(
-          text =
-            stringResource(
-              Res.string.library_install_summary,
-              summary.movesAdded,
-              summary.movesAlreadyPresent,
-            ),
-          style = typography.bodySm.copy(color = palette.green),
-        )
+    is RepertoireInstallState.Installed ->
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val summary = installState.summary
+        if (summary != null) {
+          Text(
+            text =
+              stringResource(
+                Res.string.library_install_summary,
+                summary.movesAdded,
+                summary.movesAlreadyPresent,
+              ),
+            style = typography.bodySm.copy(color = palette.green),
+          )
+        }
+        // Reinstalling restores moves the user has removed since installing.
+        KineticButton(onClick = onInstallRequest, style = KineticButtonStyle.Primary) {
+          KineticButtonLabel(stringResource(Res.string.library_reinstall))
+        }
       }
-    }
     is RepertoireInstallState.Failed ->
       Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -384,9 +417,18 @@ private fun installErrorText(error: InstallError): String =
       stringResource(Res.string.library_install_error_import, error.message)
   }
 
-/** Metadata preview shown in the confirmation dialog before an install starts. */
+/**
+ * Metadata preview shown in the confirmation dialog before an install starts, including the live
+ * overlap of [previewState] (how many of the repertoire's moves the user already has).
+ *
+ * @param descriptor The repertoire being previewed.
+ * @param previewState Overlap computation state, or `null` while none has been published yet.
+ */
 @Composable
-private fun PreviewDialogContent(descriptor: RepertoireDescriptor) {
+private fun PreviewDialogContent(
+  descriptor: RepertoireDescriptor,
+  previewState: RepertoirePreviewState?,
+) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -407,9 +449,45 @@ private fun PreviewDialogContent(descriptor: RepertoireDescriptor) {
         ),
       style = typography.monoSm.copy(color = palette.ink3),
     )
+    PreviewOverlap(previewState)
     Text(
       text = stringResource(Res.string.library_preview_question),
       style = typography.bodySm.copy(color = palette.ink3),
     )
+  }
+}
+
+/**
+ * The "moves in common" line of the preview dialog. Renders a checking hint while the overlap loads
+ * (also the `null` not-yet-requested case), the count once ready, and a muted notice on failure so
+ * a download error never blocks the install. A repertoire with no moves shows nothing.
+ */
+@Composable
+private fun PreviewOverlap(previewState: RepertoirePreviewState?) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  when (previewState) {
+    null,
+    is RepertoirePreviewState.Loading ->
+      InstallProgressLine(stringResource(Res.string.library_preview_checking))
+    is RepertoirePreviewState.Ready -> {
+      val preview = previewState.preview
+      if (preview.totalMoves > 0) {
+        Text(
+          text =
+            stringResource(
+              Res.string.library_preview_in_common,
+              preview.movesInCommon,
+              preview.totalMoves,
+            ),
+          style = typography.bodySm.copy(color = palette.accentText),
+        )
+      }
+    }
+    is RepertoirePreviewState.Failed ->
+      Text(
+        text = stringResource(Res.string.library_preview_in_common_error),
+        style = typography.bodySm.copy(color = palette.ink3),
+      )
   }
 }

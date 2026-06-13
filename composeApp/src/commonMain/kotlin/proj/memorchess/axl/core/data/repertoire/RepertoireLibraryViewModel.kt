@@ -8,36 +8,46 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.pgn.PgnGame
+import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 
 /**
  * Drives the repertoire library page.
  *
- * Exposes two flows that the UI renders: [catalogState] for the catalog list (loading, loaded with
- * staleness flag, or one error per failure mode) and [installStates] for the per repertoire install
- * lifecycle. All mutations happen here so the composables stay free of business logic.
+ * Exposes three flows that the UI renders: [catalogState] for the catalog list (loading, loaded
+ * with staleness flag, or one error per failure mode), [installStates] for the per repertoire
+ * install lifecycle, and [previewStates] for the on demand overlap shown before an install. All
+ * mutations happen here so the composables stay free of business logic.
  *
  * The catalog and install collaborators are injected as suspending functions rather than concrete
  * classes so tests can substitute trivial fakes. Production wiring binds them to
- * [CachedRepertoireCatalog.getManifest], [RepertoireCatalogClient.fetchPgn] and
- * [proj.memorchess.axl.core.pgn.PgnImporter.import].
+ * [CachedRepertoireCatalog.getManifest], [RepertoireCatalogClient.fetchPgn],
+ * [proj.memorchess.axl.core.pgn.PgnImporter.import] and
+ * [proj.memorchess.axl.core.pgn.PgnImporter.preview].
  *
- * Reentrancy: [refresh] is ignored while a load is in flight, and [install] is ignored for a
- * repertoire whose install is in flight or already completed. The guards flip state synchronously
- * before any coroutine is launched, so a double tap on the same frame is still coalesced.
+ * Reentrancy: [refresh] is ignored while a load is in flight, [install] is ignored only while a
+ * fetch or import for the same repertoire is in flight (an installed repertoire may be
+ * reinstalled), and [requestPreview] is ignored while a preview for the same repertoire is loading.
+ * The guards flip state synchronously before any coroutine is launched, so a double tap on the same
+ * frame is still coalesced.
  *
  * @param loadManifest Returns the catalog manifest, normally through the persisted cache.
  * @param fetchPgn Downloads and parses the PGN file at the given catalog relative path.
- * @param importGames Merges parsed games into the opening graph and reports the summary. Any
- *   exception it throws is surfaced as [InstallError.ImportFailed] and the repertoire is not marked
- *   installed.
+ * @param importGames Merges parsed games into the opening graph from the repertoire's
+ *   [RepertoireColor] perspective and reports the summary. Any exception it throws is surfaced as
+ *   [InstallError.ImportFailed] and the repertoire is not marked installed.
+ * @param previewGames Computes, without writing anything, how much of the repertoire the user
+ *   already has from the repertoire's [RepertoireColor] perspective.
  * @param installedStore Records which repertoires are installed on this device.
  * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).
  */
 class RepertoireLibraryViewModel(
   private val loadManifest: suspend () -> CachedManifestResult,
   private val fetchPgn: suspend (file: String) -> CatalogResult<List<PgnGame>>,
-  private val importGames: suspend (games: List<PgnGame>) -> PgnImportSummary,
+  private val importGames:
+    suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportSummary,
+  private val previewGames:
+    suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportPreview,
   private val installedStore: InstalledRepertoireStore,
   private val scope: CoroutineScope,
 ) {
@@ -46,6 +56,8 @@ class RepertoireLibraryViewModel(
     MutableStateFlow<LibraryCatalogState>(LibraryCatalogState.Loading)
   private val internalInstallStates =
     MutableStateFlow<Map<String, RepertoireInstallState>>(emptyMap())
+  private val internalPreviewStates =
+    MutableStateFlow<Map<String, RepertoirePreviewState>>(emptyMap())
   private var loadInFlight = false
 
   /** Current state of the catalog list. */
@@ -57,6 +69,13 @@ class RepertoireLibraryViewModel(
    */
   val installStates: StateFlow<Map<String, RepertoireInstallState>> =
     internalInstallStates.asStateFlow()
+
+  /**
+   * Overlap preview of every repertoire for which one was requested, keyed by
+   * [RepertoireDescriptor.id]. A missing key means no preview has been requested yet.
+   */
+  val previewStates: StateFlow<Map<String, RepertoirePreviewState>> =
+    internalPreviewStates.asStateFlow()
 
   init {
     refresh()
@@ -80,20 +99,36 @@ class RepertoireLibraryViewModel(
 
   /**
    * Starts installing [descriptor]: fetches its PGN file, imports it into the opening graph, and
-   * marks it installed on success only. Ignored when an install for the same repertoire is in
-   * flight or has already completed; a previously failed install may be retried.
+   * marks it installed on success only. Ignored only while a fetch or import for the same
+   * repertoire is already in flight. An already installed repertoire may be reinstalled, which
+   * restores any moves the user has since removed (the import skips the moves still present), and a
+   * previously failed install may be retried.
    */
   fun install(descriptor: RepertoireDescriptor) {
     when (internalInstallStates.value[descriptor.id]) {
       is RepertoireInstallState.Fetching,
-      is RepertoireInstallState.Importing,
-      is RepertoireInstallState.Installed -> return
+      is RepertoireInstallState.Importing -> return
+      is RepertoireInstallState.Installed,
       is RepertoireInstallState.Failed,
       is RepertoireInstallState.NotInstalled,
       null -> Unit
     }
     setInstallState(descriptor.id, RepertoireInstallState.Fetching)
     scope.launch { runInstall(descriptor) }
+  }
+
+  /**
+   * Computes how much of [descriptor] the user already has and publishes it on [previewStates], so
+   * the install confirmation can show the overlap. Ignored while a preview for the same repertoire
+   * is already loading; otherwise it always recomputes, because the graph may have changed since
+   * the last preview.
+   */
+  fun requestPreview(descriptor: RepertoireDescriptor) {
+    if (internalPreviewStates.value[descriptor.id] is RepertoirePreviewState.Loading) {
+      return
+    }
+    setPreviewState(descriptor.id, RepertoirePreviewState.Loading)
+    scope.launch { runPreview(descriptor) }
   }
 
   private suspend fun runLoad() {
@@ -130,31 +165,11 @@ class RepertoireLibraryViewModel(
   }
 
   private suspend fun runInstall(descriptor: RepertoireDescriptor) {
-    val games =
-      when (val result = fetchPgn(descriptor.file)) {
-        is CatalogResult.Ok -> result.value
-        is CatalogResult.NetworkError -> {
-          fail(descriptor.id, InstallError.Network(result.message))
-          return
-        }
-        is CatalogResult.HttpError -> {
-          fail(descriptor.id, InstallError.Http(result.status))
-          return
-        }
-        // A PGN fetch never reports MalformedManifest; mapped defensively for exhaustiveness.
-        is CatalogResult.MalformedPgn,
-        is CatalogResult.MalformedManifest -> {
-          val message =
-            if (result is CatalogResult.MalformedPgn) result.message
-            else (result as CatalogResult.MalformedManifest).message
-          fail(descriptor.id, InstallError.MalformedPgn(message))
-          return
-        }
-      }
+    val games = fetchGames(descriptor) { fail(descriptor.id, it) } ?: return
     setInstallState(descriptor.id, RepertoireInstallState.Importing)
     val summary =
       try {
-        val importSummary = importGames(games)
+        val importSummary = importGames(descriptor.color, games)
         installedStore.markInstalled(descriptor.id)
         importSummary
       } catch (e: CancellationException) {
@@ -167,12 +182,66 @@ class RepertoireLibraryViewModel(
     setInstallState(descriptor.id, RepertoireInstallState.Installed(summary))
   }
 
+  private suspend fun runPreview(descriptor: RepertoireDescriptor) {
+    val games =
+      fetchGames(descriptor) { setPreviewState(descriptor.id, RepertoirePreviewState.Failed(it)) }
+        ?: return
+    val preview =
+      try {
+        previewGames(descriptor.color, games)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        LOGGER.w(e) { "Preview of repertoire ${descriptor.id} failed" }
+        setPreviewState(
+          descriptor.id,
+          RepertoirePreviewState.Failed(InstallError.ImportFailed(e.message ?: "Preview failed")),
+        )
+        return
+      }
+    setPreviewState(descriptor.id, RepertoirePreviewState.Ready(preview))
+  }
+
+  /**
+   * Downloads and parses the PGN of [descriptor], shared by install and preview. On a non success
+   * fetch it reports the matching [InstallError] through [onError] and returns `null`; otherwise it
+   * returns the parsed games. A PGN fetch never reports [CatalogResult.MalformedManifest], but it
+   * is mapped defensively for exhaustiveness.
+   */
+  private suspend fun fetchGames(
+    descriptor: RepertoireDescriptor,
+    onError: (InstallError) -> Unit,
+  ): List<PgnGame>? =
+    when (val result = fetchPgn(descriptor.file)) {
+      is CatalogResult.Ok -> result.value
+      is CatalogResult.NetworkError -> {
+        onError(InstallError.Network(result.message))
+        null
+      }
+      is CatalogResult.HttpError -> {
+        onError(InstallError.Http(result.status))
+        null
+      }
+      is CatalogResult.MalformedPgn -> {
+        onError(InstallError.MalformedPgn(result.message))
+        null
+      }
+      is CatalogResult.MalformedManifest -> {
+        onError(InstallError.MalformedPgn(result.message))
+        null
+      }
+    }
+
   private fun fail(id: String, error: InstallError) {
     setInstallState(id, RepertoireInstallState.Failed(error))
   }
 
   private fun setInstallState(id: String, state: RepertoireInstallState) {
     internalInstallStates.value = internalInstallStates.value + (id to state)
+  }
+
+  private fun setPreviewState(id: String, state: RepertoirePreviewState) {
+    internalPreviewStates.value = internalPreviewStates.value + (id to state)
   }
 }
 
@@ -219,6 +288,19 @@ sealed class RepertoireInstallState {
 
   /** The last install attempt failed with [error]. The install may be retried. */
   data class Failed(val error: InstallError) : RepertoireInstallState()
+}
+
+/** On demand overlap of one catalog repertoire against the user's graph. Consumed by Compose. */
+sealed class RepertoirePreviewState {
+
+  /** The overlap is being computed (PGN download plus comparison). */
+  data object Loading : RepertoirePreviewState()
+
+  /** The overlap was computed: [preview] holds the repertoire size and the moves in common. */
+  data class Ready(val preview: PgnImportPreview) : RepertoirePreviewState()
+
+  /** The overlap could not be computed because of [error]. The install button stays usable. */
+  data class Failed(val error: InstallError) : RepertoirePreviewState()
 }
 
 /** Reason an install attempt failed. */

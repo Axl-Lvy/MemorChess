@@ -3,7 +3,9 @@ package proj.memorchess.axl.core.pgn
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.IllegalMoveException
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.MoveInsertion
+import proj.memorchess.axl.core.graph.OpeningTree
 import proj.memorchess.axl.core.graph.TreeStore
 
 /**
@@ -14,10 +16,17 @@ import proj.memorchess.axl.core.graph.TreeStore
  * import with a [PgnImportException] before anything is written, so a failed import leaves the
  * graph exactly as it was.
  *
- * Valid moves are inserted through [TreeStore] as repertoire moves (`isGood == true`) in a single
- * batch. Moves the user already trains are skipped, which keeps the existing card state of every
- * position intact. As a consequence, importing the same repertoire twice is a no op whose summary
- * reports every move as already present.
+ * Each move is classified relative to the import's `perspective` (the side whose repertoire this
+ * is): a move played by that side is a repertoire move (`isGood == true`), the opponent's replies
+ * are stored as `isGood == false` so they thread the graph together without ever being drilled.
+ * This mirrors the alternating good/bad classification the manual `LinesExplorer` save flow
+ * produces, so installing a one sided opening (e.g. the black Scandinavian) only asks the user to
+ * recall their own moves. A `null` perspective marks every move good, which suits two sided content
+ * such as a Lichess study.
+ *
+ * Moves the user already trains with the same classification are skipped, which keeps the existing
+ * card state of every position intact. As a consequence, importing the same repertoire twice is a
+ * no op whose summary reports every move as already present.
  *
  * The caller is responsible for loading [treeStore] before importing so that the merge sees the
  * persisted graph.
@@ -30,38 +39,61 @@ class PgnImporter(private val treeStore: TreeStore) {
    * Imports [games] into the opening graph.
    *
    * @param games Parsed games, typically obtained from [PgnParser.parse].
+   * @param perspective Side whose repertoire is being imported: only its moves are marked `isGood`,
+   *   the opponent's replies are stored as not good. `null` marks every move good, for two sided
+   *   content such as a Lichess study.
    * @return How many moves were added and how many were already present.
    * @throws PgnImportException if any move of any variation is illegal. Nothing is written in that
    *   case.
    */
-  suspend fun import(games: List<PgnGame>): PgnImportSummary {
-    val plannedMoves = planMoves(games)
+  suspend fun import(games: List<PgnGame>, perspective: Player? = null): PgnImportSummary {
+    val plannedMoves = planMoves(games, perspective)
     val tree = treeStore.current()
-    val movesToInsert = mutableListOf<MoveInsertion>()
-    var alreadyPresent = 0
-    for (plannedMove in plannedMoves) {
-      val existingEdge = tree[plannedMove.from]?.outgoing?.get(plannedMove.move)
-      if (existingEdge != null && existingEdge.isGood == true) {
-        alreadyPresent++
-      } else {
-        movesToInsert += plannedMove
-      }
-    }
+    val (alreadyPresent, movesToInsert) = plannedMoves.partition { isAlreadyPresent(tree, it) }
     treeStore.addMoves(movesToInsert)
-    return PgnImportSummary(movesAdded = movesToInsert.size, movesAlreadyPresent = alreadyPresent)
+    return PgnImportSummary(
+      movesAdded = movesToInsert.size,
+      movesAlreadyPresent = alreadyPresent.size,
+    )
+  }
+
+  /**
+   * Computes how much of [games] the user already has, without writing anything. Reads the graph
+   * currently held by [treeStore], so the caller must load it first, exactly as for [import].
+   *
+   * @param games Parsed games, typically obtained from [PgnParser.parse].
+   * @param perspective Side whose repertoire this is, classified the same way as in [import] so the
+   *   overlap matches what an install would skip. See [import] for the meaning of `null`.
+   * @return The repertoire size and how many of its moves are already present.
+   * @throws PgnImportException if any move of any variation is illegal.
+   */
+  fun preview(games: List<PgnGame>, perspective: Player? = null): PgnImportPreview {
+    val plannedMoves = planMoves(games, perspective)
+    val tree = treeStore.current()
+    val movesInCommon = plannedMoves.count { isAlreadyPresent(tree, it) }
+    return PgnImportPreview(totalMoves = plannedMoves.size, movesInCommon = movesInCommon)
+  }
+
+  /**
+   * Whether [move] is already in [tree] with the same classification, in which case an import would
+   * leave it untouched.
+   */
+  private fun isAlreadyPresent(tree: OpeningTree, move: MoveInsertion): Boolean {
+    val existingEdge = tree[move.from]?.outgoing?.get(move.move)
+    return existingEdge != null && existingEdge.isGood == move.isGood
   }
 
   /**
    * Replays every variation of every game and returns the distinct moves to merge, in discovery
    * order. Throws [PgnImportException] on the first illegal move, before any write happens.
    */
-  private fun planMoves(games: List<PgnGame>): List<MoveInsertion> {
+  private fun planMoves(games: List<PgnGame>, perspective: Player?): List<MoveInsertion> {
     val plannedMoves = mutableListOf<MoveInsertion>()
     val seenMoves = mutableSetOf<Pair<PositionKey, String>>()
     val rootKey = GameEngine().toPositionKey()
     for ((gameIndex, game) in games.withIndex()) {
       for (firstMove in game.moves) {
-        walk(rootKey, 0, firstMove, gameIndex, plannedMoves, seenMoves)
+        walk(rootKey, 0, firstMove, gameIndex, perspective, plannedMoves, seenMoves)
       }
     }
     return plannedMoves
@@ -69,17 +101,20 @@ class PgnImporter(private val treeStore: TreeStore) {
 
   /**
    * Validates [moveNode] from the position [fromKey] at [depth] plies from the start, records the
-   * resulting move, then recurses into every continuation.
+   * resulting move classified for [perspective], then recurses into every continuation.
    */
   private fun walk(
     fromKey: PositionKey,
     depth: Int,
     moveNode: PgnMoveNode,
     gameIndex: Int,
+    perspective: Player?,
     plannedMoves: MutableList<MoveInsertion>,
     seenMoves: MutableSet<Pair<PositionKey, String>>,
   ) {
     val engine = GameEngine(fromKey)
+    // Whose move this is, captured before playing it flips the side to move.
+    val mover = engine.playerTurn
     try {
       engine.playSanMove(moveNode.san)
     } catch (e: IllegalMoveException) {
@@ -95,12 +130,12 @@ class PgnImporter(private val treeStore: TreeStore) {
           from = fromKey,
           move = moveNode.san,
           to = toKey,
-          isGood = true,
+          isGood = perspective == null || mover == perspective,
           fromDepth = depth,
         )
     }
     for (child in moveNode.children) {
-      walk(toKey, depth + 1, child, gameIndex, plannedMoves, seenMoves)
+      walk(toKey, depth + 1, child, gameIndex, perspective, plannedMoves, seenMoves)
     }
   }
 
