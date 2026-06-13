@@ -141,13 +141,13 @@ class RepertoireLibraryViewModel(
           fail(descriptor.id, InstallError.Http(result.status))
           return
         }
-        is CatalogResult.MalformedPgn -> {
-          fail(descriptor.id, InstallError.MalformedPgn(result.message))
-          return
-        }
         // A PGN fetch never reports MalformedManifest; mapped defensively for exhaustiveness.
+        is CatalogResult.MalformedPgn,
         is CatalogResult.MalformedManifest -> {
-          fail(descriptor.id, InstallError.MalformedPgn(result.message))
+          val message =
+            if (result is CatalogResult.MalformedPgn) result.message
+            else (result as CatalogResult.MalformedManifest).message
+          fail(descriptor.id, InstallError.MalformedPgn(message))
           return
         }
       }
