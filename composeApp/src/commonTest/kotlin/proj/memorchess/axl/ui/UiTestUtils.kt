@@ -152,30 +152,6 @@ fun ComposeUiTest.isBoardReversed(): Boolean {
   return a1y < a8y
 }
 
-/**
- * Held over from the pre-Kinetic training UI. The wrong-move feedback card with manual "Next" / "Go
- * to explore" buttons no longer exists — Training now auto-advances Anki-style on both correct and
- * wrong moves. These helpers are kept for tests that haven't been retired yet but they will fail
- * because their target test tags are not rendered.
- */
-@Deprecated(
-  "Anki-style auto-advance removed the manual 'Next' button. Wait for the next training " +
-    "state instead of clicking.",
-  level = DeprecationLevel.WARNING,
-)
-fun ComposeUiTest.clickOnNextNode() {
-  waitUntilNodeExists(hasTestTag("Next node")).assertExists().performClick()
-}
-
-@Deprecated(
-  "The 'Go to explore' affordance was dropped with the wrong-move feedback card. To inspect a " +
-    "failed position the user navigates manually via the bottom nav.",
-  level = DeprecationLevel.WARNING,
-)
-fun ComposeUiTest.clickOnShowOnExplore() {
-  waitUntilNodeExists(hasTestTag("Go to explore")).assertExists().performClick()
-}
-
 private fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
   val matcher = hasClickLabel(getTileDescription(tileName))
   waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)
