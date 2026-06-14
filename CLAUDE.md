@@ -13,14 +13,14 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 ./gradlew build
 
 # Run desktop (JVM)
-./gradlew :composeApp:run
+./gradlew :composeApp:jvmRun
 
 # Run tests
-./gradlew desktopTest                          # JVM/desktop tests
+./gradlew jvmTest                              # JVM/desktop tests
 ./gradlew :androidApp:connectedCheck           # Android instrumented tests
 
 # Run a single test class (desktop)
-./gradlew desktopTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"
+./gradlew jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"
 
 # Code formatting (ktfmt, Google style)
 ./gradlew ktfmtCheck                           # Check formatting
