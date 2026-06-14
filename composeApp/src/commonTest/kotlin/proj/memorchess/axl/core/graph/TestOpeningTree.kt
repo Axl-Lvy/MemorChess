@@ -6,7 +6,7 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardStateFactory
-import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestDatabases
 
 /** Behavioural tests for the in memory graph, driven through [TreeStore]. */
 class TestOpeningTree {
@@ -19,7 +19,7 @@ class TestOpeningTree {
 
   @Test
   fun computeStateWithEmptyIncoming() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.ensurePosition(startPos, 0)
     assertEquals(NodeState.FIRST, store.current().computeState(startPos, null))
   }
@@ -32,21 +32,21 @@ class TestOpeningTree {
 
   @Test
   fun computeStateSavedGood() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     assertEquals(NodeState.SAVED_GOOD, store.current().computeState(posA, startPos))
   }
 
   @Test
   fun computeStateSavedBad() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = startPos, move = "e4", to = posA, isGood = false, fromDepth = 0)
     assertEquals(NodeState.SAVED_BAD, store.current().computeState(posA, startPos))
   }
 
   @Test
   fun computeStateMixedGoodBadReturnsBadState() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = posB, move = "d4", to = posA, isGood = false, fromDepth = 0)
     assertEquals(NodeState.BAD_STATE, store.current().computeState(posA, startPos))
@@ -54,14 +54,14 @@ class TestOpeningTree {
 
   @Test
   fun computeStateSavedGoodButUnknownMove() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     assertEquals(NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE, store.current().computeState(posA, posB))
   }
 
   @Test
   fun countDescendantsLinearChain() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = posA, move = "e4", to = posB, isGood = true, fromDepth = 0)
     store.addMove(from = posB, move = "e5", to = posC, isGood = true, fromDepth = 1)
     assertEquals(3, store.current().countDescendants(posA))
@@ -69,7 +69,7 @@ class TestOpeningTree {
 
   @Test
   fun countDescendantsStopsAtConvergence() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = posA, move = "e4", to = posB, isGood = true, fromDepth = 0)
     store.addMove(from = posB, move = "e5", to = posC, isGood = true, fromDepth = 1)
     store.addMove(from = posD, move = "d4", to = posC, isGood = true, fromDepth = 0)
@@ -78,7 +78,7 @@ class TestOpeningTree {
 
   @Test
   fun ensurePositionUpdatesDepthToMinimum() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.ensurePosition(posA, 5)
     assertEquals(5, store.current().getDepth(posA))
     store.ensurePosition(posA, 2)
@@ -89,7 +89,7 @@ class TestOpeningTree {
 
   @Test
   fun eraseAllRemovesEverything() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = posA, move = "e4", to = posB, isGood = true, fromDepth = 0)
     store.eraseAll()
     assertNull(store.current().get(posA))
@@ -98,7 +98,7 @@ class TestOpeningTree {
 
   @Test
   fun updateCardStateOnUnknownPositionIsANoOp() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     // posA is not in the tree. The call should log a warning and return without throwing.
     store.updateCardState(posA, CardStateFactory.new())
     assertNull(store.current().get(posA))

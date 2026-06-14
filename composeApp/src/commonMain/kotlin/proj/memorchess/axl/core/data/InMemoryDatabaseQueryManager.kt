@@ -14,14 +14,11 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
  *
  * Behaviour mirrors the platform implementations closely enough for [TreeStore]: hard deletes
  * physically remove rows and any incident move, soft deletes flip the [DataNode.isDeleted] flag.
- *
- * Open so tests can subclass it with prefilled-opening fixtures instead of reimplementing the
- * storage; subclasses read and seed the graph through [nodes].
  */
-open class InMemoryDatabaseQueryManager : DatabaseQueryManager {
+class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
   /** Backing store, keyed by position. Soft-deleted nodes stay here with their flag set. */
-  protected val nodes: MutableMap<PositionKey, DataNode> = mutableMapOf()
+  private val nodes: MutableMap<PositionKey, DataNode> = mutableMapOf()
 
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> =
     nodes.values.filter { withDeletedOnes || !it.isDeleted }.toList()

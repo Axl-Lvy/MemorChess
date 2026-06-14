@@ -9,7 +9,7 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardStateFactory
-import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestDatabases
 
 /**
  * Tests for [OpeningTree.introductionOrder]: new positions are numbered depth first along a line,
@@ -50,7 +50,7 @@ class TestIntroductionOrder {
     )
 
   private suspend fun loadGraph(vararg nodes: DataNode): OpeningTree {
-    val database = TestDatabaseQueryManager.empty()
+    val database = TestDatabases.empty()
     database.insertNodes(*nodes)
     val store = TreeStore(database)
     store.load()
@@ -162,7 +162,7 @@ class TestIntroductionOrder {
   fun introductionOrderIgnoresDeletedEdges() = runTest {
     val e4 = move(start, "e4", posA, t1).copy(isDeleted = true)
     val d4 = move(start, "d4", posC, t2)
-    val database = TestDatabaseQueryManager.empty()
+    val database = TestDatabases.empty()
     database.insertNodes(
       node(start, 0, emptyList(), listOf(e4, d4)),
       node(posA, 1, listOf(e4), emptyList()),
@@ -177,7 +177,7 @@ class TestIntroductionOrder {
 
   @Test
   fun addMovePreservesCreatedAtOnReupsert() = runTest {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     store.addMove(from = start, move = "e4", to = posA, isGood = null, fromDepth = 0)
     val created = store.current().get(start)!!.outgoing.getValue("e4").createdAt
     store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)

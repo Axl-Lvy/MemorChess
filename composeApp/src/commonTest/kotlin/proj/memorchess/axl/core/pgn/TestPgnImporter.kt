@@ -11,11 +11,11 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.CardStateFactory
-import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestDatabases
 
 class TestPgnImporter {
 
-  private val database = TestDatabaseQueryManager.empty()
+  private val database = TestDatabases.empty()
   private val store = TreeStore(database)
   private val importer = PgnImporter(store)
 
@@ -26,8 +26,8 @@ class TestPgnImporter {
   }
 
   /** `isGood` of the persisted [move] leaving [from], or `null` when the move was not stored. */
-  private fun isGoodOf(from: PositionKey, move: String): Boolean? =
-    database.dataNodes[from]?.previousAndNextMoves?.nextMoves?.get(move)?.isGood
+  private suspend fun isGoodOf(from: PositionKey, move: String): Boolean? =
+    database.getPosition(from)?.previousAndNextMoves?.nextMoves?.get(move)?.isGood
 
   @Test
   fun doubleImportIsIdempotent() = runTest {
@@ -36,13 +36,17 @@ class TestPgnImporter {
 
     // Act
     val firstSummary = importer.import(games)
-    val databaseAfterFirstImport = database.dataNodes.toMap()
+    val databaseAfterFirstImport =
+      database.getAllNodes(withDeletedOnes = true).associateBy { it.positionKey }
     val secondSummary = importer.import(games)
 
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), firstSummary)
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 4), secondSummary)
-    assertEquals(databaseAfterFirstImport, database.dataNodes.toMap())
+    assertEquals(
+      databaseAfterFirstImport,
+      database.getAllNodes(withDeletedOnes = true).associateBy { it.positionKey },
+    )
   }
 
   @Test
@@ -60,10 +64,10 @@ class TestPgnImporter {
 
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 1), summary)
-    val startNode = assertNotNull(database.dataNodes[startKey])
+    val startNode = assertNotNull(database.getPosition(startKey))
     assertEquals(reviewedState, startNode.cardState)
     assertEquals(setOf("e4"), startNode.previousAndNextMoves.nextMoves.keys)
-    val afterE4Node = assertNotNull(database.dataNodes[afterE4Key])
+    val afterE4Node = assertNotNull(database.getPosition(afterE4Key))
     assertEquals(setOf("e5"), afterE4Node.previousAndNextMoves.nextMoves.keys)
   }
 
@@ -76,7 +80,7 @@ class TestPgnImporter {
     assertFailsWith<PgnImportException> { importer.import(games) }
 
     // Assert
-    assertTrue(database.dataNodes.isEmpty())
+    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
     assertTrue(store.current().snapshot().isEmpty())
   }
 
@@ -90,15 +94,15 @@ class TestPgnImporter {
 
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 6, movesAlreadyPresent = 0), summary)
-    val afterE4Node = assertNotNull(database.dataNodes[keyAfter("e4")])
+    val afterE4Node = assertNotNull(database.getPosition(keyAfter("e4")))
     assertEquals(setOf("e5", "c5"), afterE4Node.previousAndNextMoves.nextMoves.keys)
-    assertEquals(0, assertNotNull(database.dataNodes[keyAfter()]).depth)
+    assertEquals(0, assertNotNull(database.getPosition(keyAfter())).depth)
     assertEquals(1, afterE4Node.depth)
-    assertEquals(2, assertNotNull(database.dataNodes[keyAfter("e4", "e5")]).depth)
-    assertEquals(2, assertNotNull(database.dataNodes[keyAfter("e4", "c5")]).depth)
-    assertEquals(3, assertNotNull(database.dataNodes[keyAfter("e4", "e5", "Nf3")]).depth)
-    assertEquals(3, assertNotNull(database.dataNodes[keyAfter("e4", "c5", "Nf3")]).depth)
-    assertEquals(4, assertNotNull(database.dataNodes[keyAfter("e4", "e5", "Nf3", "Nc6")]).depth)
+    assertEquals(2, assertNotNull(database.getPosition(keyAfter("e4", "e5"))).depth)
+    assertEquals(2, assertNotNull(database.getPosition(keyAfter("e4", "c5"))).depth)
+    assertEquals(3, assertNotNull(database.getPosition(keyAfter("e4", "e5", "Nf3"))).depth)
+    assertEquals(3, assertNotNull(database.getPosition(keyAfter("e4", "c5", "Nf3"))).depth)
+    assertEquals(4, assertNotNull(database.getPosition(keyAfter("e4", "e5", "Nf3", "Nc6"))).depth)
   }
 
   @Test
@@ -111,10 +115,10 @@ class TestPgnImporter {
 
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), summary)
-    val startNode = assertNotNull(database.dataNodes[keyAfter()])
+    val startNode = assertNotNull(database.getPosition(keyAfter()))
     assertEquals(setOf("e4", "d4"), startNode.previousAndNextMoves.nextMoves.keys)
-    assertTrue(database.dataNodes.containsKey(keyAfter("e4", "e5")))
-    assertTrue(database.dataNodes.containsKey(keyAfter("d4", "d5")))
+    assertNotNull(database.getPosition(keyAfter("e4", "e5")))
+    assertNotNull(database.getPosition(keyAfter("d4", "d5")))
   }
 
   @Test
@@ -222,7 +226,7 @@ class TestPgnImporter {
     importer.preview(games, perspective = Player.BLACK)
 
     // Assert
-    assertTrue(database.dataNodes.isEmpty())
+    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
     assertTrue(store.current().snapshot().isEmpty())
   }
 
@@ -236,7 +240,7 @@ class TestPgnImporter {
 
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 0), summary)
-    assertTrue(database.dataNodes.isEmpty())
+    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
     assertTrue(store.current().snapshot().isEmpty())
   }
 }

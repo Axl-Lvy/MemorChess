@@ -8,17 +8,18 @@ import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImportSummary
-import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestDatabases
 
 class TestLichessStudyImporter {
 
-  private val database = TestDatabaseQueryManager.empty()
+  private val database = TestDatabases.empty()
   private val store = TreeStore(database)
 
   private fun importerRespondingPgn(pgn: String): LichessStudyImporter {
@@ -43,7 +44,7 @@ class TestLichessStudyImporter {
     // Assert
     val summary = assertIs<LichessStudyImportResult.Success>(result).summary
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), summary)
-    assertTrue(database.dataNodes.containsKey(keyAfter("e4", "e5", "Nf3", "Nc6")))
+    assertNotNull(database.getPosition(keyAfter("e4", "e5", "Nf3", "Nc6")))
   }
 
   @Test
@@ -57,16 +58,16 @@ class TestLichessStudyImporter {
     // Assert
     val summary = assertIs<LichessStudyImportResult.Success>(result).summary
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), summary)
-    val startNode = database.dataNodes.getValue(keyAfter())
+    val startNode = assertNotNull(database.getPosition(keyAfter()))
     assertEquals(setOf("e4", "d4"), startNode.previousAndNextMoves.nextMoves.keys)
-    assertTrue(database.dataNodes.containsKey(keyAfter("e4", "e5")))
-    assertTrue(database.dataNodes.containsKey(keyAfter("d4", "d5")))
+    assertNotNull(database.getPosition(keyAfter("e4", "e5")))
+    assertNotNull(database.getPosition(keyAfter("d4", "d5")))
   }
 
   @Test
   fun importMergesWithThePersistedGraph() = runTest {
     // Arrange
-    val seededNodes = TestDatabaseQueryManager.convertStringMovesToNodes(listOf("e4"))
+    val seededNodes = TestDatabases.convertStringMovesToNodes(listOf("e4"))
     database.insertNodes(*seededNodes.toTypedArray())
     val importer = importerRespondingPgn("1. e4 e5 *")
 
@@ -89,7 +90,7 @@ class TestLichessStudyImporter {
     // Assert
     val error = assertIs<LichessStudyImportResult.FetchFailed>(result).error
     assertEquals(LichessStudyResult.InvalidUrl, error)
-    assertTrue(database.dataNodes.isEmpty())
+    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
   }
 
   @Test
@@ -104,7 +105,7 @@ class TestLichessStudyImporter {
     // Assert
     val error = assertIs<LichessStudyImportResult.FetchFailed>(result).error
     assertEquals(LichessStudyResult.NotFound, error)
-    assertTrue(database.dataNodes.isEmpty())
+    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
   }
 
   @Test
@@ -117,7 +118,7 @@ class TestLichessStudyImporter {
 
     // Assert
     assertIs<LichessStudyImportResult.ImportFailed>(result)
-    assertTrue(database.dataNodes.isEmpty())
+    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
     assertTrue(store.current().snapshot().isEmpty())
   }
 }
