@@ -8,10 +8,14 @@ Checks performed:
     pgn/ is listed in the manifest.
   * Every PGN parses without errors and every move in the mainline and in all
     nested variations is legal.
-  * The declared moveCount matches the actual number of moves in the file.
+  * The declared moveCount matches the number of distinct moves the app would
+    import. The importer (PgnImporter.planMoves) keys each move by the position
+    it is played from and skips repeats, so a move reached by transposition is
+    imported, and counted, only once. moveCount therefore equals the dialog's
+    "/ N moves" overlap total, not the raw number of move tokens in the file.
 
 Exits with a nonzero status and a clear message on the first failure group.
-Run with --print-counts to print the actual move count per PGN file, which is
+Run with --print-counts to print the distinct move count per PGN file, which is
 useful when filling in the manifest.
 """
 
@@ -82,8 +86,24 @@ def check_file_listing(repertoires):
         fail(f"PGN files not listed in the manifest: {names}")
 
 
-def walk_and_count(node, board, path):
-    """Recursively validate legality of every variation and count the moves."""
+def position_key(board):
+    """Cropped FEN the app keys positions by: board, turn, castling and en
+    passant (omitted unless a capture is available), without move counters.
+
+    python-chess's epd() emits the en passant square only when a legal en
+    passant capture exists, matching GameEngine.toCroppedFenString().
+    """
+    return board.epd()
+
+
+def walk_and_count(node, board, path, seen):
+    """Recursively validate legality of every variation and count the distinct
+    moves the importer would insert.
+
+    A move is counted once per (source position, SAN) pair, deduplicated through
+    ``seen`` exactly as PgnImporter.planMoves does, so transpositions to an
+    already visited move are validated but not counted twice.
+    """
     count = 0
     for child in node.variations:
         move = child.move
@@ -92,8 +112,12 @@ def walk_and_count(node, board, path):
                 f"{path}: illegal move {board.san(move) if board.is_pseudo_legal(move) else move.uci()} "
                 f"in position {board.fen()}"
             )
+        key = (position_key(board), board.san(move))
+        if key not in seen:
+            seen.add(key)
+            count += 1
         board.push(move)
-        count += 1 + walk_and_count(child, board, path)
+        count += walk_and_count(child, board, path, seen)
         board.pop()
     return count
 
@@ -111,7 +135,7 @@ def validate_pgn(entry):
         fail(f"{entry['file']}: PGN parser reported errors: {details}")
     if game.headers.get("Result") != "*":
         fail(f"{entry['file']}: Result header must be '*'")
-    actual = walk_and_count(game, game.board(), entry["file"])
+    actual = walk_and_count(game, game.board(), entry["file"], set())
     if actual != entry["moveCount"]:
         fail(
             f"{entry['file']}: manifest declares moveCount {entry['moveCount']} "
@@ -130,7 +154,7 @@ def print_counts(repertoires):
         if game.errors:
             details = "; ".join(str(error) for error in game.errors)
             fail(f"{entry['file']}: PGN parser reported errors: {details}")
-        count = walk_and_count(game, game.board(), entry["file"])
+        count = walk_and_count(game, game.board(), entry["file"], set())
         print(f"{entry['file']}: {count}")
 
 

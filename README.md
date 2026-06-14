@@ -20,7 +20,7 @@ validate.py      validation script, also run by CI
 | `name` | Display name shown to the user. |
 | `color` | Side the repertoire is built for, either `white` or `black`. |
 | `description` | One or two plain language sentences about the repertoire. |
-| `moveCount` | Total number of SAN moves in the file, mainline plus all variations, as counted by `validate.py`. |
+| `moveCount` | Number of distinct moves the app imports, mainline plus all variations, as counted by `validate.py`. A move reached by transposition is counted once, matching the importer, so this equals the "/ N moves" total shown in the install dialog. |
 | `file` | Path of the PGN file relative to the branch root, for example `pgn/london-system-white.pgn`. |
 
 ## PGN conventions

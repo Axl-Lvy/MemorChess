@@ -6,7 +6,7 @@
       "name": "London System",
       "color": "white",
       "description": "A solid system for White built around d4, Bf4 and the e3 c3 pawn triangle. The same setup works against almost any Black defense.",
-      "moveCount": 73,
+      "moveCount": 60,
       "file": "pgn/london-system-white.pgn"
     },
     {
