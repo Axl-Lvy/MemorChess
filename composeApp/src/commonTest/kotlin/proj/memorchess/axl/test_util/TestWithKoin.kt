@@ -92,7 +92,7 @@ abstract class TestWithKoin : KoinComponent {
   fun initTestModule(): Module {
     return module {
       single<Settings> { TestSettings() }
-      single<DatabaseQueryManager> { TestDatabaseQueryManager.empty() }
+      single<DatabaseQueryManager> { TestDatabases.empty() }
       single<ToastRenderer> { ToastRendererForTests }
       // Explorer overrides: an in memory cache and a MockEngine that always errors so no test
       // accidentally hits the real Lichess service. Tests that exercise the explorer rebuild
