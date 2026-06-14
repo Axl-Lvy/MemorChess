@@ -67,6 +67,8 @@ data class ExploreCtrlBarActions(
  * @param evalEnabled `true` if the eval bar is currently enabled (drives Primary vs Default style).
  * @param playerTurnWhite `true` when it is white's move, used for the central player-turn pill.
  * @param modifier External modifier applied to the row.
+ * @param showSaveDelete `true` to render the save and delete buttons; `false` hides them for read
+ *   only contexts such as the repertoire viewer.
  */
 @Composable
 fun ExploreCtrlBar(
@@ -74,6 +76,7 @@ fun ExploreCtrlBar(
   evalEnabled: Boolean,
   playerTurnWhite: Boolean,
   modifier: Modifier = Modifier,
+  showSaveDelete: Boolean = true,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -131,17 +134,23 @@ fun ExploreCtrlBar(
     // Filler — pushes save/delete to the right.
     Box(modifier = Modifier.weight(1f).fillMaxWidth())
 
-    KineticButton(onClick = actions.onSave, style = KineticButtonStyle.Primary, iconOnly = true) {
-      Icon(
-        FeatherIcons.Save,
-        contentDescription = stringResource(Res.string.description_board_save),
-      )
-    }
-    KineticButton(onClick = actions.onDelete, style = KineticButtonStyle.Danger, iconOnly = true) {
-      Icon(
-        FeatherIcons.Trash,
-        contentDescription = stringResource(Res.string.description_board_delete),
-      )
+    if (showSaveDelete) {
+      KineticButton(onClick = actions.onSave, style = KineticButtonStyle.Primary, iconOnly = true) {
+        Icon(
+          FeatherIcons.Save,
+          contentDescription = stringResource(Res.string.description_board_save),
+        )
+      }
+      KineticButton(
+        onClick = actions.onDelete,
+        style = KineticButtonStyle.Danger,
+        iconOnly = true,
+      ) {
+        Icon(
+          FeatherIcons.Trash,
+          contentDescription = stringResource(Res.string.description_board_delete),
+        )
+      }
     }
   }
 }

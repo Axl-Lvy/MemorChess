@@ -18,6 +18,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.ui.components.navigation.wipeReveal
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.pages.RepertoireLibrary
+import proj.memorchess.axl.ui.pages.RepertoireView
 import proj.memorchess.axl.ui.pages.Settings
 import proj.memorchess.axl.ui.pages.Training
 import proj.memorchess.axl.ui.theme.KineticMotion
@@ -37,6 +38,9 @@ internal fun NavBackStackEntry.routeOrdinal(): Int {
   return when {
     route.contains("explore") -> 0
     route.contains("training") -> 1
+    // The viewer shares the library ordinal so the wipe direction stays consistent. Its route
+    // string ("repertoireview") is disjoint from "library", so it needs its own branch.
+    route.contains("repertoireview") -> 2
     route.contains("library") -> 2
     route.contains("settings") -> 3
     else -> 1
@@ -83,6 +87,12 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
     composable<Route.LibraryRoute> {
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
         RepertoireLibrary()
+      }
+    }
+    composable<Route.RepertoireViewRoute> {
+      val repertoireId = it.toRoute<Route.RepertoireViewRoute>().repertoireId
+      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
+        RepertoireView(repertoireId)
       }
     }
     composable<Route.SettingsRoute> {

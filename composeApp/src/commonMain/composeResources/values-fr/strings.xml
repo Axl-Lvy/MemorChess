@@ -201,14 +201,19 @@
   <string name="library_preview_in_common">%1$d coups sur %2$d sont déjà dans votre répertoire.</string>
   <string name="library_preview_in_common_error">Impossible de vérifier vos coups existants.</string>
   <string name="library_preview_question">Ajouter ce répertoire à vos ouvertures ? Les coups existants et leur historique d'entraînement sont conservés.</string>
+  <string name="library_view">Parcourir ce répertoire</string>
   <plurals name="library_move_count">
     <item quantity="one">%1$d coup</item>
     <item quantity="other">%1$d coups</item>
   </plurals>
+
+  <!-- Repertoire viewer -->
+  <string name="repertoire_view_not_found">Le répertoire \"%1$s\" n'est plus dans le catalogue.</string>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">Aucun coup précédent.</string>
   <string name="toast_no_next_move">Aucun coup suivant.</string>
   <string name="toast_saved">Enregistré</string>
   <string name="toast_deleted">Supprimé</string>
+  <string name="toast_not_in_repertoire">Ce coup ne fait pas partie de ce répertoire.</string>
 </resources>
