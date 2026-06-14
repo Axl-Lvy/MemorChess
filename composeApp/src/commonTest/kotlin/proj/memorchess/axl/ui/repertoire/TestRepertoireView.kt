@@ -18,6 +18,7 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireInstallState
+import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
@@ -109,7 +110,9 @@ class TestRepertoireView : TestWithKoin() {
           RepertoireLibraryContent(
             catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
             installStates = emptyMap<String, RepertoireInstallState>(),
+            previewStates = emptyMap<String, RepertoirePreviewState>(),
             onInstall = {},
+            onPreviewRequest = {},
             onRetry = {},
             onView = { viewed = it },
           )

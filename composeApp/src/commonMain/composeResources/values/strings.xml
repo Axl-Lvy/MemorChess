@@ -187,6 +187,7 @@
   <string name="library_retry">RETRY</string>
   <string name="library_installed_badge">INSTALLED</string>
   <string name="library_install">Install</string>
+  <string name="library_reinstall">Reinstall</string>
   <string name="library_color_white">WHITE</string>
   <string name="library_color_black">BLACK</string>
   <string name="library_fetching">Downloading…</string>
@@ -196,6 +197,9 @@
   <string name="library_install_error_http">Download failed with HTTP error %1$d.</string>
   <string name="library_install_error_malformed_pgn">This repertoire file could not be read: %1$s</string>
   <string name="library_install_error_import">Import failed: %1$s</string>
+  <string name="library_preview_checking">Checking your repertoire…</string>
+  <string name="library_preview_in_common">%1$d of %2$d moves already in your repertoire.</string>
+  <string name="library_preview_in_common_error">Could not check your existing moves.</string>
   <string name="library_preview_question">Add this repertoire to your openings? Existing moves and their training history are kept.</string>
   <string name="library_view">Browse this repertoire</string>
   <plurals name="library_move_count">
