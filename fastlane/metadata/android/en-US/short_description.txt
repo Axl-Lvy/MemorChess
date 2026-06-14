@@ -1,0 +1,1 @@
+Memorize chess openings with spaced repetition on an interactive board

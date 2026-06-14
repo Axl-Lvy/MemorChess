@@ -1,0 +1,16 @@
+MemorChess helps you learn and retain chess openings the way Anki helps you learn
+anything else: with spaced repetition. Instead of flipping through static
+flashcards, you practice your lines directly on an interactive chessboard, so you
+memorize real moves on a real board.
+
+Features:
+
+* Interactive chessboard for exploring and practicing opening lines
+* Spaced repetition scheduling (FSRS) that resurfaces the lines you are about to forget
+* Track your progress and focus review on the moves you find tricky
+* Import public Lichess studies by URL to build your repertoire quickly
+* Browse the Lichess opening explorer to see how positions are played
+* Works fully offline; your repertoire is stored locally on your device
+
+MemorChess is free and open source software, released under the GNU General Public
+License v3.0.

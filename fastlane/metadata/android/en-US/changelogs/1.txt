@@ -1,0 +1,5 @@
+First release.
+
+* Interactive board for exploring and practicing chess openings
+* Spaced repetition review of your repertoire
+* Import public Lichess studies and browse the opening explorer
