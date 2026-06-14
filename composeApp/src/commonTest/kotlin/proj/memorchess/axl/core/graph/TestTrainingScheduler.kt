@@ -22,7 +22,7 @@ import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
-import proj.memorchess.axl.test_util.TestDatabaseQueryManager
+import proj.memorchess.axl.test_util.TestDatabases
 
 class TestTrainingScheduler {
 
@@ -36,7 +36,7 @@ class TestTrainingScheduler {
     maxTotal: Int = Int.MAX_VALUE,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
   ): Pair<TreeStore, TrainingScheduler> {
-    val store = TreeStore(TestDatabaseQueryManager.empty())
+    val store = TreeStore(TestDatabases.empty())
     val scheduler =
       TrainingScheduler(store, Fsrs6SchedulingAlgorithm(), timeZone, { maxNew }, { maxTotal })
     return store to scheduler
@@ -170,7 +170,7 @@ class TestTrainingScheduler {
     val g3 = dataMove(posB, "g3", endOfOldLine, t1)
     val d4 = dataMove(startPos, "d4", posC, t2)
     val d5 = dataMove(posC, "d5", endOfNewLine, t2)
-    val database = TestDatabaseQueryManager.empty()
+    val database = TestDatabases.empty()
     database.insertNodes(
       dataNode(startPos, 0, emptyList(), listOf(e4, d4)),
       dataNode(posA, 1, listOf(e4), listOf(e5)),
