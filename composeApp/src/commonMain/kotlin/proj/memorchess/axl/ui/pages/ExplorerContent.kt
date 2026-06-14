@@ -141,7 +141,7 @@ fun ExplorerContent(
   val palette = LocalKineticPalette.current
   val nodeState = explorer.state
   val cornerTagLabel =
-    if (readOnly) viewerMode?.cornerTag else stringResource(nodeStateLabel(nodeState))
+    if (viewerMode != null) viewerMode.cornerTag else stringResource(nodeStateLabel(nodeState))
   val cornerTagColor = if (readOnly) palette.ink2 else nodeStateColor(nodeState, palette)
 
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }

@@ -168,10 +168,7 @@ private suspend fun loadRepertoire(
         return RepertoireViewState.Error(RepertoireViewError.Http(manifest.status))
       is CachedManifestResult.MalformedManifest ->
         return RepertoireViewState.Error(RepertoireViewError.MalformedManifest(manifest.message))
-    }
-  if (descriptor == null) {
-    return RepertoireViewState.Error(RepertoireViewError.NotFound(repertoireId))
-  }
+    } ?: return RepertoireViewState.Error(RepertoireViewError.NotFound(repertoireId))
 
   val games =
     when (val result = client.fetchPgn(descriptor.file)) {
