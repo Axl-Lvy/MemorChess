@@ -23,7 +23,6 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
-import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
@@ -50,18 +49,7 @@ fun Explore(
       val initialPosition = extractInitialPosition(position, treeStore)
       val linesExplorer = remember { LinesExplorer(initialPosition, treeStore) }
       val coroutineScope = rememberCoroutineScope()
-      val explorerViewModel =
-        remember(cachedExplorer, coroutineScope) {
-          ExplorerViewModel(cachedExplorer, coroutineScope)
-        }
-
-      // Seed the view model with the starting FEN and refresh it on every move.
-      LaunchedEffect(linesExplorer) { explorerViewModel.setFen(linesExplorer.engine.toFen().value) }
-      remember {
-        linesExplorer.registerCallBack {
-          explorerViewModel.setFen(linesExplorer.engine.toFen().value)
-        }
-      }
+      val explorerViewModel = rememberExplorerViewModel(linesExplorer, cachedExplorer)
 
       val deletionConfirmationDialog = remember {
         ConfirmationDialog(okText = Res.string.dialog_delete)

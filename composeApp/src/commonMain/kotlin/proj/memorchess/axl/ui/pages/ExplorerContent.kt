@@ -41,6 +41,7 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.BEST_MOVE_ARROW_ENABLED_SETTING
 import proj.memorchess.axl.core.config.ENGINE_MAX_DEPTH_SETTING
 import proj.memorchess.axl.core.config.EVAL_BAR_ENABLED_SETTING
+import proj.memorchess.axl.core.data.explorer.CachedExplorer
 import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
@@ -79,6 +80,27 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
  *   meaningful in read-only mode (the repertoire name is shown instead).
  */
 data class ExplorerViewerMode(val initialInverted: Boolean = false, val cornerTag: String? = null)
+
+/**
+ * Creates an [ExplorerViewModel] bound to [explorer]: seeds it with the explorer's current FEN and
+ * refreshes it on every move. Shared by the free-exploration page and the read-only repertoire
+ * viewer, which wire the Lichess explorer panels identically.
+ *
+ * @param explorer The explorer whose position drives the opening explorer panels.
+ * @param cachedExplorer Backing data source for the returned [ExplorerViewModel].
+ */
+@Composable
+internal fun rememberExplorerViewModel(
+  explorer: LinesExplorer,
+  cachedExplorer: CachedExplorer,
+): ExplorerViewModel {
+  val coroutineScope = rememberCoroutineScope()
+  val explorerViewModel =
+    remember(cachedExplorer, coroutineScope) { ExplorerViewModel(cachedExplorer, coroutineScope) }
+  LaunchedEffect(explorer) { explorerViewModel.setFen(explorer.engine.toFen().value) }
+  remember { explorer.registerCallBack { explorerViewModel.setFen(explorer.engine.toFen().value) } }
+  return explorerViewModel
+}
 
 /**
  * Shared explorer content relying on a [LinesExplorer].

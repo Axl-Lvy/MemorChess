@@ -12,7 +12,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,7 +28,6 @@ import memorchess.composeapp.generated.resources.repertoire_view_not_found
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
-import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.core.data.repertoire.CachedManifestResult
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.CatalogResult
@@ -99,11 +97,7 @@ private fun RepertoireViewReady(
   descriptor: RepertoireDescriptor,
   cachedExplorer: CachedExplorer,
 ) {
-  val coroutineScope = rememberCoroutineScope()
-  val explorerViewModel =
-    remember(cachedExplorer, coroutineScope) { ExplorerViewModel(cachedExplorer, coroutineScope) }
-  LaunchedEffect(explorer) { explorerViewModel.setFen(explorer.engine.toFen().value) }
-  remember { explorer.registerCallBack { explorerViewModel.setFen(explorer.engine.toFen().value) } }
+  val explorerViewModel = rememberExplorerViewModel(explorer, cachedExplorer)
   ExplorerContent(
     explorer = explorer,
     explorerViewModel = explorerViewModel,
@@ -158,17 +152,20 @@ private suspend fun loadRepertoire(
   catalog: CachedRepertoireCatalog,
   client: RepertoireCatalogClient,
 ): RepertoireViewState {
-  val descriptor =
-    when (val manifest = catalog.getManifest()) {
-      is CachedManifestResult.Fresh -> manifest.manifest.repertoires.find { it.id == repertoireId }
-      is CachedManifestResult.Stale -> manifest.manifest.repertoires.find { it.id == repertoireId }
+  val manifest =
+    when (val result = catalog.getManifest()) {
+      is CachedManifestResult.Fresh -> result.manifest
+      is CachedManifestResult.Stale -> result.manifest
       is CachedManifestResult.NetworkError ->
-        return RepertoireViewState.Error(RepertoireViewError.Network(manifest.message))
+        return RepertoireViewState.Error(RepertoireViewError.Network(result.message))
       is CachedManifestResult.HttpError ->
-        return RepertoireViewState.Error(RepertoireViewError.Http(manifest.status))
+        return RepertoireViewState.Error(RepertoireViewError.Http(result.status))
       is CachedManifestResult.MalformedManifest ->
-        return RepertoireViewState.Error(RepertoireViewError.MalformedManifest(manifest.message))
-    } ?: return RepertoireViewState.Error(RepertoireViewError.NotFound(repertoireId))
+        return RepertoireViewState.Error(RepertoireViewError.MalformedManifest(result.message))
+    }
+  val descriptor =
+    manifest.repertoires.find { it.id == repertoireId }
+      ?: return RepertoireViewState.Error(RepertoireViewError.NotFound(repertoireId))
 
   val games =
     when (val result = client.fetchPgn(descriptor.file)) {
