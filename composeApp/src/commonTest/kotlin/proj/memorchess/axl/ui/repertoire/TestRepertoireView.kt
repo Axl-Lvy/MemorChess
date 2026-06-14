@@ -25,6 +25,7 @@ import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertTileContainsPiece
 import proj.memorchess.axl.ui.assertTileIsEmpty
+import proj.memorchess.axl.ui.pages.RepertoireLibraryActions
 import proj.memorchess.axl.ui.pages.RepertoireLibraryContent
 import proj.memorchess.axl.ui.pages.RepertoireView
 import proj.memorchess.axl.ui.playMove
@@ -111,10 +112,13 @@ class TestRepertoireView : TestWithKoin() {
             catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
             installStates = emptyMap<String, RepertoireInstallState>(),
             previewStates = emptyMap<String, RepertoirePreviewState>(),
-            onInstall = {},
-            onPreviewRequest = {},
-            onRetry = {},
-            onView = { viewed = it },
+            actions =
+              RepertoireLibraryActions(
+                onInstall = {},
+                onPreviewRequest = {},
+                onRetry = {},
+                onView = { viewed = it },
+              ),
           )
         }
       }

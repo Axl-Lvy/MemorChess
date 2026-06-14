@@ -123,10 +123,13 @@ fun RepertoireLibrary(
     catalogState = catalogState,
     installStates = installStates,
     previewStates = previewStates,
-    onInstall = viewModel::install,
-    onPreviewRequest = viewModel::requestPreview,
-    onRetry = viewModel::refresh,
-    onView = { descriptor -> navigator.navigateTo(Route.RepertoireViewRoute(descriptor.id)) },
+    actions =
+      RepertoireLibraryActions(
+        onInstall = viewModel::install,
+        onPreviewRequest = viewModel::requestPreview,
+        onRetry = viewModel::refresh,
+        onView = { descriptor -> navigator.navigateTo(Route.RepertoireViewRoute(descriptor.id)) },
+      ),
     modifier = Modifier.fillMaxSize().testTag(Route.LibraryRoute.getLabel()),
   )
 }
@@ -139,6 +142,22 @@ private fun RepertoireColor.toPlayer(): Player =
   }
 
 /**
+ * User actions raised by [RepertoireLibraryContent], grouped so the content stays within the
+ * parameter budget.
+ *
+ * @property onInstall Install (or reinstall) the given repertoire into the opening graph.
+ * @property onPreviewRequest Request the move-overlap preview for the given repertoire.
+ * @property onRetry Retry loading the catalog after a failure.
+ * @property onView Open the read-only viewer for the given repertoire.
+ */
+internal data class RepertoireLibraryActions(
+  val onInstall: (RepertoireDescriptor) -> Unit,
+  val onPreviewRequest: (RepertoireDescriptor) -> Unit,
+  val onRetry: () -> Unit,
+  val onView: (RepertoireDescriptor) -> Unit = {},
+)
+
+/**
  * Stateless rendering of the library page. Split out from [RepertoireLibrary] so tests can drive
  * each [LibraryCatalogState] and [RepertoireInstallState] without standing up a full view model.
  */
@@ -147,11 +166,8 @@ internal fun RepertoireLibraryContent(
   catalogState: LibraryCatalogState,
   installStates: Map<String, RepertoireInstallState>,
   previewStates: Map<String, RepertoirePreviewState>,
-  onInstall: (RepertoireDescriptor) -> Unit,
-  onPreviewRequest: (RepertoireDescriptor) -> Unit,
-  onRetry: () -> Unit,
+  actions: RepertoireLibraryActions,
   modifier: Modifier = Modifier,
-  onView: (RepertoireDescriptor) -> Unit = {},
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -180,29 +196,29 @@ internal fun RepertoireLibraryContent(
       is LibraryCatalogState.NetworkError ->
         CatalogError(
           message = stringResource(Res.string.library_error_network, catalogState.message),
-          onRetry = onRetry,
+          onRetry = actions.onRetry,
         )
       is LibraryCatalogState.HttpError ->
         CatalogError(
           message = stringResource(Res.string.library_error_http, catalogState.status),
-          onRetry = onRetry,
+          onRetry = actions.onRetry,
         )
       is LibraryCatalogState.MalformedManifest ->
         CatalogError(
           message = stringResource(Res.string.library_error_malformed, catalogState.message),
-          onRetry = onRetry,
+          onRetry = actions.onRetry,
         )
       is LibraryCatalogState.Loaded ->
         CatalogList(
           state = catalogState,
           installStates = installStates,
           onInstallRequest = { descriptor ->
-            onPreviewRequest(descriptor)
-            previewDialog.show(confirm = { onInstall(descriptor) }) {
+            actions.onPreviewRequest(descriptor)
+            previewDialog.show(confirm = { actions.onInstall(descriptor) }) {
               PreviewDialogContent(descriptor, latestPreviewStates.value[descriptor.id])
             }
           },
-          onView = onView,
+          onView = actions.onView,
         )
     }
   }
