@@ -211,26 +211,18 @@ class RepertoireLibraryViewModel(
   private suspend fun fetchGames(
     descriptor: RepertoireDescriptor,
     onError: (InstallError) -> Unit,
-  ): List<PgnGame>? =
-    when (val result = fetchPgn(descriptor.file)) {
-      is CatalogResult.Ok -> result.value
-      is CatalogResult.NetworkError -> {
-        onError(InstallError.Network(result.message))
-        null
+  ): List<PgnGame>? {
+    val error =
+      when (val result = fetchPgn(descriptor.file)) {
+        is CatalogResult.Ok -> return result.value
+        is CatalogResult.NetworkError -> InstallError.Network(result.message)
+        is CatalogResult.HttpError -> InstallError.Http(result.status)
+        is CatalogResult.MalformedPgn -> InstallError.MalformedPgn(result.message)
+        is CatalogResult.MalformedManifest -> InstallError.MalformedPgn(result.message)
       }
-      is CatalogResult.HttpError -> {
-        onError(InstallError.Http(result.status))
-        null
-      }
-      is CatalogResult.MalformedPgn -> {
-        onError(InstallError.MalformedPgn(result.message))
-        null
-      }
-      is CatalogResult.MalformedManifest -> {
-        onError(InstallError.MalformedPgn(result.message))
-        null
-      }
-    }
+    onError(error)
+    return null
+  }
 
   private fun fail(id: String, error: InstallError) {
     setInstallState(id, RepertoireInstallState.Failed(error))
