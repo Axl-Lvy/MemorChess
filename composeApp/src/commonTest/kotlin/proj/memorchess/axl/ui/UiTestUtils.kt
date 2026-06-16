@@ -21,7 +21,10 @@ import androidx.compose.ui.test.waitUntilDoesNotExist
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration
 import kotlin.time.TimeSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.test_util.BOARD_LOAD_TIMEOUT
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
@@ -150,6 +153,28 @@ fun ComposeUiTest.isBoardReversed(): Boolean {
   val a1y = waitUntilTileAppears("a1").fetchSemanticsNode().positionOnScreen.y
   val a8y = waitUntilTileAppears("a8").fetchSemanticsNode().positionOnScreen.y
   return a1y < a8y
+}
+
+/**
+ * Suspends until the board of an asynchronously loading page (e.g. the repertoire viewer, which
+ * fetches a PGN in a `LaunchedEffect`) has rendered.
+ *
+ * The `withContext(Dispatchers.Default) {}` hop is load-bearing: Ktor runs the `MockEngine` request
+ * on [Dispatchers.Default], which `runComposeUiTest`'s virtual-time dispatcher never yields to, so
+ * without it the HTTP continuation starves and the board never appears.
+ *
+ * @param timeOut The maximum time to wait for the board to render.
+ */
+suspend fun ComposeUiTest.waitUntilBoardAppears(timeOut: Duration = BOARD_LOAD_TIMEOUT) {
+  val matcher = hasClickLabel(getTileDescription("a1"))
+  val mark = TimeSource.Monotonic.markNow()
+  while (onAllNodes(matcher).fetchSemanticsNodes().isEmpty()) {
+    if (mark.elapsedNow() > timeOut) {
+      throw AssertionError("Board still not rendered after $timeOut")
+    }
+    withContext(Dispatchers.Default) {}
+    awaitIdle()
+  }
 }
 
 private fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
