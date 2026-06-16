@@ -66,6 +66,7 @@
         "com.android.application",
         "com.android.library",
         "com.android.kotlin.multiplatform.library",
+        "com.android.test",
         "com.android.tools.build:gradle"
       ],
       "allowedVersions": "<9.1"
