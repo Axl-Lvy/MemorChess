@@ -156,18 +156,12 @@ fun ComposeUiTest.isBoardReversed(): Boolean {
 }
 
 /**
- * Suspends until the chess board has rendered, i.e. a page that loads its board asynchronously
- * (such as the repertoire viewer, which fetches and parses a PGN over an HTTP client in a
- * `LaunchedEffect` before the board appears) has finished settling.
+ * Suspends until the board of an asynchronously loading page (e.g. the repertoire viewer, which
+ * fetches a PGN in a `LaunchedEffect`) has rendered.
  *
- * The poll loop must hand control back to the real JS event loop, which is what the
- * `withContext(Dispatchers.Default) {}` hop does. Ktor runs the `MockEngine` request on
- * [Dispatchers.Default]; under `runComposeUiTest`'s virtual-time test dispatcher neither
- * [ComposeUiTest.waitForIdle] nor [ComposeUiTest.awaitIdle] ever relinquish to that dispatcher, so
- * without the hop the `LaunchedEffect`'s HTTP continuation never runs and the board never appears.
- * That is the flake tracked in issue #228: on CI the loop occasionally yields by chance and the
- * test passes, but on slower hosts it deadlocks every time. [awaitIdle] then drains the
- * recomposition the resumed load triggered.
+ * The `withContext(Dispatchers.Default) {}` hop is load-bearing: Ktor runs the `MockEngine` request
+ * on [Dispatchers.Default], which `runComposeUiTest`'s virtual-time dispatcher never yields to, so
+ * without it the HTTP continuation starves and the board never appears (issue #228).
  *
  * @param timeOut The maximum time to wait for the board to render.
  */

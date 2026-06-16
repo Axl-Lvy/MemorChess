@@ -74,9 +74,7 @@ class TestRepertoireView : TestWithKoin() {
     try {
       val (catalog, client) = mockCatalog(pgn)
       setContent { InitializeApp { RepertoireView("test-rep", catalog, client) } }
-      // RepertoireView fetches and parses the PGN over an HTTP client in a LaunchedEffect before
-      // the board renders. Suspend until the board appears so the MockEngine response actually
-      // runs on the JS event loop; the blocking waiters never yield to it on wasmJs (issue #228).
+      // Wait for the async PGN load to render the board before asserting (issue #228).
       waitUntilBoardAppears()
       block()
     } finally {

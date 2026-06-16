@@ -1,10 +1,8 @@
 config.set({
   browserNoActivityTimeout: 120000,
   browserDisconnectTimeout: 30000,
-  // The single wasm thread can block the browser event loop (PGN parse, graph build, GC) long
-  // enough to miss a Karma heartbeat on a loaded CI runner. With the default tolerance of 0 a
-  // single missed ping fails the whole run with zero test failures (issue #228), so tolerate a
-  // few transient disconnects and give the socket more time before declaring the browser dead.
+  // Tolerate transient browser disconnects on a loaded CI runner; default tolerance of 0 fails the
+  // whole run on a single missed heartbeat with zero test failures (issue #228).
   browserDisconnectTolerance: 3,
   pingTimeout: 60000,
   client: {
