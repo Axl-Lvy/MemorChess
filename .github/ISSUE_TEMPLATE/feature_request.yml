@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an idea or improvement for MemorChess
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What problem would this feature solve, or what is the motivation behind it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or behavior you would like to see.
+    validations:
+      required: true
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Affected platforms
+      description: Which platforms would this feature target?
+      multiple: true
+      options:
+        - Android
+        - iOS
+        - JVM desktop
+        - WebAssembly (web)
+        - All platforms
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you have thought about.
+    validations:
+      required: false
