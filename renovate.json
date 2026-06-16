@@ -8,6 +8,7 @@
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "labels": ["renovate"],
+  "prFooter": "- [x] Force running tests",
   "gitIgnoredAuthors": ["266536929+auto-update[bot]@users.noreply.github.com"],
   "hostRules": [
     {
