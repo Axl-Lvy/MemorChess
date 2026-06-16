@@ -8,6 +8,7 @@
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
   "labels": ["renovate"],
+  "prFooter": "- [x] Force running tests",
   "gitIgnoredAuthors": ["266536929+auto-update[bot]@users.noreply.github.com"],
   "hostRules": [
     {
@@ -66,6 +67,7 @@
         "com.android.application",
         "com.android.library",
         "com.android.kotlin.multiplatform.library",
+        "com.android.test",
         "com.android.tools.build:gradle"
       ],
       "allowedVersions": "<9.1"
