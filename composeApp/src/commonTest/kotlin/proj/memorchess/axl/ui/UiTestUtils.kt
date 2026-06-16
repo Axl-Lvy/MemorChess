@@ -21,7 +21,10 @@ import androidx.compose.ui.test.waitUntilDoesNotExist
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration
 import kotlin.time.TimeSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.test_util.BOARD_LOAD_TIMEOUT
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
@@ -150,6 +153,34 @@ fun ComposeUiTest.isBoardReversed(): Boolean {
   val a1y = waitUntilTileAppears("a1").fetchSemanticsNode().positionOnScreen.y
   val a8y = waitUntilTileAppears("a8").fetchSemanticsNode().positionOnScreen.y
   return a1y < a8y
+}
+
+/**
+ * Suspends until the chess board has rendered, i.e. a page that loads its board asynchronously
+ * (such as the repertoire viewer, which fetches and parses a PGN over an HTTP client in a
+ * `LaunchedEffect` before the board appears) has finished settling.
+ *
+ * The poll loop must hand control back to the real JS event loop, which is what the
+ * `withContext(Dispatchers.Default) {}` hop does. Ktor runs the `MockEngine` request on
+ * [Dispatchers.Default]; under `runComposeUiTest`'s virtual-time test dispatcher neither
+ * [ComposeUiTest.waitForIdle] nor [ComposeUiTest.awaitIdle] ever relinquish to that dispatcher, so
+ * without the hop the `LaunchedEffect`'s HTTP continuation never runs and the board never appears.
+ * That is the flake tracked in issue #228: on CI the loop occasionally yields by chance and the
+ * test passes, but on slower hosts it deadlocks every time. [awaitIdle] then drains the
+ * recomposition the resumed load triggered.
+ *
+ * @param timeOut The maximum time to wait for the board to render.
+ */
+suspend fun ComposeUiTest.waitUntilBoardAppears(timeOut: Duration = BOARD_LOAD_TIMEOUT) {
+  val matcher = hasClickLabel(getTileDescription("a1"))
+  val mark = TimeSource.Monotonic.markNow()
+  while (onAllNodes(matcher).fetchSemanticsNodes().isEmpty()) {
+    if (mark.elapsedNow() > timeOut) {
+      throw AssertionError("Board still not rendered after $timeOut")
+    }
+    withContext(Dispatchers.Default) {}
+    awaitIdle()
+  }
 }
 
 private fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {

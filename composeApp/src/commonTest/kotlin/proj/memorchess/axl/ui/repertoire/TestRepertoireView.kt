@@ -29,6 +29,7 @@ import proj.memorchess.axl.ui.pages.RepertoireLibraryActions
 import proj.memorchess.axl.ui.pages.RepertoireLibraryContent
 import proj.memorchess.axl.ui.pages.RepertoireView
 import proj.memorchess.axl.ui.playMove
+import proj.memorchess.axl.ui.waitUntilBoardAppears
 
 @OptIn(ExperimentalTestApi::class)
 class TestRepertoireView : TestWithKoin() {
@@ -65,17 +66,23 @@ class TestRepertoireView : TestWithKoin() {
     return CachedRepertoireCatalog(client) to client
   }
 
-  private fun runViewer(pgn: String = "1. e4 e5 2. Nf3 *", block: ComposeUiTest.() -> Unit) =
-    runComposeUiTest {
-      koinSetUp()
-      try {
-        val (catalog, client) = mockCatalog(pgn)
-        setContent { InitializeApp { RepertoireView("test-rep", catalog, client) } }
-        block()
-      } finally {
-        koinTearDown()
-      }
+  private fun runViewer(
+    pgn: String = "1. e4 e5 2. Nf3 *",
+    block: suspend ComposeUiTest.() -> Unit,
+  ) = runComposeUiTest {
+    koinSetUp()
+    try {
+      val (catalog, client) = mockCatalog(pgn)
+      setContent { InitializeApp { RepertoireView("test-rep", catalog, client) } }
+      // RepertoireView fetches and parses the PGN over an HTTP client in a LaunchedEffect before
+      // the board renders. Suspend until the board appears so the MockEngine response actually
+      // runs on the JS event loop; the blocking waiters never yield to it on wasmJs (issue #228).
+      waitUntilBoardAppears()
+      block()
+    } finally {
+      koinTearDown()
     }
+  }
 
   @Test
   fun bookMoveCanBePlayed() = runViewer {

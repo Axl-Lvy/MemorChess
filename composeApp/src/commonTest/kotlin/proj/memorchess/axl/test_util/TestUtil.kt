@@ -39,3 +39,11 @@ fun getPieceDescription(piece: String): String {
 }
 
 val TEST_TIMEOUT = 10.seconds
+
+/**
+ * Safety ceiling for a page that loads its board asynchronously (e.g. the repertoire viewer, which
+ * fetches and parses a PGN in a `LaunchedEffect` before the board renders) to finish settling. The
+ * load itself completes quickly once the poll loop yields to the event loop; this is generously
+ * larger than [TEST_TIMEOUT] only so a genuinely slow host does not trip it spuriously.
+ */
+val BOARD_LOAD_TIMEOUT = 30.seconds
