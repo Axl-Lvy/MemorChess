@@ -39,3 +39,6 @@ fun getPieceDescription(piece: String): String {
 }
 
 val TEST_TIMEOUT = 10.seconds
+
+/** Safety ceiling for an asynchronous board load to settle; generous so slow hosts don't flake. */
+val BOARD_LOAD_TIMEOUT = 30.seconds
