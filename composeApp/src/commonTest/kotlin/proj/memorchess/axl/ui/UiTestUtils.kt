@@ -161,7 +161,7 @@ fun ComposeUiTest.isBoardReversed(): Boolean {
  *
  * The `withContext(Dispatchers.Default) {}` hop is load-bearing: Ktor runs the `MockEngine` request
  * on [Dispatchers.Default], which `runComposeUiTest`'s virtual-time dispatcher never yields to, so
- * without it the HTTP continuation starves and the board never appears (issue #228).
+ * without it the HTTP continuation starves and the board never appears.
  *
  * @param timeOut The maximum time to wait for the board to render.
  */
