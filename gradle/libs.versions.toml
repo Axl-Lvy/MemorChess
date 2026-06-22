@@ -21,13 +21,13 @@ hotpreview = "0.2.0"
 indexeddb = "0.12.0"
 kermit = "2.1.0"
 kover = "0.9.8"
-koin = "4.2.1"
+koin = "4.2.2"
 ktfmt = "0.26.0"
 kotlin = "2.4.0"
 kotlinx-benchmark = "0.4.17"
 kotlinx-coroutines = "1.11.0"
 ksp = "2.3.9"
-kotest = "6.1.11"
+kotest = "6.2.1"
 kotlinxDatetime = "0.8.0"
 kotlinxSerializationJson = "1.11.0"
 ktor = "3.5.0"
@@ -36,7 +36,7 @@ material3-adaptive = "1.2.0"
 material3Android = "1.4.0"
 # Must track the androidx.compose.runtime version that the Compose Multiplatform release
 # above resolves to on Android, otherwise composition tracing produces no sections
-composeRuntimeTracing = "1.11.2"
+composeRuntimeTracing = "1.11.3"
 # Must track the androidx.tracing:tracing-perfetto version that compose-runtime-tracing
 # pulls in, otherwise the Perfetto SDK rejects the benchmark native library with a
 # checksum error
@@ -47,7 +47,7 @@ slf4jApi = "2.0.18"
 sonar = "7.3.1.8318"
 sqlite = "2.6.2"
 stockfish-multiplatform = "0.1.0"
-uiTestJunit4Android = "1.11.2"
+uiTestJunit4Android = "1.11.3"
 espresso = "3.7.0"
 xfeather_z = "1.1.1"
 
