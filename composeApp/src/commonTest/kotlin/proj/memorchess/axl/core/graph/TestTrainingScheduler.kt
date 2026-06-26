@@ -293,15 +293,35 @@ class TestTrainingScheduler {
   }
 
   @Test
-  fun nextAfterServesAnEligibleReachableChildIgnoringCaps() = runTest {
+  fun nextAfterServesAnEligibleReachableChild() = runTest {
+    val (store, scheduler) = newScheduler()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    // With budget available, nextAfter returns the first eligible reachable child so the session
+    // stays in the current line.
+    assertEquals(posA, scheduler.nextAfter(startPos)?.positionKey)
+  }
+
+  @Test
+  fun nextAfterRespectsTheNewCap() = runTest {
     val (store, scheduler) = newScheduler(maxNew = 0)
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
-    // nextAfter is a best-effort "stay in the current line" lookup: it returns the first eligible
-    // reachable child (trainable and due today) without consuming or honoring the daily caps. The
-    // cap is enforced by nextDue, which the trainer falls back to. So posA surfaces even with the
-    // new-card cap at zero.
-    assertEquals(posA, scheduler.nextAfter(startPos)?.positionKey)
+    // posA is a brand new card. With the new-card cap at zero, staying in the line must not
+    // introduce it: nextAfter honors the cap and returns null for the reachable NEW child.
+    assertNull(scheduler.nextAfter(startPos))
+  }
+
+  @Test
+  fun nextAfterReturnsNullWhenTotalBudgetIsExhausted() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 1)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.addMove(from = posC, move = "Nf3", to = posB, isGood = true, fromDepth = 0)
+    // posC already consumed the single daily slot today, so the total budget is exhausted. Even a
+    // reachable, otherwise-eligible child must not be served.
+    store.updateCardState(posC, reviewedTodayCard())
+    assertNull(scheduler.nextAfter(startPos))
   }
 
   @Test

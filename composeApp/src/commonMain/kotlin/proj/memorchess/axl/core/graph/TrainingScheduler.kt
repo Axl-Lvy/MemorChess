@@ -9,6 +9,7 @@ import kotlinx.datetime.plus
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.ReviewGrade
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 
@@ -104,12 +105,27 @@ class TrainingScheduler(
    * Resolves [position]'s outgoing destinations (bounded by the branching factor) from the cache,
    * then asks the database for the first eligible one through
    * [DatabaseQueryManager.findEligibleAmong] so no graph enumeration happens.
+   *
+   * The daily caps are enforced here too, so staying in the current line cannot introduce more new
+   * cards than [maxNewMovesPerDay] or train more than [maxTotalMovesPerDay] allows. A single
+   * [DatabaseQueryManager.getSchedulingCounts] call establishes the day's remaining budgets: when
+   * the total budget is exhausted nothing is returned, and a brand new
+   * ([proj.memorchess.axl.core.scheduling.CardPhase.NEW]) candidate is withheld once the new budget
+   * is exhausted. In-session and review candidates only need the total budget to remain. The cost
+   * stays bounded: one counts call plus the single [DatabaseQueryManager.findEligibleAmong] lookup,
+   * never a graph walk.
    */
   suspend fun nextAfter(position: PositionKey, day: LocalDate = DateUtil.today()): TrainingEntry? {
     val node = treeStore.current().get(position) ?: return null
     val destinations = node.outgoing.values.map { it.to }
-    val (_, dayEnd) = dayBounds(day)
-    return database.findEligibleAmong(destinations, dayEnd)
+    val (dayStart, dayEnd) = dayBounds(day)
+    val counts = database.getSchedulingCounts(dayStart, dayEnd)
+    val totalRemaining = (maxTotalMovesPerDay() - counts.trainedToday).coerceAtLeast(0)
+    if (totalRemaining <= 0) return null
+    val newRemaining = (maxNewMovesPerDay() - counts.introducedToday).coerceAtLeast(0)
+    val candidate = database.findEligibleAmong(destinations, dayEnd) ?: return null
+    if (candidate.cardState.phase == CardPhase.NEW && newRemaining <= 0) return null
+    return candidate
   }
 
   /**
