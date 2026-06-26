@@ -266,17 +266,12 @@ class TreeStore(
     mutex.withLock { tree.clear() }
   }
 
-  private suspend fun persistNode(positionKey: PositionKey) {
-    val node = mutex.withLock { tree[positionKey] } ?: return
-    database.insertNodes(node.toDataNode())
-  }
-
   /**
    * Persists the cached node at [positionKey], if present. A no-op when the node is gone from the
    * cache (e.g. it was itself just deleted), so it is safe to call after an edge removal to refresh
    * a surviving endpoint's derived [DataNode.hasGoodOutgoing] flag.
    */
-  private suspend fun persistSurvivingNode(positionKey: PositionKey) {
+  private suspend fun persistNode(positionKey: PositionKey) {
     val node = mutex.withLock { tree[positionKey] } ?: return
     database.insertNodes(node.toDataNode())
   }
