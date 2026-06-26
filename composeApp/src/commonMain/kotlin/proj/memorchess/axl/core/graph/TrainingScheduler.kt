@@ -116,7 +116,7 @@ class TrainingScheduler(
    * never a graph walk.
    */
   suspend fun nextAfter(position: PositionKey, day: LocalDate = DateUtil.today()): TrainingEntry? {
-    val node = treeStore.current().get(position) ?: return null
+    val node = treeStore.node(position) ?: return null
     val destinations = node.outgoing.values.map { it.to }
     val (dayStart, dayEnd) = dayBounds(day)
     val counts = database.getSchedulingCounts(dayStart, dayEnd)
@@ -151,7 +151,7 @@ class TrainingScheduler(
    * through [TreeStore].
    */
   suspend fun grade(position: PositionKey, grade: ReviewGrade) {
-    val node = treeStore.current().get(position) ?: return
+    val node = treeStore.node(position) ?: return
     val now = DateUtil.now()
     val nextState = algorithm.schedule(node.cardState, grade, now)
     treeStore.updateCardState(position, nextState)

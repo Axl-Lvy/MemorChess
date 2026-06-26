@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testTreeStore
 
 /**
  * Tests for the derived projection columns [DataNode.hasGoodOutgoing] and [DataNode.createdAt],
@@ -55,7 +56,7 @@ class TestTreeStore {
   @Test
   fun classifyingFirstGoodEdgeSetsHasGoodOutgoingTrue() = runTest {
     val database = TestDatabases.empty()
-    val store = TreeStore(database)
+    val store = testTreeStore(database)
     store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
     val persisted = database.getPosition(start)
     assertNotNull(persisted)
@@ -65,7 +66,7 @@ class TestTreeStore {
   @Test
   fun deletingLastGoodEdgeSetsHasGoodOutgoingFalse() = runTest {
     val database = TestDatabases.empty()
-    val store = TreeStore(database)
+    val store = testTreeStore(database)
     store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
     assertTrue(database.getPosition(start)!!.hasGoodOutgoing)
     store.deleteMove(from = start, move = "e4")
@@ -80,7 +81,7 @@ class TestTreeStore {
   @Test
   fun deletingNodeRePersistsSurvivingOrigin() = runTest {
     val database = TestDatabases.empty()
-    val store = TreeStore(database)
+    val store = testTreeStore(database)
     store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
     assertTrue(database.getPosition(start)!!.hasGoodOutgoing)
     store.deleteNode(posA)
@@ -95,7 +96,7 @@ class TestTreeStore {
   @Test
   fun explorationEdgeDoesNotSetHasGoodOutgoing() = runTest {
     val database = TestDatabases.empty()
-    val store = TreeStore(database)
+    val store = testTreeStore(database)
     // An exploration edge (isGood == null) is not persisted, then classify it as a known mistake.
     store.addMove(from = start, move = "e4", to = posA, isGood = false, fromDepth = 0)
     val persisted = database.getPosition(start)
@@ -109,8 +110,9 @@ class TestTreeStore {
   @Test
   fun nodeCreatedAtIsEarliestIncomingEdgeCreatedAt() = runTest {
     // posB has two good incoming edges with distinct createdAt; the persisted createdAt must be the
-    // earlier one. Seed via insertNodes + load so the edge createdAt values are controlled, then a
-    // write to posB re-persists it through Node.toDataNode().
+    // earlier one. Seed via insertNodes so the edge createdAt values are controlled, then a write
+    // to
+    // posB re-persists it through Node.toDataNode() (which resolves posB on demand).
     val viaA = move(posA, "Nc3", posB, t2)
     val viaC = move(posC, "Nf3", posB, t1)
     val database = TestDatabases.empty()
@@ -119,8 +121,7 @@ class TestTreeStore {
       node(posC, 1, emptyList(), listOf(viaC)),
       node(posB, 2, listOf(viaA, viaC), emptyList()),
     )
-    val store = TreeStore(database)
-    store.load()
+    val store = testTreeStore(database)
     // Trigger a re-persist of posB by adding an outgoing edge from it.
     store.addMove(from = posB, move = "d4", to = start, isGood = true, fromDepth = 2)
     val persisted = database.getPosition(posB)
@@ -135,7 +136,7 @@ class TestTreeStore {
   @Test
   fun rootNodeCreatedAtFallsBackToNow() = runTest {
     val database = TestDatabases.empty()
-    val store = TreeStore(database)
+    val store = testTreeStore(database)
     // The start position is persisted as the origin of a classified edge; it has no incoming edges,
     // so createdAt falls back to now and is a set, non throwing value within the call window.
     val before = DateUtil.now()

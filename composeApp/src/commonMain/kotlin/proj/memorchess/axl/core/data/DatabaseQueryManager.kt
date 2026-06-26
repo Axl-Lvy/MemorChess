@@ -129,4 +129,32 @@ interface DatabaseQueryManager {
    * @param dayEndExclusive Start of the day after the target day, the exclusive due bound.
    */
   suspend fun findEligibleAmong(keys: List<PositionKey>, dayEndExclusive: Instant): TrainingEntry?
+
+  /**
+   * Counts the non-deleted positions in the subtree reachable from [key] that a recursive delete
+   * would remove, [key] itself included.
+   *
+   * A descendant is counted only when [key]'s subtree is its sole set of parents: a convergent
+   * position reachable through a parent outside the visited subtree is not counted (and not
+   * descended into), matching the cascade rule of
+   * [proj.memorchess.axl.core.interactions.LinesExplorer.delete]. The walk is a bounded breadth
+   * first traversal over the move edges, identical across every backend so the convergence rule
+   * cannot drift.
+   *
+   * Bounded by [cap]: the traversal stops enqueuing once [cap] positions have been counted, so a
+   * subtree at or above [cap] returns exactly [cap]. The UI renders that as a "cap or more"
+   * sentinel instead of paying for an unbounded walk. Returns `0` when [key] is not stored.
+   *
+   * @param key Root of the subtree to count.
+   * @param cap Upper bound on the returned count; the traversal never visits more than [cap]
+   *   positions.
+   */
+  suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int
 }
+
+/**
+ * Default upper bound for [DatabaseQueryManager.countDescendants]. A delete confirmation that would
+ * remove this many or more positions is shown as a "[DESCENDANT_COUNT_CAP] or more" sentinel rather
+ * than paging the whole subtree to produce an exact number.
+ */
+const val DESCENDANT_COUNT_CAP: Int = 500

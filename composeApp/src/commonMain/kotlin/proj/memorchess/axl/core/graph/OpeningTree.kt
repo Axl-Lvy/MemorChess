@@ -3,135 +3,64 @@ package proj.memorchess.axl.core.graph
 import proj.memorchess.axl.core.data.PositionKey
 
 /**
- * Pure in memory graph of chess positions keyed by [PositionKey].
+ * Bounded, demand paged cache of chess positions keyed by [PositionKey].
  *
- * The tree only knows about [Node] and [Edge]. It has no persistence, no scheduling and no I/O.
- * Every mutation produces a new immutable [Node]; the tree's internal map is replaced atomically
- * via [snapshot] and [replaceFrom] when callers want to swap in a freshly loaded graph.
+ * The tree only knows about [Node] and [Edge]. It has no persistence, no scheduling and no I/O. It
+ * is a **partial** view of the repertoire: under demand paging only a bounded working set of nodes
+ * is resident at any moment. Code must never assume the whole graph is in memory; an absent key is
+ * a cache miss that [TreeStore] resolves on demand from the database, not a proof the position does
+ * not exist.
  *
- * All mutators are package internal. Production code only mutates the tree through
- * [TreeStore][TreeStore]. Tests should also go through [TreeStore] to keep persistence and the
- * cache in sync.
+ * ## Eviction
+ *
+ * The cache keeps at most [MAX_CACHE_NODES] entries with a least recently used policy. Recency is
+ * maintained explicitly because Kotlin Multiplatform does not expose an access ordered
+ * [LinkedHashMap] on every target: [touch] (and every write) removes then re puts a key so the most
+ * recently used entry sits at the tail of the insertion order, and eviction drops from the head.
+ *
+ * Eviction never corrupts a still resident node. Edges are duplicated by value into both endpoints
+ * (see [Edge]), so dropping node `X` only removes `X`'s own [Node] object; a resident neighbour `Y`
+ * still holds its copy of any shared edge in its own [Node.outgoing] / [Node.incoming]. `X` is
+ * rebuilt from a point lookup the next time it is resolved.
+ *
+ * ## Thread safety
+ *
+ * This class is **not** thread safe on its own. Background neighbour prefetch writes the cache
+ * concurrently with main thread resolves, so [TreeStore] funnels every read and write through a
+ * single mutex. Do not mutate the cache from outside [TreeStore].
+ *
+ * All mutators are package internal. Production code only mutates the tree through [TreeStore].
  */
 class OpeningTree {
 
-  private var positions: Map<PositionKey, Node> = emptyMap()
+  private val positions = LinkedHashMap<PositionKey, Node>()
 
-  /** Returns the [Node] for [positionKey], or `null` when the position is not in the graph. */
+  /**
+   * Returns the [Node] for [positionKey], or `null` when the position is not resident in the cache.
+   *
+   * A `null` result is a cache miss, not a proof of absence: under demand paging the position may
+   * exist on disk but not be loaded. Pure read; does not update recency. Use [touch] (via
+   * [TreeStore]) to mark an entry most recently used.
+   */
   operator fun get(positionKey: PositionKey): Node? = positions[positionKey]
 
-  /**
-   * Returns the depth of [positionKey], or [Int.MAX_VALUE] when the position is not in the graph.
-   */
-  fun getDepth(positionKey: PositionKey): Int = positions[positionKey]?.depth ?: Int.MAX_VALUE
-
-  /** Checks whether [positionKey] is in the graph. */
-  fun isKnown(positionKey: PositionKey): Boolean = positionKey in positions
-
-  /** Returns an immutable snapshot of every node currently in the graph. */
-  fun snapshot(): Map<PositionKey, Node> = positions
-
-  /**
-   * Counts positions in the subtree rooted at [positionKey] that would be deleted in a recursive
-   * delete. A child is only counted if it has no other parents.
-   */
-  fun countDescendants(positionKey: PositionKey, viaMove: String? = null): Int {
-    val node = positions[positionKey] ?: return 0
-    if (viaMove != null && node.incoming.size > 1) {
-      return 0
-    }
-    var count = 1
-    node.outgoing.values.forEach { edge -> count += countDescendants(edge.to, edge.move) }
-    return count
-  }
-
-  /**
-   * Computes a deterministic introduction order over every position in the graph.
-   *
-   * The order is a depth first traversal from [PositionKey.START_POSITION]: a whole line is
-   * numbered from the start position to its end before the traversal backtracks to the next branch.
-   * Sibling branches are visited oldest [Edge.createdAt] first, with the move SAN as a tiebreak, so
-   * lines are introduced in the order they were added to the repertoire. Deleted edges are not
-   * followed. A transposition is numbered at its first visit only. Positions not reachable from the
-   * start position are appended at the end, ordered by depth then position key.
-   *
-   * Recomputed from scratch on every call. If this ever shows up in the opening tree benchmark,
-   * memoize on the snapshot identity.
-   *
-   * @return Index of every position in the introduction order, starting at 0.
-   */
-  fun introductionOrder(): Map<PositionKey, Int> {
-    val order = mutableMapOf<PositionKey, Int>()
-    val stack = ArrayDeque<PositionKey>()
-    if (PositionKey.START_POSITION in positions) {
-      stack.addLast(PositionKey.START_POSITION)
-    }
-    while (stack.isNotEmpty()) {
-      val key = stack.removeLast()
-      if (key in order) continue
-      order[key] = order.size
-      val node = positions[key] ?: continue
-      val children =
-        node.outgoing.values
-          .filterNot { it.isDeleted }
-          .sortedWith(compareBy({ it.createdAt }, { it.move }))
-      // Reversed so that the oldest branch is popped first.
-      for (edge in children.asReversed()) {
-        if (edge.to !in order) stack.addLast(edge.to)
-      }
-    }
-    positions.keys
-      .filter { it !in order }
-      .sortedWith(compareBy({ getDepth(it) }, { it.value }))
-      .forEach { order[it] = order.size }
-    return order
-  }
-
-  /**
-   * Computes the [NodeState] for [positionKey] given which position we arrived from.
-   *
-   * @param positionKey Position to compute the state for.
-   * @param arrivedFrom Origin position the user came from, or `null` when no path is tracked.
-   */
-  fun computeState(positionKey: PositionKey, arrivedFrom: PositionKey?): NodeState {
-    val node = positions[positionKey] ?: return NodeState.UNKNOWN
-    val incoming = node.incoming
-    if (incoming.isEmpty()) return NodeState.FIRST
-
-    var aggregateGood: Boolean? = null
-    var arrivalGood: Boolean? = null
-    for (edge in incoming.values) {
-      when (edge.isGood) {
-        true -> {
-          if (aggregateGood == false) return NodeState.BAD_STATE
-          aggregateGood = true
-        }
-        false -> {
-          if (aggregateGood == true) return NodeState.BAD_STATE
-          aggregateGood = false
-        }
-        null -> Unit
-      }
-      if (arrivedFrom != null && arrivedFrom == edge.from) {
-        arrivalGood = edge.isGood
-      }
-    }
-    return determineState(aggregateGood, arrivalGood)
-  }
+  /** Number of entries currently resident in the cache. Used by tests asserting eviction. */
+  internal fun residentCount(): Int = positions.size
 
   // --- Package internal mutators. Callers must route through TreeStore. ---
 
-  /**
-   * Replaces the entire graph with [newPositions]. Used to swap in a freshly rebuilt cache without
-   * exposing intermediate states.
-   */
-  internal fun replaceFrom(newPositions: Map<PositionKey, Node>) {
-    positions = newPositions
+  /** Empties the cache. Used only by [TreeStore.eraseAll]. */
+  internal fun clear() {
+    positions.clear()
   }
 
-  /** Empties the graph. */
-  internal fun clear() {
-    positions = emptyMap()
+  /**
+   * Marks [positionKey] most recently used by moving it to the tail of the recency order. No op
+   * when the key is not resident.
+   */
+  internal fun touch(positionKey: PositionKey) {
+    val existing = positions.remove(positionKey) ?: return
+    positions[positionKey] = existing
   }
 
   /** Returns the node at [positionKey], creating an empty one with the given [depth] if missing. */
@@ -139,73 +68,72 @@ class OpeningTree {
     val existing = positions[positionKey]
     if (existing != null) {
       return if (depth < existing.depth) {
-        existing.copy(depth = depth).also { positions = positions + (positionKey to it) }
+        existing.copy(depth = depth).also { put(it) }
       } else {
+        touch(positionKey)
         existing
       }
     }
     val created = Node(positionKey = positionKey, depth = depth)
-    positions = positions + (positionKey to created)
+    put(created)
     return created
   }
 
-  /** Inserts or replaces the node at [Node.positionKey]. */
+  /**
+   * Inserts or replaces the node at [Node.positionKey], marks it most recently used, and evicts the
+   * least recently used entries until the cache is back within [MAX_CACHE_NODES].
+   */
   internal fun put(node: Node) {
-    positions = positions + (node.positionKey to node)
+    positions.remove(node.positionKey)
+    positions[node.positionKey] = node
+    evictIfNeeded()
   }
 
   /** Removes the node at [positionKey], if any. Does not touch other nodes' edges. */
   internal fun removeNode(positionKey: PositionKey) {
-    positions = positions - positionKey
+    positions.remove(positionKey)
   }
 
   /**
-   * Adds or replaces [edge] in the graph, updating the endpoint nodes' [Node.outgoing] and
+   * Adds or replaces [edge] in the cache, updating the endpoint nodes' [Node.outgoing] and
    * [Node.incoming] maps in lockstep. Nodes are created on demand at [fromDepth] and [fromDepth] +
-   * 1 when missing.
+   * 1 when missing. Both endpoints are marked most recently used.
    */
   internal fun upsertEdge(edge: Edge, fromDepth: Int) {
     val from = ensure(edge.from, fromDepth)
     val to = ensure(edge.to, fromDepth + 1)
-    val newFrom = from.copy(outgoing = from.outgoing + (edge.move to edge))
-    val newTo = to.copy(incoming = to.incoming + (edge.move to edge))
-    positions = positions + mapOf(edge.from to newFrom, edge.to to newTo)
+    put(from.copy(outgoing = from.outgoing + (edge.move to edge)))
+    put(to.copy(incoming = to.incoming + (edge.move to edge)))
   }
 
   /**
-   * Removes the edge identified by [from] + [move] from both endpoints. The endpoint nodes
-   * themselves remain in the graph.
+   * Removes the edge identified by [from] + [move] from both resident endpoints. The endpoint nodes
+   * themselves remain in the cache. A no op for a non resident endpoint: the database delete is
+   * authoritative and a later resolve rebuilds that node without the edge.
    */
   internal fun removeEdge(from: PositionKey, move: String) {
     val originNode = positions[from] ?: return
     val edge = originNode.outgoing[move] ?: return
-    val updates = mutableMapOf<PositionKey, Node>()
-    updates[from] = originNode.copy(outgoing = originNode.outgoing - move)
+    put(originNode.copy(outgoing = originNode.outgoing - move))
     val destinationNode = positions[edge.to]
     if (destinationNode != null) {
-      updates[edge.to] = destinationNode.copy(incoming = destinationNode.incoming - move)
+      put(destinationNode.copy(incoming = destinationNode.incoming - move))
     }
-    positions = positions + updates
   }
 
-  private fun determineState(aggregateGood: Boolean?, arrivalGood: Boolean?): NodeState =
-    when (aggregateGood) {
-      null ->
-        when (arrivalGood) {
-          null -> NodeState.UNKNOWN
-          else -> NodeState.BAD_STATE
-        }
-      true ->
-        when (arrivalGood) {
-          null -> NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE
-          true -> NodeState.SAVED_GOOD
-          false -> NodeState.BAD_STATE
-        }
-      false ->
-        when (arrivalGood) {
-          null -> NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE
-          true -> NodeState.BAD_STATE
-          false -> NodeState.SAVED_BAD
-        }
+  private fun evictIfNeeded() {
+    while (positions.size > MAX_CACHE_NODES) {
+      val oldest = positions.keys.iterator().next()
+      positions.remove(oldest)
     }
+  }
+
+  companion object {
+    /**
+     * Maximum number of resident nodes. One training or exploration session navigates a handful of
+     * plies times the branching factor, far below this cap, so navigation stays a cache hit while
+     * memory remains bounded regardless of repertoire size.
+     */
+    const val MAX_CACHE_NODES: Int = 512
+  }
 }

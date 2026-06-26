@@ -398,4 +398,81 @@ class TestInMemoryDatabaseQueryManager {
     // None eligible yields null.
     assertNull(database.findEligibleAmong(listOf(PositionKey("notDue")), dayEnd))
   }
+
+  // --- countDescendants ---------------------------------------------------------------------
+
+  /** Builds a node with the given outgoing edges; depth is irrelevant to the descendant count. */
+  private fun countNode(key: PositionKey, previous: List<DataMove>, next: List<DataMove>) =
+    DataNode(key, PreviousAndNextMoves(previous, next), CardStateFactory.new())
+
+  @Test
+  fun countDescendantsOfUnknownKeyIsZero() = runTest {
+    assertEquals(0, InMemoryDatabaseQueryManager().countDescendants(key0))
+  }
+
+  @Test
+  fun countDescendantsLeafIsOne() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(countNode(key0, previous = listOf(), next = listOf()))
+    // The root itself is counted even with no children.
+    assertEquals(1, database.countDescendants(key0))
+  }
+
+  @Test
+  fun countDescendantsSingleChildIsTwo() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      countNode(key0, previous = listOf(), next = listOf(moveE4)),
+      countNode(key1, previous = listOf(moveE4), next = listOf()),
+    )
+    assertEquals(2, database.countDescendants(key0))
+  }
+
+  @Test
+  fun countDescendantsLinearChainCountsEveryNode() = runTest {
+    assertEquals(3, seededLine().countDescendants(key0))
+    assertEquals(2, seededLine().countDescendants(key1))
+    assertEquals(1, seededLine().countDescendants(key2))
+  }
+
+  @Test
+  fun countDescendantsStopsAtConvergentNode() = runTest {
+    // key0 -e4-> key1 -e5-> key2, plus a second parent posB -d4-> key2. Deleting key0's subtree
+    // would keep key2 (reachable through posB), so it is not counted.
+    val posB = keyAfter("d4")
+    val d4 = DataMove(posB, key2, "d4", isGood = true)
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      countNode(key0, previous = listOf(), next = listOf(moveE4)),
+      countNode(key1, previous = listOf(moveE4), next = listOf(moveE5)),
+      countNode(key2, previous = listOf(moveE5, d4), next = listOf()),
+      countNode(posB, previous = listOf(), next = listOf(d4)),
+    )
+    // key0 and key1 are counted; key2 is convergent and excluded.
+    assertEquals(2, database.countDescendants(key0))
+  }
+
+  @Test
+  fun countDescendantsIsCappedAtTheRequestedBound() = runTest {
+    // A linear chain of 10 nodes: key_0 -> key_1 -> ... -> key_9.
+    val keys = (0 until 10).map { PositionKey("chain$it x K") }
+    val moves = (0 until 9).map { DataMove(keys[it], keys[it + 1], "m$it", isGood = true) }
+    val database = InMemoryDatabaseQueryManager()
+    val nodes = keys.mapIndexed { index, key ->
+      val incoming = if (index == 0) emptyList() else listOf(moves[index - 1])
+      val outgoing = if (index == 9) emptyList() else listOf(moves[index])
+      countNode(key, previous = incoming, next = outgoing)
+    }
+    database.insertNodes(*nodes.toTypedArray())
+    val root = keys[0]
+    // The chain has 10 nodes, so any cap below 10 binds and returns exactly the cap. Just below, at
+    // and just above an arbitrary cap of 5 all return that cap.
+    assertEquals(4, database.countDescendants(root, cap = 4))
+    assertEquals(5, database.countDescendants(root, cap = 5))
+    assertEquals(6, database.countDescendants(root, cap = 6))
+    // The whole chain when the cap is generous.
+    assertEquals(10, database.countDescendants(root, cap = 100))
+    // Zero (and negative) cap counts nothing.
+    assertEquals(0, database.countDescendants(root, cap = 0))
+  }
 }

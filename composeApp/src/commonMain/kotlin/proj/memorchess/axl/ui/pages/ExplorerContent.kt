@@ -124,7 +124,13 @@ fun ExplorerContent(
   val readOnly = viewerMode != null
   var inverted by remember { mutableStateOf(viewerMode?.initialInverted ?: false) }
   val coroutineScope = rememberCoroutineScope()
-  val nextMoves = remember { mutableStateListOf(*explorer.getNextMoves().toTypedArray()) }
+  // Demand paged: the next-move list is resolved through a suspend lookup, so it starts empty and
+  // is filled once below and again on every navigation callback.
+  val nextMoves = remember { mutableStateListOf<String>() }
+  LaunchedEffect(explorer) {
+    nextMoves.clear()
+    nextMoves.addAll(explorer.getNextMoves())
+  }
   var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
   val bestMoveArrowEnabled by remember {
     mutableStateOf(BEST_MOVE_ARROW_ENABLED_SETTING.getValue())
@@ -174,9 +180,12 @@ fun ExplorerContent(
 
   remember {
     explorer.registerCallBack {
-      nextMoves.clear()
-      nextMoves.addAll(explorer.getNextMoves())
       playerTurnWhite = explorer.engine.playerTurn == Player.WHITE
+      coroutineScope.launch {
+        val moves = explorer.getNextMoves()
+        nextMoves.clear()
+        nextMoves.addAll(moves)
+      }
       evaluator?.let { eval ->
         coroutineScope.launch {
           eval.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn == Player.BLACK)
@@ -187,10 +196,14 @@ fun ExplorerContent(
 
   val content =
     ExploreLayoutContent(
-      resetButton = { ControlButton.RESET.render(it) { explorer.reset() } },
+      resetButton = {
+        ControlButton.RESET.render(it) { coroutineScope.launch { explorer.reset() } }
+      },
       reverseButton = { ControlButton.REVERSE.render(it) { inverted = !inverted } },
-      backButton = { ControlButton.BACK.render(it) { explorer.back() } },
-      forwardButton = { ControlButton.FORWARD.render(it) { explorer.forward() } },
+      backButton = { ControlButton.BACK.render(it) { coroutineScope.launch { explorer.back() } } },
+      forwardButton = {
+        ControlButton.FORWARD.render(it) { coroutineScope.launch { explorer.forward() } }
+      },
       nextMoveButtons = {
         nextMoves.map<String, @Composable (() -> Unit)> {
           { NextMoveButton(it) { coroutineScope.launch { explorer.playMove(it) } } }
@@ -250,10 +263,10 @@ fun ExplorerContent(
           modifier = ctrlModifier,
           actions =
             ExploreCtrlBarActions(
-              onReset = { explorer.reset() },
+              onReset = { coroutineScope.launch { explorer.reset() } },
               onReverse = { inverted = !inverted },
-              onBack = { explorer.back() },
-              onForward = { explorer.forward() },
+              onBack = { coroutineScope.launch { explorer.back() } },
+              onForward = { coroutineScope.launch { explorer.forward() } },
               onToggleEval = {
                 val next = !evalBarEnabled
                 evalBarEnabled = next

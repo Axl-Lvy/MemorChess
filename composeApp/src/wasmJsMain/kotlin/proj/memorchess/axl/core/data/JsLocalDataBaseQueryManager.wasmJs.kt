@@ -534,6 +534,61 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
+  override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
+    if (cap <= 0) return 0
+    if (!nodeExistsLive(key.value)) return 0
+    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  }
+
+  /** True when [positionKey] has a non-deleted node row. */
+  private suspend fun nodeExistsLive(positionKey: String): Boolean {
+    val database = db()
+    return database.transaction(NODES_STORE) {
+      val node =
+        objectStore(NODES_STORE).get(Key(positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
+      node != null && !node.isDeleted
+    }
+  }
+
+  /**
+   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
+   * subtree (incoming count at most one), resolved with index lookups. A convergent position
+   * reachable through an outside parent is excluded.
+   */
+  private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
+    val candidates = childMoveDestinations(origin.value)
+    val result = mutableListOf<PositionKey>()
+    for (child in candidates) {
+      if (isLiveSingleParent(child)) result.add(PositionKey(child))
+    }
+    return result
+  }
+
+  /** Destinations of every non-deleted move leaving [origin]. */
+  private suspend fun childMoveDestinations(origin: String): List<String> {
+    val database = db()
+    return database.transaction(MOVES_STORE) {
+      val moves: List<JsMoveEntity> =
+        objectStore(MOVES_STORE).index("origin").getAll(Key(origin.toJsString())).toList()
+      moves.filterNot { it.isDeleted }.map { it.destination }
+    }
+  }
+
+  /** True when [child] is a live node reached by at most one non-deleted incoming edge. */
+  private suspend fun isLiveSingleParent(child: String): Boolean {
+    val database = db()
+    return database.transaction(NODES_STORE, MOVES_STORE) {
+      val node = objectStore(NODES_STORE).get(Key(child.toJsString()))?.unsafeCast<JsNodeEntity>()
+      if (node == null || node.isDeleted) {
+        false
+      } else {
+        val incoming: List<JsMoveEntity> =
+          objectStore(MOVES_STORE).index("destination").getAll(Key(child.toJsString())).toList()
+        incoming.count { !it.isDeleted } <= 1
+      }
+    }
+  }
+
   override suspend fun getLastUpdate(): Instant? {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {

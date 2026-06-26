@@ -150,6 +150,7 @@
     <item quantity="one">Are you sure you want to delete %1$d position?</item>
     <item quantity="other">Are you sure you want to delete %1$d positions?</item>
   </plurals>
+  <string name="explore_delete_confirm_many">Are you sure you want to delete %1$d or more positions?</string>
 
   <!-- Board: state indicator labels -->
   <string name="state_first">Start</string>

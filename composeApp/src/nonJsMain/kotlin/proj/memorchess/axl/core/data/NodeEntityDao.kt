@@ -223,4 +223,24 @@ interface NodeEntityDao {
       "AND (phase IN ('LEARNING', 'RELEARNING') OR dueDate < :dayEndExclusive)"
   )
   suspend fun eligibleAmong(keys: List<String>, dayEndExclusive: Instant): List<NodeCardProjection>
+
+  /**
+   * Destinations of every non deleted move leaving [origin]. Used by the bounded descendant count
+   * to expand one node's children with a single indexed point query (`origin` is indexed). See
+   * [DatabaseQueryManager.countDescendants].
+   */
+  @Query("SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin")
+  suspend fun childrenOf(origin: String): List<String>
+
+  /**
+   * Number of non deleted move edges arriving at [destination] (`destination` is indexed). Used by
+   * the bounded descendant count to honour the convergence rule. See
+   * [DatabaseQueryManager.countDescendants].
+   */
+  @Query("SELECT COUNT(*) FROM MoveEntity WHERE isDeleted = 0 AND destination = :destination")
+  suspend fun incomingCount(destination: String): Int
+
+  /** Whether a non deleted node row exists for [fen]. */
+  @Query("SELECT EXISTS(SELECT 1 FROM NodeEntity WHERE isDeleted = 0 AND positionKey = :fen)")
+  suspend fun nodeExists(fen: String): Boolean
 }

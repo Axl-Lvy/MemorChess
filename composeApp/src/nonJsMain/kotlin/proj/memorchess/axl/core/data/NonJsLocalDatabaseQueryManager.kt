@@ -105,6 +105,27 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     return keys.firstNotNullOfOrNull { eligible[it.value] }?.toTrainingEntry()
   }
 
+  override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
+    if (!database.getNodeEntityDao().nodeExists(key.value)) return 0
+    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  }
+
+  /**
+   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
+   * subtree (incoming count at most one), resolved with point queries. A convergent position
+   * reachable through an outside parent is excluded.
+   */
+  private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
+    val dao = database.getNodeEntityDao()
+    val result = mutableListOf<PositionKey>()
+    for (child in dao.childrenOf(origin.value)) {
+      if (dao.nodeExists(child) && dao.incomingCount(child) <= 1) {
+        result.add(PositionKey(child))
+      }
+    }
+    return result
+  }
+
   /** Rebuilds a [TrainingEntry] from the lightweight projection, no edges loaded. */
   private fun NodeCardProjection.toTrainingEntry(): TrainingEntry =
     TrainingEntry(

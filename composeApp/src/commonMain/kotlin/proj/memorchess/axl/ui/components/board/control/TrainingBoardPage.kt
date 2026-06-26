@@ -25,7 +25,6 @@ import memorchess.composeapp.generated.resources.training_finished_subtitle
 import memorchess.composeapp.generated.resources.training_finished_title
 import memorchess.composeapp.generated.resources.training_increment_day
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
@@ -54,19 +53,14 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
-/** Training board entry point. Loads the tree and selects the first card on entry. */
+/** Training board entry point. Selects the first card on entry. */
 @Composable
-fun TrainingBoardPage(modifier: Modifier = Modifier, treeStore: TreeStore = koinInject()) {
+fun TrainingBoardPage(modifier: Modifier = Modifier) {
   val trainingBoard = remember { TrainingBoard() }
   // The initial card selection is suspendable, so it runs inside the loading phase: the board only
-  // renders once the tree is loaded and the first card is chosen, avoiding a transient "nothing to
-  // train" flash before selection completes.
-  LoadingWidget({
-    treeStore.load()
-    trainingBoard.choseNextNode()
-  }) {
-    trainingBoard.Draw(modifier = modifier)
-  }
+  // renders once the first card is chosen, avoiding a transient "nothing to train" flash before
+  // selection completes. The graph is demand paged, so no eager load is needed.
+  LoadingWidget({ trainingBoard.choseNextNode() }) { trainingBoard.Draw(modifier = modifier) }
 }
 
 /** State holder for the training session UI. */
@@ -143,7 +137,7 @@ private class TrainingBoard : KoinComponent {
       } else {
         trainingScheduler.nextAfter(previousEdge.to, day) ?: trainingScheduler.nextDue(day)
       }
-    chosenNode = entry?.let { treeStore.current()[it.positionKey] }
+    chosenNode = entry?.let { treeStore.node(it.positionKey) }
   }
 
   @Composable

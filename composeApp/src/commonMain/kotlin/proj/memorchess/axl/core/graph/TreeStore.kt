@@ -1,6 +1,11 @@
 package proj.memorchess.axl.core.graph
 
 import co.touchlab.kermit.Logger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import proj.memorchess.axl.core.data.DESCENDANT_COUNT_CAP
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -11,64 +16,105 @@ import proj.memorchess.axl.core.scheduling.CardState
 /**
  * Single mutation chokepoint for the opening tree.
  *
- * Persistence is authoritative. The in memory [OpeningTree] returned by [current] is a derived
- * cache rebuilt from disk by [load]. Every mutation writes the cache and, when the new state is
- * eligible, the underlying database.
+ * Persistence is authoritative. The in memory [OpeningTree] is a **bounded, demand paged** cache:
+ * it holds only a working set, never the whole repertoire. [node] resolves a position through the
+ * cache, falling back to a single [DatabaseQueryManager.getPosition] point lookup on a miss and
+ * inserting the rebuilt node into the bounded LRU. On a successful miss it also fires a one ply
+ * background prefetch of the node's neighbours so the next navigation step is a cache hit.
  *
- * Exploration moves that have not yet been classified (`isGood == null`) live in the cache only.
- * They become persisted as soon as a caller upserts them with a non null [Edge.isGood]. This keeps
- * the wasmJs IndexedDB schema, which requires `isGood`, happy without forcing every probe move down
- * the wire.
+ * Mutations write through: they patch the touched cache entries in place and persist, never
+ * swapping the whole cache. Exploration moves that have not yet been classified (`isGood == null`)
+ * live in the cache only until a caller upserts them with a non null [Edge.isGood].
  *
- * Callers from the UI, interactions and scheduling layers all go through this class. Tests should
- * do the same instead of mutating [DatabaseQueryManager] directly when possible.
+ * ## Concurrency
+ *
+ * Background prefetch writes the cache from [Dispatchers.Default] while the UI resolves on the main
+ * thread, so every cache read and write funnels through a single [Mutex]. All public suspend
+ * methods and the private [warm] take it; the cache is never touched outside that lock.
+ *
+ * Callers from the UI, interactions and scheduling layers all go through this class.
+ *
+ * @param database The persistence backend.
+ * @param prefetchScope Background scope on which neighbour prefetch runs. A process lived
+ *   [kotlinx.coroutines.SupervisorJob] scope on [kotlinx.coroutines.Dispatchers.Default] in
+ *   production (a failed prefetch never cancels siblings and never blocks the UI). Tests pass a
+ *   deterministic test scope.
  */
-class TreeStore(private val database: DatabaseQueryManager) {
+class TreeStore(
+  private val database: DatabaseQueryManager,
+  private val prefetchScope: CoroutineScope,
+) {
 
   private val tree = OpeningTree()
+  private val mutex = Mutex()
 
-  /** Returns the cached [OpeningTree]. */
-  fun current(): OpeningTree = tree
+  /** Keys whose background prefetch is in flight, guarded by [mutex] to dedupe concurrent warms. */
+  private val inFlight = mutableSetOf<PositionKey>()
 
   /**
-   * Rebuilds the cache from persisted state. Wipes the tree first to avoid leaking stale rows that
-   * have been hard deleted on disk since the last load.
+   * Resolves the node at [positionKey] through the bounded cache.
+   *
+   * Cache hit returns immediately and marks the entry most recently used. Miss loads the row via
+   * [DatabaseQueryManager.getPosition], builds a fully edged [Node] from its incoming and outgoing
+   * classified moves, inserts it into the bounded LRU (evicting the least recently used entries
+   * past the cap), kicks off one ply neighbour prefetch, and returns it. Returns `null` when the
+   * position is not persisted and is not a resident exploration only node.
    */
-  suspend fun load() {
-    tree.clear()
-    val nodes = database.getAllNodes()
-    val newPositions = mutableMapOf<PositionKey, Node>()
-    for (dataNode in nodes) {
-      val key = dataNode.positionKey
-      val outgoing = mutableMapOf<String, Edge>()
-      val incoming = mutableMapOf<String, Edge>()
-      for (move in dataNode.previousAndNextMoves.nextMoves.values) {
-        if (move.isDeleted) continue
-        outgoing[move.move] = move.toEdge()
-      }
-      for (move in dataNode.previousAndNextMoves.previousMoves.values) {
-        if (move.isDeleted) continue
-        incoming[move.move] = move.toEdge()
-      }
-      newPositions[key] =
-        Node(
-          positionKey = key,
-          outgoing = outgoing,
-          incoming = incoming,
-          depth = dataNode.depth,
-          cardState = dataNode.cardState,
-        )
-    }
-    tree.replaceFrom(newPositions)
-    LOGGER.i { "Loaded ${newPositions.size} positions from disk" }
+  suspend fun node(positionKey: PositionKey): Node? {
+    val cached = mutex.withLock { tree[positionKey]?.also { tree.touch(positionKey) } }
+    if (cached != null) return cached
+    val dataNode = database.getPosition(positionKey) ?: return null
+    val node = dataNode.toNode()
+    mutex.withLock { tree.put(node) }
+    prefetchNeighbors(node)
+    return node
   }
+
+  /**
+   * Computes the [NodeState] for [positionKey] given which position we [arrivedFrom].
+   *
+   * Resolves the node through [node] then runs the pure incoming edge aggregation. Returns
+   * [NodeState.UNKNOWN] when the position cannot be resolved (matching "not in graph" semantics).
+   */
+  suspend fun computeState(positionKey: PositionKey, arrivedFrom: PositionKey?): NodeState =
+    node(positionKey)?.computeState(arrivedFrom) ?: NodeState.UNKNOWN
+
+  /**
+   * Depth of [positionKey] resolved through [node], or [Int.MAX_VALUE] when it cannot be resolved.
+   */
+  suspend fun getDepth(positionKey: PositionKey): Int = node(positionKey)?.depth ?: Int.MAX_VALUE
+
+  /**
+   * Counts the non deleted positions a recursive delete starting at [key] would remove, [key]
+   * included, bounded by [cap]. Delegates to the backend's bounded breadth first walk so the count
+   * never pages the whole subtree through the cache. See [DatabaseQueryManager.countDescendants].
+   */
+  suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int =
+    database.countDescendants(key, cap)
 
   /**
    * Ensures [positionKey] exists in the cache at the given [depth]. No persistence side effect:
    * exploration of a fresh position should not write a row until the user saves something.
+   *
+   * Synchronous and **not** mutex guarded, so it must only run before any navigation on this store
+   * has triggered background prefetch, where it cannot race the prefetch writer. The sole safe
+   * caller is a constructor seeding the starting position. Once navigation begins, use
+   * [ensurePositionGuarded], which takes the [mutex]; every other cache access goes through [node]
+   * under the same lock.
    */
   fun ensurePosition(positionKey: PositionKey, depth: Int) {
     tree.ensure(positionKey, depth)
+  }
+
+  /**
+   * Ensures [positionKey] exists in the cache at the given [depth], taking the [mutex] so it cannot
+   * race a concurrent background prefetch writing the same [OpeningTree]. No persistence side
+   * effect. This is the safe variant for any call site reachable after navigation has begun (for
+   * example a reset handler), where a [warm] coroutine from an earlier resolve may still be
+   * running.
+   */
+  suspend fun ensurePositionGuarded(positionKey: PositionKey, depth: Int) {
+    mutex.withLock { tree.ensure(positionKey, depth) }
   }
 
   /**
@@ -80,7 +126,9 @@ class TreeStore(private val database: DatabaseQueryManager) {
    *
    * When the edge already exists its [Edge.createdAt] is preserved. This is load bearing:
    * exploration replays a line by re-upserting every edge on the way, so a fresh stamp on each
-   * upsert would reshuffle the introduction order of new cards just by browsing.
+   * upsert would reshuffle the introduction order of new cards just by browsing. The prior edge is
+   * resolved through [node] so the persisted, stable [Edge.createdAt] is preserved even when the
+   * origin was evicted from the cache.
    *
    * @param from Position the move is played from.
    * @param move SAN of the move.
@@ -96,7 +144,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
     isGood: Boolean?,
     fromDepth: Int,
   ): Edge {
-    val createdAt = tree[from]?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
+    val createdAt = node(from)?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
     val edge =
       Edge(
         from = from,
@@ -106,7 +154,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
         createdAt = createdAt,
         updatedAt = DateUtil.now(),
       )
-    tree.upsertEdge(edge, fromDepth)
+    mutex.withLock { tree.upsertEdge(edge, fromDepth) }
     if (isGood != null) {
       persistNode(from)
       persistNode(to)
@@ -120,7 +168,9 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * Behaves like calling [addMove] for each element, except that every node touched by a classified
    * move is written to the database exactly once, through a single
    * [DatabaseQueryManager.insertNodes] call. Existing nodes keep their [CardState]; only their edge
-   * maps and, when a shorter path is found, their depth are updated.
+   * maps and, when a shorter path is found, their depth are updated. Each distinct origin's prior
+   * edge is resolved through [node] so its [Edge.createdAt] stays stable across re-upserts even
+   * when the origin was evicted.
    *
    * @param moves Insertions to apply, in order.
    */
@@ -129,7 +179,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
     val now = DateUtil.now()
     val touched = linkedSetOf<PositionKey>()
     for (insertion in moves) {
-      val createdAt = tree[insertion.from]?.outgoing?.get(insertion.move)?.createdAt ?: now
+      val createdAt = node(insertion.from)?.outgoing?.get(insertion.move)?.createdAt ?: now
       val edge =
         Edge(
           from = insertion.from,
@@ -139,13 +189,13 @@ class TreeStore(private val database: DatabaseQueryManager) {
           createdAt = createdAt,
           updatedAt = now,
         )
-      tree.upsertEdge(edge, insertion.fromDepth)
+      mutex.withLock { tree.upsertEdge(edge, insertion.fromDepth) }
       if (insertion.isGood != null) {
         touched += insertion.from
         touched += insertion.to
       }
     }
-    val nodesToPersist = touched.mapNotNull { tree[it]?.toDataNode() }
+    val nodesToPersist = mutex.withLock { touched.mapNotNull { tree[it]?.toDataNode() } }
     if (nodesToPersist.isNotEmpty()) {
       database.insertNodes(*nodesToPersist.toTypedArray())
     }
@@ -154,17 +204,16 @@ class TreeStore(private val database: DatabaseQueryManager) {
   /**
    * Stores [cardState] on the node at [positionKey] and persists it.
    *
-   * Logs a warning and skips the write when [positionKey] is not in the cache; that should only
-   * happen if the position was deleted between the scheduler reading it and writing the result
-   * back.
+   * Resolves the node through [node]; logs a warning and skips the write when the position cannot
+   * be resolved (it was deleted between a reader observing it and writing the result back).
    */
   suspend fun updateCardState(positionKey: PositionKey, cardState: CardState) {
-    val existing = tree[positionKey]
+    val existing = node(positionKey)
     if (existing == null) {
       LOGGER.w { "Skipping card state update for unknown position $positionKey" }
       return
     }
-    tree.put(existing.copy(cardState = cardState))
+    mutex.withLock { tree.put(existing.copy(cardState = cardState)) }
     persistNode(positionKey)
   }
 
@@ -176,26 +225,32 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * to `false`.
    */
   suspend fun deleteMove(from: PositionKey, move: String, mode: DeleteMode = DeleteMode.HARD) {
-    tree.removeEdge(from, move)
+    mutex.withLock { tree.removeEdge(from, move) }
     database.deleteMove(from, move, mode)
     persistNode(from)
   }
 
   /**
    * Deletes the node at [positionKey] and every incident edge, in both the cache and the database.
+   *
+   * The target is resolved through [node] so its edge set is available for neighbour patching even
+   * when it was evicted from the cache. [DatabaseQueryManager.deletePosition] is authoritative for
+   * disk; the cache patches are best effort for resident neighbours.
    */
   suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.HARD) {
-    val node = tree[positionKey]
+    val node = node(positionKey)
     val survivingOrigins = mutableSetOf<PositionKey>()
     if (node != null) {
-      for (edge in node.outgoing.values.toList()) {
-        tree.removeEdge(positionKey, edge.move)
+      mutex.withLock {
+        for (edge in node.outgoing.values.toList()) {
+          tree.removeEdge(positionKey, edge.move)
+        }
+        for (edge in node.incoming.values.toList()) {
+          tree.removeEdge(edge.from, edge.move)
+          survivingOrigins += edge.from
+        }
+        tree.removeNode(positionKey)
       }
-      for (edge in node.incoming.values.toList()) {
-        tree.removeEdge(edge.from, edge.move)
-        survivingOrigins += edge.from
-      }
-      tree.removeNode(positionKey)
     }
     database.deletePosition(positionKey, mode)
     // Re-persist the origins that lost an outgoing edge so their derived hasGoodOutgoing flag
@@ -208,7 +263,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
   /** Hard wipes every position and move, both in the cache and on disk. */
   suspend fun eraseAll() {
     database.eraseAll()
-    tree.clear()
+    mutex.withLock { tree.clear() }
   }
 
   /**
@@ -217,8 +272,39 @@ class TreeStore(private val database: DatabaseQueryManager) {
    * a surviving endpoint's derived [DataNode.hasGoodOutgoing] flag.
    */
   private suspend fun persistNode(positionKey: PositionKey) {
-    val node = tree[positionKey] ?: return
+    val node = mutex.withLock { tree[positionKey] } ?: return
     database.insertNodes(node.toDataNode())
+  }
+
+  /**
+   * Launches a one ply, fire and forget warm of every distinct neighbour of [node]. Neighbours
+   * already resident or already in flight are skipped under [mutex]. Prefetch never recurses, so a
+   * miss fans out to immediate neighbours and stops, bounded by the branching factor.
+   */
+  private fun prefetchNeighbors(node: Node) {
+    val targets =
+      (node.outgoing.values.map { it.to } + node.incoming.values.map { it.from })
+        .distinct()
+        .filter { it != node.positionKey }
+    for (key in targets) {
+      prefetchScope.launch { warm(key) }
+    }
+  }
+
+  /**
+   * Loads [key] into the cache if it is neither resident nor already being fetched. Does not
+   * recurse into further prefetch (one ply only). The in flight guard and residency check are taken
+   * under [mutex] so two concurrent navigations cannot double fetch the same key.
+   */
+  private suspend fun warm(key: PositionKey) {
+    val shouldFetch = mutex.withLock { tree[key] == null && inFlight.add(key) }
+    if (!shouldFetch) return
+    try {
+      val dataNode = database.getPosition(key) ?: return
+      mutex.withLock { tree.put(dataNode.toNode()) }
+    } finally {
+      mutex.withLock { inFlight.remove(key) }
+    }
   }
 }
 
@@ -263,6 +349,31 @@ private fun Edge.toDataMove(): DataMove =
     createdAt = createdAt,
     updatedAt = updatedAt,
   )
+
+/**
+ * Builds a fully edged [Node] from a persisted [DataNode], exactly as the eager load loop did: non
+ * deleted incoming and outgoing moves become [Edge]s. A single point lookup returns both
+ * directions, so this rebuilds one node completely.
+ */
+private fun DataNode.toNode(): Node {
+  val outgoing = mutableMapOf<String, Edge>()
+  val incoming = mutableMapOf<String, Edge>()
+  for (move in previousAndNextMoves.nextMoves.values) {
+    if (move.isDeleted) continue
+    outgoing[move.move] = move.toEdge()
+  }
+  for (move in previousAndNextMoves.previousMoves.values) {
+    if (move.isDeleted) continue
+    incoming[move.move] = move.toEdge()
+  }
+  return Node(
+    positionKey = positionKey,
+    outgoing = outgoing,
+    incoming = incoming,
+    depth = depth,
+    cardState = cardState,
+  )
+}
 
 private fun Node.toDataNode(): DataNode =
   DataNode(
