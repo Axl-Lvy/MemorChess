@@ -36,6 +36,8 @@ private external interface JsNodeEntity : JsAny {
   var phase: String // CardPhase name
   var step: Int
   var depth: Int
+  var hasGoodOutgoing: Int // 0/1; IndexedDB cannot range-index a JS boolean directly
+  var createdAt: Double // epoch seconds (Double avoids Long to BigInt)
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds (Double avoids Long to BigInt)
 }
@@ -115,6 +117,8 @@ private fun JsNodeEntity.toDataNode(
     depth = depth,
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
     isDeleted = isDeleted,
+    hasGoodOutgoing = hasGoodOutgoing == 1,
+    createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
   )
 }
 
@@ -136,6 +140,8 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
     phase = node.cardState.phase.name
     step = node.cardState.step
     depth = node.depth
+    hasGoodOutgoing = if (node.hasGoodOutgoing) 1 else 0
+    createdAt = node.createdAt.epochSeconds.toDouble()
     isDeleted = node.isDeleted
     updatedAt = node.updatedAt.epochSeconds.toDouble()
   }
@@ -166,7 +172,7 @@ internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 6
+internal const val DB_VERSION = 7
 
 // ---------------------------------------------------------------------------
 // IndexedDB-backed DatabaseQueryManager

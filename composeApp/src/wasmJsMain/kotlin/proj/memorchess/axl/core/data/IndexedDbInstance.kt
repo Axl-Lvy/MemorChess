@@ -48,6 +48,18 @@ internal object IndexedDbInstance {
     nodesStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
     nodesStore.createIndex("updatedAt", KeyPath("updatedAt"), unique = false)
     nodesStore.createIndex("dueDate", KeyPath("dueDate"), unique = false)
+    nodesStore.createIndex("firstReview", KeyPath("firstReview"), unique = false)
+    nodesStore.createIndex("lastReview", KeyPath("lastReview"), unique = false)
+    nodesStore.createIndex(
+      "good_phase_due",
+      KeyPath("hasGoodOutgoing", "phase", "dueDate"),
+      unique = false,
+    )
+    nodesStore.createIndex(
+      "good_phase_due_depth_created",
+      KeyPath("hasGoodOutgoing", "phase", "dueDate", "depth", "createdAt"),
+      unique = false,
+    )
 
     val movesStore = database.createObjectStore(MOVES_STORE, KeyPath("origin", "destination"))
     movesStore.createIndex("origin", KeyPath("origin"), unique = false)
