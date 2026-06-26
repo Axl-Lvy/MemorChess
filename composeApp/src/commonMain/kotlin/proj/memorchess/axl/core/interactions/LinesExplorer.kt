@@ -86,7 +86,7 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
   /** Resets the explorer to the initial chess position. */
   suspend fun reset() {
     val resetPosition = PositionKey.START_POSITION
-    treeStore.ensurePosition(resetPosition, 0)
+    treeStore.ensurePositionGuarded(resetPosition, 0)
     navigation.reset(resetPosition)
     state = treeStore.computeState(resetPosition, arrivedFrom = null)
     super.reset(resetPosition)

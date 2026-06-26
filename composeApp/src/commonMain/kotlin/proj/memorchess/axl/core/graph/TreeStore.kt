@@ -96,13 +96,25 @@ class TreeStore(
    * Ensures [positionKey] exists in the cache at the given [depth]. No persistence side effect:
    * exploration of a fresh position should not write a row until the user saves something.
    *
-   * Synchronous so it can run from a constructor or a reset handler. It is only invoked to seed the
-   * starting position before any navigation on this store has triggered background prefetch, so it
-   * does not race the prefetch writer; every subsequent cache access goes through [node] under the
-   * mutex.
+   * Synchronous and **not** mutex guarded, so it must only run before any navigation on this store
+   * has triggered background prefetch, where it cannot race the prefetch writer. The sole safe
+   * caller is a constructor seeding the starting position. Once navigation begins, use
+   * [ensurePositionGuarded], which takes the [mutex]; every other cache access goes through [node]
+   * under the same lock.
    */
   fun ensurePosition(positionKey: PositionKey, depth: Int) {
     tree.ensure(positionKey, depth)
+  }
+
+  /**
+   * Ensures [positionKey] exists in the cache at the given [depth], taking the [mutex] so it cannot
+   * race a concurrent background prefetch writing the same [OpeningTree]. No persistence side
+   * effect. This is the safe variant for any call site reachable after navigation has begun (for
+   * example a reset handler), where a [warm] coroutine from an earlier resolve may still be
+   * running.
+   */
+  suspend fun ensurePositionGuarded(positionKey: PositionKey, depth: Int) {
+    mutex.withLock { tree.ensure(positionKey, depth) }
   }
 
   /**
