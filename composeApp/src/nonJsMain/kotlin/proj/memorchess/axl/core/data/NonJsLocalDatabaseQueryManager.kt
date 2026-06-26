@@ -105,6 +105,30 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     return keys.firstNotNullOfOrNull { eligible[it.value] }?.toTrainingEntry()
   }
 
+  override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
+    if (cap <= 0) return 0
+    val dao = database.getNodeEntityDao()
+    if (!dao.nodeExists(key.value)) return 0
+    var count = 1
+    val visited = mutableSetOf(key.value)
+    val queue = ArrayDeque<String>()
+    queue.addLast(key.value)
+    while (queue.isNotEmpty() && count < cap) {
+      val origin = queue.removeFirst()
+      for (child in dao.childrenOf(origin)) {
+        if (child in visited) continue
+        if (!dao.nodeExists(child)) continue
+        // Convergent position reachable through another parent: a delete would keep it.
+        if (dao.incomingCount(child) > 1) continue
+        visited += child
+        count++
+        queue.addLast(child)
+        if (count >= cap) break
+      }
+    }
+    return count
+  }
+
   /** Rebuilds a [TrainingEntry] from the lightweight projection, no edges loaded. */
   private fun NodeCardProjection.toTrainingEntry(): TrainingEntry =
     TrainingEntry(

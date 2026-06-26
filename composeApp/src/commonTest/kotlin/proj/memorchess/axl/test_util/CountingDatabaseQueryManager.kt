@@ -67,4 +67,7 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
   ): TrainingEntry? = delegate.findEligibleAmong(keys, dayEndExclusive)
+
+  override suspend fun countDescendants(key: PositionKey, cap: Int): Int =
+    delegate.countDescendants(key, cap)
 }

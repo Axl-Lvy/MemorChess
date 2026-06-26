@@ -153,6 +153,47 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     )
   }
 
+  /**
+   * Capped breadth first descendant count over the in memory map. This is the cross backend
+   * reference implementation of the convergence rule: a child is counted and descended into only
+   * when its total non deleted incoming edge count is at most one, so a position reachable through
+   * an outside parent is left alone. Iterating the backing map is acceptable here because this is
+   * the throwaway in memory store; the Room and IndexedDB backends express the same walk with point
+   * queries.
+   */
+  override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
+    if (cap <= 0) return 0
+    val root = nodes[key]?.takeIf { !it.isDeleted } ?: return 0
+    var count = 1
+    val visited = mutableSetOf(key)
+    val queue = ArrayDeque<DataNode>()
+    queue.addLast(root)
+    while (queue.isNotEmpty() && count < cap) {
+      val node = queue.removeFirst()
+      for (edge in node.previousAndNextMoves.nextMoves.values) {
+        if (edge.isDeleted) continue
+        val childKey = edge.destination
+        if (childKey in visited) continue
+        val child = nodes[childKey]?.takeIf { !it.isDeleted } ?: continue
+        // Convergent position: reachable through another parent, so a delete would keep it.
+        if (incomingCount(childKey) > 1) continue
+        visited += childKey
+        count++
+        queue.addLast(child)
+        if (count >= cap) break
+      }
+    }
+    return count
+  }
+
+  /** Number of non deleted move edges arriving at [destination] across the store. */
+  private fun incomingCount(destination: PositionKey): Int =
+    nodes.values.sumOf { node ->
+      node.previousAndNextMoves.nextMoves.values.count {
+        !it.isDeleted && it.destination == destination
+      }
+    }
+
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
