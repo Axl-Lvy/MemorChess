@@ -373,7 +373,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   /**
    * Earliest-due in-session card. [ready] selects `dueDate <= now`, otherwise `dueDate > now`. Runs
    * one bounded cursor per in-session phase on the `good_phase_due` index and keeps the smaller due
-   * date, mirroring the SQL `phase IN (LEARNING, RELEARNING) ORDER BY dueDate ASC LIMIT 1`.
+   * date, mirroring the SQL `phase IN (LEARNING, RELEARNING) ORDER BY dueDate ASC LIMIT 1`. Soft
+   * deleted rows are skipped so the result matches the Room `WHERE isDeleted = 0` queries.
    */
   private suspend fun nextLearningCard(dueBound: Double, ready: Boolean): TrainingEntry? {
     val database = db()
@@ -394,11 +395,13 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
               lowerOpen = true,
             )
           }
+        // The index orders by due date ascending, so the first non-deleted row of this phase is the
+        // earliest-due live candidate; deleted rows are skipped in place.
         val candidate =
           index
             .openCursor(range, Cursor.Direction.Next)
             .map { it.value as JsNodeEntity }
-            .firstOrNull()
+            .firstOrNull { !it.isDeleted }
         if (candidate != null && (best == null || candidate.dueDate < best.dueDate)) {
           best = candidate
         }
@@ -428,10 +431,11 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * All trainable rows of [phase] due before [dayEnd], read from the bounded compound range on
-   * `good_phase_due_depth_created`. The set is bounded to the due rows of one phase; the caller
+   * All trainable, live rows of [phase] due before [dayEnd], read from the bounded compound range
+   * on `good_phase_due_depth_created`. The set is bounded to the due rows of one phase; the caller
    * reduces it by the tier's ordering (`depth`, or `depth` then `createdAt`) because the index
-   * orders by due date first.
+   * orders by due date first. Soft deleted rows are excluded to match the Room `WHERE isDeleted =
+   * 0` queries.
    */
   private suspend fun com.juul.indexeddb.Transaction.dueGoodRows(
     phase: String,
@@ -448,6 +452,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       .openCursor(range, Cursor.Direction.Next)
       .map { it.value as JsNodeEntity }
       .toList()
+      .filter { !it.isDeleted }
   }
 
   override suspend fun getSchedulingCounts(
@@ -459,21 +464,44 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val end = dayEndExclusive.epochSeconds.toDouble()
     return database.transaction(NODES_STORE) {
       val store = objectStore(NODES_STORE)
+      // firstReview/lastReview store the "never reviewed" null as the 0.0 sentinel, so a day window
+      // that begins at epoch 0 would otherwise sweep those nulls in. Excluding values <= 0.0 keeps
+      // parity with Room (NULL excluded) and InMemory regardless of where the window starts.
       val introduced =
-        store.index("firstReview").count(bound(start.toJsKey(), end.toJsKey(), upperOpen = true))
+        store
+          .index("firstReview")
+          .openCursor(
+            bound(start.toJsKey(), end.toJsKey(), upperOpen = true),
+            Cursor.Direction.Next,
+          )
+          .map { it.value as JsNodeEntity }
+          .toList()
+          .count { !it.isDeleted && it.firstReview > 0.0 }
       val trained =
-        store.index("lastReview").count(bound(start.toJsKey(), end.toJsKey(), upperOpen = true))
-      val dueReviews = dueGoodCount(store, CardPhase.REVIEW.name, end)
-      val dueNew = dueGoodCount(store, CardPhase.NEW.name, end)
+        store
+          .index("lastReview")
+          .openCursor(
+            bound(start.toJsKey(), end.toJsKey(), upperOpen = true),
+            Cursor.Direction.Next,
+          )
+          .map { it.value as JsNodeEntity }
+          .toList()
+          .count { !it.isDeleted && it.lastReview > 0.0 }
+      val dueReviews = dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end).size
+      val dueNew = dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end).size
       val inSession = IN_SESSION_PHASES.sumOf { phase ->
         store
           .index("good_phase_due")
-          .count(
+          .openCursor(
             bound(
               jsKeyArray(GOOD, phase.toJsString(), LOW_NUMBER),
               jsKeyArray(GOOD, phase.toJsString(), HIGH_NUMBER),
-            )
+            ),
+            Cursor.Direction.Next,
           )
+          .map { it.value as JsNodeEntity }
+          .toList()
+          .count { !it.isDeleted }
       }
       SchedulingCounts(
         introducedToday = introduced,
@@ -484,22 +512,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       )
     }
   }
-
-  /** Count of trainable rows of [phase] due before [dayEnd] via the compound index range. */
-  private suspend fun com.juul.indexeddb.Transaction.dueGoodCount(
-    store: com.juul.indexeddb.ObjectStore,
-    phase: String,
-    dayEnd: Double,
-  ): Int =
-    store
-      .index("good_phase_due")
-      .count(
-        bound(
-          jsKeyArray(GOOD, phase.toJsString(), LOW_NUMBER),
-          jsKeyArray(GOOD, phase.toJsString(), dayEnd.toJsKey()),
-          upperOpen = true,
-        )
-      )
 
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
