@@ -12,13 +12,13 @@ private const val DRAIN_PAGE_SIZE = 256
  * the cursor terminates, returning them as a single list.
  *
  * This is test only assembly of a bounded fixture: production code never collects the whole store.
- * It exists so tests that used to call the removed `getAllNodes` can keep asserting over the full
- * live set while still exercising the paged read path the app uses.
+ * It exists so tests can keep asserting over the full live set while still exercising the bounded
+ * paged read path the app uses.
  *
  * @param database The store to read from.
  * @return Every live node, in position key ascending order.
  */
-suspend fun drainAllNodes(database: DatabaseQueryManager): List<DataNode> {
+internal suspend fun drainAllNodes(database: DatabaseQueryManager): List<DataNode> {
   val nodes = mutableListOf<DataNode>()
   var cursor: String? = null
   do {
