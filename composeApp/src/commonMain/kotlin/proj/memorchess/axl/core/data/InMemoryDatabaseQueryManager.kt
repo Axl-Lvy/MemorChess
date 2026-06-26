@@ -22,9 +22,6 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   /** Backing store, keyed by position. Soft-deleted nodes stay here with their flag set. */
   private val nodes: MutableMap<PositionKey, DataNode> = mutableMapOf()
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> =
-    nodes.values.filter { withDeletedOnes || !it.isDeleted }.toList()
-
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
 

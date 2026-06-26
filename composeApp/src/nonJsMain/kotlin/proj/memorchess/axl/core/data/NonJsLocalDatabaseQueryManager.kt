@@ -16,13 +16,6 @@ import proj.memorchess.axl.core.scheduling.CardState
 internal class NonJsLocalDatabaseQueryManager(private val database: CustomDatabase) :
   DatabaseQueryManager {
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
-    val allNodes = database.getNodeEntityDao().getAllNodes()
-    return (if (withDeletedOnes) allNodes else allNodes.filter { !it.node.isDeleted }).map {
-      it.toStoredNode()
-    }
-  }
-
   override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     return database.getNodeEntityDao().getNode(positionKey.value)?.toStoredNode()
   }

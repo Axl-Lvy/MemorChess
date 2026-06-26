@@ -13,13 +13,6 @@ import proj.memorchess.axl.core.graph.TrainingEntry
  */
 interface DatabaseQueryManager {
 
-  /**
-   * Retrieves all stored positions.
-   *
-   * @param withDeletedOnes When `true`, includes rows flagged with [DataNode.isDeleted].
-   */
-  suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<DataNode>
-
   /** Retrieves a specific position, or `null` when missing or soft deleted. */
   suspend fun getPosition(positionKey: PositionKey): DataNode?
 

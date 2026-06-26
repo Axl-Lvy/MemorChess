@@ -256,33 +256,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
-    val database = db()
-    return database.transaction(NODES_STORE, MOVES_STORE) {
-      val allJsNodes: List<JsNodeEntity> = objectStore(NODES_STORE).getAll().toList()
-      val allJsMoves: List<JsMoveEntity> = objectStore(MOVES_STORE).getAll().toList()
-
-      // Build lookup maps to avoid N+1 queries
-      val movesByOrigin = mutableMapOf<String, MutableList<DataMove>>()
-      val movesByDestination = mutableMapOf<String, MutableList<DataMove>>()
-      for (jsMove in allJsMoves) {
-        val move = jsMove.toDataMove()
-        movesByOrigin.getOrPut(move.origin.value) { mutableListOf() }.add(move)
-        movesByDestination.getOrPut(move.destination.value) { mutableListOf() }.add(move)
-      }
-
-      allJsNodes
-        .map { node ->
-          val key = node.positionKey
-          node.toDataNode(
-            previousMoves = movesByDestination[key] ?: emptyList(),
-            nextMoves = movesByOrigin[key] ?: emptyList(),
-          )
-        }
-        .let { nodes -> if (withDeletedOnes) nodes else nodes.filter { !it.isDeleted } }
-    }
-  }
-
   override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
