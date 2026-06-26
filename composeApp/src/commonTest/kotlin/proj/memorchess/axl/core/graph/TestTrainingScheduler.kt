@@ -189,7 +189,6 @@ class TestTrainingScheduler {
       dataNode(endOfNewLine, 2, listOf(d5), emptyList(), createdAt = t2, hasGoodOutgoing = false),
     )
     val store = testTreeStore(database)
-    store.load()
     val scheduler =
       TrainingScheduler(
         database,

@@ -44,33 +44,8 @@ class OpeningTree {
    */
   operator fun get(positionKey: PositionKey): Node? = positions[positionKey]
 
-  /**
-   * Returns the depth of [positionKey], or [Int.MAX_VALUE] when the position is not resident.
-   *
-   * Like [get], an absent key is a cache miss; depth should be read off a resolved [Node] obtained
-   * through [TreeStore.node] rather than relying on residency.
-   */
-  fun getDepth(positionKey: PositionKey): Int = positions[positionKey]?.depth ?: Int.MAX_VALUE
-
-  /** Checks whether [positionKey] is currently resident in the cache. */
-  fun isKnown(positionKey: PositionKey): Boolean = positionKey in positions
-
   /** Number of entries currently resident in the cache. Used by tests asserting eviction. */
   internal fun residentCount(): Int = positions.size
-
-  /**
-   * Computes the [NodeState] for [positionKey] given which position we arrived from.
-   *
-   * Pure function of the resident node's incoming edges, which a single point lookup fully
-   * populates. Returns [NodeState.UNKNOWN] when the position is not resident.
-   *
-   * @param positionKey Position to compute the state for.
-   * @param arrivedFrom Origin position the user came from, or `null` when no path is tracked.
-   */
-  fun computeState(positionKey: PositionKey, arrivedFrom: PositionKey?): NodeState {
-    val node = positions[positionKey] ?: return NodeState.UNKNOWN
-    return node.computeState(arrivedFrom)
-  }
 
   // --- Package internal mutators. Callers must route through TreeStore. ---
 

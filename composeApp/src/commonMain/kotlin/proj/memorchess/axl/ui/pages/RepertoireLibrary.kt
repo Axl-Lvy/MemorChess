@@ -102,13 +102,11 @@ fun RepertoireLibrary(
         loadManifest = catalog::getManifest,
         fetchPgn = client::fetchPgn,
         importGames = { color, games ->
-          // The importer merges into the loaded tree, so refresh it from disk first.
-          treeStore.load()
+          // The importer reads the persisted graph on demand through the bounded cache.
           PgnImporter(treeStore).import(games, color.toPlayer())
         },
         previewGames = { color, games ->
-          // The overlap is read against the loaded tree, so refresh it from disk first.
-          treeStore.load()
+          // The overlap is read against the persisted graph on demand through the bounded cache.
           PgnImporter(treeStore).preview(games, color.toPlayer())
         },
         installedStore = installedStore,

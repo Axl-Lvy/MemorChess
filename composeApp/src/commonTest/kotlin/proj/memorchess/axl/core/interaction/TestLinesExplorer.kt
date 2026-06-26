@@ -15,7 +15,6 @@ class TestLinesExplorer : TestWithKoin() {
 
   private suspend fun initialize() {
     treeStore.eraseAll()
-    treeStore.load()
     interactionsManager = LinesExplorer(treeStore = treeStore)
   }
 
@@ -153,9 +152,11 @@ class TestLinesExplorer : TestWithKoin() {
 
   @Test
   fun testCalculateNumberOfNodeToDelete_SimpleLine() = test {
+    // The count runs DB side over persisted positions, so the line is saved first.
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("Nf3")
+    interactionsManager.save()
     interactionsManager.back()
     val count = interactionsManager.calculateNumberOfNodeToDelete()
     assertEquals(2, count)
@@ -163,15 +164,17 @@ class TestLinesExplorer : TestWithKoin() {
 
   @Test
   fun testCalculateNumberOfNodeToDelete_ConvergingNodes() = test {
-    // Line 1
+    // Line 1, saved so its positions are persisted.
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("Nf3")
+    interactionsManager.save()
     interactionsManager.reset()
-    // Line 2
+    // Line 2, transposing into the same position, also saved.
     interactionsManager.playMove("Nf3")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("e4")
+    interactionsManager.save()
     interactionsManager.back()
     val count1 = interactionsManager.calculateNumberOfNodeToDelete()
     assertEquals(1, count1, "Should only delete the current node, the next one is still reachable")

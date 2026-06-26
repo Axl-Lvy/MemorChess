@@ -45,7 +45,6 @@ import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.data.study.LichessStudyResult
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.GraphSerializer
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
@@ -67,25 +66,20 @@ import proj.memorchess.axl.ui.util.exportToFile
 @Composable
 fun ImportExportSection(
   database: DatabaseQueryManager = koinInject(),
-  treeStore: TreeStore = koinInject(),
   studyImporter: LichessStudyImporter = koinInject(),
 ) {
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
 
   Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-    FileButtonsRow(database, treeStore, dlg)
+    FileButtonsRow(database, dlg)
     LichessStudyImportField(studyImporter)
   }
 }
 
 /** The Export and Import file buttons of the Import / Export section. */
 @Composable
-private fun FileButtonsRow(
-  database: DatabaseQueryManager,
-  treeStore: TreeStore,
-  dlg: ConfirmationDialog,
-) {
+private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDialog) {
   val coroutineScope = rememberCoroutineScope()
 
   Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -114,8 +108,9 @@ private fun FileButtonsRow(
             dlg.show(getString(Res.string.settings_import_confirm, file.name)) {
               coroutineScope.launch {
                 val nodes = GraphSerializer.deserialize(content)
+                // The inserted rows are authoritative on disk; the bounded cache resolves them on
+                // demand, so no eager reload is needed.
                 database.insertNodes(*nodes.toTypedArray())
-                treeStore.load()
               }
             }
           } catch (e: IllegalArgumentException) {

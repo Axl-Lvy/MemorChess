@@ -62,8 +62,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
       )
 
     database.insertNodes(testNode)
-    treeStore.load()
-    val node = treeStore.current().get(testNode.positionKey)
+    val node = treeStore.node(testNode.positionKey)
     checkNotNull(node)
     singleMoveTrainer = SingleMoveTrainer(node) {}
   }

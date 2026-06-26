@@ -110,8 +110,9 @@ class TestTreeStore {
   @Test
   fun nodeCreatedAtIsEarliestIncomingEdgeCreatedAt() = runTest {
     // posB has two good incoming edges with distinct createdAt; the persisted createdAt must be the
-    // earlier one. Seed via insertNodes + load so the edge createdAt values are controlled, then a
-    // write to posB re-persists it through Node.toDataNode().
+    // earlier one. Seed via insertNodes so the edge createdAt values are controlled, then a write
+    // to
+    // posB re-persists it through Node.toDataNode() (which resolves posB on demand).
     val viaA = move(posA, "Nc3", posB, t2)
     val viaC = move(posC, "Nf3", posB, t1)
     val database = TestDatabases.empty()
@@ -121,7 +122,6 @@ class TestTreeStore {
       node(posB, 2, listOf(viaA, viaC), emptyList()),
     )
     val store = testTreeStore(database)
-    store.load()
     // Trigger a re-persist of posB by adding an outgoing edge from it.
     store.addMove(from = posB, move = "d4", to = start, isGood = true, fromDepth = 2)
     val persisted = database.getPosition(posB)

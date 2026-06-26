@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import proj.memorchess.axl.core.data.DESCENDANT_COUNT_CAP
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -84,35 +85,12 @@ class TreeStore(
   suspend fun getDepth(positionKey: PositionKey): Int = node(positionKey)?.depth ?: Int.MAX_VALUE
 
   /**
-   * Rebuilds the cache from persisted state.
-   *
-   * Temporary bridge retained for callers not yet converted to demand paging (the explorer / UI /
-   * importer flows owed to the Consumers and UI stages of this phase). Wipes the cache then loads
-   * up to [OpeningTree.MAX_CACHE_NODES] positions, so on a large repertoire it no longer mirrors
-   * the whole graph; resolution still falls back to [node] for any position that was evicted or
-   * never loaded. Once every consumer reads through [node] this method and
-   * [DatabaseQueryManager.getAllNodes] are removed.
+   * Counts the non deleted positions a recursive delete starting at [key] would remove, [key]
+   * included, bounded by [cap]. Delegates to the backend's bounded breadth first walk so the count
+   * never pages the whole subtree through the cache. See [DatabaseQueryManager.countDescendants].
    */
-  suspend fun load() {
-    val nodes = database.getAllNodes()
-    mutex.withLock {
-      tree.clear()
-      for (dataNode in nodes) {
-        tree.put(dataNode.toNode())
-      }
-    }
-    LOGGER.i { "Loaded up to ${OpeningTree.MAX_CACHE_NODES} positions into the bounded cache" }
-  }
-
-  /**
-   * Returns the bounded cache.
-   *
-   * Temporary bridge for callers not yet converted to [node]. The returned [OpeningTree] is a
-   * **partial** view: a `get` miss means the position is not resident, not that it is absent.
-   * Direct mutation or iteration of the returned tree is unsupported. Removed once the explorer,
-   * trainer and importer read through [node].
-   */
-  fun current(): OpeningTree = tree
+  suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int =
+    database.countDescendants(key, cap)
 
   /**
    * Ensures [positionKey] exists in the cache at the given [depth]. No persistence side effect:

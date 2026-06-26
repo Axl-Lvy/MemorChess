@@ -8,9 +8,9 @@ import proj.memorchess.axl.core.pgn.PgnImporter
 /**
  * End to end flow that imports a Lichess study into the opening graph.
  *
- * Downloads the study with [LichessStudyClient], reloads [treeStore] from disk so the merge sees
- * the persisted graph, then merges every chapter through [PgnImporter]. The importer validates the
- * whole study before writing, so a failed import leaves the graph exactly as it was.
+ * Downloads the study with [LichessStudyClient], then merges every chapter through [PgnImporter],
+ * which reads the persisted graph on demand. The importer validates the whole study before writing,
+ * so a failed import leaves the graph exactly as it was.
  *
  * @property client Downloads and parses the study export.
  * @property treeStore Mutation chokepoint of the opening graph that receives the imported moves.
@@ -32,7 +32,6 @@ class LichessStudyImporter(
     when (val fetched = client.fetchStudy(input)) {
       is LichessStudyResult.Ok ->
         try {
-          treeStore.load()
           LichessStudyImportResult.Success(pgnImporter.import(fetched.games))
         } catch (e: PgnImportException) {
           LichessStudyImportResult.ImportFailed(e.message ?: "Import failed")

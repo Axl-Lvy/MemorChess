@@ -6,11 +6,9 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import org.koin.core.component.inject
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnBack
@@ -24,12 +22,9 @@ import proj.memorchess.axl.ui.playMove
 @OptIn(ExperimentalTestApi::class)
 class TestControlBar : TestWithKoin() {
 
-  private val treeStore: TreeStore by inject()
-
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
-      treeStore.load()
       setContent { InitializeApp { Explore() } }
       playMove("e2", "e4")
       assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))

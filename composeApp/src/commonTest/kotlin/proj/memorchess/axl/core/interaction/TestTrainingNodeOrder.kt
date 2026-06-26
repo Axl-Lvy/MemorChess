@@ -22,7 +22,6 @@ class TestTrainingNodeOrder : TestWithKoin() {
   override suspend fun setUp() {
     database.eraseAll()
     database.insertNodes(*TestDatabases.vienna().getAllNodes(true).toTypedArray())
-    treeStore.load()
   }
 
   @Test
@@ -47,14 +46,14 @@ class TestTrainingNodeOrder : TestWithKoin() {
   fun testNextMove() = test {
     val first = scheduler.nextDue()
     checkNotNull(first)
-    val node = treeStore.current().get(first.positionKey)
+    val node = treeStore.node(first.positionKey)
     checkNotNull(node)
     // The user plays the first edge out of the start; the next trainable entry must be reachable
     // from where they land.
     val landedOn = node.outgoing.values.first().to
     val nextEntry = scheduler.nextAfter(landedOn)
     assertNotNull(nextEntry)
-    val nextNode = treeStore.current().get(nextEntry.positionKey)
+    val nextNode = treeStore.node(nextEntry.positionKey)
     checkNotNull(nextNode)
     val move = nextNode.outgoing.values.first().move
     assertTrue("Move is $move but should be Nc3") { move == "Nc3" }

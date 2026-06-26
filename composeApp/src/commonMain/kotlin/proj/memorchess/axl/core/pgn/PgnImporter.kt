@@ -5,7 +5,6 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.IllegalMoveException
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.MoveInsertion
-import proj.memorchess.axl.core.graph.OpeningTree
 import proj.memorchess.axl.core.graph.TreeStore
 
 /**
@@ -28,8 +27,8 @@ import proj.memorchess.axl.core.graph.TreeStore
  * card state of every position intact. As a consequence, importing the same repertoire twice is a
  * no op whose summary reports every move as already present.
  *
- * The caller is responsible for loading [treeStore] before importing so that the merge sees the
- * persisted graph.
+ * Overlap is read through [TreeStore.node] on demand against the persisted graph, so the caller
+ * does not have to preload anything.
  *
  * @property treeStore Mutation chokepoint of the opening graph that receives the imported moves.
  */
@@ -48,8 +47,7 @@ class PgnImporter(private val treeStore: TreeStore) {
    */
   suspend fun import(games: List<PgnGame>, perspective: Player? = null): PgnImportSummary {
     val plannedMoves = planMoves(games, perspective)
-    val tree = treeStore.current()
-    val (alreadyPresent, movesToInsert) = plannedMoves.partition { isAlreadyPresent(tree, it) }
+    val (alreadyPresent, movesToInsert) = plannedMoves.partition { isAlreadyPresent(it) }
     treeStore.addMoves(movesToInsert)
     return PgnImportSummary(
       movesAdded = movesToInsert.size,
@@ -58,8 +56,8 @@ class PgnImporter(private val treeStore: TreeStore) {
   }
 
   /**
-   * Computes how much of [games] the user already has, without writing anything. Reads the graph
-   * currently held by [treeStore], so the caller must load it first, exactly as for [import].
+   * Computes how much of [games] the user already has, without writing anything. Reads the
+   * persisted graph on demand through [TreeStore.node].
    *
    * @param games Parsed games, typically obtained from [PgnParser.parse].
    * @param perspective Side whose repertoire this is, classified the same way as in [import] so the
@@ -67,19 +65,18 @@ class PgnImporter(private val treeStore: TreeStore) {
    * @return The repertoire size and how many of its moves are already present.
    * @throws PgnImportException if any move of any variation is illegal.
    */
-  fun preview(games: List<PgnGame>, perspective: Player? = null): PgnImportPreview {
+  suspend fun preview(games: List<PgnGame>, perspective: Player? = null): PgnImportPreview {
     val plannedMoves = planMoves(games, perspective)
-    val tree = treeStore.current()
-    val movesInCommon = plannedMoves.count { isAlreadyPresent(tree, it) }
+    val movesInCommon = plannedMoves.count { isAlreadyPresent(it) }
     return PgnImportPreview(totalMoves = plannedMoves.size, movesInCommon = movesInCommon)
   }
 
   /**
-   * Whether [move] is already in [tree] with the same classification, in which case an import would
-   * leave it untouched.
+   * Whether [move] is already persisted with the same classification, in which case an import would
+   * leave it untouched. Resolves the origin through [TreeStore.node] (a bounded point lookup).
    */
-  private fun isAlreadyPresent(tree: OpeningTree, move: MoveInsertion): Boolean {
-    val existingEdge = tree[move.from]?.outgoing?.get(move.move)
+  private suspend fun isAlreadyPresent(move: MoveInsertion): Boolean {
+    val existingEdge = treeStore.node(move.from)?.outgoing?.get(move.move)
     return existingEdge != null && existingEdge.isGood == move.isGood
   }
 
