@@ -71,9 +71,15 @@ class TestTraining : TestWithKoin() {
     val e4Pos = engine.toPositionKey()
     val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
 
-    // Create the node with the move
+    // Create the node with the move. The good outgoing e4 edge makes it trainable, so the derived
+    // hasGoodOutgoing projection the scheduler filters on must be set.
     val testNode =
-      DataNode(positionKey = startPos, PreviousAndNextMoves(listOf(), listOf(e4Move)), cardState)
+      DataNode(
+        positionKey = startPos,
+        PreviousAndNextMoves(listOf(), listOf(e4Move)),
+        cardState,
+        hasGoodOutgoing = true,
+      )
 
     // Save the node to the database
     database.insertNodes(testNode)
@@ -205,6 +211,8 @@ class TestTraining : TestWithKoin() {
           positionKey = e4Pos,
           PreviousAndNextMoves(listOf(e4Move), listOf(e5Move)),
           dueNowFromLastWeek(),
+          depth = 1,
+          hasGoodOutgoing = true,
         )
       resetDatabase()
       database.insertNodes(testNode)
@@ -244,6 +252,7 @@ class TestTraining : TestWithKoin() {
           positionKey = startPosition,
           PreviousAndNextMoves(listOf(), listOf(startMove)),
           dueNowFromLastWeek(),
+          hasGoodOutgoing = true,
         )
       database.eraseAll()
       database.insertNodes(node)

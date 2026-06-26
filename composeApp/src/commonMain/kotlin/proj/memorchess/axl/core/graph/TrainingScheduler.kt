@@ -1,41 +1,47 @@
 package proj.memorchess.axl.core.graph
 
 import kotlin.time.Instant
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.ReviewGrade
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 
 /**
  * Spaced repetition driver for the opening tree.
  *
- * Reads the cached graph through [TreeStore.current] to enumerate trainable positions, asks
- * [SchedulingAlgorithm] for the next state after a review, and writes the result back through
- * [TreeStore.updateCardState]. Holds no graph state of its own.
+ * Drives entirely off the bounded scheduling surface of [DatabaseQueryManager]: a single
+ * [DatabaseQueryManager.getSchedulingCounts] call plus a constant number of `LIMIT 1` lookups per
+ * selection. It holds no graph and never enumerates the repertoire, so its cost stays constant no
+ * matter how large the repertoire grows. Writing a review result back goes through [TreeStore],
+ * which owns the only mutation path.
  *
- * A position is trainable when it has at least one outgoing edge marked as good.
+ * A position is trainable when it has at least one outgoing edge marked as good, captured by the
+ * derived `hasGoodOutgoing` column the queries filter on.
  *
  * Two daily caps bound a session, both counted on distinct positions within the calendar day in
  * [timeZone]:
  * - [maxNewMovesPerDay] caps positions whose very first review happens today, counted through
- *   [CardState.firstReview][proj.memorchess.axl.core.scheduling.CardState.firstReview];
+ *   [proj.memorchess.axl.core.data.SchedulingCounts.introducedToday];
  * - [maxTotalMovesPerDay] caps everything trained today, counted through
- *   [CardState.lastReview][proj.memorchess.axl.core.scheduling.CardState.lastReview].
+ *   [proj.memorchess.axl.core.data.SchedulingCounts.trainedToday].
  *
  * Cards mid learning steps are exempt: like Anki, a card that entered the session finishes its
- * sub-day steps even when the caps are reached. The counts derive from the card states on every
- * call, so they reset at local midnight on their own. Training ahead (passing a future [day]) gets
- * a fresh budget for that day by design, matching Anki's study-ahead behavior.
+ * sub-day steps even when the caps are reached. The counts derive from the persisted card states on
+ * every call, so they reset at local midnight on their own. Training ahead (passing a future [day])
+ * gets a fresh budget for that day by design, matching Anki's study-ahead behavior.
  *
  * The caps are suppliers rather than flat values so a settings change takes effect immediately on
  * the long lived singleton; defaults are unlimited so that direct construction stays usable without
  * any configuration wiring.
  */
 class TrainingScheduler(
+  private val database: DatabaseQueryManager,
   private val treeStore: TreeStore,
   private val algorithm: SchedulingAlgorithm,
   private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -46,67 +52,87 @@ class TrainingScheduler(
   /**
    * Returns the next [TrainingEntry] to train, or `null` when there is nothing left for [day].
    *
-   * Selection runs in four tiers so that the in-session learning loop drains in step order without
-   * starving the day's review queue:
+   * One [DatabaseQueryManager.getSchedulingCounts] call establishes the day's remaining budgets,
+   * then the four bounded query tiers are asked in order so the in-session learning loop drains in
+   * step order without starving the day's review queue:
    * 1. **Ready learning cards** — a [proj.memorchess.axl.core.scheduling.CardPhase.LEARNING] or
    *    `RELEARNING` card whose sub-day due moment has arrived. The earliest due wins, so a card on
-   *    a one minute step surfaces before one on a ten minute step.
+   *    a one minute step surfaces before one on a ten minute step. Exempt from the caps.
    * 2. **Review cards** due on or before [day] — picked by smallest graph depth to follow the
-   *    natural opening order.
-   * 3. **New cards** due on or before [day] — picked by [OpeningTree.introductionOrder], so a whole
-   *    line is introduced before the next branch starts, in the order the lines were added to the
-   *    repertoire.
+   *    natural opening order. Consumes the total budget.
+   * 3. **New cards** due on or before [day] — picked by `depth ASC, createdAt ASC`, so shallower
+   *    positions surface first with ties broken by when the position was first added. Consumes the
+   *    new ∩ total budget.
    * 4. **Pending learning cards** — sub-day cards not yet due. Falling through to these guarantees
    *    a just-failed card always resurfaces in the same session rather than ending it early, again
-   *    earliest-due first.
+   *    earliest-due first. Exempt from the caps.
    *
    * The entry is **not** removed from the schedule: a card leaves the session only when [grade]
    * graduates it to a day grained review interval.
    */
-  fun nextDue(day: LocalDate = DateUtil.today()): TrainingEntry? {
+  suspend fun nextDue(day: LocalDate = DateUtil.today()): TrainingEntry? {
     val now = DateUtil.now()
-    val candidates = cappedCandidates(day)
-    if (candidates.isEmpty()) return null
+    val (dayStart, dayEnd) = dayBounds(day)
+    val counts = database.getSchedulingCounts(dayStart, dayEnd)
+    val newRemaining = (maxNewMovesPerDay() - counts.introducedToday).coerceAtLeast(0)
+    val totalRemaining = (maxTotalMovesPerDay() - counts.trainedToday).coerceAtLeast(0)
 
-    val readyLearning = candidates.filter {
-      it.cardState.isInSession() && it.cardState.dueDate <= now
+    // Tier 1: in-session, due now — exempt from caps.
+    database.nextReadyLearningCard(now)?.let {
+      return it
     }
-    if (readyLearning.isNotEmpty()) return readyLearning.minByOrNull { it.cardState.dueDate }
-
-    val reviewLike = candidates.filterNot { it.cardState.isInSession() }
-    val reviews = reviewLike.filter { it.cardState.phase == CardPhase.REVIEW }
-    if (reviews.isNotEmpty()) {
-      return reviews.minByOrNull { treeStore.current().getDepth(it.positionKey) }
+    // Tier 2: due reviews — consume total budget.
+    if (totalRemaining > 0) {
+      database.nextDueReviewCard(dayEnd)?.let {
+        return it
+      }
     }
-
-    val newCards = reviewLike.filter { it.cardState.phase == CardPhase.NEW }
-    if (newCards.isNotEmpty()) {
-      val order = treeStore.current().introductionOrder()
-      return newCards.minByOrNull { order[it.positionKey] ?: Int.MAX_VALUE }
+    // Tier 3: due new — consume new ∩ total budget.
+    if (newRemaining > 0 && totalRemaining > 0) {
+      database.nextDueNewCard(dayEnd)?.let {
+        return it
+      }
     }
-
-    return candidates.minByOrNull { it.cardState.dueDate }
+    // Tier 4: in-session, not yet due — exempt from caps.
+    return database.nextPendingLearningCard(now)
   }
 
   /**
-   * Returns a trainable entry reachable from one of [position]'s outgoing edges. Picking such an
-   * entry preserves the natural opening order during a session.
+   * Returns a trainable entry reachable from one of [position]'s outgoing edges, or `null` when
+   * none qualifies. Picking such an entry preserves the natural opening order during a session.
+   *
+   * Resolves [position]'s outgoing destinations (bounded by the branching factor) from the cache,
+   * then asks the database for the first eligible one through
+   * [DatabaseQueryManager.findEligibleAmong] so no graph enumeration happens.
    */
-  fun nextAfter(position: PositionKey, day: LocalDate = DateUtil.today()): TrainingEntry? {
+  suspend fun nextAfter(position: PositionKey, day: LocalDate = DateUtil.today()): TrainingEntry? {
     val node = treeStore.current().get(position) ?: return null
-    val reachable = node.outgoing.values.map { it.to }.toSet()
-    return cappedCandidates(day).firstOrNull { it.positionKey in reachable }
+    val destinations = node.outgoing.values.map { it.to }
+    val (_, dayEnd) = dayBounds(day)
+    return database.findEligibleAmong(destinations, dayEnd)
   }
 
   /**
-   * Counts entries still to train for [day]: review/new cards due plus any in-session card. The
-   * count honors the daily caps, so the UI shows what the trainer will actually serve.
+   * Counts entries still to train for [day]: in-session cards plus the servable due reviews and new
+   * cards once the daily caps are applied. Computed from a single
+   * [DatabaseQueryManager.getSchedulingCounts] call, so its cost is constant regardless of
+   * repertoire size, and it reports what the trainer will actually serve.
    */
-  fun pendingCount(day: LocalDate = DateUtil.today()): Int = cappedCandidates(day).size
+  suspend fun pendingCount(day: LocalDate = DateUtil.today()): Int {
+    val (dayStart, dayEnd) = dayBounds(day)
+    val c = database.getSchedulingCounts(dayStart, dayEnd)
+    val totalRemaining = (maxTotalMovesPerDay() - c.trainedToday).coerceAtLeast(0)
+    val newRemaining = (maxNewMovesPerDay() - c.introducedToday).coerceAtLeast(0)
+    val reviewsServable = minOf(c.dueReviews, totalRemaining)
+    val newBudget = minOf(newRemaining, totalRemaining - reviewsServable).coerceAtLeast(0)
+    val newServable = minOf(c.dueNew, newBudget)
+    return c.inSession + reviewsServable + newServable
+  }
 
   /**
-   * Persists the result of a review for [position]. Computes the next [CardState][CardState]
-   * through [SchedulingAlgorithm] and stores it through [TreeStore].
+   * Persists the result of a review for [position]. Computes the next
+   * [proj.memorchess.axl.core.scheduling.CardState] through [SchedulingAlgorithm] and stores it
+   * through [TreeStore].
    */
   suspend fun grade(position: PositionKey, grade: ReviewGrade) {
     val node = treeStore.current().get(position) ?: return
@@ -116,54 +142,15 @@ class TrainingScheduler(
   }
 
   /**
-   * The candidates for [day] after applying the daily caps.
+   * Computes the half open day window `[dayStart, dayEndExclusive)` for [day] in [timeZone].
    *
-   * In-session learning cards are always kept so they can finish their sub-day steps. Due review
-   * cards consume the total budget first, smallest depth first; due new cards then take whatever is
-   * left of both the new card budget and the total budget, in introduction order.
+   * `dayStart` is local midnight of [day]; `dayEndExclusive` is local midnight of the following
+   * day. "Due on or before [day]" is `dueDate < dayEndExclusive`; "happened on [day]" is `>=
+   * dayStart && < dayEndExclusive`.
    */
-  private fun cappedCandidates(day: LocalDate): List<TrainingEntry> {
-    val tree = treeStore.current()
-    val cardStates = tree.snapshot().values.map { it.cardState }
-    val introducedToday = cardStates.count { it.firstReview.isOn(day) }
-    val trainedToday = cardStates.count { it.lastReview.isOn(day) }
-    val newRemaining = (maxNewMovesPerDay() - introducedToday).coerceAtLeast(0)
-    val totalRemaining = (maxTotalMovesPerDay() - trainedToday).coerceAtLeast(0)
-
-    val all = candidates(day).toList()
-    val inSession = all.filter { it.cardState.isInSession() }
-    val reviews =
-      all
-        .filter { !it.cardState.isInSession() && it.cardState.phase == CardPhase.REVIEW }
-        .sortedBy { tree.getDepth(it.positionKey) }
-        .take(totalRemaining)
-    val newBudget = minOf(newRemaining, totalRemaining - reviews.size).coerceAtLeast(0)
-    val newCards =
-      if (newBudget == 0) emptyList()
-      else {
-        val order = tree.introductionOrder()
-        all
-          .filter { it.cardState.phase == CardPhase.NEW }
-          .sortedBy { order[it.positionKey] ?: Int.MAX_VALUE }
-          .take(newBudget)
-      }
-    return inSession + reviews + newCards
+  private fun dayBounds(day: LocalDate): Pair<Instant, Instant> {
+    val dayStart = day.atStartOfDayIn(timeZone)
+    val dayEndExclusive = day.plus(1, DateTimeUnit.DAY).atStartOfDayIn(timeZone)
+    return dayStart to dayEndExclusive
   }
-
-  private fun Instant?.isOn(day: LocalDate): Boolean =
-    this != null && toLocalDateTime(timeZone).date == day
-
-  /**
-   * Positions eligible to train for [day]. A position qualifies when it has at least one good
-   * outgoing edge and is either an in-session learning card (always eligible until it graduates) or
-   * a review/new card due on or before [day].
-   */
-  private fun candidates(day: LocalDate): Sequence<TrainingEntry> =
-    treeStore.current().snapshot().values.asSequence().mapNotNull { node ->
-      val hasGoodOutgoing = node.outgoing.values.any { it.isGood == true && !it.isDeleted }
-      if (!hasGoodOutgoing) return@mapNotNull null
-      val card = node.cardState
-      val eligible = card.isInSession() || card.dueLocalDate(timeZone) <= day
-      if (!eligible) null else TrainingEntry(node.positionKey, card)
-    }
 }

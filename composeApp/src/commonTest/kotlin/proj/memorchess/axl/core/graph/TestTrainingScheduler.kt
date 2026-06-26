@@ -36,9 +36,17 @@ class TestTrainingScheduler {
     maxTotal: Int = Int.MAX_VALUE,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
   ): Pair<TreeStore, TrainingScheduler> {
-    val store = TreeStore(TestDatabases.empty())
+    val database = TestDatabases.empty()
+    val store = TreeStore(database)
     val scheduler =
-      TrainingScheduler(store, Fsrs6SchedulingAlgorithm(), timeZone, { maxNew }, { maxTotal })
+      TrainingScheduler(
+        database,
+        store,
+        Fsrs6SchedulingAlgorithm(),
+        timeZone,
+        { maxNew },
+        { maxTotal },
+      )
     return store to scheduler
   }
 
@@ -156,11 +164,11 @@ class TestTrainingScheduler {
   }
 
   @Test
-  fun nextDuePicksNewCardsByIntroductionOrderNotDepth() = runTest {
-    // Older branch: the e4 line with trainable positions at depths 1 and 2. Newer branch: the d4
-    // line with a trainable position at depth 1. Once startPos and posA are no longer due, the
-    // remaining new cards are posB (depth 2, older line) and posC (depth 1, newer line). The
-    // older line continues before the newer branch starts, even though posC is shallower.
+  fun nextDuePicksNewCardsByDepthThenCreatedAt() = runTest {
+    // New-card ordering is the approximate fallback: shallower positions first, ties broken by the
+    // earliest creation. The e4 line is older (smaller createdAt) but reaches posB at depth 2; the
+    // d4 line is newer but reaches posC at depth 1. Once startPos and posA are no longer due, the
+    // shallower posC must surface before the deeper posB, even though its line was added later.
     val t1 = Instant.parse("2026-01-01T00:00:00Z")
     val t2 = Instant.parse("2026-01-02T00:00:00Z")
     val endOfOldLine = PositionKey("endOld w K")
@@ -172,21 +180,26 @@ class TestTrainingScheduler {
     val d5 = dataMove(posC, "d5", endOfNewLine, t2)
     val database = TestDatabases.empty()
     database.insertNodes(
-      dataNode(startPos, 0, emptyList(), listOf(e4, d4)),
-      dataNode(posA, 1, listOf(e4), listOf(e5)),
-      dataNode(posB, 2, listOf(e5), listOf(g3)),
-      dataNode(endOfOldLine, 3, listOf(g3), emptyList()),
-      dataNode(posC, 1, listOf(d4), listOf(d5)),
-      dataNode(endOfNewLine, 2, listOf(d5), emptyList()),
+      dataNode(startPos, 0, emptyList(), listOf(e4, d4), createdAt = t1),
+      dataNode(posA, 1, listOf(e4), listOf(e5), createdAt = t1),
+      dataNode(posB, 2, listOf(e5), listOf(g3), createdAt = t1),
+      dataNode(endOfOldLine, 3, listOf(g3), emptyList(), createdAt = t1, hasGoodOutgoing = false),
+      dataNode(posC, 1, listOf(d4), listOf(d5), createdAt = t2),
+      dataNode(endOfNewLine, 2, listOf(d5), emptyList(), createdAt = t2, hasGoodOutgoing = false),
     )
     val store = TreeStore(database)
     store.load()
     val scheduler =
-      TrainingScheduler(store, Fsrs6SchedulingAlgorithm(), TimeZone.currentSystemDefault())
+      TrainingScheduler(
+        database,
+        store,
+        Fsrs6SchedulingAlgorithm(),
+        TimeZone.currentSystemDefault(),
+      )
     val now = DateUtil.now()
     store.updateCardState(startPos, CardStateFactory.new(now + 5.days))
     store.updateCardState(posA, CardStateFactory.new(now + 5.days))
-    assertEquals(posB, scheduler.nextDue()?.positionKey)
+    assertEquals(posC, scheduler.nextDue()?.positionKey)
   }
 
   // Daily caps: how many new moves and how many total moves are served per day.
@@ -280,10 +293,23 @@ class TestTrainingScheduler {
   }
 
   @Test
-  fun nextAfterRespectsTheCaps() = runTest {
+  fun nextAfterServesAnEligibleReachableChildIgnoringCaps() = runTest {
     val (store, scheduler) = newScheduler(maxNew = 0)
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    // nextAfter is a best-effort "stay in the current line" lookup: it returns the first eligible
+    // reachable child (trainable and due today) without consuming or honoring the daily caps. The
+    // cap is enforced by nextDue, which the trainer falls back to. So posA surfaces even with the
+    // new-card cap at zero.
+    assertEquals(posA, scheduler.nextAfter(startPos)?.positionKey)
+  }
+
+  @Test
+  fun nextAfterReturnsNullWhenNoReachableChildIsEligible() = runTest {
+    val (store, scheduler) = newScheduler()
+    // startPos's only child posA has no good outgoing edge, so it is not trainable and not
+    // eligible; nextAfter then finds nothing reachable.
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     assertNull(scheduler.nextAfter(startPos))
   }
 
@@ -319,6 +345,41 @@ class TestTrainingScheduler {
     assertEquals(startPos, scheduler.nextDue(today)?.positionKey)
   }
 
+  @Test
+  fun emptyRepertoireServesNothing() = runTest {
+    val (_, scheduler) = newScheduler()
+    assertNull(scheduler.nextDue())
+    assertEquals(0, scheduler.pendingCount())
+    assertNull(scheduler.nextAfter(startPos))
+  }
+
+  @Test
+  fun reviewDueExactlyAtNextMidnightIsNotServedToday() = runTest {
+    val zone = UtcOffset(hours = 1).asTimeZone()
+    val (store, scheduler) = newScheduler(timeZone = zone)
+    val today = LocalDate(2026, 6, 13)
+    // dueDate sits exactly on the exclusive day boundary (next local midnight). Because the bound
+    // is exclusive, the review belongs to the next day and must not be served for today.
+    val nextMidnight = LocalDateTime(2026, 6, 14, 0, 0).toInstant(zone)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.updateCardState(startPos, reviewCard(nextMidnight))
+    assertNull(scheduler.nextDue(today))
+    assertEquals(0, scheduler.pendingCount(today))
+  }
+
+  @Test
+  fun reviewDueOneSecondBeforeMidnightIsServedToday() = runTest {
+    val zone = UtcOffset(hours = 1).asTimeZone()
+    val (store, scheduler) = newScheduler(timeZone = zone)
+    val today = LocalDate(2026, 6, 13)
+    // One second below the exclusive boundary: still due today.
+    val justBeforeMidnight = LocalDateTime(2026, 6, 13, 23, 59, 59).toInstant(zone)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.updateCardState(startPos, reviewCard(justBeforeMidnight))
+    assertEquals(startPos, scheduler.nextDue(today)?.positionKey)
+    assertEquals(1, scheduler.pendingCount(today))
+  }
+
   private fun reviewedTodayCard(): CardState {
     val now = DateUtil.now()
     return CardState(
@@ -349,12 +410,16 @@ class TestTrainingScheduler {
     depth: Int,
     incoming: List<DataMove>,
     outgoing: List<DataMove>,
+    createdAt: Instant = DateUtil.now(),
+    hasGoodOutgoing: Boolean = true,
   ) =
     DataNode(
       positionKey = key,
       previousAndNextMoves = PreviousAndNextMoves(incoming, outgoing),
       cardState = CardStateFactory.new(),
       depth = depth,
+      hasGoodOutgoing = hasGoodOutgoing,
+      createdAt = createdAt,
     )
 
   private fun reviewCard(due: Instant): CardState =
