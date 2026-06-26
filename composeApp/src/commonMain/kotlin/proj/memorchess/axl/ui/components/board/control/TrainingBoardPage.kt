@@ -91,7 +91,6 @@ private class TrainingBoard : KoinComponent {
 
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
-    val scope = rememberCoroutineScope()
     val numberOfNodesToTrain by
       produceState(0, localReloader.getKey(), daysInAdvance) {
         value = trainingScheduler.pendingCount(dayOffset(daysInAdvance))

@@ -178,7 +178,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
   suspend fun deleteMove(from: PositionKey, move: String, mode: DeleteMode = DeleteMode.HARD) {
     tree.removeEdge(from, move)
     database.deleteMove(from, move, mode)
-    persistSurvivingNode(from)
+    persistNode(from)
   }
 
   /**
@@ -201,7 +201,7 @@ class TreeStore(private val database: DatabaseQueryManager) {
     // Re-persist the origins that lost an outgoing edge so their derived hasGoodOutgoing flag
     // reflects the deletion and cannot go stale.
     for (origin in survivingOrigins) {
-      persistSurvivingNode(origin)
+      persistNode(origin)
     }
   }
 
@@ -211,18 +211,12 @@ class TreeStore(private val database: DatabaseQueryManager) {
     tree.clear()
   }
 
-  private suspend fun persistNode(positionKey: PositionKey) {
-    val node = tree[positionKey] ?: return
-    database.insertNodes(node.toDataNode())
-  }
-
   /**
-   * Re-persists [positionKey] after an edge removal so its derived projection column
-   * [DataNode.hasGoodOutgoing] cannot go stale. The origin row survives the edge deletion on disk,
-   * so it must be rewritten to reflect that it may no longer have any good outgoing edge. No write
-   * happens when the node is gone from the cache (it was itself the deleted node).
+   * Persists the cached node at [positionKey], if present. A no-op when the node is gone from the
+   * cache (e.g. it was itself just deleted), so it is safe to call after an edge removal to refresh
+   * a surviving endpoint's derived [DataNode.hasGoodOutgoing] flag.
    */
-  private suspend fun persistSurvivingNode(positionKey: PositionKey) {
+  private suspend fun persistNode(positionKey: PositionKey) {
     val node = tree[positionKey] ?: return
     database.insertNodes(node.toDataNode())
   }
