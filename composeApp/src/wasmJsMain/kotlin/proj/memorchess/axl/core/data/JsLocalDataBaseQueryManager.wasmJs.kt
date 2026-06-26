@@ -6,16 +6,21 @@ package proj.memorchess.axl.core.data
 import com.juul.indexeddb.Cursor
 import com.juul.indexeddb.Database
 import com.juul.indexeddb.Key
+import com.juul.indexeddb.bound
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.JsAny
 import kotlin.js.JsArray
+import kotlin.js.set
+import kotlin.js.toJsNumber
 import kotlin.js.toJsString
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
@@ -36,6 +41,8 @@ private external interface JsNodeEntity : JsAny {
   var phase: String // CardPhase name
   var step: Int
   var depth: Int
+  var hasGoodOutgoing: Int // 0/1; IndexedDB cannot range-index a JS boolean directly
+  var createdAt: Double // epoch seconds (Double avoids Long to BigInt)
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds (Double avoids Long to BigInt)
 }
@@ -115,8 +122,54 @@ private fun JsNodeEntity.toDataNode(
     depth = depth,
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
     isDeleted = isDeleted,
+    hasGoodOutgoing = hasGoodOutgoing == 1,
+    createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
   )
 }
+
+/**
+ * Builds a [proj.memorchess.axl.core.graph.TrainingEntry] from a node row without loading any
+ * edges, the IndexedDB counterpart of the Room `NodeCardProjection` mapping.
+ */
+private fun JsNodeEntity.toTrainingEntry(): TrainingEntry {
+  val lastReviewSec = lastReview.toLong()
+  val firstReviewSec = firstReview.toLong()
+  return TrainingEntry(
+    PositionKey(positionKey),
+    CardState(
+      dueDate = Instant.fromEpochSeconds(dueDate.toLong()),
+      lastReview = if (lastReviewSec == 0L) null else Instant.fromEpochSeconds(lastReviewSec),
+      firstReview = if (firstReviewSec == 0L) null else Instant.fromEpochSeconds(firstReviewSec),
+      stability = stability,
+      difficulty = difficulty,
+      reps = reps,
+      lapses = lapses,
+      phase = runCatching { CardPhase.valueOf(phase) }.getOrDefault(CardPhase.NEW),
+      step = step,
+    ),
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Compound IndexedDB key range helpers
+// ---------------------------------------------------------------------------
+
+/** Builds a JS array usable as a compound IndexedDB key from already-JS values. */
+private fun jsKeyArray(vararg elements: JsAny): JsArray<JsAny> {
+  val array = JsArray<JsAny>()
+  for ((index, element) in elements.withIndex()) {
+    array[index] = element
+  }
+  return array
+}
+
+private fun Int.toJsKey(): JsAny = toDouble().toJsNumber()
+
+private fun Double.toJsKey(): JsAny = toJsNumber()
+
+// Sentinels spanning the full ordered domain of a compound key slot.
+private val LOW_NUMBER: JsAny = Double.NEGATIVE_INFINITY.toJsNumber()
+private val HIGH_NUMBER: JsAny = Double.POSITIVE_INFINITY.toJsNumber()
 
 // ---------------------------------------------------------------------------
 // Conversion: domain → JS
@@ -136,6 +189,8 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
     phase = node.cardState.phase.name
     step = node.cardState.step
     depth = node.depth
+    hasGoodOutgoing = if (node.hasGoodOutgoing) 1 else 0
+    createdAt = node.createdAt.epochSeconds.toDouble()
     isDeleted = node.isDeleted
     updatedAt = node.updatedAt.epochSeconds.toDouble()
   }
@@ -166,7 +221,13 @@ internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 6
+internal const val DB_VERSION = 7
+
+/** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
+private val GOOD: JsAny = 1.toJsKey()
+
+/** The two in-session phases, used to span both LEARNING and RELEARNING with bounded queries. */
+private val IN_SESSION_PHASES = listOf(CardPhase.LEARNING.name, CardPhase.RELEARNING.name)
 
 // ---------------------------------------------------------------------------
 // IndexedDB-backed DatabaseQueryManager
@@ -300,6 +361,176 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     database.writeTransaction(NODES_STORE, MOVES_STORE) {
       objectStore(MOVES_STORE).clear()
       objectStore(NODES_STORE).clear()
+    }
+  }
+
+  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
+    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = true)
+
+  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
+    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = false)
+
+  /**
+   * Earliest-due in-session card. [ready] selects `dueDate <= now`, otherwise `dueDate > now`. Runs
+   * one bounded cursor per in-session phase on the `good_phase_due` index and keeps the smaller due
+   * date, mirroring the SQL `phase IN (LEARNING, RELEARNING) ORDER BY dueDate ASC LIMIT 1`. Soft
+   * deleted rows are skipped so the result matches the Room `WHERE isDeleted = 0` queries.
+   */
+  private suspend fun nextLearningCard(dueBound: Double, ready: Boolean): TrainingEntry? {
+    val database = db()
+    return database.transaction(NODES_STORE) {
+      val index = objectStore(NODES_STORE).index("good_phase_due")
+      var best: JsNodeEntity? = null
+      for (phase in IN_SESSION_PHASES) {
+        val range =
+          if (ready) {
+            bound(
+              jsKeyArray(GOOD, phase.toJsString(), LOW_NUMBER),
+              jsKeyArray(GOOD, phase.toJsString(), dueBound.toJsKey()),
+            )
+          } else {
+            bound(
+              jsKeyArray(GOOD, phase.toJsString(), dueBound.toJsKey()),
+              jsKeyArray(GOOD, phase.toJsString(), HIGH_NUMBER),
+              lowerOpen = true,
+            )
+          }
+        // The index orders by due date ascending, so the first non-deleted row of this phase is the
+        // earliest-due live candidate; deleted rows are skipped in place.
+        val candidate =
+          index
+            .openCursor(range, Cursor.Direction.Next)
+            .map { it.value as JsNodeEntity }
+            .firstOrNull { !it.isDeleted }
+        if (candidate != null && (best == null || candidate.dueDate < best.dueDate)) {
+          best = candidate
+        }
+      }
+      best?.toTrainingEntry()
+    }
+  }
+
+  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? {
+    val database = db()
+    val end = dayEndExclusive.epochSeconds.toDouble()
+    return database.transaction(NODES_STORE) {
+      dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end)
+        .minWithOrNull(compareBy { it.depth })
+        ?.toTrainingEntry()
+    }
+  }
+
+  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? {
+    val database = db()
+    val end = dayEndExclusive.epochSeconds.toDouble()
+    return database.transaction(NODES_STORE) {
+      dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end)
+        .minWithOrNull(compareBy({ it.depth }, { it.createdAt }))
+        ?.toTrainingEntry()
+    }
+  }
+
+  /**
+   * All trainable, live rows of [phase] due before [dayEnd], read from the bounded compound range
+   * on `good_phase_due_depth_created`. The set is bounded to the due rows of one phase; the caller
+   * reduces it by the tier's ordering (`depth`, or `depth` then `createdAt`) because the index
+   * orders by due date first. Soft deleted rows are excluded to match the Room `WHERE isDeleted =
+   * 0` queries.
+   */
+  private suspend fun com.juul.indexeddb.Transaction.dueGoodRows(
+    phase: String,
+    dayEnd: Double,
+  ): List<JsNodeEntity> {
+    val range =
+      bound(
+        jsKeyArray(GOOD, phase.toJsString(), LOW_NUMBER, LOW_NUMBER, LOW_NUMBER),
+        jsKeyArray(GOOD, phase.toJsString(), dayEnd.toJsKey(), LOW_NUMBER, LOW_NUMBER),
+        upperOpen = true,
+      )
+    return objectStore(NODES_STORE)
+      .index("good_phase_due_depth_created")
+      .openCursor(range, Cursor.Direction.Next)
+      .map { it.value as JsNodeEntity }
+      .toList()
+      .filter { !it.isDeleted }
+  }
+
+  override suspend fun getSchedulingCounts(
+    dayStart: Instant,
+    dayEndExclusive: Instant,
+  ): SchedulingCounts {
+    val database = db()
+    val start = dayStart.epochSeconds.toDouble()
+    val end = dayEndExclusive.epochSeconds.toDouble()
+    return database.transaction(NODES_STORE) {
+      val store = objectStore(NODES_STORE)
+      // firstReview/lastReview store the "never reviewed" null as the 0.0 sentinel, so a day window
+      // that begins at epoch 0 would otherwise sweep those nulls in. Excluding values <= 0.0 keeps
+      // parity with Room (NULL excluded) and InMemory regardless of where the window starts.
+      val introduced =
+        store
+          .index("firstReview")
+          .openCursor(
+            bound(start.toJsKey(), end.toJsKey(), upperOpen = true),
+            Cursor.Direction.Next,
+          )
+          .map { it.value as JsNodeEntity }
+          .toList()
+          .count { !it.isDeleted && it.firstReview > 0.0 }
+      val trained =
+        store
+          .index("lastReview")
+          .openCursor(
+            bound(start.toJsKey(), end.toJsKey(), upperOpen = true),
+            Cursor.Direction.Next,
+          )
+          .map { it.value as JsNodeEntity }
+          .toList()
+          .count { !it.isDeleted && it.lastReview > 0.0 }
+      val dueReviews = dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end).size
+      val dueNew = dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end).size
+      val inSession = IN_SESSION_PHASES.sumOf { phase ->
+        store
+          .index("good_phase_due")
+          .openCursor(
+            bound(
+              jsKeyArray(GOOD, phase.toJsString(), LOW_NUMBER),
+              jsKeyArray(GOOD, phase.toJsString(), HIGH_NUMBER),
+            ),
+            Cursor.Direction.Next,
+          )
+          .map { it.value as JsNodeEntity }
+          .toList()
+          .count { !it.isDeleted }
+      }
+      SchedulingCounts(
+        introducedToday = introduced,
+        trainedToday = trained,
+        dueReviews = dueReviews,
+        dueNew = dueNew,
+        inSession = inSession,
+      )
+    }
+  }
+
+  override suspend fun findEligibleAmong(
+    keys: List<PositionKey>,
+    dayEndExclusive: Instant,
+  ): TrainingEntry? {
+    if (keys.isEmpty()) return null
+    val database = db()
+    val end = dayEndExclusive.epochSeconds.toDouble()
+    return database.transaction(NODES_STORE) {
+      val store = objectStore(NODES_STORE)
+      // Bounded by the candidate count (branching factor): one primary-key get per key, in order.
+      for (key in keys) {
+        val node = store.get(Key(key.value.toJsString()))?.unsafeCast<JsNodeEntity>() ?: continue
+        if (node.isDeleted || node.hasGoodOutgoing != 1) continue
+        val inSession =
+          node.phase == CardPhase.LEARNING.name || node.phase == CardPhase.RELEARNING.name
+        if (inSession || node.dueDate < end) return@transaction node.toTrainingEntry()
+      }
+      null
     }
   }
 

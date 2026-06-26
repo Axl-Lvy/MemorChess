@@ -13,6 +13,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -53,11 +54,17 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
-/** Training board entry point. Loads the tree on entry. */
+/** Training board entry point. Loads the tree and selects the first card on entry. */
 @Composable
 fun TrainingBoardPage(modifier: Modifier = Modifier, treeStore: TreeStore = koinInject()) {
-  LoadingWidget({ treeStore.load() }) {
-    val trainingBoard = remember { TrainingBoard() }
+  val trainingBoard = remember { TrainingBoard() }
+  // The initial card selection is suspendable, so it runs inside the loading phase: the board only
+  // renders once the tree is loaded and the first card is chosen, avoiding a transient "nothing to
+  // train" flash before selection completes.
+  LoadingWidget({
+    treeStore.load()
+    trainingBoard.choseNextNode()
+  }) {
     trainingBoard.Draw(modifier = modifier)
   }
 }
@@ -82,15 +89,11 @@ private class TrainingBoard : KoinComponent {
   private var successCount by mutableStateOf(0)
   private var failCount by mutableStateOf(0)
 
-  init {
-    choseNextNode()
-  }
-
   @Composable
   fun Draw(modifier: Modifier = Modifier) {
-    val numberOfNodesToTrain =
-      remember(localReloader.getKey(), daysInAdvance) {
-        trainingScheduler.pendingCount(dayOffset(daysInAdvance))
+    val numberOfNodesToTrain by
+      produceState(0, localReloader.getKey(), daysInAdvance) {
+        value = trainingScheduler.pendingCount(dayOffset(daysInAdvance))
       }
     // Count each attempt exactly once: increment on the transition into a SHOW_* state. Using
     // LaunchedEffect(state) means we react only when `state` actually changes value, and the
@@ -123,7 +126,12 @@ private class TrainingBoard : KoinComponent {
     }
   }
 
-  private fun choseNextNode() {
+  /**
+   * Selects the next card to train and updates [chosenNode]. Suspends because it queries the
+   * bounded scheduling surface. Called for the initial selection during the loading phase and after
+   * every move or skip.
+   */
+  suspend fun choseNextNode() {
     state = state.toPlayableState()
     localReloader.reload()
     trainerReloader.reload()
@@ -154,6 +162,7 @@ private class TrainingBoard : KoinComponent {
     }
     val palette = LocalKineticPalette.current
     val typography = LocalKineticTypography.current
+    val scope = rememberCoroutineScope()
     Box(
       modifier = modifier.fillMaxSize().background(palette.bg),
       contentAlignment = Alignment.Center,
@@ -183,7 +192,7 @@ private class TrainingBoard : KoinComponent {
         KineticButton(
           onClick = {
             daysInAdvance++
-            choseNextNode()
+            scope.launch { choseNextNode() }
           },
           style = KineticButtonStyle.Primary,
         ) {
@@ -205,6 +214,7 @@ private class TrainingBoard : KoinComponent {
     modifier: Modifier = Modifier,
   ) {
     val cornerTag = stringResource(Res.string.training_corner_tag)
+    val scope = rememberCoroutineScope()
     val trainer = remember {
       val trainer =
         SingleMoveTrainer(nodeToLearn) {
@@ -276,7 +286,7 @@ private class TrainingBoard : KoinComponent {
           controlBar = { mod ->
             TrainingCtrlBar(
               playerTurn = playerTurn,
-              onSkip = { choseNextNode() },
+              onSkip = { scope.launch { choseNextNode() } },
               onHint = {}, // stub for v1
               onReveal = {}, // stub for v1
               modifier = mod,

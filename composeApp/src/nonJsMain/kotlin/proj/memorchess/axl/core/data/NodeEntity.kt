@@ -26,6 +26,11 @@ import proj.memorchess.axl.core.scheduling.CardPhase
  *   machine.
  * @property step Index into the active learning or relearning step ladder.
  * @property depth Minimum graph depth at which this position can be reached from the root.
+ * @property hasGoodOutgoing Derived projection owned by [proj.memorchess.axl.core.graph.TreeStore]:
+ *   `true` iff this node has at least one non deleted outgoing edge marked good. Backs the bounded
+ *   scheduling queries.
+ * @property createdAt Derived projection owned by [proj.memorchess.axl.core.graph.TreeStore]: the
+ *   moment the position was first added, used as the new card ordering tiebreak after [depth].
  * @property isDeleted Soft delete flag.
  * @property updatedAt Last modification timestamp.
  */
@@ -33,10 +38,12 @@ import proj.memorchess.axl.core.scheduling.CardPhase
   tableName = "NodeEntity",
   indices =
     [
-      Index(value = ["dueDate"]),
-      Index(value = ["depth"]),
       Index(value = ["isDeleted"]),
       Index(value = ["updatedAt"]),
+      Index(value = ["firstReview"]),
+      Index(value = ["lastReview"]),
+      Index(value = ["hasGoodOutgoing", "phase", "dueDate", "depth", "createdAt"]),
+      Index(value = ["hasGoodOutgoing", "phase", "dueDate"]),
     ],
 )
 data class NodeEntity(
@@ -51,6 +58,8 @@ data class NodeEntity(
   val phase: String = CardPhase.NEW.name,
   val step: Int = 0,
   val depth: Int,
+  val hasGoodOutgoing: Boolean = false,
+  val createdAt: Instant = DateUtil.now(),
   val isDeleted: Boolean = false,
   val updatedAt: Instant = DateUtil.now(),
 )

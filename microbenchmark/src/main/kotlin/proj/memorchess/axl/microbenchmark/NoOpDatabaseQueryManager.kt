@@ -4,7 +4,9 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.SchedulingCounts
 import proj.memorchess.axl.core.graph.DeleteMode
+import proj.memorchess.axl.core.graph.TrainingEntry
 
 /**
  * [DatabaseQueryManager] that persists nothing.
@@ -28,4 +30,22 @@ class NoOpDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun insertNodes(vararg positions: DataNode) = Unit
 
   override suspend fun getLastUpdate(): Instant? = null
+
+  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? = null
+
+  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? = null
+
+  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? = null
+
+  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? = null
+
+  override suspend fun getSchedulingCounts(
+    dayStart: Instant,
+    dayEndExclusive: Instant,
+  ): SchedulingCounts = SchedulingCounts(0, 0, 0, 0, 0)
+
+  override suspend fun findEligibleAmong(
+    keys: List<PositionKey>,
+    dayEndExclusive: Instant,
+  ): TrainingEntry? = null
 }

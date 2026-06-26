@@ -68,6 +68,7 @@ fun initKoinModules(): Array<Module> {
     single { TreeStore(get()) }
     single {
       TrainingScheduler(
+        database = get(),
         treeStore = get(),
         algorithm = get(),
         maxNewMovesPerDay = { MAX_NEW_MOVES_PER_DAY_SETTING.getValue() },

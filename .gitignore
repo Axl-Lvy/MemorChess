@@ -22,3 +22,4 @@ kotlin-js-store
 
 # Room schema export is disabled (exportSchema = false); these must never be committed.
 composeApp/schemas/
+docs/superpowers/

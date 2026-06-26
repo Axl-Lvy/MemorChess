@@ -34,6 +34,8 @@ data class NodeWithMoves(
       node.depth,
       node.updatedAt,
       node.isDeleted,
+      node.hasGoodOutgoing,
+      node.createdAt,
     )
   }
 
@@ -53,6 +55,8 @@ data class NodeWithMoves(
           phase = card.phase.name,
           step = card.step,
           depth = dataNode.depth,
+          hasGoodOutgoing = dataNode.hasGoodOutgoing,
+          createdAt = dataNode.createdAt,
           isDeleted = dataNode.isDeleted,
           updatedAt = dataNode.updatedAt,
         ),

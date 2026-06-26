@@ -168,10 +168,17 @@ class TreeStore(private val database: DatabaseQueryManager) {
     persistNode(positionKey)
   }
 
-  /** Deletes the move [move] leaving [from] in both the cache and the underlying database. */
+  /**
+   * Deletes the move [move] leaving [from] in both the cache and the underlying database.
+   *
+   * After the cache edge is gone, the surviving [from] node is re-persisted so its derived
+   * [DataNode.hasGoodOutgoing] cannot go stale: deleting the last good edge must flip the flag back
+   * to `false`.
+   */
   suspend fun deleteMove(from: PositionKey, move: String, mode: DeleteMode = DeleteMode.HARD) {
     tree.removeEdge(from, move)
     database.deleteMove(from, move, mode)
+    persistNode(from)
   }
 
   /**
@@ -179,16 +186,23 @@ class TreeStore(private val database: DatabaseQueryManager) {
    */
   suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.HARD) {
     val node = tree[positionKey]
+    val survivingOrigins = mutableSetOf<PositionKey>()
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {
         tree.removeEdge(positionKey, edge.move)
       }
       for (edge in node.incoming.values.toList()) {
         tree.removeEdge(edge.from, edge.move)
+        survivingOrigins += edge.from
       }
       tree.removeNode(positionKey)
     }
     database.deletePosition(positionKey, mode)
+    // Re-persist the origins that lost an outgoing edge so their derived hasGoodOutgoing flag
+    // reflects the deletion and cannot go stale.
+    for (origin in survivingOrigins) {
+      persistNode(origin)
+    }
   }
 
   /** Hard wipes every position and move, both in the cache and on disk. */
@@ -197,6 +211,11 @@ class TreeStore(private val database: DatabaseQueryManager) {
     tree.clear()
   }
 
+  /**
+   * Persists the cached node at [positionKey], if present. A no-op when the node is gone from the
+   * cache (e.g. it was itself just deleted), so it is safe to call after an edge removal to refresh
+   * a surviving endpoint's derived [DataNode.hasGoodOutgoing] flag.
+   */
   private suspend fun persistNode(positionKey: PositionKey) {
     val node = tree[positionKey] ?: return
     database.insertNodes(node.toDataNode())
@@ -257,6 +276,9 @@ private fun Node.toDataNode(): DataNode =
       ),
     cardState = cardState,
     depth = depth,
+    hasGoodOutgoing = outgoing.values.any { it.isGood == true && !it.isDeleted },
+    createdAt =
+      incoming.values.filter { !it.isDeleted }.minOfOrNull { it.createdAt } ?: DateUtil.now(),
     updatedAt = DateUtil.now(),
   )
 

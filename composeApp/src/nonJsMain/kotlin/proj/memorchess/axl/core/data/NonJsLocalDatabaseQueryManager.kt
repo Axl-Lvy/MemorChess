@@ -3,11 +3,18 @@ package proj.memorchess.axl.core.data
 import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 import proj.memorchess.axl.core.graph.DeleteMode
+import proj.memorchess.axl.core.graph.TrainingEntry
+import proj.memorchess.axl.core.scheduling.CardPhase
+import proj.memorchess.axl.core.scheduling.CardState
 
-/** Database for non-JS platforms */
-internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
-
-  private val database = customDatabase
+/**
+ * Room backed [DatabaseQueryManager] for non-JS platforms.
+ *
+ * Takes its [CustomDatabase] explicitly so the production singleton wires the shared file while
+ * tests can drive an isolated database through the same public API.
+ */
+internal class NonJsLocalDatabaseQueryManager(private val database: CustomDatabase) :
+  DatabaseQueryManager {
 
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
     val allNodes = database.getNodeEntityDao().getAllNodes()
@@ -66,8 +73,56 @@ internal object NonJsLocalDatabaseQueryManager : DatabaseQueryManager {
       })
       ?.truncateToSeconds()
   }
+
+  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
+    database.getNodeEntityDao().nextReadyLearningCard(now)?.toTrainingEntry()
+
+  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
+    database.getNodeEntityDao().nextPendingLearningCard(now)?.toTrainingEntry()
+
+  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? =
+    database.getNodeEntityDao().nextDueReviewCard(dayEndExclusive)?.toTrainingEntry()
+
+  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? =
+    database.getNodeEntityDao().nextDueNewCard(dayEndExclusive)?.toTrainingEntry()
+
+  override suspend fun getSchedulingCounts(
+    dayStart: Instant,
+    dayEndExclusive: Instant,
+  ): SchedulingCounts = database.getNodeEntityDao().getSchedulingCounts(dayStart, dayEndExclusive)
+
+  override suspend fun findEligibleAmong(
+    keys: List<PositionKey>,
+    dayEndExclusive: Instant,
+  ): TrainingEntry? {
+    if (keys.isEmpty()) return null
+    val eligible =
+      database
+        .getNodeEntityDao()
+        .eligibleAmong(keys.map { it.value }, dayEndExclusive)
+        .associateBy { it.positionKey }
+    // Preserve the caller's candidate order: return the first key that came back eligible.
+    return keys.firstNotNullOfOrNull { eligible[it.value] }?.toTrainingEntry()
+  }
+
+  /** Rebuilds a [TrainingEntry] from the lightweight projection, no edges loaded. */
+  private fun NodeCardProjection.toTrainingEntry(): TrainingEntry =
+    TrainingEntry(
+      PositionKey(positionKey),
+      CardState(
+        dueDate = dueDate,
+        lastReview = lastReview,
+        firstReview = firstReview,
+        stability = stability,
+        difficulty = difficulty,
+        reps = reps,
+        lapses = lapses,
+        phase = runCatching { CardPhase.valueOf(phase) }.getOrDefault(CardPhase.NEW),
+        step = step,
+      ),
+    )
 }
 
 actual fun getPlatformSpecificLocalDatabase(): DatabaseQueryManager {
-  return NonJsLocalDatabaseQueryManager
+  return NonJsLocalDatabaseQueryManager(customDatabase)
 }

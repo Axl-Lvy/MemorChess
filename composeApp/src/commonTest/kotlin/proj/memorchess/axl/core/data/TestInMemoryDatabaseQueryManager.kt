@@ -9,6 +9,8 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.scheduling.CardPhase
+import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
@@ -183,5 +185,217 @@ class TestInMemoryDatabaseQueryManager {
     val nodeStamp = Instant.fromEpochSeconds(900)
     database.insertNodes(node(key0, previous = listOf(), next = listOf(), updatedAt = nodeStamp))
     assertEquals(nodeStamp, database.getLastUpdate())
+  }
+
+  // --- Bounded scheduling query surface ---
+
+  private val now = Instant.fromEpochSeconds(1_000)
+  private val dayStart = Instant.fromEpochSeconds(0)
+  private val dayEnd = Instant.fromEpochSeconds(10_000)
+
+  /** Builds a scheduling node with explicit projection columns and an isolated synthetic key. */
+  private fun schedNode(
+    keyName: String,
+    phase: CardPhase,
+    dueDate: Instant,
+    hasGoodOutgoing: Boolean = true,
+    depth: Int = 0,
+    createdAt: Instant = Instant.fromEpochSeconds(0),
+    lastReview: Instant? = null,
+    firstReview: Instant? = null,
+    isDeleted: Boolean = false,
+  ): DataNode =
+    DataNode(
+      positionKey = PositionKey(keyName),
+      previousAndNextMoves = PreviousAndNextMoves(),
+      cardState =
+        CardState(
+          dueDate = dueDate,
+          lastReview = lastReview,
+          firstReview = firstReview,
+          stability = 0.0,
+          difficulty = 0.0,
+          reps = 0,
+          lapses = 0,
+          phase = phase,
+          step = 0,
+        ),
+      depth = depth,
+      isDeleted = isDeleted,
+      hasGoodOutgoing = hasGoodOutgoing,
+      createdAt = createdAt,
+    )
+
+  @Test
+  fun nextDueReviewCard_picksSmallestDepthAmongDueGoodReviews() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      schedNode("deep", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(100), depth = 5),
+      schedNode("shallow", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(200), depth = 1),
+      // Not good: excluded even though shallowest and due.
+      schedNode(
+        "notgood",
+        CardPhase.REVIEW,
+        dueDate = Instant.fromEpochSeconds(50),
+        depth = 0,
+        hasGoodOutgoing = false,
+      ),
+      // Wrong phase.
+      schedNode("new", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(50), depth = 0),
+    )
+    assertEquals(PositionKey("shallow"), database.nextDueReviewCard(dayEnd)?.positionKey)
+  }
+
+  @Test
+  fun nextDueReviewCard_excludesDueDateEqualToDayEnd() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    // dueDate exactly at the exclusive bound belongs to the next day.
+    database.insertNodes(schedNode("boundary", CardPhase.REVIEW, dueDate = dayEnd, depth = 0))
+    assertNull(database.nextDueReviewCard(dayEnd))
+  }
+
+  @Test
+  fun nextDueNewCard_ordersByDepthThenCreatedAt() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      schedNode(
+        "d1late",
+        CardPhase.NEW,
+        dueDate = Instant.fromEpochSeconds(100),
+        depth = 1,
+        createdAt = Instant.fromEpochSeconds(500),
+      ),
+      schedNode(
+        "d1early",
+        CardPhase.NEW,
+        dueDate = Instant.fromEpochSeconds(100),
+        depth = 1,
+        createdAt = Instant.fromEpochSeconds(300),
+      ),
+      schedNode(
+        "d0",
+        CardPhase.NEW,
+        dueDate = Instant.fromEpochSeconds(100),
+        depth = 0,
+        createdAt = Instant.fromEpochSeconds(900),
+      ),
+    )
+    // Shallowest wins regardless of createdAt.
+    assertEquals(PositionKey("d0"), database.nextDueNewCard(dayEnd)?.positionKey)
+    // Among the depth-1 ties, the earlier createdAt wins once d0 is removed.
+    database.deletePosition(PositionKey("d0"), DeleteMode.HARD)
+    assertEquals(PositionKey("d1early"), database.nextDueNewCard(dayEnd)?.positionKey)
+  }
+
+  @Test
+  fun nextReadyLearningCard_includesDueEqualToNow() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(schedNode("atNow", CardPhase.LEARNING, dueDate = now))
+    assertEquals(PositionKey("atNow"), database.nextReadyLearningCard(now)?.positionKey)
+  }
+
+  @Test
+  fun nextReadyLearningCard_picksEarliestDueAndCoversRelearning() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      schedNode("late", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(900)),
+      schedNode("early", CardPhase.RELEARNING, dueDate = Instant.fromEpochSeconds(100)),
+      // Pending (due in the future) must not be picked as ready.
+      schedNode("future", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(5_000)),
+    )
+    assertEquals(PositionKey("early"), database.nextReadyLearningCard(now)?.positionKey)
+  }
+
+  @Test
+  fun nextPendingLearningCard_excludesDueEqualToNow() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      schedNode("atNow", CardPhase.LEARNING, dueDate = now),
+      schedNode("future", CardPhase.RELEARNING, dueDate = Instant.fromEpochSeconds(2_000)),
+    )
+    // Strictly greater than now: the card due exactly at now is ready, not pending.
+    assertEquals(PositionKey("future"), database.nextPendingLearningCard(now)?.positionKey)
+  }
+
+  @Test
+  fun nextPendingLearningCard_isNullWhenAllReady() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(schedNode("ready", CardPhase.LEARNING, dueDate = now))
+    assertNull(database.nextPendingLearningCard(now))
+  }
+
+  @Test
+  fun getSchedulingCounts_countsAreDayBounded() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val inWindow = Instant.fromEpochSeconds(5_000)
+    database.insertNodes(
+      // introducedToday: firstReview in window; also trained today.
+      schedNode(
+        "introduced",
+        CardPhase.REVIEW,
+        dueDate = Instant.fromEpochSeconds(100),
+        firstReview = inWindow,
+        lastReview = inWindow,
+        depth = 0,
+      ),
+      // trainedToday only: lastReview in window, firstReview before window.
+      schedNode(
+        "trainedOnly",
+        CardPhase.REVIEW,
+        dueDate = Instant.fromEpochSeconds(200),
+        firstReview = Instant.fromEpochSeconds(-100),
+        lastReview = inWindow,
+        depth = 1,
+      ),
+      // firstReview at the exclusive upper bound: outside the window.
+      schedNode(
+        "atBoundary",
+        CardPhase.REVIEW,
+        dueDate = Instant.fromEpochSeconds(300),
+        firstReview = dayEnd,
+        lastReview = dayEnd,
+        depth = 2,
+      ),
+      // due new, good.
+      schedNode("dueNew", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(400), depth = 3),
+      // in session.
+      schedNode("learning", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(500), depth = 4),
+    )
+    val counts = database.getSchedulingCounts(dayStart, dayEnd)
+    assertEquals(1, counts.introducedToday)
+    assertEquals(2, counts.trainedToday)
+    // dueReviews: introduced, trainedOnly, atBoundary all REVIEW and due before dayEnd.
+    assertEquals(3, counts.dueReviews)
+    assertEquals(1, counts.dueNew)
+    assertEquals(1, counts.inSession)
+  }
+
+  @Test
+  fun getSchedulingCounts_emptyStoreIsAllZero() = runTest {
+    val counts = InMemoryDatabaseQueryManager().getSchedulingCounts(dayStart, dayEnd)
+    assertEquals(SchedulingCounts(0, 0, 0, 0, 0), counts)
+  }
+
+  @Test
+  fun findEligibleAmong_returnsFirstEligibleKeyOrNull() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      // Not in the candidate set even though eligible.
+      schedNode("other", CardPhase.LEARNING, dueDate = now),
+      // In set, in session: eligible.
+      schedNode("learning", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(9_999)),
+      // In set, REVIEW due: eligible.
+      schedNode("dueReview", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(100)),
+      // In set but not due and not in session: ineligible.
+      schedNode("notDue", CardPhase.REVIEW, dueDate = dayEnd),
+    )
+    val candidates =
+      listOf(PositionKey("learning"), PositionKey("dueReview"), PositionKey("notDue"))
+    val result = database.findEligibleAmong(candidates, dayEnd)
+    assertEquals(PositionKey("learning"), result?.positionKey)
+    // Empty candidate set yields null.
+    assertNull(database.findEligibleAmong(emptyList(), dayEnd))
+    // None eligible yields null.
+    assertNull(database.findEligibleAmong(listOf(PositionKey("notDue")), dayEnd))
   }
 }

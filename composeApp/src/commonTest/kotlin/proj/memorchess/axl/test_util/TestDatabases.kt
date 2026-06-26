@@ -49,6 +49,7 @@ object TestDatabases {
           PreviousAndNextMoves(previousMove?.let { listOf(it) } ?: listOf(), listOf(dataMove)),
           CardStateFactory.new(),
           depth,
+          hasGoodOutgoing = true,
         )
       previousMove = dataMove
       nodes.add(node)
@@ -80,6 +81,7 @@ object TestDatabases {
               storedNode.positionKey,
               PreviousAndNextMoves(previousMoves, newMoves),
               CardStateFactory.new(),
+              hasGoodOutgoing = newMoves.any { it.isGood == true && !it.isDeleted },
             )
         }
       }
