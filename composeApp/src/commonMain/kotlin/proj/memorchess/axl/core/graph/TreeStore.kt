@@ -283,6 +283,8 @@ private fun Node.toDataNode(): DataNode =
     cardState = cardState,
     depth = depth,
     hasGoodOutgoing = outgoing.values.any { it.isGood == true && !it.isDeleted },
+    createdAt =
+      incoming.values.filter { !it.isDeleted }.minOfOrNull { it.createdAt } ?: DateUtil.now(),
     updatedAt = DateUtil.now(),
   )
 
