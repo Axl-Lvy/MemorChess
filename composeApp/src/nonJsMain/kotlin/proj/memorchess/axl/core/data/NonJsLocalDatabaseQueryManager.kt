@@ -106,27 +106,24 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   }
 
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
-    if (cap <= 0) return 0
+    if (!database.getNodeEntityDao().nodeExists(key.value)) return 0
+    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  }
+
+  /**
+   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
+   * subtree (incoming count at most one), resolved with point queries. A convergent position
+   * reachable through an outside parent is excluded.
+   */
+  private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
     val dao = database.getNodeEntityDao()
-    if (!dao.nodeExists(key.value)) return 0
-    var count = 1
-    val visited = mutableSetOf(key.value)
-    val queue = ArrayDeque<String>()
-    queue.addLast(key.value)
-    while (queue.isNotEmpty() && count < cap) {
-      val origin = queue.removeFirst()
-      for (child in dao.childrenOf(origin)) {
-        if (child in visited) continue
-        if (!dao.nodeExists(child)) continue
-        // Convergent position reachable through another parent: a delete would keep it.
-        if (dao.incomingCount(child) > 1) continue
-        visited += child
-        count++
-        queue.addLast(child)
-        if (count >= cap) break
+    val result = mutableListOf<PositionKey>()
+    for (child in dao.childrenOf(origin.value)) {
+      if (dao.nodeExists(child) && dao.incomingCount(child) <= 1) {
+        result.add(PositionKey(child))
       }
     }
-    return count
+    return result
   }
 
   /** Rebuilds a [TrainingEntry] from the lightweight projection, no edges loaded. */

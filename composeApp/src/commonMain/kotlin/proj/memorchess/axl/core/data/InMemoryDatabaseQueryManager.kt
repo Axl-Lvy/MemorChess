@@ -162,28 +162,23 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
    * queries.
    */
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
-    if (cap <= 0) return 0
-    val root = nodes[key]?.takeIf { !it.isDeleted } ?: return 0
-    var count = 1
-    val visited = mutableSetOf(key)
-    val queue = ArrayDeque<DataNode>()
-    queue.addLast(root)
-    while (queue.isNotEmpty() && count < cap) {
-      val node = queue.removeFirst()
-      for (edge in node.previousAndNextMoves.nextMoves.values) {
-        if (edge.isDeleted) continue
-        val childKey = edge.destination
-        if (childKey in visited) continue
-        val child = nodes[childKey]?.takeIf { !it.isDeleted } ?: continue
-        // Convergent position: reachable through another parent, so a delete would keep it.
-        if (incomingCount(childKey) > 1) continue
-        visited += childKey
-        count++
-        queue.addLast(child)
-        if (count >= cap) break
+    if (nodes[key]?.takeIf { !it.isDeleted } == null) return 0
+    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  }
+
+  /**
+   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
+   * subtree (incoming count at most one), i.e. the positions a recursive delete would remove. A
+   * convergent position reachable through an outside parent is excluded.
+   */
+  private fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
+    val node = nodes[origin]?.takeIf { !it.isDeleted } ?: return emptyList()
+    return node.previousAndNextMoves.nextMoves.values
+      .filterNot { it.isDeleted }
+      .map { it.destination }
+      .filter { child ->
+        nodes[child]?.takeIf { !it.isDeleted } != null && incomingCount(child) <= 1
       }
-    }
-    return count
   }
 
   /** Number of non deleted move edges arriving at [destination] across the store. */

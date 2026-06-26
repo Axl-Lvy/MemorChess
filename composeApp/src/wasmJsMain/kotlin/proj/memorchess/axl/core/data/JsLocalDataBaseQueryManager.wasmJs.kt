@@ -536,41 +536,56 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
     if (cap <= 0) return 0
+    if (!nodeExistsLive(key.value)) return 0
+    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  }
+
+  /** True when [positionKey] has a non-deleted node row. */
+  private suspend fun nodeExistsLive(positionKey: String): Boolean {
+    val database = db()
+    return database.transaction(NODES_STORE) {
+      val node =
+        objectStore(NODES_STORE).get(Key(positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
+      node != null && !node.isDeleted
+    }
+  }
+
+  /**
+   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
+   * subtree (incoming count at most one), resolved with index lookups. A convergent position
+   * reachable through an outside parent is excluded.
+   */
+  private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
+    val candidates = childMoveDestinations(origin.value)
+    val result = mutableListOf<PositionKey>()
+    for (child in candidates) {
+      if (isLiveSingleParent(child)) result.add(PositionKey(child))
+    }
+    return result
+  }
+
+  /** Destinations of every non-deleted move leaving [origin]. */
+  private suspend fun childMoveDestinations(origin: String): List<String> {
+    val database = db()
+    return database.transaction(MOVES_STORE) {
+      val moves: List<JsMoveEntity> =
+        objectStore(MOVES_STORE).index("origin").getAll(Key(origin.toJsString())).toList()
+      moves.filterNot { it.isDeleted }.map { it.destination }
+    }
+  }
+
+  /** True when [child] is a live node reached by at most one non-deleted incoming edge. */
+  private suspend fun isLiveSingleParent(child: String): Boolean {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
-      val nodesStore = objectStore(NODES_STORE)
-      val movesStore = objectStore(MOVES_STORE)
-
-      suspend fun nodeExists(positionKey: String): Boolean {
-        val node = nodesStore.get(Key(positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
-        return node != null && !node.isDeleted
+      val node = objectStore(NODES_STORE).get(Key(child.toJsString()))?.unsafeCast<JsNodeEntity>()
+      if (node == null || node.isDeleted) {
+        false
+      } else {
+        val incoming: List<JsMoveEntity> =
+          objectStore(MOVES_STORE).index("destination").getAll(Key(child.toJsString())).toList()
+        incoming.count { !it.isDeleted } <= 1
       }
-
-      if (!nodeExists(key.value)) return@transaction 0
-      var count = 1
-      val visited = mutableSetOf(key.value)
-      val queue = ArrayDeque<String>()
-      queue.addLast(key.value)
-      while (queue.isNotEmpty() && count < cap) {
-        val origin = queue.removeFirst()
-        val children: List<JsMoveEntity> =
-          movesStore.index("origin").getAll(Key(origin.toJsString())).toList()
-        for (move in children) {
-          if (move.isDeleted) continue
-          val childKey = move.destination
-          if (childKey in visited) continue
-          if (!nodeExists(childKey)) continue
-          // Convergent position reachable through another parent: a delete would keep it.
-          val incoming: List<JsMoveEntity> =
-            movesStore.index("destination").getAll(Key(childKey.toJsString())).toList()
-          if (incoming.count { !it.isDeleted } > 1) continue
-          visited += childKey
-          count++
-          queue.addLast(childKey)
-          if (count >= cap) break
-        }
-      }
-      count
     }
   }
 
