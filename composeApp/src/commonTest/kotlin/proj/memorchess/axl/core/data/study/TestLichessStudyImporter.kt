@@ -9,18 +9,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testTreeStore
 
 class TestLichessStudyImporter {
 
   private val database = TestDatabases.empty()
-  private val store = TreeStore(database)
+  private val store = testTreeStore(database)
 
   private fun importerRespondingPgn(pgn: String): LichessStudyImporter {
     val engine = MockEngine { respond(content = ByteReadChannel(pgn), status = HttpStatusCode.OK) }
@@ -119,6 +120,6 @@ class TestLichessStudyImporter {
     // Assert
     assertIs<LichessStudyImportResult.ImportFailed>(result)
     assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
-    assertTrue(store.current().snapshot().isEmpty())
+    assertNull(store.node(PositionKey.START_POSITION))
   }
 }

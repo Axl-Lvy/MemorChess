@@ -4,19 +4,20 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testTreeStore
 
 class TestPgnImporter {
 
   private val database = TestDatabases.empty()
-  private val store = TreeStore(database)
+  private val store = testTreeStore(database)
   private val importer = PgnImporter(store)
 
   private fun keyAfter(vararg moves: String): PositionKey {
@@ -81,7 +82,7 @@ class TestPgnImporter {
 
     // Assert
     assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
-    assertTrue(store.current().snapshot().isEmpty())
+    assertNull(store.node(PositionKey.START_POSITION))
   }
 
   @Test
@@ -227,7 +228,7 @@ class TestPgnImporter {
 
     // Assert
     assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
-    assertTrue(store.current().snapshot().isEmpty())
+    assertNull(store.node(PositionKey.START_POSITION))
   }
 
   @Test
@@ -241,6 +242,6 @@ class TestPgnImporter {
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 0), summary)
     assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
-    assertTrue(store.current().snapshot().isEmpty())
+    assertNull(store.node(PositionKey.START_POSITION))
   }
 }

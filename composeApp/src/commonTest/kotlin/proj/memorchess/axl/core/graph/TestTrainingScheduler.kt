@@ -23,6 +23,7 @@ import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testTreeStore
 
 class TestTrainingScheduler {
 
@@ -37,7 +38,7 @@ class TestTrainingScheduler {
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
   ): Pair<TreeStore, TrainingScheduler> {
     val database = TestDatabases.empty()
-    val store = TreeStore(database)
+    val store = testTreeStore(database)
     val scheduler =
       TrainingScheduler(
         database,
@@ -187,7 +188,7 @@ class TestTrainingScheduler {
       dataNode(posC, 1, listOf(d4), listOf(d5), createdAt = t2),
       dataNode(endOfNewLine, 2, listOf(d5), emptyList(), createdAt = t2, hasGoodOutgoing = false),
     )
-    val store = TreeStore(database)
+    val store = testTreeStore(database)
     store.load()
     val scheduler =
       TrainingScheduler(
