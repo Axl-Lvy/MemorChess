@@ -5,8 +5,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.random.Random
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import proj.memorchess.axl.core.auth.LICHESS_REDIRECT_URI
 import proj.memorchess.axl.core.auth.LichessOAuthClient
@@ -38,6 +42,14 @@ import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
 /**
+ * Koin qualifier for the process lived background scope on which [TreeStore] runs neighbour
+ * prefetch. A [SupervisorJob] on [Dispatchers.Default] so a failed prefetch never cancels siblings
+ * and never blocks the UI; it lives as long as the process wide [TreeStore] single, so no teardown
+ * is needed.
+ */
+const val PREFETCH_SCOPE: String = "prefetch"
+
+/**
  * Initializes koin modules.
  *
  * @return An array of all koin modules.
@@ -65,7 +77,10 @@ fun initKoinModules(): Array<Module> {
   }
 
   val graphModule = module {
-    single { TreeStore(get()) }
+    single<CoroutineScope>(named(PREFETCH_SCOPE)) {
+      CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+    single { TreeStore(get(), get(named(PREFETCH_SCOPE))) }
     single {
       TrainingScheduler(
         database = get(),

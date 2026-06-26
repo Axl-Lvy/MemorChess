@@ -21,8 +21,9 @@ import proj.memorchess.axl.core.data.PositionKey
  *   that was explored but not yet classified. A `false` value flags a move kept around as a known
  *   mistake to drill against.
  * @property createdAt Moment the edge was first added to the repertoire. Unlike [updatedAt], it is
- *   preserved by [TreeStore.addMove] across re-upserts, which makes it a stable sibling order for
- *   the introduction of new cards (see [OpeningTree.introductionOrder]).
+ *   preserved by [TreeStore.addMove] across re-upserts, which keeps the derived
+ *   [proj.memorchess.axl.core.data.DataNode.createdAt] stable so new card introduction order does
+ *   not reshuffle just by browsing.
  * @property updatedAt Last time the edge was written. Stamped by [TreeStore].
  * @property isDeleted Tombstone flag used by [DeleteMode.SOFT].
  */
