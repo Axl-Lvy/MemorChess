@@ -13,15 +13,29 @@ import proj.memorchess.axl.core.graph.TrainingEntry
  */
 interface DatabaseQueryManager {
 
-  /**
-   * Retrieves all stored positions.
-   *
-   * @param withDeletedOnes When `true`, includes rows flagged with [DataNode.isDeleted].
-   */
-  suspend fun getAllNodes(withDeletedOnes: Boolean = false): List<DataNode>
-
   /** Retrieves a specific position, or `null` when missing or soft deleted. */
   suspend fun getPosition(positionKey: PositionKey): DataNode?
+
+  /**
+   * Reads one bounded page of non deleted nodes ordered by position key ascending.
+   *
+   * This is the only multi row read on the seam and it is bounded by [limit] plus an explicit
+   * [cursor], so no query ever pulls the whole store into memory. Each returned node carries its
+   * edges, exactly as a single read would reconstruct them.
+   *
+   * Paging contract: pass `null` as [cursor] for the first page; thereafter pass the previous
+   * page's [NodesPage.nextCursor]. The page contains the rows with `positionKey > cursor` ordered
+   * ascending, capped at [limit]. [NodesPage.nextCursor] is the last returned node's position key
+   * when a full [limit] sized page was returned (more rows may remain), and `null` once a partial
+   * page is returned, which terminates the loop. A store size that is an exact multiple of [limit]
+   * therefore ends with one trailing empty page whose cursor is `null`.
+   *
+   * @param cursor The position key of the last node of the previous page, or `null` for the first
+   *   page.
+   * @param limit The maximum number of nodes to return; must be strictly positive.
+   * @throws IllegalArgumentException when [limit] is not strictly positive.
+   */
+  suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage
 
   /**
    * Deletes a single position and any incident moves.

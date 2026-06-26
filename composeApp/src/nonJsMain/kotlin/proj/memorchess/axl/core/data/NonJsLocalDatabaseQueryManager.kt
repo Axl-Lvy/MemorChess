@@ -16,15 +16,17 @@ import proj.memorchess.axl.core.scheduling.CardState
 internal class NonJsLocalDatabaseQueryManager(private val database: CustomDatabase) :
   DatabaseQueryManager {
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
-    val allNodes = database.getNodeEntityDao().getAllNodes()
-    return (if (withDeletedOnes) allNodes else allNodes.filter { !it.node.isDeleted }).map {
-      it.toStoredNode()
-    }
-  }
-
   override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     return database.getNodeEntityDao().getNode(positionKey.value)?.toStoredNode()
+  }
+
+  override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
+    require(limit > 0) { "Page limit must be strictly positive, was $limit" }
+    val dao = database.getNodeEntityDao()
+    val rows = if (cursor == null) dao.getNodesPage(limit) else dao.getNodesPageAfter(cursor, limit)
+    val nodes = rows.map { it.toStoredNode() }
+    val nextCursor = if (nodes.size == limit) nodes.last().positionKey.value else null
+    return NodesPage(nodes, nextCursor)
   }
 
   override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {

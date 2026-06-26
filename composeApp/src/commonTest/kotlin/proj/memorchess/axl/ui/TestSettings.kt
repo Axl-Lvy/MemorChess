@@ -17,6 +17,7 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.drainAllNodes
 import proj.memorchess.axl.ui.pages.SETTINGS_SECTION_LIST_TAG
 import proj.memorchess.axl.ui.pages.Settings
 
@@ -127,7 +128,7 @@ class TestSettings : TestWithKoin() {
     assertNodeWithTagExists("confirmDialog")
     assertNodeWithTagExists("confirmDialogCancelButton").performClick()
 
-    val positionsAfterCancel = database.getAllNodes(false)
+    val positionsAfterCancel = drainAllNodes(database)
     assertTrue("Database should not have been cleared after cancel") {
       positionsAfterCancel.isNotEmpty()
     }
@@ -137,6 +138,6 @@ class TestSettings : TestWithKoin() {
     assertNodeWithTagExists("confirmDialogOkButton").performClick()
 
     // Verify the database is cleared
-    waitUntilSuspending { database.getAllNodes(false).isEmpty() }
+    waitUntilSuspending { drainAllNodes(database).isEmpty() }
   }
 }

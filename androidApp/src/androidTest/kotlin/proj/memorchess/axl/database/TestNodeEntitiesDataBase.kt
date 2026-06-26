@@ -52,7 +52,7 @@ class TestNodeEntitiesDataBase {
           )
         )
       )
-      retrievedNodes = nodeEntityDao.getAllNodes()
+      retrievedNodes = nodeEntityDao.getNodesPage(PAGE_LIMIT)
     }
     assertEquals(1, retrievedNodes.size)
     assertNotNull(retrievedNodes.first())
@@ -73,7 +73,7 @@ class TestNodeEntitiesDataBase {
         )
       )
       nodeEntityDao.eraseAllNodes()
-      retrievedNode = nodeEntityDao.getAllNodes().firstOrNull { !it.node.isDeleted }
+      retrievedNode = nodeEntityDao.getNodesPage(PAGE_LIMIT).firstOrNull()
     }
     assertNull(retrievedNode)
   }
@@ -99,7 +99,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))
       nodeEntityDao.softDeleteNode(childNode.positionKey.value)
-      retrievedNodes = nodeEntityDao.getAllNodes().filter { !it.node.isDeleted }
+      retrievedNodes = nodeEntityDao.getNodesPage(PAGE_LIMIT)
     }
     assertEquals(1, retrievedNodes.size)
     assertContains(
@@ -107,5 +107,10 @@ class TestNodeEntitiesDataBase {
       linkMove.toStoredMove(),
     )
     assertEquals(rootPositionKey, retrievedNodes.first().toStoredNode().positionKey)
+  }
+
+  private companion object {
+    /** Bounded page size large enough to read back every node these tiny fixtures insert. */
+    const val PAGE_LIMIT = 100
   }
 }

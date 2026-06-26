@@ -15,7 +15,7 @@ class TestTestDatabase {
   fun testViennaDatabase() = runTest {
     val viennaDb = TestDatabases.vienna()
     val viennaMoves = getVienna()
-    val nodes = viennaDb.getAllNodes(withDeletedOnes = true)
+    val nodes = drainAllNodes(viennaDb)
 
     // Check that the database has the correct number of positions
     assertEquals(
@@ -37,7 +37,7 @@ class TestTestDatabase {
   fun testLondonDatabase() = runTest {
     val londonDb = TestDatabases.london()
     val londonMoves = getLondon()
-    val nodes = londonDb.getAllNodes(withDeletedOnes = true)
+    val nodes = drainAllNodes(londonDb)
 
     // Check that the database has the correct number of positions
     assertEquals(
@@ -59,7 +59,7 @@ class TestTestDatabase {
   fun testScandinavianDatabase() = runTest {
     val scandinavianDb = TestDatabases.scandinavian()
     val scandinavianMoves = getScandinavian()
-    val nodes = scandinavianDb.getAllNodes(withDeletedOnes = true)
+    val nodes = drainAllNodes(scandinavianDb)
 
     // Check that the database has the correct number of positions
     assertEquals(
@@ -86,9 +86,9 @@ class TestTestDatabase {
     // Merge all databases
     val mergedDb = TestDatabases.merge(viennaDb, londonDb, scandinavianDb)
 
-    val viennaNodes = viennaDb.getAllNodes(withDeletedOnes = true)
-    val londonNodes = londonDb.getAllNodes(withDeletedOnes = true)
-    val scandinavianNodes = scandinavianDb.getAllNodes(withDeletedOnes = true)
+    val viennaNodes = drainAllNodes(viennaDb)
+    val londonNodes = drainAllNodes(londonDb)
+    val scandinavianNodes = drainAllNodes(scandinavianDb)
 
     // Check that the merged database contains all positions from individual databases
     val uniquePositions =
@@ -100,7 +100,7 @@ class TestTestDatabase {
 
     assertEquals(
       uniquePositions,
-      mergedDb.getAllNodes(withDeletedOnes = true).size,
+      drainAllNodes(mergedDb).size,
       "Merged database should contain all unique positions from individual databases",
     )
 

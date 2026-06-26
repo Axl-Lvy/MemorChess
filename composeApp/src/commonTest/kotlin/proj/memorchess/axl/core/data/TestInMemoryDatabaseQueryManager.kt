@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.data
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -12,6 +13,7 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.test_util.drainAllNodes
 
 /**
  * Direct branch coverage for [InMemoryDatabaseQueryManager]: insert/query, hard and soft deletes of
@@ -52,7 +54,7 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun insertsAndReadsBack() = runTest {
     val database = seededLine()
-    assertEquals(3, database.getAllNodes().size)
+    assertEquals(3, drainAllNodes(database).size)
     assertEquals(setOf("e5"), database.getPosition(key1)?.previousAndNextMoves?.nextMoves?.keys)
   }
 
@@ -66,7 +68,7 @@ class TestInMemoryDatabaseQueryManager {
     val database = seededLine()
     database.deletePosition(key1, DeleteMode.HARD)
     assertNull(database.getPosition(key1))
-    assertEquals(2, database.getAllNodes().size)
+    assertEquals(2, drainAllNodes(database).size)
     // e4 pointed at key1, e5 came from key1: both are gone from the surviving neighbours.
     assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.isEmpty())
     assertTrue(database.getPosition(key2)!!.previousAndNextMoves.previousMoves.isEmpty())
@@ -85,21 +87,20 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   @Test
-  fun softDeletingAPositionHidesItButKeepsTheRow() = runTest {
+  fun softDeletingAPositionHidesItFromReads() = runTest {
     val database = seededLine()
     database.deletePosition(key1, DeleteMode.SOFT)
+    // A soft deleted position is hidden from every read: the point lookup returns null and the
+    // position drops out of the paged live read, leaving the two surviving rows.
     assertNull(database.getPosition(key1))
-    assertEquals(2, database.getAllNodes().size)
-    val withDeleted = database.getAllNodes(withDeletedOnes = true)
-    assertEquals(3, withDeleted.size)
-    assertTrue(withDeleted.single { it.positionKey == key1 }.isDeleted)
+    assertEquals(2, drainAllNodes(database).size)
   }
 
   @Test
   fun deletingAMissingPositionIsANoOp() = runTest {
     val database = seededLine()
     database.deletePosition(keyAfter("d4"), DeleteMode.HARD)
-    assertEquals(3, database.getAllNodes().size)
+    assertEquals(3, drainAllNodes(database).size)
   }
 
   @Test
@@ -158,7 +159,7 @@ class TestInMemoryDatabaseQueryManager {
   fun eraseAllClearsEverything() = runTest {
     val database = seededLine()
     database.eraseAll()
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
   }
 
   @Test
@@ -450,6 +451,118 @@ class TestInMemoryDatabaseQueryManager {
     )
     // key0 and key1 are counted; key2 is convergent and excluded.
     assertEquals(2, database.countDescendants(key0))
+  }
+
+  // --- getNodesPage -------------------------------------------------------------------------
+
+  /** Drains the whole store one page of [limit] at a time, returning the visited keys in order. */
+  private suspend fun DatabaseQueryManager.pageAllKeys(limit: Int): List<PositionKey> {
+    val visited = mutableListOf<PositionKey>()
+    var cursor: String? = null
+    while (true) {
+      val page = getNodesPage(cursor, limit)
+      visited += page.nodes.map { it.positionKey }
+      cursor = page.nextCursor ?: break
+    }
+    return visited
+  }
+
+  /** Inserts [count] synthetic nodes whose keys sort deterministically, returns them ascending. */
+  private suspend fun InMemoryDatabaseQueryManager.seedPageable(count: Int): List<PositionKey> {
+    val keys = (0 until count).map { PositionKey("page${it.toString().padStart(3, '0')}") }
+    insertNodes(*keys.map { countNode(it, previous = listOf(), next = listOf()) }.toTypedArray())
+    return keys.sortedBy { it.value }
+  }
+
+  @Test
+  fun getNodesPage_pagingTheWholeStoreVisitsEveryNodeExactlyOnce() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val expected = database.seedPageable(7)
+    // A page size that does not divide the store size exercises a non-empty final page.
+    val visited = database.pageAllKeys(limit = 3)
+    assertEquals(expected, visited)
+    assertEquals(7, visited.toSet().size)
+  }
+
+  @Test
+  fun getNodesPage_lastPageHasNullNextCursor() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.seedPageable(2)
+    val first = database.getNodesPage(cursor = null, limit = 2)
+    // A full page that exactly drains the store still advertises a cursor; the follow-up page is
+    // empty and terminates with a null cursor.
+    assertEquals(2, first.nodes.size)
+    assertEquals(
+      database.getPosition(first.nodes.last().positionKey)!!.positionKey.value,
+      first.nextCursor,
+    )
+    val second = database.getNodesPage(cursor = first.nextCursor, limit = 2)
+    assertTrue(second.nodes.isEmpty())
+    assertNull(second.nextCursor)
+  }
+
+  @Test
+  fun getNodesPage_limitLargerThanStoreReturnsEverythingWithNullCursor() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val expected = database.seedPageable(3)
+    val page = database.getNodesPage(cursor = null, limit = 100)
+    assertEquals(expected, page.nodes.map { it.positionKey })
+    // A partial page (fewer than limit rows) is the last page, so the cursor is null.
+    assertNull(page.nextCursor)
+  }
+
+  @Test
+  fun getNodesPage_storeSizeExactMultipleOfLimitTerminatesOnEmptyPage() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val expected = database.seedPageable(6)
+    // Six rows in pages of two: three full pages then an empty terminating page.
+    val visited = database.pageAllKeys(limit = 2)
+    assertEquals(expected, visited)
+  }
+
+  @Test
+  fun getNodesPage_emptyStoreReturnsEmptyPageWithNullCursor() = runTest {
+    val page = InMemoryDatabaseQueryManager().getNodesPage(cursor = null, limit = 5)
+    assertTrue(page.nodes.isEmpty())
+    assertNull(page.nextCursor)
+  }
+
+  @Test
+  fun getNodesPage_carriesEdgesLikeASingleRead() = runTest {
+    val database = seededLine()
+    val byKey = database.pageAll(limit = 1).associateBy { it.positionKey }
+    // The page read reconstructs the same node set and edges as a single point read would.
+    assertEquals(setOf("e4"), byKey.getValue(key0).previousAndNextMoves.nextMoves.keys)
+    assertEquals(setOf("e4"), byKey.getValue(key1).previousAndNextMoves.previousMoves.keys)
+    assertEquals(setOf("e5"), byKey.getValue(key1).previousAndNextMoves.nextMoves.keys)
+  }
+
+  @Test
+  fun getNodesPage_excludesSoftDeletedRows() = runTest {
+    val database = seededLine()
+    database.deletePosition(key1, DeleteMode.SOFT)
+    val keys = database.pageAllKeys(limit = 1)
+    assertEquals(2, keys.size)
+    assertTrue(key1 !in keys)
+  }
+
+  @Test
+  fun getNodesPage_rejectsNonPositiveLimit() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    assertFailsWith<IllegalArgumentException> { database.getNodesPage(cursor = null, limit = 0) }
+    assertFailsWith<IllegalArgumentException> { database.getNodesPage(cursor = null, limit = -1) }
+  }
+
+  /** Drains the whole store one page of [limit] at a time, returning the visited nodes in order. */
+  private suspend fun DatabaseQueryManager.pageAll(limit: Int): List<DataNode> {
+    val visited = mutableListOf<DataNode>()
+    var cursor: String? = null
+    while (true) {
+      val page = getNodesPage(cursor, limit)
+      visited += page.nodes
+      cursor = page.nextCursor ?: break
+    }
+    return visited
   }
 
   @Test

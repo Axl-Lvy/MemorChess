@@ -12,6 +12,7 @@ import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.drainAllNodes
 
 class TestTrainingNodeOrder : TestWithKoin() {
 
@@ -21,7 +22,7 @@ class TestTrainingNodeOrder : TestWithKoin() {
 
   override suspend fun setUp() {
     database.eraseAll()
-    database.insertNodes(*TestDatabases.vienna().getAllNodes(true).toTypedArray())
+    database.insertNodes(*drainAllNodes(TestDatabases.vienna()).toTypedArray())
   }
 
   @Test

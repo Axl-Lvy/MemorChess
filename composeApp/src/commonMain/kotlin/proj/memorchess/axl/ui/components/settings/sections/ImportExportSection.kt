@@ -50,6 +50,9 @@ import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.util.exportToFile
 
+/** Rows fetched per bounded page when streaming the export to disk. */
+private const val EXPORT_PAGE_SIZE = 256
+
 /**
  * Import / Export settings section content.
  *
@@ -86,8 +89,12 @@ private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDial
     KineticButton(
       onClick = {
         coroutineScope.launch {
-          val nodes = database.getAllNodes()
-          val content = GraphSerializer.serialize(nodes)
+          // Stream the export through bounded pages so the whole store is never held in memory at
+          // once; the serialized bytes are identical to an eager serialize of every node.
+          val content =
+            GraphSerializer.serializeStreaming(EXPORT_PAGE_SIZE) { cursor, limit ->
+              database.getNodesPage(cursor, limit)
+            }
           val baseName = "openings-${DateUtil.today()}"
           exportToFile(content, baseName, "memorchess")
         }

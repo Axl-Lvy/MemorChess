@@ -104,16 +104,23 @@ interface NodeEntityDao {
   @Query("DELETE FROM MoveEntity") suspend fun eraseAllMoves()
 
   /**
-   * Retrieves all nodes with their moves from the database.
-   *
-   * @return A list of [NodeWithMoves] containing nodes and their associated moves.
+   * First bounded page of non deleted nodes ordered by position key ascending. See
+   * [DatabaseQueryManager.getNodesPage].
    */
-  @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAllNodes(): List<NodeWithMoves>
+  @Transaction
+  @Query("SELECT * FROM NodeEntity WHERE isDeleted IS FALSE ORDER BY positionKey ASC LIMIT :limit")
+  suspend fun getNodesPage(limit: Int): List<NodeWithMoves>
 
-  @Query("SELECT * FROM MoveEntity WHERE isDeleted IS FALSE")
-  suspend fun getAllMoves(): List<MoveEntity>
-
-  @Query("SELECT * FROM MoveEntity") suspend fun getAllMovesWithDeletedOnes(): List<MoveEntity>
+  /**
+   * Bounded page of non deleted nodes whose position key is strictly greater than [cursor], ordered
+   * by position key ascending. See [DatabaseQueryManager.getNodesPage].
+   */
+  @Transaction
+  @Query(
+    "SELECT * FROM NodeEntity WHERE isDeleted IS FALSE AND positionKey > :cursor " +
+      "ORDER BY positionKey ASC LIMIT :limit"
+  )
+  suspend fun getNodesPageAfter(cursor: String, limit: Int): List<NodeWithMoves>
 
   @Query("SELECT MAX(updatedAt) FROM NodeEntity") suspend fun getLastNodeUpdate(): Instant?
 

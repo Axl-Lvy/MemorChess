@@ -7,6 +7,7 @@ import com.juul.indexeddb.Cursor
 import com.juul.indexeddb.Database
 import com.juul.indexeddb.Key
 import com.juul.indexeddb.bound
+import com.juul.indexeddb.lowerBound
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.JsAny
 import kotlin.js.JsArray
@@ -255,33 +256,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> {
-    val database = db()
-    return database.transaction(NODES_STORE, MOVES_STORE) {
-      val allJsNodes: List<JsNodeEntity> = objectStore(NODES_STORE).getAll().toList()
-      val allJsMoves: List<JsMoveEntity> = objectStore(MOVES_STORE).getAll().toList()
-
-      // Build lookup maps to avoid N+1 queries
-      val movesByOrigin = mutableMapOf<String, MutableList<DataMove>>()
-      val movesByDestination = mutableMapOf<String, MutableList<DataMove>>()
-      for (jsMove in allJsMoves) {
-        val move = jsMove.toDataMove()
-        movesByOrigin.getOrPut(move.origin.value) { mutableListOf() }.add(move)
-        movesByDestination.getOrPut(move.destination.value) { mutableListOf() }.add(move)
-      }
-
-      allJsNodes
-        .map { node ->
-          val key = node.positionKey
-          node.toDataNode(
-            previousMoves = movesByDestination[key] ?: emptyList(),
-            nextMoves = movesByOrigin[key] ?: emptyList(),
-          )
-        }
-        .let { nodes -> if (withDeletedOnes) nodes else nodes.filter { !it.isDeleted } }
-    }
-  }
-
   override suspend fun getPosition(positionKey: PositionKey): DataNode? {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
@@ -298,6 +272,46 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         movesStore.index("destination").getAll(Key(positionKey.value.toJsString())).toList()
 
       jsNode.toDataNode(previousMoves.map { it.toDataMove() }, nextMoves.map { it.toDataMove() })
+    }
+  }
+
+  override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
+    require(limit > 0) { "Page limit must be strictly positive, was $limit" }
+    val database = db()
+    return database.transaction(NODES_STORE, MOVES_STORE) {
+      val nodesStore = objectStore(NODES_STORE)
+      val movesStore = objectStore(MOVES_STORE)
+      // Primary key range over positionKey: open lower bound skips the cursor itself so the page
+      // starts strictly after it, mirroring the SQL `positionKey > :cursor`. With a null cursor the
+      // whole store is in range and the cursor walks from the smallest key ascending.
+      val range = cursor?.let { lowerBound(it.toJsString(), open = true) }
+      val live = mutableListOf<JsNodeEntity>()
+      nodesStore
+        .openCursor(range, Cursor.Direction.Next)
+        .map { it.value as JsNodeEntity }
+        // Soft deleted rows are skipped in place so the page holds up to `limit` live nodes,
+        // exactly
+        // like the Room `WHERE isDeleted IS FALSE ... LIMIT :limit` query.
+        .firstOrNull { jsNode ->
+          if (!jsNode.isDeleted) {
+            live.add(jsNode)
+          }
+          live.size >= limit
+        }
+
+      val nodes = live.map { jsNode ->
+        val key = jsNode.positionKey
+        val nextMoves: List<JsMoveEntity> =
+          movesStore.index("origin").getAll(Key(key.toJsString())).toList()
+        val previousMoves: List<JsMoveEntity> =
+          movesStore.index("destination").getAll(Key(key.toJsString())).toList()
+        jsNode.toDataNode(
+          previousMoves = previousMoves.map { it.toDataMove() },
+          nextMoves = nextMoves.map { it.toDataMove() },
+        )
+      }
+      val nextCursor = if (nodes.size == limit) nodes.last().positionKey.value else null
+      NodesPage(nodes, nextCursor)
     }
   }
 

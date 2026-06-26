@@ -22,11 +22,23 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   /** Backing store, keyed by position. Soft-deleted nodes stay here with their flag set. */
   private val nodes: MutableMap<PositionKey, DataNode> = mutableMapOf()
 
-  override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> =
-    nodes.values.filter { withDeletedOnes || !it.isDeleted }.toList()
-
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
+
+  override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
+    require(limit > 0) { "Page limit must be strictly positive, was $limit" }
+    // Sorting and slicing the backing map is acceptable here precisely because this is the
+    // throwaway
+    // in memory store, not the disk backed path: the Room and IndexedDB backends express the same
+    // ordered, cursor bounded slice as a single bounded query.
+    val page =
+      live()
+        .filter { cursor == null || it.positionKey.value > cursor }
+        .sortedBy { it.positionKey.value }
+        .take(limit)
+    val nextCursor = if (page.size == limit) page.last().positionKey.value else null
+    return NodesPage(page, nextCursor)
+  }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
     positions.forEach { nodes[it.positionKey] = it }

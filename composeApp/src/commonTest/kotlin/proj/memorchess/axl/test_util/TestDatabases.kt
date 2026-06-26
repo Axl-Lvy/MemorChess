@@ -67,7 +67,7 @@ object TestDatabases {
   suspend fun merge(vararg databases: InMemoryDatabaseQueryManager): InMemoryDatabaseQueryManager {
     val mergedNodes = mutableMapOf<PositionKey, DataNode>()
     for (database in databases) {
-      for (node in database.getAllNodes(withDeletedOnes = true)) {
+      for (node in drainAllNodes(database)) {
         val storedNode = mergedNodes[node.positionKey]
         if (storedNode == null) {
           mergedNodes[node.positionKey] = node

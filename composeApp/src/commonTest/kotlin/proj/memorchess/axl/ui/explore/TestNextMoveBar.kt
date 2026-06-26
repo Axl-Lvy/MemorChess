@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.drainAllNodes
 import proj.memorchess.axl.ui.assertNextMoveExist
 import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnBack
@@ -31,7 +32,7 @@ class TestNextMoveBar : TestWithKoin() {
     playMove("e2", "e4")
     assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
     clickOnSave()
-    waitUntilSuspending { database.getAllNodes(false).size == 2 }
+    waitUntilSuspending { drainAllNodes(database).size == 2 }
   }
 
   private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) = runComposeUiTest {
