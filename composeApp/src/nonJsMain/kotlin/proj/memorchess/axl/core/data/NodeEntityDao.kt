@@ -110,6 +110,25 @@ interface NodeEntityDao {
    */
   @Transaction @Query("SELECT * FROM NodeEntity") suspend fun getAllNodes(): List<NodeWithMoves>
 
+  /**
+   * First bounded page of non deleted nodes ordered by position key ascending. See
+   * [DatabaseQueryManager.getNodesPage].
+   */
+  @Transaction
+  @Query("SELECT * FROM NodeEntity WHERE isDeleted IS FALSE ORDER BY positionKey ASC LIMIT :limit")
+  suspend fun getNodesPage(limit: Int): List<NodeWithMoves>
+
+  /**
+   * Bounded page of non deleted nodes whose position key is strictly greater than [cursor], ordered
+   * by position key ascending. See [DatabaseQueryManager.getNodesPage].
+   */
+  @Transaction
+  @Query(
+    "SELECT * FROM NodeEntity WHERE isDeleted IS FALSE AND positionKey > :cursor " +
+      "ORDER BY positionKey ASC LIMIT :limit"
+  )
+  suspend fun getNodesPageAfter(cursor: String, limit: Int): List<NodeWithMoves>
+
   @Query("SELECT * FROM MoveEntity WHERE isDeleted IS FALSE")
   suspend fun getAllMoves(): List<MoveEntity>
 

@@ -34,6 +34,9 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun getAllNodes(withDeletedOnes: Boolean): List<DataNode> =
     delegate.getAllNodes(withDeletedOnes)
 
+  override suspend fun getNodesPage(cursor: String?, limit: Int) =
+    delegate.getNodesPage(cursor, limit)
+
   override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) =
     delegate.deletePosition(position, mode)
 

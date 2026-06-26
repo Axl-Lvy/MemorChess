@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.data
 
 import androidx.room.Room
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import java.io.File
 import java.util.UUID
@@ -11,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
  * Room backed coverage of the bounded scheduling query surface. Mirrors the predicate, ordering and
@@ -190,6 +192,110 @@ class TestRoomSchedulingQueries {
   @Test
   fun getSchedulingCounts_emptyStoreIsAllZero() = runTest {
     manager.getSchedulingCounts(dayStart, dayEnd) shouldBe SchedulingCounts(0, 0, 0, 0, 0)
+  }
+
+  // --- getNodesPage -------------------------------------------------------------------------
+
+  /** Drains the whole store one page of [limit] at a time, returning the visited keys in order. */
+  private suspend fun pageAllKeys(limit: Int): List<PositionKey> {
+    val visited = mutableListOf<PositionKey>()
+    var cursor: String? = null
+    while (true) {
+      val page = manager.getNodesPage(cursor, limit)
+      visited += page.nodes.map { it.positionKey }
+      cursor = page.nextCursor ?: break
+    }
+    return visited
+  }
+
+  /** Inserts [count] synthetic nodes whose keys sort deterministically, returns them ascending. */
+  private suspend fun seedPageable(count: Int): List<PositionKey> {
+    val keys = (0 until count).map { PositionKey("page${it.toString().padStart(3, '0')}") }
+    keys.forEach { insert(it.value, CardPhase.NEW, dueDate = Instant.fromEpochSeconds(0)) }
+    return keys.sortedBy { it.value }
+  }
+
+  @Test
+  fun getNodesPage_pagingTheWholeStoreVisitsEveryNodeExactlyOnce() = runTest {
+    val expected = seedPageable(7)
+    val visited = pageAllKeys(limit = 3)
+    visited shouldBe expected
+    visited.toSet().size shouldBe 7
+  }
+
+  @Test
+  fun getNodesPage_lastPageHasNullNextCursor() = runTest {
+    seedPageable(2)
+    val first = manager.getNodesPage(cursor = null, limit = 2)
+    first.nodes.size shouldBe 2
+    first.nextCursor shouldBe first.nodes.last().positionKey.value
+    val second = manager.getNodesPage(cursor = first.nextCursor, limit = 2)
+    second.nodes.isEmpty() shouldBe true
+    second.nextCursor shouldBe null
+  }
+
+  @Test
+  fun getNodesPage_limitLargerThanStoreReturnsEverythingWithNullCursor() = runTest {
+    val expected = seedPageable(3)
+    val page = manager.getNodesPage(cursor = null, limit = 100)
+    page.nodes.map { it.positionKey } shouldBe expected
+    page.nextCursor shouldBe null
+  }
+
+  @Test
+  fun getNodesPage_storeSizeExactMultipleOfLimitTerminatesOnEmptyPage() = runTest {
+    val expected = seedPageable(6)
+    pageAllKeys(limit = 2) shouldBe expected
+  }
+
+  @Test
+  fun getNodesPage_emptyStoreReturnsEmptyPageWithNullCursor() = runTest {
+    val page = manager.getNodesPage(cursor = null, limit = 5)
+    page.nodes.isEmpty() shouldBe true
+    page.nextCursor shouldBe null
+  }
+
+  @Test
+  fun getNodesPage_carriesEdgesLikeASingleRead() = runTest {
+    // A two move line start -e4-> mid -e5-> end with the incident edges persisted.
+    val start = PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq")
+    val mid = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
+    val end = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
+    val e4 = DataMove(start, mid, "e4", isGood = true)
+    val e5 = DataMove(mid, end, "e5", isGood = true)
+    manager.insertNodes(
+      DataNode(start, PreviousAndNextMoves(listOf(), listOf(e4)), CardStateFactory.new()),
+      DataNode(mid, PreviousAndNextMoves(listOf(e4), listOf(e5)), CardStateFactory.new()),
+      DataNode(end, PreviousAndNextMoves(listOf(e5), listOf()), CardStateFactory.new()),
+    )
+    val byKey =
+      buildList {
+          var cursor: String? = null
+          while (true) {
+            val page = manager.getNodesPage(cursor, limit = 1)
+            addAll(page.nodes)
+            cursor = page.nextCursor ?: break
+          }
+        }
+        .associateBy { it.positionKey }
+    byKey.getValue(start).previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
+    byKey.getValue(mid).previousAndNextMoves.previousMoves.keys shouldBe setOf("e4")
+    byKey.getValue(mid).previousAndNextMoves.nextMoves.keys shouldBe setOf("e5")
+  }
+
+  @Test
+  fun getNodesPage_excludesSoftDeletedRows() = runTest {
+    seedPageable(3)
+    manager.deletePosition(PositionKey("page001"), proj.memorchess.axl.core.graph.DeleteMode.SOFT)
+    val keys = pageAllKeys(limit = 1)
+    keys.size shouldBe 2
+    (PositionKey("page001") in keys) shouldBe false
+  }
+
+  @Test
+  fun getNodesPage_rejectsNonPositiveLimit() = runTest {
+    shouldThrow<IllegalArgumentException> { manager.getNodesPage(cursor = null, limit = 0) }
+    shouldThrow<IllegalArgumentException> { manager.getNodesPage(cursor = null, limit = -1) }
   }
 
   @Test

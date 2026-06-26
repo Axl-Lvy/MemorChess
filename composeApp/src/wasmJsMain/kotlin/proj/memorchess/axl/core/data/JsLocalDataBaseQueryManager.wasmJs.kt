@@ -7,6 +7,7 @@ import com.juul.indexeddb.Cursor
 import com.juul.indexeddb.Database
 import com.juul.indexeddb.Key
 import com.juul.indexeddb.bound
+import com.juul.indexeddb.lowerBound
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.JsAny
 import kotlin.js.JsArray
@@ -298,6 +299,46 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         movesStore.index("destination").getAll(Key(positionKey.value.toJsString())).toList()
 
       jsNode.toDataNode(previousMoves.map { it.toDataMove() }, nextMoves.map { it.toDataMove() })
+    }
+  }
+
+  override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
+    require(limit > 0) { "Page limit must be strictly positive, was $limit" }
+    val database = db()
+    return database.transaction(NODES_STORE, MOVES_STORE) {
+      val nodesStore = objectStore(NODES_STORE)
+      val movesStore = objectStore(MOVES_STORE)
+      // Primary key range over positionKey: open lower bound skips the cursor itself so the page
+      // starts strictly after it, mirroring the SQL `positionKey > :cursor`. With a null cursor the
+      // whole store is in range and the cursor walks from the smallest key ascending.
+      val range = cursor?.let { lowerBound(it.toJsString(), open = true) }
+      val live = mutableListOf<JsNodeEntity>()
+      nodesStore
+        .openCursor(range, Cursor.Direction.Next)
+        .map { it.value as JsNodeEntity }
+        // Soft deleted rows are skipped in place so the page holds up to `limit` live nodes,
+        // exactly
+        // like the Room `WHERE isDeleted IS FALSE ... LIMIT :limit` query.
+        .firstOrNull { jsNode ->
+          if (!jsNode.isDeleted) {
+            live.add(jsNode)
+          }
+          live.size >= limit
+        }
+
+      val nodes = live.map { jsNode ->
+        val key = jsNode.positionKey
+        val nextMoves: List<JsMoveEntity> =
+          movesStore.index("origin").getAll(Key(key.toJsString())).toList()
+        val previousMoves: List<JsMoveEntity> =
+          movesStore.index("destination").getAll(Key(key.toJsString())).toList()
+        jsNode.toDataNode(
+          previousMoves = previousMoves.map { it.toDataMove() },
+          nextMoves = nextMoves.map { it.toDataMove() },
+        )
+      }
+      val nextCursor = if (nodes.size == limit) nodes.last().positionKey.value else null
+      NodesPage(nodes, nextCursor)
     }
   }
 

@@ -27,6 +27,15 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     return database.getNodeEntityDao().getNode(positionKey.value)?.toStoredNode()
   }
 
+  override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
+    require(limit > 0) { "Page limit must be strictly positive, was $limit" }
+    val dao = database.getNodeEntityDao()
+    val rows = if (cursor == null) dao.getNodesPage(limit) else dao.getNodesPageAfter(cursor, limit)
+    val nodes = rows.map { it.toStoredNode() }
+    val nextCursor = if (nodes.size == limit) nodes.last().positionKey.value else null
+    return NodesPage(nodes, nextCursor)
+  }
+
   override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {
     val dao = database.getNodeEntityDao()
     when (mode) {
