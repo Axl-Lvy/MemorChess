@@ -145,9 +145,28 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
     }
   }
 
-  /** Returns the count of positions that would be removed by [delete] starting at the current. */
-  fun calculateNumberOfNodeToDelete(): Int =
-    treeStore.current().countDescendants(navigation.current)
+  /**
+   * Returns the count of positions that would be removed by [delete] starting at the current
+   * position. A descendant is counted only when it is not convergent (its only incoming edge is the
+   * one being followed), matching [delete]'s cascade rule.
+   *
+   * On demand suspend traversal: each visited position is resolved through [TreeStore.node] so a
+   * paged out descendant is pulled in before being walked. Bounded by the subtree size, the same
+   * row count [delete] itself touches. A future stage replaces this with a capped DB side count.
+   */
+  suspend fun calculateNumberOfNodeToDelete(): Int = countDescendants(navigation.current, null)
+
+  private suspend fun countDescendants(position: PositionKey, viaMove: String?): Int {
+    val node = treeStore.node(position) ?: return 0
+    if (viaMove != null && node.incoming.size > 1) {
+      return 0
+    }
+    var count = 1
+    for (edge in node.outgoing.values) {
+      count += countDescendants(edge.to, edge.move)
+    }
+    return count
+  }
 
   private enum class ClassifyMode {
     /** Mark every incoming edge as good. */

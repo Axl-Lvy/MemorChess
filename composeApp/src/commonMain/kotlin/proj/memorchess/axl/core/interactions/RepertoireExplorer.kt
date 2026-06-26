@@ -1,5 +1,7 @@
 package proj.memorchess.axl.core.interactions
 
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CoroutineScope
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.toast_not_in_repertoire
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
@@ -26,7 +28,7 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
 
   override suspend fun afterPlayMove(move: String) {
     val origin = navigation.current
-    val edge = treeStore.current().get(origin)?.outgoing?.get(move)
+    val edge = treeStore.node(origin)?.outgoing?.get(move)
     if (edge == null) {
       // Legal chess move but not part of this repertoire: undo it and stay put.
       engine = GameEngine(origin)
@@ -36,7 +38,7 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
     }
     navigation.push(edge, edge.to)
     // After the push, navigation.arrivedVia is exactly this edge, so edge.from is the parent.
-    state = treeStore.current().computeState(navigation.current, edge.from)
+    state = treeStore.computeState(navigation.current, edge.from)
     callCallBacks()
   }
 
@@ -50,7 +52,9 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
      *   illegal.
      */
     suspend fun build(games: List<PgnGame>): RepertoireExplorer {
-      val treeStore = TreeStore(InMemoryDatabaseQueryManager())
+      // Scope tied to the caller's coroutine context so neighbour prefetch over this transient,
+      // InMemory backed store cannot outlive it.
+      val treeStore = TreeStore(InMemoryDatabaseQueryManager(), CoroutineScope(coroutineContext))
       PgnImporter(treeStore).import(games)
       return RepertoireExplorer(treeStore)
     }
