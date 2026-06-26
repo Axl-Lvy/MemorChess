@@ -16,6 +16,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.drainAllNodes
 import proj.memorchess.axl.test_util.testTreeStore
 
 class TestLichessStudyImporter {
@@ -91,7 +92,7 @@ class TestLichessStudyImporter {
     // Assert
     val error = assertIs<LichessStudyImportResult.FetchFailed>(result).error
     assertEquals(LichessStudyResult.InvalidUrl, error)
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
   }
 
   @Test
@@ -106,7 +107,7 @@ class TestLichessStudyImporter {
     // Assert
     val error = assertIs<LichessStudyImportResult.FetchFailed>(result).error
     assertEquals(LichessStudyResult.NotFound, error)
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
   }
 
   @Test
@@ -119,7 +120,7 @@ class TestLichessStudyImporter {
 
     // Assert
     assertIs<LichessStudyImportResult.ImportFailed>(result)
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
   }
 }

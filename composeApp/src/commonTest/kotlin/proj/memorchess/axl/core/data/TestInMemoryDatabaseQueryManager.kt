@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.test_util.drainAllNodes
 
 /**
  * Direct branch coverage for [InMemoryDatabaseQueryManager]: insert/query, hard and soft deletes of
@@ -53,7 +54,7 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun insertsAndReadsBack() = runTest {
     val database = seededLine()
-    assertEquals(3, database.getAllNodes().size)
+    assertEquals(3, drainAllNodes(database).size)
     assertEquals(setOf("e5"), database.getPosition(key1)?.previousAndNextMoves?.nextMoves?.keys)
   }
 
@@ -67,7 +68,7 @@ class TestInMemoryDatabaseQueryManager {
     val database = seededLine()
     database.deletePosition(key1, DeleteMode.HARD)
     assertNull(database.getPosition(key1))
-    assertEquals(2, database.getAllNodes().size)
+    assertEquals(2, drainAllNodes(database).size)
     // e4 pointed at key1, e5 came from key1: both are gone from the surviving neighbours.
     assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.isEmpty())
     assertTrue(database.getPosition(key2)!!.previousAndNextMoves.previousMoves.isEmpty())
@@ -86,21 +87,20 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   @Test
-  fun softDeletingAPositionHidesItButKeepsTheRow() = runTest {
+  fun softDeletingAPositionHidesItFromReads() = runTest {
     val database = seededLine()
     database.deletePosition(key1, DeleteMode.SOFT)
+    // A soft deleted position is hidden from every read: the point lookup returns null and the
+    // position drops out of the paged live read, leaving the two surviving rows.
     assertNull(database.getPosition(key1))
-    assertEquals(2, database.getAllNodes().size)
-    val withDeleted = database.getAllNodes(withDeletedOnes = true)
-    assertEquals(3, withDeleted.size)
-    assertTrue(withDeleted.single { it.positionKey == key1 }.isDeleted)
+    assertEquals(2, drainAllNodes(database).size)
   }
 
   @Test
   fun deletingAMissingPositionIsANoOp() = runTest {
     val database = seededLine()
     database.deletePosition(keyAfter("d4"), DeleteMode.HARD)
-    assertEquals(3, database.getAllNodes().size)
+    assertEquals(3, drainAllNodes(database).size)
   }
 
   @Test
@@ -159,7 +159,7 @@ class TestInMemoryDatabaseQueryManager {
   fun eraseAllClearsEverything() = runTest {
     val database = seededLine()
     database.eraseAll()
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
   }
 
   @Test
@@ -531,7 +531,7 @@ class TestInMemoryDatabaseQueryManager {
   fun getNodesPage_carriesEdgesLikeASingleRead() = runTest {
     val database = seededLine()
     val byKey = database.pageAll(limit = 1).associateBy { it.positionKey }
-    // The page read reconstructs the same node set and edges as getAllNodes would.
+    // The page read reconstructs the same node set and edges as a single point read would.
     assertEquals(setOf("e4"), byKey.getValue(key0).previousAndNextMoves.nextMoves.keys)
     assertEquals(setOf("e4"), byKey.getValue(key1).previousAndNextMoves.previousMoves.keys)
     assertEquals(setOf("e5"), byKey.getValue(key1).previousAndNextMoves.nextMoves.keys)

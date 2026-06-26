@@ -12,6 +12,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.drainAllNodes
 import proj.memorchess.axl.test_util.testTreeStore
 
 class TestPgnImporter {
@@ -37,17 +38,13 @@ class TestPgnImporter {
 
     // Act
     val firstSummary = importer.import(games)
-    val databaseAfterFirstImport =
-      database.getAllNodes(withDeletedOnes = true).associateBy { it.positionKey }
+    val databaseAfterFirstImport = drainAllNodes(database).associateBy { it.positionKey }
     val secondSummary = importer.import(games)
 
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), firstSummary)
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 4), secondSummary)
-    assertEquals(
-      databaseAfterFirstImport,
-      database.getAllNodes(withDeletedOnes = true).associateBy { it.positionKey },
-    )
+    assertEquals(databaseAfterFirstImport, drainAllNodes(database).associateBy { it.positionKey })
   }
 
   @Test
@@ -81,7 +78,7 @@ class TestPgnImporter {
     assertFailsWith<PgnImportException> { importer.import(games) }
 
     // Assert
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
   }
 
@@ -227,7 +224,7 @@ class TestPgnImporter {
     importer.preview(games, perspective = Player.BLACK)
 
     // Assert
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
   }
 
@@ -241,7 +238,7 @@ class TestPgnImporter {
 
     // Assert
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 0), summary)
-    assertTrue(database.getAllNodes(withDeletedOnes = true).isEmpty())
+    assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
   }
 }

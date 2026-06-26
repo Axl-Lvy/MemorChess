@@ -23,6 +23,7 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.drainAllNodes
 import proj.memorchess.axl.ui.pages.Training
 
 private const val BRAVO_TEXT = "Bravo !"
@@ -128,7 +129,7 @@ class TestTraining : TestWithKoin() {
     playMove("e2", "e4")
     assertNodeWithTextExists(BRAVO_TEXT)
     waitUntilSuspending {
-      val positions = database.getAllNodes(false)
+      val positions = drainAllNodes(database)
       val now = DateUtil.now()
       positions.size == 1 &&
         positions[0].positionKey == PositionKey.START_POSITION &&
@@ -145,7 +146,7 @@ class TestTraining : TestWithKoin() {
     // the deck the "no more cards" Bravo screen appears once the wrong move is graded AGAIN.
     assertNodeWithTextExists(BRAVO_TEXT)
     waitUntilSuspending {
-      val positions = database.getAllNodes(false)
+      val positions = drainAllNodes(database)
       positions.size == 1 &&
         positions[0].positionKey == PositionKey.START_POSITION &&
         positions[0].cardState.lapses >= 1
