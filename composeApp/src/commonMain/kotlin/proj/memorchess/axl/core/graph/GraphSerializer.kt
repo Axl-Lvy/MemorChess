@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.graph
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.NodesPage
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
@@ -38,50 +39,133 @@ object GraphSerializer {
     val sorted = liveNodes.sortedBy { it.positionKey.value }
     val indexByKey = buildMap { sorted.forEachIndexed { i, node -> put(node.positionKey, i + 1) } }
 
-    val nodeLines = sorted.mapIndexed { i, node ->
-      val idx = i + 1
-      val card = node.cardState
-      listOf(
-          idx,
-          node.positionKey.value,
-          node.depth,
-          card.dueDate,
-          card.lastReview?.toString() ?: NULL_TOKEN,
-          card.stability,
-          card.difficulty,
-          card.reps,
-          card.lapses,
-          card.phase.name,
-          card.step,
-          node.updatedAt,
-          card.firstReview?.toString() ?: NULL_TOKEN,
-        )
-        .joinToString(TAB)
-    }
+    val nodeLines = sorted.mapIndexed { i, node -> nodeLine(i + 1, node) }
 
     val edges = buildList {
       for (node in sorted) {
-        val originIdx = indexByKey[node.positionKey]!!
-        for (dataMove in node.previousAndNextMoves.filterNotDeleted().nextMoves.values) {
-          val destIdx = indexByKey[dataMove.destination] ?: continue
-          add(
-            Edge(
-              originIdx,
-              destIdx,
-              dataMove.move,
-              dataMove.isGood,
-              dataMove.updatedAt,
-              dataMove.createdAt,
-            )
-          )
-        }
+        addEdgesOf(node, indexByKey[node.positionKey]!!, indexByKey)
       }
     }
-    val sortedEdges = edges.sortedWith(compareBy({ it.originIndex }, { it.destIndex }, { it.move }))
-    val edgeLines = sortedEdges.map { it.toLine() }
+    val edgeLines = sortEdges(edges).map { it.toLine() }
 
     return nodeLines.joinToString("\n") + SECTION_SEPARATOR + edgeLines.joinToString("\n")
   }
+
+  /**
+   * Streams a deterministic serialization without ever holding all rows in memory.
+   *
+   * Produces the exact same bytes as [serialize] called on the whole store, but sources the rows
+   * through two bounded paginated scans of [pageProducer] instead of one eager list. The first scan
+   * emits every node line page by page while building only a `positionKey -> index` map (keys and
+   * ints, not full rows). The second scan re-pages the store to collect and sort the edges. The two
+   * section (nodes then edges) on disk format is therefore byte stable and the deserializer is
+   * untouched.
+   *
+   * The position key ordering of [NodesPage] matches the `sortedBy { positionKey.value }` order
+   * [serialize] uses, so indices assigned by the incrementing page counter are identical to the
+   * eager path.
+   *
+   * @param pageSize Maximum rows per page; forwarded as the `limit` to [pageProducer]. Must be
+   *   strictly positive.
+   * @param pageProducer Bounded page source, typically
+   *   [proj.memorchess.axl.core.data.DatabaseQueryManager.getNodesPage]. Called with `null` for the
+   *   first page then the previous page's [NodesPage.nextCursor] until it is `null`.
+   * @throws IllegalArgumentException when [pageSize] is not strictly positive.
+   */
+  suspend fun serializeStreaming(
+    pageSize: Int,
+    pageProducer: suspend (cursor: String?, limit: Int) -> NodesPage,
+  ): String {
+    require(pageSize > 0) { "pageSize must be strictly positive, was $pageSize" }
+
+    val nodeLines = StringBuilder()
+    val indexByKey = mutableMapOf<PositionKey, Int>()
+    var index = 0
+    forEachPage(pageSize, pageProducer) { page ->
+      for (node in page.nodes) {
+        index += 1
+        indexByKey[node.positionKey] = index
+        if (nodeLines.isNotEmpty()) nodeLines.append("\n")
+        nodeLines.append(nodeLine(index, node))
+      }
+    }
+
+    val edges = mutableListOf<Edge>()
+    forEachPage(pageSize, pageProducer) { page ->
+      for (node in page.nodes) {
+        val originIdx = indexByKey[node.positionKey] ?: continue
+        edges.addEdgesOf(node, originIdx, indexByKey)
+      }
+    }
+    val edgeLines = sortEdges(edges).joinToString("\n") { it.toLine() }
+
+    return nodeLines.toString() + SECTION_SEPARATOR + edgeLines
+  }
+
+  /**
+   * Drains every page in order, invoking [block] on each, until [NodesPage.nextCursor] is `null`.
+   */
+  private suspend inline fun forEachPage(
+    pageSize: Int,
+    pageProducer: suspend (cursor: String?, limit: Int) -> NodesPage,
+    block: (NodesPage) -> Unit,
+  ) {
+    var cursor: String? = null
+    do {
+      val page = pageProducer(cursor, pageSize)
+      block(page)
+      cursor = page.nextCursor
+    } while (cursor != null)
+  }
+
+  /** Builds the deterministic node line for [node] at the one based serialization [index]. */
+  private fun nodeLine(index: Int, node: DataNode): String {
+    val card = node.cardState
+    return listOf(
+        index,
+        node.positionKey.value,
+        node.depth,
+        card.dueDate,
+        card.lastReview?.toString() ?: NULL_TOKEN,
+        card.stability,
+        card.difficulty,
+        card.reps,
+        card.lapses,
+        card.phase.name,
+        card.step,
+        node.updatedAt,
+        card.firstReview?.toString() ?: NULL_TOKEN,
+      )
+      .joinToString(TAB)
+  }
+
+  /**
+   * Appends [node]'s non deleted outgoing edges to the receiver, skipping any whose destination is
+   * absent from [indexByKey].
+   */
+  private fun MutableList<Edge>.addEdgesOf(
+    node: DataNode,
+    originIdx: Int,
+    indexByKey: Map<PositionKey, Int>,
+  ) {
+    for (dataMove in node.previousAndNextMoves.filterNotDeleted().nextMoves.values) {
+      val destIdx = indexByKey[dataMove.destination] ?: continue
+      add(
+        Edge(
+          originIdx,
+          destIdx,
+          dataMove.move,
+          dataMove.isGood,
+          dataMove.updatedAt,
+          dataMove.createdAt,
+        )
+      )
+    }
+  }
+
+  /** Orders edges by `(originIndex, destIndex, move)` for a deterministic edge section. */
+  private fun sortEdges(edges: List<Edge>): List<Edge> =
+    edges.sortedWith(compareBy({ it.originIndex }, { it.destIndex }, { it.move }))
 
   /**
    * Deserializes text back to a list of [DataNode]s. Throws [IllegalArgumentException] on bad

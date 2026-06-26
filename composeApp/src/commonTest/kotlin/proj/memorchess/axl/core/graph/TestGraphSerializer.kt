@@ -5,8 +5,10 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
+import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.NodesPage
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
@@ -426,5 +428,129 @@ class TestGraphSerializer {
   @Test
   fun emptyStringThrows() {
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize("") }
+  }
+
+  /**
+   * Turns an in memory node list into a bounded page producer that mimics
+   * [proj.memorchess.axl.core.data.DatabaseQueryManager.getNodesPage]: live rows ordered by
+   * position key ascending, returning `positionKey > cursor` capped at the page size, with
+   * `nextCursor` set only when a full page was returned.
+   */
+  private fun pagedProducer(
+    nodes: List<DataNode>
+  ): suspend (cursor: String?, limit: Int) -> NodesPage {
+    val sorted = nodes.filter { !it.isDeleted }.sortedBy { it.positionKey.value }
+    return { cursor, limit ->
+      val page = sorted.filter { cursor == null || it.positionKey.value > cursor }.take(limit)
+      val nextCursor = if (page.size == limit) page.last().positionKey.value else null
+      NodesPage(page, nextCursor)
+    }
+  }
+
+  private val complexGraphNodes: List<DataNode>
+    get() {
+      val moveE4 = DataMove(startPos, posAfterE4, "e4", isGood = true, updatedAt = instant1)
+      val moveD4 = DataMove(startPos, posAfterD4, "d4", isGood = true, updatedAt = instant1)
+      val moveE5 = DataMove(posAfterE4, posAfterE4E5, "e5", isGood = true, updatedAt = instant2)
+      return listOf(
+        DataNode(
+          positionKey = startPos,
+          previousAndNextMoves = PreviousAndNextMoves(emptyList(), listOf(moveE4, moveD4)),
+          cardState = cardState(instant1),
+          depth = 0,
+          updatedAt = instant1,
+        ),
+        DataNode(
+          positionKey = posAfterE4,
+          previousAndNextMoves = PreviousAndNextMoves(listOf(moveE4), listOf(moveE5)),
+          cardState = cardState(instant3, instant1),
+          depth = 1,
+          updatedAt = instant1,
+        ),
+        DataNode(
+          positionKey = posAfterD4,
+          previousAndNextMoves = PreviousAndNextMoves(listOf(moveD4), emptyList()),
+          cardState = cardState(instant1),
+          depth = 1,
+          updatedAt = instant1,
+        ),
+        DataNode(
+          positionKey = posAfterE4E5,
+          previousAndNextMoves = PreviousAndNextMoves(listOf(moveE5), emptyList()),
+          cardState = cardState(instant3, instant1),
+          depth = 2,
+          updatedAt = instant2,
+        ),
+      )
+    }
+
+  @Test
+  fun streamedExportIsByteIdenticalToEagerSerialize() = runTest {
+    val nodes = complexGraphNodes
+    val expected = GraphSerializer.serialize(nodes)
+
+    // Several page sizes, including one that splits the store across multiple pages, one that holds
+    // the whole store in a single page, an exact divisor that ends on a trailing empty page, and a
+    // limit larger than the store.
+    for (pageSize in listOf(1, 2, nodes.size, nodes.size + 5)) {
+      val streamed = GraphSerializer.serializeStreaming(pageSize, pagedProducer(nodes))
+      streamed shouldBe expected
+    }
+  }
+
+  @Test
+  fun streamedExportRoundTripsThroughDeserialize() = runTest {
+    val nodes = complexGraphNodes
+
+    val streamed = GraphSerializer.serializeStreaming(2, pagedProducer(nodes))
+    val result = GraphSerializer.deserialize(streamed)
+
+    result shouldHaveSize 4
+    val resultStart = result.first { it.positionKey == startPos }
+    resultStart.previousAndNextMoves.nextMoves.size shouldBe 2
+  }
+
+  @Test
+  fun streamedExportOfEmptyStoreIsByteIdentical() = runTest {
+    val expected = GraphSerializer.serialize(emptyList())
+
+    val streamed = GraphSerializer.serializeStreaming(3, pagedProducer(emptyList()))
+
+    streamed shouldBe expected
+  }
+
+  @Test
+  fun streamedExportExcludesDeletedNodesAndMoves() = runTest {
+    val deletedMove =
+      DataMove(startPos, posAfterE4, "e4", isGood = true, isDeleted = true, updatedAt = instant1)
+    val nodes =
+      listOf(
+        DataNode(
+          positionKey = startPos,
+          previousAndNextMoves = PreviousAndNextMoves(emptyList(), listOf(deletedMove)),
+          cardState = cardState(instant1),
+          depth = 0,
+          updatedAt = instant1,
+        ),
+        DataNode(
+          positionKey = posAfterE4,
+          previousAndNextMoves = PreviousAndNextMoves(listOf(deletedMove), emptyList()),
+          cardState = cardState(instant1),
+          depth = 1,
+          updatedAt = instant1,
+        ),
+      )
+    val expected = GraphSerializer.serialize(nodes)
+
+    val streamed = GraphSerializer.serializeStreaming(1, pagedProducer(nodes))
+
+    streamed shouldBe expected
+  }
+
+  @Test
+  fun streamedExportRejectsNonPositivePageSize() = runTest {
+    shouldThrow<IllegalArgumentException> {
+      GraphSerializer.serializeStreaming(0, pagedProducer(complexGraphNodes))
+    }
   }
 }
