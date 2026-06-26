@@ -3,6 +3,8 @@ package proj.memorchess.axl.core.data
 import kotlin.time.Instant
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.TrainingEntry
+import proj.memorchess.axl.core.scheduling.CardPhase
 
 /**
  * In memory [DatabaseQueryManager] with no persistence at all.
@@ -76,6 +78,94 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
         listOf(node.updatedAt) + (moves.previousMoves + moves.nextMoves).values.map { it.updatedAt }
       }
       .maxOrNull()
+
+  /**
+   * Live (non soft deleted) rows. Iterating the backing map is acceptable here precisely because
+   * this is the throwaway in memory store, not the disk backed path: the same predicates are
+   * expressed as bounded indexed queries on the Room and IndexedDB backends.
+   */
+  private fun live(): List<DataNode> = nodes.values.filter { !it.isDeleted }
+
+  private fun DataNode.isInSession(): Boolean =
+    cardState.phase == CardPhase.LEARNING || cardState.phase == CardPhase.RELEARNING
+
+  private fun DataNode.toTrainingEntry(): TrainingEntry = TrainingEntry(positionKey, cardState)
+
+  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
+    live()
+      .filter { it.hasGoodOutgoing && it.isInSession() && it.cardState.dueDate <= now }
+      .minByOrNull { it.cardState.dueDate }
+      ?.toTrainingEntry()
+
+  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
+    live()
+      .filter { it.hasGoodOutgoing && it.isInSession() && it.cardState.dueDate > now }
+      .minByOrNull { it.cardState.dueDate }
+      ?.toTrainingEntry()
+
+  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? =
+    live()
+      .filter {
+        it.hasGoodOutgoing &&
+          it.cardState.phase == CardPhase.REVIEW &&
+          it.cardState.dueDate < dayEndExclusive
+      }
+      .minByOrNull { it.depth }
+      ?.toTrainingEntry()
+
+  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? =
+    live()
+      .filter {
+        it.hasGoodOutgoing &&
+          it.cardState.phase == CardPhase.NEW &&
+          it.cardState.dueDate < dayEndExclusive
+      }
+      .minWithOrNull(compareBy({ it.depth }, { it.createdAt }))
+      ?.toTrainingEntry()
+
+  override suspend fun getSchedulingCounts(
+    dayStart: Instant,
+    dayEndExclusive: Instant,
+  ): SchedulingCounts {
+    val live = live()
+    return SchedulingCounts(
+      introducedToday =
+        live.count {
+          it.cardState.firstReview?.let { f -> f >= dayStart && f < dayEndExclusive } == true
+        },
+      trainedToday =
+        live.count {
+          it.cardState.lastReview?.let { l -> l >= dayStart && l < dayEndExclusive } == true
+        },
+      dueReviews =
+        live.count {
+          it.hasGoodOutgoing &&
+            it.cardState.phase == CardPhase.REVIEW &&
+            it.cardState.dueDate < dayEndExclusive
+        },
+      dueNew =
+        live.count {
+          it.hasGoodOutgoing &&
+            it.cardState.phase == CardPhase.NEW &&
+            it.cardState.dueDate < dayEndExclusive
+        },
+      inSession = live.count { it.hasGoodOutgoing && it.isInSession() },
+    )
+  }
+
+  override suspend fun findEligibleAmong(
+    keys: List<PositionKey>,
+    dayEndExclusive: Instant,
+  ): TrainingEntry? =
+    keys
+      .firstNotNullOfOrNull { key ->
+        nodes[key]?.takeIf {
+          !it.isDeleted &&
+            it.hasGoodOutgoing &&
+            (it.isInSession() || it.cardState.dueDate < dayEndExclusive)
+        }
+      }
+      ?.toTrainingEntry()
 
   private fun PreviousAndNextMoves.withoutNext(
     move: String,
