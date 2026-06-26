@@ -13,18 +13,19 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.graph.TreeStore
 
 /**
- * Measures opening graph construction and the demand-paged read path through [TreeStore], the single
- * mutation chokepoint production code uses, over a repertoire sized set of positions replayed from
- * [OpeningLines].
+ * Measures opening graph construction and the demand-paged read path through [TreeStore], the
+ * single mutation chokepoint production code uses, over a repertoire sized set of positions
+ * replayed from [OpeningLines].
  *
  * Since the graph became demand-paged, [TreeStore] holds only a bounded LRU of nodes and resolves
- * misses through a [proj.memorchess.axl.core.data.DatabaseQueryManager]. The benchmark backs it with
- * an [InMemoryDatabaseQueryManager] (a pure in-memory map, no platform database I/O) so the read
- * path exercises real cache hits and miss-then-rebuild resolves without disk skewing the numbers.
+ * misses through a [proj.memorchess.axl.core.data.DatabaseQueryManager]. The benchmark backs it
+ * with an [InMemoryDatabaseQueryManager] (a pure in-memory map, no platform database I/O) so the
+ * read path exercises real cache hits and miss-then-rebuild resolves without disk skewing the
+ * numbers.
  *
- * Guards against regressions in the immutable copy on write strategy of the cache (every edge upsert
- * rebuilds the affected nodes) and in the per-lookup resolve cost on the navigation/training read
- * path, both of which would degrade with repertoire size long before users notice.
+ * Guards against regressions in the immutable copy on write strategy of the cache (every edge
+ * upsert rebuilds the affected nodes) and in the per-lookup resolve cost on the navigation/training
+ * read path, both of which would degrade with repertoire size long before users notice.
  */
 @State(Scope.Benchmark)
 class OpeningTreeBenchmark {
@@ -57,7 +58,8 @@ class OpeningTreeBenchmark {
 
   /**
    * Resolves every position of the prebuilt graph through the demand-paged read path: node access,
-   * depth, membership, and the state computation the board coloring runs for the displayed position.
+   * depth, membership, and the state computation the board coloring runs for the displayed
+   * position.
    *
    * Guards the read path executed on every navigation step in the explorer and the trainer.
    */
