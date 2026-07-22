@@ -62,7 +62,7 @@
       "allowedVersions": "!/compat/"
     },
     {
-      "description": "IntelliJ IDEA 2026.1 supports AGP only up to the 9.0.x line",
+      "description": "IntelliJ IDEA up to 2026.2 supports AGP only up to the 9.0.x line (IDEA-390133 tracks AGP 9.1)",
       "matchDepNames": [
         "com.android.application",
         "com.android.library",
@@ -71,6 +71,11 @@
         "com.android.tools.build:gradle"
       ],
       "allowedVersions": "<9.1"
+    },
+    {
+      "description": "lifecycle 2.11.0 forces AGP 9.1.0 + compileSdk 37 via AAR metadata; pin below it until the AGP cap can be lifted",
+      "matchPackageNames": ["org.jetbrains.androidx.lifecycle:*"],
+      "allowedVersions": "<2.11.0"
     }
   ]
 }

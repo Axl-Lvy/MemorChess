@@ -1,6 +1,8 @@
 [versions]
-# IntelliJ IDEA 2026.1 supports AGP only up to the 9.0.x line; do not bump further
-# until the bundled Android plugin catches up
+# IntelliJ IDEA up to 2026.2 supports AGP only up to the 9.0.x line; do not bump
+# further until the bundled Android plugin catches up (IDEA-390133 tracks AGP 9.1).
+# androidx-lifecycle is also pinned below 2.11.0 for the same reason: 2.11.0 forces
+# AGP 9.1.0 and compileSdk 37 via its AAR metadata.
 agp = "9.0.1"
 android-compileSdk = "36"
 android-minSdk = "26"
