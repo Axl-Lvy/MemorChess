@@ -1,99 +1,99 @@
 {
   "schema": 1,
-  "commit": "13f09e848cb35ed2a62fad767058643f0745c567",
-  "date": "2026-06-18T07:30:42Z",
+  "commit": "af831ebfb76e21ea98b89034db3b4ea2184d229f",
+  "date": "2026-08-18T03:40:38Z",
   "runner": "Linux",
   "metrics": {
     "macro/BoardCompositionBenchmark.boardCompositionOnExploreEntry/%BoardGrid%Count_median": {
-      "value": 263.0,
+      "value": 262.5,
       "unit": "",
       "direction": "lower"
     },
     "macro/BoardCompositionBenchmark.boardCompositionOnExploreEntry/%BoardGrid%SumMs_median": {
-      "value": 21.2083245,
+      "value": 25.227294999999998,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameCount_median": {
-      "value": 34.0,
+      "value": 32.5,
       "unit": "",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P50": {
-      "value": 92.683857,
+      "value": 82.141298,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P90": {
-      "value": 121.11948659999999,
+      "value": 105.2755399,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P99": {
-      "value": 158.03425695999996,
+      "value": 126.16873426999999,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P50": {
-      "value": 106.038786,
+      "value": 94.87368749999999,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P90": {
-      "value": 156.63795600000003,
+      "value": 134.31608390000002,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P99": {
-      "value": 190.76151691999996,
+      "value": 182.27322062000007,
       "unit": "ms",
       "direction": "lower"
     },
     "micro/FenBenchmark.cropPositionsToKeys": {
-      "value": 1396.1495064024903,
-      "error": 77.72993483761574,
+      "value": 1315.6998235392505,
+      "error": 52.51796406709687,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/FenBenchmark.parseCroppedFens": {
-      "value": 381.0037601375046,
-      "error": 17.978923428218156,
+      "value": 377.93134795583165,
+      "error": 14.703826913918764,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/Fsrs6SchedulingBenchmark.longTermSchedulingPass": {
-      "value": 4102.810007251473,
-      "error": 121.55217442441368,
+      "value": 4351.892207038556,
+      "error": 543.2204646104761,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/Fsrs6SchedulingBenchmark.shortTermSchedulingPass": {
-      "value": 15676.34057150377,
-      "error": 136.6826708296072,
+      "value": 17523.057950995346,
+      "error": 141.7435949948955,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/GameEngineBenchmark.playSanLines": {
-      "value": 9.44613917611172,
-      "error": 0.45837873609126706,
+      "value": 9.695691013857614,
+      "error": 0.3143539378694924,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/GameEngineBenchmark.positionKeyAfterEveryMove": {
-      "value": 9.252278169773291,
-      "error": 0.39385570018090577,
+      "value": 9.822865189382364,
+      "error": 0.24694757858583857,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/OpeningTreeBenchmark.buildTreeFromEdges": {
-      "value": 556.5588223134316,
-      "error": 55.30088200266219,
+      "value": 3590.4033719053305,
+      "error": 150.94422427681025,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/OpeningTreeBenchmark.lookupEveryPosition": {
-      "value": 154601.80714575064,
-      "error": 606.7755665685066,
+      "value": 15941.715895953947,
+      "error": 5353.145276150454,
       "unit": "ops/s",
       "direction": "higher"
     }
