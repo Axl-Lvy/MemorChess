@@ -25,7 +25,9 @@ import org.jetbrains.compose.resources.StringResource
 class LichessSignInController(
   private val launch:
     suspend (
-      authorizationUrl: String, redirectUri: String, expectedState: String,
+      authorizationUrl: String,
+      redirectUri: String,
+      expectedState: String,
     ) -> OAuthLaunchResult,
   private val oauthClient: LichessOAuthClient,
   private val tokenStore: OAuthTokenStore,
