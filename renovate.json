@@ -92,6 +92,11 @@
       "description": "androidx.compose 1.12.0 AAR metadata forces AGP 9.1.0 + compileSdk 37; these must also track the pinned Compose Multiplatform release",
       "matchPackageNames": ["androidx.compose.runtime:*", "androidx.compose.ui:*"],
       "allowedVersions": "<1.12.0"
+    },
+    {
+      "description": "Gradle 9.7.x exhausts the daemon heap while storing the configuration cache entry for the Kotlin/Wasm browser tasks (KotlinWebpack, KotlinJsTest), so :composeApp:wasmJsBrowserDevelopmentRun and :composeApp:wasmJsTest die with \"Java heap space\" before any task runs. The entry is discarded anyway (those tasks are not configuration-cache compatible); 9.6.1 stores and discards it in ~25s.",
+      "matchManagers": ["gradle-wrapper"],
+      "allowedVersions": "<9.7.0"
     }
   ]
 }
