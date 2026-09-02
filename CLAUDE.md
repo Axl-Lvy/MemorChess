@@ -37,42 +37,30 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 
 Four Gradle modules:
 
-- **`composeApp`** is the Kotlin Multiplatform library holding all shared code. Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews).
-- **`androidApp`** is the thin Android application shell: `MainActivity` (initializes `AndroidContextProvider` and FileKit), launcher manifest and resources, and the instrumented tests (`src/androidTest`). It applies `com.android.application` and relies on the Kotlin support built into AGP 9. Besides `debug` and `release` it has a `benchmark` build type (release performance, debug signing, profileable) measured by `:macrobenchmark`.
-- **`macrobenchmark`** is a `com.android.test` module holding UI performance benchmarks (`FrameTimingMetric`, `TraceSectionMetric` via Compose composition tracing) that run against the `benchmark` build of `androidApp` on a device or emulator. See `macrobenchmark/README.md`.
-- **`microbenchmark`** is a JVM only kotlinx-benchmark (JMH) module measuring the pure Kotlin core of `composeApp` (`GameEngine`, `OpeningTree`/`TreeStore`, `Fsrs6SchedulingAlgorithm`, FEN handling) with deterministic fixtures. It catches algorithmic regressions only; JVM numbers are not ART numbers. See `microbenchmark/README.md`.
+- **`composeApp`** — the Kotlin Multiplatform library holding all shared code (`core/` logic, `ui/` Compose UI). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
+- **`androidApp`** — the thin Android application shell: `MainActivity`, launcher manifest and resources, and the instrumented tests (`src/androidTest`). Adds a `benchmark` build type (release performance, debug signing, profileable) measured by `:macrobenchmark`.
+- **`macrobenchmark`** — UI performance benchmarks run against `androidApp`'s `benchmark` build on a device or emulator. See `macrobenchmark/README.md`.
+- **`microbenchmark`** — JVM only JMH benchmarks over `composeApp`'s pure Kotlin core. Catches algorithmic regressions only; JVM numbers are not ART numbers. See `microbenchmark/README.md`.
 
-The AGP version is capped below 9.1 (renovate rule) because IntelliJ IDEA only syncs AGP versions its Android plugin supports.
+Layer maps live next to the code they describe and load automatically when you work in those directories:
 
-### Core layer (`core/`)
+- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/CLAUDE.md` — the core layer, package by package.
+- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/ui/CLAUDE.md` — the UI layer, and why it has no coverage safety net.
 
-- **`engine/`** — Chess engine wrapper around the `chess-core` library (`io.github.alluhemanth:chess-core`). `GameEngine` is the central class: manages board state, validates moves (SAN and coordinate-based), handles promotions, and produces position FENs. Value classes: `Fen` (full 6-part FEN string) and `PositionKey` (cropped FEN without move counters, used as graph key). Helper types: `Player`, `ChessPiece`, `PieceKind`, `BoardLocation`, `TileColor`.
-- **`graph/`** — Opening tree as a graph keyed by `PositionKey`. `OpeningTree` is a pure in memory graph of immutable `Node` and `Edge` values. `TreeStore` is the single mutation chokepoint: it wraps `DatabaseQueryManager`, owns the cached `OpeningTree`, and is what UI, interactions, and scheduling code talk to. `TrainingScheduler` drives spaced repetition through `TreeStore` and `SchedulingAlgorithm`. `NavigationHistory` handles back/forward navigation over `PositionKey` and `Edge` values. `TrainingEntry` is a lightweight reference to a trainable position. `NodeState` enum represents position state. `DeleteMode` (`HARD`/`SOFT`) selects deletion semantics; the app defaults to `HARD` because it is local only. `PreviousAndNextMoves` lives at the persistence seam only as a DTO for `DatabaseQueryManager`.
-- **`interactions/`** — Game interaction controllers. `InteractionsManager` (abstract) handles tile selection, move execution, and promotion flow. Concrete implementations: `LinesExplorer` (free exploration, talks to `TreeStore`), `SingleMoveTrainer` (spaced-repetition training, talks to `TrainingScheduler`).
-- **`data/`** — Low level persistence seam. `DatabaseQueryManager` is implemented by a Room backed store in `nonJsMain` and an IndexedDB backed one in `wasmJsMain`; only `TreeStore` and the platform impls touch this interface. No remote backend and no synchronization layer.
-- **`config/`** — App configuration. `ConfigItem` is the typed persisted-setting abstraction; `StandardAppConfig` declares the concrete settings (and `ALL_SETTINGS_ITEMS` used by the reset flow).
-- **`scheduling/`** — Spaced repetition scheduling. `SchedulingAlgorithm` is the algorithm interface; `Fsrs6SchedulingAlgorithm` is the active FSRS 6 implementation. `CardState` is the per card state (`dueDate`, `lastReview`, `firstReview`, `stability`, `difficulty`, `reps`, `lapses`) and `ReviewGrade` is the cross algorithm rating enum (`AGAIN`, `HARD`, `GOOD`, `EASY`).
-- **`date/`** — Date utilities (`DateUtil`) shared across the codebase.
-
-### UI layer (`ui/`)
-
-Compose Multiplatform UI. Components in `ui/components/` (board, explore, training, navigation, popup, settings). Pages in `ui/pages/`. DI via Koin (`Koin.kt`).
-
-**`ui/**` is excluded from Sonar coverage** because `@Composable` functions emit synthetic branches that JaCoCo can't filter, which made the uncovered-condition counts meaningless. That means there is **no automated safety net for UI code** — coverage gating, new-code coverage thresholds, and uncovered-line reports all skip this folder. When writing or modifying anything under `ui/`, deliberately think through every branch: empty/loading/error states, zero and boundary values (per the numeric-edge-cases rule), every `when` arm, every nullable, every conditional `Modifier`, every state transition. The cost of a regression here is the same as anywhere else; the difference is that nothing will catch it for you.
+The toolchain is deliberately held below AGP 9.1, and the Gradle wrapper below 9.7.0. Read `docs/adr/0002-toolchain-version-holds.md` before raising any of those pins.
 
 ## Key Conventions
 
-- **Formatting**: ktfmt with Google style. Pre-commit hook checks formatting on `master`.
-- **Testing**: Kotest assertions, no mocking. Android UI tests live in `androidApp/src/androidTest` and use `createAndroidComposeRule<MainActivity>()`. AAA pattern.
-- **Numeric edge cases**: Any code that does arithmetic, division, weighting, or formatting on numbers that come from external data (API counts, ratings, percentages, durations, file sizes) must have a test that includes `0`, the lowest non zero value, the value just below and just above each formatting or branching boundary, and a representative large value. Adding a new state, branch, or sealed subclass to a state machine requires a propagation test through every consumer in the same PR. The rule exists because picking a single happy path sample (`white=10, draws=5, black=3`) hides crashes that only fire on edge data like `Modifier.weight(0f)`.
-- **Database migrations**: The app is **not in production yet** — there are no real users and no data worth preserving. Change the Room (`nonJsMain`) and IndexedDB (`wasmJsMain`) schemas freely **without writing migrations**; recreating the local database on schema change is acceptable. Do not invest in `Migration` objects until the app actually ships. Room runs with `exportSchema = false` and `fallbackToDestructiveMigration(dropAllTables = true)`; **do not re-enable schema export** (no `schemas/*.json` files should ever be generated or committed). IndexedDB has a single destructive `recreate` upgrade (`IndexedDbInstance`): bump `DB_VERSION` to apply a schema change — never add per-version branches.
+- **Formatting**: ktfmt with Google style. Always run `./gradlew ktfmtFormat` before compiling, building, or testing. A pre-commit hook checks formatting on `master`.
+- **Testing**: Kotest assertions, no mocking, AAA pattern. Android UI tests live in `androidApp/src/androidTest` and use `createAndroidComposeRule<MainActivity>()`.
+- **Edge cases**: arithmetic, division, weighting, or formatting on numbers from external data must be tested at `0`, the lowest non zero value, either side of every formatting or branching boundary, and a representative large value. Adding a new state, branch, or sealed subclass to a state machine requires a propagation test through every consumer in the same PR.
+- **Database migrations**: the app is not in production, so change the Room (`nonJsMain`) and IndexedDB (`wasmJsMain`) schemas freely **without writing migrations** — recreating the local database is acceptable. Room runs with `exportSchema = false` and `fallbackToDestructiveMigration(dropAllTables = true)`; never re-enable schema export (no `schemas/*.json` should ever be generated or committed). For IndexedDB (`IndexedDbInstance`), bump `DB_VERSION` and keep the single destructive `recreate` upgrade — never add per-version branches.
 - **DI**: Koin for dependency injection. Modules defined in `Koin.kt`.
-- **PR titles**: Must follow Conventional Commits (`feat(module): ...`, `fix: ...`).
+- **Visibility**: all fields and methods must be `private` whenever possible. Minimize public API surface.
+- **Test-only code**: never introduce `public`/`internal` members solely for testing; test through the public API.
+- **Kotlin style**: prefer `val` over `var`, avoid `!!` and `lateinit`, use sealed classes for state, leverage coroutines for async.
+- **KDoc**: always add KDoc on all public declarations and every non-trivial `@Composable` function.
+- **Secrets**: there is no secrets-generation flow. Runtime credentials (e.g. `LICHESS_API_TOKEN`) are read from the process environment via `System.getenv`; CI injects them from GitHub Actions secrets.
+- **PR titles**: must follow Conventional Commits (`feat(module): ...`, `fix: ...`).
 - **PR descriptions**: You MUST always use `@.github/pull_request_template.md` as the base for every PR body. Start the body with the template content (the `## Options` checkboxes, unchecked by default) and add the description below it.
-- **Secrets**: There is no secrets-generation flow. Credentials needed at runtime (e.g. `LICHESS_API_TOKEN`) are read from the process environment via `System.getenv`; CI injects them from GitHub Actions secrets.
-- **Kotlin style**: Prefer `val` over `var`, avoid `!!` and `lateinit`, use sealed classes for state, leverage coroutines for async.
-- **Visibility**: All fields and methods must be `private` whenever possible. Minimize public API surface.
-- **Test-only code**: A method that is only used in tests is a bad pattern. Do not introduce `public`/`internal` methods solely for testing; instead, test through the public API.
-- **Formatting**: Always run `./gradlew ktfmtFormat` before compiling, building, or testing.
-- **KDoc**: Always add KDoc on all public declarations and every non-trivial `@Composable` function.
-- **No force pushes**: Never force push (`git push --force` / `--force-with-lease`) to any branch, and never run history-rewriting commands (`git rebase`, `git commit --amend`, `git reset --hard` on pushed commits) that would require a force push to upload. Add commits on top instead. If a force push seems genuinely necessary, stop and ask the user first.
+- **No force pushes**: never force push (`git push --force` / `--force-with-lease`) to any branch, and never run history-rewriting commands (`git rebase`, `git commit --amend`, `git reset --hard` on pushed commits) that would require a force push to upload. Add commits on top instead. If a force push seems genuinely necessary, stop and ask the user first.
