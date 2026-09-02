@@ -19,7 +19,7 @@ composeHotReload = "1.2.0"
 # Held below 1.12.0: Compose Multiplatform 1.12.0 resolves to androidx.compose 1.12.0,
 # whose AAR metadata requires AGP 9.1.0 and compileSdk 37 (see the AGP note above).
 # composeRuntimeTracing and uiTestJunit4Android below are held for the same reason.
-compose-multiplatform = "1.11.1"
+compose-multiplatform = "1.12.0"
 compose-material3 = "1.9.0"
 filekit = "0.15.0"
 hotpreview = "0.2.0"
