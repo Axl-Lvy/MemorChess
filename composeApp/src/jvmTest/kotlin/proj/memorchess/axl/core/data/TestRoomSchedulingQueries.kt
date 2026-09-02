@@ -268,16 +268,15 @@ class TestRoomSchedulingQueries {
       DataNode(mid, PreviousAndNextMoves(listOf(e4), listOf(e5)), CardStateFactory.new()),
       DataNode(end, PreviousAndNextMoves(listOf(e5), listOf()), CardStateFactory.new()),
     )
-    val byKey =
-      buildList {
-          var cursor: String? = null
-          while (true) {
-            val page = manager.getNodesPage(cursor, limit = 1)
-            addAll(page.nodes)
-            cursor = page.nextCursor ?: break
-          }
-        }
-        .associateBy { it.positionKey }
+    val byKey = buildList {
+      var cursor: String? = null
+      while (true) {
+        val page = manager.getNodesPage(cursor, limit = 1)
+        addAll(page.nodes)
+        cursor = page.nextCursor ?: break
+      }
+    }
+      .associateBy { it.positionKey }
     byKey.getValue(start).previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
     byKey.getValue(mid).previousAndNextMoves.previousMoves.keys shouldBe setOf("e4")
     byKey.getValue(mid).previousAndNextMoves.nextMoves.keys shouldBe setOf("e5")
