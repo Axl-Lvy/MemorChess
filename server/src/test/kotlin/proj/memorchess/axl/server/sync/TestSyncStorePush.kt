@@ -7,6 +7,8 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.EdgeSyncRow
+import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
 import proj.memorchess.axl.core.sync.SYNC_SKEW_TOLERANCE
 import proj.memorchess.axl.core.sync.SettingSyncRow
@@ -37,6 +39,51 @@ internal class TestSyncStorePush {
 
   private fun request(vararg settings: SettingSyncRow) =
     SyncPushRequest(nodes = emptyList(), edges = emptyList(), settings = settings.toList())
+
+  private fun node(
+    key: String,
+    reps: Int,
+    at: Instant,
+    device: String = "device-a",
+    seq: Long = 1,
+  ) =
+    NodeSyncRow(
+      positionKey = key,
+      dueDate = at,
+      lastReview = null,
+      firstReview = null,
+      stability = 1.5,
+      difficulty = 5.0,
+      reps = reps,
+      lapses = 0,
+      phase = "REVIEW",
+      step = 0,
+      isDeleted = false,
+      updatedAt = at,
+      originDevice = device,
+      deviceSeq = seq,
+    )
+
+  private fun edge(
+    origin: String,
+    destination: String,
+    isGood: Boolean,
+    at: Instant,
+    device: String = "device-a",
+    seq: Long = 1,
+  ) =
+    EdgeSyncRow(
+      origin = origin,
+      destination = destination,
+      move = "e4",
+      isGood = isGood,
+      isDeleted = false,
+      updatedAt = at,
+      originDevice = device,
+      deviceSeq = seq,
+    )
+
+  private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   @Test
   fun anEmptyPushIsAccepted() = runTest {
@@ -175,6 +222,94 @@ internal class TestSyncStorePush {
     val second = PostgresTestDb.newUserId()
     store.push(first, request(setting("theme", "dark", serverNow)), serverNow)
     store.readSettingForTest(second, "theme") shouldBe null
+  }
+
+  @Test
+  fun aNewerNodeReplacesTheOlderOne() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val key = fen("node")
+    store.push(user, SyncPushRequest(listOf(node(key, 1, serverNow, seq = 1)), emptyList(), emptyList()), serverNow)
+    store.push(user, SyncPushRequest(listOf(node(key, 7, serverNow, seq = 2)), emptyList(), emptyList()), serverNow)
+    store.readNodeForTest(user, key)?.reps shouldBe 7
+  }
+
+  @Test
+  fun aNodeCarriesItsFullFsrsStateThroughTheRoundTrip() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val key = fen("fsrs")
+    val row = node(key, 3, serverNow).copy(lastReview = serverNow, firstReview = serverNow, lapses = 2)
+    store.push(user, SyncPushRequest(listOf(row), emptyList(), emptyList()), serverNow)
+    store.readNodeForTest(user, key) shouldBe row
+  }
+
+  @Test
+  fun aNodeBeyondTheToleranceIsRefusedAndNotStored() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val key = fen("late-node")
+    val response =
+      store.push(
+        user,
+        SyncPushRequest(
+          listOf(node(key, 1, serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds)),
+          emptyList(),
+          emptyList(),
+        ),
+        serverNow,
+      )
+    response.rejected shouldHaveSize 1
+    response.rejected.single().kind shouldBe "node"
+    response.rejected.single().id shouldBe key
+    store.readNodeForTest(user, key) shouldBe null
+  }
+
+  @Test
+  fun aNewerEdgeReplacesTheOlderOne() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val origin = fen("o")
+    val destination = fen("d")
+    val first = edge(origin, destination, isGood = true, at = serverNow, seq = 1)
+    store.push(user, SyncPushRequest(emptyList(), listOf(first), emptyList()), serverNow)
+    store.push(
+      user,
+      SyncPushRequest(emptyList(), listOf(first.copy(isGood = false, deviceSeq = 2)), emptyList()),
+      serverNow,
+    )
+    store.readEdgeForTest(user, first)?.isGood shouldBe false
+  }
+
+  @Test
+  fun anEdgeBeyondTheToleranceIsRefusedAndNotStored() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val origin = fen("late-o")
+    val destination = fen("late-d")
+    val late =
+      edge(origin, destination, isGood = true, at = serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds)
+    val response = store.push(user, SyncPushRequest(emptyList(), listOf(late), emptyList()), serverNow)
+    response.rejected shouldHaveSize 1
+    response.rejected.single().kind shouldBe "edge"
+    response.rejected.single().id shouldBe "$origin|$destination"
+    store.readEdgeForTest(user, late) shouldBe null
+  }
+
+  @Test
+  fun allThreeResourcesApplyInOnePush() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val key = fen("mixed-node")
+    val origin = fen("mixed-o")
+    val destination = fen("mixed-d")
+    val theEdge = edge(origin, destination, isGood = true, at = serverNow)
+    store.push(
+      user,
+      SyncPushRequest(
+        nodes = listOf(node(key, 1, serverNow)),
+        edges = listOf(theEdge),
+        settings = listOf(setting("theme", "dark", serverNow)),
+      ),
+      serverNow,
+    )
+    store.readNodeForTest(user, key)?.reps shouldBe 1
+    store.readEdgeForTest(user, theEdge)?.isGood shouldBe true
+    store.readSettingForTest(user, "theme")?.value shouldBe "dark"
   }
 
   @Test
