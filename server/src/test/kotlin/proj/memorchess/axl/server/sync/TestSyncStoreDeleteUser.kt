@@ -103,9 +103,7 @@ internal class TestSyncStoreDeleteUser {
   }
 
   @Test
-  fun deletingAUserWithNoRowsIsANoOp() = runTest {
-    store.deleteUser(PostgresTestDb.newUserId())
-  }
+  fun deletingAUserWithNoRowsIsANoOp() = runTest { store.deleteUser(PostgresTestDb.newUserId()) }
 
   @Test
   fun deletingOneUserDoesNotTouchAnother() = runTest {

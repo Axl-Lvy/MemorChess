@@ -375,7 +375,8 @@ internal class SyncStore(private val dataSource: DataSource) {
     val sql =
       "SELECT due_date, last_review, first_review, stability, difficulty, reps, lapses, phase, " +
         "step, is_deleted, updated_at, origin_device, device_seq FROM user_node " +
-        "WHERE user_id = ? AND position_id = ?" + if (lockRow) " FOR UPDATE" else ""
+        "WHERE user_id = ? AND position_id = ?" +
+        if (lockRow) " FOR UPDATE" else ""
     return prepareStatement(sql).use { statement ->
       statement.setString(1, userId)
       statement.setLong(2, positionId)
@@ -442,7 +443,8 @@ internal class SyncStore(private val dataSource: DataSource) {
   ): EdgeSyncRow? {
     val sql =
       "SELECT is_good, is_deleted, updated_at, origin_device, device_seq FROM user_edge " +
-        "WHERE user_id = ? AND edge_id = ?" + if (lockRow) " FOR UPDATE" else ""
+        "WHERE user_id = ? AND edge_id = ?" +
+        if (lockRow) " FOR UPDATE" else ""
     return prepareStatement(sql).use { statement ->
       statement.setString(1, userId)
       statement.setLong(2, edgeId)
@@ -514,7 +516,8 @@ internal class SyncStore(private val dataSource: DataSource) {
     // row, both decide they win, and one silently overwrites the other's decision.
     val sql =
       "SELECT value, is_deleted, updated_at, origin_device, device_seq FROM user_setting " +
-        "WHERE user_id = ? AND key = ?" + if (lockRow) " FOR UPDATE" else ""
+        "WHERE user_id = ? AND key = ?" +
+        if (lockRow) " FOR UPDATE" else ""
     return prepareStatement(sql).use { statement ->
       statement.setString(1, userId)
       statement.setString(2, key)

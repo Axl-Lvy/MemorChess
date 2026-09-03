@@ -8,9 +8,9 @@ private object SchemaResource
 /**
  * Applies `schema.sql`, which is idempotent and therefore safe on every boot.
  *
- * There is no migration tool on purpose. The app is not in production, and the repo's stance is that
- * recreating a database is acceptable until it is. Introducing Flyway is a decision for when real
- * user data exists, not a default.
+ * There is no migration tool on purpose. The app is not in production, and the repo's stance is
+ * that recreating a database is acceptable until it is. Introducing Flyway is a decision for when
+ * real user data exists, not a default.
  *
  * The whole file goes through a single `execute` because the driver accepts a multi statement
  * string, and every statement in it is guarded by `IF NOT EXISTS`.

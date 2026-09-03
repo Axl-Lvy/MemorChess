@@ -1,7 +1,7 @@
 package proj.memorchess.axl.server.db
 
-import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.maps.shouldBeEmpty
+import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors

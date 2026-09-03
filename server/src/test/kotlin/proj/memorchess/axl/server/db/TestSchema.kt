@@ -15,12 +15,11 @@ internal class TestSchema {
           "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
         )
         .use { statement ->
-          statement.executeQuery().use { rows ->
-            while (rows.next()) tables += rows.getString(1)
-          }
+          statement.executeQuery().use { rows -> while (rows.next()) tables += rows.getString(1) }
         }
     }
-    tables shouldContainAll listOf("position", "move_edge", "user_node", "user_edge", "user_setting")
+    tables shouldContainAll
+      listOf("position", "move_edge", "user_node", "user_edge", "user_setting")
   }
 
   @Test

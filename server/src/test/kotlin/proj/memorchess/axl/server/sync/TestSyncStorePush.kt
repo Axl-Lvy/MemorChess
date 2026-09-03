@@ -119,7 +119,11 @@ internal class TestSyncStorePush {
   @Test
   fun aLaterWriteFromAnotherDeviceWinsOnTime() = runTest {
     val user = PostgresTestDb.newUserId()
-    store.push(user, request(setting("theme", "dark", Instant.fromEpochMilliseconds(10))), serverNow)
+    store.push(
+      user,
+      request(setting("theme", "dark", Instant.fromEpochMilliseconds(10))),
+      serverNow,
+    )
     store.push(
       user,
       request(setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")),
@@ -228,8 +232,16 @@ internal class TestSyncStorePush {
   fun aNewerNodeReplacesTheOlderOne() = runTest {
     val user = PostgresTestDb.newUserId()
     val key = fen("node")
-    store.push(user, SyncPushRequest(listOf(node(key, 1, serverNow, seq = 1)), emptyList(), emptyList()), serverNow)
-    store.push(user, SyncPushRequest(listOf(node(key, 7, serverNow, seq = 2)), emptyList(), emptyList()), serverNow)
+    store.push(
+      user,
+      SyncPushRequest(listOf(node(key, 1, serverNow, seq = 1)), emptyList(), emptyList()),
+      serverNow,
+    )
+    store.push(
+      user,
+      SyncPushRequest(listOf(node(key, 7, serverNow, seq = 2)), emptyList(), emptyList()),
+      serverNow,
+    )
     store.readNodeForTest(user, key)?.reps shouldBe 7
   }
 
@@ -237,7 +249,8 @@ internal class TestSyncStorePush {
   fun aNodeCarriesItsFullFsrsStateThroughTheRoundTrip() = runTest {
     val user = PostgresTestDb.newUserId()
     val key = fen("fsrs")
-    val row = node(key, 3, serverNow).copy(lastReview = serverNow, firstReview = serverNow, lapses = 2)
+    val row =
+      node(key, 3, serverNow).copy(lastReview = serverNow, firstReview = serverNow, lapses = 2)
     store.push(user, SyncPushRequest(listOf(row), emptyList(), emptyList()), serverNow)
     store.readNodeForTest(user, key) shouldBe row
   }
@@ -283,8 +296,14 @@ internal class TestSyncStorePush {
     val origin = fen("late-o")
     val destination = fen("late-d")
     val late =
-      edge(origin, destination, isGood = true, at = serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds)
-    val response = store.push(user, SyncPushRequest(emptyList(), listOf(late), emptyList()), serverNow)
+      edge(
+        origin,
+        destination,
+        isGood = true,
+        at = serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds,
+      )
+    val response =
+      store.push(user, SyncPushRequest(emptyList(), listOf(late), emptyList()), serverNow)
     response.rejected shouldHaveSize 1
     response.rejected.single().kind shouldBe "edge"
     response.rejected.single().id shouldBe "$origin|$destination"

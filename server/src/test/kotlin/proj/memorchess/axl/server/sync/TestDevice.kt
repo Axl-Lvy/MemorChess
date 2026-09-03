@@ -10,10 +10,10 @@ import proj.memorchess.axl.core.sync.resolve
 /**
  * A client stand in that drives the real [SyncStore].
  *
- * This is a **re-implementation** of the client half, not a reuse: `:shared`'s convergence fakes are
- * `internal` to that module and invisible here. That is the point of the exercise. The property is
- * what carries over, so if the SQL disagrees with the semantics `:shared` proved, the convergence
- * test fails.
+ * This is a **re-implementation** of the client half, not a reuse: `:shared`'s convergence fakes
+ * are `internal` to that module and invisible here. That is the point of the exercise. The property
+ * is what carries over, so if the SQL disagrees with the semantics `:shared` proved, the
+ * convergence test fails.
  *
  * Settings only, which is enough to exercise the store's ordering and its cursor.
  *
