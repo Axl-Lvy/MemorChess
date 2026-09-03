@@ -4,6 +4,7 @@ import java.sql.Connection
 import java.sql.Timestamp
 import javax.sql.DataSource
 import kotlin.time.Instant
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import proj.memorchess.axl.core.sync.EdgeSyncRow
@@ -15,6 +16,7 @@ import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPullResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.SyncPushResponse
+import proj.memorchess.axl.core.sync.SyncRow
 import proj.memorchess.axl.core.sync.isTooFarAhead
 import proj.memorchess.axl.core.sync.resolve
 import proj.memorchess.axl.server.db.EdgeIdentity
@@ -29,8 +31,13 @@ import proj.memorchess.axl.server.db.resolvePositionIds
  * the only way the two cannot drift apart.
  *
  * @param dataSource Pooled connections. Each call takes one and returns it.
+ * @param ioDispatcher Where the blocking JDBC work runs. Injected rather than hardcoded so a caller
+ *   can substitute one, which also keeps the choice of dispatcher out of this class's business.
  */
-internal class SyncStore(private val dataSource: DataSource) {
+internal class SyncStore(
+  private val dataSource: DataSource,
+  private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
 
   /**
    * Applies a batch under last write wins and reports whatever was refused.
@@ -48,61 +55,64 @@ internal class SyncStore(private val dataSource: DataSource) {
     userId: String,
     request: SyncPushRequest,
     serverNow: Instant,
-  ): SyncPushResponse =
-    withContext(Dispatchers.IO) {
-      val rejected = mutableListOf<RejectedRow>()
-      var highestRevision = 0L
+  ): SyncPushResponse {
+    val nodes = request.nodes.screenClock(serverNow) { clockRefusal("node", it.positionKey) }
+    val edges = request.edges.screenClock(serverNow) { clockRefusal("edge", it.edgeId()) }
+    val settings = request.settings.screenClock(serverNow) { clockRefusal("setting", it.key) }
 
-      val acceptedNodes =
-        request.nodes.filter { row ->
-          val refuse = row.isTooFarAhead(serverNow)
-          if (refuse) rejected += clockRefusal("node", row.positionKey)
-          !refuse
-        }
-      val acceptedEdges =
-        request.edges.filter { row ->
-          val refuse = row.isTooFarAhead(serverNow)
-          if (refuse) rejected += clockRefusal("edge", row.edgeId())
-          !refuse
-        }
-      val acceptedSettings =
-        request.settings.filter { row ->
-          val refuse = row.isTooFarAhead(serverNow)
-          if (refuse) rejected += clockRefusal("setting", row.key)
-          !refuse
-        }
+    val revision = inTransaction { connection ->
+      connection.applyBatch(userId, nodes.accepted, edges.accepted, settings.accepted)
+    }
 
+    return SyncPushResponse(
+      serverTime = serverNow,
+      revision = revision,
+      rejected = nodes.refused + edges.refused + settings.refused,
+    )
+  }
+
+  /**
+   * Applies every accepted row in one transaction and returns the highest revision assigned, or `0`
+   * when nothing needed writing.
+   *
+   * Rows are sorted within each resource so that concurrent pushes take row locks in one order.
+   */
+  private fun Connection.applyBatch(
+    userId: String,
+    nodes: List<NodeSyncRow>,
+    edges: List<EdgeSyncRow>,
+    settings: List<SettingSyncRow>,
+  ): Long {
+    val positionIds = resolvePositionIds(nodes.map { it.positionKey })
+    val edgeIds = resolveEdgeIds(edges.map { it.identity() })
+
+    val revisions = buildList {
+      nodes
+        .sortedBy { it.positionKey }
+        .forEach { add(applyNode(userId, it, positionIds.getValue(it.positionKey))) }
+      edges
+        .sortedBy { it.edgeId() }
+        .forEach { add(applyEdge(userId, it, edgeIds.getValue(it.identity()))) }
+      settings.sortedBy { it.key }.forEach { add(applySetting(userId, it)) }
+    }
+    return revisions.filterNotNull().maxOrNull() ?: 0L
+  }
+
+  /**
+   * Runs [block] in one transaction on a pooled connection, committing on success and rolling back
+   * on any failure.
+   */
+  private suspend fun <T> inTransaction(block: (Connection) -> T): T =
+    withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
         connection.autoCommit = false
         try {
-          val positionIds = connection.resolvePositionIds(acceptedNodes.map { it.positionKey })
-          val edgeIds =
-            connection.resolveEdgeIds(
-              acceptedEdges.map { EdgeIdentity(it.origin, it.destination, it.move) }
-            )
-
-          // Sorted within each resource so concurrent pushes take row locks in one order.
-          for (row in acceptedNodes.sortedBy { it.positionKey }) {
-            val revision = connection.applyNode(userId, row, positionIds.getValue(row.positionKey))
-            if (revision != null) highestRevision = maxOf(highestRevision, revision)
-          }
-          for (row in acceptedEdges.sortedBy { it.edgeId() }) {
-            val identity = EdgeIdentity(row.origin, row.destination, row.move)
-            val revision = connection.applyEdge(userId, row, edgeIds.getValue(identity))
-            if (revision != null) highestRevision = maxOf(highestRevision, revision)
-          }
-          for (row in acceptedSettings.sortedBy { it.key }) {
-            val revision = connection.applySetting(userId, row)
-            if (revision != null) highestRevision = maxOf(highestRevision, revision)
-          }
-          connection.commit()
+          block(connection).also { connection.commit() }
         } catch (e: Exception) {
           connection.rollback()
           throw e
         }
       }
-
-      SyncPushResponse(serverTime = serverNow, revision = highestRevision, rejected = rejected)
     }
 
   /**
@@ -128,7 +138,7 @@ internal class SyncStore(private val dataSource: DataSource) {
     limit: Int,
     serverNow: Instant,
   ): SyncPullResponse =
-    withContext(Dispatchers.IO) {
+    withContext(ioDispatcher) {
       require(limit > 0) { "limit must be strictly positive, was $limit" }
 
       dataSource.connection.use { connection ->
@@ -279,20 +289,11 @@ internal class SyncStore(private val dataSource: DataSource) {
    * to be removed there too; performing only one half leaves a resurrectable account.
    */
   internal suspend fun deleteUser(userId: String) {
-    withContext(Dispatchers.IO) {
-      dataSource.connection.use { connection ->
-        connection.autoCommit = false
-        try {
-          for (table in listOf("user_node", "user_edge", "user_setting")) {
-            connection.prepareStatement("DELETE FROM $table WHERE user_id = ?").use { statement ->
-              statement.setString(1, userId)
-              statement.executeUpdate()
-            }
-          }
-          connection.commit()
-        } catch (e: Exception) {
-          connection.rollback()
-          throw e
+    inTransaction { connection ->
+      for (table in PER_USER_TABLES) {
+        connection.prepareStatement("DELETE FROM $table WHERE user_id = ?").use { statement ->
+          statement.setString(1, userId)
+          statement.executeUpdate()
         }
       }
     }
@@ -300,7 +301,7 @@ internal class SyncStore(private val dataSource: DataSource) {
 
   /** Reads one stored node. Exposed so the push tests do not depend on `pull` being correct. */
   internal suspend fun readNodeForTest(userId: String, positionKey: String): NodeSyncRow? =
-    withContext(Dispatchers.IO) {
+    withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
         val id = connection.resolvePositionIds(listOf(positionKey))[positionKey] ?: return@use null
         connection.readNode(userId, positionKey, id)
@@ -309,7 +310,7 @@ internal class SyncStore(private val dataSource: DataSource) {
 
   /** Reads one stored edge. Exposed so the push tests do not depend on `pull` being correct. */
   internal suspend fun readEdgeForTest(userId: String, edge: EdgeSyncRow): EdgeSyncRow? =
-    withContext(Dispatchers.IO) {
+    withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
         val identity = EdgeIdentity(edge.origin, edge.destination, edge.move)
         val id = connection.resolveEdgeIds(listOf(identity))[identity] ?: return@use null
@@ -376,7 +377,7 @@ internal class SyncStore(private val dataSource: DataSource) {
       "SELECT due_date, last_review, first_review, stability, difficulty, reps, lapses, phase, " +
         "step, is_deleted, updated_at, origin_device, device_seq FROM user_node " +
         "WHERE user_id = ? AND position_id = ?" +
-        if (lockRow) " FOR UPDATE" else ""
+        if (lockRow) FOR_UPDATE else ""
     return prepareStatement(sql).use { statement ->
       statement.setString(1, userId)
       statement.setLong(2, positionId)
@@ -444,7 +445,7 @@ internal class SyncStore(private val dataSource: DataSource) {
     val sql =
       "SELECT is_good, is_deleted, updated_at, origin_device, device_seq FROM user_edge " +
         "WHERE user_id = ? AND edge_id = ?" +
-        if (lockRow) " FOR UPDATE" else ""
+        if (lockRow) FOR_UPDATE else ""
     return prepareStatement(sql).use { statement ->
       statement.setString(1, userId)
       statement.setLong(2, edgeId)
@@ -467,7 +468,7 @@ internal class SyncStore(private val dataSource: DataSource) {
 
   /** Reads one stored setting. Exposed so the push tests do not depend on `pull` being correct. */
   internal suspend fun readSettingForTest(userId: String, key: String): SettingSyncRow? =
-    withContext(Dispatchers.IO) { dataSource.connection.use { it.readSetting(userId, key) } }
+    withContext(ioDispatcher) { dataSource.connection.use { it.readSetting(userId, key) } }
 
   /**
    * Writes one setting under last write wins, returning the revision assigned, or `null` when the
@@ -517,7 +518,7 @@ internal class SyncStore(private val dataSource: DataSource) {
     val sql =
       "SELECT value, is_deleted, updated_at, origin_device, device_seq FROM user_setting " +
         "WHERE user_id = ? AND key = ?" +
-        if (lockRow) " FOR UPDATE" else ""
+        if (lockRow) FOR_UPDATE else ""
     return prepareStatement(sql).use { statement ->
       statement.setString(1, userId)
       statement.setString(2, key)
@@ -545,8 +546,38 @@ internal class SyncStore(private val dataSource: DataSource) {
     }
 }
 
+/**
+ * Locks the selected row for the rest of the transaction.
+ *
+ * Without it two concurrent pushes for one key both read the old row, both decide they win, and one
+ * silently overwrites the other's decision.
+ */
+private const val FOR_UPDATE = " FOR UPDATE"
+
+/** The tables holding per user rows. The shared `position` and `move_edge` are not among them. */
+private val PER_USER_TABLES = listOf("user_node", "user_edge", "user_setting")
+
+/** Screening outcome for one resource: what may be written, and what was refused. */
+private class Screened<T : SyncRow>(val accepted: List<T>, val refused: List<RejectedRow>)
+
+/**
+ * Splits rows into those the server may store and those whose clock is too far ahead to accept.
+ *
+ * A pure split rather than a filter with a side effect, so neither half depends on iteration order.
+ */
+private fun <T : SyncRow> List<T>.screenClock(
+  serverNow: Instant,
+  refusal: (T) -> RejectedRow,
+): Screened<T> {
+  val (tooFarAhead, acceptable) = partition { it.isTooFarAhead(serverNow) }
+  return Screened(acceptable, tooFarAhead.map(refusal))
+}
+
 /** Stable identifier for an edge in a rejection report, matching what the client can compute. */
 private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"
+
+/** The shared identity this edge interns to. */
+private fun EdgeSyncRow.identity() = EdgeIdentity(origin, destination, move)
 
 private fun clockRefusal(kind: String, id: String) =
   RejectedRow(
