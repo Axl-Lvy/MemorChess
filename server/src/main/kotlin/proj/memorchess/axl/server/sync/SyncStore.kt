@@ -269,6 +269,35 @@ internal class SyncStore(private val dataSource: DataSource) {
         }
       }
 
+  /**
+   * Removes every row belonging to [userId].
+   *
+   * Only the three per user tables. The shared `position` and `move_edge` rows stay, because they
+   * are append only and other users reference them.
+   *
+   * This is one half of account deletion. The identity itself lives with the auth provider and has
+   * to be removed there too; performing only one half leaves a resurrectable account.
+   */
+  internal suspend fun deleteUser(userId: String) {
+    withContext(Dispatchers.IO) {
+      dataSource.connection.use { connection ->
+        connection.autoCommit = false
+        try {
+          for (table in listOf("user_node", "user_edge", "user_setting")) {
+            connection.prepareStatement("DELETE FROM $table WHERE user_id = ?").use { statement ->
+              statement.setString(1, userId)
+              statement.executeUpdate()
+            }
+          }
+          connection.commit()
+        } catch (e: Exception) {
+          connection.rollback()
+          throw e
+        }
+      }
+    }
+  }
+
   /** Reads one stored node. Exposed so the push tests do not depend on `pull` being correct. */
   internal suspend fun readNodeForTest(userId: String, positionKey: String): NodeSyncRow? =
     withContext(Dispatchers.IO) {
