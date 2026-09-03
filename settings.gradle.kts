@@ -47,3 +47,5 @@ include(":macrobenchmark")
 include(":microbenchmark")
 
 include(":shared")
+
+include(":server")
