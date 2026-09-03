@@ -22,6 +22,7 @@ class TestSyncCodec {
       isDeleted = false,
       updatedAt = Instant.parse("2026-09-03T10:15:30Z"),
       originDevice = "device-a",
+      deviceSeq = 0,
     )
 
   private val edge =
@@ -33,6 +34,7 @@ class TestSyncCodec {
       isDeleted = false,
       updatedAt = Instant.fromEpochMilliseconds(1),
       originDevice = "device-b",
+      deviceSeq = 0,
     )
 
   private val setting =
@@ -42,6 +44,7 @@ class TestSyncCodec {
       isDeleted = false,
       updatedAt = Instant.parse("2100-01-01T00:00:00Z"),
       originDevice = "device-a",
+      deviceSeq = 0,
     )
 
   @Test
@@ -123,7 +126,15 @@ class TestSyncCodec {
       SyncPushResponse(
         serverTime = Instant.fromEpochMilliseconds(1),
         revision = 0L,
-        rejected = listOf(RejectedRow("edge", "origin|destination", "illegal move")),
+        rejected =
+          listOf(
+            RejectedRow(
+              kind = "edge",
+              id = "origin|destination",
+              code = "illegal_move",
+              reason = "illegal move",
+            )
+          ),
       )
     SYNC_JSON.decodeFromString<SyncPushResponse>(SYNC_JSON.encodeToString(response)) shouldBe
       response
@@ -133,7 +144,8 @@ class TestSyncCodec {
   fun unknownFieldsAreTolerated() {
     val text =
       """{"origin":"a","destination":"b","move":"e4","isGood":true,"isDeleted":false,""" +
-        """"updatedAt":"2026-09-03T10:15:30Z","originDevice":"device-b","futureField":7}"""
+        """"updatedAt":"2026-09-03T10:15:30Z","originDevice":"device-b","deviceSeq":3,""" +
+        """"futureField":7}"""
     SYNC_JSON.decodeFromString<EdgeSyncRow>(text).move shouldBe "e4"
   }
 }

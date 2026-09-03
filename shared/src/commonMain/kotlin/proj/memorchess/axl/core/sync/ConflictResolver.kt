@@ -32,12 +32,25 @@ data class Winner<T : SyncRow>(override val row: T, override val source: Resolut
  * Reconciles one row, per row last write wins.
  *
  * This is the **only** implementation of that rule. Both the client apply path and the server write
- * path call it, so the two cannot drift apart. The rule, in order:
- * 1. A row present on one side only wins; there is nothing to compare it against.
- * 2. Otherwise the later [SyncRow.updatedAt] wins.
- * 3. On an exact tie, the lexicographically greater [SyncRow.originDevice] wins. Without a
- *    deterministic tiebreak two devices can hand a row back and forth indefinitely, and because the
- *    comparison is symmetric both sides independently reach the same answer.
+ * path call it, so the two cannot drift apart.
+ *
+ * A row present on one side only wins, since there is nothing to compare it against. Otherwise the
+ * rule depends on whether the two versions share an author:
+ * - **Same [SyncRow.originDevice]**: the greater [SyncRow.deviceSeq] wins, and [SyncRow.updatedAt]
+ *   is not consulted at all. A device's own counter is ground truth about the order of its own
+ *   writes, and unlike its clock it cannot move backwards. This is what makes an NTP correction, a
+ *   manual time change, or a row re-stamped after a refusal harmless: none of them can make a
+ *   device's older write beat its newer one, which would otherwise resurrect data the user deleted.
+ * - **Different [SyncRow.originDevice]**: the later [SyncRow.updatedAt] wins, and on an exact tie
+ *   the lexicographically greater [SyncRow.originDevice] does. The wall clock is the only reference
+ *   two devices share, and sequence numbers from different devices are unrelated counters that must
+ *   never be compared.
+ *
+ * Both branches are **commutative**, and that is the property convergence actually rests on: each
+ * side must pick the same winner whichever way round it asks. A rule that can tie on two rows with
+ * different content has no perspective independent answer, so the two sides would keep different
+ * rows forever. The only tie left is same author and same sequence, which by construction is the
+ * same version, since a device never reuses a sequence number.
  *
  * Deletion is not a case here. A tombstone is a row with [SyncRow.isDeleted] set, so an older
  * delete loses to a newer write (a resurrection) and a newer delete wins, both of which fall out of
@@ -57,6 +70,12 @@ fun <T : SyncRow> resolve(local: T?, remote: T?): Resolution<T> {
   if (local == null) return Winner(remote!!, ResolutionSource.REMOTE)
   if (remote == null) return Winner(local, ResolutionSource.LOCAL)
 
+  if (local.originDevice == remote.originDevice) {
+    val bySeq = local.deviceSeq.compareTo(remote.deviceSeq)
+    return if (bySeq >= 0) Winner(local, ResolutionSource.LOCAL)
+    else Winner(remote, ResolutionSource.REMOTE)
+  }
+
   val byTime = local.updatedAt.compareTo(remote.updatedAt)
   if (byTime != 0) {
     return if (byTime > 0) Winner(local, ResolutionSource.LOCAL)
@@ -64,6 +83,6 @@ fun <T : SyncRow> resolve(local: T?, remote: T?): Resolution<T> {
   }
 
   val byDevice = local.originDevice.compareTo(remote.originDevice)
-  return if (byDevice >= 0) Winner(local, ResolutionSource.LOCAL)
+  return if (byDevice > 0) Winner(local, ResolutionSource.LOCAL)
   else Winner(remote, ResolutionSource.REMOTE)
 }

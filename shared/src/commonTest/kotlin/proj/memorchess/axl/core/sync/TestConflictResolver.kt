@@ -12,6 +12,7 @@ class TestConflictResolver {
     originDevice: String = "device-a",
     isDeleted: Boolean = false,
     value: String = "v",
+    deviceSeq: Long = 0,
   ) =
     SettingSyncRow(
       key = "k",
@@ -19,6 +20,7 @@ class TestConflictResolver {
       isDeleted = isDeleted,
       updatedAt = updatedAt,
       originDevice = originDevice,
+      deviceSeq = deviceSeq,
     )
 
   private val t0 = Instant.fromEpochMilliseconds(0)
@@ -127,6 +129,54 @@ class TestConflictResolver {
   }
 
   @Test
+  fun sameDeviceIgnoresTheClockEntirelyAndTrustsItsSequence() {
+    // The device's clock jumped backwards between the two writes. The newer write, identified by
+    // the greater sequence, must still win. Regression test for randomised seeds 5 and 43.
+    val older = row(tLarge, "device-a", deviceSeq = 1)
+    val newer = row(t0, "device-a", deviceSeq = 2, value = "newer")
+    resolve(older, newer) shouldBe Winner(newer, ResolutionSource.REMOTE)
+    resolve(newer, older) shouldBe Winner(newer, ResolutionSource.LOCAL)
+  }
+
+  @Test
+  fun sameDeviceSameInstantBreaksOnTheGreaterSequence() {
+    val earlier = row(t1, "device-a", deviceSeq = 1)
+    val later = row(t1, "device-a", deviceSeq = 2, value = "later")
+    resolve(earlier, later) shouldBe Winner(later, ResolutionSource.REMOTE)
+    resolve(later, earlier) shouldBe Winner(later, ResolutionSource.LOCAL)
+  }
+
+  @Test
+  fun theSequenceIsOnlyConsultedAfterTheDeviceId() {
+    // A high sequence on one device must not beat the device ordering, because sequences from
+    // different devices are unrelated counters.
+    val local = row(t1, "device-b", deviceSeq = 0)
+    val remote = row(t1, "device-a", deviceSeq = 99)
+    resolve(local, remote) shouldBe Winner(local, ResolutionSource.LOCAL)
+  }
+
+  @Test
+  fun resolveIsCommutativeForEveryDistinctPair() {
+    // The property that actually guarantees convergence: both sides pick the same row whichever
+    // way round they ask. Regression test for randomised seed 10, where two versions tied on both
+    // updatedAt and originDevice and each side kept its own.
+    val rows =
+      listOf(
+        row(t0, "device-a", deviceSeq = 0),
+        row(t0, "device-a", deviceSeq = 1, value = "a1"),
+        row(t0, "device-b", deviceSeq = 0),
+        row(t1, "device-a", deviceSeq = 2),
+        row(t1, "device-b", deviceSeq = 5),
+        row(tLarge, "device-a", deviceSeq = 3),
+      )
+    for (left in rows) {
+      for (right in rows) {
+        resolve(left, right).row shouldBe resolve(right, left).row
+      }
+    }
+  }
+
+  @Test
   fun nodeRowsResolveWithTheSameFunction() {
     val base =
       NodeSyncRow(
@@ -143,6 +193,7 @@ class TestConflictResolver {
         isDeleted = false,
         updatedAt = t0,
         originDevice = "device-a",
+        deviceSeq = 0,
       )
     val newer = base.copy(reps = 1, updatedAt = t1, originDevice = "device-b")
     resolve(base, newer) shouldBe Winner(newer, ResolutionSource.REMOTE)
@@ -159,6 +210,7 @@ class TestConflictResolver {
         isDeleted = false,
         updatedAt = t1,
         originDevice = "device-a",
+        deviceSeq = 0,
       )
     val older = base.copy(isGood = false, updatedAt = t0, originDevice = "device-b")
     resolve(base, older) shouldBe Winner(base, ResolutionSource.LOCAL)

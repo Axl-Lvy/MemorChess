@@ -15,8 +15,18 @@ sealed interface SyncRow {
   /** When the owning device last wrote this row. Decides conflicts; see [resolve]. */
   val updatedAt: Instant
 
-  /** Opaque id of the device that wrote this version. Breaks [updatedAt] ties deterministically. */
+  /** Opaque id of the device that wrote this version. Breaks [updatedAt] ties. */
   val originDevice: String
+
+  /**
+   * Per device counter, strictly increasing with every local write that device makes.
+   *
+   * For two versions written by the same device this is the **only** thing [resolve] compares, and
+   * [updatedAt] is ignored. A counter cannot move backwards, whereas a clock can, so this is what
+   * keeps a device's own newer write from losing to its own older one. Only comparable between rows
+   * carrying the same [originDevice]; counters from different devices are unrelated.
+   */
+  val deviceSeq: Long
 
   /** Whether this row is a tombstone. A deletion is an ordinary write, never a special case. */
   val isDeleted: Boolean
@@ -53,6 +63,7 @@ data class NodeSyncRow(
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
   override val originDevice: String,
+  override val deviceSeq: Long,
 ) : SyncRow
 
 /**
@@ -72,6 +83,7 @@ data class EdgeSyncRow(
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
   override val originDevice: String,
+  override val deviceSeq: Long,
 ) : SyncRow
 
 /**
@@ -87,4 +99,5 @@ data class SettingSyncRow(
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
   override val originDevice: String,
+  override val deviceSeq: Long,
 ) : SyncRow
