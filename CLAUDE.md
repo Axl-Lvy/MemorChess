@@ -35,8 +35,9 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 
 ## Architecture
 
-Four Gradle modules:
+Five Gradle modules:
 
+- **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with the future `:server` module: the chess engine core (`core/engine/`, minus `evaluation/`), `PositionKey`, and PGN parsing (`PgnParser`, `PgnGame`, `PgnParseException`). Packages match their original `composeApp` locations, so a package split across the two modules is normal here and intended. `composeApp` depends on it with `api`, so the moved types stay visible to `androidApp` and `microbenchmark` transitively.
 - **`composeApp`** — the Kotlin Multiplatform library holding all shared code (`core/` logic, `ui/` Compose UI). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
 - **`androidApp`** — the thin Android application shell: `MainActivity`, launcher manifest and resources, and the instrumented tests (`src/androidTest`). Adds a `benchmark` build type (release performance, debug signing, profileable) measured by `:macrobenchmark`.
 - **`macrobenchmark`** — UI performance benchmarks run against `androidApp`'s `benchmark` build on a device or emulator. See `macrobenchmark/README.md`.
