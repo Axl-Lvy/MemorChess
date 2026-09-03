@@ -4,8 +4,8 @@ import io.kotest.assertions.withClue
 import io.kotest.matchers.maps.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import kotlin.random.Random
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
 class TestSyncConvergence {

@@ -8,8 +8,8 @@ import kotlin.time.Instant
  * How far ahead of server time a row's [SyncRow.updatedAt] may be and still be accepted.
  *
  * Ordinary devices disagree with the server by seconds, so refusing on any skew at all would refuse
- * constantly. This tolerance accepts that noise verbatim while still catching a clock that is
- * wrong by hours or years.
+ * constantly. This tolerance accepts that noise verbatim while still catching a clock that is wrong
+ * by hours or years.
  */
 val SYNC_SKEW_TOLERANCE: Duration = 5.minutes
 
@@ -25,5 +25,4 @@ val SYNC_SKEW_TOLERANCE: Duration = 5.minutes
  *
  * @param serverNow The server's clock at the moment the row is received.
  */
-fun SyncRow.isTooFarAhead(serverNow: Instant): Boolean =
-  updatedAt > serverNow + SYNC_SKEW_TOLERANCE
+fun SyncRow.isTooFarAhead(serverNow: Instant): Boolean = updatedAt > serverNow + SYNC_SKEW_TOLERANCE

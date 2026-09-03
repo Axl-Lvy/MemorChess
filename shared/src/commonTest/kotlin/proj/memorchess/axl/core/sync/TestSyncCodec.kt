@@ -85,7 +85,8 @@ class TestSyncCodec {
 
   @Test
   fun nullOptionalInstantRoundTrips() {
-    SYNC_JSON.decodeFromString<NodeSyncRow>(SYNC_JSON.encodeToString(node)).firstReview shouldBe null
+    SYNC_JSON.decodeFromString<NodeSyncRow>(SYNC_JSON.encodeToString(node)).firstReview shouldBe
+      null
   }
 
   @Test
