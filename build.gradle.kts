@@ -33,7 +33,8 @@ sonar {
     property(
       "sonar.coverage.jacoco.xmlReportPaths",
       "${projectDir}/androidApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml," +
-        "${projectDir}/composeApp/build/reports/kover/reportJvm.xml",
+        "${projectDir}/composeApp/build/reports/kover/reportJvm.xml," +
+        "${projectDir}/shared/build/reports/kover/reportJvm.xml",
     )
 
     property(
