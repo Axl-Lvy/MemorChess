@@ -162,7 +162,7 @@ jobs:
       - name: Run JVM tests with coverage
         env:
           LICHESS_API_TOKEN: ${{ secrets.LICHESS_API_TOKEN }}
-        run: ./gradlew koverXmlReportJvm
+        run: ./gradlew koverXmlReportJvm :server:koverXmlReport
 
       # On the cheap tier the JVM Kover XML is the only coverage source,
       # so run sonar in-line and skip the separate sonar-analysis job to
@@ -173,11 +173,17 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
 
+      # Two paths, so the artifact is rooted at their least common ancestor, the repo root.
+      # The sonar-analysis job therefore has to unpack it with "path: ." to restore these
+      # locations; unpacking into one of them would nest the whole tree inside it and silently
+      # break the coverage paths sonar reads.
       - name: Upload Kover coverage report
         uses: actions/upload-artifact@v7
         with:
           name: kover-report-jvm
-          path: composeApp/build/reports/kover/
+          path: |
+            composeApp/build/reports/kover/
+            server/build/reports/kover/
           retention-days: 1
 
       - name: Upload JVM test result files
@@ -185,7 +191,10 @@ jobs:
         if: always()
         with:
           name: jvm-test-results
-          path: composeApp/build/test-results/jvmTest/*.xml
+          path: |
+            composeApp/build/test-results/jvmTest/*.xml
+            shared/build/test-results/jvmTest/*.xml
+            server/build/test-results/test/*.xml
           retention-days: 1
 
   # Cheap tier safety net: compile Android + wasm to catch expect/actual breaks, plus the
@@ -487,11 +496,13 @@ jobs:
           name: coverage-report-android
           path: androidApp/build/outputs/code_coverage/
 
+      # "." because the artifact is rooted at the repo root: it carries both composeApp's and
+      # server's report directories, and each has to land back where sonar expects it.
       - name: Download JVM Kover report
         uses: actions/download-artifact@v8
         with:
           name: kover-report-jvm
-          path: composeApp/build/reports/kover/
+          path: .
 
       - uses: actions/setup-java@v6
         with:

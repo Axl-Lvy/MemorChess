@@ -33,7 +33,11 @@ sonar {
     property(
       "sonar.coverage.jacoco.xmlReportPaths",
       "${projectDir}/androidApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml," +
-        "${projectDir}/composeApp/build/reports/kover/reportJvm.xml",
+        "${projectDir}/composeApp/build/reports/kover/reportJvm.xml," +
+        // :shared is merged into composeApp's report through kover(project(":shared")). :server
+        // is not a dependency of composeApp, so it needs its own entry. The file name has no Jvm
+        // suffix: that suffix only exists on multiplatform modules.
+        "${projectDir}/server/build/reports/kover/report.xml",
     )
 
     property(
