@@ -12,6 +12,7 @@ import proj.memorchess.axl.core.sync.RejectedRow
 import proj.memorchess.axl.core.sync.RejectionCode
 import proj.memorchess.axl.core.sync.ResolutionSource
 import proj.memorchess.axl.core.sync.SettingSyncRow
+import proj.memorchess.axl.core.sync.SyncPullResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.SyncPushResponse
 import proj.memorchess.axl.core.sync.isTooFarAhead
@@ -103,6 +104,170 @@ internal class SyncStore(private val dataSource: DataSource) {
 
       SyncPushResponse(serverTime = serverNow, revision = highestRevision, rejected = rejected)
     }
+
+  /**
+   * One bounded page of rows the caller has not seen, ordered by the server assigned revision.
+   *
+   * The cursor is a revision and **never** a timestamp. Using `updated_at` instead looks equivalent
+   * and silently loses rows forever: a device with a slow clock writes a row stamped earlier than a
+   * cursor another device has already passed, and that row is never returned again.
+   *
+   * Each resource is queried separately with its own limit, so a table that filled its page may
+   * still be holding rows. [SyncPullResponse.nextCursor] is therefore the **lowest** such ceiling
+   * across the three, and rows above it are withheld until the next page. Advancing further could
+   * skip a row in a table that had not caught up, and re-sending is free because applying a row is
+   * idempotent. A `null` cursor means every table returned a partial page and the caller is up to
+   * date.
+   *
+   * @param limit Maximum rows per resource; must be strictly positive.
+   * @throws IllegalArgumentException when [limit] is not strictly positive.
+   */
+  internal suspend fun pull(
+    userId: String,
+    since: Long,
+    limit: Int,
+    serverNow: Instant,
+  ): SyncPullResponse =
+    withContext(Dispatchers.IO) {
+      require(limit > 0) { "limit must be strictly positive, was $limit" }
+
+      dataSource.connection.use { connection ->
+        val nodes = connection.pullNodes(userId, since, limit)
+        val edges = connection.pullEdges(userId, since, limit)
+        val settings = connection.pullSettings(userId, since, limit)
+
+        // A page that came back full may be hiding more rows, so its last revision is a ceiling.
+        // A partial page is exhausted and imposes none.
+        val ceiling =
+          listOf(nodes, edges, settings)
+            .mapNotNull { page -> page.takeIf { it.size == limit }?.last()?.first }
+            .minOrNull()
+
+        fun <T> List<Pair<Long, T>>.upTo(bound: Long?) =
+          (if (bound == null) this else filter { it.first <= bound }).map { it.second }
+
+        SyncPullResponse(
+          serverTime = serverNow,
+          nextCursor = ceiling,
+          nodes = nodes.upTo(ceiling),
+          edges = edges.upTo(ceiling),
+          settings = settings.upTo(ceiling),
+        )
+      }
+    }
+
+  private fun Connection.pullNodes(
+    userId: String,
+    since: Long,
+    limit: Int,
+  ): List<Pair<Long, NodeSyncRow>> =
+    prepareStatement(
+        "SELECT p.position_key, n.due_date, n.last_review, n.first_review, n.stability, " +
+          "n.difficulty, n.reps, n.lapses, n.phase, n.step, n.is_deleted, n.updated_at, " +
+          "n.origin_device, n.device_seq, n.revision FROM user_node n " +
+          "JOIN position p ON p.id = n.position_id " +
+          "WHERE n.user_id = ? AND n.revision > ? ORDER BY n.revision ASC LIMIT ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, since)
+        statement.setInt(3, limit)
+        statement.executeQuery().use { rows ->
+          buildList {
+            while (rows.next()) {
+              add(
+                rows.getLong(15) to
+                  NodeSyncRow(
+                    positionKey = rows.getString(1),
+                    dueDate = rows.getTimestamp(2).toInstant().toKotlinInstant(),
+                    lastReview = rows.getTimestamp(3)?.toInstant()?.toKotlinInstant(),
+                    firstReview = rows.getTimestamp(4)?.toInstant()?.toKotlinInstant(),
+                    stability = rows.getDouble(5),
+                    difficulty = rows.getDouble(6),
+                    reps = rows.getInt(7),
+                    lapses = rows.getInt(8),
+                    phase = rows.getString(9),
+                    step = rows.getInt(10),
+                    isDeleted = rows.getBoolean(11),
+                    updatedAt = rows.getTimestamp(12).toInstant().toKotlinInstant(),
+                    originDevice = rows.getString(13),
+                    deviceSeq = rows.getLong(14),
+                  )
+              )
+            }
+          }
+        }
+      }
+
+  private fun Connection.pullEdges(
+    userId: String,
+    since: Long,
+    limit: Int,
+  ): List<Pair<Long, EdgeSyncRow>> =
+    prepareStatement(
+        "SELECT po.position_key, pd.position_key, e.move, ue.is_good, ue.is_deleted, " +
+          "ue.updated_at, ue.origin_device, ue.device_seq, ue.revision FROM user_edge ue " +
+          "JOIN move_edge e ON e.id = ue.edge_id " +
+          "JOIN position po ON po.id = e.origin_id " +
+          "JOIN position pd ON pd.id = e.destination_id " +
+          "WHERE ue.user_id = ? AND ue.revision > ? ORDER BY ue.revision ASC LIMIT ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, since)
+        statement.setInt(3, limit)
+        statement.executeQuery().use { rows ->
+          buildList {
+            while (rows.next()) {
+              add(
+                rows.getLong(9) to
+                  EdgeSyncRow(
+                    origin = rows.getString(1),
+                    destination = rows.getString(2),
+                    move = rows.getString(3),
+                    isGood = rows.getBoolean(4),
+                    isDeleted = rows.getBoolean(5),
+                    updatedAt = rows.getTimestamp(6).toInstant().toKotlinInstant(),
+                    originDevice = rows.getString(7),
+                    deviceSeq = rows.getLong(8),
+                  )
+              )
+            }
+          }
+        }
+      }
+
+  private fun Connection.pullSettings(
+    userId: String,
+    since: Long,
+    limit: Int,
+  ): List<Pair<Long, SettingSyncRow>> =
+    prepareStatement(
+        "SELECT key, value, is_deleted, updated_at, origin_device, device_seq, revision " +
+          "FROM user_setting WHERE user_id = ? AND revision > ? ORDER BY revision ASC LIMIT ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, since)
+        statement.setInt(3, limit)
+        statement.executeQuery().use { rows ->
+          buildList {
+            while (rows.next()) {
+              add(
+                rows.getLong(7) to
+                  SettingSyncRow(
+                    key = rows.getString(1),
+                    value = rows.getString(2),
+                    isDeleted = rows.getBoolean(3),
+                    updatedAt = rows.getTimestamp(4).toInstant().toKotlinInstant(),
+                    originDevice = rows.getString(5),
+                    deviceSeq = rows.getLong(6),
+                  )
+              )
+            }
+          }
+        }
+      }
 
   /** Reads one stored node. Exposed so the push tests do not depend on `pull` being correct. */
   internal suspend fun readNodeForTest(userId: String, positionKey: String): NodeSyncRow? =
