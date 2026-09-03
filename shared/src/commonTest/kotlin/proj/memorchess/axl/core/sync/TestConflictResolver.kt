@@ -5,7 +5,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 
-class TestConflictResolver {
+internal class TestConflictResolver {
 
   private fun row(
     updatedAt: Instant,
@@ -30,13 +30,13 @@ class TestConflictResolver {
   @Test
   fun missingLocalTakesRemote() {
     val remote = row(t1)
-    resolve(null, remote) shouldBe Winner(remote, ResolutionSource.REMOTE)
+    resolve(null, remote) shouldBe Resolution(remote, ResolutionSource.REMOTE)
   }
 
   @Test
   fun missingRemoteKeepsLocal() {
     val local = row(t1)
-    resolve(local, null) shouldBe Winner(local, ResolutionSource.LOCAL)
+    resolve(local, null) shouldBe Resolution(local, ResolutionSource.LOCAL)
   }
 
   @Test
@@ -48,14 +48,14 @@ class TestConflictResolver {
   fun laterRemoteWins() {
     val local = row(t0)
     val remote = row(t1, originDevice = "device-b")
-    resolve(local, remote) shouldBe Winner(remote, ResolutionSource.REMOTE)
+    resolve(local, remote) shouldBe Resolution(remote, ResolutionSource.REMOTE)
   }
 
   @Test
   fun laterLocalWins() {
     val local = row(t1)
     val remote = row(t0, originDevice = "device-b")
-    resolve(local, remote) shouldBe Winner(local, ResolutionSource.LOCAL)
+    resolve(local, remote) shouldBe Resolution(local, ResolutionSource.LOCAL)
   }
 
   @Test
@@ -68,14 +68,14 @@ class TestConflictResolver {
   fun epochZeroIsAnOrdinaryTimestamp() {
     val local = row(t0, originDevice = "device-a")
     val remote = row(t0, originDevice = "device-b")
-    resolve(local, remote) shouldBe Winner(remote, ResolutionSource.REMOTE)
+    resolve(local, remote) shouldBe Resolution(remote, ResolutionSource.REMOTE)
   }
 
   @Test
   fun largeTimestampsCompareCorrectly() {
     val local = row(tLarge)
     val remote = row(t1, originDevice = "device-b")
-    resolve(local, remote) shouldBe Winner(local, ResolutionSource.LOCAL)
+    resolve(local, remote) shouldBe Resolution(local, ResolutionSource.LOCAL)
   }
 
   @Test
@@ -94,14 +94,14 @@ class TestConflictResolver {
   @Test
   fun identicalRowsKeepLocalWithoutAWrite() {
     val same = row(t1, "device-a")
-    resolve(same, same) shouldBe Winner(same, ResolutionSource.LOCAL)
+    resolve(same, same) shouldBe Resolution(same, ResolutionSource.LOCAL)
   }
 
   @Test
   fun aTombstoneWinsWhenItIsNewer() {
     val local = row(t0)
     val remote = row(t1, originDevice = "device-b", isDeleted = true)
-    resolve(local, remote) shouldBe Winner(remote, ResolutionSource.REMOTE)
+    resolve(local, remote) shouldBe Resolution(remote, ResolutionSource.REMOTE)
   }
 
   @Test
@@ -109,7 +109,7 @@ class TestConflictResolver {
     val local = row(t1, value = "alive")
     val remote = row(t0, originDevice = "device-b", isDeleted = true)
     val winner = resolve(local, remote)
-    winner shouldBe Winner(local, ResolutionSource.LOCAL)
+    winner shouldBe Resolution(local, ResolutionSource.LOCAL)
     winner.row.isDeleted shouldBe false
   }
 
@@ -117,7 +117,7 @@ class TestConflictResolver {
   fun deletionIsNotPrivilegedOverAnEqualTimestampWrite() {
     val local = row(t1, "device-b", isDeleted = false)
     val remote = row(t1, "device-a", isDeleted = true)
-    resolve(local, remote) shouldBe Winner(local, ResolutionSource.LOCAL)
+    resolve(local, remote) shouldBe Resolution(local, ResolutionSource.LOCAL)
   }
 
   @Test
@@ -125,7 +125,7 @@ class TestConflictResolver {
     val local = row(t0)
     val remote = row(t1, originDevice = "device-b")
     val once = resolve(local, remote).row
-    resolve(once, remote) shouldBe Winner(once, ResolutionSource.LOCAL)
+    resolve(once, remote) shouldBe Resolution(once, ResolutionSource.LOCAL)
   }
 
   @Test
@@ -134,16 +134,16 @@ class TestConflictResolver {
     // the greater sequence, must still win. Regression test for randomised seeds 5 and 43.
     val older = row(tLarge, "device-a", deviceSeq = 1)
     val newer = row(t0, "device-a", deviceSeq = 2, value = "newer")
-    resolve(older, newer) shouldBe Winner(newer, ResolutionSource.REMOTE)
-    resolve(newer, older) shouldBe Winner(newer, ResolutionSource.LOCAL)
+    resolve(older, newer) shouldBe Resolution(newer, ResolutionSource.REMOTE)
+    resolve(newer, older) shouldBe Resolution(newer, ResolutionSource.LOCAL)
   }
 
   @Test
   fun sameDeviceSameInstantBreaksOnTheGreaterSequence() {
     val earlier = row(t1, "device-a", deviceSeq = 1)
     val later = row(t1, "device-a", deviceSeq = 2, value = "later")
-    resolve(earlier, later) shouldBe Winner(later, ResolutionSource.REMOTE)
-    resolve(later, earlier) shouldBe Winner(later, ResolutionSource.LOCAL)
+    resolve(earlier, later) shouldBe Resolution(later, ResolutionSource.REMOTE)
+    resolve(later, earlier) shouldBe Resolution(later, ResolutionSource.LOCAL)
   }
 
   @Test
@@ -152,7 +152,7 @@ class TestConflictResolver {
     // different devices are unrelated counters.
     val local = row(t1, "device-b", deviceSeq = 0)
     val remote = row(t1, "device-a", deviceSeq = 99)
-    resolve(local, remote) shouldBe Winner(local, ResolutionSource.LOCAL)
+    resolve(local, remote) shouldBe Resolution(local, ResolutionSource.LOCAL)
   }
 
   @Test
@@ -196,7 +196,7 @@ class TestConflictResolver {
         deviceSeq = 0,
       )
     val newer = base.copy(reps = 1, updatedAt = t1, originDevice = "device-b")
-    resolve(base, newer) shouldBe Winner(newer, ResolutionSource.REMOTE)
+    resolve(base, newer) shouldBe Resolution(newer, ResolutionSource.REMOTE)
   }
 
   @Test
@@ -213,6 +213,6 @@ class TestConflictResolver {
         deviceSeq = 0,
       )
     val older = base.copy(isGood = false, updatedAt = t0, originDevice = "device-b")
-    resolve(base, older) shouldBe Winner(base, ResolutionSource.LOCAL)
+    resolve(base, older) shouldBe Resolution(base, ResolutionSource.LOCAL)
   }
 }

@@ -8,7 +8,7 @@ import kotlin.time.Instant
  * Every accepted write is stamped with a monotonically increasing revision from a single counter,
  * exactly as a Postgres sequence would. Pulls are driven by that revision and never by a timestamp.
  */
-class FakeServer {
+internal class FakeServer {
 
   private data class Stored(val row: SettingSyncRow, val revision: Long)
 
@@ -16,11 +16,11 @@ class FakeServer {
   private var revisionCounter = 0L
 
   /** Rows whose revision is greater than [since], oldest first. */
-  fun pull(since: Long): List<SettingSyncRow> =
+  internal fun pull(since: Long): List<SettingSyncRow> =
     rows.values.filter { it.revision > since }.sortedBy { it.revision }.map { it.row }
 
   /** Highest revision assigned so far, which a client stores as its cursor. */
-  fun currentRevision(): Long = revisionCounter
+  internal fun currentRevision(): Long = revisionCounter
 
   /**
    * Applies [incoming] under last write wins and returns whatever it refused.
@@ -30,7 +30,7 @@ class FakeServer {
    *
    * Batches are sorted by key so concurrent transactions take locks in the same order.
    */
-  fun push(incoming: List<SettingSyncRow>, serverNow: Instant): List<RejectedRow> {
+  internal fun push(incoming: List<SettingSyncRow>, serverNow: Instant): List<RejectedRow> {
     val rejected = mutableListOf<RejectedRow>()
     for (row in incoming.sortedBy { it.key }) {
       if (row.isTooFarAhead(serverNow)) {
@@ -63,7 +63,7 @@ class FakeServer {
   }
 
   /** Every row currently held, for end state comparison. */
-  fun snapshot(): Map<String, SettingSyncRow> = rows.mapValues { it.value.row }
+  internal fun snapshot(): Map<String, SettingSyncRow> = rows.mapValues { it.value.row }
 }
 
 /**
@@ -71,10 +71,8 @@ class FakeServer {
  *
  * The outbox holds **keys, not rows**, so it can never go stale and repeated edits to one key
  * collapse into a single push.
- *
- * @property deviceId Opaque device id, which also breaks conflict ties.
  */
-class FakeClient(val deviceId: String) {
+internal class FakeClient(private val deviceId: String) {
 
   private val rows = mutableMapOf<String, SettingSyncRow>()
   private val dirty = mutableSetOf<String>()
@@ -84,7 +82,7 @@ class FakeClient(val deviceId: String) {
   private var writeSeq = 0L
 
   /** Writes a value locally and marks its key dirty. */
-  fun edit(key: String, value: String, at: Instant) {
+  internal fun edit(key: String, value: String, at: Instant) {
     rows[key] =
       SettingSyncRow(
         key = key,
@@ -98,7 +96,7 @@ class FakeClient(val deviceId: String) {
   }
 
   /** Tombstones a key locally and marks it dirty. Does nothing when the key is unknown. */
-  fun delete(key: String, at: Instant) {
+  internal fun delete(key: String, at: Instant) {
     val existing = rows[key] ?: return
     rows[key] =
       existing.copy(
@@ -118,7 +116,7 @@ class FakeClient(val deviceId: String) {
    * next round. Retrying within this round instead would risk a loop against a server whose clock
    * is itself moving.
    */
-  fun sync(server: FakeServer, serverNow: Instant) {
+  internal fun sync(server: FakeServer, serverNow: Instant) {
     val rejected = server.push(dirty.mapNotNull { rows[it] }, serverNow)
     dirty.clear()
     for (rejection in rejected) {
@@ -139,9 +137,9 @@ class FakeClient(val deviceId: String) {
   }
 
   /** Every row currently held, for end state comparison. */
-  fun snapshot(): Map<String, SettingSyncRow> = rows.toMap()
+  internal fun snapshot(): Map<String, SettingSyncRow> = rows.toMap()
 
   /** Rows a user would actually see, tombstones excluded. */
-  fun visible(): Map<String, String> =
+  internal fun visible(): Map<String, String> =
     rows.filterValues { !it.isDeleted }.mapValues { it.value.value }
 }

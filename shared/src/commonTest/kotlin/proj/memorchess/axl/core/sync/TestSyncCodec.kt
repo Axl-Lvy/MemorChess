@@ -5,7 +5,7 @@ import io.kotest.matchers.string.shouldContain
 import kotlin.test.Test
 import kotlin.time.Instant
 
-class TestSyncCodec {
+internal class TestSyncCodec {
 
   private val node =
     NodeSyncRow(

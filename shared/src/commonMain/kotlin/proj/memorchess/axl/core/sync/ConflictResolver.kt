@@ -9,24 +9,16 @@ enum class ResolutionSource {
   REMOTE,
 }
 
-/** The outcome of reconciling one row. */
-sealed interface Resolution<T : SyncRow> {
-
-  /** The row that survives. */
-  val row: T
-
-  /** Where [row] came from. */
-  val source: ResolutionSource
-}
-
 /**
- * The surviving row and the side it came from.
+ * The outcome of reconciling one row.
  *
- * @property row The winner.
+ * Constructed only by [resolve]; callers receive these rather than making them.
+ *
+ * @property row The row that survives.
  * @property source Which side [row] came from.
  */
-data class Winner<T : SyncRow>(override val row: T, override val source: ResolutionSource) :
-  Resolution<T>
+@ConsistentCopyVisibility
+data class Resolution<T : SyncRow> internal constructor(val row: T, val source: ResolutionSource)
 
 /**
  * Reconciles one row, per row last write wins.
@@ -67,22 +59,22 @@ fun <T : SyncRow> resolve(local: T?, remote: T?): Resolution<T> {
   require(local != null || remote != null) {
     "resolve called for a row that exists on neither side"
   }
-  if (local == null) return Winner(remote!!, ResolutionSource.REMOTE)
-  if (remote == null) return Winner(local, ResolutionSource.LOCAL)
+  if (local == null) return Resolution(remote!!, ResolutionSource.REMOTE)
+  if (remote == null) return Resolution(local, ResolutionSource.LOCAL)
 
   if (local.originDevice == remote.originDevice) {
     val bySeq = local.deviceSeq.compareTo(remote.deviceSeq)
-    return if (bySeq >= 0) Winner(local, ResolutionSource.LOCAL)
-    else Winner(remote, ResolutionSource.REMOTE)
+    return if (bySeq >= 0) Resolution(local, ResolutionSource.LOCAL)
+    else Resolution(remote, ResolutionSource.REMOTE)
   }
 
   val byTime = local.updatedAt.compareTo(remote.updatedAt)
   if (byTime != 0) {
-    return if (byTime > 0) Winner(local, ResolutionSource.LOCAL)
-    else Winner(remote, ResolutionSource.REMOTE)
+    return if (byTime > 0) Resolution(local, ResolutionSource.LOCAL)
+    else Resolution(remote, ResolutionSource.REMOTE)
   }
 
   val byDevice = local.originDevice.compareTo(remote.originDevice)
-  return if (byDevice > 0) Winner(local, ResolutionSource.LOCAL)
-  else Winner(remote, ResolutionSource.REMOTE)
+  return if (byDevice > 0) Resolution(local, ResolutionSource.LOCAL)
+  else Resolution(remote, ResolutionSource.REMOTE)
 }

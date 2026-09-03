@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
-class TestSyncConvergence {
+internal class TestSyncConvergence {
 
   private fun at(millis: Long) = Instant.fromEpochMilliseconds(millis)
 
