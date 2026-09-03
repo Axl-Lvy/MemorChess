@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
   alias(libs.plugins.kotlinMultiplatform)
   alias(libs.plugins.androidKmpLibrary)
+  alias(libs.plugins.kotlinX.serialization.plugin)
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.kover)
 }
@@ -28,6 +29,7 @@ kotlin {
       // api, not implementation: GameEngine exposes chess-core types in its signatures.
       api(libs.chess.core)
       implementation(libs.kermit.logging)
+      implementation(libs.kotlinx.serialization.json)
     }
 
     commonTest.dependencies {
