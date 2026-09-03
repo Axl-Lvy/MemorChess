@@ -87,6 +87,12 @@ kotlin {
   // Source sets configuration
   sourceSets {
     commonMain.dependencies {
+      // Code shared with the server: chess engine core, PositionKey, PGN parsing.
+      // api, not implementation: these types appear in composeApp's own public signatures
+      // (TreeStore returns PositionKey), so androidApp and the test source sets need them
+      // transitively.
+      api(projects.shared)
+
       // Compose dependencies
       implementation(libs.compose.runtime)
       implementation(libs.compose.foundation)
