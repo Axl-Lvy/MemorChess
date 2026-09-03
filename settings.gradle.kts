@@ -45,3 +45,5 @@ include(":androidApp")
 include(":macrobenchmark")
 
 include(":microbenchmark")
+
+include(":shared")

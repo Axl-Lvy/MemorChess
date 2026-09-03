@@ -35,8 +35,9 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 
 ## Architecture
 
-Four Gradle modules:
+Five Gradle modules:
 
+- **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with the future `:server` module: the chess engine core (`core/engine/`, minus `evaluation/`), `PositionKey`, and PGN parsing (`PgnParser`, `PgnGame`, `PgnParseException`). Packages match their original `composeApp` locations, so a package split across the two modules is normal here and intended. `composeApp` depends on it with `api`, so the moved types stay visible to `androidApp` and `microbenchmark` transitively.
 - **`composeApp`** — the Kotlin Multiplatform library holding all shared code (`core/` logic, `ui/` Compose UI). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
 - **`androidApp`** — the thin Android application shell: `MainActivity`, launcher manifest and resources, and the instrumented tests (`src/androidTest`). Adds a `benchmark` build type (release performance, debug signing, profileable) measured by `:macrobenchmark`.
 - **`macrobenchmark`** — UI performance benchmarks run against `androidApp`'s `benchmark` build on a device or emulator. See `macrobenchmark/README.md`.
@@ -55,6 +56,7 @@ The toolchain is deliberately held below AGP 9.1, and the Gradle wrapper below 9
 - **Testing**: Kotest assertions, no mocking, AAA pattern. Android UI tests live in `androidApp/src/androidTest` and use `createAndroidComposeRule<MainActivity>()`.
 - **Edge cases**: arithmetic, division, weighting, or formatting on numbers from external data must be tested at `0`, the lowest non zero value, either side of every formatting or branching boundary, and a representative large value. Adding a new state, branch, or sealed subclass to a state machine requires a propagation test through every consumer in the same PR.
 - **Database migrations**: the app is not in production, so change the Room (`nonJsMain`) and IndexedDB (`wasmJsMain`) schemas freely **without writing migrations** — recreating the local database is acceptable. Room runs with `exportSchema = false` and `fallbackToDestructiveMigration(dropAllTables = true)`; never re-enable schema export (no `schemas/*.json` should ever be generated or committed). For IndexedDB (`IndexedDbInstance`), bump `DB_VERSION` and keep the single destructive `recreate` upgrade — never add per-version branches.
+- **Adding a `wasmJs` target to a new module**: the first build fails on `:kotlinWasmStoreYarnLock` with "Lock file was changed", because a new wasm target re-registers the root npm store. Run `./gradlew kotlinWasmUpgradeYarnLock` once, then build again. It usually leaves `kotlin-js-store/yarn.lock` byte identical, so expect nothing to commit.
 - **DI**: Koin for dependency injection. Modules defined in `Koin.kt`.
 - **Visibility**: all fields and methods must be `private` whenever possible. Minimize public API surface.
 - **Test-only code**: never introduce `public`/`internal` members solely for testing; test through the public API.
