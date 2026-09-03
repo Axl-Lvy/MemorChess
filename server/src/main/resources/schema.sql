@@ -1,0 +1,74 @@
+-- One global sequence drives the pull cursor for every table. A user therefore sees large gaps
+-- in their own revision numbers, which is harmless: the cursor only has to be monotonic and
+-- comparable, never dense.
+CREATE SEQUENCE IF NOT EXISTS sync_revision AS bigint;
+
+-- Global, append only, never garbage collected. Deleting a line deletes the user's row, never
+-- the shared position or edge: refcounting a shared row would put every write in contention on
+-- a counter, and the rows are far too small to reclaim.
+CREATE TABLE IF NOT EXISTS position (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  position_key text NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS move_edge (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  origin_id bigint NOT NULL REFERENCES position(id),
+  destination_id bigint NOT NULL REFERENCES position(id),
+  move text NOT NULL,
+  UNIQUE (origin_id, destination_id)
+);
+
+-- Per user. Holds only what is genuinely personal: scheduling state on a node, isGood on an
+-- edge. The cropped FEN lives once in position, referenced by an 8 byte id.
+CREATE TABLE IF NOT EXISTS user_node (
+  user_id text NOT NULL,
+  position_id bigint NOT NULL REFERENCES position(id),
+  due_date timestamptz NOT NULL,
+  last_review timestamptz,
+  first_review timestamptz,
+  stability double precision NOT NULL,
+  difficulty double precision NOT NULL,
+  reps int NOT NULL,
+  lapses int NOT NULL,
+  phase text NOT NULL,
+  step int NOT NULL,
+  is_deleted boolean NOT NULL,
+  deleted_at timestamptz,
+  updated_at timestamptz NOT NULL,
+  origin_device text NOT NULL,
+  device_seq bigint NOT NULL,
+  revision bigint NOT NULL,
+  PRIMARY KEY (user_id, position_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_edge (
+  user_id text NOT NULL,
+  edge_id bigint NOT NULL REFERENCES move_edge(id),
+  is_good boolean NOT NULL,
+  is_deleted boolean NOT NULL,
+  deleted_at timestamptz,
+  updated_at timestamptz NOT NULL,
+  origin_device text NOT NULL,
+  device_seq bigint NOT NULL,
+  revision bigint NOT NULL,
+  PRIMARY KEY (user_id, edge_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_setting (
+  user_id text NOT NULL,
+  key text NOT NULL,
+  value text NOT NULL,
+  is_deleted boolean NOT NULL,
+  deleted_at timestamptz,
+  updated_at timestamptz NOT NULL,
+  origin_device text NOT NULL,
+  device_seq bigint NOT NULL,
+  revision bigint NOT NULL,
+  PRIMARY KEY (user_id, key)
+);
+
+-- The only multi row read path is "everything for this user above this revision".
+CREATE INDEX IF NOT EXISTS user_node_cursor ON user_node (user_id, revision);
+CREATE INDEX IF NOT EXISTS user_edge_cursor ON user_edge (user_id, revision);
+CREATE INDEX IF NOT EXISTS user_setting_cursor ON user_setting (user_id, revision);

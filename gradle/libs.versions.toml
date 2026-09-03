@@ -35,6 +35,9 @@ ksp = "2.3.11"
 kotest = "6.2.4"
 kotlinxDatetime = "0.8.0"
 kotlinxSerializationJson = "1.11.0"
+postgresql = "42.7.7"
+hikari = "6.3.0"
+testcontainers = "1.21.3"
 ktor = "3.5.2"
 material-icons = "1.7.3"
 material3-adaptive = "1.2.0"
@@ -106,6 +109,10 @@ kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version
 kotlinx-benchmark-runtime = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-runtime", version.ref = "kotlinx-benchmark" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 androidx-ui-test-junit4-android = { module = "androidx.compose.ui:ui-test-junit4-android", version.ref = "uiTestJunit4Android" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestJunit4Android" }
@@ -119,6 +126,7 @@ androidx-tracing-perfetto-binary = { module = "androidx.tracing:tracing-perfetto
 # --- Logging ---
 kermit-logging = { module = "co.touchlab:kermit", version.ref = "kermit" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4jApi" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4jApi" }
 
 # --- Networking ---
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
