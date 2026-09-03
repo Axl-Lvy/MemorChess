@@ -69,9 +69,10 @@ tasks.named("ktfmtCheck") { dependsOn(ktfmtCheckAndroidSources) }
 tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   dependsOn("compileDebugKotlin")
   dependsOn(":composeApp:compileAndroidMain")
+  dependsOn(":shared:compileAndroidMain")
   group = "verification"
   description =
-    "Generate test coverage reports for Android instrumented tests across androidApp and composeApp"
+    "Generate test coverage reports for Android instrumented tests across androidApp, composeApp and shared"
 
   reports {
     xml.required.set(true)
@@ -101,6 +102,10 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
     fileTree("${rootProject.projectDir}/composeApp/build/classes/kotlin/android/main") {
       exclude(fileFilter)
     }
+  val sharedClasses =
+    fileTree("${rootProject.projectDir}/shared/build/classes/kotlin/android/main") {
+      exclude(fileFilter)
+    }
 
   val composeAppSrc = "${rootProject.projectDir}/composeApp/src"
 
@@ -111,9 +116,10 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
       "$composeAppSrc/nonJsMain/kotlin",
       "$composeAppSrc/debugMain/kotlin",
       "${project.projectDir}/src/main/kotlin",
+      "${rootProject.projectDir}/shared/src/commonMain/kotlin",
     )
   )
-  classDirectories.setFrom(files(appClasses, libraryClasses))
+  classDirectories.setFrom(files(appClasses, libraryClasses, sharedClasses))
 
   // Use both possible locations for coverage execution data
   executionData.setFrom(

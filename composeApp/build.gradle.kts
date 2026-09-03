@@ -211,6 +211,11 @@ dependencies {
   add("kspIosSimulatorArm64", libs.androidx.room.compiler)
   add("kspIosArm64", libs.androidx.room.compiler)
   add("kspJvm", libs.androidx.room.compiler)
+
+  // Pull :shared into this module's Kover report. Most of the chess engine is exercised
+  // through composeApp's tests, and Kover only reports classes of the projects listed here,
+  // so without this the engine reads as uncovered.
+  kover(project(":shared"))
 }
 
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }

@@ -40,3 +40,6 @@ kotlin {
 }
 
 ktfmt { googleStyle() }
+
+// Must match composeApp's engine: Kover refuses to merge reports produced by different engines.
+kover { useJacoco("0.8.14") }
