@@ -2,7 +2,7 @@ package proj.memorchess.axl.server.repertoire
 
 import java.util.concurrent.ConcurrentHashMap
 
-/** A real, in-process [RepertoireBlobStore], used in tests in place of a live R2 bucket. */
+/** A real, in memory [RepertoireBlobStore], used in tests in place of a live R2 bucket. */
 internal class InMemoryRepertoireBlobStore : RepertoireBlobStore {
 
   private val blobs = ConcurrentHashMap<String, ByteArray>()

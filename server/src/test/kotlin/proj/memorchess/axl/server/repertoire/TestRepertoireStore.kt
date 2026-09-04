@@ -14,7 +14,7 @@ internal class TestRepertoireStore {
   private val now = Instant.fromEpochSeconds(1_700_000_000)
 
   // A random id, unique per call and unrelated (in sort order) to any other test's ids: the
-  // repertoire table is global with no per-test user scoping, since the catalog is anonymous by
+  // repertoire table is global with no per test user scoping, since the catalog is anonymous by
   // design, so this is what keeps one test's rows from leaking into another's assertions.
   private fun newId(): String = java.util.UUID.randomUUID().toString()
 
@@ -42,8 +42,9 @@ internal class TestRepertoireStore {
       maxTotalPayloadBytesPerUser,
     )
 
-  // Each call is byte-unique (random Event tag) unless the caller reuses the returned string, so
-  // two unrelated tests' payloads never collide on sha256 in the shared blob-refcount checks.
+  // Each call produces unique bytes (random Event tag) unless the caller reuses the returned
+  // string, so two unrelated tests' payloads never collide on sha256 in the shared blob
+  // reference count checks.
   private fun pgn(move: String = "e4") =
     "[Event \"${java.util.UUID.randomUUID()}\"]\n[Result \"*\"]\n\n1. $move *"
 
@@ -146,6 +147,61 @@ internal class TestRepertoireStore {
     val outcome = store().publish(author1, "ab", "T", "D", "white", pgn(), now)
 
     outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
+  }
+
+  @Test
+  fun `publishing accepts a title of exactly the length cap`() = kotlinx.coroutines.test.runTest {
+    val title = "t".repeat(200)
+
+    val outcome = store().publish(author1, newId(), title, "D", "white", pgn(), now)
+
+    outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+  }
+
+  @Test
+  fun `publishing rejects a title one character over the length cap`() = kotlinx.coroutines.test.runTest {
+    val title = "t".repeat(201)
+
+    val outcome = store().publish(author1, newId(), title, "D", "white", pgn(), now)
+
+    outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
+  }
+
+  @Test
+  fun `publishing accepts a description of exactly the length cap`() = kotlinx.coroutines.test.runTest {
+    val description = "d".repeat(2_000)
+
+    val outcome = store().publish(author1, newId(), "T", description, "white", pgn(), now)
+
+    outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+  }
+
+  @Test
+  fun `publishing rejects a description one character over the length cap`() =
+    kotlinx.coroutines.test.runTest {
+      val description = "d".repeat(2_001)
+
+      val outcome = store().publish(author1, newId(), "T", description, "white", pgn(), now)
+
+      outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
+    }
+
+  @Test
+  fun `publishing refused by the quota never persists the blob`() = kotlinx.coroutines.test.runTest {
+    val blobs = InMemoryRepertoireBlobStore()
+    val store = store(maxRepertoiresPerUser = 1, blobs = blobs)
+    val author = "author-orphan-${System.nanoTime()}"
+    store.publish(author, newId(), "T", "D", "white", pgn("e4"), now)
+    val rejectedPgn = pgn("d4")
+    val rejectedHash =
+      java.security.MessageDigest.getInstance("SHA-256")
+        .digest(rejectedPgn.encodeToByteArray())
+        .joinToString("") { "%02x".format(it) }
+
+    val outcome = store.publish(author, newId(), "T", "D", "white", rejectedPgn, now)
+
+    outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
+    blobs.get(rejectedHash).shouldBeNull()
   }
 
   @Test
@@ -297,6 +353,20 @@ internal class TestRepertoireStore {
   }
 
   @Test
+  fun `setStatus refuses to resurrect a removed repertoire whose blob is already gone`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
+      store.remove(author1, id)
+
+      val outcome = store.setStatus(id, "published")
+
+      outcome shouldBe SetStatusOutcome.NotFound
+      store.get(id).shouldBeNull()
+    }
+
+  @Test
   fun `get returns null for a status of removed`() = kotlinx.coroutines.test.runTest {
     val store = store()
     val id = newId()
@@ -320,8 +390,8 @@ internal class TestRepertoireStore {
       store.publish(author, removed, "T", "D", "white", pgn("c4"), now)
       store.remove(author, removed)
 
-      // The table is global (no per-test scoping — the catalog is anonymous by design), so this
-      // checks containment rather than exact equality against the whole table's contents.
+      // The table is global (no per test scoping, since the catalog is anonymous by design), so
+      // this checks containment rather than exact equality against the whole table's contents.
       val allIds = store.allPublished().map { it.id }
 
       allIds shouldContain published

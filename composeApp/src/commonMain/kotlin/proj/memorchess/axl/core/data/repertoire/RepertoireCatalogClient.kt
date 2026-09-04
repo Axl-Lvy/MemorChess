@@ -15,9 +15,9 @@ import proj.memorchess.axl.core.pgn.PgnParser
 /**
  * HTTP client for the remote repertoire catalog.
  *
- * Originally served as static files from the `repertoire-data` branch on raw GitHub, now served by
- * `:server` at the same relative paths (`manifest.json`, `pgn/<hash>.pgn`) under [DEFAULT_BASE_URL]
- * — the migration this client went through is a base URL change and nothing else, since the two
+ * Originally served as static files from the `repertoire-data` branch on raw GitHub. Now served by
+ * `:server` at the same relative paths (`manifest.json`, `pgn/<hash>.pgn`) under [DEFAULT_BASE_URL].
+ * The migration this client went through was a base URL change and nothing else, because the two
  * backends serve the identical `RepertoireManifest`/`RepertoireDescriptor` contract.
  *
  * Responses are read as plain text, which both backends serve every file as, then decoded here: the
@@ -115,13 +115,14 @@ class RepertoireCatalogClient(
   }
 
   private companion object {
-    // Placeholder: chess-server has no public hostname yet. The Cloudflare tunnel and the
+    // Placeholder: `chess-server` has no public hostname yet. The Cloudflare tunnel and the
     // deployment that would give it one are later steps in the cloud backend sequencing spec
     // than the one that added this client migration, so there is nothing real to point at today.
-    // ".invalid" is RFC 2606 reserved and never resolves, so a build that ships before the real
-    // hostname lands fails loudly instead of silently talking to nothing. Replace with the real
-    // tunnel hostname once it exists; the relative paths below already match what `:server`
-    // serves at that root (`manifest.json`, `pgn/<sha256>.pgn`), so nothing else here changes.
+    // The ".invalid" suffix is RFC 2606 reserved and never resolves, so a build that ships before
+    // the real hostname lands fails loudly instead of silently talking to nothing. Replace with
+    // the real tunnel hostname once it exists. The relative paths below already match what
+    // `:server` serves at that root (`manifest.json`, `pgn/<sha256>.pgn`), so nothing else here
+    // changes.
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1/repertoires"
     const val MANIFEST_FILE = "manifest.json"
     const val SUPPORTED_SCHEMA_VERSION = 1

@@ -31,6 +31,12 @@ private val ID_PATTERN = Regex("^[a-z0-9]+(-[a-z0-9]+)*$")
 private const val MIN_ID_LENGTH = 3
 private const val MAX_ID_LENGTH = 64
 
+/** Longest title accepted. It is shown in the public catalog, so an unbounded one is a footgun. */
+private const val MAX_TITLE_LENGTH = 200
+
+/** Longest description accepted, for the same reason as [MAX_TITLE_LENGTH]. */
+private const val MAX_DESCRIPTION_LENGTH = 2_000
+
 /** One stored version of a repertoire: exactly one row of `repertoire_version`. */
 internal data class RepertoireRow(
   val id: String,
@@ -87,11 +93,11 @@ internal data class RepertoirePage(val rows: List<RepertoireRow>, val nextCursor
 /**
  * The server side of published repertoires, over a Postgres database and a [RepertoireBlobStore].
  *
- * A repertoire is content addressed: [RepertoireBlobStore.put] is called with the payload's sha256
- * before the metadata row is committed, so a row is never inserted without its blob already
- * durable, and a rejected publish leaves at most an orphaned, harmless blob behind. Every lookup
- * reads the **latest version** of an id and its status; an older version's status is never
- * consulted once a newer one exists.
+ * A repertoire is content addressed: the metadata row commits first, then [RepertoireBlobStore.put]
+ * stores the payload it references. A publish rejected by validation or a quota never reaches
+ * either write. A blob write that fails after the row commits is compensated by deleting that row
+ * again, so a repertoire never outlives its payload. Every lookup reads the **latest version** of an
+ * id and its status. An older version's status is never consulted once a newer one exists.
  *
  * @param dataSource Pooled connections. Each call takes one and returns it.
  * @param blobs Payload storage, keyed by sha256.
@@ -116,7 +122,7 @@ internal class RepertoireStore(
    * Validates and stores a new version of [id], authored by [authorId].
    *
    * The payload is validated with [RepertoirePgnValidator] before anything is written. A first
-   * publish of [id] creates version 1; a later publish by the same author creates the next version
+   * publish of [id] creates version 1. A later publish by the same author creates the next version
    * and never mutates an earlier one. A publish by a different author than the one who already owns
    * [id] is refused, never silently reassigned.
    */
@@ -135,14 +141,34 @@ internal class RepertoireStore(
     if (side != "white" && side != "black") {
       return PublishOutcome.InvalidPayload("side must be 'white' or 'black', was '$side'")
     }
+    if (title.length > MAX_TITLE_LENGTH) {
+      return PublishOutcome.InvalidPayload(
+        "title must be at most $MAX_TITLE_LENGTH characters, was ${title.length}"
+      )
+    }
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      return PublishOutcome.InvalidPayload(
+        "description must be at most $MAX_DESCRIPTION_LENGTH characters, was ${description.length}"
+      )
+    }
 
-    return when (val validation = RepertoirePgnValidator.validate(pgn, maxPayloadBytes, maxMoves)) {
+    // RepertoirePgnValidator blocks its caller on a worker thread it manages itself (see its own
+    // KDoc), so this runs on ioDispatcher rather than whatever dispatcher the route handler is on.
+    val validation =
+      withContext(ioDispatcher) { RepertoirePgnValidator.validate(pgn, maxPayloadBytes, maxMoves) }
+    return when (validation) {
       is RepertoireValidation.Rejected -> PublishOutcome.InvalidPayload(validation.reason)
       is RepertoireValidation.TooLarge -> PublishOutcome.PayloadTooLarge(validation.reason)
-      is RepertoireValidation.Valid -> doPublish(authorId, id, title, description, side, pgn, validation.moveCount, now)
+      is RepertoireValidation.Valid ->
+        doPublish(authorId, id, title, description, side, pgn, validation.moveCount, now)
     }
   }
 
+  /**
+   * Inserts the row, then stores the blob. Row first so a caller can never observe a committed
+   * version whose blob might still be missing because of a rejection below it. If [blobs].put fails
+   * after the row commits, the row is deleted again so a repertoire never outlives its payload.
+   */
   private suspend fun doPublish(
     authorId: String,
     id: String,
@@ -156,46 +182,68 @@ internal class RepertoireStore(
     val payloadBytes = pgn.encodeToByteArray()
     val sha256 = payloadBytes.sha256Hex()
 
-    // Content addressed: the blob is durable before the row that references it is ever committed.
-    // A publish that is rejected below leaves at most an orphaned, harmless blob.
-    blobs.put(sha256, payloadBytes)
+    val outcome =
+      inTransaction { connection ->
+        val existing = connection.lockLatestVersion(id)
+        if (existing != null && existing.authorId != authorId) {
+          return@inTransaction PublishOutcome.Forbidden
+        }
 
-    return inTransaction { connection ->
-      val existing = connection.lockLatestVersion(id)
-      if (existing != null && existing.authorId != authorId) {
-        return@inTransaction PublishOutcome.Forbidden
+        val (otherCount, otherBytes) = connection.authorFootprint(authorId, excludingId = id)
+        if (existing == null && otherCount >= maxRepertoiresPerUser) {
+          return@inTransaction PublishOutcome.QuotaExceeded(
+            "you already own $otherCount repertoires, the cap is $maxRepertoiresPerUser"
+          )
+        }
+        val projectedBytes = otherBytes + payloadBytes.size
+        if (projectedBytes > maxTotalPayloadBytesPerUser) {
+          return@inTransaction PublishOutcome.QuotaExceeded(
+            "publishing would use $projectedBytes of your $maxTotalPayloadBytesPerUser byte quota"
+          )
+        }
+
+        val version = (existing?.version ?: 0) + 1
+        val row =
+          RepertoireRow(
+            id = id,
+            version = version,
+            authorId = authorId,
+            title = title,
+            description = description,
+            side = side,
+            payloadSha256 = sha256,
+            payloadBytes = payloadBytes.size,
+            moveCount = moveCount,
+            status = "published",
+            publishedAt = now,
+          )
+        connection.insertVersion(row)
+        PublishOutcome.Published(row)
       }
 
-      val (otherCount, otherBytes) = connection.authorFootprint(authorId, excludingId = id)
-      if (existing == null && otherCount >= maxRepertoiresPerUser) {
-        return@inTransaction PublishOutcome.QuotaExceeded(
-          "you already own $otherCount repertoires, the cap is $maxRepertoiresPerUser"
-        )
+    if (outcome is PublishOutcome.Published) {
+      try {
+        blobs.put(sha256, payloadBytes)
+      } catch (e: Exception) {
+        deleteVersion(outcome.row.id, outcome.row.version)
+        throw e
       }
-      val projectedBytes = otherBytes + payloadBytes.size
-      if (projectedBytes > maxTotalPayloadBytesPerUser) {
-        return@inTransaction PublishOutcome.QuotaExceeded(
-          "publishing would use $projectedBytes of your $maxTotalPayloadBytesPerUser byte quota"
-        )
-      }
+    }
+    return outcome
+  }
 
-      val version = (existing?.version ?: 0) + 1
-      val row =
-        RepertoireRow(
-          id = id,
-          version = version,
-          authorId = authorId,
-          title = title,
-          description = description,
-          side = side,
-          payloadSha256 = sha256,
-          payloadBytes = payloadBytes.size,
-          moveCount = moveCount,
-          status = "published",
-          publishedAt = now,
-        )
-      connection.insertVersion(row)
-      PublishOutcome.Published(row)
+  /** Removes one exact version row. Used only to compensate a blob write that failed after commit. */
+  private suspend fun deleteVersion(id: String, version: Int) {
+    withContext(ioDispatcher) {
+      dataSource.connection.use { connection ->
+        connection
+          .prepareStatement("DELETE FROM repertoire_version WHERE id = ? AND version = ?")
+          .use { statement ->
+            statement.setString(1, id)
+            statement.setInt(2, version)
+            statement.executeUpdate()
+          }
+      }
     }
   }
 
@@ -234,7 +282,13 @@ internal class RepertoireStore(
   suspend fun setStatus(id: String, status: String): SetStatusOutcome {
     val outcome =
       inTransaction { connection ->
-        val existing = connection.lockLatestVersion(id) ?: return@inTransaction SetStatusTxOutcome.NotFound
+        val existing = connection.lockLatestVersion(id)
+        // A removed repertoire's blob is already gone, so moving it back to published or unlisted
+        // would publish a broken pgn link. Treated the same as an unknown id rather than as a
+        // resurrection the moderator has to know to avoid.
+        if (existing == null || existing.status == STATUS_REMOVED) {
+          return@inTransaction SetStatusTxOutcome.NotFound
+        }
         connection.updateStatus(id, existing.version, status)
         val deleteBlob =
           status == STATUS_REMOVED && !connection.blobStillReferenced(existing.payloadSha256)
@@ -261,7 +315,7 @@ internal class RepertoireStore(
    * One page of published repertoires (one row per id, its latest version), ordered by id.
    *
    * @param cursor The last id of the previous page, or `null` for the first page.
-   * @param limit Maximum rows to return; must be strictly positive.
+   * @param limit Maximum rows to return. Must be strictly positive.
    */
   suspend fun listPublished(cursor: String?, limit: Int): RepertoirePage {
     require(limit > 0) { "limit must be strictly positive, was $limit" }

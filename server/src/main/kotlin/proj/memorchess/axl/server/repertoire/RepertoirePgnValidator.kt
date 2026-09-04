@@ -7,6 +7,30 @@ import proj.memorchess.axl.core.pgn.PgnMoveNode
 import proj.memorchess.axl.core.pgn.PgnParseException
 import proj.memorchess.axl.core.pgn.PgnParser
 
+/**
+ * Deepest line accepted, in plies from the starting position.
+ *
+ * A real opening repertoire never needs more than a few dozen plies down any single line. The cap
+ * exists to bound recursion depth: without it, a payload well under the byte cap can still walk a
+ * line thousands of plies deep (for example a short sequence of legal moves repeated many times),
+ * which overflows the call stack before [MAX_REPERTOIRE_MOVES] is ever reached, because a repeated
+ * line keeps revisiting the same small set of distinct moves.
+ */
+private const val MAX_PLY_DEPTH = 200
+
+/**
+ * Stack size given to the worker thread [RepertoirePgnValidator.validate] runs on, generous
+ * headroom over a JVM's default thread stack (roughly one megabyte).
+ *
+ * The parser this validates with (`:shared`'s `PgnParser`) builds its move tree recursively, one
+ * frame per move across the whole document, not only per line, so a still size capped payload
+ * packed with short moves can recurse deeply enough to overflow a default stack during parsing
+ * itself, before this validator's own [MAX_PLY_DEPTH] check ever runs. Running on a dedicated,
+ * generously sized stack is the containable fix on this side of that boundary. A parser rewritten
+ * to build its tree iteratively would remove the need for this outright, tracked as a follow up.
+ */
+private const val VALIDATOR_STACK_BYTES = 64L * 1024 * 1024
+
 /** Outcome of validating a repertoire payload before it is accepted for publishing. */
 internal sealed class RepertoireValidation {
 
@@ -42,7 +66,10 @@ internal object RepertoirePgnValidator {
         "the payload is $payloadBytes bytes, the cap is $maxPayloadBytes"
       )
     }
+    return runOnDeepStack { parseAndWalk(pgn, maxMoves) }
+  }
 
+  private fun parseAndWalk(pgn: String, maxMoves: Int): RepertoireValidation {
     val games =
       try {
         PgnParser.parse(pgn)
@@ -57,7 +84,7 @@ internal object RepertoirePgnValidator {
     val rootKey = GameEngine().toPositionKey()
     for (game in games) {
       for (firstMove in game.moves) {
-        val outcome = walk(rootKey, firstMove, maxMoves, seen)
+        val outcome = walk(rootKey, firstMove, depth = 1, maxMoves, seen)
         if (outcome != null) return outcome
       }
     }
@@ -65,17 +92,48 @@ internal object RepertoirePgnValidator {
   }
 
   /**
-   * Replays [node] from [fromKey], recording it and recursing into every continuation.
+   * Runs [block] on a dedicated thread with a [VALIDATOR_STACK_BYTES] stack, so a document deep
+   * enough to overflow a default stack while parsing is reported as [RepertoireValidation.TooLarge]
+   * rather than propagated as a crash. Blocks the caller until [block] finishes. Callers on a
+   * coroutine dispatcher should wrap this in a dispatcher meant for blocking work.
+   */
+  private fun runOnDeepStack(block: () -> RepertoireValidation): RepertoireValidation {
+    var outcome: RepertoireValidation? = null
+    val worker =
+      Thread(null, {
+          outcome =
+            try {
+              block()
+            } catch (e: StackOverflowError) {
+              RepertoireValidation.TooLarge("the document is too deeply nested to parse")
+            }
+        },
+        "repertoire-pgn-validator",
+        VALIDATOR_STACK_BYTES,
+      )
+    worker.start()
+    worker.join()
+    return outcome ?: RepertoireValidation.Rejected("validation failed unexpectedly")
+  }
+
+  /**
+   * Replays [node] from [fromKey] at [depth] plies from the start, recording it and recursing into
+   * every continuation.
    *
    * @return the first [RepertoireValidation.Rejected] or [RepertoireValidation.TooLarge] found, or
-   *   `null` when [node] and every descendant are legal and under [maxMoves].
+   *   `null` when [node] and every descendant are legal and under both [maxMoves] and
+   *   [MAX_PLY_DEPTH].
    */
   private fun walk(
     fromKey: PositionKey,
     node: PgnMoveNode,
+    depth: Int,
     maxMoves: Int,
     seen: MutableSet<Pair<PositionKey, String>>,
   ): RepertoireValidation? {
+    if (depth > MAX_PLY_DEPTH) {
+      return RepertoireValidation.TooLarge("a line goes past $MAX_PLY_DEPTH plies deep")
+    }
     val engine = GameEngine(fromKey)
     try {
       engine.playSanMove(node.san)
@@ -90,7 +148,7 @@ internal object RepertoirePgnValidator {
       return RepertoireValidation.TooLarge("the repertoire has more than $maxMoves distinct moves")
     }
     for (child in node.children) {
-      val outcome = walk(toKey, child, maxMoves, seen)
+      val outcome = walk(toKey, child, depth + 1, maxMoves, seen)
       if (outcome != null) return outcome
     }
     return null

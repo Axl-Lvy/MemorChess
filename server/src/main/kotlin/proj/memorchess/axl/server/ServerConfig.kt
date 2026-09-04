@@ -17,12 +17,12 @@ private val HTTP_SCHEMES = setOf("http", "https")
  * @property jwtIssuer Expected `iss` claim, compared exactly.
  * @property jwtAudience Expected `aud` claim, compared exactly.
  * @property jwksUrl Where the issuer publishes its signing keys.
- * @property r2Endpoint The S3-compatible endpoint holding repertoire payload blobs.
+ * @property r2Endpoint The S3 compatible endpoint holding repertoire payload blobs.
  * @property r2Bucket Bucket name at [r2Endpoint].
  * @property r2AccessKeyId Access key id for [r2Bucket].
  * @property r2SecretAccessKey Secret access key for [r2Bucket].
  * @property adminToken Shared secret gating the admin routes. A stopgap until Cloudflare Access
- *   fronts this server; see `repertoireModule`'s KDoc.
+ *   fronts this server. See `repertoireModule`'s KDoc for the reasoning.
  */
 internal data class ServerConfig(
   val port: Int,

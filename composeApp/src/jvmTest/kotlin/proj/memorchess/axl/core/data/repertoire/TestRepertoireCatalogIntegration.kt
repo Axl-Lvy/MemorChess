@@ -13,8 +13,8 @@ import proj.memorchess.axl.core.pgn.PgnGame
  * GitHub.
  *
  * The client's own default now points at `:server`, which has no public hostname yet (see
- * [RepertoireCatalogClient.DEFAULT_BASE_URL]'s KDoc), so this test pins the URL explicitly to the
- * old static-file backend it actually exercises, rather than relying on the default.
+ * `RepertoireCatalogClient.DEFAULT_BASE_URL`'s KDoc). This test therefore pins the URL explicitly
+ * to the old static file backend it actually exercises, rather than relying on the default.
  *
  * Unlike the Lichess integration test this one needs no secret, so it always runs. It is the end to
  * end guarantee that the published manifest and every published PGN file stay compatible with the

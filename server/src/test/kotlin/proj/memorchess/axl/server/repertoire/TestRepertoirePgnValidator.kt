@@ -97,4 +97,69 @@ class TestRepertoirePgnValidator {
 
     result.shouldBeInstanceOf<RepertoireValidation.TooLarge>()
   }
+
+  @Test
+  fun `accepts a line exactly at the ply depth cap`() {
+    // A four ply knight shuffle cycles back to the same handful of positions, so the distinct move
+    // count stays tiny no matter how many plies deep the line runs. This isolates the depth cap
+    // from the move count cap.
+    val result =
+      RepertoirePgnValidator.validate(
+        deepLinearPgn(plies = MAX_PLY_DEPTH_FOR_TEST),
+        maxPayloadBytes = 1_000_000,
+        maxMoves = 10_000,
+      )
+
+    result.shouldBeInstanceOf<RepertoireValidation.Valid>()
+  }
+
+  @Test
+  fun `rejects a line one ply past the depth cap instead of overflowing the stack`() {
+    val result =
+      RepertoirePgnValidator.validate(
+        deepLinearPgn(plies = MAX_PLY_DEPTH_FOR_TEST + 1),
+        maxPayloadBytes = 1_000_000,
+        maxMoves = 10_000,
+      )
+
+    result.shouldBeInstanceOf<RepertoireValidation.TooLarge>()
+  }
+
+  @Test
+  fun `rejects a much deeper repeated line the same way, never crashing`() {
+    // A payload that stays well under the byte cap can still repeat a short legal sequence tens
+    // of thousands of times. Without a depth cap this would overflow the call stack rather than
+    // return a rejection.
+    val result =
+      RepertoirePgnValidator.validate(
+        deepLinearPgn(plies = 20_000),
+        maxPayloadBytes = 1_000_000,
+        maxMoves = 10_000,
+      )
+
+    result.shouldBeInstanceOf<RepertoireValidation.TooLarge>()
+  }
+
+  /** A single line of [plies] alternating legal knight shuffles, `1. Nf3 Nf6 2. Ng1 Ng8 3. ...`. */
+  private fun deepLinearPgn(plies: Int): String {
+    val cycle = listOf("Nf3", "Nf6", "Ng1", "Ng8")
+    val body = StringBuilder()
+    var moveNumber = 1
+    var ply = 0
+    while (ply < plies) {
+      body.append("$moveNumber. ${cycle[ply % cycle.size]} ")
+      ply++
+      if (ply < plies) {
+        body.append("${cycle[ply % cycle.size]} ")
+        ply++
+      }
+      moveNumber++
+    }
+    return "[Event \"Deep\"]\n[Result \"*\"]\n\n$body*"
+  }
+
+  private companion object {
+    /** Mirrors the private `MAX_PLY_DEPTH` in [RepertoirePgnValidator]. */
+    const val MAX_PLY_DEPTH_FOR_TEST = 200
+  }
 }

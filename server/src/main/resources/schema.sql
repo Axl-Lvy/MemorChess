@@ -74,7 +74,7 @@ CREATE INDEX IF NOT EXISTS user_edge_cursor ON user_edge (user_id, revision);
 CREATE INDEX IF NOT EXISTS user_setting_cursor ON user_setting (user_id, revision);
 
 -- One row per published version, content addressed by the payload's sha256. Publishing again
--- inserts a new version rather than mutating one; the row for a given (id, version) never
+-- inserts a new version rather than mutating one. The row for a given (id, version) never
 -- changes after insert. There is no membership table: nothing needs "which repertoires contain
 -- this position".
 CREATE TABLE IF NOT EXISTS repertoire_version (
