@@ -1,0 +1,14 @@
+# Copy to webhook-hooks.yaml and replace REPLACE_WITH_DEPLOY_WEBHOOK_TOKEN with the same value
+# put in .env's DEPLOY_WEBHOOK_TOKEN and in the DEPLOY_WEBHOOK_TOKEN GitHub Actions secret.
+# webhook-hooks.yaml holds a live secret, so it is never committed (chmod 600 it once created).
+- id: deploy
+  execute-command: "./deploy.sh"
+  command-working-directory: "."
+  response-message: "deploy triggered"
+  trigger-rule:
+    match:
+      type: value
+      value: "Bearer REPLACE_WITH_DEPLOY_WEBHOOK_TOKEN"
+      parameter:
+        source: header
+        name: "Authorization"

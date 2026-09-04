@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SYNC_DB_USER}
+      POSTGRES_PASSWORD: ${SYNC_DB_PASSWORD}
+      POSTGRES_DB: memorchess
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SYNC_DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  server:
+    image: ghcr.io/axl-lvy/memorchess-server:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SYNC_DB_URL: ${SYNC_DB_URL}
+      SYNC_DB_USER: ${SYNC_DB_USER}
+      SYNC_DB_PASSWORD: ${SYNC_DB_PASSWORD}
+      SYNC_JWT_ISSUER: ${SYNC_JWT_ISSUER}
+      SYNC_JWT_AUDIENCE: ${SYNC_JWT_AUDIENCE}
+      SYNC_JWKS_URL: ${SYNC_JWKS_URL}
+      SYNC_R2_ENDPOINT: ${SYNC_R2_ENDPOINT}
+      SYNC_R2_BUCKET: ${SYNC_R2_BUCKET}
+      SYNC_R2_ACCESS_KEY_ID: ${SYNC_R2_ACCESS_KEY_ID}
+      SYNC_R2_SECRET_ACCESS_KEY: ${SYNC_R2_SECRET_ACCESS_KEY}
+      SYNC_ADMIN_TOKEN: ${SYNC_ADMIN_TOKEN}
+    mem_limit: 768m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+
+volumes:
+  postgres-data:
