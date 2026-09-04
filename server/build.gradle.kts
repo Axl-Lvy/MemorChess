@@ -67,7 +67,7 @@ tasks.test {
 }
 
 // Bakes the build sha into build-info.properties, read by BuildInfo at runtime and served by
-// GET /v1/version. The Docker image build passes -PbuildSha=<short sha>; anywhere else (local
+// GET /v1/version. The Docker image build passes -PbuildSha=<short sha>. Anywhere else (local
 // builds, tests) it falls back to "dev". buildSha is a local val inside the task's own
 // configuration block, not a script-level property, because a filesMatching action referencing a
 // script-level val captures the whole script object, which the configuration cache refuses to

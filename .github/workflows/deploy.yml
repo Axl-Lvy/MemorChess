@@ -4,7 +4,7 @@ name: Deploy server
 on:
   push:
     branches:
-      - master # the repo's actual default branch; the spec says "main", see the PR description.
+      - master # the repo's actual default branch. The spec says "main". See the PR description.
   workflow_dispatch:
 
 concurrency:

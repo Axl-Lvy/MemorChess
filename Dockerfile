@@ -1,8 +1,8 @@
 # Builds and runs the :server module (proj.memorchess.axl.server.MainKt), the sync backend.
 #
-# Two stages: the build stage runs the ordinary Gradle build (configuring the whole
-# multi-project build, including the Android modules, is harmless here — they only warn about
-# the missing Android SDK, they don't fail), then the runtime stage keeps just the installed
+# Two stages: the build stage runs the ordinary Gradle build. Configuring the whole
+# multi-project build, including the Android modules, is harmless here: they only warn about
+# the missing Android SDK, they don't fail. The runtime stage then keeps just the installed
 # distribution on a JRE, not a JDK.
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /workspace
@@ -32,7 +32,7 @@ WORKDIR /app
 # JAVA_TOOL_OPTIONS if a deployment needs something else.
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
 
-# Config comes entirely from the environment; see ServerConfig.kt (SYNC_DB_URL, SYNC_DB_USER,
+# Config comes entirely from the environment. See ServerConfig.kt (SYNC_DB_URL, SYNC_DB_USER,
 # SYNC_DB_PASSWORD, SYNC_JWT_ISSUER, SYNC_JWT_AUDIENCE, SYNC_JWKS_URL, optional SYNC_PORT).
 EXPOSE 8080
 ENTRYPOINT ["/app/bin/server"]
