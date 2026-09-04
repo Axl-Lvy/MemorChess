@@ -19,7 +19,7 @@ import proj.memorchess.axl.core.sync.resolve
  *
  * @property deviceId Opaque device id, which also breaks conflict ties.
  */
-internal class TestDevice(private val deviceId: String, private val userId: String) {
+internal class TestDevice(private val deviceId: String) {
 
   private val rows = mutableMapOf<String, SettingSyncRow>()
   private val dirty = mutableSetOf<String>()
@@ -52,10 +52,9 @@ internal class TestDevice(private val deviceId: String, private val userId: Stri
   }
 
   /** Pushes the dirty rows, re-stamps whatever was refused for skew, then pulls and applies. */
-  internal suspend fun sync(store: SyncStore, serverNow: Instant) {
+  internal suspend fun sync(transport: SyncTransport, serverNow: Instant) {
     val outgoing = dirty.mapNotNull { rows[it] }
-    val response =
-      store.push(userId, SyncPushRequest(emptyList(), emptyList(), outgoing), serverNow)
+    val response = transport.push(SyncPushRequest(emptyList(), emptyList(), outgoing), serverNow)
     dirty.clear()
     for (rejection in response.rejected) {
       if (rejection.code != RejectionCode.CLOCK_TOO_FAR_AHEAD) continue
@@ -67,7 +66,7 @@ internal class TestDevice(private val deviceId: String, private val userId: Stri
 
     var guard = 0
     while (true) {
-      val page = store.pull(userId, cursor, 100, serverNow)
+      val page = transport.pull(cursor, 100, serverNow)
       for (incoming in page.settings) {
         val winner = resolve(local = rows[incoming.key], remote = incoming)
         if (winner.source == ResolutionSource.REMOTE) rows[incoming.key] = winner.row

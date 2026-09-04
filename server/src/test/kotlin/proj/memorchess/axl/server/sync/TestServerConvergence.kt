@@ -26,15 +26,17 @@ internal class TestServerConvergence {
   @Test
   fun twoDevicesConvergeOnASingleKey() = runTest {
     val user = PostgresTestDb.newUserId()
-    val a = TestDevice("device-a", user)
-    val b = TestDevice("device-b", user)
+    val a = TestDevice("device-a")
+    val b = TestDevice("device-b")
+    val toA = StoreTransport(store, user)
+    val toB = StoreTransport(store, user)
 
     a.edit("theme", "dark", at(10))
     b.edit("theme", "light", at(20))
 
     repeat(3) {
-      a.sync(store, serverNow)
-      b.sync(store, serverNow)
+      a.sync(toA, serverNow)
+      b.sync(toB, serverNow)
     }
 
     a.visible() shouldBe mapOf("theme" to "light")
@@ -44,11 +46,12 @@ internal class TestServerConvergence {
   @Test
   fun aRefusedFutureRowLandsOnTheNextRound() = runTest {
     val user = PostgresTestDb.newUserId()
-    val a = TestDevice("device-a", user)
+    val a = TestDevice("device-a")
+    val toA = StoreTransport(store, user)
 
     a.edit("theme", "dark", at(40_000_000_000))
-    a.sync(store, serverNow)
-    a.sync(store, serverNow)
+    a.sync(toA, serverNow)
+    a.sync(toA, serverNow)
 
     store.readSettingForTest(user, "theme")?.value shouldBe "dark"
     store.readSettingForTest(user, "theme")?.updatedAt shouldBe serverNow
@@ -57,17 +60,19 @@ internal class TestServerConvergence {
   @Test
   fun aClockJumpingBackwardsCannotResurrectADeletedRow() = runTest {
     val user = PostgresTestDb.newUserId()
-    val a = TestDevice("device-a", user)
-    val b = TestDevice("device-b", user)
+    val a = TestDevice("device-a")
+    val b = TestDevice("device-b")
+    val toA = StoreTransport(store, user)
+    val toB = StoreTransport(store, user)
 
     a.edit("sound", "on", at(40_000_000_000))
-    a.sync(store, serverNow)
-    a.sync(store, serverNow)
+    a.sync(toA, serverNow)
+    a.sync(toA, serverNow)
 
     // The clock is corrected, so this delete's wall clock is far earlier than the live row.
     a.delete("sound", at(22))
-    a.sync(store, serverNow)
-    b.sync(store, serverNow)
+    a.sync(toA, serverNow)
+    b.sync(toB, serverNow)
 
     a.visible().shouldBeEmpty()
     b.visible().shouldBeEmpty()
@@ -76,16 +81,18 @@ internal class TestServerConvergence {
   @Test
   fun aDeviceWhosePushLosesLearnsTheTruth() = runTest {
     val user = PostgresTestDb.newUserId()
-    val a = TestDevice("device-a", user)
-    val b = TestDevice("device-b", user)
+    val a = TestDevice("device-a")
+    val b = TestDevice("device-b")
+    val toA = StoreTransport(store, user)
+    val toB = StoreTransport(store, user)
 
     a.edit("theme", "dark", at(500))
-    a.sync(store, serverNow)
-    b.sync(store, serverNow)
+    a.sync(toA, serverNow)
+    b.sync(toB, serverNow)
 
     b.delete("theme", at(29))
-    b.sync(store, serverNow)
-    b.sync(store, serverNow)
+    b.sync(toB, serverNow)
+    b.sync(toB, serverNow)
 
     b.visible() shouldBe mapOf("theme" to "dark")
     a.snapshot() shouldBe b.snapshot()
@@ -97,25 +104,28 @@ internal class TestServerConvergence {
     repeat(50) { seed ->
       val random = Random(seed)
       val user = PostgresTestDb.newUserId()
-      val a = TestDevice("device-a", user)
-      val b = TestDevice("device-b", user)
+      val a = TestDevice("device-a")
+      val b = TestDevice("device-b")
+      val pairs = listOf(a to StoreTransport(store, user), b to StoreTransport(store, user))
       var clock = 1L
 
       repeat(20) {
-        val device = if (random.nextBoolean()) a else b
+        val (device, transport) = if (random.nextBoolean()) pairs[0] else pairs[1]
         // device-a's clock is badly wrong a third of the time.
         val skew = if (device === a && random.nextInt(3) == 0) 40_000_000_000L else 0L
         when (random.nextInt(4)) {
           0 -> device.edit(keys.random(random), "v$clock", at(clock + skew))
           1 -> device.delete(keys.random(random), at(clock + skew))
-          else -> device.sync(store, serverNow)
+          else -> device.sync(transport, serverNow)
         }
         clock++
       }
 
       repeat(3) {
-        a.sync(store, serverNow)
-        b.sync(store, serverNow)
+        val (deviceA, transportA) = pairs[0]
+        val (deviceB, transportB) = pairs[1]
+        deviceA.sync(transportA, serverNow)
+        deviceB.sync(transportB, serverNow)
       }
 
       withClue("seed $seed") {
