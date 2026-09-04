@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import kotlin.test.Test
 import proj.memorchess.axl.core.auth.Account
+import proj.memorchess.axl.core.sync.SyncJobStatus
 import proj.memorchess.axl.test_util.TestWithKoin
 
 @OptIn(ExperimentalTestApi::class)
@@ -30,6 +31,7 @@ class TestSyncAccountSection : TestWithKoin() {
           account = null,
           pending = false,
           lastError = null,
+          status = SyncJobStatus.IDLE,
           onSignIn = {},
           onSignOut = {},
         )
@@ -47,6 +49,7 @@ class TestSyncAccountSection : TestWithKoin() {
           account = Account(sub = "user-1", name = "Alice"),
           pending = false,
           lastError = null,
+          status = SyncJobStatus.IDLE,
           onSignIn = {},
           onSignOut = {},
         )
@@ -65,6 +68,7 @@ class TestSyncAccountSection : TestWithKoin() {
           account = Account(sub = "user-1", name = null),
           pending = false,
           lastError = null,
+          status = SyncJobStatus.IDLE,
           onSignIn = {},
           onSignOut = {},
         )
@@ -82,6 +86,7 @@ class TestSyncAccountSection : TestWithKoin() {
           account = null,
           pending = true,
           lastError = null,
+          status = SyncJobStatus.IDLE,
           onSignIn = {},
           onSignOut = {},
         )
@@ -99,6 +104,7 @@ class TestSyncAccountSection : TestWithKoin() {
           account = null,
           pending = false,
           lastError = "Sign in failed: boom",
+          status = SyncJobStatus.IDLE,
           onSignIn = {},
           onSignOut = {},
         )
@@ -117,6 +123,7 @@ class TestSyncAccountSection : TestWithKoin() {
           account = null,
           pending = false,
           lastError = null,
+          status = SyncJobStatus.IDLE,
           onSignIn = { clicked = true },
           onSignOut = {},
         )
@@ -137,6 +144,7 @@ class TestSyncAccountSection : TestWithKoin() {
           account = Account(sub = "user-1", name = "Alice"),
           pending = false,
           lastError = null,
+          status = SyncJobStatus.IDLE,
           onSignIn = {},
           onSignOut = { clicked = true },
         )
@@ -147,4 +155,33 @@ class TestSyncAccountSection : TestWithKoin() {
 
     check(clicked)
   }
+
+  // Propagation tests through every SyncJobStatus value, per project convention for a new state
+  // reaching an existing consumer.
+  private fun statusRendersLine(status: SyncJobStatus) = runTestFromSetup {
+    setContent {
+      InitializeApp {
+        SyncAccountSectionContent(
+          account = null,
+          pending = false,
+          lastError = null,
+          status = status,
+          onSignIn = {},
+          onSignOut = {},
+        )
+      }
+    }
+
+    onNodeWithTag("sync_status_line").assertIsDisplayed()
+  }
+
+  @Test fun idleStatusRendersLine() = statusRendersLine(SyncJobStatus.IDLE)
+
+  @Test fun scheduledStatusRendersLine() = statusRendersLine(SyncJobStatus.SCHEDULED)
+
+  @Test fun runningStatusRendersLine() = statusRendersLine(SyncJobStatus.RUNNING)
+
+  @Test fun backingOffStatusRendersLine() = statusRendersLine(SyncJobStatus.BACKING_OFF)
+
+  @Test fun pausedNoAuthStatusRendersLine() = statusRendersLine(SyncJobStatus.PAUSED_NO_AUTH)
 }

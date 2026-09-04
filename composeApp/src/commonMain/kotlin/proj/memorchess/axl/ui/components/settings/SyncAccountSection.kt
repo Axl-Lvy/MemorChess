@@ -30,12 +30,18 @@ import memorchess.composeapp.generated.resources.sync_sign_in
 import memorchess.composeapp.generated.resources.sync_sign_in_cancelled
 import memorchess.composeapp.generated.resources.sync_sign_in_prompt
 import memorchess.composeapp.generated.resources.sync_signing_in
+import memorchess.composeapp.generated.resources.sync_status_backing_off
+import memorchess.composeapp.generated.resources.sync_status_idle
+import memorchess.composeapp.generated.resources.sync_status_paused_no_auth
+import memorchess.composeapp.generated.resources.sync_status_syncing
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.auth.Account
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.SignInResult
+import proj.memorchess.axl.core.sync.SyncEngine
+import proj.memorchess.axl.core.sync.SyncJobStatus
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
@@ -45,15 +51,20 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 private data class SyncSignInError(val res: StringResource, val arg: String?)
 
 /**
- * Sync account row: sign in / sign out against [authProvider], and the current account's identity.
+ * Sync account row: sign in / sign out against [authProvider], the current account's identity, and
+ * [syncEngine]'s status with a "sync now" action.
  *
  * Visual layer mirrors [LichessAccountSection]: a 56.dp square avatar (first letter of the display
  * name, or "?" when signed out), the account name on top, a status line below, and a
  * [KineticButton] on the right.
  */
 @Composable
-fun SyncAccountSection(authProvider: AuthProvider = koinInject()) {
+fun SyncAccountSection(
+  authProvider: AuthProvider = koinInject(),
+  syncEngine: SyncEngine = koinInject(),
+) {
   val account by authProvider.currentAccount.collectAsState()
+  val status by syncEngine.status.collectAsState()
   val scope = rememberCoroutineScope()
   var pending by remember { mutableStateOf(false) }
   var lastError by remember { mutableStateOf<SyncSignInError?>(null) }
@@ -65,12 +76,13 @@ fun SyncAccountSection(authProvider: AuthProvider = koinInject()) {
     account = account,
     pending = pending,
     lastError = lastErrorText,
+    status = status,
     onSignIn = {
       pending = true
       lastError = null
       scope.launch {
         when (val result = authProvider.signIn()) {
-          SignInResult.Success -> Unit
+          SignInResult.Success -> syncEngine.syncNow()
           SignInResult.Cancelled ->
             lastError = SyncSignInError(Res.string.sync_sign_in_cancelled, null)
           is SignInResult.Failed -> lastError = SyncSignInError(result.message, result.arg)
@@ -91,6 +103,7 @@ internal fun SyncAccountSectionContent(
   account: Account?,
   pending: Boolean,
   lastError: String?,
+  status: SyncJobStatus,
   onSignIn: () -> Unit,
   onSignOut: () -> Unit,
 ) {
@@ -117,6 +130,12 @@ internal fun SyncAccountSectionContent(
       )
     }
 
+    Text(
+      text = stringResource(status.toStringResource()),
+      style = typography.monoSm.copy(color = palette.ink3),
+      modifier = Modifier.testTag("sync_status_line"),
+    )
+
     if (lastError != null) {
       Text(
         text = lastError,
@@ -126,6 +145,17 @@ internal fun SyncAccountSectionContent(
     }
   }
 }
+
+/** Display string for one [SyncJobStatus] value. Exhaustive `when`: a new status must be added
+ * here, per project convention for a state machine reaching a UI consumer. */
+private fun SyncJobStatus.toStringResource(): StringResource =
+  when (this) {
+    SyncJobStatus.IDLE -> Res.string.sync_status_idle
+    SyncJobStatus.SCHEDULED,
+    SyncJobStatus.RUNNING -> Res.string.sync_status_syncing
+    SyncJobStatus.BACKING_OFF -> Res.string.sync_status_backing_off
+    SyncJobStatus.PAUSED_NO_AUTH -> Res.string.sync_status_paused_no_auth
+  }
 
 /** The account's display name, falling back to [Account.sub] when no name was decoded. */
 private fun displayName(account: Account): String = account.name ?: account.sub

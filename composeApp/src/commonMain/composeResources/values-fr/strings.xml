@@ -118,6 +118,12 @@
   <string name="sync_signing_in">CONNEXION…</string>
   <string name="sync_sign_in_cancelled">Connexion annulée</string>
 
+  <!-- Sync status line -->
+  <string name="sync_status_idle">À jour</string>
+  <string name="sync_status_syncing">Synchronisation…</string>
+  <string name="sync_status_backing_off">Synchronisation en pause, nouvelle tentative…</string>
+  <string name="sync_status_paused_no_auth">Synchronisation en pause, reconnectez-vous</string>
+
   <!-- Training -->
   <string name="training_success">RÉUSSIS</string>
   <string name="training_fail">ÉCHECS</string>
