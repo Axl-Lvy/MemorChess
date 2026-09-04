@@ -14,8 +14,8 @@ const val SYNC_AUDIENCE: String = "https://api.memorchess.app"
 
 /**
  * Client id this platform presents to the issuer. Android, iOS and JVM share one public "Native"
- * app; wasmJs uses a separate "Single Page App" registration because the issuer enables CORS on
- * its token endpoint only for that application type, which a browser `fetch` call needs.
+ * app; wasmJs uses a separate "Single Page App" registration because the issuer enables CORS on its
+ * token endpoint only for that application type, which a browser `fetch` call needs.
  */
 expect val SYNC_CLIENT_ID: String
 

@@ -17,9 +17,9 @@ import kotlinx.serialization.json.Json
 /**
  * Speaks OAuth 2.0 + PKCE + OpenID Connect with [issuer].
  *
- * Handles the two token endpoint calls the client owns (the initial code exchange and refresh)
- * plus decoding the id token for display. The browser side of the flow is platform specific and
- * lives behind [OAuthLauncher], reused unchanged from the Lichess flow.
+ * Handles the two token endpoint calls the client owns (the initial code exchange and refresh) plus
+ * decoding the id token for display. The browser side of the flow is platform specific and lives
+ * behind [OAuthLauncher], reused unchanged from the Lichess flow.
  */
 class OidcClient(private val httpClient: HttpClient, private val issuer: String = SYNC_ISSUER) {
 
@@ -132,8 +132,8 @@ private data class OidcTokenResponse(
 
 /**
  * Decodes the `sub` and `name` claims out of an id token's payload segment, for display only. The
- * signature is not verified: the token just travelled over TLS straight from the issuer's own
- * token endpoint, so there is nothing to verify against here that the transport did not already
+ * signature is not verified: the token just travelled over TLS straight from the issuer's own token
+ * endpoint, so there is nothing to verify against here that the transport did not already
  * guarantee.
  */
 @OptIn(ExperimentalEncodingApi::class)

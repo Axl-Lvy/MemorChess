@@ -3,8 +3,8 @@ package proj.memorchess.axl.core.auth
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Client identity: sign in and out against the configured OIDC issuer, and hand out access
- * tokens, refreshing them transparently.
+ * Client identity: sign in and out against the configured OIDC issuer, and hand out access tokens,
+ * refreshing them transparently.
  */
 interface AuthProvider {
 
@@ -27,9 +27,9 @@ interface AuthProvider {
 }
 
 /**
- * A signed in account. [sub] is the only stable identifier; [name] is decoded from the id token
- * for display only and is never a join key (see the parent spec, "`sub` is the identity, never
- * the email").
+ * A signed in account. [sub] is the only stable identifier; [name] is decoded from the id token for
+ * display only and is never a join key (see the parent spec, "`sub` is the identity, never the
+ * email").
  */
 data class Account(val sub: String, val name: String?)
 

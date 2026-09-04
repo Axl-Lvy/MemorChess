@@ -57,10 +57,9 @@ fun SyncAccountSection(authProvider: AuthProvider = koinInject()) {
   val scope = rememberCoroutineScope()
   var pending by remember { mutableStateOf(false) }
   var lastError by remember { mutableStateOf<SyncSignInError?>(null) }
-  val lastErrorText: String? =
-    lastError?.let { err ->
-      if (err.arg != null) stringResource(err.res, err.arg) else stringResource(err.res)
-    }
+  val lastErrorText: String? = lastError?.let { err ->
+    if (err.arg != null) stringResource(err.res, err.arg) else stringResource(err.res)
+  }
 
   SyncAccountSectionContent(
     account = account,

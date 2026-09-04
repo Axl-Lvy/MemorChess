@@ -48,9 +48,9 @@ class TestOidcClient {
 
   @Test
   fun successfulExchangeReturnsTokenSetAndAccount() = runTest {
-    // A minimal unsigned-looking JWT: header.payload.signature, payload = {"sub":"user-1","name":"Alice"}
-    val idToken =
-      "eyJhbGciOiJub25lIn0." + "eyJzdWIiOiJ1c2VyLTEiLCJuYW1lIjoiQWxpY2UifQ." + "sig"
+    // A minimal unsigned-looking JWT: header.payload.signature, payload =
+    // {"sub":"user-1","name":"Alice"}
+    val idToken = "eyJhbGciOiJub25lIn0." + "eyJzdWIiOiJ1c2VyLTEiLCJuYW1lIjoiQWxpY2UifQ." + "sig"
     val engine = MockEngine { _ ->
       respond(
         content =
@@ -102,7 +102,9 @@ class TestOidcClient {
 
   @Test
   fun serverErrorReturnsError() = runTest {
-    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+    val engine = MockEngine { _ ->
+      respond(content = "", status = HttpStatusCode.InternalServerError)
+    }
     val client = OidcClient(jsonClient(engine), issuer = "https://issuer.example")
 
     val result = client.exchangeCode("client-1", "app.memorchess://oauth", "code123", "verifier")

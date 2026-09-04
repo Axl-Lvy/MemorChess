@@ -30,10 +30,9 @@ class OidcTokenStore(private val settings: Settings) {
     settings.getLongOrNull(KEY_EXPIRES_AT)?.let(Instant::fromEpochMilliseconds)
 
   /**
-   * Persists a token set. A `null` [refreshToken] clears any previously stored one (the issuer
-   * did not renew it, so the old value should not be treated as still valid). A `null` [account]
-   * leaves the previously known account untouched, since a refresh response typically carries no
-   * id token.
+   * Persists a token set. A `null` [refreshToken] clears any previously stored one (the issuer did
+   * not renew it, so the old value should not be treated as still valid). A `null` [account] leaves
+   * the previously known account untouched, since a refresh response typically carries no id token.
    */
   fun save(accessToken: String, refreshToken: String?, expiresAt: Instant, account: Account?) {
     settings.putString(KEY_ACCESS_TOKEN, accessToken)

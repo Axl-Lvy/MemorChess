@@ -20,7 +20,8 @@ import proj.memorchess.axl.test_util.TestSettings
 
 class TestOidcSignInController {
 
-  private val tokenJson = """{"access_token":"tok-xyz","refresh_token":"ref-abc","expires_in":3600}"""
+  private val tokenJson =
+    """{"access_token":"tok-xyz","refresh_token":"ref-abc","expires_in":3600}"""
 
   private fun successEngine() = MockEngine { _ ->
     respond(
@@ -99,7 +100,12 @@ class TestOidcSignInController {
   @Test
   fun signOutClearsStore() {
     val tokenStore = OidcTokenStore(TestSettings())
-    tokenStore.save("tok-1", "ref-1", Instant.parse("2026-01-01T00:00:00Z"), Account("user-1", null))
+    tokenStore.save(
+      "tok-1",
+      "ref-1",
+      Instant.parse("2026-01-01T00:00:00Z"),
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(successEngine(), tokenStore = tokenStore)
 
     controller.signOut()
@@ -193,7 +199,9 @@ class TestOidcSignInController {
 
   @Test
   fun transientRefreshFailureKeepsSession() = runTest {
-    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+    val engine = MockEngine { _ ->
+      respond(content = "", status = HttpStatusCode.InternalServerError)
+    }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
     tokenStore.save("tok-1", "ref-1", fixedNow, Account("user-1", null))
