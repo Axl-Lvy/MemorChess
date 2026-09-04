@@ -46,6 +46,8 @@ private external interface JsNodeEntity : JsAny {
   var createdAt: Double // epoch seconds (Double avoids Long to BigInt)
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds (Double avoids Long to BigInt)
+  var originDevice: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as createdAt/updatedAt
 }
 
 /** JS object stored in the "moves" object store. */
@@ -57,6 +59,15 @@ private external interface JsMoveEntity : JsAny {
   var isDeleted: Boolean
   var createdAt: Double // epoch seconds (Double avoids Long→BigInt)
   var updatedAt: Double // epoch seconds (Double avoids Long→BigInt)
+  var originDevice: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as createdAt/updatedAt
+}
+
+/** JS object stored in the "outbox" object store. */
+private external interface JsOutboxEntry : JsAny {
+  var kind: String
+  var key1: String
+  var key2: String
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +104,8 @@ private fun JsMoveEntity.toDataMove(): DataMove =
     isDeleted = isDeleted,
     createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
+    originDevice = originDevice,
+    deviceSeq = deviceSeq.toLong(),
   )
 
 private fun JsNodeEntity.toDataNode(
@@ -125,6 +138,8 @@ private fun JsNodeEntity.toDataNode(
     isDeleted = isDeleted,
     hasGoodOutgoing = hasGoodOutgoing == 1,
     createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
+    originDevice = originDevice,
+    deviceSeq = deviceSeq.toLong(),
   )
 }
 
@@ -194,6 +209,8 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
     createdAt = node.createdAt.epochSeconds.toDouble()
     isDeleted = node.isDeleted
     updatedAt = node.updatedAt.epochSeconds.toDouble()
+    originDevice = node.originDevice
+    deviceSeq = node.deviceSeq.toDouble()
   }
 }
 
@@ -211,7 +228,44 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
     isDeleted = dataMove.isDeleted
     createdAt = dataMove.createdAt.epochSeconds.toDouble()
     updatedAt = dataMove.updatedAt.epochSeconds.toDouble()
+    originDevice = dataMove.originDevice
+    deviceSeq = dataMove.deviceSeq.toDouble()
   }
+}
+
+// ---------------------------------------------------------------------------
+// Conversion: DirtyKey <-> JS outbox entry
+// ---------------------------------------------------------------------------
+
+private fun DirtyKey.outboxKeyParts(): Triple<String, String, String> =
+  when (this) {
+    is DirtyKey.NodeKey -> Triple(OutboxKind.NODE, positionKey.value, "")
+    is DirtyKey.EdgeKey -> Triple(OutboxKind.EDGE, origin.value, destination.value)
+    is DirtyKey.SettingKey -> Triple(OutboxKind.SETTING, key, "")
+  }
+
+private fun DirtyKey.toJsOutboxEntry(): JsOutboxEntry {
+  val (kind, key1, key2) = outboxKeyParts()
+  return emptyObject<JsOutboxEntry>().apply {
+    this.kind = kind
+    this.key1 = key1
+    this.key2 = key2
+  }
+}
+
+private fun JsOutboxEntry.toDirtyKey(): DirtyKey =
+  when (kind) {
+    OutboxKind.NODE -> DirtyKey.NodeKey(PositionKey(key1))
+    OutboxKind.EDGE -> DirtyKey.EdgeKey(PositionKey(key1), PositionKey(key2))
+    OutboxKind.SETTING -> DirtyKey.SettingKey(key1)
+    else -> error("Unknown outbox entry kind: $kind")
+  }
+
+/** String discriminators for [JsOutboxEntry.kind], mirroring the Room backend's own constants. */
+private object OutboxKind {
+  const val NODE = "NODE"
+  const val EDGE = "EDGE"
+  const val SETTING = "SETTING"
 }
 
 // ---------------------------------------------------------------------------
@@ -221,8 +275,9 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
 internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
+internal const val OUTBOX_STORE = "outbox"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 7
+internal const val DB_VERSION = 8
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -315,7 +370,13 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {
+  override suspend fun deletePosition(
+    position: PositionKey,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
     val database = db()
     database.writeTransaction(NODES_STORE, MOVES_STORE) {
       val nodesStore = objectStore(NODES_STORE)
@@ -336,11 +397,17 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
           val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
           if (jsNode != null && !jsNode.isDeleted) {
             jsNode.isDeleted = true
+            jsNode.updatedAt = updatedAt.epochSeconds.toDouble()
+            jsNode.originDevice = originDevice
+            jsNode.deviceSeq = deviceSeq.toDouble()
             nodesStore.put(jsNode)
           }
           for (move in originMoves + destMoves) {
             if (!move.isDeleted) {
               move.isDeleted = true
+              move.updatedAt = updatedAt.epochSeconds.toDouble()
+              move.originDevice = originDevice
+              move.deviceSeq = deviceSeq.toDouble()
               movesStore.put(move)
             }
           }
@@ -349,7 +416,14 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode) {
+  override suspend fun deleteMove(
+    origin: PositionKey,
+    move: String,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
     val database = db()
     database.writeTransaction(MOVES_STORE) {
       val movesStore = objectStore(MOVES_STORE)
@@ -363,6 +437,9 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
           DeleteMode.SOFT ->
             if (!m.isDeleted) {
               m.isDeleted = true
+              m.updatedAt = updatedAt.epochSeconds.toDouble()
+              m.originDevice = originDevice
+              m.deviceSeq = deviceSeq.toDouble()
               movesStore.put(m)
             }
         }
@@ -628,6 +705,32 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         }
 
       maxEpochSeconds?.let { Instant.fromEpochSeconds(it.toLong()).truncateToSeconds() }
+    }
+  }
+
+  override suspend fun markDirty(key: DirtyKey) {
+    val database = db()
+    database.writeTransaction(OUTBOX_STORE) { objectStore(OUTBOX_STORE).put(key.toJsOutboxEntry()) }
+  }
+
+  override suspend fun getOutbox(): List<DirtyKey> {
+    val database = db()
+    return database.transaction(OUTBOX_STORE) {
+      objectStore(OUTBOX_STORE)
+        .openCursor(autoContinue = true, direction = Cursor.Direction.Next)
+        .map { (it.value as JsOutboxEntry).toDirtyKey() }
+        .toList()
+    }
+  }
+
+  override suspend fun clearDirty(keys: Collection<DirtyKey>) {
+    val database = db()
+    database.writeTransaction(OUTBOX_STORE) {
+      val store = objectStore(OUTBOX_STORE)
+      for (key in keys) {
+        val (kind, key1, key2) = key.outboxKeyParts()
+        store.delete(Key(kind.toJsString(), key1.toJsString(), key2.toJsString()))
+      }
     }
   }
 }

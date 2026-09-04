@@ -40,7 +40,7 @@ internal object IndexedDbInstance {
    * not exist yet on a fresh install (the upgrade runs with no prior version).
    */
   private fun VersionChangeTransaction.recreate(database: Database) {
-    listOf(NODES_STORE, MOVES_STORE, EXPLORER_CACHE_STORE).forEach { store ->
+    listOf(NODES_STORE, MOVES_STORE, EXPLORER_CACHE_STORE, OUTBOX_STORE).forEach { store ->
       runCatching { database.deleteObjectStore(store) }
     }
 
@@ -68,6 +68,8 @@ internal object IndexedDbInstance {
     movesStore.createIndex("updatedAt", KeyPath("updatedAt"), unique = false)
 
     database.createObjectStore(EXPLORER_CACHE_STORE, KeyPath("key"))
+
+    database.createObjectStore(OUTBOX_STORE, KeyPath("kind", "key1", "key2"))
   }
 }
 
