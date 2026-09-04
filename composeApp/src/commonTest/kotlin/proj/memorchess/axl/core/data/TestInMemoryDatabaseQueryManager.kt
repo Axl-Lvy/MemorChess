@@ -592,7 +592,10 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun softDeletingAPositionBumpsUpdatedAt() = runTest {
     val database = seededLine()
-    val stamp = Instant.fromEpochSeconds(999_999)
+    // The fixture's own moves default to DateUtil.now() at construction time, so the stamp has to
+    // be strictly later than "now" to be provably the new maximum rather than coincidentally past
+    // it.
+    val stamp = proj.memorchess.axl.core.date.DateUtil.now() + kotlin.time.Duration.parse("P365D")
     database.deletePosition(key1, DeleteMode.SOFT, "device-a", 5L, stamp)
     assertEquals(stamp, database.getLastUpdate())
   }

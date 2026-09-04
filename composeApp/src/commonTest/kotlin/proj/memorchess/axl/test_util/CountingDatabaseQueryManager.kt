@@ -3,6 +3,7 @@ package proj.memorchess.axl.test_util
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.SchedulingCounts
 import proj.memorchess.axl.core.graph.DeleteMode
@@ -34,11 +35,22 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun getNodesPage(cursor: String?, limit: Int) =
     delegate.getNodesPage(cursor, limit)
 
-  override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) =
-    delegate.deletePosition(position, mode)
+  override suspend fun deletePosition(
+    position: PositionKey,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) = delegate.deletePosition(position, mode, originDevice, deviceSeq, updatedAt)
 
-  override suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode) =
-    delegate.deleteMove(origin, move, mode)
+  override suspend fun deleteMove(
+    origin: PositionKey,
+    move: String,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) = delegate.deleteMove(origin, move, mode, originDevice, deviceSeq, updatedAt)
 
   override suspend fun eraseAll() = delegate.eraseAll()
 
@@ -70,4 +82,10 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
 
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int =
     delegate.countDescendants(key, cap)
+
+  override suspend fun markDirty(key: DirtyKey) = delegate.markDirty(key)
+
+  override suspend fun getOutbox(): List<DirtyKey> = delegate.getOutbox()
+
+  override suspend fun clearDirty(keys: Collection<DirtyKey>) = delegate.clearDirty(keys)
 }
