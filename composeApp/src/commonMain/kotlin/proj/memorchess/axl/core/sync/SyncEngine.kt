@@ -13,6 +13,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.auth.AuthProvider
+import proj.memorchess.axl.core.auth.TokenResult
+import proj.memorchess.axl.core.data.DataMove
+import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.DirtyKey
+import proj.memorchess.axl.core.data.OutboxEntry
+import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.graph.TreeStore
 
 /**
  * Drives the sync push+pull cycle: debounces local writes into one attempt, retries a transient
@@ -184,6 +193,144 @@ private fun Double.pow(exp: Int): Double {
   var result = 1.0
   repeat(exp) { result *= this }
   return result
+}
+
+/**
+ * Wires [DefaultSyncEngine] to the real push+pull cycle. `settings` outbox entries are read but not
+ * yet pushed, and a pulled [SettingSyncRow] is not yet applied: [proj.memorchess.axl.core.config.SettingSyncMetadataStore]
+ * has no generic "read/write this key's current value as a string" surface for an arbitrary
+ * [proj.memorchess.axl.core.config.ConfigItem] to hang a remote-apply path off of, and guessing one
+ * under time pressure risks silently corrupting a user's settings — a real follow-up, not something
+ * this plan should paper over.
+ */
+fun SyncEngine(
+  authProvider: AuthProvider,
+  database: DatabaseQueryManager,
+  treeStore: TreeStore,
+  apiClient: SyncApiClient,
+  jobStore: SyncJobStore,
+  cursorStore: SyncCursorStore,
+  scope: CoroutineScope,
+): SyncEngine =
+  DefaultSyncEngine(jobStore, scope) {
+    runSyncCycle(authProvider, database, treeStore, apiClient, cursorStore)
+  }
+
+/** Largest batch pushed in one request, matching `:server`'s own `MAX_PUSH_ROWS` cap. */
+internal const val MAX_PUSH_ROWS: Int = 2_000
+
+/** Largest page requested per pull. */
+internal const val PULL_LIMIT: Int = 500
+
+internal suspend fun runSyncCycle(
+  authProvider: AuthProvider,
+  database: DatabaseQueryManager,
+  treeStore: TreeStore,
+  apiClient: SyncApiClient,
+  cursorStore: SyncCursorStore,
+): CycleOutcome {
+  val token =
+    when (val result = authProvider.accessToken()) {
+      is TokenResult.Ok -> result.accessToken
+      TokenResult.SignedOut -> return CycleOutcome.PausedNoAuth
+      TokenResult.Failed.Terminal -> return CycleOutcome.PausedNoAuth
+      TokenResult.Failed.Transient -> return CycleOutcome.Transient
+    }
+
+  pushOutbox(token, database, apiClient)?.let {
+    return it
+  }
+  pullAll(token, treeStore, apiClient, cursorStore)?.let {
+    return it
+  }
+  return CycleOutcome.Success
+}
+
+/** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
+private suspend fun pushOutbox(
+  token: String,
+  database: DatabaseQueryManager,
+  apiClient: SyncApiClient,
+): CycleOutcome? {
+  val outbox = database.getOutbox()
+  if (outbox.isEmpty()) return null
+  for (batch in outbox.chunked(MAX_PUSH_ROWS)) {
+    val request = buildPushRequest(database, batch)
+    when (val outcome = apiClient.push(token, request)) {
+      is SyncPushOutcome.Ok -> {
+        // Every pushed entry is cleared, rejected ones included: a RejectedRow is a permanent
+        // refusal per its own doc, so retrying it forever would spin the job indefinitely.
+        database.clearDirty(batch)
+      }
+      SyncPushOutcome.Unauthorized -> return CycleOutcome.Transient
+      SyncPushOutcome.TooLarge -> return CycleOutcome.Transient
+      is SyncPushOutcome.Error -> {
+        LOGGER.w { "Push batch failed: ${outcome.message}" }
+        return CycleOutcome.Transient
+      }
+    }
+  }
+  return null
+}
+
+/** Builds one push batch's rows from the outbox entries' current local state. Skips
+ * [DirtyKey.SettingKey] entries (see [SyncEngine]'s own doc) and any key whose row has since
+ * disappeared from the outbox's own view of the world (nothing left to push). */
+private suspend fun buildPushRequest(
+  database: DatabaseQueryManager,
+  batch: List<OutboxEntry>,
+): SyncPushRequest {
+  val nodes = mutableListOf<NodeSyncRow>()
+  val edges = mutableListOf<EdgeSyncRow>()
+  for (entry in batch) {
+    when (val key = entry.key) {
+      is DirtyKey.NodeKey -> {
+        database.getPositionIncludingDeleted(key.positionKey)?.let { nodes += it.toNodeSyncRow() }
+      }
+      is DirtyKey.EdgeKey -> {
+        localMove(database, key.origin, key.destination)?.let { edges += it.toEdgeSyncRow() }
+      }
+      is DirtyKey.SettingKey -> Unit
+    }
+  }
+  return SyncPushRequest(nodes = nodes, edges = edges, settings = emptyList())
+}
+
+/** The move connecting [origin] to [destination], read off [origin]'s own denormalized map. */
+private suspend fun localMove(
+  database: DatabaseQueryManager,
+  origin: PositionKey,
+  destination: PositionKey,
+): DataMove? =
+  database.getPositionIncludingDeleted(origin)?.previousAndNextMoves?.nextMoves?.values?.firstOrNull {
+    it.destination == destination
+  }
+
+/** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
+private suspend fun pullAll(
+  token: String,
+  treeStore: TreeStore,
+  apiClient: SyncApiClient,
+  cursorStore: SyncCursorStore,
+): CycleOutcome? {
+  var cursor = cursorStore.read()
+  while (true) {
+    when (val outcome = apiClient.pull(token, cursor, PULL_LIMIT)) {
+      is SyncPullOutcome.Ok -> {
+        val page = outcome.response
+        for (node in page.nodes) treeStore.applySyncedNode(node)
+        for (edge in page.edges) treeStore.applySyncedMove(edge)
+        cursor = page.nextCursor
+        cursorStore.write(cursor)
+        if (cursor == null) return null
+      }
+      SyncPullOutcome.Unauthorized -> return CycleOutcome.Transient
+      is SyncPullOutcome.Error -> {
+        LOGGER.w { "Pull failed: ${outcome.message}" }
+        return CycleOutcome.Transient
+      }
+    }
+  }
 }
 
 private val LOGGER = Logger.withTag("SyncEngine")
