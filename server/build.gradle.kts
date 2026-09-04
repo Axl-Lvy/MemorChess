@@ -5,6 +5,7 @@ plugins {
   alias(libs.plugins.kotlinX.serialization.plugin)
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.kover)
+  application
 }
 
 kotlin {
@@ -18,6 +19,11 @@ kotlin {
 java {
   sourceCompatibility = JavaVersion.VERSION_21
   targetCompatibility = JavaVersion.VERSION_21
+}
+
+application {
+  // The Docker image in the deployment step invokes this through installDist's start script.
+  mainClass.set("proj.memorchess.axl.server.MainKt")
 }
 
 dependencies {
