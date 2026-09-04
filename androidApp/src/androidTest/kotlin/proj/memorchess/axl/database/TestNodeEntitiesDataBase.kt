@@ -22,6 +22,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.core.sync.DeviceIdentity
 
 class TestNodeEntitiesDataBase {
   private lateinit var nodeEntityDao: NodeEntityDao
@@ -95,10 +96,16 @@ class TestNodeEntitiesDataBase {
       )
     val childNode =
       DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new(), 0)
+    val identity = DeviceIdentity.ephemeral()
     runBlocking {
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))
-      nodeEntityDao.softDeleteNode(childNode.positionKey.value)
+      nodeEntityDao.softDeleteNode(
+        childNode.positionKey.value,
+        now,
+        identity.originDevice,
+        identity.nextDeviceSeq(),
+      )
       retrievedNodes = nodeEntityDao.getNodesPage(PAGE_LIMIT)
     }
     assertEquals(1, retrievedNodes.size)

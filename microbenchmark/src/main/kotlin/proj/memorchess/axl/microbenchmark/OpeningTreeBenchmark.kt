@@ -11,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**
  * Measures opening graph construction and the demand-paged read path through [TreeStore], the
@@ -73,7 +74,8 @@ class OpeningTreeBenchmark {
     }
   }
 
-  private fun newStore(): TreeStore = TreeStore(InMemoryDatabaseQueryManager(), prefetchScope)
+  private fun newStore(): TreeStore =
+    TreeStore(InMemoryDatabaseQueryManager(), prefetchScope, DeviceIdentity.ephemeral())
 
   private fun buildStore(): TreeStore {
     val store = newStore()

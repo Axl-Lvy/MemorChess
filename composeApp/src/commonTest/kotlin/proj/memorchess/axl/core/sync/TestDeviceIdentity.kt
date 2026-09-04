@@ -19,7 +19,7 @@ class TestDeviceIdentity {
   }
 
   @kotlin.test.Test
-  fun `the first allocated sequence is exactly one, never zero`() = runTest {
+  fun `the first allocated sequence is exactly one and never zero`() = runTest {
     // Arrange.
     val identity = DeviceIdentity.ephemeral()
 
