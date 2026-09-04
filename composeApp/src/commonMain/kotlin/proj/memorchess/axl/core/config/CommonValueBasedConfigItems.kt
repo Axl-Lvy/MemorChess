@@ -113,8 +113,11 @@ sealed class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
         throw IllegalArgumentException("Unsupported value type: ${valueToStore::class.simpleName}")
     }
     // setValue is synchronous but the stamp write is suspend (it allocates a DeviceIdentity
-    // sequence), so it is fired and forgotten here rather than blocking the caller.
-    syncScope.launch { syncMetadata.stamp(name) }
+    // sequence), so it is fired and forgotten here rather than blocking the caller. syncMetadata is
+    // resolved outside the launched block, synchronously, so the Koin lookup always runs while this
+    // call's Koin scope is still open rather than racing a later teardown.
+    val metadataStore = syncMetadata
+    syncScope.launch { metadataStore.stamp(name) }
   }
 
   override fun reset() {

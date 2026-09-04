@@ -242,7 +242,9 @@ class TreeStore(
    * to `false`. Marks the edge and the surviving [from] node dirty.
    */
   suspend fun deleteMove(from: PositionKey, move: String, mode: DeleteMode = DeleteMode.SOFT) {
-    val to = mutex.withLock { tree[from]?.outgoing?.get(move)?.to }
+    // Resolved through node() rather than a raw cache read so the destination is known even when
+    // from was evicted from the cache, exactly like deleteNode resolves its target.
+    val to = node(from)?.outgoing?.get(move)?.to
     mutex.withLock { tree.removeEdge(from, move) }
     val seq = deviceIdentity.nextDeviceSeq()
     database.deleteMove(from, move, mode, deviceIdentity.originDevice, seq, DateUtil.now())
