@@ -14,6 +14,7 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.test_util.CountingDatabaseQueryManager
 
 /**
@@ -47,7 +48,12 @@ class TestTreeStoreCache {
     val backing = InMemoryDatabaseQueryManager()
     backing.insertNodes(isolatedNode(0))
     val database = CountingDatabaseQueryManager(backing)
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     val first = store.node(key(0))
     assertNotNull(first, "a persisted position must resolve")
@@ -61,7 +67,12 @@ class TestTreeStoreCache {
   @Test
   fun resolvingAnAbsentPositionReturnsNullAndCachesNothing() = runTest {
     val database = CountingDatabaseQueryManager(InMemoryDatabaseQueryManager())
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     // 0 entries resident: a miss returns null and inserts nothing, so a second resolve looks up
     // again rather than serving a phantom hit.
@@ -76,7 +87,12 @@ class TestTreeStoreCache {
     val backing = InMemoryDatabaseQueryManager()
     backing.insertNodes(isolatedNode(0))
     val database = CountingDatabaseQueryManager(backing)
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     store.node(key(0))
     store.node(key(0))
@@ -90,7 +106,12 @@ class TestTreeStoreCache {
     val backing = InMemoryDatabaseQueryManager()
     backing.insertNodes(*(0 until cap).map { isolatedNode(it) }.toTypedArray())
     val database = CountingDatabaseQueryManager(backing)
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     // Resolve exactly cap distinct positions: each is one miss.
     for (i in 0 until cap) store.node(key(i))
@@ -111,7 +132,12 @@ class TestTreeStoreCache {
     val backing = InMemoryDatabaseQueryManager()
     backing.insertNodes(*(0..cap).map { isolatedNode(it) }.toTypedArray())
     val database = CountingDatabaseQueryManager(backing)
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     // Resolve cap + 1 distinct positions in order. key(0) is the least recently used and must be
     // evicted when key(cap) is inserted.
@@ -139,7 +165,12 @@ class TestTreeStoreCache {
       DataNode(child, PreviousAndNextMoves(listOf(edge), emptyList()), CardStateFactory.new(), 1),
     )
     val database = CountingDatabaseQueryManager(backing)
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     store.node(start)
     // The miss on start fired a one ply prefetch that warmed child.
@@ -162,7 +193,12 @@ class TestTreeStoreCache {
       DataNode(child, PreviousAndNextMoves(listOf(edge), emptyList()), CardStateFactory.new(), 1),
     )
     val database = CountingDatabaseQueryManager(backing)
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     // Resolve start twice; the second is a hit and must not re-prefetch the already resident child.
     store.node(start)
@@ -179,7 +215,12 @@ class TestTreeStoreCache {
     val start = PositionKey.START_POSITION
     val child = PositionKey("child b K")
     val database = CountingDatabaseQueryManager(InMemoryDatabaseQueryManager())
-    val store = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+    val store =
+      TreeStore(
+        database,
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+        DeviceIdentity.ephemeral(),
+      )
 
     store.addMove(from = start, move = "e4", to = child, isGood = true, fromDepth = 0)
     val lookupsAfterMutation = database.totalGetPositionCalls

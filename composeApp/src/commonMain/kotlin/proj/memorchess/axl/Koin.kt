@@ -38,6 +38,7 @@ import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
+import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
@@ -59,6 +60,7 @@ fun initKoinModules(): Array<Module> {
   val dataModule = module {
     single<DatabaseQueryManager> { getPlatformSpecificLocalDatabase() }
     single<Settings> { getPlatformSpecificSettings() }
+    single { DeviceIdentity.persisted(get()) }
   }
 
   // One process-wide generator seeded from the wall clock at app start. A shared advancing RNG (not
@@ -80,7 +82,7 @@ fun initKoinModules(): Array<Module> {
     single<CoroutineScope>(named(PREFETCH_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
-    single { TreeStore(get(), get(named(PREFETCH_SCOPE))) }
+    single { TreeStore(get(), get(named(PREFETCH_SCOPE)), get()) }
     single {
       TrainingScheduler(
         database = get(),

@@ -9,6 +9,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImporter
+import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**
  * Read only navigator over the lines of a single repertoire.
@@ -54,7 +55,12 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
     suspend fun build(games: List<PgnGame>): RepertoireExplorer {
       // Scope tied to the caller's coroutine context so neighbour prefetch over this transient,
       // InMemory backed store cannot outlive it.
-      val treeStore = TreeStore(InMemoryDatabaseQueryManager(), CoroutineScope(coroutineContext))
+      val treeStore =
+        TreeStore(
+          InMemoryDatabaseQueryManager(),
+          CoroutineScope(coroutineContext),
+          DeviceIdentity.ephemeral(),
+        )
       PgnImporter(treeStore).import(games)
       return RepertoireExplorer(treeStore)
     }
