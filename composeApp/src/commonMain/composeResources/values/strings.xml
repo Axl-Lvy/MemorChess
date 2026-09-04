@@ -109,6 +109,15 @@
   <string name="sync_oauth_failed">OAuth flow failed</string>
   <string name="sync_sign_in_failed">Sign in failed: %1$s</string>
 
+  <!-- Sync account section (Settings) -->
+  <string name="sync_not_signed_in">Not signed in</string>
+  <string name="sync_connected">Sync enabled</string>
+  <string name="sync_sign_in_prompt">Sign in to sync your repertoires across devices.</string>
+  <string name="sync_disconnect">SIGN OUT</string>
+  <string name="sync_sign_in">SIGN IN</string>
+  <string name="sync_signing_in">SIGNING IN…</string>
+  <string name="sync_sign_in_cancelled">Sign in cancelled</string>
+
   <!-- Training -->
   <string name="training_success">SUCCESS</string>
   <string name="training_fail">FAIL</string>
