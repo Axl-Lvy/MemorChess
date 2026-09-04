@@ -405,47 +405,69 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   ) {
     val database = db()
     database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
-      val nodesStore = objectStore(NODES_STORE)
-      val movesStore = objectStore(MOVES_STORE)
       val originMoves: List<JsMoveEntity> =
-        movesStore.index("origin").getAll(Key(position.value.toJsString())).toList()
+        objectStore(MOVES_STORE).index("origin").getAll(Key(position.value.toJsString())).toList()
       val destMoves: List<JsMoveEntity> =
-        movesStore.index("destination").getAll(Key(position.value.toJsString())).toList()
-
+        objectStore(MOVES_STORE)
+          .index("destination")
+          .getAll(Key(position.value.toJsString()))
+          .toList()
+      val incidentMoves = originMoves + destMoves
       when (mode) {
-        DeleteMode.HARD -> {
-          for (move in originMoves + destMoves) {
-            movesStore.delete(Key(move.origin.toJsString(), move.destination.toJsString()))
-          }
-          nodesStore.delete(Key(position.value.toJsString()))
-        }
-        DeleteMode.SOFT -> {
-          val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
-          if (jsNode != null && !jsNode.isDeleted) {
-            jsNode.isDeleted = true
-            jsNode.updatedAt = updatedAt.epochSeconds.toDouble()
-            jsNode.originDevice = originDevice
-            jsNode.deviceSeq = deviceSeq.toDouble()
-            nodesStore.put(jsNode)
-            // Queues the node's own outbox entry in the same transaction as the row flip.
-            upsertOutboxEntry(DirtyKey.NodeKey(position), deviceSeq)
-          }
-          for (move in originMoves + destMoves) {
-            if (!move.isDeleted) {
-              move.isDeleted = true
-              move.updatedAt = updatedAt.epochSeconds.toDouble()
-              move.originDevice = originDevice
-              move.deviceSeq = deviceSeq.toDouble()
-              movesStore.put(move)
-              // Queues exactly the edges this call tombstoned, in the same transaction.
-              upsertOutboxEntry(
-                DirtyKey.EdgeKey(PositionKey(move.origin), PositionKey(move.destination)),
-                deviceSeq,
-              )
-            }
-          }
-        }
+        DeleteMode.HARD -> hardDeletePosition(position, incidentMoves)
+        DeleteMode.SOFT ->
+          softDeletePosition(position, incidentMoves, originDevice, deviceSeq, updatedAt)
       }
+    }
+  }
+
+  /** Physically removes [position]'s row and every move incident to it. */
+  private suspend fun com.juul.indexeddb.WriteTransaction.hardDeletePosition(
+    position: PositionKey,
+    incidentMoves: List<JsMoveEntity>,
+  ) {
+    val movesStore = objectStore(MOVES_STORE)
+    for (move in incidentMoves) {
+      movesStore.delete(Key(move.origin.toJsString(), move.destination.toJsString()))
+    }
+    objectStore(NODES_STORE).delete(Key(position.value.toJsString()))
+  }
+
+  /**
+   * Flips [position]'s row and each of [incidentMoves] to deleted, queuing an outbox entry for each
+   * row change in the same transaction as the write it names.
+   */
+  private suspend fun com.juul.indexeddb.WriteTransaction.softDeletePosition(
+    position: PositionKey,
+    incidentMoves: List<JsMoveEntity>,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
+    val nodesStore = objectStore(NODES_STORE)
+    val movesStore = objectStore(MOVES_STORE)
+    val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
+    if (jsNode != null && !jsNode.isDeleted) {
+      jsNode.isDeleted = true
+      jsNode.updatedAt = updatedAt.epochSeconds.toDouble()
+      jsNode.originDevice = originDevice
+      jsNode.deviceSeq = deviceSeq.toDouble()
+      nodesStore.put(jsNode)
+      // Queues the node's own outbox entry in the same transaction as the row flip.
+      upsertOutboxEntry(DirtyKey.NodeKey(position), deviceSeq)
+    }
+    for (move in incidentMoves) {
+      if (move.isDeleted) continue
+      move.isDeleted = true
+      move.updatedAt = updatedAt.epochSeconds.toDouble()
+      move.originDevice = originDevice
+      move.deviceSeq = deviceSeq.toDouble()
+      movesStore.put(move)
+      // Queues exactly the edges this call tombstoned, in the same transaction.
+      upsertOutboxEntry(
+        DirtyKey.EdgeKey(PositionKey(move.origin), PositionKey(move.destination)),
+        deviceSeq,
+      )
     }
   }
 

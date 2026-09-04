@@ -86,54 +86,66 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   ) {
     val node = nodes[position] ?: return
     when (mode) {
-      DeleteMode.HARD -> {
-        nodes.remove(position)
-        // Drop any move that pointed to or came from the removed position.
-        for ((key, other) in nodes.toMap()) {
-          val moves = other.previousAndNextMoves
-          val previousMoves = moves.previousMoves.values.filter { it.origin != position }
-          val nextMoves = moves.nextMoves.values.filter { it.destination != position }
-          if (
-            previousMoves.size != moves.previousMoves.size || nextMoves.size != moves.nextMoves.size
-          ) {
-            nodes[key] =
-              other.copy(previousAndNextMoves = PreviousAndNextMoves(previousMoves, nextMoves))
-          }
-        }
+      DeleteMode.HARD -> hardDelete(position)
+      DeleteMode.SOFT -> softDelete(position, node, originDevice, deviceSeq, updatedAt)
+    }
+  }
+
+  /** Physically removes [position] and drops any move that pointed to or came from it. */
+  private fun hardDelete(position: PositionKey) {
+    nodes.remove(position)
+    for ((key, other) in nodes.toMap()) {
+      val moves = other.previousAndNextMoves
+      val previousMoves = moves.previousMoves.values.filter { it.origin != position }
+      val nextMoves = moves.nextMoves.values.filter { it.destination != position }
+      if (
+        previousMoves.size != moves.previousMoves.size || nextMoves.size != moves.nextMoves.size
+      ) {
+        nodes[key] =
+          other.copy(previousAndNextMoves = PreviousAndNextMoves(previousMoves, nextMoves))
       }
-      DeleteMode.SOFT -> {
-        if (node.isDeleted) return
-        val stampedMoves =
-          tombstoneAll(node.previousAndNextMoves, originDevice, deviceSeq, updatedAt)
-        nodes[position] =
-          node.copy(
-            isDeleted = true,
-            updatedAt = updatedAt,
-            originDevice = originDevice,
-            deviceSeq = deviceSeq,
-            previousAndNextMoves = stampedMoves,
-          )
-        mark(DirtyKey.NodeKey(position), deviceSeq)
-        // Cascade the tombstone to the denormalized copy every neighbour holds of the same edge,
-        // exactly like Room's softDeleteMoveFrom/softDeleteMoveTo and IndexedDB's per-store writes.
-        for ((move, edge) in node.previousAndNextMoves.nextMoves) {
-          if (edge.isDeleted) continue
-          tombstoneInNeighbor(
-            edge.destination,
-            move,
-            isNext = false,
-            originDevice,
-            deviceSeq,
-            updatedAt,
-          )
-          mark(DirtyKey.EdgeKey(position, edge.destination), deviceSeq)
-        }
-        for ((move, edge) in node.previousAndNextMoves.previousMoves) {
-          if (edge.isDeleted) continue
-          tombstoneInNeighbor(edge.origin, move, isNext = true, originDevice, deviceSeq, updatedAt)
-          mark(DirtyKey.EdgeKey(edge.origin, position), deviceSeq)
-        }
-      }
+    }
+  }
+
+  /**
+   * Flips [node]'s [DataNode.isDeleted] flag and cascades the tombstone to the denormalized copy
+   * every neighbour holds of the same edge, exactly like Room's softDeleteMoveFrom/softDeleteMoveTo
+   * and IndexedDB's per-store writes.
+   */
+  private fun softDelete(
+    position: PositionKey,
+    node: DataNode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
+    if (node.isDeleted) return
+    val stampedMoves = tombstoneAll(node.previousAndNextMoves, originDevice, deviceSeq, updatedAt)
+    nodes[position] =
+      node.copy(
+        isDeleted = true,
+        updatedAt = updatedAt,
+        originDevice = originDevice,
+        deviceSeq = deviceSeq,
+        previousAndNextMoves = stampedMoves,
+      )
+    mark(DirtyKey.NodeKey(position), deviceSeq)
+    for ((move, edge) in node.previousAndNextMoves.nextMoves) {
+      if (edge.isDeleted) continue
+      tombstoneInNeighbor(
+        edge.destination,
+        move,
+        isNext = false,
+        originDevice,
+        deviceSeq,
+        updatedAt,
+      )
+      mark(DirtyKey.EdgeKey(position, edge.destination), deviceSeq)
+    }
+    for ((move, edge) in node.previousAndNextMoves.previousMoves) {
+      if (edge.isDeleted) continue
+      tombstoneInNeighbor(edge.origin, move, isNext = true, originDevice, deviceSeq, updatedAt)
+      mark(DirtyKey.EdgeKey(edge.origin, position), deviceSeq)
     }
   }
 
