@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 
@@ -42,8 +43,17 @@ interface DatabaseQueryManager {
    *
    * @param position Position to remove.
    * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
+   * @param originDevice Device stamped on the tombstone when [mode] is [DeleteMode.SOFT].
+   * @param deviceSeq That device's write counter, stamped alongside [originDevice].
+   * @param updatedAt Moment the tombstone was written.
    */
-  suspend fun deletePosition(position: PositionKey, mode: DeleteMode = DeleteMode.HARD)
+  suspend fun deletePosition(
+    position: PositionKey,
+    mode: DeleteMode = DeleteMode.SOFT,
+    originDevice: String = "",
+    deviceSeq: Long = 0L,
+    updatedAt: Instant = DateUtil.now(),
+  )
 
   /**
    * Deletes a single move.
@@ -51,8 +61,18 @@ interface DatabaseQueryManager {
    * @param origin Origin of the move.
    * @param move Move in standard algebraic notation.
    * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
+   * @param originDevice Device stamped on the tombstone when [mode] is [DeleteMode.SOFT].
+   * @param deviceSeq That device's write counter, stamped alongside [originDevice].
+   * @param updatedAt Moment the tombstone was written.
    */
-  suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode = DeleteMode.HARD)
+  suspend fun deleteMove(
+    origin: PositionKey,
+    move: String,
+    mode: DeleteMode = DeleteMode.SOFT,
+    originDevice: String = "",
+    deviceSeq: Long = 0L,
+    updatedAt: Instant = DateUtil.now(),
+  )
 
   /** Hard wipe of every node and move. */
   suspend fun eraseAll()
@@ -164,6 +184,18 @@ interface DatabaseQueryManager {
    *   positions.
    */
   suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int
+
+  /**
+   * Queues [key] for the next sync push, or refreshes it if already queued. Collapsing repeat
+   * edits into one entry is why the outbox stores keys rather than rows.
+   */
+  suspend fun markDirty(key: DirtyKey)
+
+  /** Every key currently queued for push. */
+  suspend fun getOutbox(): List<DirtyKey>
+
+  /** Removes [keys] from the outbox once their rows have been pushed. */
+  suspend fun clearDirty(keys: Collection<DirtyKey>)
 }
 
 /**

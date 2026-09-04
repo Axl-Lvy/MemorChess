@@ -22,6 +22,9 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   /** Backing store, keyed by position. Soft-deleted nodes stay here with their flag set. */
   private val nodes: MutableMap<PositionKey, DataNode> = mutableMapOf()
 
+  /** Backing outbox, keyed by the dirty key itself so a repeat mark is a no-op collapse. */
+  private val outbox: LinkedHashSet<DirtyKey> = linkedSetOf()
+
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
 
@@ -44,7 +47,13 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     positions.forEach { nodes[it.positionKey] = it }
   }
 
-  override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {
+  override suspend fun deletePosition(
+    position: PositionKey,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
     val node = nodes[position] ?: return
     when (mode) {
       DeleteMode.HARD -> {
@@ -62,20 +71,44 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
           }
         }
       }
-      DeleteMode.SOFT -> nodes[position] = node.copy(isDeleted = true)
+      DeleteMode.SOFT ->
+        nodes[position] =
+          node.copy(
+            isDeleted = true,
+            updatedAt = updatedAt,
+            originDevice = originDevice,
+            deviceSeq = deviceSeq,
+          )
     }
   }
 
-  override suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode) {
+  override suspend fun deleteMove(
+    origin: PositionKey,
+    move: String,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
     val node = nodes[origin] ?: return
     val edge = node.previousAndNextMoves.nextMoves[move] ?: return
     val destination = edge.destination
     nodes[origin] =
-      node.copy(previousAndNextMoves = node.previousAndNextMoves.withoutNext(move, mode))
+      node.copy(
+        previousAndNextMoves =
+          node.previousAndNextMoves.withoutNext(move, mode, originDevice, deviceSeq, updatedAt)
+      )
     val destinationNode = nodes[destination] ?: return
     nodes[destination] =
       destinationNode.copy(
-        previousAndNextMoves = destinationNode.previousAndNextMoves.withoutPrevious(move, mode)
+        previousAndNextMoves =
+          destinationNode.previousAndNextMoves.withoutPrevious(
+            move,
+            mode,
+            originDevice,
+            deviceSeq,
+            updatedAt,
+          )
       )
   }
 
@@ -218,26 +251,58 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   private fun PreviousAndNextMoves.withoutNext(
     move: String,
     mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
   ): PreviousAndNextMoves =
-    PreviousAndNextMoves(previousMoves.values, removeOrFlag(nextMoves, move, mode))
+    PreviousAndNextMoves(
+      previousMoves.values,
+      removeOrFlag(nextMoves, move, mode, originDevice, deviceSeq, updatedAt),
+    )
 
   private fun PreviousAndNextMoves.withoutPrevious(
     move: String,
     mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
   ): PreviousAndNextMoves =
-    PreviousAndNextMoves(removeOrFlag(previousMoves, move, mode), nextMoves.values)
+    PreviousAndNextMoves(
+      removeOrFlag(previousMoves, move, mode, originDevice, deviceSeq, updatedAt),
+      nextMoves.values,
+    )
 
   private fun removeOrFlag(
     moves: Map<String, DataMove>,
     move: String,
     mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
   ): List<DataMove> =
     moves.values.mapNotNull {
       if (it.move != move) it
       else
         when (mode) {
           DeleteMode.HARD -> null
-          DeleteMode.SOFT -> it.copy(isDeleted = true)
+          DeleteMode.SOFT ->
+            it.copy(
+              isDeleted = true,
+              updatedAt = updatedAt,
+              originDevice = originDevice,
+              deviceSeq = deviceSeq,
+            )
         }
     }
+
+  override suspend fun markDirty(key: DirtyKey) {
+    outbox.remove(key)
+    outbox.add(key)
+  }
+
+  override suspend fun getOutbox(): List<DirtyKey> = outbox.toList()
+
+  override suspend fun clearDirty(keys: Collection<DirtyKey>) {
+    outbox.removeAll(keys.toSet())
+  }
 }

@@ -588,4 +588,77 @@ class TestInMemoryDatabaseQueryManager {
     // Zero (and negative) cap counts nothing.
     assertEquals(0, database.countDescendants(root, cap = 0))
   }
+
+  @Test
+  fun softDeletingAPositionBumpsUpdatedAt() = runTest {
+    val database = seededLine()
+    val stamp = Instant.fromEpochSeconds(999_999)
+    database.deletePosition(key1, DeleteMode.SOFT, "device-a", 5L, stamp)
+    assertEquals(stamp, database.getLastUpdate())
+  }
+
+  @Test
+  fun softDeletingAMoveStampsOriginDeviceAndDeviceSeqOnTheSurvivingEndpoint() = runTest {
+    val database = seededLine()
+    val stamp = Instant.fromEpochSeconds(999_999)
+    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 5L, stamp)
+    val tombstone = database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5")
+    assertTrue(tombstone.isDeleted)
+    assertEquals("device-a", tombstone.originDevice)
+    assertEquals(5L, tombstone.deviceSeq)
+    assertEquals(stamp, tombstone.updatedAt)
+  }
+
+  @Test
+  fun markDirtyThenGetOutboxReturnsTheKey() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val key = DirtyKey.NodeKey(key1)
+    database.markDirty(key)
+    assertEquals(listOf(key), database.getOutbox())
+  }
+
+  @Test
+  fun markingTheSameKeyDirtyTwiceCollapsesToOneOutboxEntry() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val key = DirtyKey.NodeKey(key1)
+    database.markDirty(key)
+    database.markDirty(key)
+    assertEquals(listOf(key), database.getOutbox())
+  }
+
+  @Test
+  fun clearDirtyRemovesExactlyTheClearedKeys() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val kept = DirtyKey.NodeKey(key1)
+    val cleared = DirtyKey.NodeKey(key2)
+    database.markDirty(kept)
+    database.markDirty(cleared)
+    database.clearDirty(listOf(cleared))
+    assertEquals(listOf(kept), database.getOutbox())
+  }
+
+  @Test
+  fun outboxAcceptsAllThreeKeyKinds() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val node = DirtyKey.NodeKey(key0)
+    val edge = DirtyKey.EdgeKey(key0, key1)
+    val setting = DirtyKey.SettingKey("appTheme")
+    database.markDirty(node)
+    database.markDirty(edge)
+    database.markDirty(setting)
+    assertEquals(setOf(node, edge, setting), database.getOutbox().toSet())
+  }
+
+  @Test
+  fun reAddingASoftDeletedMoveRevivesItAsLive() = runTest {
+    val database = seededLine()
+    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+
+    database.insertNodes(
+      node(key1, previous = listOf(moveE4), next = listOf(moveE5)),
+      node(key2, previous = listOf(moveE5), next = listOf()),
+    )
+
+    assertTrue(!database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted)
+  }
 }
