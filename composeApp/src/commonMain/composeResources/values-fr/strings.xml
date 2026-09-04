@@ -102,6 +102,22 @@
   <string name="auth_token_rejected">Lichess a rejeté le jeton immédiatement après l'avoir émis</string>
   <string name="auth_sign_in_failed">Échec de la connexion : %1$s</string>
 
+  <!-- Sync sign-in errors -->
+  <string name="sync_missing_code">Le fournisseur d'identité n'a pas renvoyé de code d'autorisation</string>
+  <string name="sync_state_mismatch">Incohérence du paramètre state OAuth (CSRF possible)</string>
+  <string name="sync_browser_unavailable">Impossible d'ouvrir le navigateur</string>
+  <string name="sync_oauth_failed">Échec du flux OAuth</string>
+  <string name="sync_sign_in_failed">Échec de la connexion : %1$s</string>
+
+  <!-- Sync account section (Settings) -->
+  <string name="sync_not_signed_in">Non connecté</string>
+  <string name="sync_connected">Synchronisation activée</string>
+  <string name="sync_sign_in_prompt">Connectez-vous pour synchroniser vos répertoires entre vos appareils.</string>
+  <string name="sync_disconnect">DÉCONNEXION</string>
+  <string name="sync_sign_in">CONNEXION</string>
+  <string name="sync_signing_in">CONNEXION…</string>
+  <string name="sync_sign_in_cancelled">Connexion annulée</string>
+
   <!-- Training -->
   <string name="training_success">RÉUSSIS</string>
   <string name="training_fail">ÉCHECS</string>

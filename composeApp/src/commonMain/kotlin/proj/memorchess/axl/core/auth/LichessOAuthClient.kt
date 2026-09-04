@@ -143,7 +143,7 @@ private val LOGGER = Logger.withTag("LichessOAuthClient")
  * Ktor's URL builder would do this, but here we are concatenating into a URL we hand to the OS
  * browser, which would not run any further normalization.
  */
-private fun encodeURLComponent(value: String): String = buildString {
+internal fun encodeURLComponent(value: String): String = buildString {
   for (b in value.encodeToByteArray()) {
     val c = b.toInt() and 0xff
     when {
@@ -158,4 +158,4 @@ private fun encodeURLComponent(value: String): String = buildString {
   }
 }
 
-private val HEX = "0123456789ABCDEF".toCharArray()
+internal val HEX = "0123456789ABCDEF".toCharArray()
