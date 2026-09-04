@@ -86,4 +86,26 @@ class TestOpeningTree {
     store.updateCardState(posA, CardStateFactory.new())
     assertNull(store.node(posA))
   }
+
+  @Test
+  fun edgeSyncMetadataIsIndependentOfEndpoints() {
+    val now = proj.memorchess.axl.core.date.DateUtil.now()
+    val edge =
+      Edge(
+        from = startPos,
+        move = "e4",
+        to = posA,
+        isGood = true,
+        createdAt = now,
+        updatedAt = now,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+    val restamped = edge.copy(originDevice = "device-b", deviceSeq = 99L)
+
+    assertEquals(edge.from, restamped.from)
+    assertEquals(edge.to, restamped.to)
+    assertEquals("device-a", edge.originDevice)
+    assertEquals("device-b", restamped.originDevice)
+  }
 }

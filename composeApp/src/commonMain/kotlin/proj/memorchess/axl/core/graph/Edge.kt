@@ -26,6 +26,10 @@ import proj.memorchess.axl.core.data.PositionKey
  *   not reshuffle just by browsing.
  * @property updatedAt Last time the edge was written. Stamped by [TreeStore].
  * @property isDeleted Tombstone flag used by [DeleteMode.SOFT].
+ * @property originDevice Device that wrote this version. Stamped by [TreeStore] from its
+ *   [proj.memorchess.axl.core.sync.DeviceIdentity].
+ * @property deviceSeq That device's write counter at the time. See
+ *   [proj.memorchess.axl.core.sync.DeviceIdentity.nextDeviceSeq].
  */
 data class Edge(
   val from: PositionKey,
@@ -35,4 +39,6 @@ data class Edge(
   val createdAt: Instant,
   val updatedAt: Instant,
   val isDeleted: Boolean = false,
+  val originDevice: String = "",
+  val deviceSeq: Long = 0L,
 )
