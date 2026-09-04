@@ -24,6 +24,7 @@ import proj.memorchess.axl.core.sync.ApiErrorCode
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.server.auth.installJwtAuth
 import proj.memorchess.axl.server.routes.syncRoutes
+import proj.memorchess.axl.server.routes.versionRoute
 import proj.memorchess.axl.server.sync.SyncStore
 
 /**
@@ -58,6 +59,7 @@ internal fun Application.syncModule(
   installJwtAuth(config, jwkProvider)
 
   routing {
+    versionRoute()
     get("/health") { call.respondText("ok") }
     get("/ready") {
       if (readiness()) call.respondText("ok")

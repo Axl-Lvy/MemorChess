@@ -1,0 +1,10 @@
+.git
+.claude
+**/build/
+**/.gradle/
+local.properties
+*.md
+docs/
+.github/
+.idea/
+*.iml
