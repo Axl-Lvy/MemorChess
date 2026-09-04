@@ -20,7 +20,6 @@ class TestServerConfig {
       "SYNC_R2_BUCKET" to "memorchess-repertoires",
       "SYNC_R2_ACCESS_KEY_ID" to "test-key",
       "SYNC_R2_SECRET_ACCESS_KEY" to "test-secret",
-      "SYNC_ADMIN_TOKEN" to "test-admin-token",
     )
 
   private fun config(overrides: Map<String, String?> = emptyMap()) =
@@ -39,14 +38,13 @@ class TestServerConfig {
   }
 
   @Test
-  fun `reads the r2 and admin configuration`() {
+  fun `reads the r2 configuration`() {
     val result = config()
 
     result.r2Endpoint.toString() shouldBe "https://accountid.r2.cloudflarestorage.com"
     result.r2Bucket shouldBe "memorchess-repertoires"
     result.r2AccessKeyId shouldBe "test-key"
     result.r2SecretAccessKey shouldBe "test-secret"
-    result.adminToken shouldBe "test-admin-token"
   }
 
   @Test

@@ -22,8 +22,6 @@ private val HTTP_SCHEMES = setOf("http", "https")
  * @property r2Bucket Bucket name at [r2Endpoint].
  * @property r2AccessKeyId Access key id for [r2Bucket].
  * @property r2SecretAccessKey Secret access key for [r2Bucket].
- * @property adminToken Shared secret gating the admin routes. A stopgap until Cloudflare Access
- *   fronts this server. See `repertoireModule`'s KDoc for the reasoning.
  * @property staticDir Directory holding the compiled wasmJs frontend bundle, served at "/". Null
  *   disables frontend serving (local `:server:run`, tests), since only the Docker image ships a
  *   bundle to serve.
@@ -40,7 +38,6 @@ internal data class ServerConfig(
   val r2Bucket: String,
   val r2AccessKeyId: String,
   val r2SecretAccessKey: String,
-  val adminToken: String,
   val staticDir: File? = null,
 )
 
@@ -63,7 +60,6 @@ internal fun serverConfigFromEnv(getenv: (String) -> String? = System::getenv): 
     r2Bucket = getenv.required("SYNC_R2_BUCKET"),
     r2AccessKeyId = getenv.required("SYNC_R2_ACCESS_KEY_ID"),
     r2SecretAccessKey = getenv.required("SYNC_R2_SECRET_ACCESS_KEY"),
-    adminToken = getenv.required("SYNC_ADMIN_TOKEN"),
     staticDir = getenv.optionalDir("SYNC_STATIC_DIR"),
   )
 

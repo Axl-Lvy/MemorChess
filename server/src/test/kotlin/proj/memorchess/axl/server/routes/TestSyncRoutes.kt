@@ -56,7 +56,6 @@ class TestSyncRoutes {
       r2Bucket = "unused",
       r2AccessKeyId = "unused",
       r2SecretAccessKey = "unused",
-      adminToken = "unused",
     )
 
   /** Runs [block] against the real module, real store and real Postgres, as one caller. */

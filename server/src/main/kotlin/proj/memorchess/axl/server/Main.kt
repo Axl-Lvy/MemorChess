@@ -45,7 +45,7 @@ fun main() {
         store = SyncStore(dataSource),
         readiness = { dataSource.isReachable() },
       )
-      repertoireModule(store = repertoireStore, adminToken = config.adminToken)
+      repertoireModule(store = repertoireStore)
       staticFrontendModule(config.staticDir)
     }
     .start(wait = true)
