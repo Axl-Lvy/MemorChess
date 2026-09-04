@@ -58,10 +58,11 @@ internal class S3RepertoireBlobStore(
   override suspend fun get(sha256: String): ByteArray? =
     withContext(ioDispatcher) {
       try {
-        client.getObject(
-          GetObjectRequest.builder().bucket(bucket).key(sha256).build(),
-          ResponseTransformer.toBytes(),
-        )
+        client
+          .getObject(
+            GetObjectRequest.builder().bucket(bucket).key(sha256).build(),
+            ResponseTransformer.toBytes(),
+          )
           .asByteArray()
       } catch (e: NoSuchKeyException) {
         null

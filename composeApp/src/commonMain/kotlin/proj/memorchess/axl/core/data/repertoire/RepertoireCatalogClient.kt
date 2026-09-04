@@ -16,9 +16,10 @@ import proj.memorchess.axl.core.pgn.PgnParser
  * HTTP client for the remote repertoire catalog.
  *
  * Originally served as static files from the `repertoire-data` branch on raw GitHub. Now served by
- * `:server` at the same relative paths (`manifest.json`, `pgn/<hash>.pgn`) under [DEFAULT_BASE_URL].
- * The migration this client went through was a base URL change and nothing else, because the two
- * backends serve the identical `RepertoireManifest`/`RepertoireDescriptor` contract.
+ * `:server` at the same relative paths (`manifest.json`, `pgn/<hash>.pgn`) under
+ * [DEFAULT_BASE_URL]. The migration this client went through was a base URL change and nothing
+ * else, because the two backends serve the identical `RepertoireManifest`/`RepertoireDescriptor`
+ * contract.
  *
  * Responses are read as plain text, which both backends serve every file as, then decoded here: the
  * manifest with kotlinx.serialization (unknown fields tolerated) and PGN files with [PgnParser].

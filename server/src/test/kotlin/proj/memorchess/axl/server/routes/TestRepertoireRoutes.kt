@@ -90,7 +90,8 @@ class TestRepertoireRoutes {
     block(createClient { install(ContentNegotiation) { json(SYNC_JSON) } })
   }
 
-  private fun newStore() = RepertoireStore(PostgresTestDb.dataSource(), InMemoryRepertoireBlobStore())
+  private fun newStore() =
+    RepertoireStore(PostgresTestDb.dataSource(), InMemoryRepertoireBlobStore())
 
   @Test
   fun `manifest json lists only published repertoires with schemaVersion 1`() {
@@ -230,7 +231,9 @@ class TestRepertoireRoutes {
       store.remove(author1, id)
     }
 
-    app(store) { client -> client.get("/v1/repertoires/$id").status shouldBe HttpStatusCode.NotFound }
+    app(store) { client ->
+      client.get("/v1/repertoires/$id").status shouldBe HttpStatusCode.NotFound
+    }
   }
 
   @Test
@@ -249,7 +252,8 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val withoutToken = client.get("/v1/repertoires/$id").bodyAsText()
       val withToken =
-        client.get("/v1/repertoires/$id") { header(HttpHeaders.Authorization, "Bearer garbage") }
+        client
+          .get("/v1/repertoires/$id") { header(HttpHeaders.Authorization, "Bearer garbage") }
           .bodyAsText()
 
       withoutToken shouldBe withToken
@@ -264,7 +268,13 @@ class TestRepertoireRoutes {
     pgn: String = pgn(),
   ) =
     SYNC_JSON.encodeToString(
-      PublishRepertoireRequest(id = id, title = title, description = description, side = side, pgn = pgn)
+      PublishRepertoireRequest(
+        id = id,
+        title = title,
+        description = description,
+        side = side,
+        pgn = pgn,
+      )
     )
 
   @Test

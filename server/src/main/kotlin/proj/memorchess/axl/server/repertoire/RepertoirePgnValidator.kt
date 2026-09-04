@@ -100,7 +100,9 @@ internal object RepertoirePgnValidator {
   private fun runOnDeepStack(block: () -> RepertoireValidation): RepertoireValidation {
     var outcome: RepertoireValidation? = null
     val worker =
-      Thread(null, {
+      Thread(
+        null,
+        {
           outcome =
             try {
               block()

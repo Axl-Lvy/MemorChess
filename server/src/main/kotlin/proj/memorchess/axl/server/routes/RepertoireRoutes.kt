@@ -52,8 +52,8 @@ private const val CATALOG_CACHE_CONTROL = "public, max-age=60"
 private const val BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable"
 
 /**
- * Mounts the published repertoire catalog: the anonymous, cacheable reads that migrate the
- * existing `manifest.json`/PGN static file contract onto `:server` (spec 6.1), the paginated
+ * Mounts the published repertoire catalog: the anonymous, cacheable reads that migrate the existing
+ * `manifest.json`/PGN static file contract onto `:server` (spec 6.1), the paginated
  * `/v1/repertoires` surface from spec 5.7, authenticated publish and delete, and the admin
  * moderation kill switch.
  *
@@ -61,8 +61,8 @@ private const val BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable"
  * `routing {}` block on one `Application` into a single tree, so this never needs its own
  * `ContentNegotiation`/`StatusPages`/auth plugin installs.
  *
- * @param adminToken Shared secret compared against the `X-Admin-Token` header on the admin route.
- *   A stopgap: the intended gate is Cloudflare Access, once the tunnel in front of this server
+ * @param adminToken Shared secret compared against the `X-Admin-Token` header on the admin route. A
+ *   stopgap: the intended gate is Cloudflare Access, once the tunnel in front of this server
  *   exists, following the pattern the home lab's other admin endpoints already use.
  */
 internal fun Application.repertoireModule(
@@ -73,11 +73,17 @@ internal fun Application.repertoireModule(
   routing { repertoireRoutes(store, adminToken, clock) }
 }
 
-private fun Route.repertoireRoutes(store: RepertoireStore, adminToken: String, clock: () -> Instant) {
+private fun Route.repertoireRoutes(
+  store: RepertoireStore,
+  adminToken: String,
+  clock: () -> Instant,
+) {
   get("/v1/repertoires/manifest.json") {
     val repertoires = store.allPublished().map { it.toDescriptor() }
     call.cacheControl(CATALOG_CACHE_CONTROL)
-    call.respond(RepertoireManifest(schemaVersion = MANIFEST_SCHEMA_VERSION, repertoires = repertoires))
+    call.respond(
+      RepertoireManifest(schemaVersion = MANIFEST_SCHEMA_VERSION, repertoires = repertoires)
+    )
   }
 
   get("/v1/repertoires/pgn/{sha256}.pgn") {
@@ -95,7 +101,10 @@ private fun Route.repertoireRoutes(store: RepertoireStore, adminToken: String, c
     val page = store.listPublished(cursor(), limit())
     call.cacheControl(CATALOG_CACHE_CONTROL)
     call.respond(
-      RepertoireCatalogPage(nextCursor = page.nextCursor, repertoires = page.rows.map { it.toDescriptor() })
+      RepertoireCatalogPage(
+        nextCursor = page.nextCursor,
+        repertoires = page.rows.map { it.toDescriptor() },
+      )
     )
   }
 
@@ -130,9 +139,15 @@ private fun Route.repertoireRoutes(store: RepertoireStore, adminToken: String, c
         is PublishOutcome.Published ->
           call.respond(HttpStatusCode.Created, outcome.row.toDescriptor())
         is PublishOutcome.InvalidPayload ->
-          call.respond(HttpStatusCode.BadRequest, ApiError(ApiErrorCode.INVALID_PGN, outcome.reason))
+          call.respond(
+            HttpStatusCode.BadRequest,
+            ApiError(ApiErrorCode.INVALID_PGN, outcome.reason),
+          )
         is PublishOutcome.PayloadTooLarge ->
-          call.respond(HttpStatusCode.PayloadTooLarge, ApiError(ApiErrorCode.TOO_LARGE, outcome.reason))
+          call.respond(
+            HttpStatusCode.PayloadTooLarge,
+            ApiError(ApiErrorCode.TOO_LARGE, outcome.reason),
+          )
         PublishOutcome.Forbidden ->
           call.respond(
             HttpStatusCode.Forbidden,
@@ -151,7 +166,10 @@ private fun Route.repertoireRoutes(store: RepertoireStore, adminToken: String, c
       when (store.remove(call.callerId, id)) {
         RemoveOutcome.Removed -> call.respond(HttpStatusCode.NoContent)
         RemoveOutcome.NotFound ->
-          call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such repertoire"))
+          call.respond(
+            HttpStatusCode.NotFound,
+            ApiError(ApiErrorCode.NOT_FOUND, "no such repertoire"),
+          )
         RemoveOutcome.Forbidden ->
           call.respond(
             HttpStatusCode.Forbidden,
@@ -163,20 +181,24 @@ private fun Route.repertoireRoutes(store: RepertoireStore, adminToken: String, c
 
   post("/admin/repertoires/{id}/status") {
     if (!call.hasValidAdminToken(adminToken)) {
-      call.respond(HttpStatusCode.Unauthorized, ApiError(ApiErrorCode.UNAUTHORIZED, "invalid admin token"))
+      call.respond(
+        HttpStatusCode.Unauthorized,
+        ApiError(ApiErrorCode.UNAUTHORIZED, "invalid admin token"),
+      )
       return@post
     }
     val id = call.parameters["id"] ?: throw BadRequestException("missing id")
     val request = call.receive<RepertoireStatusRequest>()
     if (request.status !in VALID_STATUSES) {
-      throw BadRequestException(
-        "status must be one of $VALID_STATUSES, was '${request.status}'"
-      )
+      throw BadRequestException("status must be one of $VALID_STATUSES, was '${request.status}'")
     }
     when (val outcome = store.setStatus(id, request.status)) {
       is SetStatusOutcome.Updated -> call.respond(outcome.row.toDescriptor())
       SetStatusOutcome.NotFound ->
-        call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such repertoire"))
+        call.respond(
+          HttpStatusCode.NotFound,
+          ApiError(ApiErrorCode.NOT_FOUND, "no such repertoire"),
+        )
     }
   }
 }
@@ -188,7 +210,8 @@ private val VALID_STATUSES = setOf("published", "unlisted", "removed")
  * Whether the caller sent the correct `X-Admin-Token`. Compared with [MessageDigest.isEqual], a
  * constant time comparison, so a wrong guess cannot be narrowed down one byte at a time by timing.
  *
- * A stopgap until Cloudflare Access gates this route at the edge (see [Application.repertoireModule]).
+ * A stopgap until Cloudflare Access gates this route at the edge (see
+ * [Application.repertoireModule]).
  */
 private fun ApplicationCall.hasValidAdminToken(adminToken: String): Boolean {
   val provided = request.headers["X-Admin-Token"] ?: return false

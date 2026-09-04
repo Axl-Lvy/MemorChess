@@ -49,27 +49,28 @@ internal class TestRepertoireStore {
     "[Event \"${java.util.UUID.randomUUID()}\"]\n[Result \"*\"]\n\n1. $move *"
 
   @Test
-  fun `publishing a new repertoire stores it at version 1 and stores the blob`() = kotlinx.coroutines.test.runTest {
-    val store = store()
-    val id = newId()
+  fun `publishing a new repertoire stores it at version 1 and stores the blob`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
 
-    val outcome =
-      store.publish(
-        authorId = author1,
-        id = id,
-        title = "Title",
-        description = "Desc",
-        side = "white",
-        pgn = pgn(),
-        now = now,
-      )
+      val outcome =
+        store.publish(
+          authorId = author1,
+          id = id,
+          title = "Title",
+          description = "Desc",
+          side = "white",
+          pgn = pgn(),
+          now = now,
+        )
 
-    outcome.shouldBeInstanceOf<PublishOutcome.Published>()
-    outcome.row.version shouldBe 1
-    outcome.row.status shouldBe "published"
-    outcome.row.moveCount shouldBe 1
-    store.readPayload(outcome.row.payloadSha256).shouldNotBeNull()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+      outcome.row.version shouldBe 1
+      outcome.row.status shouldBe "published"
+      outcome.row.moveCount shouldBe 1
+      store.readPayload(outcome.row.payloadSha256).shouldNotBeNull()
+    }
 
   @Test
   fun `publishing again for the same author creates version 2 and keeps version 1 untouched`() =
@@ -86,53 +87,58 @@ internal class TestRepertoireStore {
     }
 
   @Test
-  fun `publishing for an id owned by a different author is forbidden`() = kotlinx.coroutines.test.runTest {
-    val store = store()
-    val id = newId()
-    store.publish(author1, id, "T", "D", "white", pgn(), now)
+  fun `publishing for an id owned by a different author is forbidden`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
 
-    val outcome = store.publish(author2, id, "T", "D", "white", pgn("d4"), now)
+      val outcome = store.publish(author2, id, "T", "D", "white", pgn("d4"), now)
 
-    outcome shouldBe PublishOutcome.Forbidden
-  }
-
-  @Test
-  fun `publishing rejects a pgn that does not parse`() = kotlinx.coroutines.test.runTest {
-    val outcome = store().publish(author1, newId(), "T", "D", "white", "1. e4 (1... e5", now)
-
-    outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
-  }
+      outcome shouldBe PublishOutcome.Forbidden
+    }
 
   @Test
-  fun `publishing rejects a pgn with an illegal move`() = kotlinx.coroutines.test.runTest {
-    val illegal = "[Event \"T\"]\n[Result \"*\"]\n\n1. e4 e5 2. Ke2 Ke7 3. Qh5 Qh4 4. Bxb5 *"
+  fun `publishing rejects a pgn that does not parse`() =
+    kotlinx.coroutines.test.runTest {
+      val outcome = store().publish(author1, newId(), "T", "D", "white", "1. e4 (1... e5", now)
 
-    val outcome = store().publish(author1, newId(), "T", "D", "white", illegal, now)
-
-    outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
-  }
-
-  @Test
-  fun `publishing rejects a payload one byte over the cap`() = kotlinx.coroutines.test.runTest {
-    val content = pgn()
-    val cap = content.encodeToByteArray().size - 1
-
-    val outcome =
-      store(maxPayloadBytes = cap).publish(author1, newId(), "T", "D", "white", content, now)
-
-    outcome.shouldBeInstanceOf<PublishOutcome.PayloadTooLarge>()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
+    }
 
   @Test
-  fun `publishing accepts a payload of exactly the cap`() = kotlinx.coroutines.test.runTest {
-    val content = pgn()
-    val cap = content.encodeToByteArray().size
+  fun `publishing rejects a pgn with an illegal move`() =
+    kotlinx.coroutines.test.runTest {
+      val illegal = "[Event \"T\"]\n[Result \"*\"]\n\n1. e4 e5 2. Ke2 Ke7 3. Qh5 Qh4 4. Bxb5 *"
 
-    val outcome =
-      store(maxPayloadBytes = cap).publish(author1, newId(), "T", "D", "white", content, now)
+      val outcome = store().publish(author1, newId(), "T", "D", "white", illegal, now)
 
-    outcome.shouldBeInstanceOf<PublishOutcome.Published>()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
+    }
+
+  @Test
+  fun `publishing rejects a payload one byte over the cap`() =
+    kotlinx.coroutines.test.runTest {
+      val content = pgn()
+      val cap = content.encodeToByteArray().size - 1
+
+      val outcome =
+        store(maxPayloadBytes = cap).publish(author1, newId(), "T", "D", "white", content, now)
+
+      outcome.shouldBeInstanceOf<PublishOutcome.PayloadTooLarge>()
+    }
+
+  @Test
+  fun `publishing accepts a payload of exactly the cap`() =
+    kotlinx.coroutines.test.runTest {
+      val content = pgn()
+      val cap = content.encodeToByteArray().size
+
+      val outcome =
+        store(maxPayloadBytes = cap).publish(author1, newId(), "T", "D", "white", content, now)
+
+      outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+    }
 
   @Test
   fun `publishing rejects an id shape that would break the client install store`() =
@@ -143,38 +149,42 @@ internal class TestRepertoireStore {
     }
 
   @Test
-  fun `publishing rejects an id that is too short`() = kotlinx.coroutines.test.runTest {
-    val outcome = store().publish(author1, "ab", "T", "D", "white", pgn(), now)
+  fun `publishing rejects an id that is too short`() =
+    kotlinx.coroutines.test.runTest {
+      val outcome = store().publish(author1, "ab", "T", "D", "white", pgn(), now)
 
-    outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
-  }
-
-  @Test
-  fun `publishing accepts a title of exactly the length cap`() = kotlinx.coroutines.test.runTest {
-    val title = "t".repeat(200)
-
-    val outcome = store().publish(author1, newId(), title, "D", "white", pgn(), now)
-
-    outcome.shouldBeInstanceOf<PublishOutcome.Published>()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
+    }
 
   @Test
-  fun `publishing rejects a title one character over the length cap`() = kotlinx.coroutines.test.runTest {
-    val title = "t".repeat(201)
+  fun `publishing accepts a title of exactly the length cap`() =
+    kotlinx.coroutines.test.runTest {
+      val title = "t".repeat(200)
 
-    val outcome = store().publish(author1, newId(), title, "D", "white", pgn(), now)
+      val outcome = store().publish(author1, newId(), title, "D", "white", pgn(), now)
 
-    outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+    }
 
   @Test
-  fun `publishing accepts a description of exactly the length cap`() = kotlinx.coroutines.test.runTest {
-    val description = "d".repeat(2_000)
+  fun `publishing rejects a title one character over the length cap`() =
+    kotlinx.coroutines.test.runTest {
+      val title = "t".repeat(201)
 
-    val outcome = store().publish(author1, newId(), "T", description, "white", pgn(), now)
+      val outcome = store().publish(author1, newId(), title, "D", "white", pgn(), now)
 
-    outcome.shouldBeInstanceOf<PublishOutcome.Published>()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
+    }
+
+  @Test
+  fun `publishing accepts a description of exactly the length cap`() =
+    kotlinx.coroutines.test.runTest {
+      val description = "d".repeat(2_000)
+
+      val outcome = store().publish(author1, newId(), "T", description, "white", pgn(), now)
+
+      outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+    }
 
   @Test
   fun `publishing rejects a description one character over the length cap`() =
@@ -187,45 +197,48 @@ internal class TestRepertoireStore {
     }
 
   @Test
-  fun `publishing refused by the quota never persists the blob`() = kotlinx.coroutines.test.runTest {
-    val blobs = InMemoryRepertoireBlobStore()
-    val store = store(maxRepertoiresPerUser = 1, blobs = blobs)
-    val author = "author-orphan-${System.nanoTime()}"
-    store.publish(author, newId(), "T", "D", "white", pgn("e4"), now)
-    val rejectedPgn = pgn("d4")
-    val rejectedHash =
-      java.security.MessageDigest.getInstance("SHA-256")
-        .digest(rejectedPgn.encodeToByteArray())
-        .joinToString("") { "%02x".format(it) }
+  fun `publishing refused by the quota never persists the blob`() =
+    kotlinx.coroutines.test.runTest {
+      val blobs = InMemoryRepertoireBlobStore()
+      val store = store(maxRepertoiresPerUser = 1, blobs = blobs)
+      val author = "author-orphan-${System.nanoTime()}"
+      store.publish(author, newId(), "T", "D", "white", pgn("e4"), now)
+      val rejectedPgn = pgn("d4")
+      val rejectedHash =
+        java.security.MessageDigest.getInstance("SHA-256")
+          .digest(rejectedPgn.encodeToByteArray())
+          .joinToString("") { "%02x".format(it) }
 
-    val outcome = store.publish(author, newId(), "T", "D", "white", rejectedPgn, now)
+      val outcome = store.publish(author, newId(), "T", "D", "white", rejectedPgn, now)
 
-    outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
-    blobs.get(rejectedHash).shouldBeNull()
-  }
-
-  @Test
-  fun `publishing the one over the repertoire count quota is refused`() = kotlinx.coroutines.test.runTest {
-    val store = store(maxRepertoiresPerUser = 2)
-    val author = "author-quota-${System.nanoTime()}"
-    store.publish(author, newId(), "T", "D", "white", pgn("e4"), now)
-    store.publish(author, newId(), "T", "D", "white", pgn("d4"), now)
-
-    val outcome = store.publish(author, newId(), "T", "D", "white", pgn("c4"), now)
-
-    outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
+      blobs.get(rejectedHash).shouldBeNull()
+    }
 
   @Test
-  fun `publishing accepts exactly maxRepertoiresPerUser repertoires`() = kotlinx.coroutines.test.runTest {
-    val store = store(maxRepertoiresPerUser = 2)
-    val author = "author-quota-ok-${System.nanoTime()}"
-    store.publish(author, newId(), "T", "D", "white", pgn("e4"), now)
+  fun `publishing the one over the repertoire count quota is refused`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store(maxRepertoiresPerUser = 2)
+      val author = "author-quota-${System.nanoTime()}"
+      store.publish(author, newId(), "T", "D", "white", pgn("e4"), now)
+      store.publish(author, newId(), "T", "D", "white", pgn("d4"), now)
 
-    val outcome = store.publish(author, newId(), "T", "D", "white", pgn("d4"), now)
+      val outcome = store.publish(author, newId(), "T", "D", "white", pgn("c4"), now)
 
-    outcome.shouldBeInstanceOf<PublishOutcome.Published>()
-  }
+      outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
+    }
+
+  @Test
+  fun `publishing accepts exactly maxRepertoiresPerUser repertoires`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store(maxRepertoiresPerUser = 2)
+      val author = "author-quota-ok-${System.nanoTime()}"
+      store.publish(author, newId(), "T", "D", "white", pgn("e4"), now)
+
+      val outcome = store.publish(author, newId(), "T", "D", "white", pgn("d4"), now)
+
+      outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+    }
 
   @Test
   fun `publishing a payload that pushes the author past the total byte quota is refused`() =
@@ -258,48 +271,52 @@ internal class TestRepertoireStore {
     }
 
   @Test
-  fun `remove sets status to removed and get returns null afterward`() = kotlinx.coroutines.test.runTest {
-    val store = store()
-    val id = newId()
-    store.publish(author1, id, "T", "D", "white", pgn(), now)
+  fun `remove sets status to removed and get returns null afterward`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
 
-    val outcome = store.remove(author1, id)
+      val outcome = store.remove(author1, id)
 
-    outcome shouldBe RemoveOutcome.Removed
-    store.get(id).shouldBeNull()
-  }
-
-  @Test
-  fun `remove by a non author is forbidden and leaves the row published`() = kotlinx.coroutines.test.runTest {
-    val store = store()
-    val id = newId()
-    store.publish(author1, id, "T", "D", "white", pgn(), now)
-
-    val outcome = store.remove(author2, id)
-
-    outcome shouldBe RemoveOutcome.Forbidden
-    store.get(id).shouldNotBeNull()
-  }
+      outcome shouldBe RemoveOutcome.Removed
+      store.get(id).shouldBeNull()
+    }
 
   @Test
-  fun `remove of an unknown id returns NotFound`() = kotlinx.coroutines.test.runTest {
-    val outcome = store().remove(author1, newId())
+  fun `remove by a non author is forbidden and leaves the row published`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
 
-    outcome shouldBe RemoveOutcome.NotFound
-  }
+      val outcome = store.remove(author2, id)
+
+      outcome shouldBe RemoveOutcome.Forbidden
+      store.get(id).shouldNotBeNull()
+    }
 
   @Test
-  fun `remove deletes the blob when no other version references its hash`() = kotlinx.coroutines.test.runTest {
-    val blobs = InMemoryRepertoireBlobStore()
-    val store = store(blobs = blobs)
-    val id = newId()
-    val published = store.publish(author1, id, "T", "D", "white", pgn(), now)
-    val sha256 = (published as PublishOutcome.Published).row.payloadSha256
+  fun `remove of an unknown id returns NotFound`() =
+    kotlinx.coroutines.test.runTest {
+      val outcome = store().remove(author1, newId())
 
-    store.remove(author1, id)
+      outcome shouldBe RemoveOutcome.NotFound
+    }
 
-    blobs.get(sha256).shouldBeNull()
-  }
+  @Test
+  fun `remove deletes the blob when no other version references its hash`() =
+    kotlinx.coroutines.test.runTest {
+      val blobs = InMemoryRepertoireBlobStore()
+      val store = store(blobs = blobs)
+      val id = newId()
+      val published = store.publish(author1, id, "T", "D", "white", pgn(), now)
+      val sha256 = (published as PublishOutcome.Published).row.payloadSha256
+
+      store.remove(author1, id)
+
+      blobs.get(sha256).shouldBeNull()
+    }
 
   @Test
   fun `remove keeps the blob when another version still references the same hash`() =
@@ -319,38 +336,41 @@ internal class TestRepertoireStore {
     }
 
   @Test
-  fun `setStatus moves a repertoire to unlisted and get still returns it`() = kotlinx.coroutines.test.runTest {
-    val store = store()
-    val id = newId()
-    store.publish(author1, id, "T", "D", "white", pgn(), now)
+  fun `setStatus moves a repertoire to unlisted and get still returns it`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
 
-    val outcome = store.setStatus(id, "unlisted")
+      val outcome = store.setStatus(id, "unlisted")
 
-    outcome.shouldBeInstanceOf<SetStatusOutcome.Updated>()
-    outcome.row.status shouldBe "unlisted"
-    store.get(id)?.status shouldBe "unlisted"
-  }
-
-  @Test
-  fun `setStatus to removed deletes the blob under the same refcount rule`() = kotlinx.coroutines.test.runTest {
-    val blobs = InMemoryRepertoireBlobStore()
-    val store = store(blobs = blobs)
-    val id = newId()
-    val published = store.publish(author1, id, "T", "D", "white", pgn(), now)
-    val sha256 = (published as PublishOutcome.Published).row.payloadSha256
-
-    store.setStatus(id, "removed")
-
-    blobs.get(sha256).shouldBeNull()
-    store.get(id).shouldBeNull()
-  }
+      outcome.shouldBeInstanceOf<SetStatusOutcome.Updated>()
+      outcome.row.status shouldBe "unlisted"
+      store.get(id)?.status shouldBe "unlisted"
+    }
 
   @Test
-  fun `setStatus on an unknown id returns NotFound`() = kotlinx.coroutines.test.runTest {
-    val outcome = store().setStatus(newId(), "unlisted")
+  fun `setStatus to removed deletes the blob under the same refcount rule`() =
+    kotlinx.coroutines.test.runTest {
+      val blobs = InMemoryRepertoireBlobStore()
+      val store = store(blobs = blobs)
+      val id = newId()
+      val published = store.publish(author1, id, "T", "D", "white", pgn(), now)
+      val sha256 = (published as PublishOutcome.Published).row.payloadSha256
 
-    outcome shouldBe SetStatusOutcome.NotFound
-  }
+      store.setStatus(id, "removed")
+
+      blobs.get(sha256).shouldBeNull()
+      store.get(id).shouldBeNull()
+    }
+
+  @Test
+  fun `setStatus on an unknown id returns NotFound`() =
+    kotlinx.coroutines.test.runTest {
+      val outcome = store().setStatus(newId(), "unlisted")
+
+      outcome shouldBe SetStatusOutcome.NotFound
+    }
 
   @Test
   fun `setStatus refuses to resurrect a removed repertoire whose blob is already gone`() =
@@ -367,14 +387,15 @@ internal class TestRepertoireStore {
     }
 
   @Test
-  fun `get returns null for a status of removed`() = kotlinx.coroutines.test.runTest {
-    val store = store()
-    val id = newId()
-    store.publish(author1, id, "T", "D", "white", pgn(), now)
-    store.remove(author1, id)
+  fun `get returns null for a status of removed`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
+      store.remove(author1, id)
 
-    store.get(id).shouldBeNull()
-  }
+      store.get(id).shouldBeNull()
+    }
 
   @Test
   fun `listPublished only returns published repertoires, not unlisted or removed`() =
@@ -441,16 +462,17 @@ internal class TestRepertoireStore {
     }
 
   @Test
-  fun `allPublished returns every published repertoire unpaginated`() = kotlinx.coroutines.test.runTest {
-    val store = store()
-    val author = "author-all-${System.nanoTime()}"
-    val ids = (1..5).map { newId() }
-    ids.forEach { store.publish(author, it, "T", "D", "white", pgn("e4"), now) }
+  fun `allPublished returns every published repertoire unpaginated`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val author = "author-all-${System.nanoTime()}"
+      val ids = (1..5).map { newId() }
+      ids.forEach { store.publish(author, it, "T", "D", "white", pgn("e4"), now) }
 
-    val all = store.allPublished()
+      val all = store.allPublished()
 
-    ids.forEach { id -> all.map { it.id } shouldContain id }
-  }
+      ids.forEach { id -> all.map { it.id } shouldContain id }
+    }
 
   @Test
   fun `readPayload returns the stored bytes for a known hash and null for an unknown one`() =
