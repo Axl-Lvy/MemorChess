@@ -21,6 +21,7 @@ import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
 import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
+import proj.memorchess.axl.core.config.SettingSyncMetadataStore
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
@@ -51,6 +52,15 @@ import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 const val PREFETCH_SCOPE: String = "prefetch"
 
 /**
+ * Koin qualifier for the process lived background scope on which a [ConfigItem] write stamps its
+ * [proj.memorchess.axl.core.config.SettingSyncMetadataStore] entry. [ConfigItem.setValue] and
+ * [ConfigItem.reset] are synchronous, so the stamp is fired and forgotten on this scope rather than
+ * blocking the caller; a [SupervisorJob] on [Dispatchers.Default] so one failed stamp never cancels
+ * another.
+ */
+const val SETTINGS_SYNC_SCOPE: String = "settingsSync"
+
+/**
  * Initializes koin modules.
  *
  * @return An array of all koin modules.
@@ -61,6 +71,10 @@ fun initKoinModules(): Array<Module> {
     single<DatabaseQueryManager> { getPlatformSpecificLocalDatabase() }
     single<Settings> { getPlatformSpecificSettings() }
     single { DeviceIdentity.persisted(get()) }
+    single<CoroutineScope>(named(SETTINGS_SYNC_SCOPE)) {
+      CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+    single { SettingSyncMetadataStore(get(), get()) }
   }
 
   // One process-wide generator seeded from the wall clock at app start. A shared advancing RNG (not

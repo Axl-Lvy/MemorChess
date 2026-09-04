@@ -6,8 +6,12 @@ import com.russhwolf.settings.set
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.koin.core.qualifier.named
+import proj.memorchess.axl.SETTINGS_SYNC_SCOPE
 
 class TimeBasedConfig(name: String, defaultValue: Instant) :
   ValueBasedAppConfigItem<Long, Instant>(
@@ -53,6 +57,8 @@ sealed class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
   private val needConversion: Boolean
 
   private val settings: Settings by inject()
+  private val syncMetadata: SettingSyncMetadataStore by inject()
+  private val syncScope: CoroutineScope by inject(named(SETTINGS_SYNC_SCOPE))
 
   /** Checks if the default value type is supported. */
   init {
@@ -106,6 +112,9 @@ sealed class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
       else ->
         throw IllegalArgumentException("Unsupported value type: ${valueToStore::class.simpleName}")
     }
+    // setValue is synchronous but the stamp write is suspend (it allocates a DeviceIdentity
+    // sequence), so it is fired and forgotten here rather than blocking the caller.
+    syncScope.launch { syncMetadata.stamp(name) }
   }
 
   override fun reset() {
