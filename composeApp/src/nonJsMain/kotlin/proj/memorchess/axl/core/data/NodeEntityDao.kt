@@ -46,41 +46,64 @@ interface NodeEntityDao {
   suspend fun insertMoves(items: Collection<MoveEntity>)
 
   /**
-   * Soft deletes a move by flipping its `isDeleted` flag.
+   * Soft deletes a move by flipping its `isDeleted` flag and stamping the sync fields.
    *
    * @param origin The move's origin.
    * @param move The move's notation.
    */
   @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
+    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
   )
-  suspend fun softDeleteMove(origin: String, move: String)
+  suspend fun softDeleteMove(
+    origin: String,
+    move: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  )
 
   /** Hard deletes a move row. */
   @Query("DELETE FROM MoveEntity WHERE origin = :origin AND move = :move")
   suspend fun hardDeleteMove(origin: String, move: String)
 
   /**
-   * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag.
+   * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag and stamping the
+   * sync fields.
    *
    * @param origin The FEN string of the origin position.
    */
-  @Query("UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin")
-  suspend fun softDeleteMoveFrom(origin: String)
+  @Query(
+    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND origin = :origin"
+  )
+  suspend fun softDeleteMoveFrom(
+    origin: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  )
 
   /** Hard deletes every move row leaving [origin]. */
   @Query("DELETE FROM MoveEntity WHERE origin = :origin")
   suspend fun hardDeleteMoveFrom(origin: String)
 
   /**
-   * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag.
+   * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag and
+   * stamping the sync fields.
    *
    * @param destination The FEN string of the destination position.
    */
   @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND destination = :destination"
+    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND destination = :destination"
   )
-  suspend fun softDeleteMoveTo(destination: String)
+  suspend fun softDeleteMoveTo(
+    destination: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  )
 
   /** Hard deletes every move row arriving at [destination]. */
   @Query("DELETE FROM MoveEntity WHERE destination = :destination")
@@ -90,9 +113,12 @@ interface NodeEntityDao {
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen AND isDeleted IS FALSE")
   suspend fun getNode(fen: String): NodeWithMoves?
 
-  /** Soft deletes a node row by flipping its `isDeleted` flag. */
-  @Query("UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND positionKey = :fen")
-  suspend fun softDeleteNode(fen: String)
+  /** Soft deletes a node row by flipping its `isDeleted` flag and stamping the sync fields. */
+  @Query(
+    "UPDATE NodeEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND positionKey = :fen"
+  )
+  suspend fun softDeleteNode(fen: String, updatedAt: Instant, originDevice: String, deviceSeq: Long)
 
   /** Hard deletes a node row. */
   @Query("DELETE FROM NodeEntity WHERE positionKey = :fen") suspend fun hardDeleteNode(fen: String)

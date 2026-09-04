@@ -33,6 +33,9 @@ import proj.memorchess.axl.core.scheduling.CardPhase
  *   moment the position was first added, used as the new card ordering tiebreak after [depth].
  * @property isDeleted Soft delete flag.
  * @property updatedAt Last modification timestamp.
+ * @property originDevice Device that wrote this version. See
+ *   [proj.memorchess.axl.core.sync.DeviceIdentity].
+ * @property deviceSeq That device's write counter at the time.
  */
 @Entity(
   tableName = "NodeEntity",
@@ -62,4 +65,6 @@ data class NodeEntity(
   val createdAt: Instant = DateUtil.now(),
   val isDeleted: Boolean = false,
   val updatedAt: Instant = DateUtil.now(),
+  val originDevice: String = "",
+  val deviceSeq: Long = 0L,
 )
