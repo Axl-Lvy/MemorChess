@@ -3,7 +3,6 @@ package proj.memorchess.axl.core.sync
 import com.russhwolf.settings.Settings
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * Stable per install identifier plus a monotonic write counter, the two fields every synced row
@@ -11,8 +10,10 @@ import kotlinx.coroutines.sync.withLock
  * design doc, section 5.4).
  *
  * [originDevice] survives a logout and is only regenerated when local data is erased, because it
- * identifies the install, not the account. [nextDeviceSeq] persists on every call so the counter
- * cannot go backwards across a restart, which is what makes it safe to compare without a clock.
+ * identifies the install, not the account. [nextDeviceSeq] hands out numbers from a block already
+ * persisted ahead of use, so an ungraceful kill can strand at most one block's worth of unused
+ * numbers rather than reusing one already handed out; see [nextDeviceSeq] for the durability
+ * guarantee this actually gives.
  */
 class DeviceIdentity private constructor(private val settings: Settings?) {
 
@@ -23,19 +24,47 @@ class DeviceIdentity private constructor(private val settings: Settings?) {
         ?: generateId().also { s.putString(KEY_ORIGIN_DEVICE, it) }
     } ?: generateId()
 
-  private val mutex = Mutex()
+  // A non-suspend spinlock (Mutex.tryLock/unlock, not the suspend lock()/withLock() API) so
+  // nextDeviceSeq can be called from non-suspend call sites such as
+  // proj.memorchess.axl.core.config.ConfigItem.setValue. The critical section is a handful of var
+  // reads/writes and, at most once per block, one Settings write, so busy-waiting on contention is
+  // cheap.
+  private val lock = Mutex()
   private var seq: Long = settings?.getLong(KEY_DEVICE_SEQ, 0L) ?: 0L
+  private var reservedUpTo: Long = seq
 
-  /** Allocates the next strictly increasing sequence number for a write made by this device. */
-  suspend fun nextDeviceSeq(): Long = mutex.withLock {
-    seq += 1
-    settings?.putLong(KEY_DEVICE_SEQ, seq)
-    seq
+  /**
+   * Allocates the next strictly increasing sequence number for a write made by this device.
+   *
+   * Durable in blocks of [RESERVATION_BLOCK_SIZE]: the upper bound of the current block is
+   * persisted before any number in it is handed out, so a number is only ever handed out once that
+   * boundary is safely on disk. An ungraceful kill can therefore only strand the unused tail of the
+   * current block (at most [RESERVATION_BLOCK_SIZE] numbers per restart) never behind, unlike
+   * persisting after every call, where the same kill can resume from a stale value and reuse a
+   * number already handed out.
+   */
+  fun nextDeviceSeq(): Long {
+    while (!lock.tryLock()) {
+      /* spin: the critical section below is a few var operations plus at most one Settings write */
+    }
+    try {
+      if (seq >= reservedUpTo) {
+        reservedUpTo += RESERVATION_BLOCK_SIZE
+        settings?.putLong(KEY_DEVICE_SEQ, reservedUpTo)
+      }
+      seq += 1
+      return seq
+    } finally {
+      lock.unlock()
+    }
   }
 
   companion object {
     private const val KEY_ORIGIN_DEVICE = "sync.originDevice"
     private const val KEY_DEVICE_SEQ = "sync.deviceSeq"
+
+    /** Size of one durable reservation block. See [nextDeviceSeq]. */
+    private const val RESERVATION_BLOCK_SIZE = 1000L
 
     /**
      * Backed by [settings], surviving process restarts. Use for the real, process wide identity.

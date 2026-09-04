@@ -10,6 +10,8 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.time.Duration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -18,7 +20,9 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.core.module.Module
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import proj.memorchess.axl.SETTINGS_SYNC_SCOPE
 import proj.memorchess.axl.core.auth.LICHESS_REDIRECT_URI
 import proj.memorchess.axl.core.auth.LichessOAuthClient
 import proj.memorchess.axl.core.auth.LichessSignInController
@@ -94,6 +98,14 @@ abstract class TestWithKoin : KoinComponent {
       single<Settings> { TestSettings() }
       single<DatabaseQueryManager> { TestDatabases.empty() }
       single<ToastRenderer> { ToastRendererForTests }
+      // Unconfined rather than the production Dispatchers.Default: setValue/reset's outbox enqueue
+      // then runs to completion inline (no true suspension point on the in memory backend) instead
+      // of hopping onto a background thread that could still be touching test state after the test
+      // method has returned. Not cancelled in koinTearDown: ALL_SETTINGS_ITEMS are top level vals
+      // whose lazy Koin injections are cached forever, so cancelling this scope here would leave
+      // every later test's setValue silently skipping markDirty once its scope reference goes
+      // stale. Unconfined with no real suspension point leaves nothing to cancel anyway.
+      single<CoroutineScope>(named(SETTINGS_SYNC_SCOPE)) { CoroutineScope(Dispatchers.Unconfined) }
       // Explorer overrides: an in memory cache and a MockEngine that always errors so no test
       // accidentally hits the real Lichess service. Tests that exercise the explorer rebuild
       // these on their own.

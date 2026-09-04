@@ -58,6 +58,18 @@ class TestSettingSyncMetadataStore {
   }
 
   @kotlin.test.Test
+  fun `stamp returns the deviceSeq it just allocated and wrote`() = runTest {
+    // Arrange.
+    val store = SettingSyncMetadataStore(TestSettings(), DeviceIdentity.ephemeral())
+
+    // Act.
+    val returned = store.stamp("appTheme")
+
+    // Assert.
+    returned shouldBeExactly store.read("appTheme")!!.deviceSeq
+  }
+
+  @kotlin.test.Test
   fun `two different keys get independent metadata`() = runTest {
     // Arrange.
     val store = SettingSyncMetadataStore(TestSettings(), DeviceIdentity.ephemeral())

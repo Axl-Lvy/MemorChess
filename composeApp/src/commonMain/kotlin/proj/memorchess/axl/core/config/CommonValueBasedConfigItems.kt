@@ -12,6 +12,8 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import proj.memorchess.axl.SETTINGS_SYNC_SCOPE
+import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.DirtyKey
 
 class TimeBasedConfig(name: String, defaultValue: Instant) :
   ValueBasedAppConfigItem<Long, Instant>(
@@ -59,6 +61,7 @@ sealed class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
   private val settings: Settings by inject()
   private val syncMetadata: SettingSyncMetadataStore by inject()
   private val syncScope: CoroutineScope by inject(named(SETTINGS_SYNC_SCOPE))
+  private val database: DatabaseQueryManager by inject()
 
   /** Checks if the default value type is supported. */
   init {
@@ -112,15 +115,43 @@ sealed class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
       else ->
         throw IllegalArgumentException("Unsupported value type: ${valueToStore::class.simpleName}")
     }
-    // setValue is synchronous but the stamp write is suspend (it allocates a DeviceIdentity
-    // sequence), so it is fired and forgotten here rather than blocking the caller. syncMetadata is
-    // resolved outside the launched block, synchronously, so the Koin lookup always runs while this
-    // call's Koin scope is still open rather than racing a later teardown.
-    val metadataStore = syncMetadata
-    syncScope.launch { metadataStore.stamp(name) }
+    stampAndMarkDirty(name, isDeleted = false, syncMetadata, database, syncScope)
   }
 
+  /**
+   * Resets the value to the default value and stamps a tombstone.
+   *
+   * The sync metadata's `isDeleted` flips to `true` rather than merely bumping the sequence: reset
+   * changes the effective value (back to [defaultValue]), and the sync design needs metadata to
+   * change whenever the effective value does. Treating it as a tombstone rather than a live value
+   * change also gives it cleaner wire semantics once a `SyncEngine` exists: a peer applies the
+   * tombstone by removing its own copy of the key and falling back to its own [defaultValue],
+   * instead of adopting this device's default verbatim, which would be wrong across a version skew
+   * where devices disagree on what the default is.
+   */
   override fun reset() {
     settings.remove(name)
+    stampAndMarkDirty(name, isDeleted = true, syncMetadata, database, syncScope)
   }
+}
+
+/**
+ * Stamps [name]'s sync metadata and queues it in the outbox, at the same `deviceSeq`.
+ *
+ * [ConfigItem.setValue] and [ConfigItem.reset] are synchronous but [DatabaseQueryManager.markDirty]
+ * is suspend, so the outbox write is fired and forgotten on [syncScope] rather than blocking the
+ * caller; [stamp][SettingSyncMetadataStore.stamp] itself is synchronous and runs inline, so the
+ * sync metadata is never stale relative to the value it describes. [metadataStore] and [database]
+ * are resolved outside the launched block, synchronously, so the Koin lookup always runs while the
+ * call site's own Koin scope is still open rather than racing a later teardown.
+ */
+internal fun stampAndMarkDirty(
+  name: String,
+  isDeleted: Boolean,
+  metadataStore: SettingSyncMetadataStore,
+  database: DatabaseQueryManager,
+  syncScope: CoroutineScope,
+) {
+  val seq = metadataStore.stamp(name, isDeleted)
+  syncScope.launch { database.markDirty(DirtyKey.SettingKey(name), seq) }
 }

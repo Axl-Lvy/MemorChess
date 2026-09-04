@@ -52,11 +52,12 @@ import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 const val PREFETCH_SCOPE: String = "prefetch"
 
 /**
- * Koin qualifier for the process lived background scope on which a [ConfigItem] write stamps its
- * [proj.memorchess.axl.core.config.SettingSyncMetadataStore] entry. [ConfigItem.setValue] and
- * [ConfigItem.reset] are synchronous, so the stamp is fired and forgotten on this scope rather than
- * blocking the caller; a [SupervisorJob] on [Dispatchers.Default] so one failed stamp never cancels
- * another.
+ * Koin qualifier for the process lived background scope on which a [ConfigItem] write queues its
+ * outbox entry. [ConfigItem.setValue] and [ConfigItem.reset] are synchronous and stamp
+ * [proj.memorchess.axl.core.config.SettingSyncMetadataStore] inline, but
+ * [proj.memorchess.axl.core.data.DatabaseQueryManager.markDirty] is suspend, so only that call is
+ * fired and forgotten on this scope rather than blocking the caller; a [SupervisorJob] on
+ * [Dispatchers.Default] so one failed enqueue never cancels another.
  */
 const val SETTINGS_SYNC_SCOPE: String = "settingsSync"
 
