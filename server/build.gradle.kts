@@ -66,6 +66,18 @@ tasks.test {
   systemProperty("api.version", System.getenv("DOCKER_API_VERSION") ?: "1.40")
 }
 
+// Bakes the build sha into build-info.properties, read by BuildInfo at runtime and served by
+// GET /v1/version. The Docker image build passes -PbuildSha=<short sha>; anywhere else (local
+// builds, tests) it falls back to "dev". buildSha is a local val inside the task's own
+// configuration block, not a script-level property, because a filesMatching action referencing a
+// script-level val captures the whole script object, which the configuration cache refuses to
+// serialize.
+tasks.processResources {
+  val buildSha = providers.gradleProperty("buildSha").orElse("dev")
+  inputs.property("buildSha", buildSha)
+  filesMatching("build-info.properties") { expand("buildSha" to buildSha.get()) }
+}
+
 ktfmt { googleStyle() }
 
 // Match the engine composeApp and shared use, or Kover refuses to merge the reports.
