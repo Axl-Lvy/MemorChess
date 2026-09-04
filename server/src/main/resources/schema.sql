@@ -72,3 +72,27 @@ CREATE TABLE IF NOT EXISTS user_setting (
 CREATE INDEX IF NOT EXISTS user_node_cursor ON user_node (user_id, revision);
 CREATE INDEX IF NOT EXISTS user_edge_cursor ON user_edge (user_id, revision);
 CREATE INDEX IF NOT EXISTS user_setting_cursor ON user_setting (user_id, revision);
+
+-- One row per published version, content addressed by the payload's sha256. Publishing again
+-- inserts a new version rather than mutating one; the row for a given (id, version) never
+-- changes after insert. There is no membership table: nothing needs "which repertoires contain
+-- this position".
+CREATE TABLE IF NOT EXISTS repertoire_version (
+  id text NOT NULL,
+  version int NOT NULL,
+  author_id text NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL,
+  side text NOT NULL,
+  payload_sha256 text NOT NULL,
+  payload_bytes int NOT NULL,
+  move_count int NOT NULL,
+  status text NOT NULL,
+  published_at timestamptz NOT NULL,
+  PRIMARY KEY (id, version)
+);
+
+-- The only multi row read paths are "the latest version per id with this status" and "every
+-- non removed repertoire this author currently owns", for quota accounting.
+CREATE INDEX IF NOT EXISTS repertoire_version_status ON repertoire_version (status, id);
+CREATE INDEX IF NOT EXISTS repertoire_version_author ON repertoire_version (author_id, status);
