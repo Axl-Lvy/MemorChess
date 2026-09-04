@@ -27,10 +27,7 @@ class TestSyncEngineStateMachine {
       runCycle = cycle,
     )
 
-  @Test
-  fun startsIdle() = runTest {
-    engine().status.value shouldBe SyncJobStatus.IDLE
-  }
+  @Test fun startsIdle() = runTest { engine().status.value shouldBe SyncJobStatus.IDLE }
 
   @Test
   fun notifyDirtyMovesToScheduledThenRunsAfterTheDebounce() = runTest {
@@ -47,7 +44,13 @@ class TestSyncEngineStateMachine {
   @Test
   fun burstOfNotifyDirtyCoalescesIntoOneCycleCappedAtTenSeconds() = runTest {
     var cycles = 0
-    val e = engine(cycle = { cycles++; CycleOutcome.Success })
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        }
+      )
     e.start()
 
     e.notifyDirty()
@@ -61,7 +64,13 @@ class TestSyncEngineStateMachine {
   @Test
   fun syncNowRunsImmediatelyRegardlessOfState() = runTest {
     var cycles = 0
-    val e = engine(cycle = { cycles++; CycleOutcome.Success })
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        }
+      )
     e.start()
 
     e.syncNow()
@@ -73,7 +82,13 @@ class TestSyncEngineStateMachine {
   @Test
   fun onAppForegroundRunsImmediately() = runTest {
     var cycles = 0
-    val e = engine(cycle = { cycles++; CycleOutcome.Success })
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        }
+      )
     e.start()
 
     e.onAppForeground()
@@ -95,7 +110,13 @@ class TestSyncEngineStateMachine {
   @Test
   fun terminalAuthFailurePausesWithNoRetryTimer() = runTest {
     var cycles = 0
-    val e = engine(cycle = { cycles++; CycleOutcome.PausedNoAuth })
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.PausedNoAuth
+        }
+      )
     e.start()
 
     e.syncNow()
@@ -112,7 +133,14 @@ class TestSyncEngineStateMachine {
     val jobStore = SyncJobStore(TestSettings())
     jobStore.write(SyncJobState(SyncJobStatus.RUNNING, nextAttemptAt = null, attempt = 0))
     var cycles = 0
-    val e = engine(cycle = { cycles++; CycleOutcome.Success }, jobStore = jobStore)
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        },
+        jobStore = jobStore,
+      )
 
     e.start()
     advanceTimeBy(3.seconds)

@@ -12,8 +12,8 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * Room backed coverage of the sync remote-apply surface, mirroring
- * [TestInMemoryApplyRemote]'s equivalent cases against a real isolated SQLite database.
+ * Room backed coverage of the sync remote-apply surface, mirroring [TestInMemoryApplyRemote]'s
+ * equivalent cases against a real isolated SQLite database.
  */
 class TestRoomApplyRemote {
 
@@ -22,7 +22,8 @@ class TestRoomApplyRemote {
   private val now = Instant.parse("2026-01-01T00:00:00Z")
 
   private fun freshDatabase(): CustomDatabase {
-    val dbFile = File(System.getProperty("java.io.tmpdir"), "room_apply_remote_${UUID.randomUUID()}.db")
+    val dbFile =
+      File(System.getProperty("java.io.tmpdir"), "room_apply_remote_${UUID.randomUUID()}.db")
     return getRoomDatabase(Room.databaseBuilder<CustomDatabase>(name = dbFile.absolutePath))
   }
 
@@ -60,8 +61,7 @@ class TestRoomApplyRemote {
 
     manager.applyRemoteNode(node("a", deviceSeq = 2L))
 
-    manager.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe
-      setOf("e4")
+    manager.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
   }
 
   @Test
@@ -82,8 +82,7 @@ class TestRoomApplyRemote {
       DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now)
     )
 
-    manager.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe
-      setOf("e4")
+    manager.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
     manager.getPosition(PositionKey("b"))!!.previousAndNextMoves.previousMoves.keys shouldBe
       setOf("e4")
     manager.getOutbox() shouldBe emptyList()

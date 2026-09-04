@@ -346,10 +346,11 @@ class TreeStore(
 
   /**
    * Applies a move pulled from `/v1/sync`, after resolving it the same way [applySyncedNode] does.
-   * On [ResolutionSource.REMOTE] the move is written through [DatabaseQueryManager.applyRemoteMove],
-   * both endpoints' derived [DataNode.hasGoodOutgoing] is refreshed if the write changed it (mirrors
-   * the concern already documented on [deleteMove]: a good edge appearing or disappearing must not
-   * leave the flag stale), and both endpoints are evicted from the cache.
+   * On [ResolutionSource.REMOTE] the move is written through
+   * [DatabaseQueryManager.applyRemoteMove], both endpoints' derived [DataNode.hasGoodOutgoing] is
+   * refreshed if the write changed it (mirrors the concern already documented on [deleteMove]: a
+   * good edge appearing or disappearing must not leave the flag stale), and both endpoints are
+   * evicted from the cache.
    */
   suspend fun applySyncedMove(remote: EdgeSyncRow): ResolutionSource {
     val originKey = PositionKey(remote.origin)
@@ -367,7 +368,9 @@ class TreeStore(
     return resolution.source
   }
 
-  /** The local counterpart of a pulled edge, as an [EdgeSyncRow], or `null` when unknown locally. */
+  /**
+   * The local counterpart of a pulled edge, as an [EdgeSyncRow], or `null` when unknown locally.
+   */
   private suspend fun localEdgeSyncRow(origin: PositionKey, move: String): EdgeSyncRow? =
     database
       .getPositionIncludingDeleted(origin)

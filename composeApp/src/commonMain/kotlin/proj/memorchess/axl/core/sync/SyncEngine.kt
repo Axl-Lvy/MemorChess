@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.OutboxEntry
@@ -132,12 +131,11 @@ internal class DefaultSyncEngine(
 
   private fun scheduleTimer(at: Instant) {
     timerJob?.cancel()
-    timerJob =
-      scope.launch {
-        val wait = at - now()
-        if (wait > Duration.ZERO) delay(wait)
-        launchCycle()
-      }
+    timerJob = scope.launch {
+      val wait = at - now()
+      if (wait > Duration.ZERO) delay(wait)
+      launchCycle()
+    }
   }
 
   private fun launchCycle() {
@@ -197,11 +195,11 @@ private fun Double.pow(exp: Int): Double {
 
 /**
  * Wires [DefaultSyncEngine] to the real push+pull cycle. `settings` outbox entries are read but not
- * yet pushed, and a pulled [SettingSyncRow] is not yet applied: [proj.memorchess.axl.core.config.SettingSyncMetadataStore]
- * has no generic "read/write this key's current value as a string" surface for an arbitrary
- * [proj.memorchess.axl.core.config.ConfigItem] to hang a remote-apply path off of, and guessing one
- * under time pressure risks silently corrupting a user's settings — a real follow-up, not something
- * this plan should paper over.
+ * yet pushed, and a pulled [SettingSyncRow] is not yet applied:
+ * [proj.memorchess.axl.core.config.SettingSyncMetadataStore] has no generic "read/write this key's
+ * current value as a string" surface for an arbitrary [proj.memorchess.axl.core.config.ConfigItem]
+ * to hang a remote-apply path off of, and guessing one under time pressure risks silently
+ * corrupting a user's settings — a real follow-up, not something this plan should paper over.
  */
 fun SyncEngine(
   authProvider: AuthProvider,
@@ -273,9 +271,11 @@ private suspend fun pushOutbox(
   return null
 }
 
-/** Builds one push batch's rows from the outbox entries' current local state. Skips
+/**
+ * Builds one push batch's rows from the outbox entries' current local state. Skips
  * [DirtyKey.SettingKey] entries (see [SyncEngine]'s own doc) and any key whose row has since
- * disappeared from the outbox's own view of the world (nothing left to push). */
+ * disappeared from the outbox's own view of the world (nothing left to push).
+ */
 private suspend fun buildPushRequest(
   database: DatabaseQueryManager,
   batch: List<OutboxEntry>,
@@ -302,9 +302,12 @@ private suspend fun localMove(
   origin: PositionKey,
   destination: PositionKey,
 ): DataMove? =
-  database.getPositionIncludingDeleted(origin)?.previousAndNextMoves?.nextMoves?.values?.firstOrNull {
-    it.destination == destination
-  }
+  database
+    .getPositionIncludingDeleted(origin)
+    ?.previousAndNextMoves
+    ?.nextMoves
+    ?.values
+    ?.firstOrNull { it.destination == destination }
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pullAll(

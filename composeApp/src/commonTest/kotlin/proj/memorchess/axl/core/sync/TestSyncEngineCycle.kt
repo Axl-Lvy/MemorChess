@@ -13,7 +13,6 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
-import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,8 +44,7 @@ class TestSyncEngineCycle {
 
   private val emptyPullBody =
     """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"nodes":[],"edges":[],"settings":[]}"""
-  private val emptyPushBody =
-    """{"serverTime":"2026-01-01T00:00:00Z","revision":1,"rejected":[]}"""
+  private val emptyPushBody = """{"serverTime":"2026-01-01T00:00:00Z","revision":1,"rejected":[]}"""
 
   private fun MockRequestHandleScope.jsonResponse(body: String) =
     respond(

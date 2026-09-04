@@ -8,8 +8,8 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * IndexedDB backed coverage of the sync remote-apply surface, mirroring
- * [TestInMemoryApplyRemote]'s equivalent cases.
+ * IndexedDB backed coverage of the sync remote-apply surface, mirroring [TestInMemoryApplyRemote]'s
+ * equivalent cases.
  */
 class TestIndexedDbApplyRemote {
 
@@ -63,8 +63,7 @@ class TestIndexedDbApplyRemote {
     )
 
     db.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
-    db.getPosition(PositionKey("b"))!!.previousAndNextMoves.previousMoves.keys shouldBe
-      setOf("e4")
+    db.getPosition(PositionKey("b"))!!.previousAndNextMoves.previousMoves.keys shouldBe setOf("e4")
     db.getOutbox() shouldBe emptyList()
   }
 }

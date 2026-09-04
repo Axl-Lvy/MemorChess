@@ -146,8 +146,10 @@ internal fun SyncAccountSectionContent(
   }
 }
 
-/** Display string for one [SyncJobStatus] value. Exhaustive `when`: a new status must be added
- * here, per project convention for a state machine reaching a UI consumer. */
+/**
+ * Display string for one [SyncJobStatus] value. Exhaustive `when`: a new status must be added here,
+ * per project convention for a state machine reaching a UI consumer.
+ */
 private fun SyncJobStatus.toStringResource(): StringResource =
   when (this) {
     SyncJobStatus.IDLE -> Res.string.sync_status_idle

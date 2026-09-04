@@ -15,8 +15,8 @@ enum class SyncJobStatus {
   SCHEDULED,
 
   /**
-   * A cycle is in progress. A value read back as this at startup is a crash, not a resumable
-   * state: see [SyncEngine]'s startup recovery.
+   * A cycle is in progress. A value read back as this at startup is a crash, not a resumable state:
+   * see [SyncEngine]'s startup recovery.
    */
   RUNNING,
 
@@ -27,8 +27,8 @@ enum class SyncJobStatus {
   BACKING_OFF,
 
   /**
-   * The last token refresh was rejected by the issuer. No retry timer; resumes only on a fresh
-   * sign in.
+   * The last token refresh was rejected by the issuer. No retry timer; resumes only on a fresh sign
+   * in.
    */
   PAUSED_NO_AUTH,
 }

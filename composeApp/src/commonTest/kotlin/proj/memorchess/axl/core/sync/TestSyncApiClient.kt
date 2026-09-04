@@ -51,9 +51,13 @@ class TestSyncApiClient {
 
   @Test
   fun serverErrorPullReturnsError() = runTest {
-    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+    val engine = MockEngine { _ ->
+      respond(content = "", status = HttpStatusCode.InternalServerError)
+    }
 
-    client(engine).pull("tok", since = null, limit = 500).shouldBeInstanceOf<SyncPullOutcome.Error>()
+    client(engine)
+      .pull("tok", since = null, limit = 500)
+      .shouldBeInstanceOf<SyncPullOutcome.Error>()
   }
 
   @Test
@@ -69,7 +73,10 @@ class TestSyncApiClient {
 
     val result =
       client(engine)
-        .push("tok", SyncPushRequest(nodes = emptyList(), edges = emptyList(), settings = emptyList()))
+        .push(
+          "tok",
+          SyncPushRequest(nodes = emptyList(), edges = emptyList(), settings = emptyList()),
+        )
 
     result.shouldBeInstanceOf<SyncPushOutcome.Ok>()
     result.response.revision shouldBe 5L
