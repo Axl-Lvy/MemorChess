@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.data
 
 import androidx.room.Room
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
+import io.kotest.matchers.maps.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import java.io.File
@@ -67,31 +68,43 @@ class TestRoomOutboxAndSoftDelete {
   fun markDirtyThenGetOutboxRoundTripsThroughRoom() = runTest {
     val key = DirtyKey.NodeKey(PositionKey("k1"))
 
-    manager.markDirty(key)
+    manager.markDirty(key, 1L)
 
-    manager.getOutbox() shouldBe listOf(key)
+    manager.getOutbox() shouldBe listOf(OutboxEntry(key, 1L))
   }
 
   @Test
-  fun reMarkingTheSameKeyDirtyDoesNotDuplicateTheOutboxRow() = runTest {
+  fun reMarkingTheSameKeyDirtyKeepsTheHigherSequenceAndDoesNotDuplicateTheRow() = runTest {
     val key = DirtyKey.EdgeKey(PositionKey("k1"), PositionKey("k2"))
 
-    manager.markDirty(key)
-    manager.markDirty(key)
+    manager.markDirty(key, 1L)
+    manager.markDirty(key, 2L)
 
-    manager.getOutbox() shouldBe listOf(key)
+    manager.getOutbox() shouldBe listOf(OutboxEntry(key, 2L))
   }
 
   @Test
   fun clearDirtyRemovesExactlyTheClearedKeys() = runTest {
     val kept = DirtyKey.SettingKey("appTheme")
     val cleared = DirtyKey.NodeKey(PositionKey("k1"))
-    manager.markDirty(kept)
-    manager.markDirty(cleared)
+    manager.markDirty(kept, 1L)
+    manager.markDirty(cleared, 1L)
 
-    manager.clearDirty(listOf(cleared))
+    manager.clearDirty(listOf(OutboxEntry(cleared, 1L)))
 
-    manager.getOutbox() shouldBe listOf(kept)
+    manager.getOutbox() shouldBe listOf(OutboxEntry(kept, 1L))
+  }
+
+  @Test
+  fun clearDirtySurvivesAMarkThatLandsAfterTheEntryWasRead() = runTest {
+    val key = DirtyKey.NodeKey(PositionKey("k1"))
+    manager.markDirty(key, 1L)
+    val read = manager.getOutbox()
+
+    manager.markDirty(key, 2L)
+    manager.clearDirty(read)
+
+    manager.getOutbox() shouldBe listOf(OutboxEntry(key, 2L))
   }
 
   @Test
@@ -100,10 +113,67 @@ class TestRoomOutboxAndSoftDelete {
     val edge = DirtyKey.EdgeKey(PositionKey("k1"), PositionKey("k2"))
     val setting = DirtyKey.SettingKey("appTheme")
 
-    manager.markDirty(node)
-    manager.markDirty(edge)
-    manager.markDirty(setting)
+    manager.markDirty(node, 1L)
+    manager.markDirty(edge, 1L)
+    manager.markDirty(setting, 1L)
 
-    manager.getOutbox() shouldContainExactlyInAnyOrder listOf(node, edge, setting)
+    manager.getOutbox().map { it.key } shouldContainExactlyInAnyOrder listOf(node, edge, setting)
+  }
+
+  @Test
+  fun softDeletingAPositionQueuesTheNodeAndIncidentEdgesInTheSameTransaction() = runTest {
+    val origin = PositionKey("k1")
+    val destination = PositionKey("k2")
+    val move = DataMove(origin, destination, "e4", isGood = true)
+    manager.insertNodes(
+      DataNode(origin, PreviousAndNextMoves(emptyList(), listOf(move)), CardStateFactory.new()),
+      DataNode(
+        destination,
+        PreviousAndNextMoves(listOf(move), emptyList()),
+        CardStateFactory.new(),
+      ),
+    )
+    // The insertNodes calls above already queued both nodes; clear that so this assertion is
+    // specific to what deletePosition itself queues.
+    manager.clearDirty(manager.getOutbox())
+
+    manager.deletePosition(origin, DeleteMode.SOFT, "device-a", 9L, Instant.fromEpochSeconds(1))
+
+    manager.getOutbox() shouldContainExactlyInAnyOrder
+      listOf(
+        OutboxEntry(DirtyKey.NodeKey(origin), 9L),
+        OutboxEntry(DirtyKey.EdgeKey(origin, destination), 9L),
+      )
+    // The cascade reached the MoveEntity row itself through the public API, not only the outbox.
+    manager.getPosition(destination)!!.previousAndNextMoves.previousMoves.shouldBeEmpty()
+  }
+
+  @Test
+  fun softDeletingAMoveQueuesItsEdgeInTheSameTransaction() = runTest {
+    val origin = PositionKey("k1")
+    val destination = PositionKey("k2")
+    val move = DataMove(origin, destination, "e4", isGood = true)
+    manager.insertNodes(
+      DataNode(origin, PreviousAndNextMoves(emptyList(), listOf(move)), CardStateFactory.new()),
+      DataNode(
+        destination,
+        PreviousAndNextMoves(listOf(move), emptyList()),
+        CardStateFactory.new(),
+      ),
+    )
+    manager.clearDirty(manager.getOutbox())
+
+    manager.deleteMove(origin, "e4", DeleteMode.SOFT, "device-a", 3L, Instant.fromEpochSeconds(1))
+
+    manager.getOutbox() shouldBe listOf(OutboxEntry(DirtyKey.EdgeKey(origin, destination), 3L))
+  }
+
+  @Test
+  fun eraseAllClearsTheOutbox() = runTest {
+    manager.markDirty(DirtyKey.NodeKey(PositionKey("k1")), 1L)
+
+    manager.eraseAll()
+
+    manager.getOutbox() shouldBe emptyList()
   }
 }

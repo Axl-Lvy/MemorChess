@@ -4,6 +4,7 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
+import proj.memorchess.axl.core.data.OutboxEntry
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.SchedulingCounts
 import proj.memorchess.axl.core.graph.DeleteMode
@@ -83,9 +84,10 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int =
     delegate.countDescendants(key, cap)
 
-  override suspend fun markDirty(key: DirtyKey) = delegate.markDirty(key)
+  override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) =
+    delegate.markDirty(key, deviceSeq)
 
-  override suspend fun getOutbox(): List<DirtyKey> = delegate.getOutbox()
+  override suspend fun getOutbox(): List<OutboxEntry> = delegate.getOutbox()
 
-  override suspend fun clearDirty(keys: Collection<DirtyKey>) = delegate.clearDirty(keys)
+  override suspend fun clearDirty(entries: Collection<OutboxEntry>) = delegate.clearDirty(entries)
 }

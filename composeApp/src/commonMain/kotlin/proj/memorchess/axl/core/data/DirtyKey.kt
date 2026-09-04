@@ -18,3 +18,14 @@ sealed interface DirtyKey {
   /** A dirty setting, keyed by its [proj.memorchess.axl.core.config.ConfigItem.name]. */
   data class SettingKey(val key: String) : DirtyKey
 }
+
+/**
+ * One outbox row: a [DirtyKey] paired with the `deviceSeq` of the write it names.
+ *
+ * The pairing is what lets [DatabaseQueryManager.clearDirty] stay safe against the read-push-clear
+ * race: a clear only removes an entry whose stored sequence has not moved past the one that was
+ * actually pushed, so a [DatabaseQueryManager.markDirty] landing between the read and the clear
+ * survives instead of being silently dropped. [DatabaseQueryManager.getOutbox] returns entries
+ * ordered ascending by [deviceSeq], which callers may treat as the push order.
+ */
+data class OutboxEntry(val key: DirtyKey, val deviceSeq: Long)

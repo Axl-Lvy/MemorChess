@@ -14,7 +14,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCacheEntity
 @Database(
   entities =
     [NodeEntity::class, MoveEntity::class, ExplorerCacheEntity::class, OutboxEntryEntity::class],
-  version = 9,
+  version = 10,
   exportSchema = false,
 )
 @TypeConverters(DateConverters::class)

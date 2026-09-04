@@ -43,11 +43,8 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
         dao.hardDeleteMoveTo(position.value)
         dao.hardDeleteNode(position.value)
       }
-      DeleteMode.SOFT -> {
-        dao.softDeleteNode(position.value, updatedAt, originDevice, deviceSeq)
-        dao.softDeleteMoveFrom(position.value, updatedAt, originDevice, deviceSeq)
-        dao.softDeleteMoveTo(position.value, updatedAt, originDevice, deviceSeq)
-      }
+      DeleteMode.SOFT ->
+        dao.softDeletePositionAndMarkDirty(position.value, updatedAt, originDevice, deviceSeq)
     }
   }
 
@@ -62,7 +59,8 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     val dao = database.getNodeEntityDao()
     when (mode) {
       DeleteMode.HARD -> dao.hardDeleteMove(origin.value, move)
-      DeleteMode.SOFT -> dao.softDeleteMove(origin.value, move, updatedAt, originDevice, deviceSeq)
+      DeleteMode.SOFT ->
+        dao.softDeleteMoveAndMarkDirty(origin.value, move, updatedAt, originDevice, deviceSeq)
     }
   }
 
@@ -70,6 +68,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     val dao = database.getNodeEntityDao()
     dao.eraseAllMoves()
     dao.eraseAllNodes()
+    database.getOutboxDao().eraseAll()
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
@@ -158,25 +157,30 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
       ),
     )
 
-  override suspend fun markDirty(key: DirtyKey) {
-    database.getOutboxDao().upsert(key.toEntity())
+  override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) {
+    val (kind, key1, key2) = key.outboxKeyParts()
+    database.getOutboxDao().upsert(kind, key1, key2, deviceSeq)
   }
 
-  override suspend fun getOutbox(): List<DirtyKey> =
-    database.getOutboxDao().getAll().map { it.toDirtyKey() }
+  override suspend fun getOutbox(): List<OutboxEntry> =
+    database.getOutboxDao().getAll().map { it.toOutboxEntry() }
 
-  override suspend fun clearDirty(keys: Collection<DirtyKey>) {
-    database.getOutboxDao().delete(keys.map { it.toEntity() })
+  override suspend fun clearDirty(entries: Collection<OutboxEntry>) {
+    database.getOutboxDao().clearIfNotNewer(entries.map { it.toEntity() })
   }
 }
 
-private fun DirtyKey.toEntity(): OutboxEntryEntity =
+private fun DirtyKey.outboxKeyParts(): Triple<String, String, String> =
   when (this) {
-    is DirtyKey.NodeKey -> OutboxEntryEntity(OutboxEntryEntity.KIND_NODE, positionKey.value)
-    is DirtyKey.EdgeKey ->
-      OutboxEntryEntity(OutboxEntryEntity.KIND_EDGE, origin.value, destination.value)
-    is DirtyKey.SettingKey -> OutboxEntryEntity(OutboxEntryEntity.KIND_SETTING, key)
+    is DirtyKey.NodeKey -> Triple(OutboxEntryEntity.KIND_NODE, positionKey.value, "")
+    is DirtyKey.EdgeKey -> Triple(OutboxEntryEntity.KIND_EDGE, origin.value, destination.value)
+    is DirtyKey.SettingKey -> Triple(OutboxEntryEntity.KIND_SETTING, key, "")
   }
+
+private fun OutboxEntry.toEntity(): OutboxEntryEntity {
+  val (kind, key1, key2) = key.outboxKeyParts()
+  return OutboxEntryEntity(kind, key1, key2, deviceSeq)
+}
 
 private fun OutboxEntryEntity.toDirtyKey(): DirtyKey =
   when (kind) {
@@ -185,6 +189,8 @@ private fun OutboxEntryEntity.toDirtyKey(): DirtyKey =
     OutboxEntryEntity.KIND_SETTING -> DirtyKey.SettingKey(key1)
     else -> error("Unknown outbox entry kind: $kind")
   }
+
+private fun OutboxEntryEntity.toOutboxEntry(): OutboxEntry = OutboxEntry(toDirtyKey(), deviceSeq)
 
 actual fun getPlatformSpecificLocalDatabase(): DatabaseQueryManager {
   return NonJsLocalDatabaseQueryManager(customDatabase)

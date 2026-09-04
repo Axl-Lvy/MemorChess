@@ -15,7 +15,13 @@ import proj.memorchess.axl.core.scheduling.CardPhase
  * so it works identically on every target and leaves the user's real graph untouched.
  *
  * Behaviour mirrors the platform implementations closely enough for [TreeStore]: hard deletes
- * physically remove rows and any incident move, soft deletes flip the [DataNode.isDeleted] flag.
+ * physically remove rows and any incident move, soft deletes flip the [DataNode.isDeleted] flag and
+ * cascade the tombstone to every incident move, exactly like Room's `softDeleteNode` +
+ * `softDeleteMoveFrom` + `softDeleteMoveTo` and IndexedDB's per-store writes. [insertNodes] merges
+ * into each row's existing move maps rather than replacing them outright, so a tombstone written by
+ * a delete call is never clobbered by a node persist that runs moments later without that edge in
+ * its own cache derived payload (the same reason a Room `INSERT ... REPLACE` on the node row leaves
+ * unrelated `MoveEntity` rows untouched, and an IndexedDB `put` only touches the row it names).
  */
 class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
@@ -23,7 +29,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   private val nodes: MutableMap<PositionKey, DataNode> = mutableMapOf()
 
   /** Backing outbox, keyed by the dirty key itself so a repeat mark is a no-op collapse. */
-  private val outbox: LinkedHashSet<DirtyKey> = linkedSetOf()
+  private val outbox: LinkedHashMap<DirtyKey, Long> = linkedMapOf()
 
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
@@ -43,8 +49,32 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     return NodesPage(page, nextCursor)
   }
 
+  /**
+   * Replaces each node's scalar fields but merges its [DataNode.previousAndNextMoves]: an incoming
+   * move overrides the stored one with the same key, but a move present only in the stored row (for
+   * example a tombstone a delete call just wrote) survives. This mirrors the per-row upsert every
+   * other backend gets for free from a normalized move table. Also queues each node for the next
+   * sync push at its own [DataNode.deviceSeq], in the same call as the row write it names.
+   */
   override suspend fun insertNodes(vararg positions: DataNode) {
-    positions.forEach { nodes[it.positionKey] = it }
+    positions.forEach { incoming ->
+      val existing = nodes[incoming.positionKey]
+      val merged =
+        if (existing == null) incoming
+        else
+          incoming.copy(
+            previousAndNextMoves =
+              PreviousAndNextMoves(
+                previousMoves =
+                  existing.previousAndNextMoves.previousMoves +
+                    incoming.previousAndNextMoves.previousMoves,
+                nextMoves =
+                  existing.previousAndNextMoves.nextMoves + incoming.previousAndNextMoves.nextMoves,
+              )
+          )
+      nodes[incoming.positionKey] = merged
+      mark(DirtyKey.NodeKey(incoming.positionKey), incoming.deviceSeq)
+    }
   }
 
   override suspend fun deletePosition(
@@ -71,16 +101,97 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
           }
         }
       }
-      DeleteMode.SOFT ->
+      DeleteMode.SOFT -> {
+        if (node.isDeleted) return
+        val stampedMoves =
+          tombstoneAll(node.previousAndNextMoves, originDevice, deviceSeq, updatedAt)
         nodes[position] =
           node.copy(
             isDeleted = true,
             updatedAt = updatedAt,
             originDevice = originDevice,
             deviceSeq = deviceSeq,
+            previousAndNextMoves = stampedMoves,
           )
+        mark(DirtyKey.NodeKey(position), deviceSeq)
+        // Cascade the tombstone to the denormalized copy every neighbour holds of the same edge,
+        // exactly like Room's softDeleteMoveFrom/softDeleteMoveTo and IndexedDB's per-store writes.
+        for ((move, edge) in node.previousAndNextMoves.nextMoves) {
+          if (edge.isDeleted) continue
+          tombstoneInNeighbor(
+            edge.destination,
+            move,
+            isNext = false,
+            originDevice,
+            deviceSeq,
+            updatedAt,
+          )
+          mark(DirtyKey.EdgeKey(position, edge.destination), deviceSeq)
+        }
+        for ((move, edge) in node.previousAndNextMoves.previousMoves) {
+          if (edge.isDeleted) continue
+          tombstoneInNeighbor(edge.origin, move, isNext = true, originDevice, deviceSeq, updatedAt)
+          mark(DirtyKey.EdgeKey(edge.origin, position), deviceSeq)
+        }
+      }
     }
   }
+
+  /** Tombstones every move in [moves], for the deleted node's own denormalized copy. */
+  private fun tombstoneAll(
+    moves: PreviousAndNextMoves,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ): PreviousAndNextMoves =
+    PreviousAndNextMoves(
+      previousMoves =
+        moves.previousMoves.values.map { it.tombstone(originDevice, deviceSeq, updatedAt) },
+      nextMoves = moves.nextMoves.values.map { it.tombstone(originDevice, deviceSeq, updatedAt) },
+    )
+
+  /**
+   * Flips the matching move to deleted inside [neighborKey]'s own denormalized copy. [isNext] is
+   * `true` when the edge lives in the neighbour's `nextMoves` (the neighbour is the edge's origin),
+   * `false` when it lives in its `previousMoves` (the neighbour is the edge's destination).
+   */
+  private fun tombstoneInNeighbor(
+    neighborKey: PositionKey,
+    move: String,
+    isNext: Boolean,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
+    val neighbor = nodes[neighborKey] ?: return
+    val moves = neighbor.previousAndNextMoves
+    val updated =
+      if (isNext) {
+        val edge = moves.nextMoves[move] ?: return
+        moves.copy(
+          nextMoves = moves.nextMoves + (move to edge.tombstone(originDevice, deviceSeq, updatedAt))
+        )
+      } else {
+        val edge = moves.previousMoves[move] ?: return
+        moves.copy(
+          previousMoves =
+            moves.previousMoves + (move to edge.tombstone(originDevice, deviceSeq, updatedAt))
+        )
+      }
+    nodes[neighborKey] = neighbor.copy(previousAndNextMoves = updated)
+  }
+
+  private fun DataMove.tombstone(
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ): DataMove =
+    copy(
+      isDeleted = true,
+      updatedAt = updatedAt,
+      originDevice = originDevice,
+      deviceSeq = deviceSeq,
+    )
 
   override suspend fun deleteMove(
     origin: PositionKey,
@@ -92,6 +203,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   ) {
     val node = nodes[origin] ?: return
     val edge = node.previousAndNextMoves.nextMoves[move] ?: return
+    if (mode == DeleteMode.SOFT && edge.isDeleted) return
     val destination = edge.destination
     nodes[origin] =
       node.copy(
@@ -110,10 +222,12 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
             updatedAt,
           )
       )
+    if (mode == DeleteMode.SOFT) mark(DirtyKey.EdgeKey(origin, destination), deviceSeq)
   }
 
   override suspend fun eraseAll() {
     nodes.clear()
+    outbox.clear()
   }
 
   override suspend fun getLastUpdate(): Instant? =
@@ -285,24 +399,25 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       else
         when (mode) {
           DeleteMode.HARD -> null
-          DeleteMode.SOFT ->
-            it.copy(
-              isDeleted = true,
-              updatedAt = updatedAt,
-              originDevice = originDevice,
-              deviceSeq = deviceSeq,
-            )
+          DeleteMode.SOFT -> it.tombstone(originDevice, deviceSeq, updatedAt)
         }
     }
 
-  override suspend fun markDirty(key: DirtyKey) {
-    outbox.remove(key)
-    outbox.add(key)
+  override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) = mark(key, deviceSeq)
+
+  /** Queues [key] at [deviceSeq], keeping the higher sequence on a repeat mark. */
+  private fun mark(key: DirtyKey, deviceSeq: Long) {
+    val existing = outbox[key]
+    if (existing == null || deviceSeq > existing) outbox[key] = deviceSeq
   }
 
-  override suspend fun getOutbox(): List<DirtyKey> = outbox.toList()
+  override suspend fun getOutbox(): List<OutboxEntry> =
+    outbox.entries.map { OutboxEntry(it.key, it.value) }.sortedBy { it.deviceSeq }
 
-  override suspend fun clearDirty(keys: Collection<DirtyKey>) {
-    outbox.removeAll(keys.toSet())
+  override suspend fun clearDirty(entries: Collection<OutboxEntry>) {
+    for (entry in entries) {
+      val stored = outbox[entry.key] ?: continue
+      if (stored <= entry.deviceSeq) outbox.remove(entry.key)
+    }
   }
 }

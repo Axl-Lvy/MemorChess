@@ -68,6 +68,7 @@ private external interface JsOutboxEntry : JsAny {
   var kind: String
   var key1: String
   var key2: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
 }
 
 // ---------------------------------------------------------------------------
@@ -244,12 +245,13 @@ private fun DirtyKey.outboxKeyParts(): Triple<String, String, String> =
     is DirtyKey.SettingKey -> Triple(OutboxKind.SETTING, key, "")
   }
 
-private fun DirtyKey.toJsOutboxEntry(): JsOutboxEntry {
+private fun DirtyKey.toJsOutboxEntry(deviceSeq: Long): JsOutboxEntry {
   val (kind, key1, key2) = outboxKeyParts()
   return emptyObject<JsOutboxEntry>().apply {
     this.kind = kind
     this.key1 = key1
     this.key2 = key2
+    this.deviceSeq = deviceSeq.toDouble()
   }
 }
 
@@ -260,6 +262,9 @@ private fun JsOutboxEntry.toDirtyKey(): DirtyKey =
     OutboxKind.SETTING -> DirtyKey.SettingKey(key1)
     else -> error("Unknown outbox entry kind: $kind")
   }
+
+private fun JsOutboxEntry.toOutboxEntry(): OutboxEntry =
+  OutboxEntry(toDirtyKey(), deviceSeq.toLong())
 
 /** String discriminators for [JsOutboxEntry.kind], mirroring the Room backend's own constants. */
 private object OutboxKind {
@@ -277,7 +282,7 @@ internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val OUTBOX_STORE = "outbox"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 8
+internal const val DB_VERSION = 9
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -294,9 +299,28 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private suspend fun db(): Database = getIndexedDb()
 
+  /**
+   * Queues [key] for push at [deviceSeq], keeping the higher of the stored and new sequence on a
+   * repeat mark. Callable from inside another store's write transaction so a row change and its
+   * outbox entry commit together.
+   */
+  private suspend fun com.juul.indexeddb.WriteTransaction.upsertOutboxEntry(
+    key: DirtyKey,
+    deviceSeq: Long,
+  ) {
+    val (kind, key1, key2) = key.outboxKeyParts()
+    val store = objectStore(OUTBOX_STORE)
+    val existing =
+      store
+        .get(Key(kind.toJsString(), key1.toJsString(), key2.toJsString()))
+        ?.unsafeCast<JsOutboxEntry>()
+    val newSeq = maxOf(existing?.deviceSeq?.toLong() ?: Long.MIN_VALUE, deviceSeq)
+    store.put(key.toJsOutboxEntry(newSeq))
+  }
+
   override suspend fun insertNodes(vararg positions: DataNode) {
     val database = db()
-    database.writeTransaction(NODES_STORE, MOVES_STORE) {
+    database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
       val nodesStore = objectStore(NODES_STORE)
       val movesStore = objectStore(MOVES_STORE)
       for (dataNode in positions) {
@@ -307,6 +331,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         for (move in allMoves) {
           movesStore.put(move.toJsMoveEntity())
         }
+        // Queues the node's own outbox entry in the same transaction as the row write it names.
+        upsertOutboxEntry(DirtyKey.NodeKey(dataNode.positionKey), dataNode.deviceSeq)
       }
     }
   }
@@ -378,7 +404,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     updatedAt: Instant,
   ) {
     val database = db()
-    database.writeTransaction(NODES_STORE, MOVES_STORE) {
+    database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
       val nodesStore = objectStore(NODES_STORE)
       val movesStore = objectStore(MOVES_STORE)
       val originMoves: List<JsMoveEntity> =
@@ -401,6 +427,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
             jsNode.originDevice = originDevice
             jsNode.deviceSeq = deviceSeq.toDouble()
             nodesStore.put(jsNode)
+            // Queues the node's own outbox entry in the same transaction as the row flip.
+            upsertOutboxEntry(DirtyKey.NodeKey(position), deviceSeq)
           }
           for (move in originMoves + destMoves) {
             if (!move.isDeleted) {
@@ -409,6 +437,11 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
               move.originDevice = originDevice
               move.deviceSeq = deviceSeq.toDouble()
               movesStore.put(move)
+              // Queues exactly the edges this call tombstoned, in the same transaction.
+              upsertOutboxEntry(
+                DirtyKey.EdgeKey(PositionKey(move.origin), PositionKey(move.destination)),
+                deviceSeq,
+              )
             }
           }
         }
@@ -425,7 +458,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     updatedAt: Instant,
   ) {
     val database = db()
-    database.writeTransaction(MOVES_STORE) {
+    database.writeTransaction(MOVES_STORE, OUTBOX_STORE) {
       val movesStore = objectStore(MOVES_STORE)
       val moves: List<JsMoveEntity> =
         movesStore.index("origin").getAll(Key(origin.value.toJsString())).toList()
@@ -441,6 +474,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
               m.originDevice = originDevice
               m.deviceSeq = deviceSeq.toDouble()
               movesStore.put(m)
+              // Queues the edge's own outbox entry in the same transaction as the row flip.
+              upsertOutboxEntry(DirtyKey.EdgeKey(origin, PositionKey(m.destination)), deviceSeq)
             }
         }
       }
@@ -449,9 +484,10 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun eraseAll() {
     val database = db()
-    database.writeTransaction(NODES_STORE, MOVES_STORE) {
+    database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
       objectStore(MOVES_STORE).clear()
       objectStore(NODES_STORE).clear()
+      objectStore(OUTBOX_STORE).clear()
     }
   }
 
@@ -708,28 +744,32 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun markDirty(key: DirtyKey) {
+  override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) {
     val database = db()
-    database.writeTransaction(OUTBOX_STORE) { objectStore(OUTBOX_STORE).put(key.toJsOutboxEntry()) }
+    database.writeTransaction(OUTBOX_STORE) { upsertOutboxEntry(key, deviceSeq) }
   }
 
-  override suspend fun getOutbox(): List<DirtyKey> {
+  override suspend fun getOutbox(): List<OutboxEntry> {
     val database = db()
     return database.transaction(OUTBOX_STORE) {
       objectStore(OUTBOX_STORE)
         .openCursor(autoContinue = true, direction = Cursor.Direction.Next)
-        .map { (it.value as JsOutboxEntry).toDirtyKey() }
+        .map { (it.value as JsOutboxEntry).toOutboxEntry() }
         .toList()
+        .sortedBy { it.deviceSeq }
     }
   }
 
-  override suspend fun clearDirty(keys: Collection<DirtyKey>) {
+  override suspend fun clearDirty(entries: Collection<OutboxEntry>) {
     val database = db()
     database.writeTransaction(OUTBOX_STORE) {
       val store = objectStore(OUTBOX_STORE)
-      for (key in keys) {
-        val (kind, key1, key2) = key.outboxKeyParts()
-        store.delete(Key(kind.toJsString(), key1.toJsString(), key2.toJsString()))
+      for (entry in entries) {
+        val (kind, key1, key2) = entry.key.outboxKeyParts()
+        val key = Key(kind.toJsString(), key1.toJsString(), key2.toJsString())
+        val existing = store.get(key)?.unsafeCast<JsOutboxEntry>()
+        // Only remove the entry when no fresher mark has landed since it was read for push.
+        if (existing != null && existing.deviceSeq.toLong() <= entry.deviceSeq) store.delete(key)
       }
     }
   }

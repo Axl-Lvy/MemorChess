@@ -69,7 +69,8 @@ internal object IndexedDbInstance {
 
     database.createObjectStore(EXPLORER_CACHE_STORE, KeyPath("key"))
 
-    database.createObjectStore(OUTBOX_STORE, KeyPath("kind", "key1", "key2"))
+    val outboxStore = database.createObjectStore(OUTBOX_STORE, KeyPath("kind", "key1", "key2"))
+    outboxStore.createIndex("deviceSeq", KeyPath("deviceSeq"), unique = false)
   }
 }
 
