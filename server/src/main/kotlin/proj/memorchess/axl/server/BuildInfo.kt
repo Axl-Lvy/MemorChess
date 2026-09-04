@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server
 
+import java.io.InputStream
 import java.util.Properties
 
 /** Resource generated at build time by `:server`'s `processResources`, see `build.gradle.kts`. */
@@ -12,11 +13,17 @@ private const val UNKNOWN_SHA = "dev"
 internal object BuildInfo {
 
   /** Short git sha of the commit this build was produced from, baked in at Gradle build time. */
-  val sha: String = loadSha()
+  val sha: String = shaFrom(BuildInfo::class.java.classLoader.getResourceAsStream(RESOURCE_NAME))
 
-  private fun loadSha(): String {
+  /**
+   * Reads `sha` out of the properties resource.
+   *
+   * A parameter rather than a direct classpath read, so the absent, blank and present cases are
+   * each reachable from a test without touching the actual build resource.
+   */
+  internal fun shaFrom(resource: InputStream?): String {
     val properties = Properties()
-    BuildInfo::class.java.classLoader.getResourceAsStream(RESOURCE_NAME)?.use(properties::load)
+    resource?.use(properties::load)
     return properties.getProperty("sha")?.takeIf { it.isNotBlank() } ?: UNKNOWN_SHA
   }
 }
