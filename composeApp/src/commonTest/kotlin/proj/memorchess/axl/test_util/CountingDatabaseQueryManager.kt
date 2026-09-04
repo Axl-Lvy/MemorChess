@@ -1,6 +1,7 @@
 package proj.memorchess.axl.test_util
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
@@ -90,4 +91,11 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun getOutbox(): List<OutboxEntry> = delegate.getOutbox()
 
   override suspend fun clearDirty(entries: Collection<OutboxEntry>) = delegate.clearDirty(entries)
+
+  override suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode? =
+    delegate.getPositionIncludingDeleted(positionKey)
+
+  override suspend fun applyRemoteNode(node: DataNode) = delegate.applyRemoteNode(node)
+
+  override suspend fun applyRemoteMove(move: DataMove) = delegate.applyRemoteMove(move)
 }

@@ -206,6 +206,31 @@ interface DatabaseQueryManager {
    * silently dropped.
    */
   suspend fun clearDirty(entries: Collection<OutboxEntry>)
+
+  /**
+   * Reads [positionKey] ignoring the soft-delete filter [getPosition] applies, so a caller can
+   * compare it against a pulled sync row even when the local copy is a tombstone. Used only by
+   * [proj.memorchess.axl.core.graph.TreeStore]'s pull-apply path, never by application code.
+   */
+  suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode?
+
+  /**
+   * Writes [node]'s scalar fields as the resolved winner of a sync conflict (see
+   * [proj.memorchess.axl.core.sync.SyncEngine]), merging rather than replacing
+   * [DataNode.previousAndNextMoves] exactly like [insertNodes], but **without** queuing an outbox
+   * entry: the row came from a peer's own push, so echoing it back would loop forever. The caller
+   * is responsible for having already run conflict resolution; this is an unconditional write.
+   */
+  suspend fun applyRemoteNode(node: DataNode)
+
+  /**
+   * Writes [move] as the resolved winner of a sync conflict, without queuing an outbox entry, for
+   * the same reason as [applyRemoteNode]. [move]'s origin and destination nodes must already exist
+   * locally (created by an earlier [applyRemoteNode] call in the same pull, or already present); a
+   * move whose endpoint does not yet exist is silently dropped, matching how a normal move write
+   * already assumes its endpoints are resolvable.
+   */
+  suspend fun applyRemoteMove(move: DataMove)
 }
 
 /**

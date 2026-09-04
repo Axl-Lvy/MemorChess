@@ -20,8 +20,10 @@ import memorchess.composeapp.generated.resources.nav_settings
 import memorchess.composeapp.generated.resources.nav_training
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.KoinApplication
+import org.koin.compose.koinInject
 import org.koin.dsl.koinConfiguration
 import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
+import proj.memorchess.axl.core.sync.SyncEngine
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.navigation.BottomNavigationBar
 import proj.memorchess.axl.ui.components.navigation.KineticSideBar
@@ -58,6 +60,8 @@ fun KoinStarterApp() {
 @Composable
 fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
   MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
+  val syncEngine: SyncEngine = koinInject()
+  LaunchedEffect(Unit) { syncEngine.start() }
   val navController = rememberNavController()
   val navigator = remember(navController) { DelegateNavigator(navController) }
   CompositionLocalProvider(LocalNavigator provides navigator) {

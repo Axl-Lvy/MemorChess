@@ -156,6 +156,14 @@ interface NodeEntityDao {
   suspend fun getNode(fen: String): NodeWithMoves?
 
   /**
+   * [getNode] without the `isDeleted IS FALSE` filter, for conflict resolution against a pulled
+   * sync row that may need to compare against a local tombstone.
+   */
+  @Transaction
+  @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen")
+  suspend fun getNodeIncludingDeleted(fen: String): NodeWithMoves?
+
+  /**
    * Soft deletes a node row by flipping its `isDeleted` flag and stamping the sync fields.
    *
    * @return The number of rows flipped: `1` when the node was live, `0` when it was missing or

@@ -118,6 +118,12 @@
   <string name="sync_signing_in">SIGNING IN…</string>
   <string name="sync_sign_in_cancelled">Sign in cancelled</string>
 
+  <!-- Sync status line -->
+  <string name="sync_status_idle">Up to date</string>
+  <string name="sync_status_syncing">Syncing…</string>
+  <string name="sync_status_backing_off">Sync paused, retrying…</string>
+  <string name="sync_status_paused_no_auth">Sync paused, sign in again</string>
+
   <!-- Training -->
   <string name="training_success">SUCCESS</string>
   <string name="training_fail">FAIL</string>
