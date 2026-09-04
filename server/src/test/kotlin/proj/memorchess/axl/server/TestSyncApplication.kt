@@ -61,6 +61,11 @@ class TestSyncApplication {
   }
 
   @Test
+  fun `answers GET v1 version with no authorization header`() = app { client ->
+    client.get("/v1/version").status shouldBe HttpStatusCode.OK
+  }
+
+  @Test
   fun `reports liveness without touching the database`() =
     app(readiness = { false }) { client -> client.get("/health").status shouldBe HttpStatusCode.OK }
 
