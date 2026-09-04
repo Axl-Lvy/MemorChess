@@ -20,6 +20,17 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     return database.getNodeEntityDao().getNode(positionKey.value)?.toStoredNode()
   }
 
+  override suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode? =
+    database.getNodeEntityDao().getNodeIncludingDeleted(positionKey.value)?.toStoredNode()
+
+  override suspend fun applyRemoteNode(node: DataNode) {
+    database.getNodeEntityDao().insertNode(NodeWithMoves.convertToEntity(node).node)
+  }
+
+  override suspend fun applyRemoteMove(move: DataMove) {
+    database.getNodeEntityDao().insertMoves(listOf(MoveEntity.convertToEntity(move)))
+  }
+
   override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
     require(limit > 0) { "Page limit must be strictly positive, was $limit" }
     val dao = database.getNodeEntityDao()
