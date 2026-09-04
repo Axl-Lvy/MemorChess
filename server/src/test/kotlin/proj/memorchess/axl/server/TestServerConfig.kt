@@ -3,6 +3,7 @@ package proj.memorchess.axl.server
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 
 class TestServerConfig {
@@ -109,5 +110,29 @@ class TestServerConfig {
       shouldThrow<IllegalStateException> { config(mapOf("SYNC_JWKS_URL" to "file:///etc/jwks")) }
 
     failure.message!! shouldContain "SYNC_JWKS_URL"
+  }
+
+  @Test
+  fun `static dir is null when SYNC_STATIC_DIR is absent`() {
+    config().staticDir shouldBe null
+  }
+
+  @Test
+  fun `static dir is read when it points at an existing directory`() {
+    val tempDir = createTempDirectory(prefix = "server-config-test").toFile()
+
+    val result = config(mapOf("SYNC_STATIC_DIR" to tempDir.absolutePath))
+
+    result.staticDir shouldBe tempDir
+  }
+
+  @Test
+  fun `refuses a static dir that does not exist`() {
+    val failure =
+      shouldThrow<IllegalStateException> {
+        config(mapOf("SYNC_STATIC_DIR" to "/does/not/exist"))
+      }
+
+    failure.message!! shouldContain "SYNC_STATIC_DIR"
   }
 }
