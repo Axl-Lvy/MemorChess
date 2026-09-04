@@ -129,9 +129,7 @@ class TestServerConfig {
   @Test
   fun `refuses a static dir that does not exist`() {
     val failure =
-      shouldThrow<IllegalStateException> {
-        config(mapOf("SYNC_STATIC_DIR" to "/does/not/exist"))
-      }
+      shouldThrow<IllegalStateException> { config(mapOf("SYNC_STATIC_DIR" to "/does/not/exist")) }
 
     failure.message!! shouldContain "SYNC_STATIC_DIR"
   }

@@ -23,10 +23,10 @@ internal fun Application.staticFrontendModule(staticDir: File?) {
 
 /**
  * Mounts the frontend bundle at `/`. Content-hashed `*.wasm` files are cached for a year; every
- * other file (unhashed HTML/JS/CSS/resources) is revalidated on every request, since a stale
- * cached `composeApp.js` could reference a `.wasm` hash from a previous deploy. An unmatched path
- * (e.g. `/oauth-callback`, read only for its URL by the wasmJs OAuth popup flow and never rendered)
- * falls through to a plain 404 rather than `index.html` — no `default()` fallback is configured,
+ * other file (unhashed HTML/JS/CSS/resources) is revalidated on every request, since a stale cached
+ * `composeApp.js` could reference a `.wasm` hash from a previous deploy. An unmatched path (e.g.
+ * `/oauth-callback`, read only for its URL by the wasmJs OAuth popup flow and never rendered) falls
+ * through to a plain 404 rather than `index.html` — no `default()` fallback is configured,
  * deliberately.
  */
 internal fun Route.staticFrontendRoutes(staticDir: File) {
