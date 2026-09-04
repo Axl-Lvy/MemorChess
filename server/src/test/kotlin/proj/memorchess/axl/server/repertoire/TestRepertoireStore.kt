@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.repertoire
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -7,6 +8,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
 import kotlin.time.Instant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestRepertoireStore {
@@ -31,15 +35,17 @@ internal class TestRepertoireStore {
     maxMoves: Int = MAX_REPERTOIRE_MOVES,
     maxRepertoiresPerUser: Int = MAX_REPERTOIRES_PER_USER,
     maxTotalPayloadBytesPerUser: Long = MAX_TOTAL_PAYLOAD_BYTES_PER_USER,
-    blobs: InMemoryRepertoireBlobStore = InMemoryRepertoireBlobStore(),
+    blobs: RepertoireBlobStore = InMemoryRepertoireBlobStore(),
+    validate: (String, Int, Int) -> RepertoireValidation = RepertoirePgnValidator::validate,
   ) =
     RepertoireStore(
-      PostgresTestDb.dataSource(),
-      blobs,
-      maxPayloadBytes,
-      maxMoves,
-      maxRepertoiresPerUser,
-      maxTotalPayloadBytesPerUser,
+      dataSource = PostgresTestDb.dataSource(),
+      blobs = blobs,
+      maxPayloadBytes = maxPayloadBytes,
+      maxMoves = maxMoves,
+      maxRepertoiresPerUser = maxRepertoiresPerUser,
+      maxTotalPayloadBytesPerUser = maxTotalPayloadBytesPerUser,
+      validate = validate,
     )
 
   // Each call produces unique bytes (random Event tag) unless the caller reuses the returned
@@ -484,5 +490,109 @@ internal class TestRepertoireStore {
 
       store.readPayload(row.payloadSha256).shouldNotBeNull()
       store.readPayload("not-a-real-hash").shouldBeNull()
+    }
+
+  @Test
+  fun `readPayload returns null for a hash shaped hex string no row references`() =
+    kotlinx.coroutines.test.runTest {
+      val blobs = InMemoryRepertoireBlobStore()
+      val store = store(blobs = blobs)
+      val orphanHash = "b".repeat(64)
+      blobs.put(orphanHash, "orphan".encodeToByteArray())
+
+      store.readPayload(orphanHash).shouldBeNull()
+    }
+
+  @Test
+  fun `a blob store failure during publish rolls back the row so a retry gets version 1 again`() =
+    kotlinx.coroutines.test.runTest {
+      val id = newId()
+      val failingStore = store(blobs = ThrowingRepertoireBlobStore())
+
+      shouldThrow<RuntimeException> {
+        failingStore.publish(author1, id, "T", "D", "white", pgn(), now)
+      }
+
+      val outcome = store().publish(author1, id, "T", "D", "white", pgn(), now)
+      outcome.shouldBeInstanceOf<PublishOutcome.Published>()
+      outcome.row.version shouldBe 1
+    }
+
+  @Test
+  fun `publish is refused for an id whose latest version a moderator removed`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
+      store.setStatus(id, "removed")
+
+      val outcome = store.publish(author1, id, "T2", "D2", "white", pgn("d4"), now)
+
+      outcome shouldBe PublishOutcome.Removed
+    }
+
+  @Test
+  fun `republishing a removed id still counts against the repertoire count quota`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store(maxRepertoiresPerUser = 1)
+      val author = "author-quota-removed-${System.nanoTime()}"
+      val removedId = newId()
+      store.publish(author, removedId, "T", "D", "white", pgn("e4"), now)
+      store.remove(author, removedId)
+      val otherId = newId()
+      store.publish(author, otherId, "T", "D", "white", pgn("d4"), now)
+
+      val outcome = store.publish(author, removedId, "T2", "D2", "white", pgn("c4"), now)
+
+      outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
+    }
+
+  @Test
+  fun `remove deletes every superseded version's blob once none of them are referenced elsewhere`() =
+    kotlinx.coroutines.test.runTest {
+      val blobs = InMemoryRepertoireBlobStore()
+      val store = store(blobs = blobs)
+      val id = newId()
+      val v1 =
+        store.publish(author1, id, "T", "D", "white", pgn("e4"), now) as PublishOutcome.Published
+      val v2 =
+        store.publish(author1, id, "T2", "D2", "white", pgn("d4"), now) as PublishOutcome.Published
+
+      store.remove(author1, id)
+
+      blobs.get(v1.row.payloadSha256).shouldBeNull()
+      blobs.get(v2.row.payloadSha256).shouldBeNull()
+      store.readPayload(v1.row.payloadSha256).shouldBeNull()
+      store.readPayload(v2.row.payloadSha256).shouldBeNull()
+    }
+
+  @Test
+  fun `an unexpected validator failure surfaces as Failed rather than InvalidPayload`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store(validate = { _, _, _ -> RepertoireValidation.Failed("boom") })
+
+      val outcome = store.publish(author1, newId(), "T", "D", "white", pgn(), now)
+
+      outcome.shouldBeInstanceOf<PublishOutcome.Failed>()
+    }
+
+  @Test
+  fun `concurrent publishes for the same id never collide and land on distinct versions`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      val concurrency = 8
+
+      val outcomes = coroutineScope {
+        (1..concurrency)
+          .map { n ->
+            async(Dispatchers.IO) { store.publish(author1, id, "T$n", "D", "white", pgn(), now) }
+          }
+          .map { it.await() }
+      }
+
+      outcomes.forEach { it.shouldBeInstanceOf<PublishOutcome.Published>() }
+      val versions = outcomes.map { (it as PublishOutcome.Published).row.version }
+      versions.toSet() shouldBe (1..concurrency).toSet()
     }
 }

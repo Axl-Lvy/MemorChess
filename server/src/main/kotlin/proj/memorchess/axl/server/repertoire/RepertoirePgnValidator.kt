@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.repertoire
 
+import org.slf4j.LoggerFactory
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.IllegalMoveException
@@ -31,6 +32,15 @@ private const val MAX_PLY_DEPTH = 200
  */
 private const val VALIDATOR_STACK_BYTES = 64L * 1024 * 1024
 
+/**
+ * How long [RepertoirePgnValidator.validate] waits for its worker thread before giving up on it.
+ * Generous headroom over how long parsing and walking a payload at the byte and ply caps actually
+ * takes, so this only ever fires on a genuinely stuck worker, not a slow but healthy one.
+ */
+private const val VALIDATOR_JOIN_TIMEOUT_MILLIS = 5_000L
+
+private val logger = LoggerFactory.getLogger(RepertoirePgnValidator::class.java)
+
 /** Outcome of validating a repertoire payload before it is accepted for publishing. */
 internal sealed class RepertoireValidation {
 
@@ -42,6 +52,13 @@ internal sealed class RepertoireValidation {
 
   /** The payload or its distinct move count exceeds a server side cap. */
   data class TooLarge(val reason: String) : RepertoireValidation()
+
+  /**
+   * Validation itself failed: an unexpected exception, or the worker did not finish within
+   * [VALIDATOR_JOIN_TIMEOUT_MILLIS]. Not the caller's fault, so a server error, never reported as
+   * an invalid payload.
+   */
+  data class Failed(val reason: String) : RepertoireValidation()
 }
 
 /**
@@ -92,30 +109,41 @@ internal object RepertoirePgnValidator {
   }
 
   /**
-   * Runs [block] on a dedicated thread with a [VALIDATOR_STACK_BYTES] stack, so a document deep
-   * enough to overflow a default stack while parsing is reported as [RepertoireValidation.TooLarge]
-   * rather than propagated as a crash. Blocks the caller until [block] finishes. Callers on a
+   * Runs [block] on a dedicated, daemon thread with a [VALIDATOR_STACK_BYTES] stack, so a document
+   * deep enough to overflow a default stack while parsing is reported as
+   * [RepertoireValidation.TooLarge] rather than propagated as a crash. Any other unexpected
+   * throwable, and a worker that does not finish within [VALIDATOR_JOIN_TIMEOUT_MILLIS], are logged
+   * and reported as [RepertoireValidation.Failed] rather than misattributed to the caller's
+   * payload. Blocks the caller until [block] finishes or the timeout elapses. Callers on a
    * coroutine dispatcher should wrap this in a dispatcher meant for blocking work.
    */
   private fun runOnDeepStack(block: () -> RepertoireValidation): RepertoireValidation {
     var outcome: RepertoireValidation? = null
     val worker =
       Thread(
-        null,
-        {
-          outcome =
-            try {
-              block()
-            } catch (e: StackOverflowError) {
-              RepertoireValidation.TooLarge("the document is too deeply nested to parse")
-            }
-        },
-        "repertoire-pgn-validator",
-        VALIDATOR_STACK_BYTES,
-      )
+          null,
+          {
+            outcome =
+              try {
+                block()
+              } catch (e: StackOverflowError) {
+                RepertoireValidation.TooLarge("the document is too deeply nested to parse")
+              } catch (e: Throwable) {
+                logger.error("repertoire validation failed unexpectedly", e)
+                RepertoireValidation.Failed(e.message ?: "validation failed unexpectedly")
+              }
+          },
+          "repertoire-pgn-validator",
+          VALIDATOR_STACK_BYTES,
+        )
+        .apply { isDaemon = true }
     worker.start()
-    worker.join()
-    return outcome ?: RepertoireValidation.Rejected("validation failed unexpectedly")
+    worker.join(VALIDATOR_JOIN_TIMEOUT_MILLIS)
+    if (worker.isAlive) {
+      logger.error("repertoire validation timed out after ${VALIDATOR_JOIN_TIMEOUT_MILLIS}ms")
+      return RepertoireValidation.Failed("validation timed out")
+    }
+    return outcome ?: RepertoireValidation.Failed("validation failed unexpectedly")
   }
 
   /**

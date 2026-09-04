@@ -28,6 +28,13 @@ private const val MAX_MANIFEST_ROWS: Int = 10_000
 /** Shape a repertoire id (a catalog slug) must match. */
 private val ID_PATTERN = Regex("^[a-z0-9]+(-[a-z0-9]+)*$")
 
+/**
+ * Shape a stored payload's sha256 must match: 64 lowercase hex characters. Checked before the hash
+ * is used in a database lookup or an S3 key, so a path segment carrying something else (for example
+ * a decoded `/` aimed at another key in the bucket) is rejected outright rather than looked up.
+ */
+private val SHA256_PATTERN = Regex("^[0-9a-f]{64}$")
+
 private const val MIN_ID_LENGTH = 3
 private const val MAX_ID_LENGTH = 64
 
@@ -69,8 +76,14 @@ internal sealed class PublishOutcome {
   /** The id already belongs to a different author. */
   data object Forbidden : PublishOutcome()
 
+  /** The id's latest version was removed by a moderator. Republishing over that is refused. */
+  data object Removed : PublishOutcome()
+
   /** Publishing would exceed a per author quota. */
   data class QuotaExceeded(val reason: String) : PublishOutcome()
+
+  /** Validation failed for a reason that was not the caller's fault. Logged on the server side. */
+  data class Failed(val reason: String) : PublishOutcome()
 }
 
 /** Outcome of [RepertoireStore.remove]. */
@@ -111,6 +124,8 @@ internal data class RepertoirePage(val rows: List<RepertoireRow>, val nextCursor
  * @param maxTotalPayloadBytesPerUser Cap on the summed payload size of one author's non removed
  *   repertoires.
  * @param ioDispatcher Where the blocking JDBC work runs. Injected so a caller can substitute one.
+ * @param validate Validates a payload before it is stored. Injected so a test can substitute one
+ *   without going through the real parser, the same way [ioDispatcher] is substituted.
  */
 internal class RepertoireStore(
   private val dataSource: DataSource,
@@ -120,6 +135,8 @@ internal class RepertoireStore(
   private val maxRepertoiresPerUser: Int = MAX_REPERTOIRES_PER_USER,
   private val maxTotalPayloadBytesPerUser: Long = MAX_TOTAL_PAYLOAD_BYTES_PER_USER,
   private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+  private val validate: (String, Int, Int) -> RepertoireValidation =
+    RepertoirePgnValidator::validate,
 ) {
 
   /**
@@ -158,11 +175,11 @@ internal class RepertoireStore(
 
     // RepertoirePgnValidator blocks its caller on a worker thread it manages itself (see its own
     // KDoc), so this runs on ioDispatcher rather than whatever dispatcher the route handler is on.
-    val validation =
-      withContext(ioDispatcher) { RepertoirePgnValidator.validate(pgn, maxPayloadBytes, maxMoves) }
+    val validation = withContext(ioDispatcher) { validate(pgn, maxPayloadBytes, maxMoves) }
     return when (validation) {
       is RepertoireValidation.Rejected -> PublishOutcome.InvalidPayload(validation.reason)
       is RepertoireValidation.TooLarge -> PublishOutcome.PayloadTooLarge(validation.reason)
+      is RepertoireValidation.Failed -> PublishOutcome.Failed(validation.reason)
       is RepertoireValidation.Valid ->
         doPublish(authorId, id, title, description, side, pgn, validation.moveCount, now)
     }
@@ -172,6 +189,9 @@ internal class RepertoireStore(
    * Inserts the row, then stores the blob. Row first so a caller can never observe a committed
    * version whose blob might still be missing because of a rejection below it. If [blobs].put fails
    * after the row commits, the row is deleted again so a repertoire never outlives its payload.
+   *
+   * The transaction holds [acquireRepertoireLock] on [id] for its whole duration, so two concurrent
+   * publishes (or a double click) for the same id never compute the same next version number.
    */
   private suspend fun doPublish(
     authorId: String,
@@ -187,13 +207,18 @@ internal class RepertoireStore(
     val sha256 = payloadBytes.sha256Hex()
 
     val outcome = inTransaction { connection ->
+      connection.acquireRepertoireLock(id)
       val existing = connection.lockLatestVersion(id)
       if (existing != null && existing.authorId != authorId) {
         return@inTransaction PublishOutcome.Forbidden
       }
 
+      // A removed id counts against the quota the same as a brand new one: without this, an
+      // author at the cap can free a slot by removing a repertoire and then republish the same id
+      // to occupy it again, over and over, never actually reducing their footprint.
+      val republishingRemoved = existing != null && existing.status == STATUS_REMOVED
       val (otherCount, otherBytes) = connection.authorFootprint(authorId, excludingId = id)
-      if (existing == null && otherCount >= maxRepertoiresPerUser) {
+      if ((existing == null || republishingRemoved) && otherCount >= maxRepertoiresPerUser) {
         return@inTransaction PublishOutcome.QuotaExceeded(
           "you already own $otherCount repertoires, the cap is $maxRepertoiresPerUser"
         )
@@ -203,6 +228,12 @@ internal class RepertoireStore(
         return@inTransaction PublishOutcome.QuotaExceeded(
           "publishing would use $projectedBytes of your $maxTotalPayloadBytesPerUser byte quota"
         )
+      }
+      // A moderator's removal is a latch, not a mutable flag an author can clear by republishing.
+      // setStatus refuses the same reversal from the moderation side; this is its publish side
+      // counterpart.
+      if (republishingRemoved) {
+        return@inTransaction PublishOutcome.Removed
       }
 
       val version = (existing?.version ?: 0) + 1
@@ -225,6 +256,10 @@ internal class RepertoireStore(
     }
 
     if (outcome is PublishOutcome.Published) {
+      // TODO: this compensates a blob write failure on a best effort basis, but a process death
+      // between the row commit above and the delete below still leaves an orphan row with no
+      // blob. A three phase publish (insert as pending, put the blob, then flip to published)
+      // would close that gap. Tracked as a follow up, not done here.
       try {
         blobs.put(sha256, payloadBytes)
       } catch (e: Exception) {
@@ -253,25 +288,28 @@ internal class RepertoireStore(
   }
 
   /**
-   * Marks [id]'s latest version as removed, deleting its blob when no surviving version still
-   * references the same payload hash.
+   * Marks every version of [id] as removed, deleting each one's blob that no surviving version of
+   * any id still references.
+   *
+   * Every version, not only the latest, so a hash [readPayload] used to serve stops being "live" by
+   * the same definition it checks: a hash is live only while some non removed row references it.
+   * Without cascading to superseded versions, an old version's row would keep its original
+   * `published` status forever and its blob would never be reclaimed, nor would its direct download
+   * link ever stop working, even after the id it belongs to is fully taken down.
    */
   suspend fun remove(authorId: String, id: String): RemoveOutcome {
     val outcome = inTransaction { connection ->
+      connection.acquireRepertoireLock(id)
       val existing = connection.lockLatestVersion(id)
       when {
         existing == null || existing.status == STATUS_REMOVED -> RemoveTxOutcome.NotFound
         existing.authorId != authorId -> RemoveTxOutcome.Forbidden
-        else -> {
-          connection.updateStatus(id, existing.version, STATUS_REMOVED)
-          val stillReferenced = connection.blobStillReferenced(existing.payloadSha256)
-          RemoveTxOutcome.Removed(existing.payloadSha256, deleteBlob = !stillReferenced)
-        }
+        else -> RemoveTxOutcome.Removed(connection.removeAllVersions(id))
       }
     }
     return when (outcome) {
       is RemoveTxOutcome.Removed -> {
-        if (outcome.deleteBlob) blobs.delete(outcome.sha256)
+        outcome.orphanedHashes.forEach { blobs.delete(it) }
         RemoveOutcome.Removed
       }
       RemoveTxOutcome.Forbidden -> RemoveOutcome.Forbidden
@@ -280,11 +318,15 @@ internal class RepertoireStore(
   }
 
   /**
-   * Moderation kill switch: sets [id]'s latest version to [status] regardless of author, deleting
-   * its blob under the same reference counting rule as [remove] when [status] is `removed`.
+   * Moderation kill switch: sets [id]'s status to [status] regardless of author. When [status] is
+   * `removed`, this cascades to every version of [id] and deletes each one's blob under the same
+   * reference counting rule as [remove], for the reason explained on [remove]'s KDoc. Any other
+   * status only ever touches the latest version, matching [get] and [listPublished], which never
+   * consult an older version's status once a newer one exists.
    */
   suspend fun setStatus(id: String, status: String): SetStatusOutcome {
     val outcome = inTransaction { connection ->
+      connection.acquireRepertoireLock(id)
       val existing = connection.lockLatestVersion(id)
       // A removed repertoire's blob is already gone, so moving it back to published or unlisted
       // would publish a broken pgn link. Treated the same as an unknown id rather than as a
@@ -292,14 +334,17 @@ internal class RepertoireStore(
       if (existing == null || existing.status == STATUS_REMOVED) {
         return@inTransaction SetStatusTxOutcome.NotFound
       }
-      connection.updateStatus(id, existing.version, status)
-      val deleteBlob =
-        status == STATUS_REMOVED && !connection.blobStillReferenced(existing.payloadSha256)
-      SetStatusTxOutcome.Updated(existing.copy(status = status), existing.payloadSha256, deleteBlob)
+      if (status == STATUS_REMOVED) {
+        val orphanedHashes = connection.removeAllVersions(id)
+        SetStatusTxOutcome.Updated(existing.copy(status = status), orphanedHashes)
+      } else {
+        connection.updateStatus(id, existing.version, status)
+        SetStatusTxOutcome.Updated(existing.copy(status = status), emptyList())
+      }
     }
     return when (outcome) {
       is SetStatusTxOutcome.Updated -> {
-        if (outcome.deleteBlob) blobs.delete(outcome.sha256)
+        outcome.orphanedHashes.forEach { blobs.delete(it) }
         SetStatusOutcome.Updated(outcome.row)
       }
       SetStatusTxOutcome.NotFound -> SetStatusOutcome.NotFound
@@ -338,8 +383,22 @@ internal class RepertoireStore(
       }
     }
 
-  /** The stored payload bytes for [sha256], or `null` when nothing is stored there. */
-  suspend fun readPayload(sha256: String): ByteArray? = blobs.get(sha256)
+  /**
+   * The stored payload bytes for [sha256], or `null` when [sha256] is not a well formed sha256
+   * digest, nothing is stored there, or no non removed version currently references it.
+   *
+   * The last case is what makes moderation ([setStatus], [remove]) actually revoke access to the
+   * bytes rather than only hiding the id from listings: without it, the content stays downloadable
+   * by anyone who already has the link.
+   */
+  suspend fun readPayload(sha256: String): ByteArray? {
+    if (!SHA256_PATTERN.matches(sha256)) return null
+    val referenced =
+      withContext(ioDispatcher) {
+        dataSource.connection.use { connection -> connection.blobStillReferenced(sha256) }
+      }
+    return if (referenced) blobs.get(sha256) else null
+  }
 
   private suspend fun <T> inTransaction(block: (Connection) -> T): T =
     withContext(ioDispatcher) {
@@ -366,21 +425,39 @@ internal class RepertoireStore(
 
 private const val STATUS_REMOVED = "removed"
 
-/** Outcome of the [RepertoireStore.remove] transaction, before the blob is deleted. */
+/** Outcome of the [RepertoireStore.remove] transaction, before the orphaned blobs are deleted. */
 private sealed class RemoveTxOutcome {
-  data class Removed(val sha256: String, val deleteBlob: Boolean) : RemoveTxOutcome()
+  data class Removed(val orphanedHashes: List<String>) : RemoveTxOutcome()
 
   data object NotFound : RemoveTxOutcome()
 
   data object Forbidden : RemoveTxOutcome()
 }
 
-/** Outcome of the [RepertoireStore.setStatus] transaction, before the blob is deleted. */
+/**
+ * Outcome of the [RepertoireStore.setStatus] transaction, before the orphaned blobs are deleted.
+ */
 private sealed class SetStatusTxOutcome {
-  data class Updated(val row: RepertoireRow, val sha256: String, val deleteBlob: Boolean) :
+  data class Updated(val row: RepertoireRow, val orphanedHashes: List<String>) :
     SetStatusTxOutcome()
 
   data object NotFound : SetStatusTxOutcome()
+}
+
+/**
+ * Serializes every publish, remove and status change for [id] against each other for the rest of
+ * the transaction, released on commit or rollback.
+ *
+ * Postgres's default READ COMMITTED isolation does not by itself stop two concurrent transactions
+ * from both reading the same "current latest version" and computing the same next version number,
+ * which then collides on the `(id, version)` primary key. Taking this lock first, before either
+ * transaction reads anything, forces the second one to wait and see the first one's write.
+ */
+private fun Connection.acquireRepertoireLock(id: String) {
+  prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
+    statement.setString(1, id)
+    statement.executeQuery().use { it.next() }
+  }
 }
 
 /**
@@ -439,6 +516,36 @@ private fun Connection.blobStillReferenced(sha256: String): Boolean =
         rows.getLong(1) > 0
       }
     }
+
+/**
+ * Sets every version of [id], not only its latest, to [STATUS_REMOVED], then returns the distinct
+ * payload hashes among them that no other non removed row (of [id] or any other id) still
+ * references, and so are safe to delete from [RepertoireBlobStore].
+ */
+private fun Connection.removeAllVersions(id: String): List<String> {
+  val hashes = distinctHashesOf(id)
+  updateStatusForEveryVersion(id, STATUS_REMOVED)
+  return hashes.filterNot { blobStillReferenced(it) }
+}
+
+/** Every distinct payload hash across all of [id]'s versions. */
+private fun Connection.distinctHashesOf(id: String): List<String> =
+  prepareStatement("SELECT DISTINCT payload_sha256 FROM repertoire_version WHERE id = ?").use {
+    statement ->
+    statement.setString(1, id)
+    statement.executeQuery().use { rows ->
+      buildList { while (rows.next()) add(rows.getString(1)) }
+    }
+  }
+
+/** Sets [status] on every version row of [id], not only its latest. */
+private fun Connection.updateStatusForEveryVersion(id: String, status: String) {
+  prepareStatement("UPDATE repertoire_version SET status = ? WHERE id = ?").use { statement ->
+    statement.setString(1, status)
+    statement.setString(2, id)
+    statement.executeUpdate()
+  }
+}
 
 private fun Connection.insertVersion(row: RepertoireRow) {
   prepareStatement(

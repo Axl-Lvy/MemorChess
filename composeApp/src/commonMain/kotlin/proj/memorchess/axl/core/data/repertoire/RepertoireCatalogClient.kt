@@ -119,11 +119,12 @@ class RepertoireCatalogClient(
     // Placeholder: `chess-server` has no public hostname yet. The Cloudflare tunnel and the
     // deployment that would give it one are later steps in the cloud backend sequencing spec
     // than the one that added this client migration, so there is nothing real to point at today.
-    // The ".invalid" suffix is RFC 2606 reserved and never resolves, so a build that ships before
-    // the real hostname lands fails loudly instead of silently talking to nothing. Replace with
-    // the real tunnel hostname once it exists. The relative paths below already match what
-    // `:server` serves at that root (`manifest.json`, `pgn/<sha256>.pgn`), so nothing else here
-    // changes.
+    // The ".invalid" suffix is RFC 2606 reserved and never resolves. A build that ships before the
+    // real hostname lands does not fail loudly: every request failure, this one included, maps to
+    // CatalogResult.NetworkError, which the library screen renders the same way it renders being
+    // offline, with nothing to tell the two apart. Replace with the real tunnel hostname once it
+    // exists. The relative paths below already match what `:server` serves at that root
+    // (`manifest.json`, `pgn/<sha256>.pgn`), so nothing else here changes.
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1/repertoires"
     const val MANIFEST_FILE = "manifest.json"
     const val SUPPORTED_SCHEMA_VERSION = 1

@@ -43,6 +43,7 @@ import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireRow
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
+import proj.memorchess.axl.server.repertoire.RepertoireValidation
 
 class TestRepertoireRoutes {
 
@@ -151,6 +152,37 @@ class TestRepertoireRoutes {
   fun `pgn route answers 404 for an unknown hash`() {
     app(newStore()) { client ->
       client.get("/v1/repertoires/pgn/does-not-exist.pgn").status shouldBe HttpStatusCode.NotFound
+    }
+  }
+
+  @Test
+  fun `pgn route answers 404 for a stored blob no live row references`() {
+    val blobs = InMemoryRepertoireBlobStore()
+    val orphanHash = "a".repeat(64)
+    runBlocking { blobs.put(orphanHash, "orphan".encodeToByteArray()) }
+    val store = RepertoireStore(PostgresTestDb.dataSource(), blobs)
+
+    app(store) { client ->
+      client.get("/v1/repertoires/pgn/$orphanHash.pgn").status shouldBe HttpStatusCode.NotFound
+    }
+  }
+
+  @Test
+  fun `pgn route answers 404 for a removed repertoire's hash, revoking access to the bytes`() {
+    val store = newStore()
+    val id = newId()
+    val published =
+      runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+        as PublishOutcome.Published
+
+    app(store) { client ->
+      client.post("/admin/repertoires/$id/status") {
+        header("X-Admin-Token", adminToken)
+        contentType(ContentType.Application.Json)
+        setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
+      }
+
+      client.get("/v1/repertoires/${published.row.file()}").status shouldBe HttpStatusCode.NotFound
     }
   }
 
@@ -343,6 +375,27 @@ class TestRepertoireRoutes {
   }
 
   @Test
+  fun `post is forbidden when the author republishes an id a moderator removed`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking {
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
+      store.setStatus(id, "removed")
+    }
+
+    app(store) { client ->
+      val response =
+        client.post("/v1/repertoires") {
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          contentType(ContentType.Application.Json)
+          setBody(publishBody(id))
+        }
+
+      response.status shouldBe HttpStatusCode.Forbidden
+    }
+  }
+
+  @Test
   fun `post rejects an unparseable pgn with invalid_pgn`() {
     app(newStore()) { client ->
       val response =
@@ -371,6 +424,29 @@ class TestRepertoireRoutes {
         }
 
       response.status shouldBe HttpStatusCode.BadRequest
+    }
+  }
+
+  @Test
+  fun `post maps an unexpected validation failure to 500 internal, not 400 invalid_pgn`() {
+    val store =
+      RepertoireStore(
+        dataSource = PostgresTestDb.dataSource(),
+        blobs = InMemoryRepertoireBlobStore(),
+        validate = { _, _, _ -> RepertoireValidation.Failed("boom") },
+      )
+
+    app(store) { client ->
+      val response =
+        client.post("/v1/repertoires") {
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          contentType(ContentType.Application.Json)
+          setBody(publishBody(newId()))
+        }
+
+      response.status shouldBe HttpStatusCode.InternalServerError
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
+        ApiErrorCode.INTERNAL
     }
   }
 

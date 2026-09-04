@@ -153,10 +153,23 @@ private fun Route.repertoireRoutes(
             HttpStatusCode.Forbidden,
             ApiError(ApiErrorCode.FORBIDDEN, "this id belongs to a different author"),
           )
+        PublishOutcome.Removed ->
+          call.respond(
+            HttpStatusCode.Forbidden,
+            ApiError(
+              ApiErrorCode.FORBIDDEN,
+              "this id was removed by a moderator and cannot be republished",
+            ),
+          )
         is PublishOutcome.QuotaExceeded ->
           call.respond(
             HttpStatusCode.Forbidden,
             ApiError(ApiErrorCode.QUOTA_EXCEEDED, outcome.reason),
+          )
+        is PublishOutcome.Failed ->
+          call.respond(
+            HttpStatusCode.InternalServerError,
+            ApiError(ApiErrorCode.INTERNAL, "the server failed to validate the payload"),
           )
       }
     }
