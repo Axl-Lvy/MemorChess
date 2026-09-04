@@ -63,7 +63,11 @@ sonar {
       // JaCoCo can't filter, inflating uncovered-condition counts on otherwise covered code.
       // macrobenchmark/microbenchmark are measurement harnesses verified by running them,
       // not by unit tests; they stay analyzed for code quality but are exempt from coverage.
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt,**/macrobenchmark/**,**/microbenchmark/**",
+      // **/Main.kt (capital M, distinct from composeApp's lowercase **/main.kt above) is
+      // :server's entrypoint: it wires a real Postgres/S3/Netty stack and is never invoked
+      // directly by a test, which always calls syncModule/repertoireModule/staticFrontendModule
+      // instead. Still analyzed for code quality, exempt from coverage only.
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/Main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt,**/macrobenchmark/**,**/microbenchmark/**",
     )
 
     // PL/SQL specific configuration for SQL files
