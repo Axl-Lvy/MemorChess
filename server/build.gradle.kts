@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
   alias(libs.plugins.kotlinJvm)
+  alias(libs.plugins.kotlinX.serialization.plugin)
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.kover)
 }
