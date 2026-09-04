@@ -36,6 +36,8 @@ data class NodeWithMoves(
       node.isDeleted,
       node.hasGoodOutgoing,
       node.createdAt,
+      node.originDevice,
+      node.deviceSeq,
     )
   }
 
@@ -59,6 +61,8 @@ data class NodeWithMoves(
           createdAt = dataNode.createdAt,
           isDeleted = dataNode.isDeleted,
           updatedAt = dataNode.updatedAt,
+          originDevice = dataNode.originDevice,
+          deviceSeq = dataNode.deviceSeq,
         ),
         dataNode.previousAndNextMoves.previousMoves.map { MoveEntity.convertToEntity(it.value) },
         dataNode.previousAndNextMoves.nextMoves.map { MoveEntity.convertToEntity(it.value) },

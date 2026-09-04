@@ -20,6 +20,12 @@ import proj.memorchess.axl.core.scheduling.CardState
  * @property createdAt Derived projection owned by [proj.memorchess.axl.core.graph.TreeStore]: the
  *   moment the position was first added, taken from the earliest non deleted incoming edge. Used as
  *   the new card ordering tiebreak after [depth] and excluded from equality like [updatedAt].
+ * @property originDevice Device that wrote this version. Stamped by
+ *   [proj.memorchess.axl.core.graph.TreeStore] from its
+ *   [proj.memorchess.axl.core.sync.DeviceIdentity]. Excluded from equality like [updatedAt].
+ * @property deviceSeq That device's write counter at the time. See
+ *   [proj.memorchess.axl.core.sync.DeviceIdentity.nextDeviceSeq]. Excluded from equality like
+ *   [updatedAt].
  * @constructor Creates a new node.
  */
 data class DataNode(
@@ -31,6 +37,8 @@ data class DataNode(
   val isDeleted: Boolean = false,
   val hasGoodOutgoing: Boolean = false,
   val createdAt: Instant = DateUtil.now(),
+  val originDevice: String = "",
+  val deviceSeq: Long = 0L,
 ) {
 
   override fun equals(other: Any?) =

@@ -9,9 +9,11 @@ import proj.memorchess.axl.core.data.DESCENDANT_COUNT_CAP
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardState
+import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**
  * Single mutation chokepoint for the opening tree.
@@ -39,10 +41,13 @@ import proj.memorchess.axl.core.scheduling.CardState
  *   [kotlinx.coroutines.SupervisorJob] scope on [kotlinx.coroutines.Dispatchers.Default] in
  *   production (a failed prefetch never cancels siblings and never blocks the UI). Tests pass a
  *   deterministic test scope.
+ * @param deviceIdentity Stamped onto every persisted node and edge, and used to order this device's
+ *   own writes against its earlier ones. See [DeviceIdentity].
  */
 class TreeStore(
   private val database: DatabaseQueryManager,
   private val prefetchScope: CoroutineScope,
+  private val deviceIdentity: DeviceIdentity,
 ) {
 
   private val tree = OpeningTree()
@@ -145,6 +150,9 @@ class TreeStore(
     fromDepth: Int,
   ): Edge {
     val createdAt = node(from)?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
+    // TODO: nextDeviceSeq is allocated here even for an exploration-only move (isGood == null,
+    // never persisted), one at a time. A block-allocation batching fix is a larger change; see the
+    // sync design doc.
     val edge =
       Edge(
         from = from,
@@ -153,11 +161,17 @@ class TreeStore(
         isGood = isGood,
         createdAt = createdAt,
         updatedAt = DateUtil.now(),
+        originDevice = deviceIdentity.originDevice,
+        deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     mutex.withLock { tree.upsertEdge(edge, fromDepth) }
     if (isGood != null) {
       persistNode(from)
       persistNode(to)
+      // The two persists above each queue their own row's outbox entry transactionally. The edge
+      // itself is not a row either of them can attribute a stamp to (it is a field inside each
+      // node's persisted move maps), so it is marked separately here, at the edge's own deviceSeq.
+      database.markDirty(DirtyKey.EdgeKey(from, to), edge.deviceSeq)
     }
     return edge
   }
@@ -178,6 +192,10 @@ class TreeStore(
     if (moves.isEmpty()) return
     val now = DateUtil.now()
     val touched = linkedSetOf<PositionKey>()
+    val dirtyEdges = mutableListOf<Pair<DirtyKey.EdgeKey, Long>>()
+    // TODO: nextDeviceSeq below is allocated per edge, one at a time, even for exploration-only
+    // moves (isGood == null, never persisted). A block-allocation batching fix is a larger change;
+    // see the sync design doc.
     for (insertion in moves) {
       val createdAt = node(insertion.from)?.outgoing?.get(insertion.move)?.createdAt ?: now
       val edge =
@@ -188,16 +206,22 @@ class TreeStore(
           isGood = insertion.isGood,
           createdAt = createdAt,
           updatedAt = now,
+          originDevice = deviceIdentity.originDevice,
+          deviceSeq = deviceIdentity.nextDeviceSeq(),
         )
       mutex.withLock { tree.upsertEdge(edge, insertion.fromDepth) }
       if (insertion.isGood != null) {
         touched += insertion.from
         touched += insertion.to
+        dirtyEdges += DirtyKey.EdgeKey(insertion.from, insertion.to) to edge.deviceSeq
       }
     }
     val nodesToPersist = mutex.withLock { touched.mapNotNull { tree[it]?.toDataNode() } }
     if (nodesToPersist.isNotEmpty()) {
+      // insertNodes queues each node's own outbox entry transactionally; only the edges themselves
+      // need marking here, same as addMove.
       database.insertNodes(*nodesToPersist.toTypedArray())
+      for ((edgeKey, seq) in dirtyEdges) database.markDirty(edgeKey, seq)
     }
   }
 
@@ -214,6 +238,7 @@ class TreeStore(
       return
     }
     mutex.withLock { tree.put(existing.copy(cardState = cardState)) }
+    // persistNode below queues the node's own outbox entry transactionally with the row write.
     persistNode(positionKey)
   }
 
@@ -222,11 +247,20 @@ class TreeStore(
    *
    * After the cache edge is gone, the surviving [from] node is re-persisted so its derived
    * [DataNode.hasGoodOutgoing] cannot go stale: deleting the last good edge must flip the flag back
-   * to `false`.
+   * to `false`. The edge and the surviving [from] node are each marked dirty by the
+   * [DatabaseQueryManager] call that writes their row, in the same transaction as that write.
    */
-  suspend fun deleteMove(from: PositionKey, move: String, mode: DeleteMode = DeleteMode.HARD) {
+  suspend fun deleteMove(from: PositionKey, move: String, mode: DeleteMode = DeleteMode.SOFT) {
+    // Resolved through node() so from is resident even when it was evicted from the cache: the
+    // follow up persistNode(from) below is a documented no-op on a cache miss, so without this,
+    // an evicted from's hasGoodOutgoing would go stale and never get queued.
+    node(from)
     mutex.withLock { tree.removeEdge(from, move) }
-    database.deleteMove(from, move, mode)
+    val seq = deviceIdentity.nextDeviceSeq()
+    // deleteMove queues the edge's own outbox entry transactionally with the tombstone (SOFT only);
+    // persistNode below queues the surviving from node's own entry transactionally with its
+    // re-derived hasGoodOutgoing.
+    database.deleteMove(from, move, mode, deviceIdentity.originDevice, seq, DateUtil.now())
     persistNode(from)
   }
 
@@ -235,9 +269,11 @@ class TreeStore(
    *
    * The target is resolved through [node] so its edge set is available for neighbour patching even
    * when it was evicted from the cache. [DatabaseQueryManager.deletePosition] is authoritative for
-   * disk; the cache patches are best effort for resident neighbours.
+   * disk; the cache patches are best effort for resident neighbours. [positionKey], every incident
+   * edge it tombstones, and every surviving origin re-persisted below are each marked dirty by the
+   * [DatabaseQueryManager] call that writes their row, in the same transaction as that write.
    */
-  suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.HARD) {
+  suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.SOFT) {
     val node = node(positionKey)
     val survivingOrigins = mutableSetOf<PositionKey>()
     if (node != null) {
@@ -252,7 +288,8 @@ class TreeStore(
         tree.removeNode(positionKey)
       }
     }
-    database.deletePosition(positionKey, mode)
+    val seq = deviceIdentity.nextDeviceSeq()
+    database.deletePosition(positionKey, mode, deviceIdentity.originDevice, seq, DateUtil.now())
     // Re-persist the origins that lost an outgoing edge so their derived hasGoodOutgoing flag
     // reflects the deletion and cannot go stale.
     for (origin in survivingOrigins) {
@@ -275,6 +312,33 @@ class TreeStore(
     val node = mutex.withLock { tree[positionKey] } ?: return
     database.insertNodes(node.toDataNode())
   }
+
+  /**
+   * Builds the [DataNode] to persist for this cached [Node], stamping a fresh [DeviceIdentity]
+   * sequence on every call. A member function (not top level like [DataMove.toEdge] and
+   * [Edge.toDataMove]) because, unlike [Edge], [Node] carries no `updatedAt`/`originDevice`
+   * /`deviceSeq` of its own: every persist derives them fresh from [deviceIdentity], the same way
+   * [updatedAt] already does.
+   */
+  private suspend fun Node.toDataNode(): DataNode =
+    DataNode(
+      positionKey = positionKey,
+      previousAndNextMoves =
+        PreviousAndNextMoves(
+          previousMoves =
+            incoming.values.filter { it.isGood != null && !it.isDeleted }.map { it.toDataMove() },
+          nextMoves =
+            outgoing.values.filter { it.isGood != null && !it.isDeleted }.map { it.toDataMove() },
+        ),
+      cardState = cardState,
+      depth = depth,
+      hasGoodOutgoing = outgoing.values.any { it.isGood == true && !it.isDeleted },
+      createdAt =
+        incoming.values.filter { !it.isDeleted }.minOfOrNull { it.createdAt } ?: DateUtil.now(),
+      updatedAt = DateUtil.now(),
+      originDevice = deviceIdentity.originDevice,
+      deviceSeq = deviceIdentity.nextDeviceSeq(),
+    )
 
   /**
    * Launches a one ply, fire and forget warm of every distinct neighbour of [node]. Neighbours
@@ -337,6 +401,8 @@ private fun DataMove.toEdge(): Edge =
     createdAt = createdAt,
     updatedAt = updatedAt,
     isDeleted = isDeleted,
+    originDevice = originDevice,
+    deviceSeq = deviceSeq,
   )
 
 private fun Edge.toDataMove(): DataMove =
@@ -348,6 +414,8 @@ private fun Edge.toDataMove(): DataMove =
     isDeleted = isDeleted,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    originDevice = originDevice,
+    deviceSeq = deviceSeq,
   )
 
 /**
@@ -374,23 +442,5 @@ private fun DataNode.toNode(): Node {
     cardState = cardState,
   )
 }
-
-private fun Node.toDataNode(): DataNode =
-  DataNode(
-    positionKey = positionKey,
-    previousAndNextMoves =
-      PreviousAndNextMoves(
-        previousMoves =
-          incoming.values.filter { it.isGood != null && !it.isDeleted }.map { it.toDataMove() },
-        nextMoves =
-          outgoing.values.filter { it.isGood != null && !it.isDeleted }.map { it.toDataMove() },
-      ),
-    cardState = cardState,
-    depth = depth,
-    hasGoodOutgoing = outgoing.values.any { it.isGood == true && !it.isDeleted },
-    createdAt =
-      incoming.values.filter { !it.isDeleted }.minOfOrNull { it.createdAt } ?: DateUtil.now(),
-    updatedAt = DateUtil.now(),
-  )
 
 private val LOGGER = Logger.withTag("TreeStore")

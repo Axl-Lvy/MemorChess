@@ -12,7 +12,8 @@ import kotlin.time.Instant
 interface NodeEntityDao {
 
   /**
-   * Inserts a new node with its moves into the database.
+   * Inserts a new node with its moves into the database, queuing each node's own outbox entry in
+   * the same transaction as the row write it names.
    *
    * If the node already exists, it will be replaced. Same for the moves.
    *
@@ -23,8 +24,24 @@ interface NodeEntityDao {
     nodes.forEach {
       insertNode(it.node)
       insertMoves(it.nextMoves + it.previousMoves)
+      upsertOutboxEntry(
+        OutboxEntryEntity.KIND_NODE,
+        it.node.positionKey,
+        deviceSeq = it.node.deviceSeq,
+      )
     }
   }
+
+  /**
+   * Queues an outbox entry, keeping the higher of the stored and new `deviceSeq` on a repeat mark.
+   * Duplicates [OutboxDao.upsert]'s query so it can share a `@Transaction` with the row write it
+   * names, since Room cannot span one `@Transaction` default method across two `@Dao` interfaces.
+   */
+  @Query(
+    "INSERT INTO OutboxEntryEntity (kind, key1, key2, deviceSeq) VALUES (:kind, :key1, :key2, :deviceSeq) " +
+      "ON CONFLICT(kind, key1, key2) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)"
+  )
+  suspend fun upsertOutboxEntry(kind: String, key1: String, key2: String = "", deviceSeq: Long)
 
   /**
    * Inserts a new node into the database.
@@ -46,41 +63,89 @@ interface NodeEntityDao {
   suspend fun insertMoves(items: Collection<MoveEntity>)
 
   /**
-   * Soft deletes a move by flipping its `isDeleted` flag.
+   * Soft deletes a move by flipping its `isDeleted` flag and stamping the sync fields.
    *
    * @param origin The move's origin.
    * @param move The move's notation.
    */
   @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
+    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
   )
-  suspend fun softDeleteMove(origin: String, move: String)
+  suspend fun softDeleteMove(
+    origin: String,
+    move: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  )
+
+  /** Live destination of [origin]/[move], or `null` when missing or already deleted. */
+  @Query(
+    "SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin AND move = :move LIMIT 1"
+  )
+  suspend fun liveMoveDestination(origin: String, move: String): String?
+
+  /**
+   * Soft deletes [origin]/[move] and queues its edge for push, atomically: the destination is read
+   * before the row is flipped so the outbox entry names the edge that was actually tombstoned, in
+   * the same transaction as the flip. A no-op, including no outbox write, when the move is missing
+   * or already deleted.
+   */
+  @Transaction
+  suspend fun softDeleteMoveAndMarkDirty(
+    origin: String,
+    move: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  ) {
+    val destination = liveMoveDestination(origin, move) ?: return
+    softDeleteMove(origin, move, updatedAt, originDevice, deviceSeq)
+    upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, destination, deviceSeq)
+  }
 
   /** Hard deletes a move row. */
   @Query("DELETE FROM MoveEntity WHERE origin = :origin AND move = :move")
   suspend fun hardDeleteMove(origin: String, move: String)
 
   /**
-   * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag.
+   * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag and stamping the
+   * sync fields.
    *
    * @param origin The FEN string of the origin position.
    */
-  @Query("UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND origin = :origin")
-  suspend fun softDeleteMoveFrom(origin: String)
+  @Query(
+    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND origin = :origin"
+  )
+  suspend fun softDeleteMoveFrom(
+    origin: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  )
 
   /** Hard deletes every move row leaving [origin]. */
   @Query("DELETE FROM MoveEntity WHERE origin = :origin")
   suspend fun hardDeleteMoveFrom(origin: String)
 
   /**
-   * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag.
+   * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag and
+   * stamping the sync fields.
    *
    * @param destination The FEN string of the destination position.
    */
   @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND destination = :destination"
+    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND destination = :destination"
   )
-  suspend fun softDeleteMoveTo(destination: String)
+  suspend fun softDeleteMoveTo(
+    destination: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  )
 
   /** Hard deletes every move row arriving at [destination]. */
   @Query("DELETE FROM MoveEntity WHERE destination = :destination")
@@ -90,12 +155,56 @@ interface NodeEntityDao {
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen AND isDeleted IS FALSE")
   suspend fun getNode(fen: String): NodeWithMoves?
 
-  /** Soft deletes a node row by flipping its `isDeleted` flag. */
-  @Query("UPDATE NodeEntity SET isDeleted = TRUE WHERE isDeleted IS FALSE AND positionKey = :fen")
-  suspend fun softDeleteNode(fen: String)
+  /**
+   * Soft deletes a node row by flipping its `isDeleted` flag and stamping the sync fields.
+   *
+   * @return The number of rows flipped: `1` when the node was live, `0` when it was missing or
+   *   already deleted.
+   */
+  @Query(
+    "UPDATE NodeEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+      "WHERE isDeleted IS FALSE AND positionKey = :fen"
+  )
+  suspend fun softDeleteNode(
+    fen: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  ): Int
 
   /** Hard deletes a node row. */
   @Query("DELETE FROM NodeEntity WHERE positionKey = :fen") suspend fun hardDeleteNode(fen: String)
+
+  /** Live origins of every non deleted move arriving at [destination]. */
+  @Query("SELECT origin FROM MoveEntity WHERE isDeleted = 0 AND destination = :destination")
+  suspend fun liveMoveOrigins(destination: String): List<String>
+
+  /**
+   * Soft deletes [fen]'s node and every incident move, queuing the node (when it was live) and each
+   * tombstoned edge for push, all in the same transaction as the row changes: the incident live
+   * edges are read before the flips so the outbox entries name exactly the edges tombstoned by this
+   * call.
+   */
+  @Transaction
+  suspend fun softDeletePositionAndMarkDirty(
+    fen: String,
+    updatedAt: Instant,
+    originDevice: String,
+    deviceSeq: Long,
+  ) {
+    val outgoing = childrenOf(fen)
+    val incoming = liveMoveOrigins(fen)
+    val nodeChanged = softDeleteNode(fen, updatedAt, originDevice, deviceSeq) > 0
+    softDeleteMoveFrom(fen, updatedAt, originDevice, deviceSeq)
+    softDeleteMoveTo(fen, updatedAt, originDevice, deviceSeq)
+    if (nodeChanged) upsertOutboxEntry(OutboxEntryEntity.KIND_NODE, fen, deviceSeq = deviceSeq)
+    for (destination in outgoing) {
+      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, fen, destination, deviceSeq)
+    }
+    for (origin in incoming) {
+      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, fen, deviceSeq)
+    }
+  }
 
   /** Hard wipes every node row. */
   @Query("DELETE FROM NodeEntity") suspend fun eraseAllNodes()

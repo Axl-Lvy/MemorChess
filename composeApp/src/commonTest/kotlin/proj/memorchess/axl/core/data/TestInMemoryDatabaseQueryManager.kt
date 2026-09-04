@@ -588,4 +588,142 @@ class TestInMemoryDatabaseQueryManager {
     // Zero (and negative) cap counts nothing.
     assertEquals(0, database.countDescendants(root, cap = 0))
   }
+
+  @Test
+  fun softDeletingAPositionBumpsUpdatedAt() = runTest {
+    val database = seededLine()
+    // The fixture's own moves default to DateUtil.now() at construction time, so the stamp has to
+    // be strictly later than "now" to be provably the new maximum rather than coincidentally past
+    // it.
+    val stamp = proj.memorchess.axl.core.date.DateUtil.now() + kotlin.time.Duration.parse("P365D")
+    database.deletePosition(key1, DeleteMode.SOFT, "device-a", 5L, stamp)
+    assertEquals(stamp, database.getLastUpdate())
+  }
+
+  @Test
+  fun softDeletingAMoveStampsOriginDeviceAndDeviceSeqOnTheSurvivingEndpoint() = runTest {
+    val database = seededLine()
+    val stamp = Instant.fromEpochSeconds(999_999)
+    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 5L, stamp)
+    val tombstone = database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5")
+    assertTrue(tombstone.isDeleted)
+    assertEquals("device-a", tombstone.originDevice)
+    assertEquals(5L, tombstone.deviceSeq)
+    assertEquals(stamp, tombstone.updatedAt)
+  }
+
+  @Test
+  fun markDirtyThenGetOutboxReturnsTheKey() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val key = DirtyKey.NodeKey(key1)
+    database.markDirty(key, 1L)
+    assertEquals(listOf(OutboxEntry(key, 1L)), database.getOutbox())
+  }
+
+  @Test
+  fun markingTheSameKeyDirtyTwiceCollapsesToOneOutboxEntry() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val key = DirtyKey.NodeKey(key1)
+    database.markDirty(key, 1L)
+    database.markDirty(key, 2L)
+    assertEquals(listOf(OutboxEntry(key, 2L)), database.getOutbox())
+  }
+
+  @Test
+  fun markingTheSameKeyWithALowerSequenceDoesNotRegressTheStoredOne() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val key = DirtyKey.NodeKey(key1)
+    database.markDirty(key, 5L)
+    database.markDirty(key, 1L)
+    assertEquals(listOf(OutboxEntry(key, 5L)), database.getOutbox())
+  }
+
+  @Test
+  fun clearDirtyRemovesExactlyTheClearedKeys() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val kept = DirtyKey.NodeKey(key1)
+    val cleared = DirtyKey.NodeKey(key2)
+    database.markDirty(kept, 1L)
+    database.markDirty(cleared, 1L)
+    database.clearDirty(listOf(OutboxEntry(cleared, 1L)))
+    assertEquals(listOf(OutboxEntry(kept, 1L)), database.getOutbox())
+  }
+
+  @Test
+  fun clearDirtySurvivesAMarkThatLandsAfterTheEntryWasRead() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val key = DirtyKey.NodeKey(key1)
+    database.markDirty(key, 1L)
+    val read = database.getOutbox()
+    // A fresh write bumps the key to seq 2 in the gap between reading the outbox and clearing it.
+    database.markDirty(key, 2L)
+    database.clearDirty(read)
+    // The clear named seq 1, but the stored entry has since moved to seq 2: it must survive.
+    assertEquals(listOf(OutboxEntry(key, 2L)), database.getOutbox())
+  }
+
+  @Test
+  fun getOutboxOrdersEntriesByAscendingDeviceSeq() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val first = DirtyKey.NodeKey(key0)
+    val second = DirtyKey.NodeKey(key1)
+    database.markDirty(second, 9L)
+    database.markDirty(first, 3L)
+    assertEquals(listOf(OutboxEntry(first, 3L), OutboxEntry(second, 9L)), database.getOutbox())
+  }
+
+  @Test
+  fun outboxAcceptsAllThreeKeyKinds() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val node = DirtyKey.NodeKey(key0)
+    val edge = DirtyKey.EdgeKey(key0, key1)
+    val setting = DirtyKey.SettingKey("appTheme")
+    database.markDirty(node, 1L)
+    database.markDirty(edge, 1L)
+    database.markDirty(setting, 1L)
+    assertEquals(setOf(node, edge, setting), database.getOutbox().map { it.key }.toSet())
+  }
+
+  // --- Soft delete cascades to incident moves, and insertNodes never clobbers a tombstone --------
+
+  @Test
+  fun softDeletingAPositionCascadesTheTombstoneToIncidentMovesOnBothEnds() = runTest {
+    val database = seededLine()
+    val stamp = Instant.fromEpochSeconds(1_234)
+    database.deletePosition(key1, DeleteMode.SOFT, "device-a", 5L, stamp)
+    // key1's own outgoing e5 and the surviving neighbours' copies of both incident edges are
+    // tombstoned, exactly like Room's softDeleteNode + softDeleteMoveFrom + softDeleteMoveTo.
+    assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted)
+    assertTrue(
+      database.getPosition(key2)!!.previousAndNextMoves.previousMoves.getValue("e5").isDeleted
+    )
+  }
+
+  @Test
+  fun deletingMoveThroughTreeStorePersistDoesNotClobberTheTombstoneWrittenByDeleteMove() = runTest {
+    // Regression coverage for the insertNodes clobber bug: a delete call writes a tombstone, then a
+    // node persist derived from a cache that no longer has the edge must not erase it.
+    val database = seededLine()
+    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+    // Simulate TreeStore.deleteMove's follow up persistNode(from): the cache no longer has the
+    // removed edge, so the re-inserted node's nextMoves is empty.
+    database.insertNodes(node(key1, previous = listOf(moveE4), next = listOf()))
+    val tombstone = database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5")
+    assertTrue(tombstone.isDeleted)
+  }
+
+  @Test
+  fun reAddingASoftDeletedMoveRevivesItAsLive() = runTest {
+    val database = seededLine()
+    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+
+    database.insertNodes(
+      node(key1, previous = listOf(moveE4), next = listOf(moveE5)),
+      node(key2, previous = listOf(moveE5), next = listOf()),
+    )
+
+    assertTrue(
+      !database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted
+    )
+  }
 }

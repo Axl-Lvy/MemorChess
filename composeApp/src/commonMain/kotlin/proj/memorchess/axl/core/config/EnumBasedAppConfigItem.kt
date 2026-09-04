@@ -6,7 +6,11 @@ import androidx.compose.runtime.setValue
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import com.russhwolf.settings.set
+import kotlinx.coroutines.CoroutineScope
 import org.koin.core.component.inject
+import org.koin.core.qualifier.named
+import proj.memorchess.axl.SETTINGS_SYNC_SCOPE
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.util.CanDisplayName
 
 /**
@@ -23,6 +27,9 @@ class EnumBasedAppConfigItem<T>(
 ) : ConfigItem<T> where T : Enum<T>, T : CanDisplayName {
 
   private val settings: Settings by inject()
+  private val syncMetadata: SettingSyncMetadataStore by inject()
+  private val syncScope: CoroutineScope by inject(named(SETTINGS_SYNC_SCOPE))
+  private val database: DatabaseQueryManager by inject()
 
   private var localValue by
     mutableStateOf(
@@ -47,10 +54,16 @@ class EnumBasedAppConfigItem<T>(
   override fun setValue(value: T) {
     this.localValue = value
     settings[name] = value.name
+    stampAndMarkDirty(name, isDeleted = false, syncMetadata, database, syncScope)
   }
 
+  /**
+   * Resets the value to the default value and stamps a tombstone. See
+   * [ValueBasedAppConfigItem.reset].
+   */
   override fun reset() {
     settings.remove(name)
     localValue = defaultValue
+    stampAndMarkDirty(name, isDeleted = true, syncMetadata, database, syncScope)
   }
 }

@@ -36,6 +36,12 @@ data class DataMove(
 
   /** Date at which this move was updated */
   val updatedAt: Instant = DateUtil.now(),
+
+  /** Device that wrote this version. Stamped by [proj.memorchess.axl.core.graph.TreeStore]. */
+  val originDevice: String = "",
+
+  /** That device's write counter at the time. */
+  val deviceSeq: Long = 0L,
 ) {
 
   override fun equals(other: Any?) =

@@ -46,6 +46,8 @@ private external interface JsNodeEntity : JsAny {
   var createdAt: Double // epoch seconds (Double avoids Long to BigInt)
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds (Double avoids Long to BigInt)
+  var originDevice: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as createdAt/updatedAt
 }
 
 /** JS object stored in the "moves" object store. */
@@ -57,6 +59,16 @@ private external interface JsMoveEntity : JsAny {
   var isDeleted: Boolean
   var createdAt: Double // epoch seconds (Double avoids Long→BigInt)
   var updatedAt: Double // epoch seconds (Double avoids Long→BigInt)
+  var originDevice: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as createdAt/updatedAt
+}
+
+/** JS object stored in the "outbox" object store. */
+private external interface JsOutboxEntry : JsAny {
+  var kind: String
+  var key1: String
+  var key2: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +105,8 @@ private fun JsMoveEntity.toDataMove(): DataMove =
     isDeleted = isDeleted,
     createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
+    originDevice = originDevice,
+    deviceSeq = deviceSeq.toLong(),
   )
 
 private fun JsNodeEntity.toDataNode(
@@ -125,6 +139,8 @@ private fun JsNodeEntity.toDataNode(
     isDeleted = isDeleted,
     hasGoodOutgoing = hasGoodOutgoing == 1,
     createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
+    originDevice = originDevice,
+    deviceSeq = deviceSeq.toLong(),
   )
 }
 
@@ -194,6 +210,8 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
     createdAt = node.createdAt.epochSeconds.toDouble()
     isDeleted = node.isDeleted
     updatedAt = node.updatedAt.epochSeconds.toDouble()
+    originDevice = node.originDevice
+    deviceSeq = node.deviceSeq.toDouble()
   }
 }
 
@@ -211,7 +229,48 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
     isDeleted = dataMove.isDeleted
     createdAt = dataMove.createdAt.epochSeconds.toDouble()
     updatedAt = dataMove.updatedAt.epochSeconds.toDouble()
+    originDevice = dataMove.originDevice
+    deviceSeq = dataMove.deviceSeq.toDouble()
   }
+}
+
+// ---------------------------------------------------------------------------
+// Conversion: DirtyKey <-> JS outbox entry
+// ---------------------------------------------------------------------------
+
+private fun DirtyKey.outboxKeyParts(): Triple<String, String, String> =
+  when (this) {
+    is DirtyKey.NodeKey -> Triple(OutboxKind.NODE, positionKey.value, "")
+    is DirtyKey.EdgeKey -> Triple(OutboxKind.EDGE, origin.value, destination.value)
+    is DirtyKey.SettingKey -> Triple(OutboxKind.SETTING, key, "")
+  }
+
+private fun DirtyKey.toJsOutboxEntry(deviceSeq: Long): JsOutboxEntry {
+  val (kind, key1, key2) = outboxKeyParts()
+  return emptyObject<JsOutboxEntry>().apply {
+    this.kind = kind
+    this.key1 = key1
+    this.key2 = key2
+    this.deviceSeq = deviceSeq.toDouble()
+  }
+}
+
+private fun JsOutboxEntry.toDirtyKey(): DirtyKey =
+  when (kind) {
+    OutboxKind.NODE -> DirtyKey.NodeKey(PositionKey(key1))
+    OutboxKind.EDGE -> DirtyKey.EdgeKey(PositionKey(key1), PositionKey(key2))
+    OutboxKind.SETTING -> DirtyKey.SettingKey(key1)
+    else -> error("Unknown outbox entry kind: $kind")
+  }
+
+private fun JsOutboxEntry.toOutboxEntry(): OutboxEntry =
+  OutboxEntry(toDirtyKey(), deviceSeq.toLong())
+
+/** String discriminators for [JsOutboxEntry.kind], mirroring the Room backend's own constants. */
+private object OutboxKind {
+  const val NODE = "NODE"
+  const val EDGE = "EDGE"
+  const val SETTING = "SETTING"
 }
 
 // ---------------------------------------------------------------------------
@@ -221,8 +280,9 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
 internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
+internal const val OUTBOX_STORE = "outbox"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 7
+internal const val DB_VERSION = 9
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -239,9 +299,28 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private suspend fun db(): Database = getIndexedDb()
 
+  /**
+   * Queues [key] for push at [deviceSeq], keeping the higher of the stored and new sequence on a
+   * repeat mark. Callable from inside another store's write transaction so a row change and its
+   * outbox entry commit together.
+   */
+  private suspend fun com.juul.indexeddb.WriteTransaction.upsertOutboxEntry(
+    key: DirtyKey,
+    deviceSeq: Long,
+  ) {
+    val (kind, key1, key2) = key.outboxKeyParts()
+    val store = objectStore(OUTBOX_STORE)
+    val existing =
+      store
+        .get(Key(kind.toJsString(), key1.toJsString(), key2.toJsString()))
+        ?.unsafeCast<JsOutboxEntry>()
+    val newSeq = maxOf(existing?.deviceSeq?.toLong() ?: Long.MIN_VALUE, deviceSeq)
+    store.put(key.toJsOutboxEntry(newSeq))
+  }
+
   override suspend fun insertNodes(vararg positions: DataNode) {
     val database = db()
-    database.writeTransaction(NODES_STORE, MOVES_STORE) {
+    database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
       val nodesStore = objectStore(NODES_STORE)
       val movesStore = objectStore(MOVES_STORE)
       for (dataNode in positions) {
@@ -252,6 +331,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         for (move in allMoves) {
           movesStore.put(move.toJsMoveEntity())
         }
+        // Queues the node's own outbox entry in the same transaction as the row write it names.
+        upsertOutboxEntry(DirtyKey.NodeKey(dataNode.positionKey), dataNode.deviceSeq)
       }
     }
   }
@@ -315,43 +396,91 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun deletePosition(position: PositionKey, mode: DeleteMode) {
+  override suspend fun deletePosition(
+    position: PositionKey,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
     val database = db()
-    database.writeTransaction(NODES_STORE, MOVES_STORE) {
-      val nodesStore = objectStore(NODES_STORE)
-      val movesStore = objectStore(MOVES_STORE)
+    database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
       val originMoves: List<JsMoveEntity> =
-        movesStore.index("origin").getAll(Key(position.value.toJsString())).toList()
+        objectStore(MOVES_STORE).index("origin").getAll(Key(position.value.toJsString())).toList()
       val destMoves: List<JsMoveEntity> =
-        movesStore.index("destination").getAll(Key(position.value.toJsString())).toList()
-
+        objectStore(MOVES_STORE)
+          .index("destination")
+          .getAll(Key(position.value.toJsString()))
+          .toList()
+      val incidentMoves = originMoves + destMoves
       when (mode) {
-        DeleteMode.HARD -> {
-          for (move in originMoves + destMoves) {
-            movesStore.delete(Key(move.origin.toJsString(), move.destination.toJsString()))
-          }
-          nodesStore.delete(Key(position.value.toJsString()))
-        }
-        DeleteMode.SOFT -> {
-          val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
-          if (jsNode != null && !jsNode.isDeleted) {
-            jsNode.isDeleted = true
-            nodesStore.put(jsNode)
-          }
-          for (move in originMoves + destMoves) {
-            if (!move.isDeleted) {
-              move.isDeleted = true
-              movesStore.put(move)
-            }
-          }
-        }
+        DeleteMode.HARD -> hardDeletePosition(position, incidentMoves)
+        DeleteMode.SOFT ->
+          softDeletePosition(position, incidentMoves, originDevice, deviceSeq, updatedAt)
       }
     }
   }
 
-  override suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode) {
+  /** Physically removes [position]'s row and every move incident to it. */
+  private suspend fun com.juul.indexeddb.WriteTransaction.hardDeletePosition(
+    position: PositionKey,
+    incidentMoves: List<JsMoveEntity>,
+  ) {
+    val movesStore = objectStore(MOVES_STORE)
+    for (move in incidentMoves) {
+      movesStore.delete(Key(move.origin.toJsString(), move.destination.toJsString()))
+    }
+    objectStore(NODES_STORE).delete(Key(position.value.toJsString()))
+  }
+
+  /**
+   * Flips [position]'s row and each of [incidentMoves] to deleted, queuing an outbox entry for each
+   * row change in the same transaction as the write it names.
+   */
+  private suspend fun com.juul.indexeddb.WriteTransaction.softDeletePosition(
+    position: PositionKey,
+    incidentMoves: List<JsMoveEntity>,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
+    val nodesStore = objectStore(NODES_STORE)
+    val movesStore = objectStore(MOVES_STORE)
+    val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
+    if (jsNode != null && !jsNode.isDeleted) {
+      jsNode.isDeleted = true
+      jsNode.updatedAt = updatedAt.epochSeconds.toDouble()
+      jsNode.originDevice = originDevice
+      jsNode.deviceSeq = deviceSeq.toDouble()
+      nodesStore.put(jsNode)
+      // Queues the node's own outbox entry in the same transaction as the row flip.
+      upsertOutboxEntry(DirtyKey.NodeKey(position), deviceSeq)
+    }
+    for (move in incidentMoves) {
+      if (move.isDeleted) continue
+      move.isDeleted = true
+      move.updatedAt = updatedAt.epochSeconds.toDouble()
+      move.originDevice = originDevice
+      move.deviceSeq = deviceSeq.toDouble()
+      movesStore.put(move)
+      // Queues exactly the edges this call tombstoned, in the same transaction.
+      upsertOutboxEntry(
+        DirtyKey.EdgeKey(PositionKey(move.origin), PositionKey(move.destination)),
+        deviceSeq,
+      )
+    }
+  }
+
+  override suspend fun deleteMove(
+    origin: PositionKey,
+    move: String,
+    mode: DeleteMode,
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ) {
     val database = db()
-    database.writeTransaction(MOVES_STORE) {
+    database.writeTransaction(MOVES_STORE, OUTBOX_STORE) {
       val movesStore = objectStore(MOVES_STORE)
       val moves: List<JsMoveEntity> =
         movesStore.index("origin").getAll(Key(origin.value.toJsString())).toList()
@@ -363,7 +492,12 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
           DeleteMode.SOFT ->
             if (!m.isDeleted) {
               m.isDeleted = true
+              m.updatedAt = updatedAt.epochSeconds.toDouble()
+              m.originDevice = originDevice
+              m.deviceSeq = deviceSeq.toDouble()
               movesStore.put(m)
+              // Queues the edge's own outbox entry in the same transaction as the row flip.
+              upsertOutboxEntry(DirtyKey.EdgeKey(origin, PositionKey(m.destination)), deviceSeq)
             }
         }
       }
@@ -372,9 +506,10 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun eraseAll() {
     val database = db()
-    database.writeTransaction(NODES_STORE, MOVES_STORE) {
+    database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
       objectStore(MOVES_STORE).clear()
       objectStore(NODES_STORE).clear()
+      objectStore(OUTBOX_STORE).clear()
     }
   }
 
@@ -628,6 +763,36 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         }
 
       maxEpochSeconds?.let { Instant.fromEpochSeconds(it.toLong()).truncateToSeconds() }
+    }
+  }
+
+  override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) {
+    val database = db()
+    database.writeTransaction(OUTBOX_STORE) { upsertOutboxEntry(key, deviceSeq) }
+  }
+
+  override suspend fun getOutbox(): List<OutboxEntry> {
+    val database = db()
+    return database.transaction(OUTBOX_STORE) {
+      objectStore(OUTBOX_STORE)
+        .openCursor(autoContinue = true, direction = Cursor.Direction.Next)
+        .map { (it.value as JsOutboxEntry).toOutboxEntry() }
+        .toList()
+        .sortedBy { it.deviceSeq }
+    }
+  }
+
+  override suspend fun clearDirty(entries: Collection<OutboxEntry>) {
+    val database = db()
+    database.writeTransaction(OUTBOX_STORE) {
+      val store = objectStore(OUTBOX_STORE)
+      for (entry in entries) {
+        val (kind, key1, key2) = entry.key.outboxKeyParts()
+        val key = Key(kind.toJsString(), key1.toJsString(), key2.toJsString())
+        val existing = store.get(key)?.unsafeCast<JsOutboxEntry>()
+        // Only remove the entry when no fresher mark has landed since it was read for push.
+        if (existing != null && existing.deviceSeq.toLong() <= entry.deviceSeq) store.delete(key)
+      }
     }
   }
 }

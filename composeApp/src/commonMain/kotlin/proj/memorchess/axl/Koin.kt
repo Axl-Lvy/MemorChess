@@ -21,6 +21,7 @@ import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
 import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
+import proj.memorchess.axl.core.config.SettingSyncMetadataStore
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
@@ -38,6 +39,7 @@ import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
+import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
@@ -50,6 +52,16 @@ import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 const val PREFETCH_SCOPE: String = "prefetch"
 
 /**
+ * Koin qualifier for the process lived background scope on which a [ConfigItem] write queues its
+ * outbox entry. [ConfigItem.setValue] and [ConfigItem.reset] are synchronous and stamp
+ * [proj.memorchess.axl.core.config.SettingSyncMetadataStore] inline, but
+ * [proj.memorchess.axl.core.data.DatabaseQueryManager.markDirty] is suspend, so only that call is
+ * fired and forgotten on this scope rather than blocking the caller; a [SupervisorJob] on
+ * [Dispatchers.Default] so one failed enqueue never cancels another.
+ */
+const val SETTINGS_SYNC_SCOPE: String = "settingsSync"
+
+/**
  * Initializes koin modules.
  *
  * @return An array of all koin modules.
@@ -59,6 +71,11 @@ fun initKoinModules(): Array<Module> {
   val dataModule = module {
     single<DatabaseQueryManager> { getPlatformSpecificLocalDatabase() }
     single<Settings> { getPlatformSpecificSettings() }
+    single { DeviceIdentity.persisted(get()) }
+    single<CoroutineScope>(named(SETTINGS_SYNC_SCOPE)) {
+      CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+    single { SettingSyncMetadataStore(get(), get()) }
   }
 
   // One process-wide generator seeded from the wall clock at app start. A shared advancing RNG (not
@@ -80,7 +97,7 @@ fun initKoinModules(): Array<Module> {
     single<CoroutineScope>(named(PREFETCH_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
-    single { TreeStore(get(), get(named(PREFETCH_SCOPE))) }
+    single { TreeStore(get(), get(named(PREFETCH_SCOPE)), get()) }
     single {
       TrainingScheduler(
         database = get(),

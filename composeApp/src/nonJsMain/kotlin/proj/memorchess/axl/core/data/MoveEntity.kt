@@ -39,6 +39,12 @@ data class MoveEntity(
 
   /** The date time of the last update. */
   val updatedAt: Instant = DateUtil.now(),
+
+  /** Device that wrote this version. See [proj.memorchess.axl.core.sync.DeviceIdentity]. */
+  val originDevice: String = "",
+
+  /** That device's write counter at the time. */
+  val deviceSeq: Long = 0L,
 ) {
 
   /** Converts to an [DataMove]. */
@@ -51,6 +57,8 @@ data class MoveEntity(
       isDeleted,
       createdAt,
       updatedAt,
+      originDevice,
+      deviceSeq,
     )
   }
 
@@ -69,6 +77,8 @@ data class MoveEntity(
         dataMove.isDeleted,
         dataMove.createdAt,
         dataMove.updatedAt,
+        dataMove.originDevice,
+        dataMove.deviceSeq,
       )
     }
   }

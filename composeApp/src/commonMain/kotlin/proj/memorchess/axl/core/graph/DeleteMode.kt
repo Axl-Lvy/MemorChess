@@ -3,13 +3,16 @@ package proj.memorchess.axl.core.graph
 /**
  * How a delete operation removes data from the store.
  *
- * The app is local only, so [HARD] is the default. [SOFT] exists for a future synchronisation layer
- * that needs to retain tombstones; no caller in the current code base uses it yet.
+ * [SOFT] is the default: a synchronisation layer may exist, so a delete has to leave a tombstone
+ * rather than erase history another device has not seen yet. [HARD] survives for local only cleanup
+ * (tests, and callers that want a position gone without a tombstone) where there is nothing to
+ * reconcile; [proj.memorchess.axl.core.data.DatabaseQueryManager.eraseAll] is a separate method
+ * that wipes every row unconditionally rather than routing through this enum.
  */
 enum class DeleteMode {
   /** Physically removes the row from the underlying store. */
   HARD,
 
-  /** Marks the row as deleted and bumps its `updatedAt` timestamp without removing it. */
+  /** Marks the row as deleted and bumps its `updatedAt`, `originDevice` and `deviceSeq`. */
   SOFT,
 }

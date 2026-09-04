@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 
@@ -8,8 +9,11 @@ import proj.memorchess.axl.core.graph.TrainingEntry
  * Low level persistence seam for the opening tree.
  *
  * Only [proj.memorchess.axl.core.graph.TreeStore] and the platform specific implementations are
- * expected to touch this interface. The rest of the application talks to
- * [proj.memorchess.axl.core.graph.TreeStore].
+ * expected to touch the node and move surface of this interface; the rest of the application talks
+ * to [proj.memorchess.axl.core.graph.TreeStore]. The outbox surface ([markDirty], [getOutbox],
+ * [clearDirty]) is the exception: [proj.memorchess.axl.core.config.ConfigItem] implementations call
+ * [markDirty] directly to queue a setting's [DirtyKey.SettingKey], since a setting has no row of
+ * its own for [proj.memorchess.axl.core.graph.TreeStore] to write through.
  */
 interface DatabaseQueryManager {
 
@@ -42,8 +46,17 @@ interface DatabaseQueryManager {
    *
    * @param position Position to remove.
    * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
+   * @param originDevice Device stamped on the tombstone when [mode] is [DeleteMode.SOFT].
+   * @param deviceSeq That device's write counter, stamped alongside [originDevice].
+   * @param updatedAt Moment the tombstone was written.
    */
-  suspend fun deletePosition(position: PositionKey, mode: DeleteMode = DeleteMode.HARD)
+  suspend fun deletePosition(
+    position: PositionKey,
+    mode: DeleteMode = DeleteMode.SOFT,
+    originDevice: String = "",
+    deviceSeq: Long = 0L,
+    updatedAt: Instant = DateUtil.now(),
+  )
 
   /**
    * Deletes a single move.
@@ -51,8 +64,18 @@ interface DatabaseQueryManager {
    * @param origin Origin of the move.
    * @param move Move in standard algebraic notation.
    * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
+   * @param originDevice Device stamped on the tombstone when [mode] is [DeleteMode.SOFT].
+   * @param deviceSeq That device's write counter, stamped alongside [originDevice].
+   * @param updatedAt Moment the tombstone was written.
    */
-  suspend fun deleteMove(origin: PositionKey, move: String, mode: DeleteMode = DeleteMode.HARD)
+  suspend fun deleteMove(
+    origin: PositionKey,
+    move: String,
+    mode: DeleteMode = DeleteMode.SOFT,
+    originDevice: String = "",
+    deviceSeq: Long = 0L,
+    updatedAt: Instant = DateUtil.now(),
+  )
 
   /** Hard wipe of every node and move. */
   suspend fun eraseAll()
@@ -164,6 +187,25 @@ interface DatabaseQueryManager {
    *   positions.
    */
   suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int
+
+  /**
+   * Queues [key] for the next sync push at [deviceSeq], or refreshes it if already queued.
+   * Collapsing repeat edits into one entry is why the outbox stores keys rather than rows. A repeat
+   * mark keeps the higher of the stored and new [deviceSeq], so a mark that arrives late never
+   * regresses one already queued.
+   */
+  suspend fun markDirty(key: DirtyKey, deviceSeq: Long)
+
+  /** Every entry currently queued for push, ordered ascending by [OutboxEntry.deviceSeq]. */
+  suspend fun getOutbox(): List<OutboxEntry>
+
+  /**
+   * Removes each of [entries] once it has been pushed, but only when the entry's queued
+   * [OutboxEntry.deviceSeq] has not moved past the one that was actually pushed: a [markDirty]
+   * landing between the read that produced [entries] and this call survives instead of being
+   * silently dropped.
+   */
+  suspend fun clearDirty(entries: Collection<OutboxEntry>)
 }
 
 /**
