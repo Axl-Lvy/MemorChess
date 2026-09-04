@@ -21,8 +21,8 @@ import proj.memorchess.axl.core.scheduling.CardState
  *   moment the position was first added, taken from the earliest non deleted incoming edge. Used as
  *   the new card ordering tiebreak after [depth] and excluded from equality like [updatedAt].
  * @property originDevice Device that wrote this version. Stamped by
- *   [proj.memorchess.axl.core.graph.TreeStore] from its [proj.memorchess.axl.core.sync.DeviceIdentity].
- *   Excluded from equality like [updatedAt].
+ *   [proj.memorchess.axl.core.graph.TreeStore] from its
+ *   [proj.memorchess.axl.core.sync.DeviceIdentity]. Excluded from equality like [updatedAt].
  * @property deviceSeq That device's write counter at the time. See
  *   [proj.memorchess.axl.core.sync.DeviceIdentity.nextDeviceSeq]. Excluded from equality like
  *   [updatedAt].

@@ -36,7 +36,9 @@ class TestRoomOutboxAndSoftDelete {
   @Test
   fun softDeletingANodeStampsUpdatedAt() = runTest {
     val key = PositionKey("k1")
-    manager.insertNodes(DataNode(key, PreviousAndNextMoves(emptyList(), emptyList()), CardStateFactory.new()))
+    manager.insertNodes(
+      DataNode(key, PreviousAndNextMoves(emptyList(), emptyList()), CardStateFactory.new())
+    )
 
     manager.deletePosition(
       key,

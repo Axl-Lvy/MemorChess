@@ -41,8 +41,8 @@ import proj.memorchess.axl.core.sync.DeviceIdentity
  *   [kotlinx.coroutines.SupervisorJob] scope on [kotlinx.coroutines.Dispatchers.Default] in
  *   production (a failed prefetch never cancels siblings and never blocks the UI). Tests pass a
  *   deterministic test scope.
- * @param deviceIdentity Stamped onto every persisted node and edge, and used to order this
- *   device's own writes against its earlier ones. See [DeviceIdentity].
+ * @param deviceIdentity Stamped onto every persisted node and edge, and used to order this device's
+ *   own writes against its earlier ones. See [DeviceIdentity].
  */
 class TreeStore(
   private val database: DatabaseQueryManager,

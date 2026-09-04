@@ -186,8 +186,8 @@ interface DatabaseQueryManager {
   suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int
 
   /**
-   * Queues [key] for the next sync push, or refreshes it if already queued. Collapsing repeat
-   * edits into one entry is why the outbox stores keys rather than rows.
+   * Queues [key] for the next sync push, or refreshes it if already queued. Collapsing repeat edits
+   * into one entry is why the outbox stores keys rather than rows.
    */
   suspend fun markDirty(key: DirtyKey)
 

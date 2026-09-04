@@ -16,4 +16,8 @@ import proj.memorchess.axl.core.sync.DeviceIdentity
  * scope to the [TreeStore] constructor instead.
  */
 fun testTreeStore(database: DatabaseQueryManager): TreeStore =
-  TreeStore(database, CoroutineScope(SupervisorJob() + Dispatchers.Default), DeviceIdentity.ephemeral())
+  TreeStore(
+    database,
+    CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    DeviceIdentity.ephemeral(),
+  )

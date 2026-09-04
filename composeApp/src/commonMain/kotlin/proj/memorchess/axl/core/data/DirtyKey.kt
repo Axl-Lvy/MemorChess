@@ -10,7 +10,9 @@ sealed interface DirtyKey {
   /** A dirty position, keyed the same way the node row itself is. */
   data class NodeKey(val positionKey: PositionKey) : DirtyKey
 
-  /** A dirty move, keyed by its endpoints exactly like [DataMove.origin] and [DataMove.destination]. */
+  /**
+   * A dirty move, keyed by its endpoints exactly like [DataMove.origin] and [DataMove.destination].
+   */
   data class EdgeKey(val origin: PositionKey, val destination: PositionKey) : DirtyKey
 
   /** A dirty setting, keyed by its [proj.memorchess.axl.core.config.ConfigItem.name]. */

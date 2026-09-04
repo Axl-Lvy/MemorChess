@@ -5,7 +5,9 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
-/** The four sync fields for one setting key, mirroring [proj.memorchess.axl.core.data.DataNode]'s. */
+/**
+ * The four sync fields for one setting key, mirroring [proj.memorchess.axl.core.data.DataNode]'s.
+ */
 data class SettingSyncMetadata(
   val isDeleted: Boolean,
   val updatedAt: Instant,

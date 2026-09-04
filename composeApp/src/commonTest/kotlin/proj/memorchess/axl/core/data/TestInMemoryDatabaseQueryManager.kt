@@ -662,6 +662,8 @@ class TestInMemoryDatabaseQueryManager {
       node(key2, previous = listOf(moveE5), next = listOf()),
     )
 
-    assertTrue(!database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted)
+    assertTrue(
+      !database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted
+    )
   }
 }

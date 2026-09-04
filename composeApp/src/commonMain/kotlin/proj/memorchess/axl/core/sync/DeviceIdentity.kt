@@ -19,25 +19,27 @@ class DeviceIdentity private constructor(private val settings: Settings?) {
   /** Opaque id of this install. Never displayed, never an identity. */
   val originDevice: String =
     settings?.let { s ->
-      s.getStringOrNull(KEY_ORIGIN_DEVICE) ?: generateId().also { s.putString(KEY_ORIGIN_DEVICE, it) }
+      s.getStringOrNull(KEY_ORIGIN_DEVICE)
+        ?: generateId().also { s.putString(KEY_ORIGIN_DEVICE, it) }
     } ?: generateId()
 
   private val mutex = Mutex()
   private var seq: Long = settings?.getLong(KEY_DEVICE_SEQ, 0L) ?: 0L
 
   /** Allocates the next strictly increasing sequence number for a write made by this device. */
-  suspend fun nextDeviceSeq(): Long =
-    mutex.withLock {
-      seq += 1
-      settings?.putLong(KEY_DEVICE_SEQ, seq)
-      seq
-    }
+  suspend fun nextDeviceSeq(): Long = mutex.withLock {
+    seq += 1
+    settings?.putLong(KEY_DEVICE_SEQ, seq)
+    seq
+  }
 
   companion object {
     private const val KEY_ORIGIN_DEVICE = "sync.originDevice"
     private const val KEY_DEVICE_SEQ = "sync.deviceSeq"
 
-    /** Backed by [settings], surviving process restarts. Use for the real, process wide identity. */
+    /**
+     * Backed by [settings], surviving process restarts. Use for the real, process wide identity.
+     */
     fun persisted(settings: Settings): DeviceIdentity = DeviceIdentity(settings)
 
     /**
