@@ -12,11 +12,17 @@ import kotlinx.serialization.json.Json
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.LICHESS_REDIRECT_URI
 import proj.memorchess.axl.core.auth.LichessOAuthClient
 import proj.memorchess.axl.core.auth.LichessSignInController
 import proj.memorchess.axl.core.auth.OAuthLauncher
 import proj.memorchess.axl.core.auth.OAuthTokenStore
+import proj.memorchess.axl.core.auth.OidcClient
+import proj.memorchess.axl.core.auth.OidcSignInController
+import proj.memorchess.axl.core.auth.OidcTokenStore
+import proj.memorchess.axl.core.auth.SYNC_CLIENT_ID
+import proj.memorchess.axl.core.auth.SYNC_REDIRECT_URI
 import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
 import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
@@ -40,6 +46,10 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 import proj.memorchess.axl.core.sync.DeviceIdentity
+import proj.memorchess.axl.core.sync.SyncApiClient
+import proj.memorchess.axl.core.sync.SyncCursorStore
+import proj.memorchess.axl.core.sync.SyncEngine
+import proj.memorchess.axl.core.sync.SyncJobStore
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
@@ -60,6 +70,12 @@ const val PREFETCH_SCOPE: String = "prefetch"
  * [Dispatchers.Default] so one failed enqueue never cancels another.
  */
 const val SETTINGS_SYNC_SCOPE: String = "settingsSync"
+
+/**
+ * Koin qualifier for the process lived background scope [SyncEngine]'s driving loop runs on. A
+ * [SupervisorJob] on [Dispatchers.Default] so one failed cycle never cancels the loop itself.
+ */
+const val SYNC_ENGINE_SCOPE: String = "syncEngine"
 
 /**
  * Initializes koin modules.
@@ -97,7 +113,18 @@ fun initKoinModules(): Array<Module> {
     single<CoroutineScope>(named(PREFETCH_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
-    single { TreeStore(get(), get(named(PREFETCH_SCOPE)), get()) }
+    single {
+      // get<SyncEngine>() is resolved lazily, inside this lambda, only when a write actually
+      // happens — never during TreeStore's own construction — which is what breaks what would
+      // otherwise be a TreeStore <-> SyncEngine construction cycle (SyncEngine depends on
+      // TreeStore normally, to apply a pull).
+      TreeStore(
+        get(),
+        get(named(PREFETCH_SCOPE)),
+        get(),
+        notifyDirty = { get<SyncEngine>().notifyDirty() },
+      )
+    }
     single {
       TrainingScheduler(
         database = get(),
@@ -124,6 +151,37 @@ fun initKoinModules(): Array<Module> {
         oauthClient = get(),
         tokenStore = get(),
         redirectUri = LICHESS_REDIRECT_URI,
+      )
+    }
+    single { OidcTokenStore(get()) }
+    single { OidcClient(get()) }
+    single<AuthProvider> {
+      OidcSignInController(
+        launcher = get(),
+        oidcClient = get(),
+        tokenStore = get(),
+        redirectUri = SYNC_REDIRECT_URI,
+        clientId = SYNC_CLIENT_ID,
+      )
+    }
+  }
+
+  val syncModule = module {
+    single { SyncJobStore(get()) }
+    single { SyncCursorStore(get()) }
+    single { SyncApiClient(get()) }
+    single<CoroutineScope>(named(SYNC_ENGINE_SCOPE)) {
+      CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
+    single<SyncEngine> {
+      SyncEngine(
+        authProvider = get(),
+        database = get(),
+        treeStore = get(),
+        apiClient = get(),
+        jobStore = get(),
+        cursorStore = get(),
+        scope = get(named(SYNC_ENGINE_SCOPE)),
       )
     }
   }
@@ -154,6 +212,7 @@ fun initKoinModules(): Array<Module> {
     graphModule,
     studyModule,
     authModule,
+    syncModule,
     explorerModule,
     repertoireModule,
     otherModule,

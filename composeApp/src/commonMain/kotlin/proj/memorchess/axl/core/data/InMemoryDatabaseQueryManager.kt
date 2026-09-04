@@ -34,6 +34,50 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
 
+  override suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode? =
+    nodes[positionKey]
+
+  /** Mirrors [insertNodes]' move-merge trick for one node, minus the outbox mark. */
+  override suspend fun applyRemoteNode(node: DataNode) {
+    val existing = nodes[node.positionKey]
+    nodes[node.positionKey] =
+      if (existing == null) node
+      else
+        node.copy(
+          previousAndNextMoves =
+            PreviousAndNextMoves(
+              previousMoves =
+                existing.previousAndNextMoves.previousMoves +
+                  node.previousAndNextMoves.previousMoves,
+              nextMoves =
+                existing.previousAndNextMoves.nextMoves + node.previousAndNextMoves.nextMoves,
+            )
+        )
+  }
+
+  /**
+   * Writes [move] into both endpoints' denormalized move maps, mirroring how this backend already
+   * denormalizes every other move write. A no-op when either endpoint does not exist yet.
+   */
+  override suspend fun applyRemoteMove(move: DataMove) {
+    val origin = nodes[move.origin] ?: return
+    val destination = nodes[move.destination] ?: return
+    nodes[move.origin] =
+      origin.copy(
+        previousAndNextMoves =
+          origin.previousAndNextMoves.copy(
+            nextMoves = origin.previousAndNextMoves.nextMoves + (move.move to move)
+          )
+      )
+    nodes[move.destination] =
+      destination.copy(
+        previousAndNextMoves =
+          destination.previousAndNextMoves.copy(
+            previousMoves = destination.previousAndNextMoves.previousMoves + (move.move to move)
+          )
+      )
+  }
+
   override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
     require(limit > 0) { "Page limit must be strictly positive, was $limit" }
     // Sorting and slicing the backing map is acceptable here precisely because this is the

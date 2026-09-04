@@ -67,7 +67,7 @@ sonar {
       // :server's entrypoint: it wires a real Postgres/S3/Netty stack and is never invoked
       // directly by a test, which always calls syncModule/repertoireModule/staticFrontendModule
       // instead. Still analyzed for code quality, exempt from coverage only.
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/Main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt,**/macrobenchmark/**,**/microbenchmark/**",
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/Main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt,**/core/auth/SyncClientId.*.kt,**/macrobenchmark/**,**/microbenchmark/**",
     )
 
     // PL/SQL specific configuration for SQL files

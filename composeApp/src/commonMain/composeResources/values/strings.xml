@@ -102,6 +102,28 @@
   <string name="auth_token_rejected">Lichess rejected the token immediately after issuing it</string>
   <string name="auth_sign_in_failed">Sign in failed: %1$s</string>
 
+  <!-- Sync sign-in errors (carried from core as StringResource) -->
+  <string name="sync_missing_code">The identity provider did not return an authorization code</string>
+  <string name="sync_state_mismatch">OAuth state mismatch (possible CSRF)</string>
+  <string name="sync_browser_unavailable">Could not open the browser</string>
+  <string name="sync_oauth_failed">OAuth flow failed</string>
+  <string name="sync_sign_in_failed">Sign in failed: %1$s</string>
+
+  <!-- Sync account section (Settings) -->
+  <string name="sync_not_signed_in">Not signed in</string>
+  <string name="sync_connected">Sync enabled</string>
+  <string name="sync_sign_in_prompt">Sign in to sync your repertoires across devices.</string>
+  <string name="sync_disconnect">SIGN OUT</string>
+  <string name="sync_sign_in">SIGN IN</string>
+  <string name="sync_signing_in">SIGNING IN…</string>
+  <string name="sync_sign_in_cancelled">Sign in cancelled</string>
+
+  <!-- Sync status line -->
+  <string name="sync_status_idle">Up to date</string>
+  <string name="sync_status_syncing">Syncing…</string>
+  <string name="sync_status_backing_off">Sync paused, retrying…</string>
+  <string name="sync_status_paused_no_auth">Sync paused, sign in again</string>
+
   <!-- Training -->
   <string name="training_success">SUCCESS</string>
   <string name="training_fail">FAIL</string>

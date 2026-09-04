@@ -356,6 +356,37 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
+  override suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode? {
+    val database = db()
+    return database.transaction(NODES_STORE, MOVES_STORE) {
+      val jsNode =
+        objectStore(NODES_STORE)
+          .get(Key(positionKey.value.toJsString()))
+          ?.unsafeCast<JsNodeEntity>() ?: return@transaction null
+      val movesStore = objectStore(MOVES_STORE)
+      val nextMoves: List<JsMoveEntity> =
+        movesStore.index("origin").getAll(Key(positionKey.value.toJsString())).toList()
+      val previousMoves: List<JsMoveEntity> =
+        movesStore.index("destination").getAll(Key(positionKey.value.toJsString())).toList()
+      jsNode.toDataNode(previousMoves.map { it.toDataMove() }, nextMoves.map { it.toDataMove() })
+    }
+  }
+
+  /**
+   * Writes [node]'s row directly, without touching [MOVES_STORE] or queuing an outbox entry, the
+   * remote-apply counterpart of [insertNodes].
+   */
+  override suspend fun applyRemoteNode(node: DataNode) {
+    val database = db()
+    database.writeTransaction(NODES_STORE) { objectStore(NODES_STORE).put(node.toJsNodeEntity()) }
+  }
+
+  /** Writes [move]'s row directly, without queuing an outbox entry. */
+  override suspend fun applyRemoteMove(move: DataMove) {
+    val database = db()
+    database.writeTransaction(MOVES_STORE) { objectStore(MOVES_STORE).put(move.toJsMoveEntity()) }
+  }
+
   override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
     require(limit > 0) { "Page limit must be strictly positive, was $limit" }
     val database = db()
