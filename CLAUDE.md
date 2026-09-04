@@ -18,6 +18,8 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 # Run tests
 ./gradlew jvmTest                              # JVM/desktop tests
 ./gradlew :androidApp:connectedCheck           # Android instrumented tests
+./gradlew :server:test                         # server tests (needs Docker for Testcontainers)
+./gradlew :server:installDist                  # build the server distribution
 
 # Run a single test class (desktop)
 ./gradlew jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"
@@ -35,10 +37,11 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 
 ## Architecture
 
-Five Gradle modules:
+Six Gradle modules:
 
-- **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with the future `:server` module: the chess engine core (`core/engine/`, minus `evaluation/`), `PositionKey`, and PGN parsing (`PgnParser`, `PgnGame`, `PgnParseException`). Packages match their original `composeApp` locations, so a package split across the two modules is normal here and intended. `composeApp` depends on it with `api`, so the moved types stay visible to `androidApp` and `microbenchmark` transitively.
+- **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with `:server`: the chess engine core (`core/engine/`, minus `evaluation/`), `PositionKey`, PGN parsing (`PgnParser`, `PgnGame`, `PgnParseException`), and the sync wire types (`core/sync/`: `SyncRow`, `ConflictResolver`, `SyncEnvelopes`, `ApiError`). Packages match their original `composeApp` locations, so a package split across the two modules is normal here and intended. `composeApp` depends on it with `api`, so the moved types stay visible to `androidApp` and `microbenchmark` transitively.
 - **`composeApp`** — the Kotlin Multiplatform library holding all shared code (`core/` logic, `ui/` Compose UI). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
+- **`server`** — JVM only Ktor server. `db/` (Postgres schema, id resolution), `sync/` (`SyncStore`: last write wins with tombstones), `auth/` (JWKS backed JWT verification), `routes/` (`/v1/sync`, `/v1/me`), `SyncApplication.kt` (module assembly: plugins, error mapping, probes), `Main.kt` (the only `public` declaration). Configured entirely from the environment (`ServerConfig`), no vendor named in code.
 - **`androidApp`** — the thin Android application shell: `MainActivity`, launcher manifest and resources, and the instrumented tests (`src/androidTest`). Adds a `benchmark` build type (release performance, debug signing, profileable) measured by `:macrobenchmark`.
 - **`macrobenchmark`** — UI performance benchmarks run against `androidApp`'s `benchmark` build on a device or emulator. See `macrobenchmark/README.md`.
 - **`microbenchmark`** — JVM only JMH benchmarks over `composeApp`'s pure Kotlin core. Catches algorithmic regressions only; JVM numbers are not ART numbers. See `microbenchmark/README.md`.
@@ -64,6 +67,7 @@ The toolchain is deliberately held below AGP 9.1, and the Gradle wrapper below 9
 - **Kotlin style**: prefer `val` over `var`, avoid `!!` and `lateinit`, use sealed classes for state, leverage coroutines for async.
 - **KDoc**: always add KDoc on all public declarations and every non-trivial `@Composable` function.
 - **Secrets**: there is no secrets-generation flow. Runtime credentials (e.g. `LICHESS_API_TOKEN`) are read from the process environment via `System.getenv`; CI injects them from GitHub Actions secrets.
+- **Server configuration**: `:server` reads `SYNC_DB_URL`, `SYNC_DB_USER`, `SYNC_DB_PASSWORD`, `SYNC_JWT_ISSUER`, `SYNC_JWT_AUDIENCE`, `SYNC_JWKS_URL` and optionally `SYNC_PORT` from the environment and validates them before binding, so a missing variable fails the boot rather than the first request. The JWKS URL is explicit rather than derived from the issuer, because vendors disagree on where they publish it.
 - **PR titles**: must follow Conventional Commits (`feat(module): ...`, `fix: ...`).
 - **PR descriptions**: You MUST always use `@.github/pull_request_template.md` as the base for every PR body. Start the body with the template content (the `## Options` checkboxes, unchecked by default) and add the description below it.
 - **No force pushes**: never force push (`git push --force` / `--force-with-lease`) to any branch, and never run history-rewriting commands (`git rebase`, `git commit --amend`, `git reset --hard` on pushed commits) that would require a force push to upload. Add commits on top instead. If a force push seems genuinely necessary, stop and ask the user first.

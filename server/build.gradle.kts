@@ -2,8 +2,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
   alias(libs.plugins.kotlinJvm)
+  alias(libs.plugins.kotlinX.serialization.plugin)
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.kover)
+  application
 }
 
 kotlin {
@@ -19,17 +21,37 @@ java {
   targetCompatibility = JavaVersion.VERSION_21
 }
 
+application {
+  // The Docker image in the deployment step invokes this through installDist's start script.
+  mainClass.set("proj.memorchess.axl.server.MainKt")
+}
+
 dependencies {
   implementation(projects.shared)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.postgresql)
   implementation(libs.hikari)
   implementation(libs.slf4j.api)
+  implementation(libs.ktor.server.core)
+  implementation(libs.ktor.server.netty)
+  implementation(libs.ktor.server.content.negotiation)
+  implementation(libs.ktor.server.status.pages)
+  implementation(libs.ktor.server.auth)
+  implementation(libs.ktor.server.auth.jwt)
+  implementation(libs.ktor.serialization.kotlinx.json)
+  // :shared declares kotlinx.serialization as implementation, so it is not on this module's
+  // compile classpath transitively, and SYNC_JSON is a Json in this module's signatures.
+  implementation(libs.kotlinx.serialization.json)
+  runtimeOnly(libs.slf4j.simple)
 
   testImplementation(libs.kotlin.test)
   testImplementation(libs.kotest.assertions)
   testImplementation(libs.testcontainers.postgresql)
   testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.ktor.server.test.host)
+  // The test HTTP client needs its own ContentNegotiation to decode responses; the server side
+  // declaration above does not put it on the client's classpath.
+  testImplementation(libs.ktor.client.content.negotiation)
   // Testcontainers logs its Docker discovery through slf4j; without a provider the reason a
   // container fails to start is swallowed.
   testRuntimeOnly(libs.slf4j.simple)
