@@ -276,8 +276,7 @@ class TestSyncRoutes {
   }
 
   @Test
-  fun `leaves other callers untouched when one account is deleted`() = withServer { client, token
-    ->
+  fun `leaves other callers untouched when one account is deleted`() = withServer { client, token ->
     val survivor = key.token(subject = PostgresTestDb.newUserId())
     client.push(token, setting("mine", "1"))
     client.push(survivor, setting("theirs", "2"))

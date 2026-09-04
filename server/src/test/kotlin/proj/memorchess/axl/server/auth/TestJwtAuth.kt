@@ -88,7 +88,8 @@ class TestJwtAuth {
 
   @Test
   fun `refuses a token signed by an unpublished key`() = withAuth { client ->
-    val response = client.get("/whoami") { header(HttpHeaders.Authorization, "Bearer ${impostor.token()}") }
+    val response =
+      client.get("/whoami") { header(HttpHeaders.Authorization, "Bearer ${impostor.token()}") }
 
     response.status shouldBe HttpStatusCode.Unauthorized
   }
@@ -136,7 +137,9 @@ class TestJwtAuth {
   @Test
   fun `refuses a token with no subject`() = withAuth { client ->
     val response =
-      client.get("/whoami") { header(HttpHeaders.Authorization, "Bearer ${key.token(subject = "")}") }
+      client.get("/whoami") {
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = "")}")
+      }
 
     response.status shouldBe HttpStatusCode.Unauthorized
   }

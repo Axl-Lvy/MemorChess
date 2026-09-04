@@ -61,9 +61,8 @@ class TestSyncApplication {
   }
 
   @Test
-  fun `reports liveness without touching the database`() = app(readiness = { false }) { client ->
-    client.get("/health").status shouldBe HttpStatusCode.OK
-  }
+  fun `reports liveness without touching the database`() =
+    app(readiness = { false }) { client -> client.get("/health").status shouldBe HttpStatusCode.OK }
 
   @Test
   fun `reports readiness when the probe succeeds`() = app { client ->
@@ -71,9 +70,10 @@ class TestSyncApplication {
   }
 
   @Test
-  fun `reports unreadiness when the probe fails`() = app(readiness = { false }) { client ->
-    client.get("/ready").status shouldBe HttpStatusCode.ServiceUnavailable
-  }
+  fun `reports unreadiness when the probe fails`() =
+    app(readiness = { false }) { client ->
+      client.get("/ready").status shouldBe HttpStatusCode.ServiceUnavailable
+    }
 
   @Test
   fun `maps an unexpected failure to 500 and leaks nothing`() = app { client ->

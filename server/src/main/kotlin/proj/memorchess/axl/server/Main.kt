@@ -9,7 +9,9 @@ import proj.memorchess.axl.server.auth.jwksProvider
 import proj.memorchess.axl.server.db.applySchema
 import proj.memorchess.axl.server.sync.SyncStore
 
-/** Connection pool size. One per request in flight; Postgres is the scarce resource, not the JVM. */
+/**
+ * Connection pool size. One per request in flight; Postgres is the scarce resource, not the JVM.
+ */
 private const val POOL_SIZE = 10
 
 /**
@@ -45,8 +47,7 @@ private fun ServerConfig.pool(): DataSource =
   )
 
 /** Whether a connection can be taken from the pool and used. */
-private fun DataSource.isReachable(): Boolean =
-  runCatching {
-      connection.use { connection -> connection.createStatement().use { it.execute("SELECT 1") } }
-    }
-    .isSuccess
+private fun DataSource.isReachable(): Boolean = runCatching {
+  connection.use { connection -> connection.createStatement().use { it.execute("SELECT 1") } }
+}
+  .isSuccess

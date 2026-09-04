@@ -9,8 +9,7 @@ import kotlinx.serialization.Serializable
  *   [message].
  * @property message Human readable explanation, safe to log and to show.
  */
-@Serializable
-data class ApiError(val code: String, val message: String)
+@Serializable data class ApiError(val code: String, val message: String)
 
 /**
  * Causes a request can fail for.
