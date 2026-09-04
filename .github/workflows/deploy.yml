@@ -92,6 +92,12 @@ jobs:
             ghcr.io/axl-lvy/memorchess-server:latest
             ghcr.io/axl-lvy/memorchess-server:${{ steps.sha.outputs.sha }}
 
+      - name: Trigger the mini PC deploy webhook
+        run: |
+          curl -f --max-time 30 -X POST \
+            -H "Authorization: Bearer ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}" \
+            https://deploy.memorchess.axl-lvy.fr/hooks/deploy
+
   # Counterpart to build-and-push for a pull request: proves the image still builds, without
   # pushing anything and without needing registry credentials.
   docker-build-check:
