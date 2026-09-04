@@ -65,6 +65,9 @@ jobs:
               - '**/*.properties'
               - 'gradle/wrapper/**'
               - '.github/workflows/check.yml'
+              - 'Dockerfile'
+              - '.dockerignore'
+              - '.github/workflows/deploy.yml'
             platform:
               - 'androidApp/**'
               - 'composeApp/src/androidMain/**'

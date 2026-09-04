@@ -21,7 +21,7 @@ FROM eclipse-temurin:21-jre AS runtime
 RUN groupadd --gid 10001 chess \
   && useradd --uid 10001 --gid chess --no-create-home --shell /usr/sbin/nologin chess
 
-COPY --from=build --chown=chess:chess /workspace/server/build/install/server /app
+COPY --from=build --chown=root:root /workspace/server/build/install/server /app
 
 USER chess
 WORKDIR /app
