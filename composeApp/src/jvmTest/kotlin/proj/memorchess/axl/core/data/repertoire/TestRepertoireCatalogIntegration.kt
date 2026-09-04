@@ -12,6 +12,10 @@ import proj.memorchess.axl.core.pgn.PgnGame
  * Live integration test that downloads the real catalog from the `repertoire-data` branch on raw
  * GitHub.
  *
+ * The client's own default now points at `:server`, which has no public hostname yet (see
+ * `RepertoireCatalogClient.DEFAULT_BASE_URL`'s KDoc). This test therefore pins the URL explicitly
+ * to the old static file backend it actually exercises, rather than relying on the default.
+ *
  * Unlike the Lichess integration test this one needs no secret, so it always runs. It is the end to
  * end guarantee that the published manifest and every published PGN file stay compatible with the
  * Kotlin PGN parser. A failure here with a network related clue means the machine is offline or
@@ -22,7 +26,11 @@ class TestRepertoireCatalogIntegration {
   /** Downloads the real manifest and validates every listed PGN file with the PGN parser. */
   @Test
   fun fetchRealManifestAndParseEveryListedPgn() = runTest {
-    val client = RepertoireCatalogClient(httpClient = HttpClient())
+    val client =
+      RepertoireCatalogClient(
+        httpClient = HttpClient(),
+        baseUrl = "https://raw.githubusercontent.com/Axl-Lvy/MemorChess/repertoire-data",
+      )
 
     val manifestResult = client.fetchManifest()
 

@@ -30,4 +30,16 @@ object ApiErrorCode {
 
   /** The server failed for a reason the caller cannot act on. Details stay in the server log. */
   const val INTERNAL: String = "internal"
+
+  /** The caller is authenticated but is not the author of the resource. */
+  const val FORBIDDEN: String = "forbidden"
+
+  /** No resource exists at the given id, or it is not visible to this caller. */
+  const val NOT_FOUND: String = "not_found"
+
+  /** The uploaded PGN does not parse, has no playable move, or plays an illegal move. */
+  const val INVALID_PGN: String = "invalid_pgn"
+
+  /** The request would exceed a per user quota. */
+  const val QUOTA_EXCEEDED: String = "quota_exceeded"
 }

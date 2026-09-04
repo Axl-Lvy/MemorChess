@@ -13,13 +13,18 @@ import proj.memorchess.axl.core.pgn.PgnParseException
 import proj.memorchess.axl.core.pgn.PgnParser
 
 /**
- * HTTP client for the remote repertoire catalog served from the `repertoire-data` branch on raw
- * GitHub.
+ * HTTP client for the remote repertoire catalog.
  *
- * Responses are read as plain text because raw GitHub serves every file with a `text/plain` content
- * type, then decoded here: the manifest with kotlinx.serialization (unknown fields tolerated) and
- * PGN files with [PgnParser]. Every failure is mapped to a typed [CatalogResult] so callers never
- * have to inspect Ktor exceptions.
+ * Originally served as static files from the `repertoire-data` branch on raw GitHub. Now served by
+ * `:server` at the same relative paths (`manifest.json`, `pgn/<hash>.pgn`) under
+ * [DEFAULT_BASE_URL]. The migration this client went through was a base URL change and nothing
+ * else, because the two backends serve the identical `RepertoireManifest`/`RepertoireDescriptor`
+ * contract.
+ *
+ * Responses are read as plain text, which both backends serve every file as, then decoded here: the
+ * manifest with kotlinx.serialization (unknown fields tolerated) and PGN files with [PgnParser].
+ * Every failure is mapped to a typed [CatalogResult] so callers never have to inspect Ktor
+ * exceptions.
  *
  * @param httpClient The Ktor client used for requests.
  * @param baseUrl Root URL of the catalog, without a trailing slash. Injectable for tests.
@@ -111,8 +116,16 @@ class RepertoireCatalogClient(
   }
 
   private companion object {
-    const val DEFAULT_BASE_URL =
-      "https://raw.githubusercontent.com/Axl-Lvy/MemorChess/repertoire-data"
+    // Placeholder: `chess-server` has no public hostname yet. The Cloudflare tunnel and the
+    // deployment that would give it one are later steps in the cloud backend sequencing spec
+    // than the one that added this client migration, so there is nothing real to point at today.
+    // The ".invalid" suffix is RFC 2606 reserved and never resolves. A build that ships before the
+    // real hostname lands does not fail loudly: every request failure, this one included, maps to
+    // CatalogResult.NetworkError, which the library screen renders the same way it renders being
+    // offline, with nothing to tell the two apart. Replace with the real tunnel hostname once it
+    // exists. The relative paths below already match what `:server` serves at that root
+    // (`manifest.json`, `pgn/<sha256>.pgn`), so nothing else here changes.
+    const val DEFAULT_BASE_URL = "https://chess.invalid/v1/repertoires"
     const val MANIFEST_FILE = "manifest.json"
     const val SUPPORTED_SCHEMA_VERSION = 1
   }

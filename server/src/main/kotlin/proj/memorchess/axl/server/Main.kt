@@ -7,6 +7,9 @@ import io.ktor.server.netty.Netty
 import javax.sql.DataSource
 import proj.memorchess.axl.server.auth.jwksProvider
 import proj.memorchess.axl.server.db.applySchema
+import proj.memorchess.axl.server.repertoire.RepertoireStore
+import proj.memorchess.axl.server.repertoire.S3RepertoireBlobStore
+import proj.memorchess.axl.server.routes.repertoireModule
 import proj.memorchess.axl.server.sync.SyncStore
 
 /**
@@ -25,6 +28,15 @@ fun main() {
   val dataSource = config.pool()
   applySchema(dataSource)
 
+  val blobStore =
+    S3RepertoireBlobStore(
+      endpoint = config.r2Endpoint,
+      bucket = config.r2Bucket,
+      accessKeyId = config.r2AccessKeyId,
+      secretAccessKey = config.r2SecretAccessKey,
+    )
+  val repertoireStore = RepertoireStore(dataSource, blobStore)
+
   embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
       syncModule(
         config = config,
@@ -32,6 +44,7 @@ fun main() {
         store = SyncStore(dataSource),
         readiness = { dataSource.isReachable() },
       )
+      repertoireModule(store = repertoireStore, adminToken = config.adminToken)
     }
     .start(wait = true)
 }

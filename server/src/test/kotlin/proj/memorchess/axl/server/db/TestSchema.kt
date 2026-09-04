@@ -19,7 +19,14 @@ internal class TestSchema {
         }
     }
     tables shouldContainAll
-      listOf("position", "move_edge", "user_node", "user_edge", "user_setting")
+      listOf(
+        "position",
+        "move_edge",
+        "user_node",
+        "user_edge",
+        "user_setting",
+        "repertoire_version",
+      )
   }
 
   @Test
