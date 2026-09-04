@@ -78,146 +78,149 @@ private fun Route.repertoireRoutes(
   adminToken: String,
   clock: () -> Instant,
 ) {
-  get("/v1/repertoires/manifest.json") {
-    val repertoires = store.allPublished().map { it.toDescriptor() }
-    call.cacheControl(CATALOG_CACHE_CONTROL)
-    call.respond(
-      RepertoireManifest(schemaVersion = MANIFEST_SCHEMA_VERSION, repertoires = repertoires)
-    )
-  }
-
-  get("/v1/repertoires/pgn/{sha256}.pgn") {
-    val sha256 = call.parameters["sha256"] ?: throw BadRequestException("missing payload hash")
-    val bytes = store.readPayload(sha256)
-    if (bytes == null) {
-      call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such payload"))
-    } else {
-      call.cacheControl(BLOB_CACHE_CONTROL)
-      call.respondBytes(bytes, ContentType.Text.Plain)
-    }
-  }
-
-  get("/v1/repertoires") {
-    val page = store.listPublished(cursor(), limit())
-    call.cacheControl(CATALOG_CACHE_CONTROL)
-    call.respond(
-      RepertoireCatalogPage(
-        nextCursor = page.nextCursor,
-        repertoires = page.rows.map { it.toDescriptor() },
-      )
-    )
-  }
-
-  get("/v1/repertoires/{id}") {
-    val id = call.parameters["id"] ?: throw BadRequestException("missing id")
-    val row = store.get(id)
-    if (row == null) {
-      call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such repertoire"))
-    } else {
-      call.cacheControl(CATALOG_CACHE_CONTROL)
-      call.respond(row.toDescriptor())
-    }
-  }
+  get("/v1/repertoires/manifest.json") { getManifest(store) }
+  get("/v1/repertoires/pgn/{sha256}.pgn") { getPayload(store) }
+  get("/v1/repertoires") { getCatalogPage(store) }
+  get("/v1/repertoires/{id}") { getById(store) }
 
   authenticate(SYNC_AUTH) {
-    post("/v1/repertoires") {
-      val request = call.receive<PublishRepertoireRequest>()
-      if (request.side != "white" && request.side != "black") {
-        throw BadRequestException("side must be 'white' or 'black', was '${request.side}'")
-      }
-      val outcome =
-        store.publish(
-          authorId = call.callerId,
-          id = request.id,
-          title = request.title,
-          description = request.description,
-          side = request.side,
-          pgn = request.pgn,
-          now = clock(),
-        )
-      when (outcome) {
-        is PublishOutcome.Published ->
-          call.respond(HttpStatusCode.Created, outcome.row.toDescriptor())
-        is PublishOutcome.InvalidPayload ->
-          call.respond(
-            HttpStatusCode.BadRequest,
-            ApiError(ApiErrorCode.INVALID_PGN, outcome.reason),
-          )
-        is PublishOutcome.PayloadTooLarge ->
-          call.respond(
-            HttpStatusCode.PayloadTooLarge,
-            ApiError(ApiErrorCode.TOO_LARGE, outcome.reason),
-          )
-        PublishOutcome.Forbidden ->
-          call.respond(
-            HttpStatusCode.Forbidden,
-            ApiError(ApiErrorCode.FORBIDDEN, "this id belongs to a different author"),
-          )
-        PublishOutcome.Removed ->
-          call.respond(
-            HttpStatusCode.Forbidden,
-            ApiError(
-              ApiErrorCode.FORBIDDEN,
-              "this id was removed by a moderator and cannot be republished",
-            ),
-          )
-        is PublishOutcome.QuotaExceeded ->
-          call.respond(
-            HttpStatusCode.Forbidden,
-            ApiError(ApiErrorCode.QUOTA_EXCEEDED, outcome.reason),
-          )
-        is PublishOutcome.Failed ->
-          call.respond(
-            HttpStatusCode.InternalServerError,
-            ApiError(ApiErrorCode.INTERNAL, "the server failed to validate the payload"),
-          )
-      }
-    }
-
-    delete("/v1/repertoires/{id}") {
-      val id = call.parameters["id"] ?: throw BadRequestException("missing id")
-      when (store.remove(call.callerId, id)) {
-        RemoveOutcome.Removed -> call.respond(HttpStatusCode.NoContent)
-        RemoveOutcome.NotFound ->
-          call.respond(
-            HttpStatusCode.NotFound,
-            ApiError(ApiErrorCode.NOT_FOUND, "no such repertoire"),
-          )
-        RemoveOutcome.Forbidden ->
-          call.respond(
-            HttpStatusCode.Forbidden,
-            ApiError(ApiErrorCode.FORBIDDEN, "only the author may remove this repertoire"),
-          )
-      }
-    }
+    post("/v1/repertoires") { publish(store, clock) }
+    delete("/v1/repertoires/{id}") { removeRepertoire(store) }
   }
 
-  post("/admin/repertoires/{id}/status") {
-    if (!call.hasValidAdminToken(adminToken)) {
+  post("/admin/repertoires/{id}/status") { setStatus(store, adminToken) }
+}
+
+private suspend fun RoutingContext.getManifest(store: RepertoireStore) {
+  val repertoires = store.allPublished().map { it.toDescriptor() }
+  call.cacheControl(CATALOG_CACHE_CONTROL)
+  call.respond(
+    RepertoireManifest(schemaVersion = MANIFEST_SCHEMA_VERSION, repertoires = repertoires)
+  )
+}
+
+private suspend fun RoutingContext.getPayload(store: RepertoireStore) {
+  val sha256 = call.parameters["sha256"] ?: throw BadRequestException("missing payload hash")
+  val bytes = store.readPayload(sha256)
+  if (bytes == null) {
+    call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such payload"))
+  } else {
+    call.cacheControl(BLOB_CACHE_CONTROL)
+    call.respondBytes(bytes, ContentType.Text.Plain)
+  }
+}
+
+private suspend fun RoutingContext.getCatalogPage(store: RepertoireStore) {
+  val page = store.listPublished(cursor(), limit())
+  call.cacheControl(CATALOG_CACHE_CONTROL)
+  call.respond(
+    RepertoireCatalogPage(
+      nextCursor = page.nextCursor,
+      repertoires = page.rows.map { it.toDescriptor() },
+    )
+  )
+}
+
+private suspend fun RoutingContext.getById(store: RepertoireStore) {
+  val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
+  val row = store.get(id)
+  if (row == null) {
+    call.respondNoSuchRepertoire()
+  } else {
+    call.cacheControl(CATALOG_CACHE_CONTROL)
+    call.respond(row.toDescriptor())
+  }
+}
+
+private suspend fun RoutingContext.publish(store: RepertoireStore, clock: () -> Instant) {
+  val request = call.receive<PublishRepertoireRequest>()
+  if (request.side != "white" && request.side != "black") {
+    throw BadRequestException("side must be 'white' or 'black', was '${request.side}'")
+  }
+  val outcome =
+    store.publish(
+      authorId = call.callerId,
+      id = request.id,
+      title = request.title,
+      description = request.description,
+      side = request.side,
+      pgn = request.pgn,
+      now = clock(),
+    )
+  respondToPublishOutcome(outcome)
+}
+
+private suspend fun RoutingContext.respondToPublishOutcome(outcome: PublishOutcome) {
+  when (outcome) {
+    is PublishOutcome.Published -> call.respond(HttpStatusCode.Created, outcome.row.toDescriptor())
+    is PublishOutcome.InvalidPayload ->
+      call.respond(HttpStatusCode.BadRequest, ApiError(ApiErrorCode.INVALID_PGN, outcome.reason))
+    is PublishOutcome.PayloadTooLarge ->
+      call.respond(HttpStatusCode.PayloadTooLarge, ApiError(ApiErrorCode.TOO_LARGE, outcome.reason))
+    PublishOutcome.Forbidden ->
       call.respond(
-        HttpStatusCode.Unauthorized,
-        ApiError(ApiErrorCode.UNAUTHORIZED, "invalid admin token"),
+        HttpStatusCode.Forbidden,
+        ApiError(ApiErrorCode.FORBIDDEN, "this id belongs to a different author"),
       )
-      return@post
-    }
-    val id = call.parameters["id"] ?: throw BadRequestException("missing id")
-    val request = call.receive<RepertoireStatusRequest>()
-    if (request.status !in VALID_STATUSES) {
-      throw BadRequestException("status must be one of $VALID_STATUSES, was '${request.status}'")
-    }
-    when (val outcome = store.setStatus(id, request.status)) {
-      is SetStatusOutcome.Updated -> call.respond(outcome.row.toDescriptor())
-      SetStatusOutcome.NotFound ->
-        call.respond(
-          HttpStatusCode.NotFound,
-          ApiError(ApiErrorCode.NOT_FOUND, "no such repertoire"),
-        )
-    }
+    PublishOutcome.Removed ->
+      call.respond(
+        HttpStatusCode.Forbidden,
+        ApiError(
+          ApiErrorCode.FORBIDDEN,
+          "this id was removed by a moderator and cannot be republished",
+        ),
+      )
+    is PublishOutcome.QuotaExceeded ->
+      call.respond(HttpStatusCode.Forbidden, ApiError(ApiErrorCode.QUOTA_EXCEEDED, outcome.reason))
+    is PublishOutcome.Failed ->
+      call.respond(
+        HttpStatusCode.InternalServerError,
+        ApiError(ApiErrorCode.INTERNAL, "the server failed to validate the payload"),
+      )
   }
+}
+
+private suspend fun RoutingContext.removeRepertoire(store: RepertoireStore) {
+  val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
+  when (store.remove(call.callerId, id)) {
+    RemoveOutcome.Removed -> call.respond(HttpStatusCode.NoContent)
+    RemoveOutcome.NotFound -> call.respondNoSuchRepertoire()
+    RemoveOutcome.Forbidden ->
+      call.respond(
+        HttpStatusCode.Forbidden,
+        ApiError(ApiErrorCode.FORBIDDEN, "only the author may remove this repertoire"),
+      )
+  }
+}
+
+private suspend fun RoutingContext.setStatus(store: RepertoireStore, adminToken: String) {
+  if (!call.hasValidAdminToken(adminToken)) {
+    call.respond(
+      HttpStatusCode.Unauthorized,
+      ApiError(ApiErrorCode.UNAUTHORIZED, "invalid admin token"),
+    )
+    return
+  }
+  val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
+  val request = call.receive<RepertoireStatusRequest>()
+  if (request.status !in VALID_STATUSES) {
+    throw BadRequestException("status must be one of $VALID_STATUSES, was '${request.status}'")
+  }
+  when (val outcome = store.setStatus(id, request.status)) {
+    is SetStatusOutcome.Updated -> call.respond(outcome.row.toDescriptor())
+    SetStatusOutcome.NotFound -> call.respondNoSuchRepertoire()
+  }
+}
+
+private suspend fun ApplicationCall.respondNoSuchRepertoire() {
+  respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, NO_SUCH_REPERTOIRE_MESSAGE))
 }
 
 /** The status values a repertoire row may hold. See spec 6.6. */
 private val VALID_STATUSES = setOf("published", "unlisted", "removed")
+
+private const val MISSING_ID_MESSAGE = "missing id"
+private const val NO_SUCH_REPERTOIRE_MESSAGE = "no such repertoire"
 
 /**
  * Whether the caller sent the correct `X-Admin-Token`. Compared with [MessageDigest.isEqual], a

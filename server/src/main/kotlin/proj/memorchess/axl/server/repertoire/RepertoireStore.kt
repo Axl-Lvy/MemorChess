@@ -59,6 +59,17 @@ internal data class RepertoireRow(
   val publishedAt: Instant,
 )
 
+/**
+ * The caller-supplied fields of a publish call, grouped so [RepertoireStore] can pass them as one.
+ */
+private data class PublishInput(
+  val id: String,
+  val title: String,
+  val description: String,
+  val side: String,
+  val pgn: String,
+)
+
 /** Outcome of [RepertoireStore.publish]. */
 internal sealed class PublishOutcome {
   /** The version was stored. */
@@ -181,7 +192,12 @@ internal class RepertoireStore(
       is RepertoireValidation.TooLarge -> PublishOutcome.PayloadTooLarge(validation.reason)
       is RepertoireValidation.Failed -> PublishOutcome.Failed(validation.reason)
       is RepertoireValidation.Valid ->
-        doPublish(authorId, id, title, description, side, pgn, validation.moveCount, now)
+        doPublish(
+          authorId,
+          PublishInput(id, title, description, side, pgn),
+          validation.moveCount,
+          now,
+        )
     }
   }
 
@@ -190,19 +206,17 @@ internal class RepertoireStore(
    * version whose blob might still be missing because of a rejection below it. If [blobs].put fails
    * after the row commits, the row is deleted again so a repertoire never outlives its payload.
    *
-   * The transaction holds [acquireRepertoireLock] on [id] for its whole duration, so two concurrent
-   * publishes (or a double click) for the same id never compute the same next version number.
+   * The transaction holds [acquireRepertoireLock] on [input]'s id for its whole duration, so two
+   * concurrent publishes (or a double click) for the same id never compute the same next version
+   * number.
    */
   private suspend fun doPublish(
     authorId: String,
-    id: String,
-    title: String,
-    description: String,
-    side: String,
-    pgn: String,
+    input: PublishInput,
     moveCount: Int,
     now: Instant,
   ): PublishOutcome {
+    val (id, title, description, side, pgn) = input
     val payloadBytes = pgn.encodeToByteArray()
     val sha256 = payloadBytes.sha256Hex()
 
