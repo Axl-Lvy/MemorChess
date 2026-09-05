@@ -46,6 +46,7 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 import proj.memorchess.axl.core.sync.DeviceIdentity
+import proj.memorchess.axl.core.sync.SYNC_BASE_URL
 import proj.memorchess.axl.core.sync.SyncApiClient
 import proj.memorchess.axl.core.sync.SyncCursorStore
 import proj.memorchess.axl.core.sync.SyncEngine
@@ -169,7 +170,7 @@ fun initKoinModules(): Array<Module> {
   val syncModule = module {
     single { SyncJobStore(get()) }
     single { SyncCursorStore(get()) }
-    single { SyncApiClient(get()) }
+    single { SyncApiClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1") }
     single<CoroutineScope>(named(SYNC_ENGINE_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
@@ -199,7 +200,9 @@ fun initKoinModules(): Array<Module> {
   }
 
   val repertoireModule = module {
-    single { RepertoireCatalogClient(httpClient = get()) }
+    single {
+      RepertoireCatalogClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1/repertoires")
+    }
     single { CachedRepertoireCatalog(get()) }
     single { InstalledRepertoireStore() }
   }
