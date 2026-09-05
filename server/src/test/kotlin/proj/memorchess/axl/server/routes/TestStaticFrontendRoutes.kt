@@ -78,4 +78,18 @@ class TestStaticFrontendRoutes {
     response.status shouldBe HttpStatusCode.OK
     response.bodyAsText() shouldBe "ok"
   }
+
+  @Test
+  fun `staticFrontendModule installs no routes when staticDir is null`() = testApplication {
+    application { staticFrontendModule(null) }
+
+    client.get("/").status shouldBe HttpStatusCode.NotFound
+  }
+
+  @Test
+  fun `staticFrontendModule serves the frontend when staticDir is configured`() = testApplication {
+    application { staticFrontendModule(frontendDir()) }
+
+    client.get("/index.html").status shouldBe HttpStatusCode.OK
+  }
 }
