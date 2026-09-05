@@ -23,6 +23,7 @@
   <string name="settings_section_training">Training behavior</string>
   <string name="settings_section_engine">Engine &amp; analysis</string>
   <string name="settings_section_lichess">Lichess account</string>
+  <string name="settings_section_sync">Sync account</string>
   <string name="settings_section_io">Import / export</string>
   <string name="settings_section_danger">Danger zone</string>
 
@@ -38,6 +39,7 @@
   <string name="settings_nav_training">Training</string>
   <string name="settings_nav_engine">Engine</string>
   <string name="settings_nav_lichess">Lichess</string>
+  <string name="settings_nav_sync">Sync</string>
   <string name="settings_nav_io">Import / Export</string>
   <string name="settings_nav_danger">Danger zone</string>
 

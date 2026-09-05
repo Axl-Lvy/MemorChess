@@ -37,6 +37,7 @@ import memorchess.composeapp.generated.resources.settings_nav_display
 import memorchess.composeapp.generated.resources.settings_nav_engine
 import memorchess.composeapp.generated.resources.settings_nav_io
 import memorchess.composeapp.generated.resources.settings_nav_lichess
+import memorchess.composeapp.generated.resources.settings_nav_sync
 import memorchess.composeapp.generated.resources.settings_nav_training
 import memorchess.composeapp.generated.resources.settings_section_board
 import memorchess.composeapp.generated.resources.settings_section_danger
@@ -44,6 +45,7 @@ import memorchess.composeapp.generated.resources.settings_section_display
 import memorchess.composeapp.generated.resources.settings_section_engine
 import memorchess.composeapp.generated.resources.settings_section_io
 import memorchess.composeapp.generated.resources.settings_section_lichess
+import memorchess.composeapp.generated.resources.settings_section_sync
 import memorchess.composeapp.generated.resources.settings_section_training
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -52,6 +54,7 @@ import proj.memorchess.axl.ui.components.settings.SettingsNavGroup
 import proj.memorchess.axl.ui.components.settings.SettingsNavItem
 import proj.memorchess.axl.ui.components.settings.SettingsSection
 import proj.memorchess.axl.ui.components.settings.SettingsSidebar
+import proj.memorchess.axl.ui.components.settings.SyncAccountSection
 import proj.memorchess.axl.ui.components.settings.sections.BoardStyleSection
 import proj.memorchess.axl.ui.components.settings.sections.DangerZoneSection
 import proj.memorchess.axl.ui.components.settings.sections.DisplayAndThemeSection
@@ -83,6 +86,7 @@ private val PAGE_SECTIONS: List<SettingsPageSection> =
     SettingsPageSection(id = "training", title = Res.string.settings_section_training),
     SettingsPageSection(id = "engine", title = Res.string.settings_section_engine),
     SettingsPageSection(id = "lichess", title = Res.string.settings_section_lichess),
+    SettingsPageSection(id = "sync", title = Res.string.settings_section_sync),
     SettingsPageSection(id = "io", title = Res.string.settings_section_io),
     SettingsPageSection(id = "danger", title = Res.string.settings_section_danger, danger = true),
   )
@@ -109,15 +113,16 @@ private val NAV_GROUPS: List<SettingsNavGroup> =
       title = Res.string.settings_group_accounts,
       sections =
         listOf(
-          SettingsNavItem(id = "lichess", label = Res.string.settings_nav_lichess, number = "05")
+          SettingsNavItem(id = "lichess", label = Res.string.settings_nav_lichess, number = "05"),
+          SettingsNavItem(id = "sync", label = Res.string.settings_nav_sync, number = "06"),
         ),
     ),
     SettingsNavGroup(
       title = Res.string.settings_group_storage,
       sections =
         listOf(
-          SettingsNavItem(id = "io", label = Res.string.settings_nav_io, number = "06"),
-          SettingsNavItem(id = "danger", label = Res.string.settings_nav_danger, number = "07"),
+          SettingsNavItem(id = "io", label = Res.string.settings_nav_io, number = "07"),
+          SettingsNavItem(id = "danger", label = Res.string.settings_nav_danger, number = "08"),
         ),
     ),
   )
@@ -205,6 +210,7 @@ private fun SectionBody(id: String, reloadKey: Any, onReload: () -> Unit) {
     "training" -> TrainingBehaviorSection(reloadKey = reloadKey)
     "engine" -> EngineAndAnalysisSection(reloadKey = reloadKey)
     "lichess" -> LichessAccountSection()
+    "sync" -> SyncAccountSection()
     "io" -> ImportExportSection()
     "danger" -> DangerZoneSection(onReset = onReload)
     else -> Column {}

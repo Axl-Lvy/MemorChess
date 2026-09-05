@@ -23,6 +23,7 @@
   <string name="settings_section_training">Comportement d'entraînement</string>
   <string name="settings_section_engine">Moteur et analyse</string>
   <string name="settings_section_lichess">Compte Lichess</string>
+  <string name="settings_section_sync">Compte de synchronisation</string>
   <string name="settings_section_io">Import / export</string>
   <string name="settings_section_danger">Zone de danger</string>
 
@@ -38,6 +39,7 @@
   <string name="settings_nav_training">Entraînement</string>
   <string name="settings_nav_engine">Moteur</string>
   <string name="settings_nav_lichess">Lichess</string>
+  <string name="settings_nav_sync">Synchro</string>
   <string name="settings_nav_io">Import / Export</string>
   <string name="settings_nav_danger">Zone de danger</string>
 
