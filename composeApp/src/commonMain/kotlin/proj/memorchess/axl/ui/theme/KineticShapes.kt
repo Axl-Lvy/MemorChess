@@ -5,15 +5,15 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * Kinetic shape defaults. The design is deliberately square — Material 3 shape roles all collapse
- * to zero radius. Anything that needs rounding (toggle thumb, pills, dialog overlays) declares its
- * own [RoundedCornerShape] inline.
+ * Kinetic shape defaults. Cards, buttons, and sheets round to a chunky 20.dp. Pills, chips, and
+ * badges use a smaller, distinct scale (12.dp / 16.dp) so the two families read apart. Anything
+ * that needs a one-off radius still declares its own [RoundedCornerShape] inline.
  */
 val kineticShapes: Shapes =
   Shapes(
-    extraSmall = RoundedCornerShape(0.dp),
-    small = RoundedCornerShape(0.dp),
-    medium = RoundedCornerShape(0.dp),
-    large = RoundedCornerShape(0.dp),
-    extraLarge = RoundedCornerShape(0.dp),
+    extraSmall = RoundedCornerShape(12.dp),
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(20.dp),
   )
