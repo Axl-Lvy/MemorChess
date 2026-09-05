@@ -77,32 +77,36 @@ class TrainingScheduler(
    *
    * The entry is **not** removed from the schedule: a card leaves the session only when [grade]
    * graduates it to a day grained review interval.
+   *
+   * @param repertoireId When not `null`, every tier narrows to positions trainable within this
+   *   repertoire. The daily caps stay global regardless of scope. `null` reproduces today's
+   *   unscoped behavior exactly.
    */
-  suspend fun nextDue(day: LocalDate = DateUtil.today()): TrainingEntry? {
+  suspend fun nextDue(day: LocalDate = DateUtil.today(), repertoireId: String? = null): TrainingEntry? {
     val now = DateUtil.now()
     val (dayStart, dayEnd) = dayBounds(day)
-    val counts = database.getSchedulingCounts(dayStart, dayEnd)
+    val counts = database.getSchedulingCounts(dayStart, dayEnd) // caps stay global, see the class doc
     val newRemaining = (maxNewMovesPerDay() - counts.introducedToday).coerceAtLeast(0)
     val totalRemaining = (maxTotalMovesPerDay() - counts.trainedToday).coerceAtLeast(0)
 
     // Tier 1: in-session, due now — exempt from caps.
-    database.nextReadyLearningCard(now)?.let {
+    database.nextReadyLearningCard(now, repertoireId)?.let {
       return it
     }
     // Tier 2: due reviews — consume total budget.
     if (totalRemaining > 0) {
-      database.nextDueReviewCard(dayEnd)?.let {
+      database.nextDueReviewCard(dayEnd, repertoireId)?.let {
         return it
       }
     }
     // Tier 3: due new — consume new ∩ total budget.
     if (newRemaining > 0 && totalRemaining > 0) {
-      database.nextDueNewCard(dayEnd)?.let {
+      database.nextDueNewCard(dayEnd, repertoireId)?.let {
         return it
       }
     }
     // Tier 4: in-session, not yet due — exempt from caps.
-    return database.nextPendingLearningCard(now)
+    return database.nextPendingLearningCard(now, repertoireId)
   }
 
   /**
@@ -121,16 +125,31 @@ class TrainingScheduler(
    * is exhausted. In-session and review candidates only need the total budget to remain. The cost
    * stays bounded: one counts call plus the single [DatabaseQueryManager.findEligibleAmong] lookup,
    * never a graph walk.
+   *
+   * @param repertoireId When not `null`, [position]'s destinations are narrowed to edges tagged
+   *   with this repertoire before the eligibility lookup. `null` reproduces today's unscoped
+   *   behavior exactly.
    */
-  suspend fun nextAfter(position: PositionKey, day: LocalDate = DateUtil.today()): TrainingEntry? {
+  suspend fun nextAfter(
+    position: PositionKey,
+    day: LocalDate = DateUtil.today(),
+    repertoireId: String? = null,
+  ): TrainingEntry? {
     val node = treeStore.node(position) ?: return null
-    val destinations = node.outgoing.values.map { it.to }
+    val destinations =
+      if (repertoireId == null) {
+        node.outgoing.values.map { it.to }
+      } else {
+        node.outgoing.values
+          .filter { repertoireId in treeStore.tagsFor(it.from, it.to) }
+          .map { it.to }
+      }
     val (dayStart, dayEnd) = dayBounds(day)
     val counts = database.getSchedulingCounts(dayStart, dayEnd)
     val totalRemaining = (maxTotalMovesPerDay() - counts.trainedToday).coerceAtLeast(0)
     if (totalRemaining <= 0) return null
     val newRemaining = (maxNewMovesPerDay() - counts.introducedToday).coerceAtLeast(0)
-    val candidate = database.findEligibleAmong(destinations, dayEnd) ?: return null
+    val candidate = database.findEligibleAmong(destinations, dayEnd, repertoireId) ?: return null
     if (candidate.cardState.phase == CardPhase.NEW && newRemaining <= 0) return null
     return candidate
   }
@@ -140,16 +159,24 @@ class TrainingScheduler(
    * cards once the daily caps are applied. Computed from a single
    * [DatabaseQueryManager.getSchedulingCounts] call, so its cost is constant regardless of
    * repertoire size, and it reports what the trainer will actually serve.
+   *
+   * @param repertoireId When not `null`, the due reviews/new/in-session tallies narrow to this
+   *   repertoire through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null`
+   *   reproduces today's unscoped behavior exactly.
    */
-  suspend fun pendingCount(day: LocalDate = DateUtil.today()): Int {
+  suspend fun pendingCount(day: LocalDate = DateUtil.today(), repertoireId: String? = null): Int {
     val (dayStart, dayEnd) = dayBounds(day)
-    val c = database.getSchedulingCounts(dayStart, dayEnd)
-    val totalRemaining = (maxTotalMovesPerDay() - c.trainedToday).coerceAtLeast(0)
-    val newRemaining = (maxNewMovesPerDay() - c.introducedToday).coerceAtLeast(0)
-    val reviewsServable = minOf(c.dueReviews, totalRemaining)
+    val globalCounts = database.getSchedulingCounts(dayStart, dayEnd)
+    val totalRemaining = (maxTotalMovesPerDay() - globalCounts.trainedToday).coerceAtLeast(0)
+    val newRemaining = (maxNewMovesPerDay() - globalCounts.introducedToday).coerceAtLeast(0)
+    val scoped = repertoireId?.let { database.getScopedCounts(dayEnd, it) }
+    val dueReviews = scoped?.dueReviews ?: globalCounts.dueReviews
+    val dueNew = scoped?.dueNew ?: globalCounts.dueNew
+    val inSession = scoped?.inSession ?: globalCounts.inSession
+    val reviewsServable = minOf(dueReviews, totalRemaining)
     val newBudget = minOf(newRemaining, totalRemaining - reviewsServable).coerceAtLeast(0)
-    val newServable = minOf(c.dueNew, newBudget)
-    return c.inSession + reviewsServable + newServable
+    val newServable = minOf(dueNew, newBudget)
+    return inSession + reviewsServable + newServable
   }
 
   /**
