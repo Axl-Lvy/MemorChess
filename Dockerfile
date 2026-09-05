@@ -12,7 +12,14 @@ WORKDIR /workspace
 ARG BUILD_SHA=dev
 
 COPY . .
-RUN ./gradlew :server:installDist -PbuildSha="${BUILD_SHA}" --no-daemon --console=plain
+
+# The wasmJs build downloads its own Node toolchain, whose binary needs libatomic.so.1. This base
+# image doesn't ship it (unlike a typical CI runner image, which is why check.yml's wasm-tests job
+# never needed this).
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN ./gradlew :server:installDist :composeApp:wasmJsBrowserDistribution -PbuildSha="${BUILD_SHA}" --no-daemon --console=plain
 
 FROM eclipse-temurin:21-jre AS runtime
 
@@ -23,6 +30,11 @@ RUN groupadd --gid 10001 chess \
 
 COPY --from=build --chown=root:root /workspace/server/build/install/server /app
 
+# The compiled wasmJs frontend bundle, served by the server itself (see SYNC_STATIC_DIR below).
+# composeApp.js.map is dropped: it's source-map data with no runtime value in production.
+COPY --from=build --chown=root:root /workspace/composeApp/build/dist/wasmJs/productionExecutable /app/www
+RUN rm -f /app/www/composeApp.js.map
+
 USER chess
 WORKDIR /app
 
@@ -31,6 +43,10 @@ WORKDIR /app
 # runs nothing else, so give it most of whatever `mem_limit` the deployment sets. Override via
 # JAVA_TOOL_OPTIONS if a deployment needs something else.
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
+
+# Fixed image layout, not a per-deployment value: baked in here rather than left to a deployment's
+# own environment, unlike every other SYNC_* variable.
+ENV SYNC_STATIC_DIR="/app/www"
 
 # Config comes entirely from the environment. See ServerConfig.kt (SYNC_DB_URL, SYNC_DB_USER,
 # SYNC_DB_PASSWORD, SYNC_JWT_ISSUER, SYNC_JWT_AUDIENCE, SYNC_JWKS_URL, optional SYNC_PORT).

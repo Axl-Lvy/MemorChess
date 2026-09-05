@@ -10,6 +10,7 @@ import proj.memorchess.axl.server.db.applySchema
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.repertoire.S3RepertoireBlobStore
 import proj.memorchess.axl.server.routes.repertoireModule
+import proj.memorchess.axl.server.routes.staticFrontendModule
 import proj.memorchess.axl.server.sync.SyncStore
 
 /**
@@ -44,7 +45,8 @@ fun main() {
         store = SyncStore(dataSource),
         readiness = { dataSource.isReachable() },
       )
-      repertoireModule(store = repertoireStore, adminToken = config.adminToken)
+      repertoireModule(store = repertoireStore)
+      staticFrontendModule(config.staticDir)
     }
     .start(wait = true)
 }

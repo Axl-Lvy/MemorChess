@@ -16,7 +16,6 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import java.security.MessageDigest
 import kotlin.time.Clock
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
@@ -61,23 +60,17 @@ private const val BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable"
  * `routing {}` block on one `Application` into a single tree, so this never needs its own
  * `ContentNegotiation`/`StatusPages`/auth plugin installs.
  *
- * @param adminToken Shared secret compared against the `X-Admin-Token` header on the admin route. A
- *   stopgap: the intended gate is Cloudflare Access, once the tunnel in front of this server
- *   exists, following the pattern the home lab's other admin endpoints already use.
+ * The admin moderation route carries no credential of its own: Cloudflare Access gates it at the
+ * edge, following the pattern the home lab's other admin endpoints already use.
  */
 internal fun Application.repertoireModule(
   store: RepertoireStore,
-  adminToken: String,
   clock: () -> Instant = Clock.System::now,
 ) {
-  routing { repertoireRoutes(store, adminToken, clock) }
+  routing { repertoireRoutes(store, clock) }
 }
 
-private fun Route.repertoireRoutes(
-  store: RepertoireStore,
-  adminToken: String,
-  clock: () -> Instant,
-) {
+private fun Route.repertoireRoutes(store: RepertoireStore, clock: () -> Instant) {
   get("/v1/repertoires/manifest.json") { getManifest(store) }
   get("/v1/repertoires/pgn/{sha256}.pgn") { getPayload(store) }
   get("/v1/repertoires") { getCatalogPage(store) }
@@ -88,7 +81,7 @@ private fun Route.repertoireRoutes(
     delete("/v1/repertoires/{id}") { removeRepertoire(store) }
   }
 
-  post("/admin/repertoires/{id}/status") { setStatus(store, adminToken) }
+  post("/admin/repertoires/{id}/status") { setStatus(store) }
 }
 
 private suspend fun RoutingContext.getManifest(store: RepertoireStore) {
@@ -193,14 +186,7 @@ private suspend fun RoutingContext.removeRepertoire(store: RepertoireStore) {
   }
 }
 
-private suspend fun RoutingContext.setStatus(store: RepertoireStore, adminToken: String) {
-  if (!call.hasValidAdminToken(adminToken)) {
-    call.respond(
-      HttpStatusCode.Unauthorized,
-      ApiError(ApiErrorCode.UNAUTHORIZED, "invalid admin token"),
-    )
-    return
-  }
+private suspend fun RoutingContext.setStatus(store: RepertoireStore) {
   val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
   val request = call.receive<RepertoireStatusRequest>()
   if (request.status !in VALID_STATUSES) {
@@ -221,18 +207,6 @@ private val VALID_STATUSES = setOf("published", "unlisted", "removed")
 
 private const val MISSING_ID_MESSAGE = "missing id"
 private const val NO_SUCH_REPERTOIRE_MESSAGE = "no such repertoire"
-
-/**
- * Whether the caller sent the correct `X-Admin-Token`. Compared with [MessageDigest.isEqual], a
- * constant time comparison, so a wrong guess cannot be narrowed down one byte at a time by timing.
- *
- * A stopgap until Cloudflare Access gates this route at the edge (see
- * [Application.repertoireModule]).
- */
-private fun ApplicationCall.hasValidAdminToken(adminToken: String): Boolean {
-  val provided = request.headers["X-Admin-Token"] ?: return false
-  return MessageDigest.isEqual(provided.toByteArray(), adminToken.toByteArray())
-}
 
 private fun ApplicationCall.cacheControl(value: String) {
   response.headers.append(HttpHeaders.CacheControl, value)

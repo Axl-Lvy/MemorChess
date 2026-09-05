@@ -51,8 +51,6 @@ class TestRepertoireRoutes {
 
   private val key = TestSigningKey("kid-1")
 
-  private val adminToken = "test-admin-token"
-
   private val jwtConfig =
     ServerConfig(
       port = 0,
@@ -66,7 +64,6 @@ class TestRepertoireRoutes {
       r2Bucket = "unused",
       r2AccessKeyId = "unused",
       r2SecretAccessKey = "unused",
-      adminToken = "unused",
     )
 
   private fun newId(): String = java.util.UUID.randomUUID().toString()
@@ -86,7 +83,7 @@ class TestRepertoireRoutes {
     application {
       install(ServerContentNegotiation) { json(SYNC_JSON) }
       installJwtAuth(jwtConfig, TestJwkProvider(key))
-      repertoireModule(store, adminToken, clock = { now })
+      repertoireModule(store, clock = { now })
     }
     block(createClient { install(ContentNegotiation) { json(SYNC_JSON) } })
   }
@@ -177,7 +174,6 @@ class TestRepertoireRoutes {
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
-        header("X-Admin-Token", adminToken)
         contentType(ContentType.Application.Json)
         setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
       }
@@ -529,7 +525,7 @@ class TestRepertoireRoutes {
   }
 
   @Test
-  fun `admin status change succeeds with the correct token`() {
+  fun `admin status change succeeds`() {
     val store = newStore()
     val id = newId()
     runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
@@ -537,7 +533,6 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val response =
         client.post("/admin/repertoires/$id/status") {
-          header("X-Admin-Token", adminToken)
           contentType(ContentType.Application.Json)
           setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
         }
@@ -547,38 +542,10 @@ class TestRepertoireRoutes {
   }
 
   @Test
-  fun `admin status change is unauthorized with a wrong token`() {
-    app(newStore()) { client ->
-      val response =
-        client.post("/admin/repertoires/${newId()}/status") {
-          header("X-Admin-Token", "wrong-token")
-          contentType(ContentType.Application.Json)
-          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
-        }
-
-      response.status shouldBe HttpStatusCode.Unauthorized
-    }
-  }
-
-  @Test
-  fun `admin status change is unauthorized with no token`() {
-    app(newStore()) { client ->
-      val response =
-        client.post("/admin/repertoires/${newId()}/status") {
-          contentType(ContentType.Application.Json)
-          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
-        }
-
-      response.status shouldBe HttpStatusCode.Unauthorized
-    }
-  }
-
-  @Test
   fun `admin status change on an unknown id is not_found`() {
     app(newStore()) { client ->
       val response =
         client.post("/admin/repertoires/${newId()}/status") {
-          header("X-Admin-Token", adminToken)
           contentType(ContentType.Application.Json)
           setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
         }
@@ -595,7 +562,6 @@ class TestRepertoireRoutes {
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
-        header("X-Admin-Token", adminToken)
         contentType(ContentType.Application.Json)
         setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
       }

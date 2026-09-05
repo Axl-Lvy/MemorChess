@@ -44,7 +44,6 @@ class TestSyncApplication {
       r2Bucket = "unused",
       r2AccessKeyId = "unused",
       r2SecretAccessKey = "unused",
-      adminToken = "unused",
     )
 
   private fun app(

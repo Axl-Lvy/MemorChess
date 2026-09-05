@@ -43,7 +43,6 @@ class TestJwtAuth {
       r2Bucket = "unused",
       r2AccessKeyId = "unused",
       r2SecretAccessKey = "unused",
-      adminToken = "unused",
     )
 
   /** Mounts one authenticated route echoing the caller id, which is the whole contract. */
