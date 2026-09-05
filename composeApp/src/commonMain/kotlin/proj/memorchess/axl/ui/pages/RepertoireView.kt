@@ -121,7 +121,7 @@ private fun RepertoireViewError(error: RepertoireViewError, onRetry: () -> Unit)
     verticalArrangement = Arrangement.spacedBy(12.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    Text(text = error.resolveMessage(), style = typography.bodySm.copy(color = palette.red))
+    Text(text = error.resolveMessage(), style = typography.bodySm.copy(color = palette.destructive))
     KineticButton(onClick = onRetry) {
       KineticButtonLabel(stringResource(Res.string.library_retry))
     }

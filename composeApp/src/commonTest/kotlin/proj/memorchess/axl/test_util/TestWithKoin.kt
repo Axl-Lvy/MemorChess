@@ -30,6 +30,7 @@ import proj.memorchess.axl.core.auth.OAuthLauncher
 import proj.memorchess.axl.core.auth.OAuthTokenStore
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
+import proj.memorchess.axl.core.data.DailyActivityStore
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
 import proj.memorchess.axl.core.data.explorer.LichessExplorerClient
@@ -97,6 +98,7 @@ abstract class TestWithKoin : KoinComponent {
     return module {
       single<Settings> { TestSettings() }
       single<DatabaseQueryManager> { TestDatabases.empty() }
+      single<DailyActivityStore> { InMemoryDailyActivityStore() }
       single<ToastRenderer> { ToastRendererForTests }
       // Unconfined rather than the production Dispatchers.Default: setValue/reset's outbox enqueue
       // then runs to completion inline (no true suspension point on the in memory backend) instead

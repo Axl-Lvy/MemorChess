@@ -9,27 +9,27 @@ import androidx.compose.material3.lightColorScheme
  * to bespoke Kinetic Composables still pick up the right colors.
  *
  * Mapping (from Kinetic token → M3 role):
- * - `accent` → `primary`
- * - `cyan` → `secondary` and `tertiary` (the cool tech accent)
+ * - `action` → `primary`
+ * - `streak` → `secondary`, `progress` → `tertiary`
  * - `bg` → `background`, `panel`/`panel2`/`panel3` → `surface` family
  * - `line` → `outline`, `lineBright` → `outlineVariant`
  * - `ink` → `onSurface`, `ink2` → `onSurfaceVariant`
- * - `red` → `error`
+ * - `destructive` → `error`
  */
 internal fun kineticToM3(palette: KineticPalette): ColorScheme {
   val base = if (palette.isLight) lightColorScheme() else darkColorScheme()
   return base.copy(
-    primary = palette.accent,
-    onPrimary = palette.onAccent,
-    primaryContainer = palette.accentDim,
-    onPrimaryContainer = if (palette.isLight) palette.accentText else palette.accentGlow,
-    inversePrimary = palette.accentGlow,
-    secondary = palette.cyan,
-    onSecondary = palette.onAccent,
+    primary = palette.action,
+    onPrimary = palette.onAction,
+    primaryContainer = palette.actionDim,
+    onPrimaryContainer = if (palette.isLight) palette.actionText else palette.actionGlow,
+    inversePrimary = palette.actionGlow,
+    secondary = palette.streak,
+    onSecondary = palette.onStreak,
     secondaryContainer = palette.panel2,
     onSecondaryContainer = palette.ink2,
-    tertiary = palette.cyan,
-    onTertiary = palette.onAccent,
+    tertiary = palette.progress,
+    onTertiary = palette.onProgress,
     tertiaryContainer = palette.panel3,
     onTertiaryContainer = palette.ink2,
     background = palette.bg,
@@ -38,13 +38,13 @@ internal fun kineticToM3(palette: KineticPalette): ColorScheme {
     onSurface = palette.ink,
     surfaceVariant = palette.panel2,
     onSurfaceVariant = palette.ink2,
-    surfaceTint = palette.accent,
+    surfaceTint = palette.action,
     inverseSurface = palette.ink,
     inverseOnSurface = palette.bg,
-    error = palette.red,
-    onError = palette.onAccent,
-    errorContainer = palette.redDim,
-    onErrorContainer = palette.red,
+    error = palette.destructive,
+    onError = palette.onDestructive,
+    errorContainer = palette.destructiveDim,
+    onErrorContainer = palette.destructive,
     outline = palette.line,
     outlineVariant = palette.lineBright,
     scrim = palette.bg2,

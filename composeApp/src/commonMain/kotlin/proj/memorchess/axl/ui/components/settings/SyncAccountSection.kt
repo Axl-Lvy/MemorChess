@@ -139,7 +139,7 @@ internal fun SyncAccountSectionContent(
     if (lastError != null) {
       Text(
         text = lastError,
-        style = typography.bodySm.copy(color = palette.red),
+        style = typography.bodySm.copy(color = palette.destructive),
         modifier = Modifier.testTag("sync_account_error"),
       )
     }
@@ -233,7 +233,7 @@ private fun SyncAvatar(initial: String) {
   Box(
     modifier =
       Modifier.size(56.dp)
-        .background(color = palette.cyan)
+        .background(color = palette.streak)
         .border(width = 1.dp, color = palette.lineBright),
     contentAlignment = Alignment.Center,
   ) {

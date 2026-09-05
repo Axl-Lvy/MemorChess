@@ -177,7 +177,7 @@ internal fun RepertoireLibraryContent(
   Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(
       text = stringResource(Res.string.library_title),
-      style = typography.monoSm.copy(color = palette.accentText),
+      style = typography.monoSm.copy(color = palette.actionText),
     )
     Text(
       text = stringResource(Res.string.library_subtitle),
@@ -228,7 +228,7 @@ private fun CatalogError(message: String, onRetry: () -> Unit) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    Text(text = message, style = typography.bodySm.copy(color = palette.red))
+    Text(text = message, style = typography.bodySm.copy(color = palette.destructive))
     KineticButton(onClick = onRetry) {
       KineticButtonLabel(stringResource(Res.string.library_retry))
     }
@@ -252,7 +252,7 @@ private fun CatalogList(
     if (state.isStale) {
       Text(
         text = stringResource(Res.string.library_stale_hint),
-        style = typography.bodySm.copy(color = palette.accentText),
+        style = typography.bodySm.copy(color = palette.actionText),
         modifier =
           Modifier.fillMaxWidth()
             .background(palette.panel2)
@@ -368,9 +368,9 @@ private fun InstalledBadge() {
   val typography = LocalKineticTypography.current
   Text(
     text = stringResource(Res.string.library_installed_badge),
-    style = typography.monoSm.copy(color = palette.accentText),
+    style = typography.monoSm.copy(color = palette.actionText),
     modifier =
-      Modifier.border(width = 1.dp, color = palette.accent)
+      Modifier.border(width = 1.dp, color = palette.action)
         .padding(horizontal = 6.dp, vertical = 2.dp),
   )
 }
@@ -405,7 +405,7 @@ private fun InstallStatusRow(installState: RepertoireInstallState, onInstallRequ
                 summary.movesAdded,
                 summary.movesAlreadyPresent,
               ),
-            style = typography.bodySm.copy(color = palette.green),
+            style = typography.bodySm.copy(color = palette.progress),
           )
         }
         // Reinstalling restores moves the user has removed since installing.
@@ -417,7 +417,7 @@ private fun InstallStatusRow(installState: RepertoireInstallState, onInstallRequ
       Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
           text = installErrorText(installState.error),
-          style = typography.bodySm.copy(color = palette.red),
+          style = typography.bodySm.copy(color = palette.destructive),
         )
         KineticButton(onClick = onInstallRequest, style = KineticButtonStyle.Primary) {
           KineticButtonLabel(stringResource(Res.string.library_install))
@@ -516,7 +516,7 @@ private fun PreviewOverlap(previewState: RepertoirePreviewState?) {
               preview.movesInCommon,
               preview.totalMoves,
             ),
-          style = typography.bodySm.copy(color = palette.accentText),
+          style = typography.bodySm.copy(color = palette.actionText),
         )
       }
     }

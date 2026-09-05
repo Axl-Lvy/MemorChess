@@ -31,7 +31,7 @@ private const val SEGMENT_FRACTION = 0.28f
 private const val SWEEP_PERIOD_MS = 900
 
 /**
- * Kinetic "power-on" loading indicator: a hard-edged accent segment that sweeps along a thin rail,
+ * Kinetic "power-on" loading indicator: a hard-edged action segment that sweeps along a thin rail,
  * replacing the generic circular spinner with something true to the instrument aesthetic.
  *
  * The sweep is an infinite transition whose value is read **inside the [Canvas] draw lambda**, so
@@ -71,7 +71,7 @@ fun KineticBootIndicator(modifier: Modifier = Modifier) {
       val end = (lead + segWidth).coerceIn(0f, size.width)
       if (end > start) {
         drawLine(
-          color = palette.accentGlow,
+          color = palette.actionGlow,
           start = Offset(start, y),
           end = Offset(end, y),
           strokeWidth = stroke,

@@ -76,7 +76,7 @@ private fun NavCellIcon(item: NavigationBarItemContent, tint: Color) {
  *
  * Mirrors `.bottomnav` from `design-proposals/kinetic-base.css`: a full-width row with `bg2`
  * background, 1.dp `line` top border, and four equal-width cells stacking an icon over a 9sp
- * uppercase mono label. The active cell paints a 2.dp `accent` bar across the inner 28%→72% of its
+ * uppercase mono label. The active cell paints a 2.dp `action` bar across the inner 28%→72% of its
  * top edge (CSS `.bottomnav a.active::before`).
  *
  * @param items Navigation entries; rendered in the order supplied.
@@ -118,7 +118,7 @@ fun KineticBottomNav(
   ) {
     items.forEach { item ->
       val active = isActive(item, currentRoute)
-      val tint = if (active) palette.accent else palette.ink3
+      val tint = if (active) palette.action else palette.ink3
       Column(
         modifier =
           Modifier.weight(1f)
@@ -129,14 +129,14 @@ fun KineticBottomNav(
             .clickable(enabled = true, onClick = { if (!active) onSelect(item) })
             .drawBehind {
               if (active) {
-                // Active indicator: 2.dp accent bar across 28%→72% of the cell's top edge,
+                // Active indicator: 2.dp action bar across 28%→72% of the cell's top edge,
                 // painted just below the 1.dp top border so it sits inside the cell.
                 val thicknessPx = INDICATOR_THICKNESS.toPx()
                 val borderPx = BORDER_PX.toPx()
                 val left = size.width * 0.28f
                 val right = size.width * 0.72f
                 drawRect(
-                  color = palette.accent,
+                  color = palette.action,
                   topLeft = androidx.compose.ui.geometry.Offset(left, borderPx),
                   size = androidx.compose.ui.geometry.Size(right - left, thicknessPx),
                 )
@@ -164,7 +164,7 @@ fun KineticBottomNav(
  * icon over a 9sp uppercase mono label. Cells are top-aligned; the remaining space is pushed to the
  * bottom via a weighted spacer so future extras (e.g. a footer chip) can be slotted in cleanly.
  *
- * Active indicator: a 2.dp `accent` vertical bar painted on the LEFT edge of the active cell,
+ * Active indicator: a 2.dp `action` vertical bar painted on the LEFT edge of the active cell,
  * spanning the inner 28%→72% of its height (just inside the bar's right border).
  *
  * @param items Navigation entries; rendered in the order supplied.
@@ -200,7 +200,7 @@ fun KineticSideNav(
   ) {
     items.forEach { item ->
       val active = isActive(item, currentRoute)
-      val tint = if (active) palette.accent else palette.ink3
+      val tint = if (active) palette.action else palette.ink3
       Column(
         modifier =
           Modifier.fillMaxWidth()
@@ -211,13 +211,13 @@ fun KineticSideNav(
             .clickable(enabled = true, onClick = { if (!active) onSelect(item) })
             .drawBehind {
               if (active) {
-                // Active indicator: 2.dp accent vertical bar across 28%→72% of the cell's
+                // Active indicator: 2.dp action vertical bar across 28%→72% of the cell's
                 // left edge.
                 val thicknessPx = INDICATOR_THICKNESS.toPx()
                 val top = size.height * 0.28f
                 val bottom = size.height * 0.72f
                 drawRect(
-                  color = palette.accent,
+                  color = palette.action,
                   topLeft = androidx.compose.ui.geometry.Offset(0f, top),
                   size = androidx.compose.ui.geometry.Size(thicknessPx, bottom - top),
                 )

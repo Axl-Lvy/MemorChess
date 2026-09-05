@@ -45,6 +45,7 @@
 
   <!-- Settings: controls -->
   <string name="settings_move_animation">Move animation</string>
+  <string name="settings_reduce_motion">Reduce motion</string>
   <string name="settings_eval_bar">Evaluation bar</string>
   <string name="settings_best_move_arrow">Best-move arrow</string>
   <string name="settings_engine_depth">Engine depth</string>

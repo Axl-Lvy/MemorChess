@@ -20,12 +20,12 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
  * 2.dp bounds (the marker overflows above and below):
  * 1. A full-width [panel3][proj.memorchess.axl.ui.theme.KineticPalette.panel3] background bar.
  * 2. A left-aligned fill rectangle from `x = 0` to `progress * width`, painted with a horizontal
- *    [accent][proj.memorchess.axl.ui.theme.KineticPalette.accent] →
- *    [accentGlow][proj.memorchess.axl.ui.theme.KineticPalette.accentGlow] gradient. Only drawn when
- *    the clamped progress is strictly greater than 0 to avoid a zero-width rectangle.
- * 3. A 12.dp soft [accentGlow][proj.memorchess.axl.ui.theme.KineticPalette.accentGlow] halo behind
- *    an 8.dp [accent][proj.memorchess.axl.ui.theme.KineticPalette.accent] marker, centred on the
- *    rail at `x = progress * width`.
+ *    [progress][proj.memorchess.axl.ui.theme.KineticPalette.progress] →
+ *    [progressGlow][proj.memorchess.axl.ui.theme.KineticPalette.progressGlow] gradient. Only drawn
+ *    when the clamped progress is strictly greater than 0 to avoid a zero-width rectangle.
+ * 3. A 12.dp soft [progressGlow][proj.memorchess.axl.ui.theme.KineticPalette.progressGlow] halo
+ *    behind an 8.dp [progress][proj.memorchess.axl.ui.theme.KineticPalette.progress] marker,
+ *    centred on the rail at `x = progress * width`.
  *
  * The [progress] parameter is clamped into `0f..1f`. Non-finite values (`NaN`, `+∞`, `-∞`) fall
  * back to `0f` — no fill is drawn and the marker sits at the left edge. This guards against bad
@@ -40,8 +40,8 @@ fun KineticProgressRail(progress: Float, modifier: Modifier = Modifier) {
   val palette = LocalKineticPalette.current
   val safeProgress = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
 
-  val accent = palette.accent
-  val accentGlow = palette.accentGlow
+  val progressColor = palette.progress
+  val progressGlow = palette.progressGlow
   val panel3 = palette.panel3
 
   Box(
@@ -61,7 +61,7 @@ fun KineticProgressRail(progress: Float, modifier: Modifier = Modifier) {
           drawRect(
             brush =
               Brush.horizontalGradient(
-                colors = listOf(accent, accentGlow),
+                colors = listOf(progressColor, progressGlow),
                 startX = 0f,
                 endX = railWidth,
               ),
@@ -77,11 +77,15 @@ fun KineticProgressRail(progress: Float, modifier: Modifier = Modifier) {
         val markerRadiusPx = 4.dp.toPx() // 8.dp diameter dot
 
         drawCircle(
-          color = accentGlow.copy(alpha = 0.45f),
+          color = progressGlow.copy(alpha = 0.45f),
           radius = glowRadiusPx,
           center = Offset(markerX, centerY),
         )
-        drawCircle(color = accent, radius = markerRadiusPx, center = Offset(markerX, centerY))
+        drawCircle(
+          color = progressColor,
+          radius = markerRadiusPx,
+          center = Offset(markerX, centerY),
+        )
       }
   )
 }

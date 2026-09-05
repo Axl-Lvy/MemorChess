@@ -9,12 +9,14 @@ import kotlin.time.Duration.Companion.seconds
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
+import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.drainAllNodes
@@ -25,6 +27,7 @@ import proj.memorchess.axl.ui.pages.Settings
 class TestSettings : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
+  private val streakTracker: StreakTracker by inject()
 
   private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
@@ -45,6 +48,15 @@ class TestSettings : TestWithKoin() {
     assertTrue { TRAINING_MOVE_DELAY_SETTING.getValue() > 2.seconds }
     slideToLeft(TRAINING_MOVE_DELAY_SETTING.name)
     assertTrue { TRAINING_MOVE_DELAY_SETTING.getValue() < 2.seconds }
+  }
+
+  @Test
+  fun testReduceMotionToggleIsReachableFromSettings() = runTestFromSetup {
+    assertNodeWithTagExists(REDUCE_MOTION_SETTING.name).performClick()
+    assertTrue { REDUCE_MOTION_SETTING.getValue() }
+
+    assertNodeWithTagExists(REDUCE_MOTION_SETTING.name).performClick()
+    assertTrue { !REDUCE_MOTION_SETTING.getValue() }
   }
 
   @Test
@@ -117,6 +129,7 @@ class TestSettings : TestWithKoin() {
     database.insertNodes(
       DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
     )
+    streakTracker.recordReview()
     assertNodeWithTagDoesNotExists("confirmDialog")
 
     // The Danger Zone is the last LazyColumn section, so it is not composed until scrolled into
@@ -139,5 +152,8 @@ class TestSettings : TestWithKoin() {
 
     // Verify the database is cleared
     waitUntilSuspending { drainAllNodes(database).isEmpty() }
+
+    // Verify the streak was wiped along with the rest of the training history
+    waitUntilSuspending { streakTracker.streakDays() == 0 }
   }
 }

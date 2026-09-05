@@ -50,10 +50,10 @@ data class KineticSliderLabels(
  *
  * Layout is a three-row [Column] with 8.dp spacing:
  * - Row 1: [label] on the left in `body` (`ink2`); formatted value on the right in `displayLg`
- *   (`accentText`). When [unit] is non empty it is appended in `monoSm` (`ink3`).
- * - Row 2: a Material 3 [Slider] with a custom track ([SliderDefaults.Track] re-colored to use
- *   Kinetic tokens — `accent` for the active fill and `panel3` for the inactive remainder) and a
- *   custom 14×14.dp thumb (`ink` fill, 1.dp `accent` border).
+ *   (`actionText`). When [unit] is non empty it is appended in `monoSm` (`ink3`).
+ * - Row 2: a Material 3 [Slider] with a custom track ([SliderDefaults.Track] re-colored with
+ *   Kinetic tokens: `action` for the active fill, `panel3` for the inactive remainder) and a custom
+ *   14×14.dp thumb (`ink` fill, 1.dp `action` border).
  * - Row 3: [minLabel] left and [maxLabel] right in `monoSm` (`ink3`).
  *
  * Earlier revisions tried to overlay a transparent Material Slider on top of a hand-painted track;
@@ -91,7 +91,7 @@ fun KineticSlider(
   val sliderColors =
     SliderDefaults.colors(
       thumbColor = palette.ink,
-      activeTrackColor = palette.accent,
+      activeTrackColor = palette.action,
       activeTickColor = Color.Transparent,
       inactiveTrackColor = palette.panel3,
       inactiveTickColor = Color.Transparent,
@@ -113,7 +113,7 @@ fun KineticSlider(
       Row(verticalAlignment = Alignment.Bottom) {
         Text(
           text = valueFormatter(clamped),
-          style = typography.displayLg.copy(color = palette.accentText),
+          style = typography.displayLg.copy(color = palette.actionText),
         )
         if (unit.isNotEmpty()) {
           Box(modifier = Modifier.size(width = 4.dp, height = 0.dp))
@@ -144,7 +144,7 @@ fun KineticSlider(
             Modifier.size(14.dp)
               .clip(RoundedCornerShape(7.dp))
               .background(color = palette.ink, shape = RoundedCornerShape(7.dp))
-              .border(width = 1.dp, color = palette.accent, shape = RoundedCornerShape(7.dp))
+              .border(width = 1.dp, color = palette.action, shape = RoundedCornerShape(7.dp))
         )
       },
     )

@@ -37,11 +37,11 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 enum class KineticButtonStyle {
   /** Default panel-2 background, line-bright border — the most common button. */
   Default,
-  /** Accent orange fill — primary CTAs (Save, Reveal). */
+  /** Action (violet) fill — primary CTAs (Save, Reveal). */
   Primary,
-  /** Red filled — destructive actions (Erase all data). */
+  /** Destructive (pink) filled — dangerous actions (Erase all data). */
   Danger,
-  /** Red outline only — softer destructive actions (Reset settings, Disconnect). */
+  /** Destructive (pink) outline only — softer dangerous actions (Reset settings, Disconnect). */
   DangerOutline,
   /** Transparent — used inline (toolbar overflow, secondary links). */
   Ghost,
@@ -69,30 +69,30 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
       )
     KineticButtonStyle.Primary ->
       ButtonColors(
-        background = palette.accent,
-        border = palette.accent,
-        content = palette.onAccent,
-        hoverBackground = palette.accentGlow,
-        hoverBorder = palette.accentGlow,
-        hoverContent = palette.onAccent,
+        background = palette.action,
+        border = palette.action,
+        content = palette.onAction,
+        hoverBackground = palette.actionGlow,
+        hoverBorder = palette.actionGlow,
+        hoverContent = palette.onAction,
       )
     KineticButtonStyle.Danger ->
       ButtonColors(
-        background = palette.red,
-        border = palette.red,
-        content = palette.onAccent,
-        hoverBackground = palette.red,
-        hoverBorder = palette.red,
-        hoverContent = palette.onAccent,
+        background = palette.destructive,
+        border = palette.destructive,
+        content = palette.onDestructive,
+        hoverBackground = palette.destructive,
+        hoverBorder = palette.destructive,
+        hoverContent = palette.onDestructive,
       )
     KineticButtonStyle.DangerOutline ->
       ButtonColors(
         background = Color.Transparent,
-        border = palette.redDim,
-        content = palette.red,
-        hoverBackground = palette.red,
-        hoverBorder = palette.red,
-        hoverContent = palette.onAccent,
+        border = palette.destructiveDim,
+        content = palette.destructive,
+        hoverBackground = palette.destructive,
+        hoverBorder = palette.destructive,
+        hoverContent = palette.onDestructive,
       )
     KineticButtonStyle.Ghost ->
       ButtonColors(

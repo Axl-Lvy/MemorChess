@@ -28,15 +28,15 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * Renders four pieces of chrome around a [content] slot:
  * - **Panel + border + hard-offset shadow** via [Modifier.kineticShadow] (big in normal mode, small
  *   in [compact] mode). Inner padding is 18.dp normally, 10.dp in compact mode.
- * - **Accent stripe** — a 60.dp×4.dp (or 40.dp×3.dp when [compact]) cyan→orange horizontal gradient
- *   straddling the top-right edge of the panel, with a soft cyan glow behind it. Drawn via
- *   [Modifier.drawWithContent] so it sits on top of the panel border but behind the absolute
+ * - **Accent stripe** — a 60.dp×4.dp (or 40.dp×3.dp when [compact]) streak→action horizontal
+ *   gradient straddling the top-right edge of the panel, with a soft streak glow behind it. Drawn
+ *   via [Modifier.drawWithContent] so it sits on top of the panel border but behind the absolute
  *   children (tag, pill).
  * - **Corner tag** — when [cornerTag] is non-null, a small mono uppercase label punched through the
  *   top-left border (offset by 12.dp from the left, -7.dp vertically). An optional
- *   [cornerTagAccent] suffix is appended in `accentText` colour.
- * - **Your-move pill** — when [yourMovePill] is non-null, an accent-coloured pill positioned at the
- *   top-centre sliding up out of the panel by ~16.dp, with a small downward caret glyph.
+ *   [cornerTagAccent] suffix is appended in `actionText` colour.
+ * - **Your-move pill** — when [yourMovePill] is non-null, a pill in the action colour, positioned
+ *   at the top-centre sliding up out of the panel by ~16.dp, with a small downward caret glyph.
  *
  * The shell is just chrome — [content] receives the entire inner area (board grid). The caller is
  * responsible for any `aspectRatio(1f)` constraint on the outer [modifier].
@@ -45,11 +45,12 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * @param compact When `true`, uses the tighter padding/shadow/stripe variants.
  * @param cornerTag Optional uppercase label punched through the top-left border (e.g. `"EXPLORE ·
  *   italian/quiet"`).
- * @param cornerTagAccent Optional accent suffix appended to [cornerTag] in `accentText` colour
- *   (e.g. a move count like `"12"`).
+ * @param cornerTagAccent Optional suffix in the action colour, appended to [cornerTag] in
+ *   `actionText` colour (e.g. a move count like `"12"`).
  * @param cornerTagColor Optional override for the [cornerTag] text colour. Defaults to `ink3` when
- *   `null`. Useful for status tags that need to convey state (green = saved, red = error, …).
- * @param yourMovePill Optional accent pill at the top-centre (e.g. `"YOUR MOVE"`).
+ *   `null`. Useful for status tags that need to convey state (progress = saved, destructive =
+ *   error, …).
+ * @param yourMovePill Optional action pill at the top-centre (e.g. `"YOUR MOVE"`).
  * @param content The inner board area (typically a board grid).
  */
 @Composable
@@ -68,9 +69,9 @@ fun KineticBoardShell(
   val innerPadding = if (compact) 10.dp else 18.dp
   val stripeWidth = if (compact) 40.dp else 60.dp
   val stripeHeight = if (compact) 3.dp else 4.dp
-  val cyan = palette.cyan
-  val accent = palette.accent
-  val cyanGlow = palette.cyanGlow
+  val streak = palette.streak
+  val action = palette.action
+  val streakGlow = palette.streakGlow.copy(alpha = 0.4f)
 
   Box(modifier = modifier, contentAlignment = Alignment.TopStart) {
     // Panel with shadow + border + accent stripe.
@@ -89,15 +90,15 @@ fun KineticBoardShell(
             // Soft glow behind the crisp stripe.
             val glowExtra = 4.dp.toPx()
             drawRect(
-              color = cyanGlow,
+              color = streakGlow,
               topLeft = Offset(x - glowExtra, y - glowExtra),
               size = Size(stripeWpx + glowExtra * 2f, stripeHpx + glowExtra * 2f),
             )
-            // Crisp cyan→accent gradient stripe.
+            // Crisp streak→action gradient stripe.
             drawRect(
               brush =
                 Brush.horizontalGradient(
-                  colorStops = arrayOf(0f to cyan, 1f to accent),
+                  colorStops = arrayOf(0f to streak, 1f to action),
                   startX = x,
                   endX = x + stripeWpx,
                 ),
@@ -128,7 +129,7 @@ fun KineticBoardShell(
           if (cornerTagAccent != null) {
             Text(
               text = " " + cornerTagAccent.uppercase(),
-              style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.accentText),
+              style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.actionText),
             )
           }
         }
@@ -141,17 +142,17 @@ fun KineticBoardShell(
         modifier =
           Modifier.align(Alignment.TopCenter)
             .offset(y = (-16).dp)
-            .background(palette.accent)
+            .background(palette.action)
             .padding(horizontal = 12.dp, vertical = 4.dp)
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           Text(
             text = yourMovePill.uppercase(),
-            style = typography.displaySm.copy(fontSize = 11.sp, color = palette.onAccent),
+            style = typography.displaySm.copy(fontSize = 11.sp, color = palette.onAction),
           )
           Text(
             text = " ▼",
-            style = typography.displaySm.copy(fontSize = 9.sp, color = palette.onAccent),
+            style = typography.displaySm.copy(fontSize = 9.sp, color = palette.onAction),
           )
         }
       }

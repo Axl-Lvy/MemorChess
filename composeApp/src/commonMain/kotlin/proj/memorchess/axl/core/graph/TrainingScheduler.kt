@@ -6,12 +6,14 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.ReviewGrade
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
+import proj.memorchess.axl.core.streak.StreakTracker
 
 /**
  * Spaced repetition driver for the opening tree.
@@ -40,6 +42,10 @@ import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
  * The caps are suppliers rather than flat values so a settings change takes effect immediately on
  * the long lived singleton; defaults are unlimited so that direct construction stays usable without
  * any configuration wiring.
+ *
+ * [streakTracker] is optional and defaults to absent, so direct construction still works without
+ * any streak wiring; when present, [grade] feeds it and [streakDays]/[cardsCompletedToday] expose
+ * it.
  */
 class TrainingScheduler(
   private val database: DatabaseQueryManager,
@@ -48,6 +54,7 @@ class TrainingScheduler(
   private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
   private val maxNewMovesPerDay: () -> Int = { Int.MAX_VALUE },
   private val maxTotalMovesPerDay: () -> Int = { Int.MAX_VALUE },
+  private val streakTracker: StreakTracker? = null,
 ) {
 
   /**
@@ -148,14 +155,35 @@ class TrainingScheduler(
   /**
    * Persists the result of a review for [position]. Computes the next
    * [proj.memorchess.axl.core.scheduling.CardState] through [SchedulingAlgorithm] and stores it
-   * through [TreeStore].
+   * through [TreeStore]. Also feeds [streakTracker], on this position's first review of the local
+   * day or on any review while [streakTracker] has nothing recorded for the day yet, so a position
+   * whose only review of the day arrived from another device via sync still reaches the streak.
    */
   suspend fun grade(position: PositionKey, grade: ReviewGrade) {
     val node = treeStore.node(position) ?: return
     val now = DateUtil.now()
+    val previousLastReview = node.cardState.lastReview
     val nextState = algorithm.schedule(node.cardState, grade, now)
     treeStore.updateCardState(position, nextState)
+    if (streakTracker != null) {
+      val day = now.toLocalDateTime(timeZone).date
+      val (dayStart, _) = dayBounds(day)
+      val alreadyReviewedToday = previousLastReview != null && previousLastReview >= dayStart
+      if (!alreadyReviewedToday || streakTracker.cardsCompletedToday(day) == 0) {
+        streakTracker.recordReview(day)
+      }
+    }
   }
+
+  /**
+   * Number of positions reviewed for the first time today, or `0` when [streakTracker] is absent.
+   */
+  suspend fun cardsCompletedToday(): Int =
+    streakTracker?.cardsCompletedToday(DateUtil.now().toLocalDateTime(timeZone).date) ?: 0
+
+  /** Current daily-review streak in days, or `0` when [streakTracker] is absent. */
+  suspend fun streakDays(): Int =
+    streakTracker?.streakDays(DateUtil.now().toLocalDateTime(timeZone).date) ?: 0
 
   /**
    * Computes the half open day window `[dayStart, dayEndExclusive)` for [day] in [timeZone].

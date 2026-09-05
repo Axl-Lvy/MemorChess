@@ -22,11 +22,11 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * the [ink] color so the block reads as a neutral stat card rather than a colored badge.
  */
 enum class KineticCounterTone {
-  /** Green left border — success / correct count. */
+  /** Progress left border — success / correct count. */
   Success,
-  /** Red left border — failure / incorrect count. */
+  /** Destructive left border — failure / incorrect count. */
   Fail,
-  /** Accent (orange) left border — generic stats such as "Left". */
+  /** Ink3 left border — generic stats such as "Left". */
   Neutral,
 }
 
@@ -55,9 +55,9 @@ fun KineticCounterBlock(
   val typography = LocalKineticTypography.current
   val stripeColor =
     when (tone) {
-      KineticCounterTone.Success -> palette.green
-      KineticCounterTone.Fail -> palette.red
-      KineticCounterTone.Neutral -> palette.accent
+      KineticCounterTone.Success -> palette.progress
+      KineticCounterTone.Fail -> palette.destructive
+      KineticCounterTone.Neutral -> palette.ink3
     }
 
   Column(
