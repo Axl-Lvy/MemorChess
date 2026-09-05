@@ -19,9 +19,9 @@ private val FLASH_STROKE = 3.dp
 
 /**
  * Draws a one-shot "registered" feedback border around the content: a bright [progress][palette]
- * frame on a correct move, [destructive][palette] on a wrong one, that pulses on and decays. Mirrors
- * the Kinetic instrument metaphor — the board *registers* the verdict rather than fading a banner
- * in.
+ * frame on a correct move, [destructive][palette] on a wrong one, that pulses on and decays.
+ * Mirrors the Kinetic instrument metaphor — the board *registers* the verdict rather than fading a
+ * banner in.
  *
  * The pulse fires whenever [attempt] changes to a new positive value (each graded move bumps the
  * attempt counter), using [success] to pick the colour. The alpha is held in an [Animatable] read

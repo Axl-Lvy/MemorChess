@@ -58,8 +58,8 @@ data class KineticTopBarNavItem(val route: String, val label: String, val number
  *
  * Three-column layout: brand block (left), nav items (center), optional meta pills (right). A 1.dp
  * bottom border on `line` is laid down inside the row; a 1.dp gradient underline (transparent ->
- * streak -> action -> streak -> transparent at alpha 0.5) is drawn on top via [drawWithContent] so it
- * appears flush with the bar's bottom edge.
+ * streak -> action -> streak -> transparent at alpha 0.5) is drawn on top via [drawWithContent] so
+ * it appears flush with the bar's bottom edge.
  *
  * @param navItems Nav entries shown in the center strip.
  * @param activeRoute Route currently selected; matched against [KineticTopBarNavItem.route].

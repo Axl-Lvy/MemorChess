@@ -29,8 +29,7 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  *
  * When [danger] is true the section gains a 3.dp `destructive` vertical strip on the left edge
  * (drawn via [drawBehind]) and the background is tinted with `destructiveSoft`; the border switches
- * to `destructiveDim`. Use
- * this for the Danger Zone section only.
+ * to `destructiveDim`. Use this for the Danger Zone section only.
  *
  * @param title Uppercase-ready section heading, rendered as-is.
  * @param modifier External modifier applied to the outer column.

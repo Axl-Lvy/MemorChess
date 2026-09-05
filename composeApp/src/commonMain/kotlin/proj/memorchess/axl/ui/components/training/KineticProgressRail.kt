@@ -21,12 +21,11 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
  * 1. A full-width [panel3][proj.memorchess.axl.ui.theme.KineticPalette.panel3] background bar.
  * 2. A left-aligned fill rectangle from `x = 0` to `progress * width`, painted with a horizontal
  *    [progress][proj.memorchess.axl.ui.theme.KineticPalette.progress] →
- *    [progressGlow][proj.memorchess.axl.ui.theme.KineticPalette.progressGlow] gradient. Only drawn when
- *    the clamped progress is strictly greater than 0 to avoid a zero-width rectangle.
+ *    [progressGlow][proj.memorchess.axl.ui.theme.KineticPalette.progressGlow] gradient. Only drawn
+ *    when the clamped progress is strictly greater than 0 to avoid a zero-width rectangle.
  * 3. A 12.dp soft [progressGlow][proj.memorchess.axl.ui.theme.KineticPalette.progressGlow] halo
  *    behind an 8.dp [progress][proj.memorchess.axl.ui.theme.KineticPalette.progress] marker,
- *    centred on the
- *    rail at `x = progress * width`.
+ *    centred on the rail at `x = progress * width`.
  *
  * The [progress] parameter is clamped into `0f..1f`. Non-finite values (`NaN`, `+∞`, `-∞`) fall
  * back to `0f` — no fill is drawn and the marker sits at the left edge. This guards against bad
@@ -82,7 +81,11 @@ fun KineticProgressRail(progress: Float, modifier: Modifier = Modifier) {
           radius = glowRadiusPx,
           center = Offset(markerX, centerY),
         )
-        drawCircle(color = progressColor, radius = markerRadiusPx, center = Offset(markerX, centerY))
+        drawCircle(
+          color = progressColor,
+          radius = markerRadiusPx,
+          center = Offset(markerX, centerY),
+        )
       }
   )
 }

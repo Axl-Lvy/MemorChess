@@ -28,9 +28,9 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * Renders four pieces of chrome around a [content] slot:
  * - **Panel + border + hard-offset shadow** via [Modifier.kineticShadow] (big in normal mode, small
  *   in [compact] mode). Inner padding is 18.dp normally, 10.dp in compact mode.
- * - **Accent stripe** — a 60.dp×4.dp (or 40.dp×3.dp when [compact]) streak→action horizontal gradient
- *   straddling the top-right edge of the panel, with a soft streak glow behind it. Drawn via
- *   [Modifier.drawWithContent] so it sits on top of the panel border but behind the absolute
+ * - **Accent stripe** — a 60.dp×4.dp (or 40.dp×3.dp when [compact]) streak→action horizontal
+ *   gradient straddling the top-right edge of the panel, with a soft streak glow behind it. Drawn
+ *   via [Modifier.drawWithContent] so it sits on top of the panel border but behind the absolute
  *   children (tag, pill).
  * - **Corner tag** — when [cornerTag] is non-null, a small mono uppercase label punched through the
  *   top-left border (offset by 12.dp from the left, -7.dp vertically). An optional
@@ -48,7 +48,8 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * @param cornerTagAccent Optional action-coloured suffix appended to [cornerTag] in `actionText`
  *   colour (e.g. a move count like `"12"`).
  * @param cornerTagColor Optional override for the [cornerTag] text colour. Defaults to `ink3` when
- *   `null`. Useful for status tags that need to convey state (progress = saved, destructive = error, …).
+ *   `null`. Useful for status tags that need to convey state (progress = saved, destructive =
+ *   error, …).
  * @param yourMovePill Optional action pill at the top-centre (e.g. `"YOUR MOVE"`).
  * @param content The inner board area (typically a board grid).
  */
