@@ -51,9 +51,9 @@ data class KineticSliderLabels(
  * Layout is a three-row [Column] with 8.dp spacing:
  * - Row 1: [label] on the left in `body` (`ink2`); formatted value on the right in `displayLg`
  *   (`actionText`). When [unit] is non empty it is appended in `monoSm` (`ink3`).
- * - Row 2: a Material 3 [Slider] with a custom track ([SliderDefaults.Track] re-colored to use
- *   Kinetic tokens — `accent` for the active fill and `panel3` for the inactive remainder) and a
- *   custom 14×14.dp thumb (`ink` fill, 1.dp `accent` border).
+ * - Row 2: a Material 3 [Slider] with a custom track ([SliderDefaults.Track] re-colored with
+ *   Kinetic tokens: `action` for the active fill, `panel3` for the inactive remainder) and a
+ *   custom 14×14.dp thumb (`ink` fill, 1.dp `action` border).
  * - Row 3: [minLabel] left and [maxLabel] right in `monoSm` (`ink3`).
  *
  * Earlier revisions tried to overlay a transparent Material Slider on top of a hand-painted track;

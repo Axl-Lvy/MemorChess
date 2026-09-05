@@ -26,7 +26,7 @@ enum class KineticCounterTone {
   Success,
   /** Destructive left border — failure / incorrect count. */
   Fail,
-  /** Action left border — generic stats such as "Left". */
+  /** Ink3 left border — generic stats such as "Left". */
   Neutral,
 }
 
@@ -57,7 +57,7 @@ fun KineticCounterBlock(
     when (tone) {
       KineticCounterTone.Success -> palette.progress
       KineticCounterTone.Fail -> palette.destructive
-      KineticCounterTone.Neutral -> palette.action
+      KineticCounterTone.Neutral -> palette.ink3
     }
 
   Column(

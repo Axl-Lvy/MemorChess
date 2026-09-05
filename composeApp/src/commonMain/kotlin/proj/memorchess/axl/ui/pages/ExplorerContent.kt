@@ -328,9 +328,10 @@ private fun nodeStateLabel(state: NodeState): StringResource =
   }
 
 /**
- * Maps a [NodeState] to the color used to tint the corner-tag label. Green = position is part of a
- * fully-saved good line; accent (orange) = saved but only partially good; ink3 = unknown / new
- * position; red = conflicting (the same position is reached by both a good and a bad line).
+ * Maps a [NodeState] to the color used to tint the corner-tag label. `progress` = position is part
+ * of a fully-saved good line; `streakText` = saved but only partially good; `ink3` = unknown / new
+ * position; `destructive` = conflicting (the same position is reached by both a good and a bad
+ * line).
  */
 private fun nodeStateColor(
   state: NodeState,
@@ -341,7 +342,7 @@ private fun nodeStateColor(
     NodeState.SAVED_GOOD -> palette.progress
     NodeState.SAVED_BAD,
     NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE,
-    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> palette.actionText
+    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> palette.streakText
     NodeState.UNKNOWN -> palette.ink3
     NodeState.BAD_STATE -> palette.destructive
   }

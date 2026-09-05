@@ -71,7 +71,7 @@ fun KineticBoardShell(
   val stripeHeight = if (compact) 3.dp else 4.dp
   val streak = palette.streak
   val action = palette.action
-  val streakGlow = palette.streakGlow
+  val streakGlow = palette.streakGlow.copy(alpha = 0.4f)
 
   Box(modifier = modifier, contentAlignment = Alignment.TopStart) {
     // Panel with shadow + border + accent stripe.
