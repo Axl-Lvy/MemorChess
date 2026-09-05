@@ -35,7 +35,7 @@ private val SEAM_WIDTH = 2.dp
  */
 @Composable
 fun AnimatedVisibilityScope.wipeReveal(revealFromRight: Boolean): Modifier {
-  val seamColor = LocalKineticPalette.current.accentGlow
+  val seamColor = LocalKineticPalette.current.actionGlow
   val entering = transition.targetState == EnterExitState.Visible
   val progress =
     transition.animateFloat(transitionSpec = { KineticMotion.sweepTween() }, label = "wipe") {

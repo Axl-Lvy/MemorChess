@@ -58,8 +58,8 @@ data class KineticTopBarNavItem(val route: String, val label: String, val number
  *
  * Three-column layout: brand block (left), nav items (center), optional meta pills (right). A 1.dp
  * bottom border on `line` is laid down inside the row; a 1.dp gradient underline (transparent ->
- * cyan -> accent -> cyan -> transparent at alpha 0.5) is drawn on top via [drawWithContent] so it
- * appears flush with the bar's bottom edge.
+ * streak -> action -> streak -> transparent at alpha 0.5) is drawn on top via [drawWithContent] so
+ * it appears flush with the bar's bottom edge.
  *
  * @param navItems Nav entries shown in the center strip.
  * @param activeRoute Route currently selected; matched against [KineticTopBarNavItem.route].
@@ -89,9 +89,9 @@ fun KineticTopBar(
       colorStops =
         arrayOf(
           0.0f to Color.Transparent,
-          0.15f to palette.cyan,
-          0.5f to palette.accent,
-          0.85f to palette.cyan,
+          0.15f to palette.streak,
+          0.5f to palette.action,
+          0.85f to palette.streak,
           1.0f to Color.Transparent,
         )
     )
@@ -155,7 +155,7 @@ fun KineticTopBar(
   }
 }
 
-/** Brand block: skewed orange mark + "MEMOR/CHESS" wordmark with accent-colored slash. */
+/** Brand block: skewed violet mark + "MEMOR/CHESS" wordmark with a slash in the action colour. */
 @Composable
 private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp, versionLabel: String) {
   val palette = LocalKineticPalette.current
@@ -169,7 +169,7 @@ private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp, versionLabel: Stri
       val second = stringResource(Res.string.brand_wordmark_second)
       val wordmark: AnnotatedString = buildAnnotatedString {
         withStyle(SpanStyle(color = palette.ink)) { append(first) }
-        withStyle(SpanStyle(color = palette.accent, fontWeight = FontWeight.ExtraBold)) {
+        withStyle(SpanStyle(color = palette.action, fontWeight = FontWeight.ExtraBold)) {
           append("/")
         }
         withStyle(SpanStyle(color = palette.ink)) { append(second) }
@@ -189,7 +189,7 @@ private fun TopNavLink(item: KineticTopBarNavItem, active: Boolean, onClick: () 
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val labelColor = if (active) palette.ink else palette.ink3
-  val accent = palette.accent
+  val action = palette.action
 
   Row(
     modifier =
@@ -202,7 +202,7 @@ private fun TopNavLink(item: KineticTopBarNavItem, active: Boolean, onClick: () 
           val bottomInsetPx = 14.dp.toPx()
           val y = size.height - bottomInsetPx
           drawRect(
-            color = accent,
+            color = action,
             topLeft = Offset(left, y),
             size = Size((right - left).coerceAtLeast(0f), strokePx),
           )
@@ -234,7 +234,7 @@ private fun TopNavLink(item: KineticTopBarNavItem, active: Boolean, onClick: () 
  *
  * @param label Small mono uppercase caption, e.g. `"EVAL"`.
  * @param value Big display value, e.g. `"+0.4"`.
- * @param hot When true, both label and value adopt `accentText`, and a leading `"● "` (in `accent`)
+ * @param hot When true, both label and value adopt `actionText`, and a leading `"● "` (in `action`)
  *   is prepended to the value to signal a live data feed.
  */
 @Composable
@@ -242,12 +242,12 @@ fun KineticTopBarPill(label: String, value: String, hot: Boolean = false) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
 
-  val labelColor = if (hot) palette.accentText else palette.ink3
-  val valueColor = if (hot) palette.accentText else palette.ink
+  val labelColor = if (hot) palette.actionText else palette.ink3
+  val valueColor = if (hot) palette.actionText else palette.ink
 
   val valueText: AnnotatedString = buildAnnotatedString {
     if (hot) {
-      withStyle(SpanStyle(color = palette.accent)) { append("● ") }
+      withStyle(SpanStyle(color = palette.action)) { append("● ") }
     }
     append(value)
   }

@@ -112,7 +112,7 @@ private fun OpeningHeader(state: ExplorerState) {
   if (opening == null) {
     Text(
       text = stringResource(Res.string.explore_lichess_title),
-      style = typography.monoSm.copy(color = palette.accentText),
+      style = typography.monoSm.copy(color = palette.actionText),
     )
   } else {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -161,17 +161,17 @@ private fun Body(state: ExplorerState, onClickMove: (String) -> Unit) {
     is ExplorerState.RateLimited ->
       Text(
         stringResource(Res.string.explore_rate_limited),
-        style = typography.bodySm.copy(color = palette.red),
+        style = typography.bodySm.copy(color = palette.destructive),
       )
     is ExplorerState.Unauthorized ->
       Text(
         stringResource(Res.string.explore_unauthorized),
-        style = typography.bodySm.copy(color = palette.red),
+        style = typography.bodySm.copy(color = palette.destructive),
       )
     is ExplorerState.Error ->
       Text(
         stringResource(Res.string.explore_error, state.message),
-        style = typography.bodySm.copy(color = palette.red),
+        style = typography.bodySm.copy(color = palette.destructive),
       )
   }
 }
@@ -234,13 +234,13 @@ private fun StackedResultBar(move: LichessExplorerMove, modifier: Modifier = Mod
   val blackWeight = (move.black / total).coerceAtLeast(MIN_WEIGHT)
   Row(modifier = modifier.background(palette.panel3)) {
     if (move.white > 0) {
-      Box(modifier = Modifier.weight(whiteWeight).fillMaxHeight().background(palette.green))
+      Box(modifier = Modifier.weight(whiteWeight).fillMaxHeight().background(palette.progress))
     }
     if (move.draws > 0) {
       Box(modifier = Modifier.weight(drawWeight).fillMaxHeight().background(palette.ink3))
     }
     if (move.black > 0) {
-      Box(modifier = Modifier.weight(blackWeight).fillMaxHeight().background(palette.red))
+      Box(modifier = Modifier.weight(blackWeight).fillMaxHeight().background(palette.destructive))
     }
   }
 }

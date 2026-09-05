@@ -4,11 +4,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Canonical Kinetic design tokens.
+ * Canonical Kinetic design tokens: a gamified role palette of electric violet, hot pink, and lime.
  *
- * Values mirror `design-proposals/kinetic-base.css` exactly. Two palette instances exist —
- * [KineticDarkPalette] and [KineticLightPalette]. The light palette is deliberately cool/futuristic
- * (ice white + electric cyan secondary), not warm/cream.
+ * Two palette instances exist, [KineticDarkPalette] and [KineticLightPalette]. `action`, `streak`
+ * and `destructive` keep the same hue in both. `progress` swaps hue per theme, using lime in dark
+ * and violet in light. The light palette stays cool and futuristic with an ice white base. It is
+ * never warm or cream.
  */
 @Immutable
 data class KineticPalette(
@@ -29,25 +30,37 @@ data class KineticPalette(
   val ink3: Color,
   val ink4: Color,
 
-  // Accent (orange)
-  val accent: Color,
-  val accentText: Color,
-  val accentGlow: Color,
-  val accentDim: Color,
-  val accentSoft: Color,
-  val onAccent: Color,
+  // Action: the primary interactive role. Electric violet, same hue in both themes.
+  val action: Color,
+  val actionText: Color,
+  val actionGlow: Color,
+  val actionDim: Color,
+  val actionSoft: Color,
+  val onAction: Color,
 
-  // Cyan (secondary tech accent)
-  val cyan: Color,
-  val cyanGlow: Color,
+  // Progress: the completion and success role. Lime in dark, violet in light.
+  val progress: Color,
+  val progressText: Color,
+  val progressGlow: Color,
+  val progressDim: Color,
+  val progressSoft: Color,
+  val onProgress: Color,
 
-  // Semantic
-  val green: Color,
-  val greenDim: Color,
-  val greenSoft: Color,
-  val red: Color,
-  val redDim: Color,
-  val redSoft: Color,
+  // Streak: the secondary highlight role. Hot pink, same hue in both themes.
+  val streak: Color,
+  val streakText: Color,
+  val streakGlow: Color,
+  val streakDim: Color,
+  val streakSoft: Color,
+  val onStreak: Color,
+
+  // Destructive: the dangerous action role. Hot pink, never red, same hue in both themes.
+  val destructive: Color,
+  val destructiveText: Color,
+  val destructiveGlow: Color,
+  val destructiveDim: Color,
+  val destructiveSoft: Color,
+  val onDestructive: Color,
 
   // Board squares (Kinetic-aligned defaults)
   val sqLight: Color,
@@ -71,26 +84,36 @@ val KineticDarkPalette =
     ink2 = Color(0xFFC4C8D0),
     ink3 = Color(0xFF7A8090),
     ink4 = Color(0xFF4A5060),
-    accent = Color(0xFFFF5B26),
-    accentText = Color(0xFFFF5B26),
-    accentGlow = Color(0xFFFF7A4D),
-    accentDim = Color(0xFF993515),
-    accentSoft = Color(0x24FF5B26), // accent at 14% opacity
-    onAccent = Color(0xFF000000),
-    cyan = Color(0xFF4CD6E8),
-    cyanGlow = Color(0x664CD6E8), // cyan at 40% opacity
-    green = Color(0xFF6EE7A4),
-    greenDim = Color(0xFF2A6B3E),
-    greenSoft = Color(0x1F6EE7A4), // green at 12% opacity
-    red = Color(0xFFFF4060),
-    redDim = Color(0xFF6B2030),
-    redSoft = Color(0x1AFF4060), // red at 10% opacity
+    action = Color(0xFF8B5CF6),
+    actionText = Color(0xFF8B5CF6),
+    actionGlow = Color(0xFFA78BFA),
+    actionDim = Color(0xFF4C1D95),
+    actionSoft = Color(0x248B5CF6), // action at 14% opacity
+    onAction = Color(0xFFFFFFFF),
+    progress = Color(0xFFA3E635),
+    progressText = Color(0xFFA3E635),
+    progressGlow = Color(0xFFD9F99D),
+    progressDim = Color(0xFF3F6212),
+    progressSoft = Color(0x1FA3E635), // progress at 12% opacity
+    onProgress = Color(0xFF000000),
+    streak = Color(0xFFFF3D9A),
+    streakText = Color(0xFFFF3D9A),
+    streakGlow = Color(0xFFFF7AC1),
+    streakDim = Color(0xFF7A1550),
+    streakSoft = Color(0x24FF3D9A), // streak at 14% opacity
+    onStreak = Color(0xFFFFFFFF),
+    destructive = Color(0xFFF23278),
+    destructiveText = Color(0xFFF23278),
+    destructiveGlow = Color(0xFFFF6FA3),
+    destructiveDim = Color(0xFF7A1030),
+    destructiveSoft = Color(0x1AF23278), // destructive at 10% opacity
+    onDestructive = Color(0xFFFFFFFF),
     sqLight = Color(0xFFD7DDE6),
     sqDark = Color(0xFF3A4150),
     isLight = false,
   )
 
-/** Light Kinetic palette — futuristic, cool ice white + electric cyan, never warm/cream. */
+/** Light Kinetic palette. Futuristic and cool with an ice white base. Never warm or cream. */
 val KineticLightPalette =
   KineticPalette(
     bg = Color(0xFFEEF2F7),
@@ -104,20 +127,30 @@ val KineticLightPalette =
     ink2 = Color(0xFF1F2738),
     ink3 = Color(0xFF54607A),
     ink4 = Color(0xFF8693AB),
-    accent = Color(0xFFFF5B26),
-    accentText = Color(0xFFD63D0C),
-    accentGlow = Color(0xFFFF7847),
-    accentDim = Color(0xFFFFD8C8),
-    accentSoft = Color(0x1AFF5B26), // accent at 10% opacity
-    onAccent = Color(0xFFFFFFFF),
-    cyan = Color(0xFF00B8D4),
-    cyanGlow = Color(0x6600B8D4), // cyan at 40% opacity
-    green = Color(0xFF00A86B),
-    greenDim = Color(0xFFB5E6D3),
-    greenSoft = Color(0x1A00A86B), // green at 10% opacity
-    red = Color(0xFFE11D48),
-    redDim = Color(0xFFF4C2CC),
-    redSoft = Color(0x14E11D48), // red at 8% opacity
+    action = Color(0xFF8B5CF6),
+    actionText = Color(0xFF6D28D9),
+    actionGlow = Color(0xFFA78BFA),
+    actionDim = Color(0xFFE4D4FF),
+    actionSoft = Color(0x1A8B5CF6), // action at 10% opacity
+    onAction = Color(0xFFFFFFFF),
+    progress = Color(0xFF7C3AED),
+    progressText = Color(0xFF5B21B6),
+    progressGlow = Color(0xFFC4B5FD),
+    progressDim = Color(0xFFEEE0FB),
+    progressSoft = Color(0x1A7C3AED), // progress at 10% opacity
+    onProgress = Color(0xFFFFFFFF),
+    streak = Color(0xFFFF3D9A),
+    streakText = Color(0xFFC81870),
+    streakGlow = Color(0xFFFF7AC1),
+    streakDim = Color(0xFFFFD6EA),
+    streakSoft = Color(0x1AFF3D9A), // streak at 10% opacity
+    onStreak = Color(0xFFFFFFFF),
+    destructive = Color(0xFFF23278),
+    destructiveText = Color(0xFFB0184F),
+    destructiveGlow = Color(0xFFFF6FA3),
+    destructiveDim = Color(0xFFFDD6E4),
+    destructiveSoft = Color(0x14F23278), // destructive at 8% opacity
+    onDestructive = Color(0xFFFFFFFF),
     sqLight = Color(0xFFE5EDF5),
     sqDark = Color(0xFF5E6A82),
     isLight = true,

@@ -74,7 +74,7 @@ fun DangerZoneSection(treeStore: TreeStore = koinInject(), onReset: () -> Unit =
 
     DangerRow(
       title = stringResource(Res.string.settings_erase_title),
-      titleColor = palette.red,
+      titleColor = palette.destructive,
       description = stringResource(Res.string.settings_erase_description),
       buttonLabel = stringResource(Res.string.settings_erase_button),
       buttonStyle = KineticButtonStyle.Danger,

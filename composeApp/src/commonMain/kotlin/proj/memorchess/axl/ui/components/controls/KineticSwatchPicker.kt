@@ -62,8 +62,8 @@ data class KineticSwatch<T>(
  *
  * Each [KineticSwatch] is drawn as a 48.dp square showing a 2×2 checkered preview of its
  * `lightSquareColor` and `darkSquareColor`, with the swatch's [KineticSwatch.label] rendered below
- * in `monoSm` uppercase. Idle swatches carry a 1.dp `line` border; the active swatch (where
- * `swatch.value == selected`) gets a 2.dp `accent` border, a small `accent` check-mark badge in the
+ * in `monoSm` uppercase. Idle swatches carry a 1.dp `line` border. The active swatch (where
+ * `swatch.value == selected`) gets a 2.dp `action` border, a small `action` check-mark badge in the
  * bottom-right of the preview, and an `ink` label color (idle labels use `ink3`). When [enabled] is
  * false the whole row dims to 0.5 alpha and clicks are suppressed. Press/hover indication is taken
  * from [LocalIndication] so each platform's Material theme controls the ripple.
@@ -97,7 +97,7 @@ fun <T> KineticSwatchPicker(
   ) {
     options.forEach { swatch ->
       val isActive = swatch.value == selected
-      val borderColor = if (isActive) palette.accent else palette.line
+      val borderColor = if (isActive) palette.action else palette.line
       val borderWidth = if (isActive) 2.dp else 1.dp
       val labelColor = if (isActive) palette.ink else palette.ink3
       val interactionSource = remember(swatch.value) { MutableInteractionSource() }
@@ -133,13 +133,13 @@ fun <T> KineticSwatchPicker(
           if (isActive) {
             Box(
               modifier =
-                Modifier.align(Alignment.BottomEnd).size(16.dp).background(color = palette.accent),
+                Modifier.align(Alignment.BottomEnd).size(16.dp).background(color = palette.action),
               contentAlignment = Alignment.Center,
             ) {
               Icon(
                 imageVector = Icons.Filled.Check,
                 contentDescription = null,
-                tint = palette.onAccent,
+                tint = palette.onAction,
                 modifier = Modifier.size(12.dp),
               )
             }

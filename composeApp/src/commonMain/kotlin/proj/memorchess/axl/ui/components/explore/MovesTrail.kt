@@ -85,15 +85,15 @@ private val ArrowSize = 24.dp
  *
  * Layout, left to right:
  * 1. **Opening pin** ([openingName]) — only rendered when non-null. Uppercase mono 9.5sp on
- *    `accentSoft` background with `accentText` text, padded 12.dp horizontally.
+ *    `actionSoft` background with `actionText` text, padded 12.dp horizontally.
  * 2. **Scrollable chip strip** — a [LazyRow] of [MoveDisplay] chips on a `bg2` background. Each
  *    chip carries a 1.dp `line` border and `bg` background by default, rendering the SAN in mono
  *    11sp prefixed with the move number (`"1. Nf3"` / `"1... Nf6"`). Items are separated by 4.dp.
  *    The strip fades its leftmost and rightmost ~16.dp into the trail background via a
  *    `drawWithContent` gradient overlay so chips dissolve at the boundary instead of butting
  *    against the arrows.
- *     - Current move ([currentIndex] == index): solid `accent` background with `onAccent` text and
- *       `accent` border.
+ *     - Current move ([currentIndex] == index): solid `action` background with `onAction` text and
+ *       `action` border.
  *     - Guess move ([MoveDisplay.isGuess]): dashed `ink4` border drawn via [drawBehind] with a
  *       dashed [PathEffect], and the SAN gets a trailing `" ?"`.
  *
@@ -161,14 +161,14 @@ fun MovesTrail(
       Box(
         modifier =
           Modifier.fillMaxHeight()
-            .background(palette.accentSoft)
+            .background(palette.actionSoft)
             .border(width = 1.dp, color = palette.line)
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
       ) {
         Text(
           text = openingName.uppercase(),
-          style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.accentText),
+          style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.actionText),
         )
       }
     }
@@ -293,14 +293,14 @@ private fun MoveChip(move: MoveDisplay, isCurrent: Boolean, onClick: () -> Unit)
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
 
-  val background = if (isCurrent) palette.accent else palette.bg
+  val background = if (isCurrent) palette.action else palette.bg
   val borderColor =
     when {
-      isCurrent -> palette.accent
+      isCurrent -> palette.action
       move.isGuess -> palette.ink4
       else -> palette.line
     }
-  val contentColor = if (isCurrent) palette.onAccent else palette.ink2
+  val contentColor = if (isCurrent) palette.onAction else palette.ink2
 
   // Dashed border for guess chips: drawn with a dashed PathEffect via drawBehind so the dash
   // pattern matches `.trail-mv.guess { border-style: dashed }`.
@@ -365,7 +365,7 @@ private fun TrailArrow(onClick: () -> Unit, isLeft: Boolean) {
 /**
  * PGN overlay dialog. Mirrors `.pgn-overlay` / `.pgn-card`: panel background, 1.dp line border,
  * scrollable two-column grid (move number, white ply, black ply). The current move is highlighted
- * in `accentText`.
+ * in `actionText`.
  */
 @Composable
 private fun PgnDialog(
@@ -507,7 +507,7 @@ private fun PlyCell(
   baseStyle: TextStyle,
 ) {
   val palette = LocalKineticPalette.current
-  val color = if (isCurrent) palette.accentText else palette.ink
+  val color = if (isCurrent) palette.actionText else palette.ink
   val text = move?.let { if (it.isGuess) "${it.san} ?" else it.san } ?: "—"
   Box(modifier = modifier) {
     Text(
