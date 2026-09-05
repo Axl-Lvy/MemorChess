@@ -47,6 +47,28 @@ internal class TestSyncCodec {
       deviceSeq = 0,
     )
 
+  private val repertoire =
+    RepertoireSyncRow(
+      id = "italian-game",
+      name = "Italian Game",
+      color = "WHITE",
+      isDeleted = false,
+      updatedAt = Instant.fromEpochSeconds(1_000),
+      originDevice = "device-a",
+      deviceSeq = 1L,
+    )
+
+  private val tag =
+    EdgeRepertoireTagSyncRow(
+      origin = "startpos",
+      destination = "posA",
+      repertoireId = "italian-game",
+      isDeleted = false,
+      updatedAt = Instant.fromEpochSeconds(1_000),
+      originDevice = "device-a",
+      deviceSeq = 1L,
+    )
+
   @Test
   fun nodeRoundTrips() {
     val text = SYNC_JSON.encodeToString(node)
@@ -139,6 +161,31 @@ internal class TestSyncCodec {
       )
     SYNC_JSON.decodeFromString<SyncPushResponse>(SYNC_JSON.encodeToString(response)) shouldBe
       response
+  }
+
+  @Test
+  fun repertoireRoundTrips() {
+    val text = SYNC_JSON.encodeToString(repertoire)
+    SYNC_JSON.decodeFromString<RepertoireSyncRow>(text) shouldBe repertoire
+  }
+
+  @Test
+  fun edgeRepertoireTagRoundTrips() {
+    val text = SYNC_JSON.encodeToString(tag)
+    SYNC_JSON.decodeFromString<EdgeRepertoireTagSyncRow>(text) shouldBe tag
+  }
+
+  @Test
+  fun pushRequestWithRepertoiresAndTagsRoundTrips() {
+    val request =
+      SyncPushRequest(
+        nodes = emptyList(),
+        edges = emptyList(),
+        settings = emptyList(),
+        repertoires = listOf(repertoire),
+        tags = listOf(tag),
+      )
+    SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
   }
 
   @Test

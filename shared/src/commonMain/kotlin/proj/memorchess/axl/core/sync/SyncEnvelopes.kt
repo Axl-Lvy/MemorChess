@@ -26,6 +26,8 @@ val SYNC_JSON: Json = Json {
  * @property nodes Changed positions.
  * @property edges Changed moves.
  * @property settings Changed settings.
+ * @property repertoires Changed repertoires.
+ * @property tags Changed edge to repertoire tags.
  */
 @Serializable
 data class SyncPullResponse(
@@ -34,6 +36,8 @@ data class SyncPullResponse(
   val nodes: List<NodeSyncRow>,
   val edges: List<EdgeSyncRow>,
   val settings: List<SettingSyncRow>,
+  val repertoires: List<RepertoireSyncRow> = emptyList(),
+  val tags: List<EdgeRepertoireTagSyncRow> = emptyList(),
 )
 
 /**
@@ -42,12 +46,16 @@ data class SyncPullResponse(
  * @property nodes Positions to write.
  * @property edges Moves to write.
  * @property settings Settings to write.
+ * @property repertoires Repertoires to write.
+ * @property tags Edge to repertoire tags to write.
  */
 @Serializable
 data class SyncPushRequest(
   val nodes: List<NodeSyncRow>,
   val edges: List<EdgeSyncRow>,
   val settings: List<SettingSyncRow>,
+  val repertoires: List<RepertoireSyncRow> = emptyList(),
+  val tags: List<EdgeRepertoireTagSyncRow> = emptyList(),
 )
 
 /**
@@ -67,7 +75,7 @@ data class SyncPushResponse(
 /**
  * One refused row.
  *
- * @property kind Resource name: `node`, `edge` or `setting`.
+ * @property kind Resource name: `node`, `edge`, `setting`, `repertoire` or `tag`.
  * @property id Identifier of the row within its resource, for the client to match against its own.
  * @property code Machine readable cause, one of [RejectionCode]. Clients branch on this, never on
  *   [reason].
