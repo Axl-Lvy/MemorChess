@@ -59,8 +59,8 @@ internal fun kineticPressableEdgeColor(palette: KineticPalette): Color = palette
  * Chain any pointer input modifier such as `clickable` before this one and `background(...)` after
  * it. The press translate is a layout offset, so a `clickable` placed after this modifier moves
  * down with the button while the pointer stays put. That cancels a press near the top edge. The
- * edge is drawn behind whatever follows, so a `background` placed before this modifier gets
- * painted over by the edge instead of covering it.
+ * edge is drawn behind whatever follows, so a `background` placed before this modifier gets painted
+ * over by the edge instead of covering it.
  */
 @Composable
 internal fun Modifier.kineticPressableElevation(
