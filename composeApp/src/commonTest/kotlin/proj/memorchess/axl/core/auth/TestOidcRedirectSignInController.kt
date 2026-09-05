@@ -10,15 +10,17 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import proj.memorchess.axl.test_util.TestSettings
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class TestOidcRedirectSignInController {
 
   private fun httpClient(): HttpClient =
@@ -29,7 +31,12 @@ class TestOidcRedirectSignInController {
   @Test
   fun signInPersistsPendingRecordAndNavigatesButNeverReturns() = runTest {
     val pendingStore = PendingOidcRedirectStore(TestSettings())
-    var navigatedTo: String? = null
+    // A CompletableDeferred awaited off the virtual test dispatcher, not advanceUntilIdle(),
+    // because PkceGenerator.generate() suspends on a genuinely async platform primitive (the
+    // browser's crypto.subtle.digest on wasmJs): its completion is never scheduled on the test
+    // scheduler's virtual queue, so neither advancing virtual time nor a virtual-time
+    // withTimeout ever observes it — only real time does.
+    val navigatedTo = CompletableDeferred<String>()
     val delegate =
       OidcSignInController(
         launch = { _, _, _ -> error("popup launch must never be called on wasmJs") },
@@ -46,15 +53,17 @@ class TestOidcRedirectSignInController {
         redirectUri = "https://app.example/sync-oauth-callback",
         clientId = "client-1",
         audience = "https://api.example",
-        navigate = { navigatedTo = it },
+        navigate = { navigatedTo.complete(it) },
         currentHash = { "#settings" },
       )
 
     val job = launch { controller.signIn() }
-    advanceUntilIdle()
+    val url =
+      withContext(Dispatchers.Default.limitedParallelism(1)) {
+        withTimeout(5.seconds) { navigatedTo.await() }
+      }
 
-    navigatedTo shouldNotBe null
-    navigatedTo!! shouldContain "https://issuer.example/auth"
+    url shouldContain "https://issuer.example/auth"
     val pending = pendingStore.load()
     pending shouldNotBe null
     pending!!.returnHash shouldBe "#settings"
