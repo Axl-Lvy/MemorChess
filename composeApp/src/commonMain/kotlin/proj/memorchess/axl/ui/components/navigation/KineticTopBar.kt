@@ -155,7 +155,7 @@ fun KineticTopBar(
   }
 }
 
-/** Brand block: skewed violet mark + "MEMOR/CHESS" wordmark with action-colored slash. */
+/** Brand block: skewed violet mark + "MEMOR/CHESS" wordmark with a slash in the action colour. */
 @Composable
 private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp, versionLabel: String) {
   val palette = LocalKineticPalette.current

@@ -4,11 +4,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Canonical Kinetic design tokens, gamified role palette (electric violet, hot pink, lime).
+ * Canonical Kinetic design tokens: a gamified role palette of electric violet, hot pink, and lime.
  *
- * Two palette instances exist — [KineticDarkPalette] and [KineticLightPalette]. `action`, `streak`
- * and `destructive` keep the same hue across both; `progress` swaps hue per theme (lime in dark,
- * violet in light). The light palette stays cool/futuristic (ice white base), not warm/cream.
+ * Two palette instances exist, [KineticDarkPalette] and [KineticLightPalette]. `action`, `streak`
+ * and `destructive` keep the same hue in both. `progress` swaps hue per theme, using lime in dark
+ * and violet in light. The light palette stays cool and futuristic with an ice white base. It is
+ * never warm or cream.
  */
 @Immutable
 data class KineticPalette(
@@ -29,7 +30,7 @@ data class KineticPalette(
   val ink3: Color,
   val ink4: Color,
 
-  // Action (primary interactive role — electric violet, hue-stable across themes)
+  // Action: the primary interactive role. Electric violet, same hue in both themes.
   val action: Color,
   val actionText: Color,
   val actionGlow: Color,
@@ -37,7 +38,7 @@ data class KineticPalette(
   val actionSoft: Color,
   val onAction: Color,
 
-  // Progress (completion / success role — lime in dark, violet in light)
+  // Progress: the completion and success role. Lime in dark, violet in light.
   val progress: Color,
   val progressText: Color,
   val progressGlow: Color,
@@ -45,7 +46,7 @@ data class KineticPalette(
   val progressSoft: Color,
   val onProgress: Color,
 
-  // Streak (secondary highlight role — hot pink, hue-stable across themes)
+  // Streak: the secondary highlight role. Hot pink, same hue in both themes.
   val streak: Color,
   val streakText: Color,
   val streakGlow: Color,
@@ -53,7 +54,7 @@ data class KineticPalette(
   val streakSoft: Color,
   val onStreak: Color,
 
-  // Destructive (dangerous-action role — hot pink, never red; hue-stable across themes)
+  // Destructive: the dangerous action role. Hot pink, never red, same hue in both themes.
   val destructive: Color,
   val destructiveText: Color,
   val destructiveGlow: Color,
@@ -112,7 +113,7 @@ val KineticDarkPalette =
     isLight = false,
   )
 
-/** Light Kinetic palette — futuristic, cool ice white base, never warm/cream. */
+/** Light Kinetic palette. Futuristic and cool with an ice white base. Never warm or cream. */
 val KineticLightPalette =
   KineticPalette(
     bg = Color(0xFFEEF2F7),

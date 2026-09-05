@@ -35,8 +35,8 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * - **Corner tag** — when [cornerTag] is non-null, a small mono uppercase label punched through the
  *   top-left border (offset by 12.dp from the left, -7.dp vertically). An optional
  *   [cornerTagAccent] suffix is appended in `actionText` colour.
- * - **Your-move pill** — when [yourMovePill] is non-null, an action-coloured pill positioned at the
- *   top-centre sliding up out of the panel by ~16.dp, with a small downward caret glyph.
+ * - **Your-move pill** — when [yourMovePill] is non-null, a pill in the action colour, positioned
+ *   at the top-centre sliding up out of the panel by ~16.dp, with a small downward caret glyph.
  *
  * The shell is just chrome — [content] receives the entire inner area (board grid). The caller is
  * responsible for any `aspectRatio(1f)` constraint on the outer [modifier].
@@ -45,8 +45,8 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * @param compact When `true`, uses the tighter padding/shadow/stripe variants.
  * @param cornerTag Optional uppercase label punched through the top-left border (e.g. `"EXPLORE ·
  *   italian/quiet"`).
- * @param cornerTagAccent Optional action-coloured suffix appended to [cornerTag] in `actionText`
- *   colour (e.g. a move count like `"12"`).
+ * @param cornerTagAccent Optional suffix in the action colour, appended to [cornerTag] in
+ *   `actionText` colour (e.g. a move count like `"12"`).
  * @param cornerTagColor Optional override for the [cornerTag] text colour. Defaults to `ink3` when
  *   `null`. Useful for status tags that need to convey state (progress = saved, destructive =
  *   error, …).

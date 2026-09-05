@@ -32,7 +32,7 @@ class TestKineticPalette {
   }
 
   @Test
-  fun destructiveIsNeverRed() {
+  fun destructiveDiffersFromStreak() {
     KineticDarkPalette.destructive shouldNotBe KineticDarkPalette.streak
   }
 
