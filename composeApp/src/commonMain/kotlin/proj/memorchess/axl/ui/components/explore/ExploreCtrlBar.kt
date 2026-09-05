@@ -116,7 +116,7 @@ fun ExploreCtrlBar(
         text =
           if (playerTurnWhite) stringResource(Res.string.explore_white)
           else stringResource(Res.string.explore_black),
-        style = typography.monoSm.copy(color = palette.ink2),
+        style = typography.labelSm.copy(color = palette.ink2),
       )
     }
 

@@ -32,7 +32,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * Mirrors the `.ctrlbar` rule in `design-proposals/kinetic-base.css`. Layout, left to right:
  * - **SKIP** — default [KineticButton]; wired to [onSkip].
  * - **Turn pill** — a small `panel2`-backed Box with a 1.dp `line` border showing `"BLACK TO MOVE"`
- *   or `"WHITE TO MOVE"` in mono 10sp uppercase text. The pill text is derived from [playerTurn].
+ *   or `"WHITE TO MOVE"` in 10sp uppercase text. The pill text is derived from [playerTurn].
  * - **HINT** and **REVEAL** — default + primary [KineticButton]s wired to [onHint] / [onReveal].
  *   These are stubs for v1; the actual hint/reveal logic is out of scope of this visual port.
  *
@@ -79,7 +79,10 @@ fun TrainingCtrlBar(
           .padding(horizontal = 12.dp, vertical = 8.dp),
       contentAlignment = Alignment.Center,
     ) {
-      Text(text = turnLabel, style = typography.monoSm.copy(fontSize = 10.sp, color = palette.ink2))
+      Text(
+        text = turnLabel,
+        style = typography.labelSm.copy(fontSize = 10.sp, color = palette.ink2),
+      )
     }
     KineticButton(onClick = onHint, style = KineticButtonStyle.Default) {
       KineticButtonLabel(stringResource(Res.string.training_hint))

@@ -33,7 +33,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  *
  * @property id stable identifier of the section, matched against the sidebar's `selectedId`.
  * @property label display label in the sidebar.
- * @property number two digit mono number shown on the right of the item.
+ * @property number two digit number shown on the right of the item.
  */
 data class SettingsNavItem(val id: String, val label: StringResource, val number: String)
 
@@ -41,7 +41,7 @@ data class SettingsNavItem(val id: String, val label: StringResource, val number
  * A logical group of [SettingsNavItem]s sharing a header in the sidebar (e.g. "Appearance",
  * "Practice").
  *
- * @property title small uppercase mono caption shown above the group.
+ * @property title small uppercase caption shown above the group.
  * @property sections nav items, in display order.
  */
 data class SettingsNavGroup(val title: StringResource, val sections: List<SettingsNavItem>)
@@ -82,7 +82,7 @@ fun SettingsSidebar(
   ) {
     Text(
       text = stringResource(Res.string.settings_sidebar_caption),
-      style = typography.monoSm.copy(color = palette.actionText),
+      style = typography.labelSm.copy(color = palette.actionText),
       modifier = Modifier.padding(horizontal = 22.dp),
     )
     Text(
@@ -94,7 +94,7 @@ fun SettingsSidebar(
     groups.forEach { group ->
       Text(
         text = stringResource(group.title).uppercase(),
-        style = typography.monoSm.copy(color = palette.ink4),
+        style = typography.labelSm.copy(color = palette.ink4),
         modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 6.dp),
       )
       group.sections.forEach { item ->
@@ -129,6 +129,6 @@ private fun SidebarItem(item: SettingsNavItem, active: Boolean, onClick: () -> U
     horizontalArrangement = Arrangement.SpaceBetween,
   ) {
     Text(text = stringResource(item.label), style = typography.display.copy(color = labelColor))
-    Text(text = item.number, style = typography.monoSm.copy(color = numColor))
+    Text(text = item.number, style = typography.labelSm.copy(color = numColor))
   }
 }

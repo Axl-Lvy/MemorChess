@@ -38,7 +38,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  *
  * Each swatch is rendered as a 2×2 checkered tile using [lightSquareColor] in the top-left and
  * bottom-right cells and [darkSquareColor] in the top-right and bottom-left cells. The [label] is
- * shown in uppercase mono beneath the tile.
+ * shown in uppercase beneath the tile.
  *
  * @param T value type backing the option — typically an enum or sealed subclass identifying a board
  *   style.
@@ -62,7 +62,7 @@ data class KineticSwatch<T>(
  *
  * Each [KineticSwatch] is drawn as a 48.dp square showing a 2×2 checkered preview of its
  * `lightSquareColor` and `darkSquareColor`, with the swatch's [KineticSwatch.label] rendered below
- * in `monoSm` uppercase. Idle swatches carry a 1.dp `line` border. The active swatch (where
+ * in `labelSm` uppercase. Idle swatches carry a 1.dp `line` border. The active swatch (where
  * `swatch.value == selected`) gets a 2.dp `action` border, a small `action` check-mark badge in the
  * bottom-right of the preview, and an `ink` label color (idle labels use `ink3`). When [enabled] is
  * false the whole row dims to 0.5 alpha and clicks are suppressed. Press/hover indication is taken
@@ -148,7 +148,7 @@ fun <T> KineticSwatchPicker(
 
         Text(
           text = swatch.label.uppercase(),
-          style = typography.monoSm.copy(color = labelColor),
+          style = typography.labelSm.copy(color = labelColor),
           maxLines = 2,
           textAlign = TextAlign.Center,
         )

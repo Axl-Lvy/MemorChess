@@ -24,8 +24,8 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * `design-proposals/kinetic-settings-desktop.html`.
  *
  * Renders a `panel` background with a 1.dp `line` border and a 5.dp Kinetic offset shadow. The
- * [title] sits at the top in Bricolage 700 16sp `ink`, with an optional [description] line beneath
- * in `monoSm` `ink3`. A 12.dp gap separates the title block from [content].
+ * [title] sits at the top in Baloo 2 700 16sp `ink`, with an optional [description] line beneath in
+ * `labelSm` `ink3`. A 12.dp gap separates the title block from [content].
  *
  * When [danger] is true the section gains a 3.dp `destructive` vertical strip on the left edge
  * (drawn via [drawBehind]) and the background is tinted with `destructiveSoft`; the border switches
@@ -81,7 +81,7 @@ fun SettingsSection(
   ) {
     Text(text = title, style = typography.display.copy(color = titleColor))
     if (description != null) {
-      Text(text = description, style = typography.monoSm.copy(color = palette.ink3))
+      Text(text = description, style = typography.labelSm.copy(color = palette.ink3))
     }
     Column(
       modifier = Modifier.fillMaxWidth().padding(top = 12.dp),

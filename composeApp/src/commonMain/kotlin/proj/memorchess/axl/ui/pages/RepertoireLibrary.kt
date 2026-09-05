@@ -177,7 +177,7 @@ internal fun RepertoireLibraryContent(
   Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(
       text = stringResource(Res.string.library_title),
-      style = typography.monoSm.copy(color = palette.actionText),
+      style = typography.labelSm.copy(color = palette.actionText),
     )
     Text(
       text = stringResource(Res.string.library_subtitle),
@@ -335,7 +335,7 @@ private fun RepertoireCard(
           descriptor.moveCount,
           descriptor.moveCount,
         ),
-      style = typography.monoSm.copy(color = palette.ink3),
+      style = typography.labelSm.copy(color = palette.ink3),
     )
     InstallStatusRow(installState = installState, onInstallRequest = onInstallRequest)
   }
@@ -353,7 +353,7 @@ private fun ColorTag(color: RepertoireColor) {
     }
   Text(
     text = label,
-    style = typography.monoSm.copy(color = palette.ink2),
+    style = typography.labelSm.copy(color = palette.ink2),
     modifier =
       Modifier.background(palette.panel2)
         .border(width = 1.dp, color = palette.lineBright)
@@ -368,7 +368,7 @@ private fun InstalledBadge() {
   val typography = LocalKineticTypography.current
   Text(
     text = stringResource(Res.string.library_installed_badge),
-    style = typography.monoSm.copy(color = palette.actionText),
+    style = typography.labelSm.copy(color = palette.actionText),
     modifier =
       Modifier.border(width = 1.dp, color = palette.action)
         .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -483,7 +483,7 @@ private fun PreviewDialogContent(
           descriptor.moveCount,
           descriptor.moveCount,
         ),
-      style = typography.monoSm.copy(color = palette.ink3),
+      style = typography.labelSm.copy(color = palette.ink3),
     )
     PreviewOverlap(previewState)
     Text(

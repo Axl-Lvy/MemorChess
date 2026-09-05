@@ -50,7 +50,7 @@ private data class SignInError(val res: StringResource, val arg: String?)
  *
  * Visual layer follows the Kinetic settings card: a 56.dp square cyan-tinted avatar (showing the
  * first letter of the username, or "?" when signed out), the username on top in `display`, a small
- * mono status line below, and a [Row] of [KineticButton]s on the right (sign-in / sign-out).
+ * status line below, and a [Row] of [KineticButton]s on the right (sign-in / sign-out).
  *
  * All OAuth wiring is unchanged from the previous Material version — only the rendering changed.
  */
@@ -159,7 +159,7 @@ private fun LichessAccountIdentity(
         } else {
           stringResource(Res.string.lichess_sign_in_prompt)
         },
-      style = typography.monoSm.copy(color = palette.ink3),
+      style = typography.labelSm.copy(color = palette.ink3),
     )
   }
 }

@@ -38,9 +38,9 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  *
  * Renders [options] as a horizontal row of equal-width segments wrapped in a 1.dp `lineBright`
  * border over a `bg2` background, with 1.dp `lineBright` vertical dividers between segments. Each
- * segment shows a Bricolage display label (600 12sp idle, 700 12sp when active) produced by
- * [label]; if [subtext] is provided, a `monoSm` caption is rendered below the label and the
- * segment's minimum height grows from 36.dp to 44.dp.
+ * segment shows a Baloo 2 display label (600 12sp idle, 700 12sp when active) produced by [label];
+ * if [subtext] is provided, a `labelSm` caption is rendered below the label and the segment's
+ * minimum height grows from 36.dp to 44.dp.
  *
  * The currently [selected] segment is filled with `action` and switches its content color to
  * `onAction` (subtext at 0.7 alpha); idle segments use `ink3` for the label and `ink4` for the
@@ -55,7 +55,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * @param onSelect invoked with the chosen value when the user taps a segment.
  * @param modifier external modifier applied to the outer container.
  * @param label maps a value to its main display label.
- * @param subtext optional mapping from a value to a small uppercase mono caption shown beneath the
+ * @param subtext optional mapping from a value to a small uppercase caption shown beneath the
  *   label; pass `null` to omit the caption row entirely.
  * @param enabled when false, clicks are disabled and the control is rendered at 0.5 alpha.
  */
@@ -103,7 +103,7 @@ fun <T> KineticSegmentedControl(
  * inflate the parent's cognitive complexity.
  *
  * @param label main display label.
- * @param subtext optional uppercase mono caption shown beneath the label.
+ * @param subtext optional uppercase caption shown beneath the label.
  * @param isActive whether this segment is the selected one.
  * @param enabled whether clicks are accepted.
  * @param onClick invoked when the segment is tapped.
@@ -151,7 +151,7 @@ private fun RowScope.KineticSegment(
       ) {
         Text(text = label)
         if (subtext != null) {
-          Text(text = subtext.uppercase(), style = typography.monoSm.copy(color = subtextColor))
+          Text(text = subtext.uppercase(), style = typography.labelSm.copy(color = subtextColor))
         }
       }
     }

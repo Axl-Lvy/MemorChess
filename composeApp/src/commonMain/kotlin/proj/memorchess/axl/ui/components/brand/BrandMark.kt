@@ -23,7 +23,7 @@ private const val SKEW_DEGREES = 6f
  * Kinetic brand mark — a left-leaning orange parallelogram with an upright "M" centered inside.
  *
  * Mirrors `.brand` from `design-proposals/kinetic-base.css`: a 36×36 accent square skewed `-6°` on
- * the X axis, with an inset 1px accent-glow border and a counter-skewed "M" letter in Bricolage
+ * the X axis, with an inset 1px accent-glow border and a counter-skewed "M" letter in Baloo 2
  * 800. Because the inner letter counter-skews back to upright, this implementation draws the
  *      parallelogram directly (no `graphicsLayer` skew needed) and centers an upright [Text].
  *

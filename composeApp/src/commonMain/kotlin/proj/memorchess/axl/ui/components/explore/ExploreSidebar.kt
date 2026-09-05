@@ -110,7 +110,7 @@ fun ExploreSidebar(
         ) {
           Text(
             text = stringResource(Res.string.explore_notes_coming_soon),
-            style = typography.monoSm.copy(color = palette.ink3),
+            style = typography.labelSm.copy(color = palette.ink3),
           )
         }
     }
@@ -131,7 +131,7 @@ private fun ContinuationsContent(nextMoves: List<String>, onPlay: (String) -> Un
     ) {
       Text(
         text = stringResource(Res.string.explore_no_continuations),
-        style = typography.monoSm.copy(color = palette.ink3),
+        style = typography.labelSm.copy(color = palette.ink3),
       )
     }
     return
