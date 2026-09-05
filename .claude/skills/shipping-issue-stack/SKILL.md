@@ -28,6 +28,19 @@ superpowers:test-driven-development (the implement step), workflow-authoring
 - **Not** for issues that aren't independently reviewable as separate PRs —
   decompose first (see brainstorming's scope-check).
 
+## Always confirm before starting
+
+This skill's trigger conditions above are an exception to the normal
+"invoke without asking" rule: because running it means committing to a
+multi-hour, multi-agent pipeline that opens real PRs, always ask the user to
+confirm before doing anything else — before Phase 0, before invoking
+superpowers:brainstorming, before any exploration beyond what's needed to
+name the issues. State in one or two sentences what running this skill will
+do (brainstorm each issue, then spec/implement/review/stack/babysit them as
+a PR stack) and wait for an explicit yes. A message that merely mentions
+several issues in passing is not that confirmation — only proceed once the
+user has said to run this process specifically.
+
 ## Phase 0 — Brainstorm (this session, with the human partner)
 
 For **each** issue in scope, invoke superpowers:brainstorming to pin down the
