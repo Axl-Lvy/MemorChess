@@ -282,6 +282,8 @@ private suspend fun buildPushRequest(
 ): SyncPushRequest {
   val nodes = mutableListOf<NodeSyncRow>()
   val edges = mutableListOf<EdgeSyncRow>()
+  val repertoires = mutableListOf<RepertoireSyncRow>()
+  val tags = mutableListOf<EdgeRepertoireTagSyncRow>()
   for (entry in batch) {
     when (val key = entry.key) {
       is DirtyKey.NodeKey -> {
@@ -291,12 +293,25 @@ private suspend fun buildPushRequest(
         localMove(database, key.origin, key.destination)?.let { edges += it.toEdgeSyncRow() }
       }
       is DirtyKey.SettingKey -> Unit
-      // Wired up in a later task, alongside the repertoire and tag registries this reads from.
-      is DirtyKey.RepertoireKey -> Unit
-      is DirtyKey.TagKey -> Unit
+      is DirtyKey.RepertoireKey -> {
+        database.getRepertoireIncludingDeleted(key.repertoireId)?.let {
+          repertoires += it.toRepertoireSyncRow()
+        }
+      }
+      is DirtyKey.TagKey -> {
+        database.getTagIncludingDeleted(key.origin, key.destination, key.repertoireId)?.let {
+          tags += it.toEdgeRepertoireTagSyncRow()
+        }
+      }
     }
   }
-  return SyncPushRequest(nodes = nodes, edges = edges, settings = emptyList())
+  return SyncPushRequest(
+    nodes = nodes,
+    edges = edges,
+    settings = emptyList(),
+    repertoires = repertoires,
+    tags = tags,
+  )
 }
 
 /** The move connecting [origin] to [destination], read off [origin]'s own denormalized map. */
@@ -326,6 +341,8 @@ private suspend fun pullAll(
         val page = outcome.response
         for (node in page.nodes) treeStore.applySyncedNode(node)
         for (edge in page.edges) treeStore.applySyncedMove(edge)
+        for (repertoire in page.repertoires) treeStore.applySyncedRepertoire(repertoire)
+        for (tag in page.tags) treeStore.applySyncedTag(tag)
         cursor = page.nextCursor
         cursorStore.write(cursor)
         if (cursor == null) return null
