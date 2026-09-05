@@ -5,16 +5,18 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-/** Outcome of [decideOidcRedirectExchange]: what the caller's synchronous cleanup step should do. */
+/**
+ * Outcome of [decideOidcRedirectExchange]: what the caller's synchronous cleanup step should do.
+ */
 internal sealed class OidcRedirectDecision {
   /** The current path is not the sync redirect callback at all; ordinary app boot. */
   data object NotACallback : OidcRedirectDecision()
 
   /**
-   * The path is the callback. [cleanedUrl] is what the browser's address bar should become,
-   * before Koin/App ever see the callback path. [exchange] is non-null only when a token exchange
-   * should follow; every other case (state mismatch, IdP `error`, no pending record, missing
-   * `code`) still cleans the URL but performs no exchange.
+   * The path is the callback. [cleanedUrl] is what the browser's address bar should become, before
+   * Koin/App ever see the callback path. [exchange] is non-null only when a token exchange should
+   * follow; every other case (state mismatch, IdP `error`, no pending record, missing `code`) still
+   * cleans the URL but performs no exchange.
    */
   data class Callback(val cleanedUrl: String, val exchange: PendingExchange?) :
     OidcRedirectDecision()
@@ -24,9 +26,9 @@ internal sealed class OidcRedirectDecision {
 internal data class PendingExchange(val code: String, val codeVerifier: String)
 
 /**
- * Pure decision for what to do with [currentPath]/[queryParams] against [redirectPath] and
- * whatever [pending] record was stored before navigating away. No I/O: [queryParams] must already
- * be URL-decoded by the caller.
+ * Pure decision for what to do with [currentPath]/[queryParams] against [redirectPath] and whatever
+ * [pending] record was stored before navigating away. No I/O: [queryParams] must already be
+ * URL-decoded by the caller.
  */
 internal fun decideOidcRedirectExchange(
   currentPath: String,

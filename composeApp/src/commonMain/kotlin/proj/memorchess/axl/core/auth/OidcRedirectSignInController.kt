@@ -5,10 +5,10 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * wasmJs [AuthProvider]: initiates sign in via a full page redirect instead of the popup [delegate]
- * would otherwise use, because Google's `accounts.google.com` sends
- * `Cross-Origin-Opener-Policy: same-origin`, which permanently breaks the popup + polling technique
- * for the life of that popup (see the design spec). Delegates [signOut], [accessToken], and
- * [currentAccount] unchanged, since that logic never touches the popup.
+ * would otherwise use, because Google's `accounts.google.com` sends `Cross-Origin-Opener-Policy:
+ * same-origin`, which permanently breaks the popup + polling technique for the life of that popup
+ * (see the design spec). Delegates [signOut], [accessToken], and [currentAccount] unchanged, since
+ * that logic never touches the popup.
  *
  * [navigate] performs the actual page navigation (real wiring: `window.location.href = it`);
  * [currentHash] reads the page's current hash so the user returns to it after sign in.

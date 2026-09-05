@@ -12,8 +12,8 @@ interface AuthProvider {
   val currentAccount: StateFlow<Account?>
 
   /**
-   * Runs the full sign in flow. Safe to invoke multiple times; the result reflects the latest.
-   * The wasmJs implementation never returns at all — see its own KDoc.
+   * Runs the full sign in flow. Safe to invoke multiple times; the result reflects the latest. The
+   * wasmJs implementation never returns at all — see its own KDoc.
    */
   suspend fun signIn(): SignInResult
 

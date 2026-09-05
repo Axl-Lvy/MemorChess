@@ -15,8 +15,10 @@ import java.io.File
 /** How long a content-hashed static asset may be cached, in seconds: one year. */
 private const val HASHED_ASSET_MAX_AGE_SECONDS = 31_536_000
 
-/** Path portion of the wasmJs sync/OIDC redirect URI; kept in sync with the client's own copy of
- * this string (`SYNC_REDIRECT_PATH` in `:composeApp`) by the design spec, not by shared code. */
+/**
+ * Path portion of the wasmJs sync/OIDC redirect URI; kept in sync with the client's own copy of
+ * this string (`SYNC_REDIRECT_PATH` in `:composeApp`) by the design spec, not by shared code.
+ */
 internal const val SYNC_OAUTH_CALLBACK_PATH = "/sync-oauth-callback"
 
 /**
