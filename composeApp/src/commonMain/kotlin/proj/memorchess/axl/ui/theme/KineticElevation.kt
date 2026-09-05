@@ -44,11 +44,23 @@ fun Modifier.kineticShadow(big: Boolean = false): Modifier = composed {
 }
 
 /**
+ * The opaque edge color for [kineticPressableElevation], resolved from [palette]. Uses the bright
+ * line token so the affordance reads as a solid edge in both themes instead of a translucent tint.
+ */
+internal fun kineticPressableEdgeColor(palette: KineticPalette): Color = palette.lineBright
+
+/**
  * Kinetic chunky pressable-button elevation for a button clipped to [shape]. At rest the button
  * sits 4.dp above a hard bottom edge. On [pressed] it translates 3.dp down and the edge collapses
  * to a 1.dp sliver, so the button's base stays flush across both states.
  *
  * The style is static. Nothing here animates between the two states.
+ *
+ * Chain any pointer input modifier such as `clickable` before this one and `background(...)` after
+ * it. The press translate is a layout offset, so a `clickable` placed after this modifier moves
+ * down with the button while the pointer stays put. That cancels a press near the top edge. The
+ * edge is drawn behind whatever follows, so a `background` placed before this modifier gets
+ * painted over by the edge instead of covering it.
  */
 @Composable
 internal fun Modifier.kineticPressableElevation(
@@ -59,7 +71,7 @@ internal fun Modifier.kineticPressableElevation(
   val restOffset: Dp = 4.dp
   val pressedOffset: Dp = 1.dp
   val edgeOffset: Dp = if (pressed) pressedOffset else restOffset
-  val shadowColor: Color = if (palette.isLight) Color(0x1400B8D4) else palette.bg2
+  val shadowColor: Color = kineticPressableEdgeColor(palette)
   this.offset(y = if (pressed) 3.dp else 0.dp)
     .drawBehind {
       translate(top = edgeOffset.toPx()) {
