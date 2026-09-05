@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,19 +15,23 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 
 /**
- * Kinetic motion tokens — the "Register, don't drift" motion language.
+ * Kinetic motion tokens.
  *
- * The Kinetic design system is built from hard edges, zero-radius shapes and flat (blur-less)
- * offset shadows; its motion mirrors that. Things do not gently ease into place, they *register*: a
- * fast attack, a hard settle, and **no overshoot** — there are deliberately no spring tokens here.
+ * Most of the Kinetic design system's motion follows "Register, don't drift": hard edges and flat
+ * offset shadows carry through to a fast attack, a hard settle, and no overshoot. [Celebratory]
+ * reverses that law on purpose. Gamification payoffs (a correct answer, a streak milestone) are
+ * meant to feel like a reward, and a reward that registers instead of bouncing reads as flat, not
+ * disciplined, so those two moments get real springs with visible overshoot. Everything else stays
+ * on [Routine], the fast, no-overshoot family the rest of the app already expects.
  *
  * Every value is a hoisted top-level constant so animation specs are allocated once rather than on
  * every recomposition. Consumers must drive these through the draw/layout phase (`graphicsLayer`,
- * `offset { }`, `drawBehind`) reading an `Animatable`/transition value inside the lambda — never by
- * reading an animated value in the composition phase — so animations stay recomposition-free and
- * lag-free, including on the single-threaded wasmJs target.
+ * `offset { }`, `drawBehind`) reading an `Animatable`/transition value inside the lambda. Never read
+ * an animated value in the composition phase. That keeps animations recomposition-free and lag-free,
+ * including on the single-threaded wasmJs target.
  */
 object KineticMotion {
 
@@ -95,4 +100,62 @@ object KineticMotion {
   fun hudExit(): ExitTransition =
     fadeOut(animationSpec = registerTween()) +
       scaleOut(targetScale = HUD_INITIAL_SCALE, animationSpec = registerTween())
+
+  /** Duration every [Celebratory]/[Routine] spring collapses to when reduce motion is on. */
+  private val reducedMotionDuration: Duration = 120.milliseconds
+
+  /** Whether [REDUCE_MOTION_SETTING] is on. */
+  private fun reduceMotionEnabled(): Boolean = REDUCE_MOTION_SETTING.getValue()
+
+  /**
+   * A [spring] with the given [dampingRatio] and [stiffness], collapsed to a flat
+   * [reducedMotionDuration] tween when reduce motion is on.
+   */
+  private fun <T> reducibleSpring(dampingRatio: Float, stiffness: Float): FiniteAnimationSpec<T> =
+    if (reduceMotionEnabled()) tween(reducedMotionDuration.ms(), easing = attack)
+    else spring(dampingRatio = dampingRatio, stiffness = stiffness)
+
+  /**
+   * Whether the streak-milestone overlay should appear. False when reduce motion is on, per the
+   * mockup's accessibility note: the overlay is skipped entirely rather than shown flat.
+   */
+  fun shouldShowStreakMilestone(): Boolean = !reduceMotionEnabled()
+
+  /**
+   * Springs with visible overshoot, reserved for the two gamification payoffs the "register, don't
+   * drift" law deliberately excludes: a correct answer and a streak milestone.
+   */
+  object Celebratory {
+    /** Correct-answer feedback: a quick, bouncy pop. */
+    fun <T> correctAnswer(): FiniteAnimationSpec<T> =
+      reducibleSpring(dampingRatio = 0.4f, stiffness = 500f)
+
+    /** Streak-milestone overlay entrance: the deepest, slowest bounce, for the rarest payoff. */
+    fun <T> streakMilestone(): FiniteAnimationSpec<T> =
+      reducibleSpring(dampingRatio = 0.35f, stiffness = 400f)
+  }
+
+  /**
+   * Fast springs and short tweens with no overshoot, for the interactions gamification does not
+   * touch. This is the "register, don't drift" law given concrete spec values.
+   */
+  object Routine {
+    /** Wrong-answer feedback: a flat, immediate register with no bounce. */
+    fun <T> wrongAnswer(): FiniteAnimationSpec<T> = tween(120, easing = attack)
+
+    /** Tab and screen transitions: a fast, settled slide. */
+    fun <T> screenTransition(): FiniteAnimationSpec<T> =
+      reducibleSpring(dampingRatio = 0.8f, stiffness = 600f)
+
+    /** Button press: the tightest, fastest spring, for an immediate tactile response. */
+    fun <T> buttonPress(): FiniteAnimationSpec<T> =
+      reducibleSpring(dampingRatio = 0.85f, stiffness = 700f)
+
+    /** Bottom sheet slide: a fast settle with slightly more visible mass than [buttonPress]. */
+    fun <T> bottomSheet(): FiniteAnimationSpec<T> =
+      reducibleSpring(dampingRatio = 0.78f, stiffness = 560f)
+
+    /** Loading skeleton shimmer: the longest routine tween, paced for a readable pulse. */
+    fun <T> loadingSkeleton(): FiniteAnimationSpec<T> = tween(300, easing = LinearEasing)
+  }
 }

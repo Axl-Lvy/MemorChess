@@ -25,6 +25,12 @@ val EVAL_BAR_ENABLED_SETTING = BooleanBasedConfigItem("evalBarEnabled", false)
 val BEST_MOVE_ARROW_ENABLED_SETTING = BooleanBasedConfigItem("bestMoveArrowEnabled", false)
 
 /**
+ * Whether motion is reduced. When on, [proj.memorchess.axl.ui.theme.KineticMotion]'s spring tokens
+ * resolve to a flat, no-bounce tween and the streak-milestone overlay is skipped entirely.
+ */
+val REDUCE_MOTION_SETTING = BooleanBasedConfigItem("reduceMotionEnabled", false)
+
+/**
  * Maximum search depth for the Stockfish engine.
  *
  * Values 5–25 are literal depths; 0 means infinite (pass `null` to the engine).
@@ -76,6 +82,7 @@ val ALL_SETTINGS_ITEMS =
     MOVE_ANIMATION_DURATION_SETTING,
     APP_THEME_SETTING,
     CHESS_BOARD_COLOR_SETTING,
+    REDUCE_MOTION_SETTING,
     ENGINE_MAX_DEPTH_SETTING,
     FUZZ_ENABLED_SETTING,
     SHORT_TERM_ENABLED_SETTING,
