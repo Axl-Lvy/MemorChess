@@ -38,7 +38,7 @@ fun BrandMark(modifier: Modifier = Modifier, size: Dp = 36.dp) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val letter =
-    typography.displayLg.copy(color = palette.onAccent, fontSize = (size.value * 0.61f).sp)
+    typography.displayLg.copy(color = palette.onAction, fontSize = (size.value * 0.61f).sp)
   Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
     Canvas(modifier = Modifier.size(size)) {
       val w = this.size.width
@@ -53,8 +53,8 @@ fun BrandMark(modifier: Modifier = Modifier, size: Dp = 36.dp) {
           lineTo(-dx, h)
           close()
         }
-      drawPath(path = path, color = palette.accent)
-      drawPath(path = path, color = palette.accentGlow, style = Stroke(width = 1f))
+      drawPath(path = path, color = palette.action)
+      drawPath(path = path, color = palette.actionGlow, style = Stroke(width = 1f))
     }
     Text(text = "M", style = letter)
   }

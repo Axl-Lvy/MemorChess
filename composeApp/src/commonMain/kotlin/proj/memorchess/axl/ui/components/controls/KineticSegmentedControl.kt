@@ -42,8 +42,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * [label]; if [subtext] is provided, a `monoSm` caption is rendered below the label and the
  * segment's minimum height grows from 36.dp to 44.dp.
  *
- * The currently [selected] segment is filled with `accent` and switches its content color to
- * `onAccent` (subtext at 0.7 alpha); idle segments use `ink3` for the label and `ink4` for the
+ * The currently [selected] segment is filled with `action` and switches its content color to
+ * `onAction` (subtext at 0.7 alpha); idle segments use `ink3` for the label and `ink4` for the
  * subtext. When [enabled] is false the whole control is dimmed to 0.5 alpha and clicks are
  * suppressed. Press/hover indication is picked up from [LocalIndication] so each platform's
  * surrounding Material theme decides the ripple style.
@@ -119,9 +119,9 @@ private fun RowScope.KineticSegment(
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val indication = LocalIndication.current
-  val background = if (isActive) palette.accent else Color.Transparent
-  val labelColor = if (isActive) palette.onAccent else palette.ink3
-  val subtextColor = if (isActive) palette.onAccent.copy(alpha = 0.7f) else palette.ink4
+  val background = if (isActive) palette.action else Color.Transparent
+  val labelColor = if (isActive) palette.onAction else palette.ink3
+  val subtextColor = if (isActive) palette.onAction.copy(alpha = 0.7f) else palette.ink4
   val labelWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold
   val interactionSource = remember { MutableInteractionSource() }
 

@@ -58,8 +58,8 @@ fun KineticEvalRail(
   val railWidth = if (thin) 14.dp else 18.dp
   val sqLight = palette.sqLight
   val sqDark = palette.sqDark
-  val accent = palette.accent
-  val accentGlow = palette.accentGlow.copy(alpha = 0.5f)
+  val action = palette.action
+  val actionGlow = palette.actionGlow.copy(alpha = 0.5f)
 
   Column(
     modifier = modifier,
@@ -94,12 +94,12 @@ fun KineticEvalRail(
                 size = Size(w, blackHeight),
               )
             }
-            // Soft glow — wider semi-transparent accent band behind the crisp marker.
+            // Soft glow — wider semi-transparent action band behind the crisp marker.
             val glowThickness = 8.dp.toPx()
             val glowTop = (markerCenter - glowThickness / 2f).coerceAtLeast(0f)
             val glowBottom = (markerCenter + glowThickness / 2f).coerceAtMost(h)
             drawRect(
-              color = accentGlow,
+              color = actionGlow,
               topLeft = Offset(0f, glowTop),
               size = Size(w, glowBottom - glowTop),
             )
@@ -107,7 +107,7 @@ fun KineticEvalRail(
             val markerTop = (markerCenter - markerThickness / 2f).coerceAtLeast(0f)
             val markerBottom = (markerCenter + markerThickness / 2f).coerceAtMost(h)
             drawRect(
-              color = accent,
+              color = action,
               topLeft = Offset(0f, markerTop),
               size = Size(w, markerBottom - markerTop),
             )
@@ -117,7 +117,7 @@ fun KineticEvalRail(
     if (displayValue != null) {
       Text(
         text = displayValue,
-        style = typography.displaySm.copy(fontSize = 12.sp, color = palette.accentText),
+        style = typography.displaySm.copy(fontSize = 12.sp, color = palette.actionText),
         modifier = Modifier.padding(top = 2.dp),
       )
     }

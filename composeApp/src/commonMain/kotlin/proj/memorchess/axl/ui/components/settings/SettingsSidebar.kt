@@ -82,7 +82,7 @@ fun SettingsSidebar(
   ) {
     Text(
       text = stringResource(Res.string.settings_sidebar_caption),
-      style = typography.monoSm.copy(color = palette.accentText),
+      style = typography.monoSm.copy(color = palette.actionText),
       modifier = Modifier.padding(horizontal = 22.dp),
     )
     Text(
@@ -109,8 +109,8 @@ private fun SidebarItem(item: SettingsNavItem, active: Boolean, onClick: () -> U
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val labelColor = if (active) palette.ink else palette.ink2
-  val numColor = if (active) palette.accentText else palette.ink4
-  val accent = palette.accent
+  val numColor = if (active) palette.actionText else palette.ink4
+  val action = palette.action
   val background = if (active) palette.panel else Color.Transparent
 
   Row(
@@ -120,7 +120,7 @@ private fun SidebarItem(item: SettingsNavItem, active: Boolean, onClick: () -> U
         .drawBehind {
           if (active) {
             val strokePx = 2.dp.toPx()
-            drawRect(color = accent, topLeft = Offset(0f, 0f), size = Size(strokePx, size.height))
+            drawRect(color = action, topLeft = Offset(0f, 0f), size = Size(strokePx, size.height))
           }
         }
         .clickable(onClick = onClick)

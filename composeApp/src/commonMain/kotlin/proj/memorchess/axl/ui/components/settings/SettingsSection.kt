@@ -27,14 +27,15 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * [title] sits at the top in Bricolage 700 16sp `ink`, with an optional [description] line beneath
  * in `monoSm` `ink3`. A 12.dp gap separates the title block from [content].
  *
- * When [danger] is true the section gains a 3.dp `red` vertical strip on the left edge (drawn via
- * [drawBehind]) and the background is tinted with `redSoft`; the border switches to `redDim`. Use
+ * When [danger] is true the section gains a 3.dp `destructive` vertical strip on the left edge
+ * (drawn via [drawBehind]) and the background is tinted with `destructiveSoft`; the border switches
+ * to `destructiveDim`. Use
  * this for the Danger Zone section only.
  *
  * @param title Uppercase-ready section heading, rendered as-is.
  * @param modifier External modifier applied to the outer column.
  * @param description Optional secondary line shown directly under the title.
- * @param danger When true, applies the danger styling (red strip + red-tinted background).
+ * @param danger When true, applies the danger styling (destructive strip + tinted background).
  * @param content Section body, rendered in a [Column] with no inter-child spacing — callers compose
  *   their own spacing.
  */
@@ -48,10 +49,10 @@ fun SettingsSection(
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
-  val background = if (danger) palette.redSoft else palette.panel
-  val borderColor = if (danger) palette.redDim else palette.line
-  val titleColor = if (danger) palette.red else palette.ink
-  val strip = palette.red
+  val background = if (danger) palette.destructiveSoft else palette.panel
+  val borderColor = if (danger) palette.destructiveDim else palette.line
+  val titleColor = if (danger) palette.destructive else palette.ink
+  val strip = palette.destructive
 
   Column(
     modifier =

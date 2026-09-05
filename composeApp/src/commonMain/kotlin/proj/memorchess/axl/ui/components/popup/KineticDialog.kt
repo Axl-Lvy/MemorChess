@@ -83,7 +83,7 @@ fun KineticDialog(
             modifier = modifier.fillMaxWidth().kineticShadow(big = true).background(palette.panel)
           ) {
             // Bright HUD strip flush to the top edge.
-            Box(Modifier.fillMaxWidth().height(2.dp).background(palette.accentGlow))
+            Box(Modifier.fillMaxWidth().height(2.dp).background(palette.actionGlow))
             Column(modifier = Modifier.padding(20.dp)) {
               content()
               Spacer(modifier = Modifier.height(16.dp))

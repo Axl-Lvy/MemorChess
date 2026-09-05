@@ -76,7 +76,7 @@ fun KineticNumberField(
       },
       singleLine = true,
       textStyle = typography.mono.copy(color = palette.ink, textAlign = TextAlign.End),
-      cursorBrush = SolidColor(palette.accent),
+      cursorBrush = SolidColor(palette.action),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
       modifier =
         Modifier.widthIn(min = 72.dp)

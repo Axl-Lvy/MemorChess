@@ -97,7 +97,7 @@ fun <T> KineticSwatchPicker(
   ) {
     options.forEach { swatch ->
       val isActive = swatch.value == selected
-      val borderColor = if (isActive) palette.accent else palette.line
+      val borderColor = if (isActive) palette.action else palette.line
       val borderWidth = if (isActive) 2.dp else 1.dp
       val labelColor = if (isActive) palette.ink else palette.ink3
       val interactionSource = remember(swatch.value) { MutableInteractionSource() }
@@ -133,13 +133,13 @@ fun <T> KineticSwatchPicker(
           if (isActive) {
             Box(
               modifier =
-                Modifier.align(Alignment.BottomEnd).size(16.dp).background(color = palette.accent),
+                Modifier.align(Alignment.BottomEnd).size(16.dp).background(color = palette.action),
               contentAlignment = Alignment.Center,
             ) {
               Icon(
                 imageVector = Icons.Filled.Check,
                 contentDescription = null,
-                tint = palette.onAccent,
+                tint = palette.onAction,
                 modifier = Modifier.size(12.dp),
               )
             }

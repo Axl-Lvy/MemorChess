@@ -338,12 +338,12 @@ private fun nodeStateColor(
 ): Color =
   when (state) {
     NodeState.FIRST,
-    NodeState.SAVED_GOOD -> palette.green
+    NodeState.SAVED_GOOD -> palette.progress
     NodeState.SAVED_BAD,
     NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE,
-    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> palette.accentText
+    NodeState.SAVED_BAD_BUT_UNKNOWN_MOVE -> palette.actionText
     NodeState.UNKNOWN -> palette.ink3
-    NodeState.BAD_STATE -> palette.red
+    NodeState.BAD_STATE -> palette.destructive
   }
 
 /**
