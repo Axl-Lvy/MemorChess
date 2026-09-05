@@ -98,7 +98,7 @@ class TestKineticMotion : TestWithKoin() {
   }
 
   @kotlin.test.Test
-  fun `routine tweens are unaffected by reduce motion, they are already flat`() = test {
+  fun `routine tweens are unaffected by reduce motion because they are already flat`() = test {
     // Arrange.
     val before = KineticMotion.Routine.wrongAnswer<Float>().shouldBeInstanceOf<TweenSpec<Float>>()
     REDUCE_MOTION_SETTING.setValue(true)
