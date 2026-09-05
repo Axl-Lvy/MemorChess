@@ -281,8 +281,9 @@ internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val OUTBOX_STORE = "outbox"
+internal const val DAILY_ACTIVITY_STORE = "dailyActivity"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 9
+internal const val DB_VERSION = 10
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()

@@ -29,11 +29,13 @@ import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.SettingSyncMetadataStore
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
+import proj.memorchess.axl.core.data.DailyActivityStore
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
 import proj.memorchess.axl.core.data.explorer.ExplorerCache
 import proj.memorchess.axl.core.data.explorer.LichessExplorerClient
 import proj.memorchess.axl.core.data.explorer.getPlatformSpecificExplorerCache
+import proj.memorchess.axl.core.data.getPlatformSpecificDailyActivityStore
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
@@ -45,6 +47,7 @@ import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
+import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.core.sync.SYNC_BASE_URL
 import proj.memorchess.axl.core.sync.SyncApiClient
@@ -87,12 +90,14 @@ fun initKoinModules(): Array<Module> {
 
   val dataModule = module {
     single<DatabaseQueryManager> { getPlatformSpecificLocalDatabase() }
+    single<DailyActivityStore> { getPlatformSpecificDailyActivityStore() }
     single<Settings> { getPlatformSpecificSettings() }
     single { DeviceIdentity.persisted(get()) }
     single<CoroutineScope>(named(SETTINGS_SYNC_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
     single { SettingSyncMetadataStore(get(), get()) }
+    single { StreakTracker(get()) }
   }
 
   // One process-wide generator seeded from the wall clock at app start. A shared advancing RNG (not
@@ -133,6 +138,7 @@ fun initKoinModules(): Array<Module> {
         algorithm = get(),
         maxNewMovesPerDay = { MAX_NEW_MOVES_PER_DAY_SETTING.getValue() },
         maxTotalMovesPerDay = { MAX_TOTAL_MOVES_PER_DAY_SETTING.getValue() },
+        streakTracker = get(),
       )
     }
   }

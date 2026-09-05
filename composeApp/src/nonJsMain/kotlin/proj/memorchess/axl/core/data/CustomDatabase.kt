@@ -13,8 +13,14 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCacheEntity
 
 @Database(
   entities =
-    [NodeEntity::class, MoveEntity::class, ExplorerCacheEntity::class, OutboxEntryEntity::class],
-  version = 10,
+    [
+      NodeEntity::class,
+      MoveEntity::class,
+      ExplorerCacheEntity::class,
+      OutboxEntryEntity::class,
+      DailyActivityEntity::class,
+    ],
+  version = 11,
   exportSchema = false,
 )
 @TypeConverters(DateConverters::class)
@@ -25,6 +31,8 @@ abstract class CustomDatabase : RoomDatabase() {
   abstract fun getExplorerCacheDao(): ExplorerCacheDao
 
   abstract fun getOutboxDao(): OutboxDao
+
+  abstract fun getDailyActivityDao(): DailyActivityDao
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

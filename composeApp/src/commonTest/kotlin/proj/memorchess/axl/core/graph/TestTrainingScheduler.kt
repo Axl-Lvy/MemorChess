@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.graph
 
+import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -22,6 +23,9 @@ import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
+import proj.memorchess.axl.core.scheduling.ReviewGrade
+import proj.memorchess.axl.core.streak.StreakTracker
+import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
 
@@ -49,6 +53,68 @@ class TestTrainingScheduler {
         { maxTotal },
       )
     return store to scheduler
+  }
+
+  /** Same as [newScheduler], with a real [StreakTracker] over an isolated in memory store. */
+  private fun newSchedulerWithStreak(
+    timeZone: TimeZone = TimeZone.currentSystemDefault()
+  ): Pair<TreeStore, TrainingScheduler> {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    val scheduler =
+      TrainingScheduler(
+        database = database,
+        treeStore = store,
+        algorithm = Fsrs6SchedulingAlgorithm(),
+        timeZone = timeZone,
+        streakTracker = StreakTracker(InMemoryDailyActivityStore()),
+      )
+    return store to scheduler
+  }
+
+  @Test
+  fun gradeRecordsFirstReviewOfTheDayOnTheStreak() = runTest {
+    val (store, scheduler) = newSchedulerWithStreak()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 1
+    scheduler.streakDays() shouldBe 1
+  }
+
+  @Test
+  fun gradeOnTheSamePositionTwiceTodayCountsOnceOnTheStreak() = runTest {
+    val (store, scheduler) = newSchedulerWithStreak()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.AGAIN)
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 1
+  }
+
+  @Test
+  fun gradeOnTwoDistinctPositionsTodayCountsBothOnTheStreak() = runTest {
+    val (store, scheduler) = newSchedulerWithStreak()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = startPos, move = "d4", to = posB, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+    scheduler.grade(posA, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 2
+  }
+
+  @Test
+  fun cardsCompletedTodayAndStreakDaysAreZeroWithoutAStreakTracker() = runTest {
+    val (store, scheduler) = newScheduler()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 0
+    scheduler.streakDays() shouldBe 0
   }
 
   @Test
