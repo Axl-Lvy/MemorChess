@@ -4,7 +4,7 @@
 # multi-project build, including the Android modules, is harmless here: they only warn about
 # the missing Android SDK, they don't fail. The runtime stage then keeps just the installed
 # distribution on a JRE, not a JDK.
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 
 # Short git sha this image was built from, baked into build-info.properties and served over
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
 
 RUN ./gradlew :server:installDist :composeApp:wasmJsBrowserDistribution -PbuildSha="${BUILD_SHA}" --no-daemon --console=plain
 
-FROM eclipse-temurin:21-jre AS runtime
+FROM eclipse-temurin:25-jre AS runtime
 
 # Fixed numeric uid/gid: no shell, no login, nothing a compromise can use beyond what the app
 # process itself already has.
