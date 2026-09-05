@@ -27,10 +27,24 @@ class TestRepertoireMastery {
   }
 
   @Test
-  fun solidPercentFloorsOnEitherSideOfAWholeNumberBoundary() {
+  fun solidPercentRoundsDownBelowAWholeNumberBoundary() {
     val mastery = RepertoireMastery(repertoireName = "Boundary", solidCount = 1, totalCount = 3)
 
     mastery.solidPercent shouldBe 33
+  }
+
+  @Test
+  fun solidPercentRoundsUpAboveAWholeNumberBoundary() {
+    val mastery = RepertoireMastery(repertoireName = "Boundary", solidCount = 2, totalCount = 3)
+
+    mastery.solidPercent shouldBe 67
+  }
+
+  @Test
+  fun solidPercentRoundsAHalfPercentUpToTheNextWholeNumber() {
+    val mastery = RepertoireMastery(repertoireName = "Almost", solidCount = 199, totalCount = 200)
+
+    mastery.solidPercent shouldBe 100
   }
 
   @Test
@@ -38,7 +52,7 @@ class TestRepertoireMastery {
     val mastery =
       RepertoireMastery(repertoireName = "Italian Game", solidCount = 46, totalCount = 68)
 
-    mastery.solidPercent shouldBe 67
+    mastery.solidPercent shouldBe 68
   }
 
   @Test
@@ -48,6 +62,6 @@ class TestRepertoireMastery {
     mastery.repertoireName shouldBe "Italian Game"
     mastery.solidCount shouldBe 46
     mastery.totalCount shouldBe 68
-    mastery.solidPercent shouldBe 67
+    mastery.solidPercent shouldBe 68
   }
 }

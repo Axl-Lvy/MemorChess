@@ -10,9 +10,9 @@ internal data class RepertoireMastery(
   val totalCount: Int,
 ) {
 
-  /** Share of [totalCount] positions that are [solidCount], as a whole percentage. */
+  /** Percentage of solid positions rounded to the nearest whole number, 0 when there are none. */
   val solidPercent: Int
-    get() = if (totalCount == 0) 0 else solidCount * 100 / totalCount
+    get() = if (totalCount == 0) 0 else (solidCount * 100 + totalCount / 2) / totalCount
 }
 
 /**
