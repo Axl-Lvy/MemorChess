@@ -9,6 +9,7 @@ import kotlin.time.Duration.Companion.seconds
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
+import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -45,6 +46,15 @@ class TestSettings : TestWithKoin() {
     assertTrue { TRAINING_MOVE_DELAY_SETTING.getValue() > 2.seconds }
     slideToLeft(TRAINING_MOVE_DELAY_SETTING.name)
     assertTrue { TRAINING_MOVE_DELAY_SETTING.getValue() < 2.seconds }
+  }
+
+  @Test
+  fun testReduceMotionToggleIsReachableFromSettings() = runTestFromSetup {
+    assertNodeWithTagExists(REDUCE_MOTION_SETTING.name).performClick()
+    assertTrue { REDUCE_MOTION_SETTING.getValue() }
+
+    assertNodeWithTagExists(REDUCE_MOTION_SETTING.name).performClick()
+    assertTrue { !REDUCE_MOTION_SETTING.getValue() }
   }
 
   @Test

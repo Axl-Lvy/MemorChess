@@ -16,19 +16,22 @@ import kotlin.time.Duration.Companion.seconds
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.settings_move_animation
 import memorchess.composeapp.generated.resources.settings_move_animation_max
+import memorchess.composeapp.generated.resources.settings_reduce_motion
 import memorchess.composeapp.generated.resources.settings_slider_zero
 import memorchess.composeapp.generated.resources.settings_unit_ms
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.config.APP_THEME_SETTING
 import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
+import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.components.controls.KineticSlider
 import proj.memorchess.axl.ui.components.controls.KineticSliderLabels
+import proj.memorchess.axl.ui.components.controls.KineticToggleRow
 import proj.memorchess.axl.ui.theme.AppThemeSetting
 
 /**
- * Display & Theme settings section content. Renders the app theme picker (LIGHT/DARK/SYSTEM) and
- * the move animation duration slider.
+ * Display & Theme settings section content. Renders the app theme picker (LIGHT/DARK/SYSTEM), the
+ * reduce motion toggle, and the move animation duration slider.
  *
  * @param reloadKey value used to force re-reading the persisted settings on external reloads.
  * @param onReload called after the user changes the app theme so the parent can refresh dependent
@@ -37,6 +40,7 @@ import proj.memorchess.axl.ui.theme.AppThemeSetting
 @Composable
 fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {
   var theme by remember(reloadKey) { mutableStateOf<AppThemeSetting>(APP_THEME_SETTING.getValue()) }
+  var reduceMotion by remember(reloadKey) { mutableStateOf(REDUCE_MOTION_SETTING.getValue()) }
   var animation by
     remember(reloadKey) {
       mutableStateOf(
@@ -44,6 +48,7 @@ fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {
       )
     }
   val moveAnimationLabel = stringResource(Res.string.settings_move_animation)
+  val reduceMotionLabel = stringResource(Res.string.settings_reduce_motion)
   val msUnit = stringResource(Res.string.settings_unit_ms)
   val zeroLabel = stringResource(Res.string.settings_slider_zero)
   val maxLabel = stringResource(Res.string.settings_move_animation_max)
@@ -59,6 +64,16 @@ fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {
       },
       modifier = Modifier.fillMaxWidth().testTag(APP_THEME_SETTING.name),
       label = { it.displayName },
+    )
+
+    KineticToggleRow(
+      label = reduceMotionLabel,
+      checked = reduceMotion,
+      onCheckedChange = {
+        reduceMotion = it
+        REDUCE_MOTION_SETTING.setValue(it)
+      },
+      testTag = REDUCE_MOTION_SETTING.name,
     )
 
     KineticSlider(
