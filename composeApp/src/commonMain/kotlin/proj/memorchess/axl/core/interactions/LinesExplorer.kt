@@ -23,9 +23,22 @@ import proj.memorchess.axl.core.graph.TreeStore
  * [NodeState.UNKNOWN] (the same value an unresolved position computes to, so the first frame is
  * consistent) and is filled by [initState] from the page's loading phase, then recomputed after
  * every navigation step.
+ *
+ * [state]/[NodeState] stay unscoped even in a scoped session: the board's good/bad indicator still
+ * aggregates every incoming edge regardless of tag. Making that scope pure would need an async, tag
+ * filtered variant of [proj.memorchess.axl.core.graph.Node.computeState], evaluated per incoming
+ * edge; deferred as a follow up, since the feature's actual gate is which moves [getNextMoves]
+ * offers and a scoped trainer accepts, not the color indicator.
+ *
+ * @param repertoireScope When not `null`, [getNextMoves] narrows to edges tagged with this
+ *   repertoire, and playing a genuinely new move tags it with this repertoire. `null` behaves
+ *   exactly as before this parameter existed.
  */
-open class LinesExplorer(position: PositionKey? = null, protected val treeStore: TreeStore) :
-  InteractionsManager(if (position == null) GameEngine() else GameEngine(position)) {
+open class LinesExplorer(
+  position: PositionKey? = null,
+  protected val treeStore: TreeStore,
+  private val repertoireScope: String? = null,
+) : InteractionsManager(if (position == null) GameEngine() else GameEngine(position)) {
 
   private val startPosition = position ?: PositionKey.START_POSITION
 
@@ -77,10 +90,19 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
     callCallBacks(false)
   }
 
-  /** Sorted list of classified outgoing moves at the current position. */
+  /**
+   * Sorted list of classified outgoing moves at the current position, narrowed to
+   * [repertoireScope] when this session is scoped (any [Edge.isGood] value passes, so a known trap
+   * the repertoire teaches to counter still shows).
+   */
   suspend fun getNextMoves(): List<String> {
     val node = treeStore.node(navigation.current) ?: return emptyList()
-    return node.outgoing.values.filter { it.isGood != null }.map { it.move }.sorted()
+    val classified = node.outgoing.values.filter { it.isGood != null }
+    val scoped =
+      repertoireScope?.let { scope ->
+        classified.filter { scope in treeStore.tagsFor(it.from, it.to) }
+      } ?: classified
+    return scoped.map { it.move }.sorted()
   }
 
   /** Resets the explorer to the initial chess position. */
@@ -96,14 +118,18 @@ open class LinesExplorer(position: PositionKey? = null, protected val treeStore:
     val origin = navigation.current
     val destination = engine.toPositionKey()
     val originDepth = navigation.depth
+    val existingEdge = treeStore.node(origin)?.outgoing?.get(move)
     val edge =
       treeStore.addMove(
         from = origin,
         move = move,
         to = destination,
-        isGood = treeStore.node(origin)?.outgoing?.get(move)?.isGood,
+        isGood = existingEdge?.isGood,
         fromDepth = originDepth,
       )
+    if (repertoireScope != null && existingEdge == null) {
+      treeStore.tagEdge(origin, destination, repertoireScope)
+    }
     navigation.push(edge, destination)
     state = treeStore.computeState(navigation.current, navigation.arrivedVia?.from)
     callCallBacks()

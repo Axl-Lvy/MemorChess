@@ -241,4 +241,58 @@ class TestLinesExplorer : TestWithKoin() {
     clickOnTile("e4")
     assertNotEquals(interactionsManager.engine.toPositionKey(), PositionKey.START_POSITION)
   }
+
+  // --- Repertoire scoped sessions ---------------------------------------------------------
+
+  @Test
+  fun aScopedSessionTagsAGenuinelyNewMoveWithItsScope() = test {
+    val origin = PositionKey.START_POSITION
+    val explorer = LinesExplorer(treeStore = treeStore, repertoireScope = "italian-game")
+    explorer.initState()
+
+    explorer.playMove("e4")
+
+    val destination = explorer.engine.toPositionKey()
+    assertEquals(setOf("italian-game"), treeStore.tagsFor(origin, destination))
+  }
+
+  @Test
+  fun aScopedSessionDoesNotReTagAMoveThatAlreadyExisted() = test {
+    val origin = PositionKey.START_POSITION
+    interactionsManager.playMove("e4")
+    interactionsManager.save() // persists the edge, unscoped
+    val destination = interactionsManager.engine.toPositionKey()
+    val explorer = LinesExplorer(treeStore = treeStore, repertoireScope = "italian-game")
+    explorer.initState()
+
+    explorer.playMove("e4") // replays the already-existing edge
+
+    assertEquals(emptySet(), treeStore.tagsFor(origin, destination))
+  }
+
+  @Test
+  fun getNextMovesExcludesMovesTaggedWithADifferentRepertoireWhenScoped() = test {
+    val origin = PositionKey.START_POSITION
+    interactionsManager.playMove("e4")
+    interactionsManager.save()
+    val destination = interactionsManager.engine.toPositionKey()
+    treeStore.tagEdge(origin, destination, "ruy-lopez")
+    val explorer = LinesExplorer(treeStore = treeStore, repertoireScope = "italian-game")
+    explorer.initState()
+
+    assertEquals(emptyList(), explorer.getNextMoves())
+  }
+
+  @Test
+  fun getNextMovesIsUnaffectedByScopeWhenUnscoped() = test {
+    val origin = PositionKey.START_POSITION
+    interactionsManager.playMove("e4")
+    interactionsManager.save()
+    val destination = interactionsManager.engine.toPositionKey()
+    treeStore.tagEdge(origin, destination, "ruy-lopez")
+    interactionsManager.back() // save() left navigation at the destination; getNextMoves() below
+    // must read the origin's own outgoing moves.
+
+    assertEquals(listOf("e4"), interactionsManager.getNextMoves())
+  }
 }
