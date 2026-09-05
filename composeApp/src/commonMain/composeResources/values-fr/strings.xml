@@ -45,6 +45,7 @@
 
   <!-- Settings: controls -->
   <string name="settings_move_animation">Animation des coups</string>
+  <string name="settings_reduce_motion">Réduire les animations</string>
   <string name="settings_eval_bar">Barre d'évaluation</string>
   <string name="settings_best_move_arrow">Flèche du meilleur coup</string>
   <string name="settings_engine_depth">Profondeur du moteur</string>

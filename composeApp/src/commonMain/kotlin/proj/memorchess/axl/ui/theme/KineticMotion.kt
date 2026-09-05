@@ -24,14 +24,21 @@ import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
  * offset shadows carry through to a fast attack, a hard settle, and no overshoot. [Celebratory]
  * reverses that law on purpose. Gamification payoffs (a correct answer, a streak milestone) are
  * meant to feel like a reward, and a reward that registers instead of bouncing reads as flat, not
- * disciplined, so those two moments get real springs with visible overshoot. Everything else stays
- * on [Routine], the fast, no-overshoot family the rest of the app already expects.
+ * disciplined, so those two moments get real springs with visible overshoot. The interactions that
+ * gamification does not touch use [Routine] instead, the fast family with no overshoot the rest of
+ * the app already expects. The legacy tween and transition helpers below (registerTween,
+ * sweepTween, holdEnter, holdExit, hudEnter, hudExit) sit alongside [Routine] rather than inside
+ * it.
  *
- * Every value is a hoisted top-level constant so animation specs are allocated once rather than on
- * every recomposition. Consumers must drive these through the draw/layout phase (`graphicsLayer`,
- * `offset { }`, `drawBehind`) reading an `Animatable`/transition value inside the lambda. Never
- * read an animated value in the composition phase. That keeps animations recomposition-free and
- * lag-free, including on the single-threaded wasmJs target.
+ * The [Duration] and [Easing] tokens just below (instant, register, travel, attack, pieceGlide,
+ * sweep) are object level vals, allocated once. Every animation spec, in [Celebratory] and
+ * [Routine] alike, is instead built by a function that allocates a fresh spec on each call. The
+ * ones whose spec depends on reduce motion also read [REDUCE_MOTION_SETTING] from the persisted
+ * Settings store on that same call, so building one costs an allocation plus a settings read: build
+ * it once where the animation is launched, not on every recomposition. Consumers drive the built
+ * spec through the draw or layout phase (`graphicsLayer`, `offset { }`, `drawBehind`) reading an
+ * `Animatable`/transition value inside the lambda, never by reading an animated value while
+ * composing. That keeps the single threaded wasmJs target lag free.
  */
 object KineticMotion {
 
@@ -126,13 +133,21 @@ object KineticMotion {
    * drift" law deliberately excludes: a correct answer and a streak milestone.
    */
   object Celebratory {
+    private const val CORRECT_ANSWER_DAMPING: Float = 0.4f
+    private const val CORRECT_ANSWER_STIFFNESS: Float = 500f
+    private const val STREAK_MILESTONE_DAMPING: Float = 0.35f
+    private const val STREAK_MILESTONE_STIFFNESS: Float = 400f
+
     /** Correct-answer feedback: a quick, bouncy pop. */
     fun <T> correctAnswer(): FiniteAnimationSpec<T> =
-      reducibleSpring(dampingRatio = 0.4f, stiffness = 500f)
+      reducibleSpring(dampingRatio = CORRECT_ANSWER_DAMPING, stiffness = CORRECT_ANSWER_STIFFNESS)
 
     /** Streak-milestone overlay entrance: the deepest, slowest bounce, for the rarest payoff. */
     fun <T> streakMilestone(): FiniteAnimationSpec<T> =
-      reducibleSpring(dampingRatio = 0.35f, stiffness = 400f)
+      reducibleSpring(
+        dampingRatio = STREAK_MILESTONE_DAMPING,
+        stiffness = STREAK_MILESTONE_STIFFNESS,
+      )
   }
 
   /**
@@ -140,22 +155,35 @@ object KineticMotion {
    * touch. This is the "register, don't drift" law given concrete spec values.
    */
   object Routine {
+    private const val WRONG_ANSWER_DURATION_MS: Int = 120
+    private const val SCREEN_TRANSITION_DAMPING: Float = 0.8f
+    private const val SCREEN_TRANSITION_STIFFNESS: Float = 600f
+    private const val BUTTON_PRESS_DAMPING: Float = 0.85f
+    private const val BUTTON_PRESS_STIFFNESS: Float = 700f
+    private const val BOTTOM_SHEET_DAMPING: Float = 0.78f
+    private const val BOTTOM_SHEET_STIFFNESS: Float = 560f
+    private const val LOADING_SKELETON_DURATION_MS: Int = 300
+
     /** Wrong-answer feedback: a flat, immediate register with no bounce. */
-    fun <T> wrongAnswer(): FiniteAnimationSpec<T> = tween(120, easing = attack)
+    fun <T> wrongAnswer(): FiniteAnimationSpec<T> = tween(WRONG_ANSWER_DURATION_MS, easing = attack)
 
     /** Tab and screen transitions: a fast, settled slide. */
     fun <T> screenTransition(): FiniteAnimationSpec<T> =
-      reducibleSpring(dampingRatio = 0.8f, stiffness = 600f)
+      reducibleSpring(
+        dampingRatio = SCREEN_TRANSITION_DAMPING,
+        stiffness = SCREEN_TRANSITION_STIFFNESS,
+      )
 
     /** Button press: the tightest, fastest spring, for an immediate tactile response. */
     fun <T> buttonPress(): FiniteAnimationSpec<T> =
-      reducibleSpring(dampingRatio = 0.85f, stiffness = 700f)
+      reducibleSpring(dampingRatio = BUTTON_PRESS_DAMPING, stiffness = BUTTON_PRESS_STIFFNESS)
 
     /** Bottom sheet slide: a fast settle with slightly more visible mass than [buttonPress]. */
     fun <T> bottomSheet(): FiniteAnimationSpec<T> =
-      reducibleSpring(dampingRatio = 0.78f, stiffness = 560f)
+      reducibleSpring(dampingRatio = BOTTOM_SHEET_DAMPING, stiffness = BOTTOM_SHEET_STIFFNESS)
 
     /** Loading skeleton shimmer: the longest routine tween, paced for a readable pulse. */
-    fun <T> loadingSkeleton(): FiniteAnimationSpec<T> = tween(300, easing = LinearEasing)
+    fun <T> loadingSkeleton(): FiniteAnimationSpec<T> =
+      tween(LOADING_SKELETON_DURATION_MS, easing = LinearEasing)
   }
 }
