@@ -19,10 +19,11 @@ import io.ktor.http.isSuccess
  * [SyncEngine] never has to inspect a Ktor exception, mirroring
  * [proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient].
  *
- * @param baseUrl Root URL, without a trailing slash. [DEFAULT_BASE_URL] is a deliberately
- *   unresolvable placeholder, same convention as `RepertoireCatalogClient.DEFAULT_BASE_URL`: no
- *   public server domain exists yet, so every request degrades to [SyncPullOutcome.Error]/
- *   [SyncPushOutcome.Error] rather than pretending to succeed.
+ * @param baseUrl Root URL, without a trailing slash. Koin wires the real deployed server here (see
+ *   `SYNC_BASE_URL`); [DEFAULT_BASE_URL] is a deliberately unresolvable placeholder for callers
+ *   that construct this client directly without one, same convention as
+ *   `RepertoireCatalogClient.DEFAULT_BASE_URL`, so a forgotten override degrades to
+ *   [SyncPullOutcome.Error]/[SyncPushOutcome.Error] rather than pretending to succeed.
  */
 class SyncApiClient(
   private val httpClient: HttpClient,
