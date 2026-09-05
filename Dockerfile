@@ -23,6 +23,11 @@ RUN ./gradlew :server:installDist :composeApp:wasmJsBrowserDistribution -PbuildS
 
 FROM eclipse-temurin:25-jre AS runtime
 
+# wget: unlike the 21-jre base this replaced, 25-jre's Ubuntu 26.04 base doesn't ship it, and
+# hosts/minipc/docker-compose.apps.yml's healthcheck (CMD wget ... /health) depends on it.
+RUN apt-get update && apt-get install -y --no-install-recommends wget \
+  && rm -rf /var/lib/apt/lists/*
+
 # Fixed numeric uid/gid: no shell, no login, nothing a compromise can use beyond what the app
 # process itself already has.
 RUN groupadd --gid 10001 chess \
