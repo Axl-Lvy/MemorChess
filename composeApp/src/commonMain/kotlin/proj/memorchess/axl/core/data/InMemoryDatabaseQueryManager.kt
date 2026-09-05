@@ -38,6 +38,9 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   private val tags: MutableMap<Triple<PositionKey, PositionKey, String>, DataEdgeRepertoireTag> =
     mutableMapOf()
 
+  /** Backing store for the `NodeRepertoireTrainable` projection, keyed by position and repertoire. */
+  private val trainable: MutableMap<Pair<PositionKey, String>, Instant?> = mutableMapOf()
+
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
 
@@ -293,6 +296,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     outbox.clear()
     repertoires.clear()
     tags.clear()
+    trainable.clear()
   }
 
   override suspend fun getLastUpdate(): Instant? =
@@ -523,4 +527,33 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) {
     tags[Triple(tag.origin, tag.destination, tag.repertoireId)] = tag
   }
+
+  override suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  ) {
+    trainable.keys.removeAll { it.first == positionKey }
+    for (id in repertoireIds) trainable[positionKey to id] = lastReview
+  }
+
+  override suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot> =
+    repertoireIds.associateWith { id ->
+      // A tombstoned position's trainable row is stale until its own delete path clears it (see
+      // TreeStore); filtering it out here too is the correctness backstop, not merely an
+      // optimization. Mirrors the Room/IndexedDB backends' inner join against the node table: a
+      // trainable row whose position was never inserted at all does not count either, the same as
+      // one whose position was later deleted, since TreeStore itself never writes a trainable row
+      // for a position it cannot resolve.
+      val live =
+        trainable.entries.filter { it.key.second == id && nodes[it.key.first]?.isDeleted == false }
+      val solid = live.count { nodes[it.key.first]?.cardState?.phase == CardPhase.REVIEW }
+      RepertoireMasterySnapshot(
+        solidCount = solid,
+        totalCount = live.size,
+        lastReview = live.mapNotNull { it.value }.maxOrNull(),
+      )
+    }
 }

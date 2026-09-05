@@ -275,6 +275,26 @@ interface DatabaseQueryManager {
    * the same reason as [applyRemoteNode].
    */
   suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag)
+
+  /**
+   * Replaces [positionKey]'s entire trainable membership row set with [repertoireIds], stamping
+   * [lastReview] on every surviving row. The derived counterpart of [DataNode.hasGoodOutgoing],
+   * owned by [proj.memorchess.axl.core.graph.TreeStore] and recomputed the same way, never synced.
+   */
+  suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  )
+
+  /**
+   * One mastery snapshot per id in [repertoireIds], zero filled for an id with no trainable
+   * position. Bounded by the caller supplied id list (normally every id [getRepertoires] returns),
+   * never a distinct value scan.
+   */
+  suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot>
 }
 
 /**

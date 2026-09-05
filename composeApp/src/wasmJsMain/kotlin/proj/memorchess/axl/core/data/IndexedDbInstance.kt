@@ -48,6 +48,7 @@ internal object IndexedDbInstance {
         DAILY_ACTIVITY_STORE,
         REPERTOIRES_STORE,
         TAGS_STORE,
+        NODE_REPERTOIRE_TRAINABLE_STORE,
       )
       .forEach { store -> runCatching { database.deleteObjectStore(store) } }
 
@@ -89,6 +90,21 @@ internal object IndexedDbInstance {
       database.createObjectStore(TAGS_STORE, KeyPath("origin", "destination", "repertoireId"))
     tagsStore.createIndex("origin_destination", KeyPath("origin", "destination"), unique = false)
     tagsStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
+
+    val trainableStore =
+      database.createObjectStore(
+        NODE_REPERTOIRE_TRAINABLE_STORE,
+        KeyPath("positionKey", "repertoireId"),
+      )
+    // Single field index so replaceTrainableRepertoires can enumerate a position's existing rows
+    // without a compound key range scan, the same way MOVES_STORE's "origin"/"destination" indices
+    // already let a single-endpoint lookup avoid one.
+    trainableStore.createIndex("positionKey", KeyPath("positionKey"), unique = false)
+    trainableStore.createIndex(
+      "repertoireId_lastReview",
+      KeyPath("repertoireId", "lastReview"),
+      unique = false,
+    )
   }
 }
 

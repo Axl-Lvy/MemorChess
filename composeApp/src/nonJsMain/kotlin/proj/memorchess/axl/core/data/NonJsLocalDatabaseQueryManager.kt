@@ -80,6 +80,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     dao.eraseAllMoves()
     dao.eraseAllNodes()
     database.getOutboxDao().eraseAll()
+    database.getRepertoireDao().eraseAllTrainable()
     database.getRepertoireDao().eraseAllTags()
     database.getRepertoireDao().eraseAllRepertoires()
   }
@@ -226,6 +227,28 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
 
   override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) {
     database.getRepertoireDao().insertTag(EdgeRepertoireTagEntity.convertToEntity(tag))
+  }
+
+  override suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  ) {
+    database
+      .getRepertoireDao()
+      .replaceTrainable(
+        positionKey.value,
+        repertoireIds.map { NodeRepertoireTrainableEntity(positionKey.value, it, lastReview) },
+      )
+  }
+
+  override suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot> {
+    val dao = database.getRepertoireDao()
+    return repertoireIds.associateWith { id ->
+      RepertoireMasterySnapshot(dao.countSolid(id), dao.countTotal(id), dao.maxLastReview(id))
+    }
   }
 }
 

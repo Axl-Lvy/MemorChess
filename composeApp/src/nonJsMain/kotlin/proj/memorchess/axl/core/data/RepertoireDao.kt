@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlin.time.Instant
 
 /** DAO for [RepertoireEntity] and [EdgeRepertoireTagEntity]. */
 @Dao
@@ -84,4 +85,45 @@ interface RepertoireDao {
 
   /** See [eraseAllRepertoires]. */
   @Query("DELETE FROM EdgeRepertoireTagEntity") suspend fun eraseAllTags()
+
+  @Query("DELETE FROM NodeRepertoireTrainableEntity WHERE positionKey = :positionKey")
+  suspend fun clearTrainable(positionKey: String)
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertTrainable(items: Collection<NodeRepertoireTrainableEntity>)
+
+  /** Replaces [positionKey]'s entire trainable row set with [items] in one transaction. */
+  @Transaction
+  suspend fun replaceTrainable(positionKey: String, items: Collection<NodeRepertoireTrainableEntity>) {
+    clearTrainable(positionKey)
+    insertTrainable(items)
+  }
+
+  @Query(
+    "SELECT COUNT(*) FROM NodeRepertoireTrainableEntity t JOIN NodeEntity n " +
+      "ON n.positionKey = t.positionKey " +
+      "WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE AND n.phase = 'REVIEW'"
+  )
+  suspend fun countSolid(repertoireId: String): Int
+
+  /**
+   * Joins against [NodeEntity] and filters `isDeleted`, the same as [countSolid]: a tombstoned
+   * position's trainable row is stale until its own delete path clears it (see
+   * [proj.memorchess.axl.core.graph.TreeStore]), and this join is the correctness backstop for
+   * that, not merely an optimization.
+   */
+  @Query(
+    "SELECT COUNT(*) FROM NodeRepertoireTrainableEntity t JOIN NodeEntity n " +
+      "ON n.positionKey = t.positionKey WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE"
+  )
+  suspend fun countTotal(repertoireId: String): Int
+
+  @Query(
+    "SELECT MAX(t.lastReview) FROM NodeRepertoireTrainableEntity t JOIN NodeEntity n " +
+      "ON n.positionKey = t.positionKey WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE"
+  )
+  suspend fun maxLastReview(repertoireId: String): Instant?
+
+  /** Hard wipes every trainable row. Used by [DatabaseQueryManager.eraseAll]. */
+  @Query("DELETE FROM NodeRepertoireTrainableEntity") suspend fun eraseAllTrainable()
 }

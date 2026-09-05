@@ -95,6 +95,13 @@ private external interface JsEdgeRepertoireTagEntity : JsAny {
   var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
 }
 
+/** JS object stored in the "nodeRepertoireTrainable" object store. */
+private external interface JsNodeRepertoireTrainableEntity : JsAny {
+  var positionKey: String
+  var repertoireId: String
+  var lastReview: Double // epoch seconds; 0 means null, same convention as JsNodeEntity
+}
+
 // ---------------------------------------------------------------------------
 // JS object creation (same pattern as library-internal jso)
 // ---------------------------------------------------------------------------
@@ -371,8 +378,9 @@ internal const val OUTBOX_STORE = "outbox"
 internal const val DAILY_ACTIVITY_STORE = "dailyActivity"
 internal const val REPERTOIRES_STORE = "repertoires"
 internal const val TAGS_STORE = "edgeRepertoireTags"
+internal const val NODE_REPERTOIRE_TRAINABLE_STORE = "nodeRepertoireTrainable"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 11
+internal const val DB_VERSION = 12
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -1023,6 +1031,66 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     database.writeTransaction(TAGS_STORE) {
       objectStore(TAGS_STORE).put(tag.toJsEdgeRepertoireTagEntity())
+    }
+  }
+
+  override suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  ) {
+    val database = db()
+    database.writeTransaction(NODE_REPERTOIRE_TRAINABLE_STORE) {
+      val store = objectStore(NODE_REPERTOIRE_TRAINABLE_STORE)
+      val existing: List<JsNodeRepertoireTrainableEntity> =
+        store.index("positionKey").getAll(Key(positionKey.value.toJsString())).toList()
+      for (row in existing) {
+        store.delete(Key(row.positionKey.toJsString(), row.repertoireId.toJsString()))
+      }
+      for (id in repertoireIds) {
+        val row =
+          emptyObject<JsNodeRepertoireTrainableEntity>().apply {
+            this.positionKey = positionKey.value
+            this.repertoireId = id
+            this.lastReview = lastReview?.epochSeconds?.toDouble() ?: 0.0
+          }
+        store.put(row)
+      }
+    }
+  }
+
+  override suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot> {
+    val database = db()
+    return database.transaction(NODE_REPERTOIRE_TRAINABLE_STORE, NODES_STORE) {
+      val trainableIndex =
+        objectStore(NODE_REPERTOIRE_TRAINABLE_STORE).index("repertoireId_lastReview")
+      val nodesStore = objectStore(NODES_STORE)
+      repertoireIds.associateWith { id ->
+        val range =
+          bound(jsKeyArray(id.toJsString(), LOW_NUMBER), jsKeyArray(id.toJsString(), HIGH_NUMBER))
+        val rows: List<JsNodeRepertoireTrainableEntity> =
+          trainableIndex
+            .openCursor(range, Cursor.Direction.Next)
+            .map { it.value as JsNodeRepertoireTrainableEntity }
+            .toList()
+        // A tombstoned position's trainable row is stale until its own delete path clears it (see
+        // TreeStore); this filter is the correctness backstop for that, not merely an optimization.
+        val live =
+          rows.mapNotNull { row ->
+            val node =
+              nodesStore.get(Key(row.positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
+            if (node != null && !node.isDeleted) row to node else null
+          }
+        val solid = live.count { (_, node) -> node.phase == CardPhase.REVIEW.name }
+        val lastReview = live.map { (row, _) -> row.lastReview }.maxOrNull()?.takeIf { it > 0.0 }
+        RepertoireMasterySnapshot(
+          solidCount = solid,
+          totalCount = live.size,
+          lastReview = lastReview?.let { Instant.fromEpochSeconds(it.toLong()) },
+        )
+      }
     }
   }
 }

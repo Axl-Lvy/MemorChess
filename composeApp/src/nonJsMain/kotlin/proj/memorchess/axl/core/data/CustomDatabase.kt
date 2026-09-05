@@ -21,8 +21,9 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCacheEntity
       DailyActivityEntity::class,
       RepertoireEntity::class,
       EdgeRepertoireTagEntity::class,
+      NodeRepertoireTrainableEntity::class,
     ],
-  version = 12,
+  version = 13,
   exportSchema = false,
 )
 @TypeConverters(DateConverters::class)

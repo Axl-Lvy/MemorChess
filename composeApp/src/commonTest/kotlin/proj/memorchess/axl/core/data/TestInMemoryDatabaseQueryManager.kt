@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
@@ -783,5 +784,75 @@ class TestInMemoryDatabaseQueryManager {
     database.insertTag(deleted)
 
     assertEquals(listOf(live), database.getTags(origin, destination))
+  }
+
+  // --- NodeRepertoireTrainable projection --------------------------------------------------
+
+  @Test
+  fun replaceTrainableRepertoiresOverwritesThePreviousMembershipSet() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val position = key0
+    // TreeStore never writes a trainable row for a position it cannot resolve, so this seam's own
+    // "position is live" backstop assumes the position exists.
+    database.insertNodes(DataNode(position, PreviousAndNextMoves(), CardStateFactory.new()))
+
+    database.replaceTrainableRepertoires(position, setOf("italian-game", "ruy-lopez"), lastReview = null)
+    database.replaceTrainableRepertoires(position, setOf("ruy-lopez"), lastReview = null)
+    val snapshots = database.getRepertoireMasterySnapshots(listOf("italian-game", "ruy-lopez"))
+
+    assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshots.getValue("italian-game"))
+    assertEquals(RepertoireMasterySnapshot(0, 1, null), snapshots.getValue("ruy-lopez"))
+  }
+
+  @Test
+  fun getRepertoireMasterySnapshotsCountsSolidPositionsAndTracksTheLatestReview() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val solidPosition = key0
+    val newPosition = key1
+    val reviewedAt = Instant.fromEpochSeconds(2_000)
+    database.insertNodes(
+      DataNode(
+        solidPosition,
+        PreviousAndNextMoves(),
+        CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = reviewedAt),
+      ),
+      DataNode(newPosition, PreviousAndNextMoves(), CardStateFactory.new()),
+    )
+    database.replaceTrainableRepertoires(solidPosition, setOf("italian-game"), reviewedAt)
+    database.replaceTrainableRepertoires(newPosition, setOf("italian-game"), lastReview = null)
+
+    val snapshot = database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
+
+    assertEquals(RepertoireMasterySnapshot(solidCount = 1, totalCount = 2, lastReview = reviewedAt), snapshot)
+  }
+
+  @Test
+  fun getRepertoireMasterySnapshotsReturnsAZeroSnapshotForARepertoireWithNoTrainablePosition() =
+    runTest {
+      val database = InMemoryDatabaseQueryManager()
+
+      val snapshots = database.getRepertoireMasterySnapshots(listOf("empty-repertoire"))
+
+      assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshots.getValue("empty-repertoire"))
+    }
+
+  @Test
+  fun getRepertoireMasterySnapshotsExcludesATrainableRowWhoseOwnPositionWasDeleted() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val position = key0
+    val reviewedAt = Instant.fromEpochSeconds(2_000)
+    database.insertNodes(
+      DataNode(
+        position,
+        PreviousAndNextMoves(),
+        CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = reviewedAt),
+      )
+    )
+    database.replaceTrainableRepertoires(position, setOf("italian-game"), reviewedAt)
+
+    database.deletePosition(position, DeleteMode.SOFT, "device-a", 1L, DateUtil.now())
+
+    val snapshot = database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
+    assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshot)
   }
 }
