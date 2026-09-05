@@ -1,8 +1,6 @@
 package proj.memorchess.axl.core.auth
 
 import co.touchlab.kermit.Logger
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -59,7 +57,7 @@ class OidcSignInController(
 
   override suspend fun signIn(): SignInResult {
     val pkce = PkceGenerator.generate()
-    val state = generateState()
+    val state = generateOidcState()
     val authorizationUrl =
       oidcClient.buildAuthorizationUrl(
         clientId = clientId,
@@ -140,10 +138,6 @@ class OidcSignInController(
     )
   }
 
-  @OptIn(ExperimentalEncodingApi::class)
-  private fun generateState(): String =
-    Base64.UrlSafe.encode(randomBytes(STATE_BYTE_LENGTH)).trimEnd('=')
-
   private fun OAuthLaunchError.toMessage(): StringResource =
     when (this) {
       OAuthLaunchError.MISSING_CODE -> Res.string.sync_missing_code
@@ -153,7 +147,6 @@ class OidcSignInController(
     }
 
   private companion object {
-    const val STATE_BYTE_LENGTH = 32
     val REFRESH_BUFFER = 60.seconds
   }
 }

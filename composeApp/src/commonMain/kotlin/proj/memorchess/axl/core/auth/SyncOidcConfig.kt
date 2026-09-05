@@ -21,3 +21,10 @@ expect val SYNC_CLIENT_ID: String
 
 /** Platform specific redirect URI passed to the issuer. Same shape as [LICHESS_REDIRECT_URI]. */
 expect val SYNC_REDIRECT_URI: String
+
+/**
+ * Path portion of [SYNC_REDIRECT_URI] on wasmJs. A separate constant (not derived from
+ * `SYNC_REDIRECT_URI` itself) because `main.kt`'s synchronous callback-URL check runs before Koin
+ * exists and needs the bare path, independent of the platform-specific full-URL `expect val`.
+ */
+const val SYNC_REDIRECT_PATH: String = "/sync-oauth-callback"

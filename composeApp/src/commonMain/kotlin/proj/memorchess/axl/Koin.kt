@@ -19,10 +19,10 @@ import proj.memorchess.axl.core.auth.LichessSignInController
 import proj.memorchess.axl.core.auth.OAuthLauncher
 import proj.memorchess.axl.core.auth.OAuthTokenStore
 import proj.memorchess.axl.core.auth.OidcClient
-import proj.memorchess.axl.core.auth.OidcSignInController
 import proj.memorchess.axl.core.auth.OidcTokenStore
 import proj.memorchess.axl.core.auth.SYNC_CLIENT_ID
 import proj.memorchess.axl.core.auth.SYNC_REDIRECT_URI
+import proj.memorchess.axl.core.auth.getPlatformSpecificSyncAuthProvider
 import proj.memorchess.axl.core.config.FUZZ_ENABLED_SETTING
 import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
@@ -163,10 +163,10 @@ fun initKoinModules(): Array<Module> {
     single { OidcTokenStore(get()) }
     single { OidcClient(get()) }
     single<AuthProvider> {
-      OidcSignInController(
-        launcher = get(),
+      getPlatformSpecificSyncAuthProvider(
         oidcClient = get(),
         tokenStore = get(),
+        launcher = get(),
         redirectUri = SYNC_REDIRECT_URI,
         clientId = SYNC_CLIENT_ID,
       )

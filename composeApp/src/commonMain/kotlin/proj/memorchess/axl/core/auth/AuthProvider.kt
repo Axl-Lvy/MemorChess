@@ -11,7 +11,10 @@ interface AuthProvider {
   /** Currently signed in account, or `null` when signed out. */
   val currentAccount: StateFlow<Account?>
 
-  /** Runs the full sign in flow. Safe to invoke multiple times; the result reflects the latest. */
+  /**
+   * Runs the full sign in flow. Safe to invoke multiple times; the result reflects the latest. The
+   * wasmJs implementation never returns at all — see its own KDoc.
+   */
   suspend fun signIn(): SignInResult
 
   /** Clears the stored session locally. The issuer is not called; there is nothing to revoke. */

@@ -65,6 +65,17 @@ class TestStaticFrontendRoutes {
     }
 
   @Test
+  fun `the sync oauth callback path serves the shell with no-cache`() = testApplication {
+    application { routing { staticFrontendRoutes(frontendDir()) } }
+
+    val response = client.get("/sync-oauth-callback?code=abc&state=xyz")
+
+    response.status shouldBe HttpStatusCode.OK
+    response.bodyAsText() shouldBe "<html>app</html>"
+    response.headers[HttpHeaders.CacheControl]!! shouldContain "no-cache"
+  }
+
+  @Test
   fun `an existing api route still wins over the static catch all`() = testApplication {
     application {
       routing {

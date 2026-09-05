@@ -28,6 +28,13 @@ object PkceGenerator {
 /** Verifier kept by the client and challenge sent to the authorization server. */
 data class PkcePair(val verifier: String, val challenge: String)
 
+/** Generates a CSRF `state` token: 32 cryptographically random bytes, Base64 URL encoded. */
+@OptIn(ExperimentalEncodingApi::class)
+internal fun generateOidcState(): String =
+  Base64.UrlSafe.encode(randomBytes(STATE_BYTE_LENGTH)).trimEnd('=')
+
+private const val STATE_BYTE_LENGTH = 32
+
 /** Platform specific cryptographically secure random bytes. */
 internal expect fun randomBytes(size: Int): ByteArray
 
