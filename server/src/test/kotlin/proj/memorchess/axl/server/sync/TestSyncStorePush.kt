@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
@@ -360,6 +361,39 @@ internal class TestSyncStorePush {
     val stored = store.readRepertoireForTest(user, "italian-game")
 
     stored shouldBe row
+  }
+
+  @Test
+  fun pushingAnEdgeRepertoireTagRoundTripsThroughPull() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val origin = fen("tag-o")
+    val destination = fen("tag-d")
+    val theEdge = edge(origin, destination, isGood = true, at = serverNow)
+    val tag =
+      EdgeRepertoireTagSyncRow(
+        origin = origin,
+        destination = destination,
+        repertoireId = "italian-game",
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+
+    store.push(
+      user,
+      SyncPushRequest(
+        nodes = emptyList(),
+        edges = listOf(theEdge),
+        settings = emptyList(),
+        repertoires = emptyList(),
+        tags = listOf(tag),
+      ),
+      serverNow,
+    )
+    val stored = store.readTagForTest(user, tag)
+
+    stored shouldBe tag
   }
 
   @Test

@@ -7,6 +7,7 @@ import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectedRow
@@ -62,6 +63,10 @@ internal class SyncStore(
     val settings = request.settings.screenClock(serverNow) { clockRefusal("setting", it.key) }
     val repertoires =
       request.repertoires.screenClock(serverNow) { clockRefusal("repertoire", it.id) }
+    val tags =
+      request.tags.screenClock(serverNow) {
+        clockRefusal("tag", "${it.origin}|${it.destination}|${it.repertoireId}")
+      }
 
     val revision = inTransaction { connection ->
       connection.applyBatch(
@@ -70,13 +75,15 @@ internal class SyncStore(
         edges.accepted,
         settings.accepted,
         repertoires.accepted,
+        tags.accepted,
       )
     }
 
     return SyncPushResponse(
       serverTime = serverNow,
       revision = revision,
-      rejected = nodes.refused + edges.refused + settings.refused + repertoires.refused,
+      rejected =
+        nodes.refused + edges.refused + settings.refused + repertoires.refused + tags.refused,
     )
   }
 
@@ -92,9 +99,20 @@ internal class SyncStore(
     edges: List<EdgeSyncRow>,
     settings: List<SettingSyncRow>,
     repertoires: List<RepertoireSyncRow>,
+    tags: List<EdgeRepertoireTagSyncRow>,
   ): Long {
     val positionIds = resolvePositionIds(nodes.map { it.positionKey })
-    val edgeIds = resolveEdgeIds(edges.map { it.identity() })
+    // Tag rows may reference an edge not present in this same batch's `edges` list (it was pushed
+    // earlier), so their ids are resolved too, tolerating the placeholder empty `move` the same way
+    // readTagForTest does: resolveEdgeIds only looks an existing edge up by its endpoints. The
+    // result is re-keyed by endpoints alone: resolveEdgeIds' own map key carries whichever `move`
+    // happened to survive its internal dedup, which is not necessarily the empty placeholder a tag
+    // looks up with, even though both denote the same edge.
+    val edgeIds =
+      resolveEdgeIds(
+          edges.map { it.identity() } + tags.map { EdgeIdentity(it.origin, it.destination, "") }
+        )
+        .mapKeys { (identity, _) -> identity.origin to identity.destination }
 
     val revisions = buildList {
       nodes
@@ -102,9 +120,12 @@ internal class SyncStore(
         .forEach { add(applyNode(userId, it, positionIds.getValue(it.positionKey))) }
       edges
         .sortedBy { it.edgeId() }
-        .forEach { add(applyEdge(userId, it, edgeIds.getValue(it.identity()))) }
+        .forEach { add(applyEdge(userId, it, edgeIds.getValue(it.origin to it.destination))) }
       settings.sortedBy { it.key }.forEach { add(applySetting(userId, it)) }
       repertoires.sortedBy { it.id }.forEach { add(applyRepertoire(userId, it)) }
+      tags
+        .sortedBy { "${it.origin}|${it.destination}|${it.repertoireId}" }
+        .forEach { add(applyTag(userId, it, edgeIds.getValue(it.origin to it.destination))) }
     }
     return revisions.filterNotNull().maxOrNull() ?: 0L
   }
@@ -157,11 +178,12 @@ internal class SyncStore(
         val edges = connection.pullEdges(userId, since, limit)
         val settings = connection.pullSettings(userId, since, limit)
         val repertoires = connection.pullRepertoires(userId, since, limit)
+        val tags = connection.pullTags(userId, since, limit)
 
         // A page that came back full may be hiding more rows, so its last revision is a ceiling.
         // A partial page is exhausted and imposes none.
         val ceiling =
-          listOf(nodes, edges, settings, repertoires)
+          listOf(nodes, edges, settings, repertoires, tags)
             .mapNotNull { page -> page.takeIf { it.size == limit }?.last()?.first }
             .minOrNull()
 
@@ -175,6 +197,7 @@ internal class SyncStore(
           edges = edges.upTo(ceiling),
           settings = settings.upTo(ceiling),
           repertoires = repertoires.upTo(ceiling),
+          tags = tags.upTo(ceiling),
         )
       }
     }
@@ -650,6 +673,132 @@ internal class SyncStore(
         }
       }
 
+  /** Reads one stored tag. Exposed so the push tests do not depend on `pull` being correct. */
+  internal suspend fun readTagForTest(
+    userId: String,
+    tag: EdgeRepertoireTagSyncRow,
+  ): EdgeRepertoireTagSyncRow? =
+    withContext(ioDispatcher) {
+      dataSource.connection.use { connection ->
+        val identity = EdgeIdentity(tag.origin, tag.destination, "")
+        val edgeId = connection.resolveEdgeIds(listOf(identity))[identity] ?: return@use null
+        connection.readTag(userId, tag.origin, tag.destination, edgeId, tag.repertoireId)
+      }
+    }
+
+  /** See [applySetting]; the rule and the revision bump on a loss are identical. */
+  private fun Connection.applyTag(
+    userId: String,
+    incoming: EdgeRepertoireTagSyncRow,
+    edgeId: Long,
+  ): Long? {
+    val stored =
+      readTag(
+        userId,
+        incoming.origin,
+        incoming.destination,
+        edgeId,
+        incoming.repertoireId,
+        lockRow = true,
+      )
+    val winner = resolve(local = stored, remote = incoming)
+    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return null
+
+    val revision = nextRevision()
+    val row = winner.row
+    prepareStatement(
+        "INSERT INTO user_edge_repertoire_tag (user_id, edge_id, repertoire_id, is_deleted, " +
+          "deleted_at, updated_at, origin_device, device_seq, revision) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+          "ON CONFLICT (user_id, edge_id, repertoire_id) DO UPDATE SET " +
+          "is_deleted = EXCLUDED.is_deleted, deleted_at = EXCLUDED.deleted_at, " +
+          "updated_at = EXCLUDED.updated_at, origin_device = EXCLUDED.origin_device, " +
+          "device_seq = EXCLUDED.device_seq, revision = EXCLUDED.revision"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, edgeId)
+        statement.setString(3, row.repertoireId)
+        statement.setBoolean(4, row.isDeleted)
+        statement.setTimestamp(5, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
+        statement.setTimestamp(6, row.updatedAt.toTimestamp())
+        statement.setString(7, row.originDevice)
+        statement.setLong(8, row.deviceSeq)
+        statement.setLong(9, revision)
+        statement.executeUpdate()
+      }
+    return revision
+  }
+
+  private fun Connection.readTag(
+    userId: String,
+    origin: String,
+    destination: String,
+    edgeId: Long,
+    repertoireId: String,
+    lockRow: Boolean = false,
+  ): EdgeRepertoireTagSyncRow? {
+    val sql =
+      "SELECT is_deleted, updated_at, origin_device, device_seq FROM user_edge_repertoire_tag " +
+        "WHERE user_id = ? AND edge_id = ? AND repertoire_id = ?" +
+        if (lockRow) FOR_UPDATE else ""
+    return prepareStatement(sql).use { statement ->
+      statement.setString(1, userId)
+      statement.setLong(2, edgeId)
+      statement.setString(3, repertoireId)
+      statement.executeQuery().use { rows ->
+        if (!rows.next()) null
+        else
+          EdgeRepertoireTagSyncRow(
+            origin = origin,
+            destination = destination,
+            repertoireId = repertoireId,
+            isDeleted = rows.getBoolean(1),
+            updatedAt = rows.getTimestamp(2).toInstant().toKotlinInstant(),
+            originDevice = rows.getString(3),
+            deviceSeq = rows.getLong(4),
+          )
+      }
+    }
+  }
+
+  private fun Connection.pullTags(
+    userId: String,
+    since: Long,
+    limit: Int,
+  ): List<Pair<Long, EdgeRepertoireTagSyncRow>> =
+    prepareStatement(
+        "SELECT po.position_key, pd.position_key, t.repertoire_id, t.is_deleted, t.updated_at, " +
+          "t.origin_device, t.device_seq, t.revision FROM user_edge_repertoire_tag t " +
+          "JOIN move_edge e ON e.id = t.edge_id " +
+          "JOIN position po ON po.id = e.origin_id " +
+          "JOIN position pd ON pd.id = e.destination_id " +
+          "WHERE t.user_id = ? AND t.revision > ? ORDER BY t.revision ASC LIMIT ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, since)
+        statement.setInt(3, limit)
+        statement.executeQuery().use { rows ->
+          buildList {
+            while (rows.next()) {
+              add(
+                rows.getLong(8) to
+                  EdgeRepertoireTagSyncRow(
+                    origin = rows.getString(1),
+                    destination = rows.getString(2),
+                    repertoireId = rows.getString(3),
+                    isDeleted = rows.getBoolean(4),
+                    updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
+                    originDevice = rows.getString(6),
+                    deviceSeq = rows.getLong(7),
+                  )
+              )
+            }
+          }
+        }
+      }
+
   private fun Connection.nextRevision(): Long =
     prepareStatement("SELECT nextval('sync_revision')").use { statement ->
       statement.executeQuery().use { rows ->
@@ -668,7 +817,8 @@ internal class SyncStore(
 private const val FOR_UPDATE = " FOR UPDATE"
 
 /** The tables holding per user rows. The shared `position` and `move_edge` are not among them. */
-private val PER_USER_TABLES = listOf("user_node", "user_edge", "user_setting", "user_repertoire")
+private val PER_USER_TABLES =
+  listOf("user_node", "user_edge", "user_setting", "user_repertoire", "user_edge_repertoire_tag")
 
 /** Screening outcome for one resource: what may be written, and what was refused. */
 private class Screened<T : SyncRow>(val accepted: List<T>, val refused: List<RejectedRow>)

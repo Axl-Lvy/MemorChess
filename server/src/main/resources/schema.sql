@@ -88,6 +88,22 @@ CREATE INDEX IF NOT EXISTS user_edge_cursor ON user_edge (user_id, revision);
 CREATE INDEX IF NOT EXISTS user_setting_cursor ON user_setting (user_id, revision);
 CREATE INDEX IF NOT EXISTS user_repertoire_cursor ON user_repertoire (user_id, revision);
 
+CREATE TABLE IF NOT EXISTS user_edge_repertoire_tag (
+  user_id text NOT NULL,
+  edge_id bigint NOT NULL REFERENCES move_edge(id),
+  repertoire_id text NOT NULL,
+  is_deleted boolean NOT NULL,
+  deleted_at timestamptz,
+  updated_at timestamptz NOT NULL,
+  origin_device text NOT NULL,
+  device_seq bigint NOT NULL,
+  revision bigint NOT NULL,
+  PRIMARY KEY (user_id, edge_id, repertoire_id)
+);
+
+CREATE INDEX IF NOT EXISTS user_edge_repertoire_tag_cursor
+  ON user_edge_repertoire_tag (user_id, revision);
+
 -- One row per published version, content addressed by the payload's sha256. Publishing again
 -- inserts a new version rather than mutating one. The row for a given (id, version) never
 -- changes after insert. There is no membership table: nothing needs "which repertoires contain
