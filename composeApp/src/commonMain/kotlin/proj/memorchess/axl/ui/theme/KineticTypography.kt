@@ -9,34 +9,42 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import memorchess.composeapp.generated.resources.BricolageGrotesque_Bold
-import memorchess.composeapp.generated.resources.BricolageGrotesque_ExtraBold
-import memorchess.composeapp.generated.resources.InterTight_Medium
-import memorchess.composeapp.generated.resources.InterTight_Regular
-import memorchess.composeapp.generated.resources.InterTight_SemiBold
+import memorchess.composeapp.generated.resources.Baloo2_Bold
+import memorchess.composeapp.generated.resources.Baloo2_ExtraBold
+import memorchess.composeapp.generated.resources.Baloo2_Medium
+import memorchess.composeapp.generated.resources.Baloo2_SemiBold
 import memorchess.composeapp.generated.resources.JetBrainsMono_Medium
 import memorchess.composeapp.generated.resources.JetBrainsMono_Regular
+import memorchess.composeapp.generated.resources.Nunito_Black
+import memorchess.composeapp.generated.resources.Nunito_Bold
+import memorchess.composeapp.generated.resources.Nunito_ExtraBold
+import memorchess.composeapp.generated.resources.Nunito_Regular
+import memorchess.composeapp.generated.resources.Nunito_SemiBold
 import memorchess.composeapp.generated.resources.Res
 import org.jetbrains.compose.resources.Font
 
-/** Bricolage Grotesque — Kinetic display font (brand, headings, pill values, slider readout). */
+/** Baloo 2 — Kinetic display font (brand, headings, pill values, slider readout). */
 @Composable
-private fun bricolageFamily(): FontFamily =
+private fun balooFamily(): FontFamily =
   FontFamily(
-    Font(Res.font.BricolageGrotesque_Bold, weight = FontWeight.Bold),
-    Font(Res.font.BricolageGrotesque_ExtraBold, weight = FontWeight.ExtraBold),
+    Font(Res.font.Baloo2_Medium, weight = FontWeight.Medium),
+    Font(Res.font.Baloo2_SemiBold, weight = FontWeight.SemiBold),
+    Font(Res.font.Baloo2_Bold, weight = FontWeight.Bold),
+    Font(Res.font.Baloo2_ExtraBold, weight = FontWeight.ExtraBold),
   )
 
-/** Inter Tight — Kinetic body font. */
+/** Nunito — Kinetic body font. */
 @Composable
-private fun interTightFamily(): FontFamily =
+private fun nunitoFamily(): FontFamily =
   FontFamily(
-    Font(Res.font.InterTight_Regular, weight = FontWeight.Normal),
-    Font(Res.font.InterTight_Medium, weight = FontWeight.Medium),
-    Font(Res.font.InterTight_SemiBold, weight = FontWeight.SemiBold),
+    Font(Res.font.Nunito_Regular, weight = FontWeight.Normal),
+    Font(Res.font.Nunito_SemiBold, weight = FontWeight.SemiBold),
+    Font(Res.font.Nunito_Bold, weight = FontWeight.Bold),
+    Font(Res.font.Nunito_ExtraBold, weight = FontWeight.ExtraBold),
+    Font(Res.font.Nunito_Black, weight = FontWeight.Black),
   )
 
-/** JetBrains Mono — Kinetic mono font for notation, stats, counters, labels. */
+/** JetBrains Mono — Kinetic mono font for chess notation. */
 @Composable
 private fun jetbrainsMonoFamily(): FontFamily =
   FontFamily(
@@ -52,29 +60,33 @@ private fun jetbrainsMonoFamily(): FontFamily =
  */
 @Immutable
 data class KineticTypography(
-  /** Brand wordmark — Bricolage 700 20sp -0.03em. */
+  /** Brand wordmark — Baloo 2 700 20sp -0.03em. */
   val brand: TextStyle,
-  /** Section heading — Bricolage 800 24sp -0.03em. */
+  /** Section heading — Baloo 2 800 24sp -0.03em. */
   val displayLg: TextStyle,
-  /** Inline display heading — Bricolage 700 16sp -0.02em. */
+  /** Inline display heading — Baloo 2 700 16sp -0.02em. */
   val display: TextStyle,
-  /** Small display label — Bricolage 700 12sp. */
+  /** Small display label — Baloo 2 700 12sp. */
   val displaySm: TextStyle,
-  /** Body — Inter Tight 500 13sp, 1.45 line-height. */
+  /** Body — Nunito 500 13sp, 1.45 line-height. */
   val body: TextStyle,
-  /** Small body — Inter Tight 500 11sp. */
+  /** Small body — Nunito 500 11sp. */
   val bodySm: TextStyle,
-  /** Mono — JetBrains Mono 500 11sp, 0.02em tracking. */
+  /** Label — Nunito 700 11sp, 0.02em tracking. */
+  val label: TextStyle,
+  /** Small uppercase label — Nunito 700 9sp, 0.1em tracking. */
+  val labelSm: TextStyle,
+  /** Mono — JetBrains Mono 500 11sp, 0.02em tracking. Chess notation only. */
   val mono: TextStyle,
-  /** Small uppercase mono — JetBrains Mono 500 9sp, 0.1em tracking. */
+  /** Small uppercase mono — JetBrains Mono 500 9sp, 0.1em tracking. Chess notation only. */
   val monoSm: TextStyle,
 )
 
 /** Builds the Kinetic typography set. Must be called inside a Composable scope. */
 @Composable
 internal fun kineticTypography(): KineticTypography {
-  val display = bricolageFamily()
-  val body = interTightFamily()
+  val display = balooFamily()
+  val body = nunitoFamily()
   val mono = jetbrainsMonoFamily()
   return KineticTypography(
     brand =
@@ -107,6 +119,20 @@ internal fun kineticTypography(): KineticTypography {
         lineHeight = 18.85.sp, // 13 * 1.45
       ),
     bodySm = TextStyle(fontFamily = body, fontWeight = FontWeight.Medium, fontSize = 11.sp),
+    label =
+      TextStyle(
+        fontFamily = body,
+        fontWeight = FontWeight.Bold,
+        fontSize = 11.sp,
+        letterSpacing = 0.02.em,
+      ),
+    labelSm =
+      TextStyle(
+        fontFamily = body,
+        fontWeight = FontWeight.Bold,
+        fontSize = 9.sp,
+        letterSpacing = 0.1.em,
+      ),
     mono =
       TextStyle(
         fontFamily = mono,
@@ -142,9 +168,9 @@ internal fun kineticM3Typography(kinetic: KineticTypography): Typography =
     bodyLarge = kinetic.body.copy(fontSize = 14.sp),
     bodyMedium = kinetic.body,
     bodySmall = kinetic.bodySm,
-    labelLarge = kinetic.mono,
-    labelMedium = kinetic.monoSm.copy(fontSize = 10.sp),
-    labelSmall = kinetic.monoSm,
+    labelLarge = kinetic.label,
+    labelMedium = kinetic.labelSm.copy(fontSize = 10.sp),
+    labelSmall = kinetic.labelSm,
   )
 
 /** CompositionLocal exposing Kinetic-only text styles to consumers. */

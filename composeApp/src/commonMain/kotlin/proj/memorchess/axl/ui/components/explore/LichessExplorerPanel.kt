@@ -112,14 +112,14 @@ private fun OpeningHeader(state: ExplorerState) {
   if (opening == null) {
     Text(
       text = stringResource(Res.string.explore_lichess_title),
-      style = typography.monoSm.copy(color = palette.actionText),
+      style = typography.labelSm.copy(color = palette.actionText),
     )
   } else {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
       Text(text = opening.name, style = typography.display.copy(color = palette.ink))
       Text(
         text = stringResource(Res.string.explore_eco, opening.eco),
-        style = typography.monoSm.copy(color = palette.ink3),
+        style = typography.labelSm.copy(color = palette.ink3),
       )
     }
   }
@@ -213,12 +213,12 @@ private fun MoveRow(move: LichessExplorerMove, onClick: () -> Unit) {
   ) {
     Text(
       text = move.san,
-      style = typography.mono.copy(color = palette.ink),
+      style = typography.label.copy(color = palette.ink),
       modifier = Modifier.width(60.dp),
     )
     Text(
       text = move.totalGames.toReadableCount(),
-      style = typography.monoSm.copy(color = palette.ink3),
+      style = typography.labelSm.copy(color = palette.ink3),
       modifier = Modifier.width(56.dp),
     )
     StackedResultBar(move = move, modifier = Modifier.weight(1f).height(14.dp))

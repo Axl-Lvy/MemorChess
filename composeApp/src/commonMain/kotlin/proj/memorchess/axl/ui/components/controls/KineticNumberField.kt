@@ -75,7 +75,7 @@ fun KineticNumberField(
         digits.toIntOrNull()?.let(onValueCommit)
       },
       singleLine = true,
-      textStyle = typography.mono.copy(color = palette.ink, textAlign = TextAlign.End),
+      textStyle = typography.label.copy(color = palette.ink, textAlign = TextAlign.End),
       cursorBrush = SolidColor(palette.action),
       keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
       modifier =

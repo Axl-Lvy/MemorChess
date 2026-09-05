@@ -195,7 +195,7 @@ private class TrainingBoard : KoinComponent {
         Spacer(modifier = Modifier.height(8.dp))
         Text(
           text = stringResource(Res.string.training_days_in_advance, daysInAdvance),
-          style = typography.monoSm.copy(color = palette.ink3),
+          style = typography.labelSm.copy(color = palette.ink3),
         )
       }
     }

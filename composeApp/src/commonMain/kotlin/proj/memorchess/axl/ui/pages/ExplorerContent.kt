@@ -314,7 +314,7 @@ fun ExplorerContent(
 /**
  * Maps a [NodeState] to the short uppercase label shown in the board shell's corner tag. Mirrors
  * the wording of the legacy [proj.memorchess.axl.ui.components.board.StateIndicator] but compressed
- * to fit in the small mono tag: SAVED / PARTIAL / NEW / UNKNOWN MOVE / BAD.
+ * to fit in the small tag: SAVED / PARTIAL / NEW / UNKNOWN MOVE / BAD.
  */
 private fun nodeStateLabel(state: NodeState): StringResource =
   when (state) {

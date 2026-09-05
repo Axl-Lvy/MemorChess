@@ -76,8 +76,8 @@ private fun NavCellIcon(item: NavigationBarItemContent, tint: Color) {
  *
  * Mirrors `.bottomnav` from `design-proposals/kinetic-base.css`: a full-width row with `bg2`
  * background, 1.dp `line` top border, and four equal-width cells stacking an icon over a 9sp
- * uppercase mono label. The active cell paints a 2.dp `action` bar across the inner 28%→72% of its
- * top edge (CSS `.bottomnav a.active::before`).
+ * uppercase label. The active cell paints a 2.dp `action` bar across the inner 28%→72% of its top
+ * edge (CSS `.bottomnav a.active::before`).
  *
  * @param items Navigation entries; rendered in the order supplied.
  * @param currentRoute The current route label; compared against [NavigationBarItemContent]'s
@@ -149,7 +149,7 @@ fun KineticBottomNav(
         Spacer(modifier = Modifier.height(ICON_LABEL_SPACER))
         Text(
           text = stringResource(item.destination.displayNameRes()).uppercase(),
-          style = typography.monoSm.copy(color = tint),
+          style = typography.labelSm.copy(color = tint),
         )
       }
     }
@@ -161,7 +161,7 @@ fun KineticBottomNav(
  *
  * Vertical counterpart to [KineticBottomNav]: a fixed-width [SIDE_WIDTH] column with `bg2`
  * background and a 1.dp `line` right border. Each cell is [SIDE_CELL_HEIGHT] tall, stacking the
- * icon over a 9sp uppercase mono label. Cells are top-aligned; the remaining space is pushed to the
+ * icon over a 9sp uppercase label. Cells are top-aligned; the remaining space is pushed to the
  * bottom via a weighted spacer so future extras (e.g. a footer chip) can be slotted in cleanly.
  *
  * Active indicator: a 2.dp `action` vertical bar painted on the LEFT edge of the active cell,
@@ -230,7 +230,7 @@ fun KineticSideNav(
         Spacer(modifier = Modifier.height(ICON_LABEL_SPACER))
         Text(
           text = stringResource(item.destination.displayNameRes()).uppercase(),
-          style = typography.monoSm.copy(color = tint),
+          style = typography.labelSm.copy(color = tint),
         )
       }
     }

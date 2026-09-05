@@ -35,7 +35,7 @@ enum class KineticCounterTone {
  *
  * Mirrors the `.counter` rule from `design-proposals/kinetic-base.css`: panel background, 1.dp
  * `line` border on top/right/bottom, and a 3.dp colored stripe on the left whose color is selected
- * by [tone]. Inside, a small uppercase mono [label] sits above a big Bricolage [value].
+ * by [tone]. Inside, a small uppercase [label] sits above a big Baloo 2 [value].
  *
  * The component never sets its own width; the caller is expected to provide it through [modifier]
  * (typically `Modifier.weight(1f)` inside a 3-cell Row). When called without any width modifier the
@@ -76,7 +76,7 @@ fun KineticCounterBlock(
         .padding(14.dp),
     verticalArrangement = Arrangement.spacedBy(6.dp),
   ) {
-    Text(text = label.uppercase(), style = typography.monoSm.copy(color = palette.ink3))
+    Text(text = label.uppercase(), style = typography.labelSm.copy(color = palette.ink3))
     Text(text = value.toString(), style = typography.displayLg.copy(color = palette.ink))
   }
 }

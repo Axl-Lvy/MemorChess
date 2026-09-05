@@ -132,7 +132,7 @@ internal fun SyncAccountSectionContent(
 
     Text(
       text = stringResource(status.toStringResource()),
-      style = typography.monoSm.copy(color = palette.ink3),
+      style = typography.labelSm.copy(color = palette.ink3),
       modifier = Modifier.testTag("sync_status_line"),
     )
 
@@ -188,7 +188,7 @@ private fun SyncAccountIdentity(
         } else {
           stringResource(Res.string.sync_sign_in_prompt)
         },
-      style = typography.monoSm.copy(color = palette.ink3),
+      style = typography.labelSm.copy(color = palette.ink3),
     )
   }
 }
