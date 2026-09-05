@@ -81,12 +81,16 @@
     {
       "description": "Compose Multiplatform 1.12.0 resolves to androidx.compose 1.12.0, whose AAR metadata forces AGP 9.1.0 + compileSdk 37; pin below it until the AGP cap can be lifted",
       "matchPackageNames": [
-        "org.jetbrains.compose",
         "org.jetbrains.compose.runtime:*",
         "org.jetbrains.compose.foundation:*",
         "org.jetbrains.compose.ui:*",
         "org.jetbrains.compose.components:*"
       ],
+      "allowedVersions": "<1.12.0"
+    },
+    {
+      "description": "Same hold as above, but for the org.jetbrains.compose Gradle plugin itself: its Renovate packageName is the plugin-marker artifact (org.jetbrains.compose:org.jetbrains.compose.gradle.plugin), not the plugin id, so it needs matchDepNames rather than matchPackageNames or it silently escapes the hold and drags the whole version-catalog key past it (see PR #262)",
+      "matchDepNames": ["org.jetbrains.compose"],
       "allowedVersions": "<1.12.0"
     },
     {
