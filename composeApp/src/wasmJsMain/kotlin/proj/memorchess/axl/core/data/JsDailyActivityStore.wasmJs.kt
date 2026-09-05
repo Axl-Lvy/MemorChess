@@ -53,6 +53,11 @@ internal object JsDailyActivityStore : DailyActivityStore {
       objectStore(DAILY_ACTIVITY_STORE).put(record.toJsEntity())
     }
   }
+
+  override suspend fun eraseAll() {
+    val database = db()
+    database.writeTransaction(DAILY_ACTIVITY_STORE) { objectStore(DAILY_ACTIVITY_STORE).clear() }
+  }
 }
 
 actual fun getPlatformSpecificDailyActivityStore(): DailyActivityStore {

@@ -6,6 +6,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
@@ -154,9 +155,9 @@ class TrainingScheduler(
   /**
    * Persists the result of a review for [position]. Computes the next
    * [proj.memorchess.axl.core.scheduling.CardState] through [SchedulingAlgorithm] and stores it
-   * through [TreeStore]. Also feeds [streakTracker], but only on this position's first review of
-   * the day, so [proj.memorchess.axl.core.streak.StreakTracker.cardsCompletedToday] stays in the
-   * same distinct-positions unit as [proj.memorchess.axl.core.data.SchedulingCounts.trainedToday].
+   * through [TreeStore]. Also feeds [streakTracker], on this position's first review of the local
+   * day or on any review while [streakTracker] has nothing recorded for the day yet, so a position
+   * whose only local-day review arrived from another device via sync still reaches the streak.
    */
   suspend fun grade(position: PositionKey, grade: ReviewGrade) {
     val node = treeStore.node(position) ?: return
@@ -164,20 +165,25 @@ class TrainingScheduler(
     val previousLastReview = node.cardState.lastReview
     val nextState = algorithm.schedule(node.cardState, grade, now)
     treeStore.updateCardState(position, nextState)
-    val (dayStart, _) = dayBounds(DateUtil.today())
-    val alreadyReviewedToday = previousLastReview != null && previousLastReview >= dayStart
-    if (streakTracker != null && !alreadyReviewedToday) {
-      streakTracker.recordReview()
+    if (streakTracker != null) {
+      val day = now.toLocalDateTime(timeZone).date
+      val (dayStart, _) = dayBounds(day)
+      val alreadyReviewedToday = previousLastReview != null && previousLastReview >= dayStart
+      if (!alreadyReviewedToday || streakTracker.cardsCompletedToday(day) == 0) {
+        streakTracker.recordReview(day)
+      }
     }
   }
 
   /**
    * Number of positions reviewed for the first time today, or `0` when [streakTracker] is absent.
    */
-  suspend fun cardsCompletedToday(): Int = streakTracker?.cardsCompletedToday() ?: 0
+  suspend fun cardsCompletedToday(): Int =
+    streakTracker?.cardsCompletedToday(DateUtil.now().toLocalDateTime(timeZone).date) ?: 0
 
   /** Current daily-review streak in days, or `0` when [streakTracker] is absent. */
-  suspend fun streakDays(): Int = streakTracker?.streakDays() ?: 0
+  suspend fun streakDays(): Int =
+    streakTracker?.streakDays(DateUtil.now().toLocalDateTime(timeZone).date) ?: 0
 
   /**
    * Computes the half open day window `[dayStart, dayEndExclusive)` for [day] in [timeZone].

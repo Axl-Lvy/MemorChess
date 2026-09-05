@@ -26,6 +26,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.config.ALL_SETTINGS_ITEMS
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
@@ -44,11 +45,17 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * fires. Test tags `resetConfigButton` and `eraseAllDataButton` are preserved.
  *
  * @param treeStore Used to perform the "erase all data" action.
+ * @param streakTracker Also wiped by the "erase all data" action, so the streak and daily count go
+ *   with the rest of the training history.
  * @param onReset Called after the user confirms the reset; the parent typically triggers a reload
  *   so the rest of the settings page reflects the restored defaults.
  */
 @Composable
-fun DangerZoneSection(treeStore: TreeStore = koinInject(), onReset: () -> Unit = {}) {
+fun DangerZoneSection(
+  treeStore: TreeStore = koinInject(),
+  streakTracker: StreakTracker = koinInject(),
+  onReset: () -> Unit = {},
+) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
@@ -79,7 +86,14 @@ fun DangerZoneSection(treeStore: TreeStore = koinInject(), onReset: () -> Unit =
       buttonLabel = stringResource(Res.string.settings_erase_button),
       buttonStyle = KineticButtonStyle.Danger,
       buttonTestTag = "eraseAllDataButton",
-      onClick = { dlg.show(eraseConfirm) { coroutineScope.launch { treeStore.eraseAll() } } },
+      onClick = {
+        dlg.show(eraseConfirm) {
+          coroutineScope.launch {
+            treeStore.eraseAll()
+            streakTracker.eraseAll()
+          }
+        }
+      },
     )
   }
 }

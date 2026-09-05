@@ -11,6 +11,10 @@ internal class NonJsDailyActivityStore(private val database: CustomDatabase) : D
   override suspend fun putRecord(record: DailyActivityRecord) {
     database.getDailyActivityDao().putRecord(record.toEntity())
   }
+
+  override suspend fun eraseAll() {
+    database.getDailyActivityDao().eraseAll()
+  }
 }
 
 private fun DailyActivityEntity.toRecord(): DailyActivityRecord =

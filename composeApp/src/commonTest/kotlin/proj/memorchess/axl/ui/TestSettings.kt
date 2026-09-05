@@ -16,6 +16,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.drainAllNodes
@@ -26,6 +27,7 @@ import proj.memorchess.axl.ui.pages.Settings
 class TestSettings : TestWithKoin() {
 
   private val database: DatabaseQueryManager by inject()
+  private val streakTracker: StreakTracker by inject()
 
   private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
@@ -127,6 +129,7 @@ class TestSettings : TestWithKoin() {
     database.insertNodes(
       DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
     )
+    streakTracker.recordReview()
     assertNodeWithTagDoesNotExists("confirmDialog")
 
     // The Danger Zone is the last LazyColumn section, so it is not composed until scrolled into
@@ -149,5 +152,8 @@ class TestSettings : TestWithKoin() {
 
     // Verify the database is cleared
     waitUntilSuspending { drainAllNodes(database).isEmpty() }
+
+    // Verify the streak was wiped along with the rest of the training history
+    waitUntilSuspending { streakTracker.streakDays() == 0 }
   }
 }

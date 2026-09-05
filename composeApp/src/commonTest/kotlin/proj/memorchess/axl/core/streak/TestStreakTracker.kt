@@ -119,6 +119,19 @@ class TestStreakTracker {
   }
 
   @Test
+  fun eraseAllClearsTheStreakAndTodaysCount() = runTest {
+    val tracker = StreakTracker(InMemoryDailyActivityStore())
+    val day2 = day1.plus(1, DateTimeUnit.DAY)
+    tracker.recordReview(day1)
+    tracker.recordReview(day2)
+
+    tracker.eraseAll()
+
+    tracker.cardsCompletedToday(day2) shouldBe 0
+    tracker.streakDays(day2) shouldBe 0
+  }
+
+  @Test
   fun streakDaysHandlesALargeConsecutiveRun() = runTest {
     val tracker = StreakTracker(InMemoryDailyActivityStore())
     val streakSize = 400

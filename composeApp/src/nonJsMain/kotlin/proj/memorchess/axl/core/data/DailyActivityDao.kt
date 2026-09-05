@@ -16,4 +16,7 @@ interface DailyActivityDao {
   /** Replaces [entity]'s row wholesale. */
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun putRecord(entity: DailyActivityEntity)
+
+  /** Hard wipes every row. */
+  @Query("DELETE FROM DailyActivityEntity") suspend fun eraseAll()
 }

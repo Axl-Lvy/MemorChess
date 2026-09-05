@@ -52,6 +52,11 @@ class StreakTracker(private val store: DailyActivityStore) {
     )
   }
 
+  /** Wipes every recorded date, resetting the streak and today's count to zero. */
+  suspend fun eraseAll() {
+    store.eraseAll()
+  }
+
   private suspend fun computeStreakLength(day: LocalDate): Int {
     val yesterday = store.getRecord(day.minus(1, DateTimeUnit.DAY))
     return if (yesterday?.isActive == true) yesterday.streakLength + 1 else 1
