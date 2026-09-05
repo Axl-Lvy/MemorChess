@@ -291,6 +291,9 @@ private suspend fun buildPushRequest(
         localMove(database, key.origin, key.destination)?.let { edges += it.toEdgeSyncRow() }
       }
       is DirtyKey.SettingKey -> Unit
+      // Wired up in a later task, alongside the repertoire and tag registries this reads from.
+      is DirtyKey.RepertoireKey -> Unit
+      is DirtyKey.TagKey -> Unit
     }
   }
   return SyncPushRequest(nodes = nodes, edges = edges, settings = emptyList())

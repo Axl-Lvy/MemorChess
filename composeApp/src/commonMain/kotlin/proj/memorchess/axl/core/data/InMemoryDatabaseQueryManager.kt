@@ -31,6 +31,13 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   /** Backing outbox, keyed by the dirty key itself so a repeat mark is a no-op collapse. */
   private val outbox: LinkedHashMap<DirtyKey, Long> = linkedMapOf()
 
+  /** Backing store for the repertoire registry, keyed by id. */
+  private val repertoires: MutableMap<String, DataRepertoire> = mutableMapOf()
+
+  /** Backing store for edge to repertoire tags, keyed by the edge's endpoints and repertoire. */
+  private val tags: MutableMap<Triple<PositionKey, PositionKey, String>, DataEdgeRepertoireTag> =
+    mutableMapOf()
+
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
 
@@ -284,6 +291,8 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun eraseAll() {
     nodes.clear()
     outbox.clear()
+    repertoires.clear()
+    tags.clear()
   }
 
   override suspend fun getLastUpdate(): Instant? =
@@ -475,5 +484,43 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       val stored = outbox[entry.key] ?: continue
       if (stored <= entry.deviceSeq) outbox.remove(entry.key)
     }
+  }
+
+  override suspend fun getRepertoire(id: String): DataRepertoire? =
+    repertoires[id]?.takeIf { !it.isDeleted }
+
+  override suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire? = repertoires[id]
+
+  override suspend fun getRepertoires(): List<DataRepertoire> =
+    repertoires.values.filter { !it.isDeleted }
+
+  override suspend fun insertRepertoire(repertoire: DataRepertoire) {
+    repertoires[repertoire.id] = repertoire
+    mark(DirtyKey.RepertoireKey(repertoire.id), repertoire.deviceSeq)
+  }
+
+  override suspend fun applyRemoteRepertoire(repertoire: DataRepertoire) {
+    repertoires[repertoire.id] = repertoire
+  }
+
+  override suspend fun getTags(
+    origin: PositionKey,
+    destination: PositionKey,
+  ): List<DataEdgeRepertoireTag> =
+    tags.values.filter { it.origin == origin && it.destination == destination && !it.isDeleted }
+
+  override suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag? = tags[Triple(origin, destination, repertoireId)]
+
+  override suspend fun insertTag(tag: DataEdgeRepertoireTag) {
+    tags[Triple(tag.origin, tag.destination, tag.repertoireId)] = tag
+    mark(DirtyKey.TagKey(tag.origin, tag.destination, tag.repertoireId), tag.deviceSeq)
+  }
+
+  override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) {
+    tags[Triple(tag.origin, tag.destination, tag.repertoireId)] = tag
   }
 }

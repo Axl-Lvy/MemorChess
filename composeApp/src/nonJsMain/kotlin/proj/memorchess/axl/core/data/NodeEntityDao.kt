@@ -38,10 +38,17 @@ interface NodeEntityDao {
    * names, since Room cannot span one `@Transaction` default method across two `@Dao` interfaces.
    */
   @Query(
-    "INSERT INTO OutboxEntryEntity (kind, key1, key2, deviceSeq) VALUES (:kind, :key1, :key2, :deviceSeq) " +
-      "ON CONFLICT(kind, key1, key2) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)"
+    "INSERT INTO OutboxEntryEntity (kind, key1, key2, key3, deviceSeq) " +
+      "VALUES (:kind, :key1, :key2, :key3, :deviceSeq) " +
+      "ON CONFLICT(kind, key1, key2, key3) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)"
   )
-  suspend fun upsertOutboxEntry(kind: String, key1: String, key2: String = "", deviceSeq: Long)
+  suspend fun upsertOutboxEntry(
+    kind: String,
+    key1: String,
+    key2: String = "",
+    key3: String = "",
+    deviceSeq: Long,
+  )
 
   /**
    * Inserts a new node into the database.
@@ -102,7 +109,7 @@ interface NodeEntityDao {
   ) {
     val destination = liveMoveDestination(origin, move) ?: return
     softDeleteMove(origin, move, updatedAt, originDevice, deviceSeq)
-    upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, destination, deviceSeq)
+    upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, destination, deviceSeq = deviceSeq)
   }
 
   /** Hard deletes a move row. */
@@ -207,10 +214,10 @@ interface NodeEntityDao {
     softDeleteMoveTo(fen, updatedAt, originDevice, deviceSeq)
     if (nodeChanged) upsertOutboxEntry(OutboxEntryEntity.KIND_NODE, fen, deviceSeq = deviceSeq)
     for (destination in outgoing) {
-      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, fen, destination, deviceSeq)
+      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, fen, destination, deviceSeq = deviceSeq)
     }
     for (origin in incoming) {
-      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, fen, deviceSeq)
+      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, fen, deviceSeq = deviceSeq)
     }
   }
 

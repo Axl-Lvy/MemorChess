@@ -1,8 +1,10 @@
 package proj.memorchess.axl.test_util
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.DataEdgeRepertoireTag
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.OutboxEntry
@@ -98,4 +100,32 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun applyRemoteNode(node: DataNode) = delegate.applyRemoteNode(node)
 
   override suspend fun applyRemoteMove(move: DataMove) = delegate.applyRemoteMove(move)
+
+  override suspend fun getRepertoire(id: String): DataRepertoire? = delegate.getRepertoire(id)
+
+  override suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire? =
+    delegate.getRepertoireIncludingDeleted(id)
+
+  override suspend fun getRepertoires(): List<DataRepertoire> = delegate.getRepertoires()
+
+  override suspend fun insertRepertoire(repertoire: DataRepertoire) =
+    delegate.insertRepertoire(repertoire)
+
+  override suspend fun applyRemoteRepertoire(repertoire: DataRepertoire) =
+    delegate.applyRemoteRepertoire(repertoire)
+
+  override suspend fun getTags(
+    origin: PositionKey,
+    destination: PositionKey,
+  ): List<DataEdgeRepertoireTag> = delegate.getTags(origin, destination)
+
+  override suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag? = delegate.getTagIncludingDeleted(origin, destination, repertoireId)
+
+  override suspend fun insertTag(tag: DataEdgeRepertoireTag) = delegate.insertTag(tag)
+
+  override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) = delegate.applyRemoteTag(tag)
 }

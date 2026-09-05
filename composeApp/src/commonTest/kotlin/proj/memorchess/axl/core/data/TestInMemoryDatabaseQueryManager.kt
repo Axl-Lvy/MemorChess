@@ -726,4 +726,31 @@ class TestInMemoryDatabaseQueryManager {
       !database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted
     )
   }
+
+  // --- Repertoire registry and edge tag CRUD -------------------------------------------------
+
+  @Test
+  fun insertRepertoireThenGetRepertoireReturnsIt() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val repertoire = DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+
+    database.insertRepertoire(repertoire)
+
+    assertEquals(repertoire, database.getRepertoire("italian-game"))
+  }
+
+  @Test
+  fun insertTagThenGetTagsReturnsTheLiveTagDeletedTagsExcluded() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val origin = key0
+    val destination = key1
+    val live = DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game")
+    val deleted =
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "ruy-lopez", isDeleted = true)
+
+    database.insertTag(live)
+    database.insertTag(deleted)
+
+    assertEquals(listOf(live), database.getTags(origin, destination))
+  }
 }

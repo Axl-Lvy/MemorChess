@@ -80,6 +80,8 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     dao.eraseAllMoves()
     dao.eraseAllNodes()
     database.getOutboxDao().eraseAll()
+    database.getRepertoireDao().eraseAllTags()
+    database.getRepertoireDao().eraseAllRepertoires()
   }
 
   override suspend fun insertNodes(vararg positions: DataNode) {
@@ -169,8 +171,8 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     )
 
   override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) {
-    val (kind, key1, key2) = key.outboxKeyParts()
-    database.getOutboxDao().upsert(kind, key1, key2, deviceSeq)
+    val parts = key.outboxKeyParts()
+    database.getOutboxDao().upsert(parts.kind, parts.key1, parts.key2, parts.key3, deviceSeq)
   }
 
   override suspend fun getOutbox(): List<OutboxEntry> =
@@ -179,18 +181,76 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   override suspend fun clearDirty(entries: Collection<OutboxEntry>) {
     database.getOutboxDao().clearIfNotNewer(entries.map { it.toEntity() })
   }
+
+  override suspend fun getRepertoire(id: String): DataRepertoire? =
+    database.getRepertoireDao().getRepertoire(id)?.toDataRepertoire()
+
+  override suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire? =
+    database.getRepertoireDao().getRepertoireIncludingDeleted(id)?.toDataRepertoire()
+
+  override suspend fun getRepertoires(): List<DataRepertoire> =
+    database.getRepertoireDao().getRepertoires().map { it.toDataRepertoire() }
+
+  override suspend fun insertRepertoire(repertoire: DataRepertoire) {
+    database
+      .getRepertoireDao()
+      .insertRepertoireAndMarkDirty(RepertoireEntity.convertToEntity(repertoire))
+  }
+
+  override suspend fun applyRemoteRepertoire(repertoire: DataRepertoire) {
+    database.getRepertoireDao().insertRepertoire(RepertoireEntity.convertToEntity(repertoire))
+  }
+
+  override suspend fun getTags(
+    origin: PositionKey,
+    destination: PositionKey,
+  ): List<DataEdgeRepertoireTag> =
+    database
+      .getRepertoireDao()
+      .getTags(origin.value, destination.value)
+      .map { it.toDataEdgeRepertoireTag() }
+
+  override suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag? =
+    database
+      .getRepertoireDao()
+      .getTagIncludingDeleted(origin.value, destination.value, repertoireId)
+      ?.toDataEdgeRepertoireTag()
+
+  override suspend fun insertTag(tag: DataEdgeRepertoireTag) {
+    database.getRepertoireDao().insertTagAndMarkDirty(EdgeRepertoireTagEntity.convertToEntity(tag))
+  }
+
+  override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) {
+    database.getRepertoireDao().insertTag(EdgeRepertoireTagEntity.convertToEntity(tag))
+  }
 }
 
-private fun DirtyKey.outboxKeyParts(): Triple<String, String, String> =
+/** The parts an [OutboxEntryEntity]'s compound key splits into. See [DirtyKey.outboxKeyParts]. */
+private data class OutboxKeyParts(
+  val kind: String,
+  val key1: String,
+  val key2: String = "",
+  val key3: String = "",
+)
+
+private fun DirtyKey.outboxKeyParts(): OutboxKeyParts =
   when (this) {
-    is DirtyKey.NodeKey -> Triple(OutboxEntryEntity.KIND_NODE, positionKey.value, "")
-    is DirtyKey.EdgeKey -> Triple(OutboxEntryEntity.KIND_EDGE, origin.value, destination.value)
-    is DirtyKey.SettingKey -> Triple(OutboxEntryEntity.KIND_SETTING, key, "")
+    is DirtyKey.NodeKey -> OutboxKeyParts(OutboxEntryEntity.KIND_NODE, positionKey.value)
+    is DirtyKey.EdgeKey ->
+      OutboxKeyParts(OutboxEntryEntity.KIND_EDGE, origin.value, destination.value)
+    is DirtyKey.SettingKey -> OutboxKeyParts(OutboxEntryEntity.KIND_SETTING, key)
+    is DirtyKey.RepertoireKey -> OutboxKeyParts(OutboxEntryEntity.KIND_REPERTOIRE, repertoireId)
+    is DirtyKey.TagKey ->
+      OutboxKeyParts(OutboxEntryEntity.KIND_TAG, origin.value, destination.value, repertoireId)
   }
 
 private fun OutboxEntry.toEntity(): OutboxEntryEntity {
-  val (kind, key1, key2) = key.outboxKeyParts()
-  return OutboxEntryEntity(kind, key1, key2, deviceSeq)
+  val parts = key.outboxKeyParts()
+  return OutboxEntryEntity(parts.kind, parts.key1, parts.key2, parts.key3, deviceSeq)
 }
 
 private fun OutboxEntryEntity.toDirtyKey(): DirtyKey =
@@ -198,6 +258,8 @@ private fun OutboxEntryEntity.toDirtyKey(): DirtyKey =
     OutboxEntryEntity.KIND_NODE -> DirtyKey.NodeKey(PositionKey(key1))
     OutboxEntryEntity.KIND_EDGE -> DirtyKey.EdgeKey(PositionKey(key1), PositionKey(key2))
     OutboxEntryEntity.KIND_SETTING -> DirtyKey.SettingKey(key1)
+    OutboxEntryEntity.KIND_REPERTOIRE -> DirtyKey.RepertoireKey(key1)
+    OutboxEntryEntity.KIND_TAG -> DirtyKey.TagKey(PositionKey(key1), PositionKey(key2), key3)
     else -> error("Unknown outbox entry kind: $kind")
   }
 

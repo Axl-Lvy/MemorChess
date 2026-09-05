@@ -231,6 +231,50 @@ interface DatabaseQueryManager {
    * already assumes its endpoints are resolvable.
    */
   suspend fun applyRemoteMove(move: DataMove)
+
+  /** Retrieves a repertoire registry row, or `null` when missing or soft deleted. */
+  suspend fun getRepertoire(id: String): DataRepertoire?
+
+  /**
+   * [getRepertoire] ignoring the soft delete filter, so a caller can compare it against a pulled
+   * sync row even when the local copy is a tombstone. Used only by [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
+   */
+  suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire?
+
+  /** Every non deleted repertoire registry row. Unbounded: a user's own registry stays small. */
+  suspend fun getRepertoires(): List<DataRepertoire>
+
+  /** Inserts or replaces a repertoire registry row, queuing its own outbox entry. */
+  suspend fun insertRepertoire(repertoire: DataRepertoire)
+
+  /**
+   * Writes [repertoire] as the resolved winner of a sync conflict, without queuing an outbox entry,
+   * for the same reason as [applyRemoteNode].
+   */
+  suspend fun applyRemoteRepertoire(repertoire: DataRepertoire)
+
+  /** Every live tag on the edge from [origin] to [destination], across every repertoire. */
+  suspend fun getTags(origin: PositionKey, destination: PositionKey): List<DataEdgeRepertoireTag>
+
+  /**
+   * [getTags] ignoring the soft delete filter for one `(origin, destination, repertoireId)` triple,
+   * so a caller can compare it against a pulled sync row even when the local copy is a tombstone.
+   * Used only by [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
+   */
+  suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag?
+
+  /** Inserts or replaces one edge to repertoire tag row, queuing its own outbox entry. */
+  suspend fun insertTag(tag: DataEdgeRepertoireTag)
+
+  /**
+   * Writes [tag] as the resolved winner of a sync conflict, without queuing an outbox entry, for
+   * the same reason as [applyRemoteNode].
+   */
+  suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag)
 }
 
 /**
