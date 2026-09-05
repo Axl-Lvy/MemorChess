@@ -29,9 +29,9 @@ import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
  *
  * Every value is a hoisted top-level constant so animation specs are allocated once rather than on
  * every recomposition. Consumers must drive these through the draw/layout phase (`graphicsLayer`,
- * `offset { }`, `drawBehind`) reading an `Animatable`/transition value inside the lambda. Never read
- * an animated value in the composition phase. That keeps animations recomposition-free and lag-free,
- * including on the single-threaded wasmJs target.
+ * `offset { }`, `drawBehind`) reading an `Animatable`/transition value inside the lambda. Never
+ * read an animated value in the composition phase. That keeps animations recomposition-free and
+ * lag-free, including on the single-threaded wasmJs target.
  */
 object KineticMotion {
 
