@@ -21,15 +21,15 @@ enum class ChessBoardColorScheme(
   KINETIC_DARK(
     lightSquareColor = Color(0xFFD7DDE6),
     darkSquareColor = Color(0xFF3A4150),
-    selectedBorderColor = Color(0xFFFF5B26),
-    arrowColor = Color(0x80FF5B26),
+    selectedBorderColor = KineticDarkPalette.action,
+    arrowColor = KineticDarkPalette.action.copy(alpha = 0.5f),
     displayName = "Default Dark",
   ),
   KINETIC_LIGHT(
     lightSquareColor = Color(0xFFE5EDF5),
     darkSquareColor = Color(0xFF5E6A82),
-    selectedBorderColor = Color(0xFFFF5B26),
-    arrowColor = Color(0x8000B8D4),
+    selectedBorderColor = KineticLightPalette.action,
+    arrowColor = KineticLightPalette.action.copy(alpha = 0.5f),
     displayName = "Default Light",
   ),
   GRASS(
