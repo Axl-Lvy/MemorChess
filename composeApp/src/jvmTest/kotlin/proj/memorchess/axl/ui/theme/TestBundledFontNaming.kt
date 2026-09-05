@@ -17,11 +17,12 @@ class TestBundledFontNaming {
   @Test
   fun everyBundledFontFilenameMatchesItsOwnPostScriptName() {
     val mismatches =
-      fontDir.listFiles { file -> file.extension == "ttf" }!!.map { file ->
-        file.name to readPostScriptName(file)
-      }
+      fontDir
+        .listFiles { file -> file.extension == "ttf" }!!
+        .map { file -> file.name to readPostScriptName(file) }
 
-    mismatches.filter { (fileName, postScriptName) -> fileName.substringBeforeLast(".") != postScriptName }
+    mismatches
+      .filter { (fileName, postScriptName) -> fileName.substringBeforeLast(".") != postScriptName }
       .shouldBeEmpty()
   }
 
@@ -66,7 +67,10 @@ class TestBundledFontNaming {
 
   private fun RandomAccessFile.readUInt32At(offset: Long): Long {
     seek(offset)
-    return ((read().toLong() shl 24) or (read().toLong() shl 16) or (read().toLong() shl 8) or read().toLong())
+    return ((read().toLong() shl 24) or
+      (read().toLong() shl 16) or
+      (read().toLong() shl 8) or
+      read().toLong())
   }
 
   private fun RandomAccessFile.readTagAt(offset: Long): String {
