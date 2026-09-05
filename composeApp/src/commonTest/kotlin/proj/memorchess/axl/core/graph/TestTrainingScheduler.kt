@@ -1,10 +1,12 @@
 package proj.memorchess.axl.core.graph
 
+import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
@@ -13,7 +15,9 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.asTimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
@@ -22,6 +26,9 @@ import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
+import proj.memorchess.axl.core.scheduling.ReviewGrade
+import proj.memorchess.axl.core.streak.StreakTracker
+import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
 
@@ -49,6 +56,144 @@ class TestTrainingScheduler {
         { maxTotal },
       )
     return store to scheduler
+  }
+
+  /** Same as [newScheduler], with a real [StreakTracker] over an isolated in memory store. */
+  private fun newSchedulerWithStreak(
+    timeZone: TimeZone = TimeZone.currentSystemDefault()
+  ): Triple<TreeStore, TrainingScheduler, StreakTracker> {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    val streakTracker = StreakTracker(InMemoryDailyActivityStore())
+    val scheduler =
+      TrainingScheduler(
+        database = database,
+        treeStore = store,
+        algorithm = Fsrs6SchedulingAlgorithm(),
+        timeZone = timeZone,
+        streakTracker = streakTracker,
+      )
+    return Triple(store, scheduler, streakTracker)
+  }
+
+  @Test
+  fun gradeRecordsFirstReviewOfTheDayOnTheStreak() = runTest {
+    val (store, scheduler, _) = newSchedulerWithStreak()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 1
+    scheduler.streakDays() shouldBe 1
+  }
+
+  @Test
+  fun gradeOnTheSamePositionTwiceTodayCountsOnceOnTheStreak() = runTest {
+    val (store, scheduler, _) = newSchedulerWithStreak()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.AGAIN)
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 1
+  }
+
+  @Test
+  fun gradeOnTwoDistinctPositionsTodayCountsBothOnTheStreak() = runTest {
+    val (store, scheduler, _) = newSchedulerWithStreak()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = startPos, move = "d4", to = posB, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+    scheduler.grade(posA, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 2
+  }
+
+  @Test
+  fun gradeRecordsAPositionSyncedFromAnotherDeviceAsTodaysOnlyLocalReview() = runTest {
+    // posA's card state carries a lastReview from earlier today, as if SyncEngine had pulled it
+    // from another device that already reviewed it. This device's streak store has nothing for
+    // today yet, so this grade is this device's first local review of the day and must count.
+    val (store, scheduler, streakTracker) = newSchedulerWithStreak()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    val today = DateUtil.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val earlierToday = today.atStartOfDayIn(TimeZone.currentSystemDefault()) + 9.hours
+    store.updateCardState(posA, reviewCard(earlierToday + 1.days).copy(lastReview = earlierToday))
+
+    scheduler.grade(posA, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 1
+    streakTracker.streakDays() shouldBe 1
+  }
+
+  @Test
+  fun reviewExactlyAtLocalMidnightDoesNotCountAsANewLocalReview() = runTest {
+    val zone = UtcOffset(hours = 1).asTimeZone()
+    val (store, scheduler, streakTracker) = newSchedulerWithStreak(zone)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    val today = DateUtil.now().toLocalDateTime(zone).date
+    val dayStart = today.atStartOfDayIn(zone)
+    // Prime today's streak count on a distinct position so the "store empty for today" fallback
+    // cannot fire and mask the boundary check below.
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+    store.updateCardState(posA, reviewCard(dayStart + 1.days).copy(lastReview = dayStart))
+
+    scheduler.grade(posA, ReviewGrade.GOOD)
+
+    streakTracker.cardsCompletedToday(today) shouldBe 1
+  }
+
+  @Test
+  fun reviewJustBeforeLocalMidnightYesterdayCountsAsANewLocalReview() = runTest {
+    val zone = UtcOffset(hours = 1).asTimeZone()
+    val (store, scheduler, streakTracker) = newSchedulerWithStreak(zone)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    val today = DateUtil.now().toLocalDateTime(zone).date
+    val dayStart = today.atStartOfDayIn(zone)
+    val yesterdayLate = dayStart - 1.minutes
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+    store.updateCardState(posA, reviewCard(dayStart + 1.days).copy(lastReview = yesterdayLate))
+
+    scheduler.grade(posA, ReviewGrade.GOOD)
+
+    streakTracker.cardsCompletedToday(today) shouldBe 2
+  }
+
+  @Test
+  fun gradeRecordsUnderTheConfiguredZonesDayNotTheSystemDefault() = runTest {
+    // 26 hours apart, so their current calendar dates can never coincide, and the system's own
+    // zone can match at most one of them. A scheduler built with either zone must record under
+    // that zone's own day, never the other one's and never the system's.
+    val zoneAhead = UtcOffset(hours = 14).asTimeZone()
+    val zoneBehind = UtcOffset(hours = -12).asTimeZone()
+    val (storeAhead, schedulerAhead, streakAhead) = newSchedulerWithStreak(zoneAhead)
+    val (storeBehind, schedulerBehind, streakBehind) = newSchedulerWithStreak(zoneBehind)
+    storeAhead.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    storeBehind.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    val dayAhead = DateUtil.now().toLocalDateTime(zoneAhead).date
+    val dayBehind = DateUtil.now().toLocalDateTime(zoneBehind).date
+
+    schedulerAhead.grade(startPos, ReviewGrade.GOOD)
+    schedulerBehind.grade(startPos, ReviewGrade.GOOD)
+
+    streakAhead.cardsCompletedToday(dayAhead) shouldBe 1
+    streakAhead.cardsCompletedToday(dayBehind) shouldBe 0
+    streakBehind.cardsCompletedToday(dayBehind) shouldBe 1
+    streakBehind.cardsCompletedToday(dayAhead) shouldBe 0
+  }
+
+  @Test
+  fun cardsCompletedTodayAndStreakDaysAreZeroWithoutAStreakTracker() = runTest {
+    val (store, scheduler) = newScheduler()
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    scheduler.grade(startPos, ReviewGrade.GOOD)
+
+    scheduler.cardsCompletedToday() shouldBe 0
+    scheduler.streakDays() shouldBe 0
   }
 
   @Test

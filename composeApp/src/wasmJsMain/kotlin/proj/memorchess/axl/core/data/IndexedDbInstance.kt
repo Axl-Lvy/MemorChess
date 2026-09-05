@@ -40,9 +40,8 @@ internal object IndexedDbInstance {
    * not exist yet on a fresh install (the upgrade runs with no prior version).
    */
   private fun VersionChangeTransaction.recreate(database: Database) {
-    listOf(NODES_STORE, MOVES_STORE, EXPLORER_CACHE_STORE, OUTBOX_STORE).forEach { store ->
-      runCatching { database.deleteObjectStore(store) }
-    }
+    listOf(NODES_STORE, MOVES_STORE, EXPLORER_CACHE_STORE, OUTBOX_STORE, DAILY_ACTIVITY_STORE)
+      .forEach { store -> runCatching { database.deleteObjectStore(store) } }
 
     val nodesStore = database.createObjectStore(NODES_STORE, KeyPath("positionKey"))
     nodesStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
@@ -71,6 +70,8 @@ internal object IndexedDbInstance {
 
     val outboxStore = database.createObjectStore(OUTBOX_STORE, KeyPath("kind", "key1", "key2"))
     outboxStore.createIndex("deviceSeq", KeyPath("deviceSeq"), unique = false)
+
+    database.createObjectStore(DAILY_ACTIVITY_STORE, KeyPath("date"))
   }
 }
 
