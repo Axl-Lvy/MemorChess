@@ -15,9 +15,7 @@ import memorchess.composeapp.generated.resources.Baloo2_Medium
 import memorchess.composeapp.generated.resources.Baloo2_SemiBold
 import memorchess.composeapp.generated.resources.JetBrainsMono_Medium
 import memorchess.composeapp.generated.resources.JetBrainsMono_Regular
-import memorchess.composeapp.generated.resources.Nunito_Black
 import memorchess.composeapp.generated.resources.Nunito_Bold
-import memorchess.composeapp.generated.resources.Nunito_ExtraBold
 import memorchess.composeapp.generated.resources.Nunito_Regular
 import memorchess.composeapp.generated.resources.Nunito_SemiBold
 import memorchess.composeapp.generated.resources.Res
@@ -40,8 +38,6 @@ private fun nunitoFamily(): FontFamily =
     Font(Res.font.Nunito_Regular, weight = FontWeight.Normal),
     Font(Res.font.Nunito_SemiBold, weight = FontWeight.SemiBold),
     Font(Res.font.Nunito_Bold, weight = FontWeight.Bold),
-    Font(Res.font.Nunito_ExtraBold, weight = FontWeight.ExtraBold),
-    Font(Res.font.Nunito_Black, weight = FontWeight.Black),
   )
 
 /** JetBrains Mono — Kinetic mono font for chess notation. */
@@ -68,9 +64,9 @@ data class KineticTypography(
   val display: TextStyle,
   /** Small display label — Baloo 2 700 12sp. */
   val displaySm: TextStyle,
-  /** Body — Nunito 500 13sp, 1.45 line-height. */
+  /** Body — Nunito 400 13sp, 1.45 line-height. */
   val body: TextStyle,
-  /** Small body — Nunito 500 11sp. */
+  /** Small body — Nunito 400 11sp. */
   val bodySm: TextStyle,
   /** Label — Nunito 700 11sp, 0.02em tracking. */
   val label: TextStyle,
@@ -114,11 +110,11 @@ internal fun kineticTypography(): KineticTypography {
     body =
       TextStyle(
         fontFamily = body,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
         lineHeight = 18.85.sp, // 13 * 1.45
       ),
-    bodySm = TextStyle(fontFamily = body, fontWeight = FontWeight.Medium, fontSize = 11.sp),
+    bodySm = TextStyle(fontFamily = body, fontWeight = FontWeight.Normal, fontSize = 11.sp),
     label =
       TextStyle(
         fontFamily = body,
