@@ -98,10 +98,10 @@ jobs:
 
       - name: Trigger the mini PC deploy webhook
         # A Cloudflare Access application service token gates this hostname (dashboard-configured,
-        # not scriptable — see docs/minipc-deploy-checklist.md #19.3): both headers below are
+        # not scriptable, see docs/minipc-deploy-checklist.md #19.3). Both headers below are
         # required for the tunnel to admit the request at all, on top of the bearer token the
-        # webhook receiver itself checks. This repo is public, so the hostname and header names are
-        # not secret; only the credential values are.
+        # webhook receiver itself checks. This repo is public, so the hostname and header names
+        # are not secret. Only the credential values are.
         env:
           DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
