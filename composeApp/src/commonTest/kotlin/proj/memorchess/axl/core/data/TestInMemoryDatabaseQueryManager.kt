@@ -855,4 +855,44 @@ class TestInMemoryDatabaseQueryManager {
     val snapshot = database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
     assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshot)
   }
+
+  // --- Scoped scheduling queries ---------------------------------------------------------
+
+  @Test
+  fun nextDueNewCardExcludesACardOutsideTheGivenRepertoire() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val taggedPosition = PositionKey("posA b K")
+    database.insertNodes(
+      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+      schedNode("posB w K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+    )
+    database.replaceTrainableRepertoires(taggedPosition, setOf("italian-game"), null)
+
+    val result = database.nextDueNewCard(dayEnd, repertoireId = "italian-game")
+
+    assertEquals(taggedPosition, result?.positionKey)
+  }
+
+  @Test
+  fun nextDueNewCardWithANullRepertoireIdReproducesTheUnscopedResult() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)))
+
+    assertEquals(database.nextDueNewCard(dayEnd), database.nextDueNewCard(dayEnd, repertoireId = null))
+  }
+
+  @Test
+  fun getScopedCountsReportsOnlyTheGivenRepertoiresDueAndInSessionCards() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val taggedPosition = PositionKey("posA b K")
+    database.insertNodes(
+      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+      schedNode("posB w K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+    )
+    database.replaceTrainableRepertoires(taggedPosition, setOf("italian-game"), null)
+
+    val counts = database.getScopedCounts(dayEnd, "italian-game")
+
+    assertEquals(ScopedSchedulingCounts(dueReviews = 0, dueNew = 1, inSession = 0), counts)
+  }
 }

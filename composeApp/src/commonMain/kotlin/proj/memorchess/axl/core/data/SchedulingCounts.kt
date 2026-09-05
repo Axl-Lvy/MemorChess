@@ -27,3 +27,10 @@ data class SchedulingCounts(
   val dueNew: Int,
   val inSession: Int,
 )
+
+/**
+ * Scoped counterpart of the three [SchedulingCounts] fields that make sense to narrow to one
+ * repertoire. `introducedToday`/`trainedToday` have no scoped equivalent: the daily caps stay
+ * global regardless of scope.
+ */
+data class ScopedSchedulingCounts(val dueReviews: Int, val dueNew: Int, val inSession: Int)

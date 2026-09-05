@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.data.OutboxEntry
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.SchedulingCounts
+import proj.memorchess.axl.core.data.ScopedSchedulingCounts
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 
@@ -63,27 +64,37 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
 
   override suspend fun getLastUpdate(): Instant? = delegate.getLastUpdate()
 
-  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
-    delegate.nextReadyLearningCard(now)
+  override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+    delegate.nextReadyLearningCard(now, repertoireId)
 
-  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
-    delegate.nextPendingLearningCard(now)
+  override suspend fun nextPendingLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+    delegate.nextPendingLearningCard(now, repertoireId)
 
-  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? =
-    delegate.nextDueReviewCard(dayEndExclusive)
+  override suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.nextDueReviewCard(dayEndExclusive, repertoireId)
 
-  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? =
-    delegate.nextDueNewCard(dayEndExclusive)
+  override suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.nextDueNewCard(dayEndExclusive, repertoireId)
 
   override suspend fun getSchedulingCounts(
     dayStart: Instant,
     dayEndExclusive: Instant,
   ): SchedulingCounts = delegate.getSchedulingCounts(dayStart, dayEndExclusive)
 
+  override suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts = delegate.getScopedCounts(dayEndExclusive, repertoireId)
+
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
-  ): TrainingEntry? = delegate.findEligibleAmong(keys, dayEndExclusive)
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.findEligibleAmong(keys, dayEndExclusive, repertoireId)
 
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int =
     delegate.countDescendants(key, cap)

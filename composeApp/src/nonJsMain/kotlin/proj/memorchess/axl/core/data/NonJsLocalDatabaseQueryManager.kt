@@ -102,32 +102,45 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
       ?.truncateToSeconds()
   }
 
-  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
-    database.getNodeEntityDao().nextReadyLearningCard(now)?.toTrainingEntry()
+  override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+    database.getNodeEntityDao().nextReadyLearningCard(now, repertoireId)?.toTrainingEntry()
 
-  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
-    database.getNodeEntityDao().nextPendingLearningCard(now)?.toTrainingEntry()
+  override suspend fun nextPendingLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+    database.getNodeEntityDao().nextPendingLearningCard(now, repertoireId)?.toTrainingEntry()
 
-  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? =
-    database.getNodeEntityDao().nextDueReviewCard(dayEndExclusive)?.toTrainingEntry()
+  override suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
+    database.getNodeEntityDao().nextDueReviewCard(dayEndExclusive, repertoireId)?.toTrainingEntry()
 
-  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? =
-    database.getNodeEntityDao().nextDueNewCard(dayEndExclusive)?.toTrainingEntry()
+  override suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
+    database.getNodeEntityDao().nextDueNewCard(dayEndExclusive, repertoireId)?.toTrainingEntry()
 
   override suspend fun getSchedulingCounts(
     dayStart: Instant,
     dayEndExclusive: Instant,
   ): SchedulingCounts = database.getNodeEntityDao().getSchedulingCounts(dayStart, dayEndExclusive)
 
+  override suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts =
+    database.getNodeEntityDao().getScopedCounts(dayEndExclusive, repertoireId)
+
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
+    repertoireId: String?,
   ): TrainingEntry? {
     if (keys.isEmpty()) return null
     val eligible =
       database
         .getNodeEntityDao()
-        .eligibleAmong(keys.map { it.value }, dayEndExclusive)
+        .eligibleAmong(keys.map { it.value }, dayEndExclusive, repertoireId)
         .associateBy { it.positionKey }
     // Preserve the caller's candidate order: return the first key that came back eligible.
     return keys.firstNotNullOfOrNull { eligible[it.value] }?.toTrainingEntry()

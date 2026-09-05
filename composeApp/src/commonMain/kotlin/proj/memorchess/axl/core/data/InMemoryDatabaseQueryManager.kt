@@ -319,35 +319,45 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
   private fun DataNode.toTrainingEntry(): TrainingEntry = TrainingEntry(positionKey, cardState)
 
-  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
+  override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
     live()
       .filter { it.hasGoodOutgoing && it.isInSession() && it.cardState.dueDate <= now }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minByOrNull { it.cardState.dueDate }
       ?.toTrainingEntry()
 
-  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
+  override suspend fun nextPendingLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
     live()
       .filter { it.hasGoodOutgoing && it.isInSession() && it.cardState.dueDate > now }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minByOrNull { it.cardState.dueDate }
       ?.toTrainingEntry()
 
-  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? =
+  override suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
     live()
       .filter {
         it.hasGoodOutgoing &&
           it.cardState.phase == CardPhase.REVIEW &&
           it.cardState.dueDate < dayEndExclusive
       }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minByOrNull { it.depth }
       ?.toTrainingEntry()
 
-  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? =
+  override suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
     live()
       .filter {
         it.hasGoodOutgoing &&
           it.cardState.phase == CardPhase.NEW &&
           it.cardState.dueDate < dayEndExclusive
       }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minWithOrNull(compareBy({ it.depth }, { it.createdAt }))
       ?.toTrainingEntry()
 
@@ -420,16 +430,44 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
+    repertoireId: String?,
   ): TrainingEntry? =
     keys
       .firstNotNullOfOrNull { key ->
         nodes[key]?.takeIf {
           !it.isDeleted &&
             it.hasGoodOutgoing &&
-            (it.isInSession() || it.cardState.dueDate < dayEndExclusive)
+            (it.isInSession() || it.cardState.dueDate < dayEndExclusive) &&
+            isTrainableFor(key, repertoireId)
         }
       }
       ?.toTrainingEntry()
+
+  override suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts {
+    val scopedLive = live().filter { isTrainableFor(it.positionKey, repertoireId) }
+    return ScopedSchedulingCounts(
+      dueReviews =
+        scopedLive.count {
+          it.hasGoodOutgoing &&
+            it.cardState.phase == CardPhase.REVIEW &&
+            it.cardState.dueDate < dayEndExclusive
+        },
+      dueNew =
+        scopedLive.count {
+          it.hasGoodOutgoing &&
+            it.cardState.phase == CardPhase.NEW &&
+            it.cardState.dueDate < dayEndExclusive
+        },
+      inSession = scopedLive.count { it.hasGoodOutgoing && it.isInSession() },
+    )
+  }
+
+  /** `true` when [repertoireId] is `null` (no scope), or [positionKey] is trainable within it. */
+  private fun isTrainableFor(positionKey: PositionKey, repertoireId: String?): Boolean =
+    repertoireId == null || (positionKey to repertoireId) in trainable
 
   private fun PreviousAndNextMoves.withoutNext(
     move: String,

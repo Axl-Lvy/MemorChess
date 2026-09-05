@@ -644,11 +644,14 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
-    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = true)
+  override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = true, repertoireId = repertoireId)
 
-  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
-    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = false)
+  override suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
+    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = false, repertoireId = repertoireId)
 
   /**
    * Earliest-due in-session card. [ready] selects `dueDate <= now`, otherwise `dueDate > now`. Runs
@@ -656,9 +659,13 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
    * date, mirroring the SQL `phase IN (LEARNING, RELEARNING) ORDER BY dueDate ASC LIMIT 1`. Soft
    * deleted rows are skipped so the result matches the Room `WHERE isDeleted = 0` queries.
    */
-  private suspend fun nextLearningCard(dueBound: Double, ready: Boolean): TrainingEntry? {
+  private suspend fun nextLearningCard(
+    dueBound: Double,
+    ready: Boolean,
+    repertoireId: String?,
+  ): TrainingEntry? {
     val database = db()
-    return database.transaction(NODES_STORE) {
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val index = objectStore(NODES_STORE).index("good_phase_due")
       var best: JsNodeEntity? = null
       for (phase in IN_SESSION_PHASES) {
@@ -681,7 +688,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
           index
             .openCursor(range, Cursor.Direction.Next)
             .map { it.value as JsNodeEntity }
-            .firstOrNull { !it.isDeleted }
+            .firstOrNull { !it.isDeleted && isTrainableFor(it.positionKey, repertoireId) }
         if (candidate != null && (best == null || candidate.dueDate < best.dueDate)) {
           best = candidate
         }
@@ -690,21 +697,27 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? {
+  override suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? {
     val database = db()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
-      dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end)
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
+      dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end, repertoireId = repertoireId)
         .minWithOrNull(compareBy { it.depth })
         ?.toTrainingEntry()
     }
   }
 
-  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? {
+  override suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? {
     val database = db()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
-      dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end)
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
+      dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end, repertoireId = repertoireId)
         .minWithOrNull(compareBy({ it.depth }, { it.createdAt }))
         ?.toTrainingEntry()
     }
@@ -712,14 +725,15 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   /**
    * All trainable, live rows of [phase] due before [dayEnd], read from the bounded compound range
-   * on `good_phase_due_depth_created`. The set is bounded to the due rows of one phase; the caller
-   * reduces it by the tier's ordering (`depth`, or `depth` then `createdAt`) because the index
-   * orders by due date first. Soft deleted rows are excluded to match the Room `WHERE isDeleted =
-   * 0` queries.
+   * on `good_phase_due_depth_created`, optionally narrowed to [repertoireId]. The set is bounded to
+   * the due rows of one phase; the caller reduces it by the tier's ordering (`depth`, or `depth`
+   * then `createdAt`) because the index orders by due date first. Soft deleted rows are excluded to
+   * match the Room `WHERE isDeleted = 0` queries.
    */
   private suspend fun com.juul.indexeddb.Transaction.dueGoodRows(
     phase: String,
     dayEnd: Double,
+    repertoireId: String? = null,
   ): List<JsNodeEntity> {
     val range =
       bound(
@@ -732,7 +746,21 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       .openCursor(range, Cursor.Direction.Next)
       .map { it.value as JsNodeEntity }
       .toList()
-      .filter { !it.isDeleted }
+      .filter { !it.isDeleted && isTrainableFor(it.positionKey, repertoireId) }
+  }
+
+  /**
+   * `true` when [repertoireId] is `null` (no scope), or [positionKey] has a live
+   * `NodeRepertoireTrainable` row for it. A point lookup on the trainable store's compound primary
+   * key, bounded the same way every other candidate check in this class already is.
+   */
+  private suspend fun com.juul.indexeddb.Transaction.isTrainableFor(
+    positionKey: String,
+    repertoireId: String?,
+  ): Boolean {
+    if (repertoireId == null) return true
+    return objectStore(NODE_REPERTOIRE_TRAINABLE_STORE)
+      .get(Key(positionKey.toJsString(), repertoireId.toJsString())) != null
   }
 
   override suspend fun getSchedulingCounts(
@@ -742,7 +770,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     val start = dayStart.epochSeconds.toDouble()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val store = objectStore(NODES_STORE)
       // firstReview/lastReview store the "never reviewed" null as the 0.0 sentinel, so a day window
       // that begins at epoch 0 would otherwise sweep those nulls in. Excluding values <= 0.0 keeps
@@ -796,21 +824,51 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
+    repertoireId: String?,
   ): TrainingEntry? {
     if (keys.isEmpty()) return null
     val database = db()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val store = objectStore(NODES_STORE)
       // Bounded by the candidate count (branching factor): one primary-key get per key, in order.
       for (key in keys) {
         val node = store.get(Key(key.value.toJsString()))?.unsafeCast<JsNodeEntity>() ?: continue
         if (node.isDeleted || node.hasGoodOutgoing != 1) continue
+        if (!isTrainableFor(node.positionKey, repertoireId)) continue
         val inSession =
           node.phase == CardPhase.LEARNING.name || node.phase == CardPhase.RELEARNING.name
         if (inSession || node.dueDate < end) return@transaction node.toTrainingEntry()
       }
       null
+    }
+  }
+
+  override suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts {
+    val database = db()
+    val end = dayEndExclusive.epochSeconds.toDouble()
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
+      val dueReviews = dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end, repertoireId = repertoireId).size
+      val dueNew = dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end, repertoireId = repertoireId).size
+      val inSession =
+        IN_SESSION_PHASES.sumOf { phase ->
+          objectStore(NODES_STORE)
+            .index("good_phase_due")
+            .openCursor(
+              bound(
+                jsKeyArray(GOOD, phase.toJsString(), LOW_NUMBER),
+                jsKeyArray(GOOD, phase.toJsString(), HIGH_NUMBER),
+              ),
+              Cursor.Direction.Next,
+            )
+            .map { it.value as JsNodeEntity }
+            .toList()
+            .count { !it.isDeleted && isTrainableFor(it.positionKey, repertoireId) }
+        }
+      ScopedSchedulingCounts(dueReviews, dueNew, inSession)
     }
   }
 

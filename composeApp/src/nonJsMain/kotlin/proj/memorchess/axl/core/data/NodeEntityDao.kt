@@ -257,9 +257,12 @@ interface NodeEntityDao {
   @Query(
     "SELECT positionKey, dueDate, lastReview, firstReview, stability, difficulty, reps, lapses, phase, step " +
       "FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
-      "AND phase IN ('LEARNING', 'RELEARNING') AND dueDate <= :now ORDER BY dueDate ASC LIMIT 1"
+      "AND phase IN ('LEARNING', 'RELEARNING') AND dueDate <= :now " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
+      "ORDER BY dueDate ASC LIMIT 1"
   )
-  suspend fun nextReadyLearningCard(now: Instant): NodeCardProjection?
+  suspend fun nextReadyLearningCard(now: Instant, repertoireId: String? = null): NodeCardProjection?
 
   /**
    * Next pending in session card: mid learning and due strictly after [now], earliest due first.
@@ -268,9 +271,15 @@ interface NodeEntityDao {
   @Query(
     "SELECT positionKey, dueDate, lastReview, firstReview, stability, difficulty, reps, lapses, phase, step " +
       "FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
-      "AND phase IN ('LEARNING', 'RELEARNING') AND dueDate > :now ORDER BY dueDate ASC LIMIT 1"
+      "AND phase IN ('LEARNING', 'RELEARNING') AND dueDate > :now " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
+      "ORDER BY dueDate ASC LIMIT 1"
   )
-  suspend fun nextPendingLearningCard(now: Instant): NodeCardProjection?
+  suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String? = null,
+  ): NodeCardProjection?
 
   /**
    * Next due review card: graduated and due before [dayEndExclusive], shallowest first. See
@@ -279,9 +288,15 @@ interface NodeEntityDao {
   @Query(
     "SELECT positionKey, dueDate, lastReview, firstReview, stability, difficulty, reps, lapses, phase, step " +
       "FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 AND phase = 'REVIEW' " +
-      "AND dueDate < :dayEndExclusive ORDER BY depth ASC LIMIT 1"
+      "AND dueDate < :dayEndExclusive " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
+      "ORDER BY depth ASC LIMIT 1"
   )
-  suspend fun nextDueReviewCard(dayEndExclusive: Instant): NodeCardProjection?
+  suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String? = null,
+  ): NodeCardProjection?
 
   /**
    * Next due new card: brand new and due before [dayEndExclusive], shallowest then earliest created
@@ -290,9 +305,15 @@ interface NodeEntityDao {
   @Query(
     "SELECT positionKey, dueDate, lastReview, firstReview, stability, difficulty, reps, lapses, phase, step " +
       "FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 AND phase = 'NEW' " +
-      "AND dueDate < :dayEndExclusive ORDER BY depth ASC, createdAt ASC LIMIT 1"
+      "AND dueDate < :dayEndExclusive " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
+      "ORDER BY depth ASC, createdAt ASC LIMIT 1"
   )
-  suspend fun nextDueNewCard(dayEndExclusive: Instant): NodeCardProjection?
+  suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String? = null,
+  ): NodeCardProjection?
 
   /** Count of cards first reviewed within the day window. */
   @Query(
@@ -308,30 +329,38 @@ interface NodeEntityDao {
   )
   suspend fun countTrainedBetween(dayStart: Instant, dayEndExclusive: Instant): Int
 
-  /** Count of trainable graduated cards due before [dayEndExclusive]. */
+  /** Count of trainable graduated cards due before [dayEndExclusive], optionally scoped. */
   @Query(
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
-      "AND phase = 'REVIEW' AND dueDate < :dayEndExclusive"
+      "AND phase = 'REVIEW' AND dueDate < :dayEndExclusive " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
   )
-  suspend fun countDueReviews(dayEndExclusive: Instant): Int
+  suspend fun countDueReviews(dayEndExclusive: Instant, repertoireId: String? = null): Int
 
-  /** Count of trainable brand new cards due before [dayEndExclusive]. */
+  /** Count of trainable brand new cards due before [dayEndExclusive], optionally scoped. */
   @Query(
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
-      "AND phase = 'NEW' AND dueDate < :dayEndExclusive"
+      "AND phase = 'NEW' AND dueDate < :dayEndExclusive " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
   )
-  suspend fun countDueNew(dayEndExclusive: Instant): Int
+  suspend fun countDueNew(dayEndExclusive: Instant, repertoireId: String? = null): Int
 
-  /** Count of trainable cards currently mid learning. */
+  /** Count of trainable cards currently mid learning, optionally scoped. */
   @Query(
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
-      "AND phase IN ('LEARNING', 'RELEARNING')"
+      "AND phase IN ('LEARNING', 'RELEARNING') " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
   )
-  suspend fun countInSession(): Int
+  suspend fun countInSession(repertoireId: String? = null): Int
 
   /**
    * Computes the day's five scheduling tallies in one transaction. See
-   * [DatabaseQueryManager.getSchedulingCounts].
+   * [DatabaseQueryManager.getSchedulingCounts]. Every helper's `repertoireId` resolves to its
+   * default `null`, reproducing today's unscoped behavior exactly: the daily caps stay global
+   * regardless of scope (see [DatabaseQueryManager.getScopedCounts]'s own doc).
    */
   @Transaction
   suspend fun getSchedulingCounts(dayStart: Instant, dayEndExclusive: Instant): SchedulingCounts =
@@ -343,6 +372,15 @@ interface NodeEntityDao {
       inSession = countInSession(),
     )
 
+  /** See [DatabaseQueryManager.getScopedCounts]. */
+  @Transaction
+  suspend fun getScopedCounts(dayEndExclusive: Instant, repertoireId: String): ScopedSchedulingCounts =
+    ScopedSchedulingCounts(
+      dueReviews = countDueReviews(dayEndExclusive, repertoireId),
+      dueNew = countDueNew(dayEndExclusive, repertoireId),
+      inSession = countInSession(repertoireId),
+    )
+
   /**
    * Eligible projections among an explicit bounded key set: trainable and either mid learning or
    * due before [dayEndExclusive]. The caller orders the result by candidate order. See
@@ -351,9 +389,15 @@ interface NodeEntityDao {
   @Query(
     "SELECT positionKey, dueDate, lastReview, firstReview, stability, difficulty, reps, lapses, phase, step " +
       "FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 AND positionKey IN (:keys) " +
-      "AND (phase IN ('LEARNING', 'RELEARNING') OR dueDate < :dayEndExclusive)"
+      "AND (phase IN ('LEARNING', 'RELEARNING') OR dueDate < :dayEndExclusive) " +
+      "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
   )
-  suspend fun eligibleAmong(keys: List<String>, dayEndExclusive: Instant): List<NodeCardProjection>
+  suspend fun eligibleAmong(
+    keys: List<String>,
+    dayEndExclusive: Instant,
+    repertoireId: String? = null,
+  ): List<NodeCardProjection>
 
   /**
    * Destinations of every non deleted move leaving [origin]. Used by the bounded descendant count
