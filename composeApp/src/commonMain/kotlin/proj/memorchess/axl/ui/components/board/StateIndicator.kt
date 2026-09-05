@@ -22,7 +22,7 @@ import memorchess.composeapp.generated.resources.state_saved_unknown
 import memorchess.composeapp.generated.resources.state_unknown
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.graph.NodeState
-import proj.memorchess.axl.ui.theme.goodTint
+import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
 /**
  * State indicator
@@ -33,15 +33,20 @@ import proj.memorchess.axl.ui.theme.goodTint
  */
 @Composable
 fun StateIndicator(modifier: Modifier = Modifier, state: NodeState) {
-  val unknownColor = MaterialTheme.colorScheme.outline
+  val palette = LocalKineticPalette.current
+  val unknownColor = palette.ink3
   val (color, icon, label) =
     when (state) {
       NodeState.FIRST ->
-        Triple(goodTint, FeatherIcons.ArrowRightCircle, stringResource(Res.string.state_first))
+        Triple(
+          palette.progress,
+          FeatherIcons.ArrowRightCircle,
+          stringResource(Res.string.state_first),
+        )
       NodeState.SAVED_GOOD ->
-        Triple(goodTint, FeatherIcons.CheckCircle, stringResource(Res.string.state_saved))
+        Triple(palette.progress, FeatherIcons.CheckCircle, stringResource(Res.string.state_saved))
       NodeState.SAVED_BAD ->
-        Triple(goodTint, FeatherIcons.CheckCircle, stringResource(Res.string.state_partial))
+        Triple(palette.progress, FeatherIcons.CheckCircle, stringResource(Res.string.state_partial))
       NodeState.SAVED_GOOD_BUT_UNKNOWN_MOVE ->
         Triple(
           unknownColor,
@@ -58,7 +63,7 @@ fun StateIndicator(modifier: Modifier = Modifier, state: NodeState) {
         Triple(unknownColor, FeatherIcons.HelpCircle, stringResource(Res.string.state_unknown))
       NodeState.BAD_STATE ->
         Triple(
-          MaterialTheme.colorScheme.error,
+          palette.destructive,
           FeatherIcons.AlertCircle,
           stringResource(Res.string.state_bad),
         )
