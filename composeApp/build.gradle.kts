@@ -59,6 +59,7 @@ kotlin {
             // Serve sources to debug inside browser
             static(project.rootDir.path)
             static(project.projectDir.path)
+            open = false
           }
       }
       testTask { useKarma { useFirefoxHeadless() } }
