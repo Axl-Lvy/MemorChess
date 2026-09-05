@@ -45,7 +45,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   private fun TestScope.buildViewModel(
     loadManifest: suspend () -> CachedManifestResult,
     fetchPgn: suspend (String) -> CatalogResult<List<PgnGame>> = { CatalogResult.Ok(emptyList()) },
-    importGames: suspend (RepertoireColor, List<PgnGame>) -> PgnImportSummary = { _, _ ->
+    importGames: suspend (RepertoireDescriptor, List<PgnGame>) -> PgnImportSummary = { _, _ ->
       PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
     },
     previewGames: suspend (RepertoireColor, List<PgnGame>) -> PgnImportPreview = { _, _ ->
@@ -199,8 +199,8 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
-        importGames = { color, _ ->
-          importedColor = color
+        importGames = { descriptor, _ ->
+          importedColor = descriptor.color
           PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
         },
       )

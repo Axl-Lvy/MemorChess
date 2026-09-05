@@ -33,9 +33,11 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *
  * @param loadManifest Returns the catalog manifest, normally through the persisted cache.
  * @param fetchPgn Downloads and parses the PGN file at the given catalog relative path.
- * @param importGames Merges parsed games into the opening graph from the repertoire's
- *   [RepertoireColor] perspective and reports the summary. Any exception it throws is surfaced as
- *   [InstallError.ImportFailed] and the repertoire is not marked installed.
+ * @param importGames Merges parsed games into the opening graph for the repertoire named by
+ *   `descriptor`, tagging every move with `descriptor.id` and registering it in the repertoire
+ *   registry on first install (see the wiring in `RepertoireLibrary.kt`), and reports the summary.
+ *   Any exception it throws is surfaced as [InstallError.ImportFailed] and the repertoire is not
+ *   marked installed.
  * @param previewGames Computes, without writing anything, how much of the repertoire the user
  *   already has from the repertoire's [RepertoireColor] perspective.
  * @param installedStore Records which repertoires are installed on this device.
@@ -45,7 +47,7 @@ class RepertoireLibraryViewModel(
   private val loadManifest: suspend () -> CachedManifestResult,
   private val fetchPgn: suspend (file: String) -> CatalogResult<List<PgnGame>>,
   private val importGames:
-    suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportSummary,
+    suspend (descriptor: RepertoireDescriptor, games: List<PgnGame>) -> PgnImportSummary,
   private val previewGames:
     suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportPreview,
   private val installedStore: InstalledRepertoireStore,
@@ -169,7 +171,7 @@ class RepertoireLibraryViewModel(
     setInstallState(descriptor.id, RepertoireInstallState.Importing)
     val summary =
       try {
-        val importSummary = importGames(descriptor.color, games)
+        val importSummary = importGames(descriptor, games)
         installedStore.markInstalled(descriptor.id)
         importSummary
       } catch (e: CancellationException) {

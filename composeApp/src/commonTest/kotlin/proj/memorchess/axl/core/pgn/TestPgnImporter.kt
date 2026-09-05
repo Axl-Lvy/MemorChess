@@ -8,6 +8,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.scheduling.CardStateFactory
@@ -240,5 +241,32 @@ class TestPgnImporter {
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 0), summary)
     assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
+  }
+
+  @Test
+  fun importTagsEveryPlannedEdgeIncludingOnesAlreadyPresentFromAnotherRepertoire() = runTest {
+    // Arrange
+    val games = PgnParser.parse("1. e4 e5 *")
+    val startKey = keyAfter()
+    val afterE4Key = keyAfter("e4")
+
+    // Act
+    importer.import(games, perspective = null, repertoireId = "ruy-lopez")
+    importer.import(games, perspective = null, repertoireId = "italian-game")
+
+    // Assert
+    assertEquals(setOf("ruy-lopez", "italian-game"), store.tagsFor(startKey, afterE4Key))
+  }
+
+  @Test
+  fun importRejectsExtendingARepertoireWhoseRegisteredColorConflicts() = runTest {
+    // Arrange
+    store.registerRepertoire("scandinavian-black", "Scandinavian", RepertoireColor.BLACK)
+    val games = PgnParser.parse("1. e4 d5 *")
+
+    // Act & Assert
+    assertFailsWith<PgnImportException> {
+      importer.import(games, perspective = Player.WHITE, repertoireId = "scandinavian-black")
+    }
   }
 }
