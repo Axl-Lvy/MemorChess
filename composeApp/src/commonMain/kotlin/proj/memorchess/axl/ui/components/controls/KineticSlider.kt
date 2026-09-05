@@ -31,9 +31,9 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  *
  * @property label descriptive label for the slider, shown top-left.
  * @property valueFormatter formats the value for the big readout and default min/max labels.
- * @property unit optional unit shown after the value (e.g. "ms"); rendered in `monoSm` `ink3`.
- * @property minLabel small mono label under the left edge; defaults to the formatted range start.
- * @property maxLabel small mono label under the right edge; defaults to the formatted range end.
+ * @property unit optional unit shown after the value (e.g. "ms"); rendered in `labelSm` `ink3`.
+ * @property minLabel small label under the left edge; defaults to the formatted range start.
+ * @property maxLabel small label under the right edge; defaults to the formatted range end.
  */
 data class KineticSliderLabels(
   val label: String,
@@ -50,11 +50,11 @@ data class KineticSliderLabels(
  *
  * Layout is a three-row [Column] with 8.dp spacing:
  * - Row 1: [label] on the left in `body` (`ink2`); formatted value on the right in `displayLg`
- *   (`actionText`). When [unit] is non empty it is appended in `monoSm` (`ink3`).
+ *   (`actionText`). When [unit] is non empty it is appended in `labelSm` (`ink3`).
  * - Row 2: a Material 3 [Slider] with a custom track ([SliderDefaults.Track] re-colored with
  *   Kinetic tokens: `action` for the active fill, `panel3` for the inactive remainder) and a custom
  *   14×14.dp thumb (`ink` fill, 1.dp `action` border).
- * - Row 3: [minLabel] left and [maxLabel] right in `monoSm` (`ink3`).
+ * - Row 3: [minLabel] left and [maxLabel] right in `labelSm` (`ink3`).
  *
  * Earlier revisions tried to overlay a transparent Material Slider on top of a hand-painted track;
  * that broke gesture pickup on touch screens because the track lambda returned no composable
@@ -117,7 +117,7 @@ fun KineticSlider(
         )
         if (unit.isNotEmpty()) {
           Box(modifier = Modifier.size(width = 4.dp, height = 0.dp))
-          Text(text = unit, style = typography.monoSm.copy(color = palette.ink3))
+          Text(text = unit, style = typography.labelSm.copy(color = palette.ink3))
         }
       }
     }
@@ -150,8 +150,8 @@ fun KineticSlider(
     )
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-      Text(text = minLabel, style = typography.monoSm.copy(color = palette.ink3))
-      Text(text = maxLabel, style = typography.monoSm.copy(color = palette.ink3))
+      Text(text = minLabel, style = typography.labelSm.copy(color = palette.ink3))
+      Text(text = maxLabel, style = typography.labelSm.copy(color = palette.ink3))
     }
   }
 }

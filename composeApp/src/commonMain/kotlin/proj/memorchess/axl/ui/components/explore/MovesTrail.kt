@@ -84,8 +84,8 @@ private val ArrowSize = 24.dp
  * `design-proposals/kinetic-base.css`.
  *
  * Layout, left to right:
- * 1. **Opening pin** ([openingName]) — only rendered when non-null. Uppercase mono 9.5sp on
- *    `actionSoft` background with `actionText` text, padded 12.dp horizontally.
+ * 1. **Opening pin** ([openingName]) — only rendered when non-null. Uppercase 9.5sp on `actionSoft`
+ *    background with `actionText` text, padded 12.dp horizontally.
  * 2. **Scrollable chip strip** — a [LazyRow] of [MoveDisplay] chips on a `bg2` background. Each
  *    chip carries a 1.dp `line` border and `bg` background by default, rendering the SAN in mono
  *    11sp prefixed with the move number (`"1. Nf3"` / `"1... Nf6"`). Items are separated by 4.dp.
@@ -168,7 +168,7 @@ fun MovesTrail(
       ) {
         Text(
           text = openingName.uppercase(),
-          style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.actionText),
+          style = typography.labelSm.copy(fontSize = 9.5.sp, color = palette.actionText),
         )
       }
     }
@@ -211,7 +211,7 @@ fun MovesTrail(
       ) {
         Text(
           text = stringResource(Res.string.explore_pgn),
-          style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.ink3),
+          style = typography.labelSm.copy(fontSize = 9.5.sp, color = palette.ink3),
         )
       }
     }
@@ -428,7 +428,7 @@ private fun PgnDialog(
         TextButton(onClick = onDismiss) {
           Text(
             text = stringResource(Res.string.dialog_close),
-            style = typography.monoSm.copy(color = palette.ink2),
+            style = typography.labelSm.copy(color = palette.ink2),
           )
         }
       }

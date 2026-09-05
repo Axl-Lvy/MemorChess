@@ -109,7 +109,7 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
  * Kinetic button. Mirrors `.btn`, `.btn.primary`, `.btn.danger`, `.btn.danger.outline`,
  * `.btn.icon-only`, and `.btn.lg` from `design-proposals/kinetic-base.css`.
  *
- * Buttons are intentionally square (no rounded corners), with a 1.dp border and Bricolage 600 12sp
+ * Buttons are intentionally square (no rounded corners), with a 1.dp border and Baloo 2 600 12sp
  * label. Default height is 36.dp; set [large] to true for the 44.dp CTAs used in Settings rows. Set
  * [iconOnly] for a square (height × height) toolbar button with no horizontal padding.
  *

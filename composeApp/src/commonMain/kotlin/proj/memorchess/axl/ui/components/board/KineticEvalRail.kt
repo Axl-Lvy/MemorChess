@@ -34,8 +34,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  *
  * @param whiteRatio Position of the parity marker. `0f` = black has the entire rail, `1f` = white
  *   has the entire rail. Values outside `0f..1f` are clamped; `NaN`/`Infinity` fall back to `0.5f`.
- * @param displayValue Optional evaluation text rendered beneath the rail (Bricolage 700 12sp,
- *   accent colour).
+ * @param displayValue Optional evaluation text rendered beneath the rail (Baloo 2 700 12sp, accent
+ *   colour).
  * @param thin When `true`, the rail is 14.dp wide instead of the default 18.dp.
  */
 @Composable

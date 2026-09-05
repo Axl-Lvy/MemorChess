@@ -32,7 +32,7 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  *   gradient straddling the top-right edge of the panel, with a soft streak glow behind it. Drawn
  *   via [Modifier.drawWithContent] so it sits on top of the panel border but behind the absolute
  *   children (tag, pill).
- * - **Corner tag** — when [cornerTag] is non-null, a small mono uppercase label punched through the
+ * - **Corner tag** — when [cornerTag] is non-null, a small uppercase label punched through the
  *   top-left border (offset by 12.dp from the left, -7.dp vertically). An optional
  *   [cornerTagAccent] suffix is appended in `actionText` colour.
  * - **Your-move pill** — when [yourMovePill] is non-null, a pill in the action colour, positioned
@@ -124,12 +124,12 @@ fun KineticBoardShell(
           Text(
             text = cornerTag.uppercase(),
             style =
-              typography.monoSm.copy(fontSize = 9.5.sp, color = cornerTagColor ?: palette.ink3),
+              typography.labelSm.copy(fontSize = 9.5.sp, color = cornerTagColor ?: palette.ink3),
           )
           if (cornerTagAccent != null) {
             Text(
               text = " " + cornerTagAccent.uppercase(),
-              style = typography.monoSm.copy(fontSize = 9.5.sp, color = palette.actionText),
+              style = typography.labelSm.copy(fontSize = 9.5.sp, color = palette.actionText),
             )
           }
         }

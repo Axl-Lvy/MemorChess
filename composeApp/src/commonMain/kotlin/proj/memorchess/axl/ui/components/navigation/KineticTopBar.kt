@@ -48,7 +48,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * @param route Logical route identifier, expected to match the active route passed to
  *   [KineticTopBar]. Typically a `Route` enum name.
  * @param label Uppercase nav label, e.g. `"EXPLORE"`.
- * @param number Small mono digit shown left of the label, e.g. `"01"`.
+ * @param number Small digit shown left of the label, e.g. `"01"`.
  */
 data class KineticTopBarNavItem(val route: String, val label: String, val number: String)
 
@@ -65,7 +65,7 @@ data class KineticTopBarNavItem(val route: String, val label: String, val number
  * @param activeRoute Route currently selected; matched against [KineticTopBarNavItem.route].
  * @param onNavigate Invoked with a nav item's route when the user taps it.
  * @param modifier Outer modifier.
- * @param versionLabel Optional mono caption under the brand name (e.g. `"0.0.1 · MULTIPLATFORM"`).
+ * @param versionLabel Optional caption under the brand name (e.g. `"0.0.1 · MULTIPLATFORM"`).
  *   Skipped when blank.
  * @param compact When true, uses a 44.dp bar height and a 28.dp brand mark — intended for mobile.
  * @param metaPills Optional right-side slot for [KineticTopBarPill]s (or any other content).
@@ -177,7 +177,7 @@ private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp, versionLabel: Stri
       Text(text = wordmark, style = typography.brand)
       if (versionLabel.isNotEmpty()) {
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = versionLabel.uppercase(), style = typography.monoSm.copy(color = palette.ink3))
+        Text(text = versionLabel.uppercase(), style = typography.labelSm.copy(color = palette.ink3))
       }
     }
   }
@@ -210,7 +210,10 @@ private fun TopNavLink(item: KineticTopBarNavItem, active: Boolean, onClick: () 
       },
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(text = item.number, style = typography.monoSm.copy(color = palette.ink4, fontSize = 10.sp))
+    Text(
+      text = item.number,
+      style = typography.labelSm.copy(color = palette.ink4, fontSize = 10.sp),
+    )
     Spacer(modifier = Modifier.width(8.dp))
     Text(
       text = item.label,
@@ -229,10 +232,10 @@ private fun TopNavLink(item: KineticTopBarNavItem, active: Boolean, onClick: () 
  * Meta pill rendered in the top bar's right-hand slot. Mirrors `.pill` / `.pill.hot` from
  * `design-proposals/kinetic-base.css`.
  *
- * Vertically stacks a small mono [label] over a Bricolage [value], with a 1.dp `line` left border
- * and 14.dp horizontal padding so consecutive pills sit flush against one another.
+ * Vertically stacks a small [label] over a Baloo 2 [value], with a 1.dp `line` left border and
+ * 14.dp horizontal padding so consecutive pills sit flush against one another.
  *
- * @param label Small mono uppercase caption, e.g. `"EVAL"`.
+ * @param label Small uppercase caption, e.g. `"EVAL"`.
  * @param value Big display value, e.g. `"+0.4"`.
  * @param hot When true, both label and value adopt `actionText`, and a leading `"● "` (in `action`)
  *   is prepended to the value to signal a live data feed.
@@ -267,7 +270,7 @@ fun KineticTopBarPill(label: String, value: String, hot: Boolean = false) {
     contentAlignment = Alignment.CenterStart,
   ) {
     Column(verticalArrangement = Arrangement.Center) {
-      Text(text = label.uppercase(), style = typography.monoSm.copy(color = labelColor))
+      Text(text = label.uppercase(), style = typography.labelSm.copy(color = labelColor))
       Spacer(modifier = Modifier.height(2.dp))
       Text(
         text = valueText,
