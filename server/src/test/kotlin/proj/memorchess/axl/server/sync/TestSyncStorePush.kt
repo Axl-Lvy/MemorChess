@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
+import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.SYNC_SKEW_TOLERANCE
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
@@ -329,6 +330,36 @@ internal class TestSyncStorePush {
     store.readNodeForTest(user, key)?.reps shouldBe 1
     store.readEdgeForTest(user, theEdge)?.isGood shouldBe true
     store.readSettingForTest(user, "theme")?.value shouldBe "dark"
+  }
+
+  @Test
+  fun pushingARepertoireRoundTripsThroughPull() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val row =
+      RepertoireSyncRow(
+        id = "italian-game",
+        name = "Italian Game",
+        color = "WHITE",
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+
+    store.push(
+      user,
+      SyncPushRequest(
+        nodes = emptyList(),
+        edges = emptyList(),
+        settings = emptyList(),
+        repertoires = listOf(row),
+        tags = emptyList(),
+      ),
+      serverNow,
+    )
+    val stored = store.readRepertoireForTest(user, "italian-game")
+
+    stored shouldBe row
   }
 
   @Test

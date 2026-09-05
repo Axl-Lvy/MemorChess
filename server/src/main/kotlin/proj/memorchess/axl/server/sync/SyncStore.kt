@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectedRow
 import proj.memorchess.axl.core.sync.RejectionCode
+import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.ResolutionSource
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPullResponse
@@ -59,15 +60,23 @@ internal class SyncStore(
     val nodes = request.nodes.screenClock(serverNow) { clockRefusal("node", it.positionKey) }
     val edges = request.edges.screenClock(serverNow) { clockRefusal("edge", it.edgeId()) }
     val settings = request.settings.screenClock(serverNow) { clockRefusal("setting", it.key) }
+    val repertoires =
+      request.repertoires.screenClock(serverNow) { clockRefusal("repertoire", it.id) }
 
     val revision = inTransaction { connection ->
-      connection.applyBatch(userId, nodes.accepted, edges.accepted, settings.accepted)
+      connection.applyBatch(
+        userId,
+        nodes.accepted,
+        edges.accepted,
+        settings.accepted,
+        repertoires.accepted,
+      )
     }
 
     return SyncPushResponse(
       serverTime = serverNow,
       revision = revision,
-      rejected = nodes.refused + edges.refused + settings.refused,
+      rejected = nodes.refused + edges.refused + settings.refused + repertoires.refused,
     )
   }
 
@@ -82,6 +91,7 @@ internal class SyncStore(
     nodes: List<NodeSyncRow>,
     edges: List<EdgeSyncRow>,
     settings: List<SettingSyncRow>,
+    repertoires: List<RepertoireSyncRow>,
   ): Long {
     val positionIds = resolvePositionIds(nodes.map { it.positionKey })
     val edgeIds = resolveEdgeIds(edges.map { it.identity() })
@@ -94,6 +104,7 @@ internal class SyncStore(
         .sortedBy { it.edgeId() }
         .forEach { add(applyEdge(userId, it, edgeIds.getValue(it.identity()))) }
       settings.sortedBy { it.key }.forEach { add(applySetting(userId, it)) }
+      repertoires.sortedBy { it.id }.forEach { add(applyRepertoire(userId, it)) }
     }
     return revisions.filterNotNull().maxOrNull() ?: 0L
   }
@@ -145,11 +156,12 @@ internal class SyncStore(
         val nodes = connection.pullNodes(userId, since, limit)
         val edges = connection.pullEdges(userId, since, limit)
         val settings = connection.pullSettings(userId, since, limit)
+        val repertoires = connection.pullRepertoires(userId, since, limit)
 
         // A page that came back full may be hiding more rows, so its last revision is a ceiling.
         // A partial page is exhausted and imposes none.
         val ceiling =
-          listOf(nodes, edges, settings)
+          listOf(nodes, edges, settings, repertoires)
             .mapNotNull { page -> page.takeIf { it.size == limit }?.last()?.first }
             .minOrNull()
 
@@ -162,6 +174,7 @@ internal class SyncStore(
           nodes = nodes.upTo(ceiling),
           edges = edges.upTo(ceiling),
           settings = settings.upTo(ceiling),
+          repertoires = repertoires.upTo(ceiling),
         )
       }
     }
@@ -537,6 +550,106 @@ internal class SyncStore(
     }
   }
 
+  /** Reads one stored repertoire. Exposed so the push tests do not depend on `pull` being correct. */
+  internal suspend fun readRepertoireForTest(userId: String, id: String): RepertoireSyncRow? =
+    withContext(ioDispatcher) { dataSource.connection.use { it.readRepertoire(userId, id) } }
+
+  /** See [applySetting]; the rule and the revision bump on a loss are identical. */
+  private fun Connection.applyRepertoire(userId: String, incoming: RepertoireSyncRow): Long? {
+    val stored = readRepertoire(userId, incoming.id, lockRow = true)
+    val winner = resolve(local = stored, remote = incoming)
+    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return null
+
+    val revision = nextRevision()
+    val row = winner.row
+    prepareStatement(
+        "INSERT INTO user_repertoire (user_id, repertoire_id, name, color, is_deleted, " +
+          "deleted_at, updated_at, origin_device, device_seq, revision) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+          "ON CONFLICT (user_id, repertoire_id) DO UPDATE SET name = EXCLUDED.name, " +
+          "color = EXCLUDED.color, is_deleted = EXCLUDED.is_deleted, " +
+          "deleted_at = EXCLUDED.deleted_at, updated_at = EXCLUDED.updated_at, " +
+          "origin_device = EXCLUDED.origin_device, device_seq = EXCLUDED.device_seq, " +
+          "revision = EXCLUDED.revision"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setString(2, row.id)
+        statement.setString(3, row.name)
+        statement.setString(4, row.color)
+        statement.setBoolean(5, row.isDeleted)
+        statement.setTimestamp(6, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
+        statement.setTimestamp(7, row.updatedAt.toTimestamp())
+        statement.setString(8, row.originDevice)
+        statement.setLong(9, row.deviceSeq)
+        statement.setLong(10, revision)
+        statement.executeUpdate()
+      }
+    return revision
+  }
+
+  private fun Connection.readRepertoire(
+    userId: String,
+    id: String,
+    lockRow: Boolean = false,
+  ): RepertoireSyncRow? {
+    val sql =
+      "SELECT name, color, is_deleted, updated_at, origin_device, device_seq FROM user_repertoire " +
+        "WHERE user_id = ? AND repertoire_id = ?" +
+        if (lockRow) FOR_UPDATE else ""
+    return prepareStatement(sql).use { statement ->
+      statement.setString(1, userId)
+      statement.setString(2, id)
+      statement.executeQuery().use { rows ->
+        if (!rows.next()) null
+        else
+          RepertoireSyncRow(
+            id = id,
+            name = rows.getString(1),
+            color = rows.getString(2),
+            isDeleted = rows.getBoolean(3),
+            updatedAt = rows.getTimestamp(4).toInstant().toKotlinInstant(),
+            originDevice = rows.getString(5),
+            deviceSeq = rows.getLong(6),
+          )
+      }
+    }
+  }
+
+  private fun Connection.pullRepertoires(
+    userId: String,
+    since: Long,
+    limit: Int,
+  ): List<Pair<Long, RepertoireSyncRow>> =
+    prepareStatement(
+        "SELECT repertoire_id, name, color, is_deleted, updated_at, origin_device, device_seq, " +
+          "revision FROM user_repertoire WHERE user_id = ? AND revision > ? " +
+          "ORDER BY revision ASC LIMIT ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, since)
+        statement.setInt(3, limit)
+        statement.executeQuery().use { rows ->
+          buildList {
+            while (rows.next()) {
+              add(
+                rows.getLong(8) to
+                  RepertoireSyncRow(
+                    id = rows.getString(1),
+                    name = rows.getString(2),
+                    color = rows.getString(3),
+                    isDeleted = rows.getBoolean(4),
+                    updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
+                    originDevice = rows.getString(6),
+                    deviceSeq = rows.getLong(7),
+                  )
+              )
+            }
+          }
+        }
+      }
+
   private fun Connection.nextRevision(): Long =
     prepareStatement("SELECT nextval('sync_revision')").use { statement ->
       statement.executeQuery().use { rows ->
@@ -555,7 +668,7 @@ internal class SyncStore(
 private const val FOR_UPDATE = " FOR UPDATE"
 
 /** The tables holding per user rows. The shared `position` and `move_edge` are not among them. */
-private val PER_USER_TABLES = listOf("user_node", "user_edge", "user_setting")
+private val PER_USER_TABLES = listOf("user_node", "user_edge", "user_setting", "user_repertoire")
 
 /** Screening outcome for one resource: what may be written, and what was refused. */
 private class Screened<T : SyncRow>(val accepted: List<T>, val refused: List<RejectedRow>)
