@@ -102,4 +102,11 @@ object RejectionCode {
    * allows. The client re-stamps against the response's `serverTime` and retries.
    */
   const val CLOCK_TOO_FAR_AHEAD: String = "clock_too_far_ahead"
+
+  /**
+   * An [proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow] named an edge the server has no
+   * record of, neither already stored nor in the same push's own edges. The client pushes the
+   * edge itself first, then retries the tag.
+   */
+  const val EDGE_NOT_FOUND: String = "edge_not_found"
 }

@@ -673,15 +673,46 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   @Test
-  fun outboxAcceptsAllThreeKeyKinds() = runTest {
+  fun outboxAcceptsAllFiveKeyKinds() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val node = DirtyKey.NodeKey(key0)
     val edge = DirtyKey.EdgeKey(key0, key1)
     val setting = DirtyKey.SettingKey("appTheme")
+    val repertoire = DirtyKey.RepertoireKey("italian-game")
+    val tag = DirtyKey.TagKey(key0, key1, "italian-game")
     database.markDirty(node, 1L)
     database.markDirty(edge, 1L)
     database.markDirty(setting, 1L)
-    assertEquals(setOf(node, edge, setting), database.getOutbox().map { it.key }.toSet())
+    database.markDirty(repertoire, 1L)
+    database.markDirty(tag, 1L)
+    assertEquals(
+      setOf(node, edge, setting, repertoire, tag),
+      database.getOutbox().map { it.key }.toSet(),
+    )
+  }
+
+  @Test
+  fun insertRepertoireQueuesItsOwnRepertoireKey() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+
+    database.insertRepertoire(DataRepertoire(id = "italian-game", name = "Italian Game", color = null))
+
+    assertEquals(
+      setOf(DirtyKey.RepertoireKey("italian-game")),
+      database.getOutbox().map { it.key }.toSet(),
+    )
+  }
+
+  @Test
+  fun insertTagQueuesItsOwnTagKey() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+
+    assertEquals(
+      setOf(DirtyKey.TagKey(key0, key1, "italian-game")),
+      database.getOutbox().map { it.key }.toSet(),
+    )
   }
 
   // --- Soft delete cascades to incident moves, and insertNodes never clobbers a tombstone --------

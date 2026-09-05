@@ -397,6 +397,40 @@ internal class TestSyncStorePush {
   }
 
   @Test
+  fun pushingATagForAnEdgeTheServerHasNeverSeenIsRefusedAndNotStored() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val origin = fen("orphan-o")
+    val destination = fen("orphan-d")
+    val tag =
+      EdgeRepertoireTagSyncRow(
+        origin = origin,
+        destination = destination,
+        repertoireId = "italian-game",
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+
+    val response =
+      store.push(
+        user,
+        SyncPushRequest(
+          nodes = emptyList(),
+          edges = emptyList(),
+          settings = emptyList(),
+          repertoires = emptyList(),
+          tags = listOf(tag),
+        ),
+        serverNow,
+      )
+
+    response.rejected shouldHaveSize 1
+    response.rejected.single().code shouldBe RejectionCode.EDGE_NOT_FOUND
+    store.readTagForTest(user, tag) shouldBe null
+  }
+
+  @Test
   fun aTombstoneIsStoredLikeAnyOtherWrite() = runTest {
     val user = PostgresTestDb.newUserId()
     store.push(user, request(setting("theme", "dark", serverNow, seq = 1)), serverNow)

@@ -68,28 +68,31 @@ internal class SyncStore(
         clockRefusal("tag", "${it.origin}|${it.destination}|${it.repertoireId}")
       }
 
-    val revision = inTransaction { connection ->
-      connection.applyBatch(
-        userId,
-        nodes.accepted,
-        edges.accepted,
-        settings.accepted,
-        repertoires.accepted,
-        tags.accepted,
-      )
-    }
+    val (revision, orphanedTags) =
+      inTransaction { connection ->
+        connection.applyBatch(
+          userId,
+          nodes.accepted,
+          edges.accepted,
+          settings.accepted,
+          repertoires.accepted,
+          tags.accepted,
+        )
+      }
 
     return SyncPushResponse(
       serverTime = serverNow,
       revision = revision,
       rejected =
-        nodes.refused + edges.refused + settings.refused + repertoires.refused + tags.refused,
+        nodes.refused + edges.refused + settings.refused + repertoires.refused + tags.refused +
+          orphanedTags,
     )
   }
 
   /**
-   * Applies every accepted row in one transaction and returns the highest revision assigned, or `0`
-   * when nothing needed writing.
+   * Applies every accepted row in one transaction and returns the highest revision assigned (`0`
+   * when nothing needed writing), plus the [RejectedRow]s for any tag naming an edge the server has
+   * no record of.
    *
    * Rows are sorted within each resource so that concurrent pushes take row locks in one order.
    */
@@ -100,19 +103,23 @@ internal class SyncStore(
     settings: List<SettingSyncRow>,
     repertoires: List<RepertoireSyncRow>,
     tags: List<EdgeRepertoireTagSyncRow>,
-  ): Long {
+  ): Pair<Long, List<RejectedRow>> {
     val positionIds = resolvePositionIds(nodes.map { it.positionKey })
-    // Tag rows may reference an edge not present in this same batch's `edges` list (it was pushed
-    // earlier), so their ids are resolved too, tolerating the placeholder empty `move` the same way
-    // readTagForTest does: resolveEdgeIds only looks an existing edge up by its endpoints. The
-    // result is re-keyed by endpoints alone: resolveEdgeIds' own map key carries whichever `move`
-    // happened to survive its internal dedup, which is not necessarily the empty placeholder a tag
-    // looks up with, even though both denote the same edge.
     val edgeIds =
-      resolveEdgeIds(
-          edges.map { it.identity() } + tags.map { EdgeIdentity(it.origin, it.destination, "") }
-        )
-        .mapKeys { (identity, _) -> identity.origin to identity.destination }
+      resolveEdgeIds(edges.map { it.identity() }).mapKeys { (identity, _) ->
+        identity.origin to identity.destination
+      }
+    // A tag may reference an edge not present in this same batch's `edges` list (it was pushed
+    // earlier). Its endpoints are looked up, never created: an edge is interned only by pushing it
+    // as an EdgeSyncRow, so a tag naming one the server has never seen is refused rather than
+    // silently minting a move_edge row with no real move, which move_edge's write-once move column
+    // could never correct afterward.
+    val unresolvedTagEndpoints =
+      tags.map { it.origin to it.destination }.toSet() - edgeIds.keys
+    val lookedUpEdgeIds = lookupEdgeIds(unresolvedTagEndpoints)
+    val allEdgeIds = edgeIds + lookedUpEdgeIds
+    val (resolvableTags, orphanedTags) =
+      tags.partition { (it.origin to it.destination) in allEdgeIds }
 
     val revisions = buildList {
       nodes
@@ -120,14 +127,53 @@ internal class SyncStore(
         .forEach { add(applyNode(userId, it, positionIds.getValue(it.positionKey))) }
       edges
         .sortedBy { it.edgeId() }
-        .forEach { add(applyEdge(userId, it, edgeIds.getValue(it.origin to it.destination))) }
+        .forEach { add(applyEdge(userId, it, allEdgeIds.getValue(it.origin to it.destination))) }
       settings.sortedBy { it.key }.forEach { add(applySetting(userId, it)) }
       repertoires.sortedBy { it.id }.forEach { add(applyRepertoire(userId, it)) }
-      tags
+      resolvableTags
         .sortedBy { "${it.origin}|${it.destination}|${it.repertoireId}" }
-        .forEach { add(applyTag(userId, it, edgeIds.getValue(it.origin to it.destination))) }
+        .forEach {
+          add(applyTag(userId, it, allEdgeIds.getValue(it.origin to it.destination)))
+        }
     }
-    return revisions.filterNotNull().maxOrNull() ?: 0L
+    val revision = revisions.filterNotNull().maxOrNull() ?: 0L
+    return revision to
+      orphanedTags.map {
+        RejectedRow(
+          kind = "tag",
+          id = "${it.origin}|${it.destination}|${it.repertoireId}",
+          code = RejectionCode.EDGE_NOT_FOUND,
+          reason = "no known edge from ${it.origin} to ${it.destination}",
+        )
+      }
+  }
+
+  /**
+   * Looks up existing `move_edge` ids for [endpoints], creating nothing: unlike [resolveEdgeIds],
+   * an endpoint pair the server has never seen resolves to no entry rather than a freshly minted
+   * row.
+   */
+  private fun Connection.lookupEdgeIds(
+    endpoints: Set<Pair<String, String>>
+  ): Map<Pair<String, String>, Long> {
+    if (endpoints.isEmpty()) return emptyMap()
+    val ids = HashMap<Pair<String, String>, Long>(endpoints.size)
+    prepareStatement(
+        "SELECT e.id FROM move_edge e " +
+          "JOIN position po ON po.id = e.origin_id " +
+          "JOIN position pd ON pd.id = e.destination_id " +
+          "WHERE po.position_key = ? AND pd.position_key = ?"
+      )
+      .use { statement ->
+        for ((origin, destination) in endpoints) {
+          statement.setString(1, origin)
+          statement.setString(2, destination)
+          statement.executeQuery().use { rows ->
+            if (rows.next()) ids[origin to destination] = rows.getLong(1)
+          }
+        }
+      }
+    return ids
   }
 
   /**

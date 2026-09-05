@@ -77,7 +77,7 @@ interface DatabaseQueryManager {
     updatedAt: Instant = DateUtil.now(),
   )
 
-  /** Hard wipe of every node and move. */
+  /** Hard wipe of every node, move, repertoire, and edge to repertoire tag. */
   suspend fun eraseAll()
 
   /**
