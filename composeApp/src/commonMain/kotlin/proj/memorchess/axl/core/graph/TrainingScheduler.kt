@@ -157,7 +157,7 @@ class TrainingScheduler(
    * [proj.memorchess.axl.core.scheduling.CardState] through [SchedulingAlgorithm] and stores it
    * through [TreeStore]. Also feeds [streakTracker], on this position's first review of the local
    * day or on any review while [streakTracker] has nothing recorded for the day yet, so a position
-   * whose only local-day review arrived from another device via sync still reaches the streak.
+   * whose only review of the day arrived from another device via sync still reaches the streak.
    */
   suspend fun grade(position: PositionKey, grade: ReviewGrade) {
     val node = treeStore.node(position) ?: return
