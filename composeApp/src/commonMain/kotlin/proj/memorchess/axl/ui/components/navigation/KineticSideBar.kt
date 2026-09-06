@@ -115,9 +115,14 @@ private data class RailStats(val streak: Int, val done: Int, val target: Int, va
  * height only just fits a phone in landscape and a larger font scale overflows it.
  *
  * **Where the streak target comes from.** There is no daily-goal setting in the app, so the target
- * is `StreakTracker.cardsCompletedToday() + TrainingScheduler.pendingCount()` — what has been done
- * today plus what the scheduler will still serve today once the daily caps are applied. When that
- * total is `0` the `/target` half is dropped rather than a number being invented.
+ * is `StreakTracker.cardsCompletedToday() + TrainingScheduler.dueCount()` — what has been done
+ * today plus the due reviews and due new cards still to come today, once the daily caps are
+ * applied. [TrainingScheduler.pendingCount] is deliberately **not** used here: it also folds in
+ * every in-session (mid learning) card, and a card graded today already counts in `done`, so adding
+ * it a second time via `pendingCount()` made the target grow when a review failed and shrink as the
+ * card graduated. The Training row's badge still uses `pendingCount()`, since that badge means
+ * "everything left to serve", in-session cards included. When the total is `0` the `/target` half
+ * is dropped rather than a number being invented.
  *
  * **Refresh contract.** Refreshed on navigation ([currentRoute] is a `produceState` key), not live:
  * neither [StreakTracker] nor [TrainingScheduler] emits a stream today, so counts advanced during
@@ -146,8 +151,9 @@ fun KineticSideBar(
     produceState<RailStats?>(null, streakTracker, scheduler, currentRoute) {
       val done = streakTracker.cardsCompletedToday()
       val due = scheduler.pendingCount()
+      val target = done + scheduler.dueCount()
       value =
-        RailStats(streak = streakTracker.streakDays(), done = done, target = done + due, due = due)
+        RailStats(streak = streakTracker.streakDays(), done = done, target = target, due = due)
     }
   Column(
     modifier =

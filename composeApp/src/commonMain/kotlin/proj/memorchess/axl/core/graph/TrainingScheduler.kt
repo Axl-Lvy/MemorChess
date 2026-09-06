@@ -9,6 +9,7 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.SchedulingCounts
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.ReviewGrade
@@ -144,12 +145,38 @@ class TrainingScheduler(
   suspend fun pendingCount(day: LocalDate = DateUtil.today()): Int {
     val (dayStart, dayEnd) = dayBounds(day)
     val c = database.getSchedulingCounts(dayStart, dayEnd)
+    val (reviewsServable, newServable) = servableCounts(c)
+    return c.inSession + reviewsServable + newServable
+  }
+
+  /**
+   * Counts due reviews and due new cards servable for [day] once the daily caps are applied,
+   * deliberately **excluding** [SchedulingCounts.inSession].
+   *
+   * Unlike [pendingCount], this is not "everything the trainer will still serve today": a card mid
+   * learning steps was already counted the moment it was first graded today (through
+   * [StreakTracker.cardsCompletedToday]), so folding [SchedulingCounts.inSession] back in here
+   * would double count it against a caller that already adds that number in separately. Cards left
+   * mid learning from a previous day and not yet touched today are excluded from the result too,
+   * since [SchedulingCounts] carries no way to tell the two cases apart.
+   */
+  suspend fun dueCount(day: LocalDate = DateUtil.today()): Int {
+    val (dayStart, dayEnd) = dayBounds(day)
+    val c = database.getSchedulingCounts(dayStart, dayEnd)
+    val (reviewsServable, newServable) = servableCounts(c)
+    return reviewsServable + newServable
+  }
+
+  /**
+   * Due reviews and due new cards servable today, in that order, once the daily caps are applied.
+   */
+  private fun servableCounts(c: SchedulingCounts): Pair<Int, Int> {
     val totalRemaining = (maxTotalMovesPerDay() - c.trainedToday).coerceAtLeast(0)
     val newRemaining = (maxNewMovesPerDay() - c.introducedToday).coerceAtLeast(0)
     val reviewsServable = minOf(c.dueReviews, totalRemaining)
     val newBudget = minOf(newRemaining, totalRemaining - reviewsServable).coerceAtLeast(0)
     val newServable = minOf(c.dueNew, newBudget)
-    return c.inSession + reviewsServable + newServable
+    return reviewsServable to newServable
   }
 
   /**

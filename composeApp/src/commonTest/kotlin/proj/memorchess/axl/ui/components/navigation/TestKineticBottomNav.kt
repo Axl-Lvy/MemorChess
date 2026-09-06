@@ -108,6 +108,33 @@ internal class TestKineticBottomNav : TestWithKoin() {
   }
 
   @Test
+  fun eachItemIsTheOnlySelectedCellForItsOwnRoute() = runTestFromSetup {
+    // onlyTheActiveCellIsSelected and activeCellFollowsCurrentRoute only ever exercise
+    // Training/Settings. isActive() matches per item on a case-insensitive label, so drive every
+    // item's own route through the same bar and assert exactly it is selected — the state that
+    // drives kineticNavCellStyle's pill, per `selected = active` in KineticBottomNav.
+    val route = mutableStateOf(items.first().destination.getLabel())
+    setContent {
+      InitializeApp {
+        KineticBottomNav(
+          items = items,
+          currentRoute = route.value,
+          onSelect = {},
+          itemModifier = { Modifier.testTag(tagOf(it)) },
+        )
+      }
+    }
+
+    items.forEach { active ->
+      route.value = active.destination.getLabel()
+      waitForIdle()
+
+      onNodeWithTag(tagOf(active)).assertIsSelected()
+      items.filter { it != active }.forEach { onNodeWithTag(tagOf(it)).assertIsNotSelected() }
+    }
+  }
+
+  @Test
   fun tappingInactiveCellFiresOnSelect() = runTestFromSetup {
     val selected = mutableListOf<NavigationBarItemContent>()
     setBar(Route.TrainingRoute.getLabel(), selected)

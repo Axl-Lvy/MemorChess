@@ -33,6 +33,7 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
+import proj.memorchess.axl.core.scheduling.ReviewGrade
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
@@ -271,6 +272,32 @@ internal class TestKineticSideBar {
     waitUntilAtLeastOneExists(hasTestTag(rowTag(NavigationBarItemContent.Training)))
     // Nothing in the rail carries a digit until the snapshot resolves — not even a placeholder "0".
     digitTexts(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)).shouldBeEmpty()
+  }
+
+  @Test
+  fun targetDoesNotDoubleCountAGradedInSessionCard() = runComposeUiTest {
+    // A single new card, graded GOOD once, lands in CardPhase.LEARNING step 1 (the default Fsrs6
+    // ladder is [1.minutes, 10.minutes], so GOOD advances one step without graduating). It is now
+    // both "done" (its first review of the day already happened) and "in session" (still mid
+    // learning). The target must count it once, not twice.
+    val store = InMemoryDailyActivityStore()
+    val streakTracker = StreakTracker(store)
+    val database = dbWithDueCards(1)
+    val scheduler =
+      TrainingScheduler(
+        database,
+        testTreeStore(database),
+        Fsrs6SchedulingAlgorithm(),
+        streakTracker = streakTracker,
+      )
+    val entry = scheduler.nextDue()
+    checkNotNull(entry) { "dbWithDueCards(1) must seed one trainable position" }
+    scheduler.grade(entry.positionKey, ReviewGrade.GOOD)
+
+    setRail(streakTracker, scheduler)
+
+    waitUntilAtLeastOneExists(hasText("1/1", substring = true))
+    onNode(hasText("1/2", substring = true)).assertDoesNotExist()
   }
 
   // ROWS AND THE TEST-TAG CONTRACT

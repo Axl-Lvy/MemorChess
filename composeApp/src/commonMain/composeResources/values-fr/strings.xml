@@ -237,9 +237,9 @@
   <string name="repertoire_view_not_found">Le répertoire \"%1$s\" n'est plus dans le catalogue.</string>
 
   <!-- Navigation: side rail -->
-  <string name="side_rail_day_streak">JOURS D\'AFFILÉE</string>
-  <string name="side_rail_today_progress">%1$d/%2$d aujourd\'hui</string>
-  <string name="side_rail_today_done">%1$d aujourd\'hui</string>
+  <string name="side_rail_day_streak">JOURS D'AFFILÉE</string>
+  <string name="side_rail_today_progress">%1$d/%2$d aujourd'hui</string>
+  <string name="side_rail_today_done">%1$d aujourd'hui</string>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">Aucun coup précédent.</string>
