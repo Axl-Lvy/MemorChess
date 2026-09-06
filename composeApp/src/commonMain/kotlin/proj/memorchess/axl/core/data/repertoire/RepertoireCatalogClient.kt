@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.onDownload
 import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
@@ -25,7 +26,8 @@ import proj.memorchess.axl.core.pgn.PgnParser
  * Responses are read as plain text, which both backends serve every file as, then decoded here: the
  * manifest with kotlinx.serialization (unknown fields tolerated) and PGN files with [PgnParser].
  * Every failure is mapped to a typed [CatalogResult] so callers never have to inspect Ktor
- * exceptions.
+ * exceptions — except [reportInstall], a fire and forget write with no result to map, since a
+ * caller's own install outcome must never depend on this telemetry succeeding.
  *
  * @param httpClient The Ktor client used for requests.
  * @param baseUrl Root URL of the catalog, without a trailing slash. Injectable for tests.
@@ -97,6 +99,25 @@ class RepertoireCatalogClient(
       return CatalogResult.MalformedPgn("PGN file $file contains no moves")
     }
     return CatalogResult.Ok(games)
+  }
+
+  /**
+   * Reports one completed install of the repertoire [id], for the anonymous popularity counter the
+   * catalog's `downloadCount` field carries (see [RepertoireDescriptor.downloadCount]'s KDoc). Best
+   * effort: a network failure or a non success HTTP status is logged and otherwise swallowed, never
+   * thrown, so a caller's own install outcome is never disturbed by this being unreachable.
+   */
+  suspend fun reportInstall(id: String) {
+    try {
+      val response = httpClient.post("$baseUrl/$id/installs")
+      if (!response.status.isSuccess()) {
+        LOGGER.w { "Reporting install of repertoire $id got ${response.status}" }
+      }
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      LOGGER.w(e) { "Reporting install of repertoire $id failed" }
+    }
   }
 
   private suspend fun download(path: String, onProgress: (Float) -> Unit = {}): Download =

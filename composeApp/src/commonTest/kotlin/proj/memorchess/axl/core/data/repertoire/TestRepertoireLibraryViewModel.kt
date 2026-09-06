@@ -54,6 +54,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     previewGames: suspend (RepertoireColor, List<PgnGame>) -> PgnImportPreview = { _, _ ->
       PgnImportPreview(totalMoves = 4, movesInCommon = 1)
     },
+    reportInstall: suspend (String) -> Unit = {},
     store: InstalledRepertoireStore = InstalledRepertoireStore(),
   ) =
     RepertoireLibraryViewModel(
@@ -61,6 +62,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       fetchPgn = fetchPgn,
       importGames = importGames,
       previewGames = previewGames,
+      reportInstall = reportInstall,
       installedStore = store,
       scope = backgroundScope,
     )
@@ -343,6 +345,79 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     state[london.id] shouldBe
       RepertoireInstallState.Installed(PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 6))
     store.isInstalled(london.id) shouldBe true
+  }
+
+  @Test
+  fun firstInstallReportsItToTheServer() = test {
+    val reportedIds = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        reportInstall = { reportedIds.add(it) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+    // Installed is published before reportInstall is even called (it must never gate on the
+    // report), so a fake that itself suspends needs the scheduler drained before asserting.
+    testScheduler.advanceUntilIdle()
+
+    reportedIds shouldBe listOf(london.id)
+  }
+
+  @Test
+  fun installIsShownAsCompleteWithoutWaitingForReportInstallToReturn() = test {
+    val gate = CompletableDeferred<Unit>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        reportInstall = { gate.await() },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+
+    // Installed must be observable while the (never completing here) report call is still in
+    // flight, proving the install outcome is not gated on that best-effort telemetry round trip.
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+    gate.complete(Unit)
+  }
+
+  @Test
+  fun reinstallOfAnAlreadyInstalledRepertoireDoesNotReportAgain() = test {
+    val store = InstalledRepertoireStore()
+    store.markInstalled(london.id)
+    val reportedIds = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        reportInstall = { reportedIds.add(it) },
+        store = store,
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+
+    reportedIds shouldBe emptyList()
+  }
+
+  @Test
+  fun aFailedInstallNeverReportsIt() = test {
+    val reportedIds = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { _, _ -> CatalogResult.HttpError(500) },
+        reportInstall = { reportedIds.add(it) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Failed }
+
+    reportedIds shouldBe emptyList()
   }
 
   @Test
