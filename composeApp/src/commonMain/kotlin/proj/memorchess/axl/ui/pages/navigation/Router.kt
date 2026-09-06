@@ -114,7 +114,7 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
   var tabToTabTransition by remember { mutableStateOf(false) }
   // Freeze the direction at the moment the ordinal changes so it stays stable for the whole wipe.
   // Library and RepertoireView share an ordinal, so this does not recompute between them and keeps
-  // whatever direction the last ordinal-changing push set.
+  // whatever direction the push that last changed the ordinal set.
   if (currentOrdinal != previousOrdinal) {
     revealFromRight = currentOrdinal > previousOrdinal
     previousOrdinal = currentOrdinal

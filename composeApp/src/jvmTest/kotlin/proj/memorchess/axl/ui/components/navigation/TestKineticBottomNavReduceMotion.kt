@@ -18,12 +18,12 @@ import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
 
 /**
- * Pixel-level coverage for [NavCellIcon]'s pop [androidx.compose.animation.core.Animatable], the
- * one thing [TestKineticBottomNav]'s semantics-level assertions cannot observe (`graphicsLayer`
- * scale is a draw-phase transform invisible to the semantics tree). Composes [NavCellIcon]
- * directly, wrapped bare in a `Box` with no pill or label, so nothing else animating under reduce
- * motion (the pill's own colour fade) can change the captured pixels for a reason unrelated to the
- * icon's scale.
+ * Pixel level coverage for [NavCellIcon]'s pop [androidx.compose.animation.core.Animatable], the
+ * one thing [TestKineticBottomNav]'s semantics level assertions cannot observe (`graphicsLayer`
+ * scale is a transform applied in the draw phase, invisible to the semantics tree). Composes
+ * [NavCellIcon] directly, wrapped bare in a `Box` with no pill or label, so nothing else animating
+ * under reduce motion (the pill's own colour fade) can change the captured pixels for a reason
+ * unrelated to the icon's scale.
  */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticBottomNavReduceMotion : TestWithKoin() {
@@ -57,7 +57,7 @@ internal class TestKineticBottomNavReduceMotion : TestWithKoin() {
     mainClock.advanceTimeByFrame() // active flips here; scale still 1f in both modes
     val justAfterFlip = onNodeWithTag("icon").captureToImage().toPixelMap().buffer
 
-    mainClock.advanceTimeBy(180) // spans where a full-motion pop would be near its 1.12 peak
+    mainClock.advanceTimeBy(180) // spans where a full motion pop would be near its 1.12 peak
     val midWindow = onNodeWithTag("icon").captureToImage().toPixelMap().buffer
 
     mainClock.advanceTimeBy(1000) // well past any spec's max duration
