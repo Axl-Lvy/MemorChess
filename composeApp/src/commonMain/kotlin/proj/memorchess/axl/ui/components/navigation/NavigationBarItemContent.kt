@@ -36,7 +36,7 @@ enum class NavigationBarItemContent(
     },
   ),
   Training(
-    destination = Route.TrainingRoute.DEFAULT,
+    destination = Route.TodayRoute,
     index = 1,
     icon = {
       Icon(
@@ -44,7 +44,7 @@ enum class NavigationBarItemContent(
         contentDescription =
           stringResource(
             Res.string.nav_button_content_description,
-            stringResource(Route.TrainingRoute.DEFAULT.displayNameRes()),
+            stringResource(Route.TodayRoute.displayNameRes()),
           ),
         modifier = Modifier.size(32.dp),
       )
@@ -77,5 +77,17 @@ enum class NavigationBarItemContent(
           ),
       )
     },
-  ),
+  );
+
+  /**
+   * Route labels this item is active for. [Training] owns both [Route.TodayRoute] (the tab's own
+   * destination) and [Route.TrainingRoute] (the board pushed from Today's "Start review" CTA), so
+   * the tab stays highlighted for the whole duration of a review session.
+   */
+  val ownedRouteLabels: Set<String>
+    get() =
+      when (this) {
+        Training -> setOf(destination.getLabel(), Route.TrainingRoute.DEFAULT.getLabel())
+        else -> setOf(destination.getLabel())
+      }
 }

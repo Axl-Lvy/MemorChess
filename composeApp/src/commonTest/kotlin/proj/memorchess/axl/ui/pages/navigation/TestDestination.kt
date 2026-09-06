@@ -40,4 +40,12 @@ class TestDestination {
   fun trainingRouteDefaultHasANullRepertoireId() {
     Route.TrainingRoute.DEFAULT shouldBe Route.TrainingRoute(repertoireId = null)
   }
+
+  @Test
+  fun todayRouteRoundTripsThroughItsSerializer() {
+    val encoded = Json.encodeToString(Route.TodayRoute)
+    val decoded = Json.decodeFromString<Route.TodayRoute>(encoded)
+
+    decoded shouldBe Route.TodayRoute
+  }
 }

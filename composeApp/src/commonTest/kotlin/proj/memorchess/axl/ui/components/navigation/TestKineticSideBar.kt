@@ -121,7 +121,7 @@ internal class TestKineticSideBar {
   private fun ComposeUiTest.setRail(
     streakTracker: StreakTracker,
     scheduler: TrainingScheduler,
-    currentRoute: String = Route.TrainingRoute.DEFAULT.getLabel(),
+    currentRoute: String = NavigationBarItemContent.Training.destination.getLabel(),
     selected: MutableList<NavigationBarItemContent> = mutableListOf(),
   ) {
     setKineticContent {
@@ -306,6 +306,23 @@ internal class TestKineticSideBar {
   fun activeRowIsSelected() = runComposeUiTest {
     val store = InMemoryDailyActivityStore()
     setRail(StreakTracker(store), schedulerOver(dbWithDueCards(0)))
+
+    onNodeWithTag(rowTag(NavigationBarItemContent.Training)).assertIsSelected()
+    items
+      .filter { it != NavigationBarItemContent.Training }
+      .forEach { onNodeWithTag(rowTag(it)).assertIsNotSelected() }
+  }
+
+  @Test
+  fun trainingRowStaysSelectedOnThePushedTrainingBoard() = runComposeUiTest {
+    // Training's destination is TodayRoute, but the row must also stay selected once the pushed
+    // TrainingRoute board is on screen, not just on the Today dashboard itself.
+    val store = InMemoryDailyActivityStore()
+    setRail(
+      StreakTracker(store),
+      schedulerOver(dbWithDueCards(0)),
+      currentRoute = Route.TrainingRoute.DEFAULT.getLabel(),
+    )
 
     onNodeWithTag(rowTag(NavigationBarItemContent.Training)).assertIsSelected()
     items

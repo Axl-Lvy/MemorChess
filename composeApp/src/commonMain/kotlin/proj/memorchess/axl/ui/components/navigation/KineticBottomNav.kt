@@ -74,11 +74,14 @@ private val LABEL_SIZE = 9.5.sp
 
 /**
  * Returns `true` when [currentRoute] resolves to the same destination as [item]. The route fed in
- * from the back stack is the destination's serial name (lower-case, e.g. `"training"`) while
- * `getLabel()` is capitalised (`"Training"`), so the match is case-insensitive.
+ * from the back stack is the destination's serial name in lower case (e.g. `"training"`) while
+ * [NavigationBarItemContent.ownedRouteLabels] is capitalised (`"Training"`), so the match ignores
+ * case. It is checked against every label the item owns, not just its own destination, so a tab
+ * stays highlighted for every route it conceptually covers. See
+ * [NavigationBarItemContent.Training].
  */
 internal fun isActive(item: NavigationBarItemContent, currentRoute: String): Boolean =
-  currentRoute.equals(item.destination.getLabel(), ignoreCase = true)
+  item.ownedRouteLabels.any { it.equals(currentRoute, ignoreCase = true) }
 
 /**
  * Resolved look of one navigation cell, shared by the bottom bar and the desktop side rail.
