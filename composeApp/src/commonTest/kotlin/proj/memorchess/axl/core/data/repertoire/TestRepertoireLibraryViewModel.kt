@@ -7,6 +7,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import proj.memorchess.axl.core.config.INSTALLED_REPERTOIRES_SETTING
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportException
 import proj.memorchess.axl.core.pgn.PgnImportPreview
@@ -52,6 +53,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       PgnImportPreview(totalMoves = 4, movesInCommon = 1)
     },
     store: InstalledRepertoireStore = InstalledRepertoireStore(),
+    loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
   ) =
     RepertoireLibraryViewModel(
       loadManifest = loadManifest,
@@ -59,6 +61,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       importGames = importGames,
       previewGames = previewGames,
       installedStore = store,
+      loadMyRepertoires = loadMyRepertoires,
       scope = backgroundScope,
     )
 
@@ -138,6 +141,21 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
         as LibraryCatalogState.Loaded
     loaded.repertoires shouldBe listOf(london)
+  }
+
+  @Test
+  fun myRepertoiresIsPopulatedFromTheInjectedLoaderOnConstruction() = test {
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest()) },
+        loadMyRepertoires = {
+          listOf(DataRepertoire(id = "italian-game", name = "Italian Game", color = RepertoireColor.WHITE))
+        },
+      )
+
+    val loaded = viewModel.myRepertoires.first { it.isNotEmpty() }
+
+    loaded.map { it.id } shouldBe listOf("italian-game")
   }
 
   @Test

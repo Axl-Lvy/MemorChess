@@ -228,6 +228,9 @@
   <string name="library_preview_in_common_error">Impossible de vérifier vos coups existants.</string>
   <string name="library_preview_question">Ajouter ce répertoire à vos ouvertures ? Les coups existants et leur historique d'entraînement sont conservés.</string>
   <string name="library_view">Parcourir ce répertoire</string>
+  <string name="library_my_repertoires_title">MES RÉPERTOIRES</string>
+  <string name="library_explore">Explorer</string>
+  <string name="library_train">Entraîner</string>
   <plurals name="library_move_count">
     <item quantity="one">%1$d coup</item>
     <item quantity="other">%1$d coups</item>

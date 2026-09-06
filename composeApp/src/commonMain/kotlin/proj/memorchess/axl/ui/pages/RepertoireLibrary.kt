@@ -34,6 +34,7 @@ import memorchess.composeapp.generated.resources.library_empty
 import memorchess.composeapp.generated.resources.library_error_http
 import memorchess.composeapp.generated.resources.library_error_malformed
 import memorchess.composeapp.generated.resources.library_error_network
+import memorchess.composeapp.generated.resources.library_explore
 import memorchess.composeapp.generated.resources.library_fetching
 import memorchess.composeapp.generated.resources.library_importing
 import memorchess.composeapp.generated.resources.library_install
@@ -44,6 +45,7 @@ import memorchess.composeapp.generated.resources.library_install_error_network
 import memorchess.composeapp.generated.resources.library_install_summary
 import memorchess.composeapp.generated.resources.library_installed_badge
 import memorchess.composeapp.generated.resources.library_move_count
+import memorchess.composeapp.generated.resources.library_my_repertoires_title
 import memorchess.composeapp.generated.resources.library_preview_checking
 import memorchess.composeapp.generated.resources.library_preview_in_common
 import memorchess.composeapp.generated.resources.library_preview_in_common_error
@@ -53,10 +55,12 @@ import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.library_stale_hint
 import memorchess.composeapp.generated.resources.library_subtitle
 import memorchess.composeapp.generated.resources.library_title
+import memorchess.composeapp.generated.resources.library_train
 import memorchess.composeapp.generated.resources.library_view
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstallError
 import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
@@ -80,6 +84,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 private const val TEST_TAG_CARD = "library_repertoire_card"
+private const val TEST_TAG_MY_REPERTOIRE_ROW = "library_my_repertoire_row"
 
 /**
  * Repertoire library page. Lists the repertoires of the remote catalog and lets the user install
@@ -111,6 +116,7 @@ fun RepertoireLibrary(
           PgnImporter(treeStore).preview(games, color.toPlayer())
         },
         installedStore = installedStore,
+        loadMyRepertoires = treeStore::repertoires,
         scope = coroutineScope,
       )
     }
@@ -118,16 +124,20 @@ fun RepertoireLibrary(
   val installStates by viewModel.installStates.collectAsState()
   val navigator = LocalNavigator.current
   val previewStates by viewModel.previewStates.collectAsState()
+  val myRepertoires by viewModel.myRepertoires.collectAsState()
   RepertoireLibraryContent(
     catalogState = catalogState,
     installStates = installStates,
     previewStates = previewStates,
+    myRepertoires = myRepertoires,
     actions =
       RepertoireLibraryActions(
         onInstall = viewModel::install,
         onPreviewRequest = viewModel::requestPreview,
         onRetry = viewModel::refresh,
         onView = { descriptor -> navigator.navigateTo(Route.RepertoireViewRoute(descriptor.id)) },
+        onExplore = { id -> navigator.navigateTo(Route.ExploreRoute(repertoireId = id)) },
+        onTrain = { id -> navigator.navigateTo(Route.TrainingRoute(repertoireId = id)) },
       ),
     modifier = Modifier.fillMaxSize().testTag(Route.LibraryRoute.getLabel()),
   )
@@ -148,12 +158,16 @@ private fun RepertoireColor.toPlayer(): Player =
  * @property onPreviewRequest Request the move-overlap preview for the given repertoire.
  * @property onRetry Retry loading the catalog after a failure.
  * @property onView Open the read-only viewer for the given repertoire.
+ * @property onExplore Open the Explore page scoped to the given registered repertoire.
+ * @property onTrain Open the Training page scoped to the given registered repertoire.
  */
 internal data class RepertoireLibraryActions(
   val onInstall: (RepertoireDescriptor) -> Unit,
   val onPreviewRequest: (RepertoireDescriptor) -> Unit,
   val onRetry: () -> Unit,
   val onView: (RepertoireDescriptor) -> Unit = {},
+  val onExplore: (repertoireId: String) -> Unit = {},
+  val onTrain: (repertoireId: String) -> Unit = {},
 )
 
 /**
@@ -165,6 +179,7 @@ internal fun RepertoireLibraryContent(
   catalogState: LibraryCatalogState,
   installStates: Map<String, RepertoireInstallState>,
   previewStates: Map<String, RepertoirePreviewState>,
+  myRepertoires: List<DataRepertoire>,
   actions: RepertoireLibraryActions,
   modifier: Modifier = Modifier,
 ) {
@@ -183,6 +198,11 @@ internal fun RepertoireLibraryContent(
     Text(
       text = stringResource(Res.string.library_subtitle),
       style = typography.bodySm.copy(color = palette.ink3),
+    )
+    MyRepertoiresSection(
+      repertoires = myRepertoires,
+      onExplore = actions.onExplore,
+      onTrain = actions.onTrain,
     )
     when (catalogState) {
       is LibraryCatalogState.Loading ->
@@ -219,6 +239,54 @@ internal fun RepertoireLibraryContent(
           },
           onView = actions.onView,
         )
+    }
+  }
+}
+
+/**
+ * The user's own repertoires (Task 6's registry), each with Explore/Train actions scoped to it.
+ * Distinct from the catalog list below: this is the user's own tree, not a downloadable one. There
+ * is no per repertoire "Untagged" entry: an untagged position already shows up under the unscoped
+ * "All" entry point (`repertoireId = null`), which this section does not otherwise change.
+ */
+@Composable
+private fun MyRepertoiresSection(
+  repertoires: List<DataRepertoire>,
+  onExplore: (repertoireId: String) -> Unit,
+  onTrain: (repertoireId: String) -> Unit,
+) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Text(
+      text = stringResource(Res.string.library_my_repertoires_title),
+      style = typography.labelSm.copy(color = palette.actionText),
+    )
+    for (repertoire in repertoires) {
+      MyRepertoireRow(repertoire.name, repertoire.id, onExplore, onTrain)
+    }
+  }
+}
+
+/** One row of [MyRepertoiresSection]: the repertoire's name plus its Explore/Train buttons. */
+@Composable
+private fun MyRepertoireRow(
+  name: String,
+  id: String,
+  onExplore: (repertoireId: String) -> Unit,
+  onTrain: (repertoireId: String) -> Unit,
+) {
+  Row(
+    modifier = Modifier.fillMaxWidth().testTag("$TEST_TAG_MY_REPERTOIRE_ROW:$id"),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Text(text = name)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      KineticButton(onClick = { onExplore(id) }) {
+        KineticButtonLabel(stringResource(Res.string.library_explore))
+      }
+      KineticButton(onClick = { onTrain(id) }) { KineticButtonLabel(stringResource(Res.string.library_train)) }
     }
   }
 }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
@@ -41,6 +42,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * @param previewGames Computes, without writing anything, how much of the repertoire the user
  *   already has from the repertoire's [RepertoireColor] perspective.
  * @param installedStore Records which repertoires are installed on this device.
+ * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
+ *   normally through [proj.memorchess.axl.core.graph.TreeStore.repertoires].
  * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).
  */
 class RepertoireLibraryViewModel(
@@ -51,6 +54,7 @@ class RepertoireLibraryViewModel(
   private val previewGames:
     suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportPreview,
   private val installedStore: InstalledRepertoireStore,
+  private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val scope: CoroutineScope,
 ) {
 
@@ -60,6 +64,7 @@ class RepertoireLibraryViewModel(
     MutableStateFlow<Map<String, RepertoireInstallState>>(emptyMap())
   private val internalPreviewStates =
     MutableStateFlow<Map<String, RepertoirePreviewState>>(emptyMap())
+  private val internalMyRepertoires = MutableStateFlow<List<DataRepertoire>>(emptyList())
   private var loadInFlight = false
 
   /** Current state of the catalog list. */
@@ -79,8 +84,12 @@ class RepertoireLibraryViewModel(
   val previewStates: StateFlow<Map<String, RepertoirePreviewState>> =
     internalPreviewStates.asStateFlow()
 
+  /** The user's own registered repertoires, for the "My Repertoires" list. */
+  val myRepertoires: StateFlow<List<DataRepertoire>> = internalMyRepertoires.asStateFlow()
+
   init {
     refresh()
+    scope.launch { internalMyRepertoires.value = loadMyRepertoires() }
   }
 
   /** Reloads the catalog manifest. Ignored while a load is already in flight. */

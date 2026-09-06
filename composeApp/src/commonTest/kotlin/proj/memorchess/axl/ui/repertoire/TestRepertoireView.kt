@@ -117,6 +117,7 @@ class TestRepertoireView : TestWithKoin() {
             catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
             installStates = emptyMap<String, RepertoireInstallState>(),
             previewStates = emptyMap<String, RepertoirePreviewState>(),
+            myRepertoires = emptyList(),
             actions =
               RepertoireLibraryActions(
                 onInstall = {},

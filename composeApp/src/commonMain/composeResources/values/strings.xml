@@ -228,6 +228,9 @@
   <string name="library_preview_in_common_error">Could not check your existing moves.</string>
   <string name="library_preview_question">Add this repertoire to your openings? Existing moves and their training history are kept.</string>
   <string name="library_view">Browse this repertoire</string>
+  <string name="library_my_repertoires_title">MY REPERTOIRES</string>
+  <string name="library_explore">Explore</string>
+  <string name="library_train">Train</string>
   <plurals name="library_move_count">
     <item quantity="one">%1$d move</item>
     <item quantity="other">%1$d moves</item>
