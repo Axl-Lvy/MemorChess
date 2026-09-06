@@ -38,7 +38,9 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   private val tags: MutableMap<Triple<PositionKey, PositionKey, String>, DataEdgeRepertoireTag> =
     mutableMapOf()
 
-  /** Backing store for the `NodeRepertoireTrainable` projection, keyed by position and repertoire. */
+  /**
+   * Backing store for the `NodeRepertoireTrainable` projection, keyed by position and repertoire.
+   */
   private val trainable: MutableMap<Pair<PositionKey, String>, Instant?> = mutableMapOf()
 
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
@@ -326,7 +328,10 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       .minByOrNull { it.cardState.dueDate }
       ?.toTrainingEntry()
 
-  override suspend fun nextPendingLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+  override suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
     live()
       .filter { it.hasGoodOutgoing && it.isInSession() && it.cardState.dueDate > now }
       .filter { isTrainableFor(it.positionKey, repertoireId) }
@@ -577,21 +582,20 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun getRepertoireMasterySnapshots(
     repertoireIds: List<String>
-  ): Map<String, RepertoireMasterySnapshot> =
-    repertoireIds.associateWith { id ->
-      // A tombstoned position's trainable row is stale until its own delete path clears it (see
-      // TreeStore); filtering it out here too is the correctness backstop, not merely an
-      // optimization. Mirrors the Room/IndexedDB backends' inner join against the node table: a
-      // trainable row whose position was never inserted at all does not count either, the same as
-      // one whose position was later deleted, since TreeStore itself never writes a trainable row
-      // for a position it cannot resolve.
-      val live =
-        trainable.entries.filter { it.key.second == id && nodes[it.key.first]?.isDeleted == false }
-      val solid = live.count { nodes[it.key.first]?.cardState?.phase == CardPhase.REVIEW }
-      RepertoireMasterySnapshot(
-        solidCount = solid,
-        totalCount = live.size,
-        lastReview = live.mapNotNull { it.value }.maxOrNull(),
-      )
-    }
+  ): Map<String, RepertoireMasterySnapshot> = repertoireIds.associateWith { id ->
+    // A tombstoned position's trainable row is stale until its own delete path clears it (see
+    // TreeStore); filtering it out here too is the correctness backstop, not merely an
+    // optimization. Mirrors the Room/IndexedDB backends' inner join against the node table: a
+    // trainable row whose position was never inserted at all does not count either, the same as
+    // one whose position was later deleted, since TreeStore itself never writes a trainable row
+    // for a position it cannot resolve.
+    val live =
+      trainable.entries.filter { it.key.second == id && nodes[it.key.first]?.isDeleted == false }
+    val solid = live.count { nodes[it.key.first]?.cardState?.phase == CardPhase.REVIEW }
+    RepertoireMasterySnapshot(
+      solidCount = solid,
+      totalCount = live.size,
+      lastReview = live.mapNotNull { it.value }.maxOrNull(),
+    )
+  }
 }

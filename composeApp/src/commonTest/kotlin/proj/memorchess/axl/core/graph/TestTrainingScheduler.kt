@@ -631,7 +631,8 @@ class TestTrainingScheduler {
     store.tagEdge(startPos, destinationA, "italian-game")
     store.tagEdge(startPos, destinationB, "queens-gambit")
     // destinationA/destinationB must each be trainable within the scope too (their own outgoing
-    // edge tagged the same way), not merely reached by a tagged edge: see the design's NodeRepertoireTrainable
+    // edge tagged the same way), not merely reached by a tagged edge: see the design's
+    // NodeRepertoireTrainable
     // note on findEligibleAmong's own scope check.
     store.tagEdge(destinationA, leafA, "italian-game")
     store.tagEdge(destinationB, leafB, "queens-gambit")

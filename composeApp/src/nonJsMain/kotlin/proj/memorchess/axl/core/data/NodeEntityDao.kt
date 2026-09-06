@@ -374,7 +374,10 @@ interface NodeEntityDao {
 
   /** See [DatabaseQueryManager.getScopedCounts]. */
   @Transaction
-  suspend fun getScopedCounts(dayEndExclusive: Instant, repertoireId: String): ScopedSchedulingCounts =
+  suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts =
     ScopedSchedulingCounts(
       dueReviews = countDueReviews(dayEndExclusive, repertoireId),
       dueNew = countDueNew(dayEndExclusive, repertoireId),

@@ -67,8 +67,10 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
     delegate.nextReadyLearningCard(now, repertoireId)
 
-  override suspend fun nextPendingLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
-    delegate.nextPendingLearningCard(now, repertoireId)
+  override suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.nextPendingLearningCard(now, repertoireId)
 
   override suspend fun nextDueReviewCard(
     dayEndExclusive: Instant,

@@ -33,7 +33,8 @@ class SingleMoveTrainer(
     val matchingEdge = node.outgoing.values.firstOrNull { it.move == move }
     val inScope =
       repertoireScope == null ||
-        (matchingEdge != null && repertoireScope in treeStore.tagsFor(matchingEdge.from, matchingEdge.to))
+        (matchingEdge != null &&
+          repertoireScope in treeStore.tagsFor(matchingEdge.from, matchingEdge.to))
     isCorrect = matchingEdge != null && matchingEdge.isGood == true && inScope
     block()
     callBackOnCorrect(if (isCorrect) matchingEdge else null)

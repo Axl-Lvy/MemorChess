@@ -105,8 +105,8 @@ object RejectionCode {
 
   /**
    * An [proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow] named an edge the server has no
-   * record of, neither already stored nor in the same push's own edges. The client pushes the
-   * edge itself first, then retries the tag.
+   * record of, neither already stored nor in the same push's own edges. The client pushes the edge
+   * itself first, then retries the tag.
    */
   const val EDGE_NOT_FOUND: String = "edge_not_found"
 }

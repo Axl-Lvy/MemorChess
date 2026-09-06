@@ -91,9 +91,9 @@ open class LinesExplorer(
   }
 
   /**
-   * Sorted list of classified outgoing moves at the current position, narrowed to
-   * [repertoireScope] when this session is scoped (any [Edge.isGood] value passes, so a known trap
-   * the repertoire teaches to counter still shows).
+   * Sorted list of classified outgoing moves at the current position, narrowed to [repertoireScope]
+   * when this session is scoped (any [Edge.isGood] value passes, so a known trap the repertoire
+   * teaches to counter still shows).
    */
   suspend fun getNextMoves(): List<String> {
     val node = treeStore.node(navigation.current) ?: return emptyList()

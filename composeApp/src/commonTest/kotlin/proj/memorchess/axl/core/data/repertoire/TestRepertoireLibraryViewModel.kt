@@ -149,7 +149,13 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       buildViewModel(
         { CachedManifestResult.Fresh(manifest()) },
         loadMyRepertoires = {
-          listOf(DataRepertoire(id = "italian-game", name = "Italian Game", color = RepertoireColor.WHITE))
+          listOf(
+            DataRepertoire(
+              id = "italian-game",
+              name = "Italian Game",
+              color = RepertoireColor.WHITE,
+            )
+          )
         },
       )
 

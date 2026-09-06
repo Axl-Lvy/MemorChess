@@ -82,10 +82,14 @@ class TrainingScheduler(
    *   repertoire. The daily caps stay global regardless of scope. `null` reproduces today's
    *   unscoped behavior exactly.
    */
-  suspend fun nextDue(day: LocalDate = DateUtil.today(), repertoireId: String? = null): TrainingEntry? {
+  suspend fun nextDue(
+    day: LocalDate = DateUtil.today(),
+    repertoireId: String? = null,
+  ): TrainingEntry? {
     val now = DateUtil.now()
     val (dayStart, dayEnd) = dayBounds(day)
-    val counts = database.getSchedulingCounts(dayStart, dayEnd) // caps stay global, see the class doc
+    val counts =
+      database.getSchedulingCounts(dayStart, dayEnd) // caps stay global, see the class doc
     val newRemaining = (maxNewMovesPerDay() - counts.introducedToday).coerceAtLeast(0)
     val totalRemaining = (maxTotalMovesPerDay() - counts.trainedToday).coerceAtLeast(0)
 

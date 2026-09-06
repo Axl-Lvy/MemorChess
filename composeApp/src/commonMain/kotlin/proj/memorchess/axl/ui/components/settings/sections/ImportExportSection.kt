@@ -205,8 +205,10 @@ internal fun LichessStudyImportField(
           }
         }
       },
-      enabled = !importing && input.isNotBlank() &&
-        (selectedRepertoireId != NEW_REPERTOIRE_SENTINEL || newRepertoireName.isNotBlank()),
+      enabled =
+        !importing &&
+          input.isNotBlank() &&
+          (selectedRepertoireId != NEW_REPERTOIRE_SENTINEL || newRepertoireName.isNotBlank()),
       modifier = Modifier.fillMaxWidth().testTag("lichessStudyImportButton"),
       style = KineticButtonStyle.Default,
     ) {

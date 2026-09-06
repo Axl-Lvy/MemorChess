@@ -18,10 +18,10 @@ import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
 
 /**
- * Tests for the derived projection columns [DataNode.hasGoodOutgoing] and [DataNode.createdAt],
- * and for the repertoire registry, edge tagging, and `NodeRepertoireTrainable` maintenance,
- * maintained by [TreeStore] on every write. Assertions read the persisted [DataNode] back through
- * the public [proj.memorchess.axl.core.data.DatabaseQueryManager.getPosition] API.
+ * Tests for the derived projection columns [DataNode.hasGoodOutgoing] and [DataNode.createdAt], and
+ * for the repertoire registry, edge tagging, and `NodeRepertoireTrainable` maintenance, maintained
+ * by [TreeStore] on every write. Assertions read the persisted [DataNode] back through the public
+ * [proj.memorchess.axl.core.data.DatabaseQueryManager.getPosition] API.
  */
 class TestTreeStore {
 
@@ -176,7 +176,10 @@ class TestTreeStore {
 
     assertEquals(
       1,
-      database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game").totalCount,
+      database
+        .getRepertoireMasterySnapshots(listOf("italian-game"))
+        .getValue("italian-game")
+        .totalCount,
     )
   }
 
@@ -190,7 +193,10 @@ class TestTreeStore {
 
     assertEquals(
       0,
-      database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game").totalCount,
+      database
+        .getRepertoireMasterySnapshots(listOf("italian-game"))
+        .getValue("italian-game")
+        .totalCount,
     )
   }
 
@@ -205,7 +211,10 @@ class TestTreeStore {
 
     assertEquals(
       0,
-      database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game").totalCount,
+      database
+        .getRepertoireMasterySnapshots(listOf("italian-game"))
+        .getValue("italian-game")
+        .totalCount,
     )
   }
 

@@ -696,7 +696,9 @@ class TestInMemoryDatabaseQueryManager {
   fun insertRepertoireQueuesItsOwnRepertoireKey() = runTest {
     val database = InMemoryDatabaseQueryManager()
 
-    database.insertRepertoire(DataRepertoire(id = "italian-game", name = "Italian Game", color = null))
+    database.insertRepertoire(
+      DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+    )
 
     assertEquals(
       setOf(DirtyKey.RepertoireKey("italian-game")),
@@ -796,7 +798,11 @@ class TestInMemoryDatabaseQueryManager {
     // "position is live" backstop assumes the position exists.
     database.insertNodes(DataNode(position, PreviousAndNextMoves(), CardStateFactory.new()))
 
-    database.replaceTrainableRepertoires(position, setOf("italian-game", "ruy-lopez"), lastReview = null)
+    database.replaceTrainableRepertoires(
+      position,
+      setOf("italian-game", "ruy-lopez"),
+      lastReview = null,
+    )
     database.replaceTrainableRepertoires(position, setOf("ruy-lopez"), lastReview = null)
     val snapshots = database.getRepertoireMasterySnapshots(listOf("italian-game", "ruy-lopez"))
 
@@ -821,9 +827,13 @@ class TestInMemoryDatabaseQueryManager {
     database.replaceTrainableRepertoires(solidPosition, setOf("italian-game"), reviewedAt)
     database.replaceTrainableRepertoires(newPosition, setOf("italian-game"), lastReview = null)
 
-    val snapshot = database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
+    val snapshot =
+      database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
 
-    assertEquals(RepertoireMasterySnapshot(solidCount = 1, totalCount = 2, lastReview = reviewedAt), snapshot)
+    assertEquals(
+      RepertoireMasterySnapshot(solidCount = 1, totalCount = 2, lastReview = reviewedAt),
+      snapshot,
+    )
   }
 
   @Test
@@ -852,7 +862,8 @@ class TestInMemoryDatabaseQueryManager {
 
     database.deletePosition(position, DeleteMode.SOFT, "device-a", 1L, DateUtil.now())
 
-    val snapshot = database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
+    val snapshot =
+      database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
     assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshot)
   }
 
@@ -876,9 +887,14 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun nextDueNewCardWithANullRepertoireIdReproducesTheUnscopedResult() = runTest {
     val database = InMemoryDatabaseQueryManager()
-    database.insertNodes(schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)))
+    database.insertNodes(
+      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+    )
 
-    assertEquals(database.nextDueNewCard(dayEnd), database.nextDueNewCard(dayEnd, repertoireId = null))
+    assertEquals(
+      database.nextDueNewCard(dayEnd),
+      database.nextDueNewCard(dayEnd, repertoireId = null),
+    )
   }
 
   @Test

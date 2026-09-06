@@ -105,7 +105,10 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
     database.getNodeEntityDao().nextReadyLearningCard(now, repertoireId)?.toTrainingEntry()
 
-  override suspend fun nextPendingLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+  override suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
     database.getNodeEntityDao().nextPendingLearningCard(now, repertoireId)?.toTrainingEntry()
 
   override suspend fun nextDueReviewCard(
@@ -219,10 +222,9 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     origin: PositionKey,
     destination: PositionKey,
   ): List<DataEdgeRepertoireTag> =
-    database
-      .getRepertoireDao()
-      .getTags(origin.value, destination.value)
-      .map { it.toDataEdgeRepertoireTag() }
+    database.getRepertoireDao().getTags(origin.value, destination.value).map {
+      it.toDataEdgeRepertoireTag()
+    }
 
   override suspend fun getTagIncludingDeleted(
     origin: PositionKey,

@@ -225,7 +225,9 @@ class TestRoomOutboxAndSoftDelete {
   fun eraseAllClearsRepertoiresAndTags() = runTest {
     val origin = PositionKey("k1")
     val destination = PositionKey("k2")
-    manager.insertRepertoire(DataRepertoire(id = "italian-game", name = "Italian Game", color = null))
+    manager.insertRepertoire(
+      DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+    )
     manager.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
 
     manager.eraseAll()

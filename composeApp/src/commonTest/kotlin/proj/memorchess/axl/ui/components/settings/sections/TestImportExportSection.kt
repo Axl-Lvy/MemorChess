@@ -45,9 +45,7 @@ class TestImportExportSection : TestWithKoin() {
 
   /** A [LichessStudyImporter] backed by a canned single-chapter PGN export, no real network. */
   private fun fakeStudyImporter(): LichessStudyImporter {
-    val engine = MockEngine { _ ->
-      respond(content = "1. e4 e5 *", status = HttpStatusCode.OK)
-    }
+    val engine = MockEngine { _ -> respond(content = "1. e4 e5 *", status = HttpStatusCode.OK) }
     val client =
       HttpClient(engine) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
     return LichessStudyImporter(LichessStudyClient(client), treeStore)

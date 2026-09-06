@@ -32,7 +32,9 @@ internal suspend fun mostRecentRepertoireMastery(treeStore: TreeStore): Repertoi
       .mapNotNull { repertoire -> snapshots[repertoire.id]?.let { repertoire to it } }
       .filter { (_, snapshot) -> snapshot.lastReview != null }
       .sortedWith(
-        compareByDescending<Pair<DataRepertoire, RepertoireMasterySnapshot>> { it.second.lastReview }
+        compareByDescending<Pair<DataRepertoire, RepertoireMasterySnapshot>> {
+            it.second.lastReview
+          }
           .thenBy { it.first.name }
       )
       .firstOrNull() ?: return null

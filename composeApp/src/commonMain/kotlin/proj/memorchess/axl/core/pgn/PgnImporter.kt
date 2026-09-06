@@ -44,10 +44,11 @@ class PgnImporter(private val treeStore: TreeStore) {
    *   content such as a Lichess study.
    * @param repertoireId When not `null`, every planned move is tagged with this repertoire, present
    *   or not: an edge this import shares with an already tagged repertoire is tagged too (the
-   *   "extend on reinstall" case). `null` imports untagged, exactly as before this parameter existed.
+   *   "extend on reinstall" case). `null` imports untagged, exactly as before this parameter
+   *   existed.
    * @return How many moves were added and how many were already present.
-   * @throws PgnImportException if any move of any variation is illegal, or if [repertoireId] names a
-   *   repertoire already registered with a [RepertoireColor] that conflicts with [perspective].
+   * @throws PgnImportException if any move of any variation is illegal, or if [repertoireId] names
+   *   a repertoire already registered with a [RepertoireColor] that conflicts with [perspective].
    *   Nothing is written in either case.
    */
   suspend fun import(

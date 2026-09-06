@@ -11,13 +11,18 @@ import kotlin.time.Instant
 @Dao
 interface RepertoireDao {
 
-  @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertRepertoire(item: RepertoireEntity)
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertRepertoire(item: RepertoireEntity)
 
   /** Inserts a repertoire, queuing its own outbox entry in the same transaction. */
   @Transaction
   suspend fun insertRepertoireAndMarkDirty(item: RepertoireEntity) {
     insertRepertoire(item)
-    upsertOutboxEntry(OutboxEntryEntity.KIND_REPERTOIRE, item.repertoireId, deviceSeq = item.deviceSeq)
+    upsertOutboxEntry(
+      OutboxEntryEntity.KIND_REPERTOIRE,
+      item.repertoireId,
+      deviceSeq = item.deviceSeq,
+    )
   }
 
   @Query("SELECT * FROM RepertoireEntity WHERE repertoireId = :id AND isDeleted IS FALSE")
@@ -30,7 +35,8 @@ interface RepertoireDao {
   @Query("SELECT * FROM RepertoireEntity WHERE isDeleted IS FALSE")
   suspend fun getRepertoires(): List<RepertoireEntity>
 
-  @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertTag(item: EdgeRepertoireTagEntity)
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertTag(item: EdgeRepertoireTagEntity)
 
   /** Inserts a tag, queuing its own outbox entry in the same transaction. */
   @Transaction
@@ -94,7 +100,10 @@ interface RepertoireDao {
 
   /** Replaces [positionKey]'s entire trainable row set with [items] in one transaction. */
   @Transaction
-  suspend fun replaceTrainable(positionKey: String, items: Collection<NodeRepertoireTrainableEntity>) {
+  suspend fun replaceTrainable(
+    positionKey: String,
+    items: Collection<NodeRepertoireTrainableEntity>,
+  ) {
     clearTrainable(positionKey)
     insertTrainable(items)
   }

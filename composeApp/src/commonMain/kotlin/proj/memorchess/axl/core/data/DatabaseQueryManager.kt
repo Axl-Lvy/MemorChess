@@ -131,7 +131,10 @@ interface DatabaseQueryManager {
    *   instant belongs to the next day and is excluded.
    * @param repertoireId See [nextReadyLearningCard].
    */
-  suspend fun nextDueReviewCard(dayEndExclusive: Instant, repertoireId: String? = null): TrainingEntry?
+  suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String? = null,
+  ): TrainingEntry?
 
   /**
    * Bounded `LIMIT 1` lookup of the next due new card.
@@ -182,7 +185,10 @@ interface DatabaseQueryManager {
    * Backs [proj.memorchess.axl.core.graph.TrainingScheduler.pendingCount]'s scoped display; the
    * daily cap fields have no scoped equivalent and stay read from [getSchedulingCounts].
    */
-  suspend fun getScopedCounts(dayEndExclusive: Instant, repertoireId: String): ScopedSchedulingCounts
+  suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts
 
   /**
    * Counts the non-deleted positions in the subtree reachable from [key] that a recursive delete
@@ -254,7 +260,8 @@ interface DatabaseQueryManager {
 
   /**
    * [getRepertoire] ignoring the soft delete filter, so a caller can compare it against a pulled
-   * sync row even when the local copy is a tombstone. Used only by [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
+   * sync row even when the local copy is a tombstone. Used only by
+   * [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
    */
   suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire?
 

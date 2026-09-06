@@ -496,8 +496,8 @@ class TreeStore(
 
   /**
    * Applies a repertoire registry row pulled from `/v1/sync`, after resolving it against the local
-   * copy via [resolve]. No edge changes, so unlike [applySyncedTag] there is nothing to recompute in
-   * `NodeRepertoireTrainable`.
+   * copy via [resolve]. No edge changes, so unlike [applySyncedTag] there is nothing to recompute
+   * in `NodeRepertoireTrainable`.
    */
   suspend fun applySyncedRepertoire(remote: RepertoireSyncRow): ResolutionSource {
     val local = database.getRepertoireIncludingDeleted(remote.id)

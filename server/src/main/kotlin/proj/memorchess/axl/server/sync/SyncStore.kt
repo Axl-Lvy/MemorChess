@@ -84,7 +84,11 @@ internal class SyncStore(
       serverTime = serverNow,
       revision = revision,
       rejected =
-        nodes.refused + edges.refused + settings.refused + repertoires.refused + tags.refused +
+        nodes.refused +
+          edges.refused +
+          settings.refused +
+          repertoires.refused +
+          tags.refused +
           orphanedTags,
     )
   }
@@ -114,8 +118,7 @@ internal class SyncStore(
     // as an EdgeSyncRow, so a tag naming one the server has never seen is refused rather than
     // silently minting a move_edge row with no real move, which move_edge's write-once move column
     // could never correct afterward.
-    val unresolvedTagEndpoints =
-      tags.map { it.origin to it.destination }.toSet() - edgeIds.keys
+    val unresolvedTagEndpoints = tags.map { it.origin to it.destination }.toSet() - edgeIds.keys
     val lookedUpEdgeIds = lookupEdgeIds(unresolvedTagEndpoints)
     val allEdgeIds = edgeIds + lookedUpEdgeIds
     val (resolvableTags, orphanedTags) =
@@ -132,9 +135,7 @@ internal class SyncStore(
       repertoires.sortedBy { it.id }.forEach { add(applyRepertoire(userId, it)) }
       resolvableTags
         .sortedBy { "${it.origin}|${it.destination}|${it.repertoireId}" }
-        .forEach {
-          add(applyTag(userId, it, allEdgeIds.getValue(it.origin to it.destination)))
-        }
+        .forEach { add(applyTag(userId, it, allEdgeIds.getValue(it.origin to it.destination))) }
     }
     val revision = revisions.filterNotNull().maxOrNull() ?: 0L
     return revision to
@@ -619,7 +620,9 @@ internal class SyncStore(
     }
   }
 
-  /** Reads one stored repertoire. Exposed so the push tests do not depend on `pull` being correct. */
+  /**
+   * Reads one stored repertoire. Exposed so the push tests do not depend on `pull` being correct.
+   */
   internal suspend fun readRepertoireForTest(userId: String, id: String): RepertoireSyncRow? =
     withContext(ioDispatcher) { dataSource.connection.use { it.readRepertoire(userId, id) } }
 

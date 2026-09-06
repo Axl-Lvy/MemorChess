@@ -104,7 +104,10 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
     composable<Route.ExploreRoute> {
       val route = it.toRoute<Route.ExploreRoute>()
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
-        Explore(route.position?.let { p -> PositionKey.validateAndCreateOrNull(p) }, route.repertoireId)
+        Explore(
+          route.position?.let { p -> PositionKey.validateAndCreateOrNull(p) },
+          route.repertoireId,
+        )
       }
     }
   }

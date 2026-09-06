@@ -39,7 +39,11 @@ class TestRoomRepertoireMastery {
     // NodeEntity assumes the position exists.
     manager.insertNodes(DataNode(position, PreviousAndNextMoves(), CardStateFactory.new()))
 
-    manager.replaceTrainableRepertoires(position, setOf("italian-game", "ruy-lopez"), lastReview = null)
+    manager.replaceTrainableRepertoires(
+      position,
+      setOf("italian-game", "ruy-lopez"),
+      lastReview = null,
+    )
     manager.replaceTrainableRepertoires(position, setOf("ruy-lopez"), lastReview = null)
     val snapshots = manager.getRepertoireMasterySnapshots(listOf("italian-game", "ruy-lopez"))
 
@@ -63,16 +67,19 @@ class TestRoomRepertoireMastery {
     manager.replaceTrainableRepertoires(solidPosition, setOf("italian-game"), reviewedAt)
     manager.replaceTrainableRepertoires(newPosition, setOf("italian-game"), lastReview = null)
 
-    val snapshot = manager.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
+    val snapshot =
+      manager.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
 
-    snapshot shouldBe RepertoireMasterySnapshot(solidCount = 1, totalCount = 2, lastReview = reviewedAt)
+    snapshot shouldBe
+      RepertoireMasterySnapshot(solidCount = 1, totalCount = 2, lastReview = reviewedAt)
   }
 
   @Test
   fun getRepertoireMasterySnapshotsReturnsAZeroSnapshotForARepertoireWithNoTrainablePosition() =
     runTest {
-      manager.getRepertoireMasterySnapshots(listOf("empty-repertoire")).getValue("empty-repertoire") shouldBe
-        RepertoireMasterySnapshot(0, 0, null)
+      manager
+        .getRepertoireMasterySnapshots(listOf("empty-repertoire"))
+        .getValue("empty-repertoire") shouldBe RepertoireMasterySnapshot(0, 0, null)
     }
 
   @Test
@@ -88,7 +95,13 @@ class TestRoomRepertoireMastery {
     )
     manager.replaceTrainableRepertoires(position, setOf("italian-game"), reviewedAt)
 
-    manager.deletePosition(position, DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(3_000))
+    manager.deletePosition(
+      position,
+      DeleteMode.SOFT,
+      "device-a",
+      1L,
+      Instant.fromEpochSeconds(3_000),
+    )
 
     manager.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game") shouldBe
       RepertoireMasterySnapshot(0, 0, null)

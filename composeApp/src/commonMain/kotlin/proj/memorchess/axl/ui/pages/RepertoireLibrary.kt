@@ -286,7 +286,9 @@ private fun MyRepertoireRow(
       KineticButton(onClick = { onExplore(id) }) {
         KineticButtonLabel(stringResource(Res.string.library_explore))
       }
-      KineticButton(onClick = { onTrain(id) }) { KineticButtonLabel(stringResource(Res.string.library_train)) }
+      KineticButton(onClick = { onTrain(id) }) {
+        KineticButtonLabel(stringResource(Res.string.library_train))
+      }
     }
   }
 }
