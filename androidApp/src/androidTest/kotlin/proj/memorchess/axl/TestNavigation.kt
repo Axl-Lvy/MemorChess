@@ -34,6 +34,10 @@ class TestNavigation {
 
   @Test
   fun testGoToTraining() {
+    // TodayRoute is the NavHost start destination, so the Training tab is already active on
+    // launch and tapping it there would be a no-op. Start from Explore instead, so the tap below
+    // is a real navigation.
+    this.clickOnDestinationButton(Route.ExploreRoute.DEFAULT)
     // The Training tab now lands on Today first (see Route.TodayRoute), not the board directly.
     this.clickOnDestinationButton(Route.TodayRoute)
     assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TodayRoute.getLabel()}")

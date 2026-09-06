@@ -77,5 +77,17 @@ enum class NavigationBarItemContent(
           ),
       )
     },
-  ),
+  );
+
+  /**
+   * Route labels this item is active for. [Training] owns both [Route.TodayRoute] (the tab's own
+   * destination) and [Route.TrainingRoute] (the board pushed from Today's "Start review" CTA), so
+   * the tab stays highlighted for the whole duration of a review session.
+   */
+  val ownedRouteLabels: Set<String>
+    get() =
+      when (this) {
+        Training -> setOf(destination.getLabel(), Route.TrainingRoute.DEFAULT.getLabel())
+        else -> setOf(destination.getLabel())
+      }
 }

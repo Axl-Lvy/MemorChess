@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,12 +62,10 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-// Every dimension below is a placeholder, not an artboard read: screens `1a`/`1g`/`1m` of the
-// design canvas (`claude.ai/design/p/db4f236e-b602-4b5f-bcbb-a4cf70525664`) could not be reached
-// from this sandboxed environment (no authenticated browser session, no design-system project
-// access for this file — every access path attempted is listed in the commit body). Each constant
-// below instead cites the closest existing Kinetic value it reuses, per the spec's own fallback
-// rule. All of them need a pass against the real artboard before merge.
+// Every dimension below is a placeholder rather than a design canvas read
+// (`claude.ai/design/p/db4f236e-b602-4b5f-bcbb-a4cf70525664`), which this sandboxed environment
+// could not reach. Each constant instead cites the closest existing Kinetic value it reuses, per
+// the spec's own fallback rule, and should get a pass against the real artboard once reachable.
 
 /** Size of one week-strip day cell. Not read off an artboard; see the file header note. */
 private val WEEK_CELL_SIZE = 40.dp
@@ -83,16 +83,16 @@ private val WEEK_CELL_GAP = 8.dp
 private val WEEK_CELL_SHAPE = RoundedCornerShape(10.dp)
 
 /**
- * Visual state of one week-strip cell.
+ * Visual state of one week strip cell.
  *
- * Proposed as the 4-value shape pending sign-off against the mockup (see the commit body): a
- * distinct [MISSED] arm for a past day with no review, and [TODAY] always winning over [DONE] even
- * once today has been reviewed — today's own done-ness is communicated by the streak badge and the
- * goal ring instead, so the strip does not double-encode it. If a future design review finds the
- * mockup shows only three states, [MISSED] collapses into the same unfilled treatment as [FUTURE]
- * for past days.
+ * Modeled as four states rather than the three named in the spec. [MISSED] is a distinct arm for a
+ * past day with no review, and [TODAY] always wins over [DONE] even once today has been reviewed,
+ * because today's own done state is already communicated by the streak badge and the goal ring, so
+ * the strip does not double encode it. This is a deliberate deviation pending design confirmation.
+ * If a review finds the mockup shows only three states, [MISSED] should collapse into [FUTURE]'s
+ * unfilled treatment.
  */
-internal enum class WeekCellState {
+private enum class WeekCellState {
   DONE,
   MISSED,
   TODAY,
@@ -100,15 +100,14 @@ internal enum class WeekCellState {
 }
 
 /**
- * Classifies one week-strip cell at [isoIndex] (`1` Monday .. `7` Sunday), given [todayIsoIndex]
+ * Classifies one week strip cell at [isoIndex] (`1` Monday .. `7` Sunday), given [todayIsoIndex]
  * and whether that date counts towards the streak ([active]).
  *
- * A pure function so every arm gets its own direct assertion regardless of which real calendar day
- * a test happens to run on — [DateUtil.today] has no test override, so a full four-arm sample is
- * only ever available at test time by picking `todayIsoIndex` explicitly rather than depending on
- * the day the suite runs.
+ * [todayIsoIndex] is a parameter rather than a direct [DateUtil.today] read, so [WeekStrip] (and
+ * anything driving it) can be exercised for every arm regardless of which real calendar day a test
+ * happens to run on.
  */
-internal fun classifyWeekCell(isoIndex: Int, todayIsoIndex: Int, active: Boolean): WeekCellState =
+private fun classifyWeekCell(isoIndex: Int, todayIsoIndex: Int, active: Boolean): WeekCellState =
   when {
     isoIndex == todayIsoIndex -> WeekCellState.TODAY
     isoIndex > todayIsoIndex -> WeekCellState.FUTURE
@@ -258,16 +257,23 @@ private fun StreakBadge(streak: Int) {
       style = typography.displayLg.copy(fontSize = 26.sp, color = palette.onStreak),
     )
     Text(
-      text = stringResource(Res.string.today_streak_label),
+      text = pluralStringResource(Res.plurals.today_streak_label, streak),
       maxLines = 1,
       style = typography.labelSm.copy(fontWeight = FontWeight.Black, color = palette.onStreak),
     )
   }
 }
 
-/** Seven cells, Monday to Sunday, showing this ISO week's activity against [todayIsoIndex]. */
+/**
+ * Seven cells, Monday to Sunday, showing this ISO week's activity against [todayIsoIndex].
+ *
+ * [todayIsoIndex] is supplied by the caller rather than read from [DateUtil] directly, which lets a
+ * test drive every [classifyWeekCell] arm through this composable for a chosen day, without a test
+ * override on [DateUtil.today]. Each cell reports its classification as a semantics state
+ * description (`"DONE"`/`"MISSED"`/`"TODAY"`/`"FUTURE"`) for exactly that purpose.
+ */
 @Composable
-private fun WeekStrip(week: List<Boolean>, todayIsoIndex: Int) {
+internal fun WeekStrip(week: List<Boolean>, todayIsoIndex: Int) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   Row(
@@ -294,6 +300,7 @@ private fun WeekStrip(week: List<Boolean>, todayIsoIndex: Int) {
         modifier =
           Modifier.size(WEEK_CELL_SIZE)
             .testTag("today_week_cell_$isoIndex")
+            .semantics { stateDescription = state.name }
             .clip(WEEK_CELL_SHAPE)
             .background(background),
         contentAlignment = Alignment.Center,
@@ -322,6 +329,10 @@ private fun GoalSection(stats: TodayStats) {
         else stringResource(Res.string.today_goal_done, stats.done),
       maxLines = 1,
       overflow = TextOverflow.Clip,
+      modifier =
+        Modifier.testTag(
+          if (stats.target > 0) "today_goal_label_progress" else "today_goal_label_done"
+        ),
       style = typography.display.copy(color = palette.ink),
     )
   }
@@ -336,7 +347,13 @@ private fun StartReviewCta(pendingCount: Int, onClick: () -> Unit) {
     large = true,
     modifier = Modifier.fillMaxWidth().testTag("today_cta"),
   ) {
-    Text(pluralStringResource(Res.plurals.today_start_review_cta, pendingCount, pendingCount))
+    Text(
+      text = pluralStringResource(Res.plurals.today_start_review_cta, pendingCount, pendingCount),
+      // Tagged with the count itself, not just a static tag. This lets tests pin the plural
+      // boundary (1 vs 2+) without asserting on the localized text, which is not pinned to
+      // English on CI.
+      modifier = Modifier.testTag("today_cta_pending_count_$pendingCount"),
+    )
   }
 }
 

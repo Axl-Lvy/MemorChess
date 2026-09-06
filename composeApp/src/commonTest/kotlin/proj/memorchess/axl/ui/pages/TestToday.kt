@@ -1,8 +1,11 @@
 package proj.memorchess.axl.ui.pages
 
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertRangeInfoEquals
 import androidx.compose.ui.test.hasTestTag
@@ -54,8 +57,13 @@ private class NeverReturningDailyActivityStore : DailyActivityStore {
  * Every dependency besides Koin is built by hand and passed explicitly, matching
  * `TestKineticSideBar`'s style. [TestWithKoin] is needed here (unlike `TestKineticSideBar`) because
  * the CTA is a real `KineticButton`, whose press animation reads the reduce-motion setting through
- * Koin on first press — the same reason `TestKineticBottomNav` keeps its whole class on
+ * Koin on first press. That is the same reason `TestKineticBottomNav` keeps its whole class on
  * `TestWithKoin` rather than splitting it.
+ *
+ * The goal ring and CTA plural assertions go through test tags carrying the underlying number
+ * (`today_goal_label_done`/`today_goal_label_progress`, `today_cta_pending_count_N`) rather than
+ * matching resource text. The resource locale is not fixed on CI, so a text assertion would be
+ * flaky by construction, matching `TestKineticBottomNav`'s own rule.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestToday : TestWithKoin() {
@@ -141,7 +149,9 @@ class TestToday : TestWithKoin() {
     waitUntilAtLeastOneExists(hasTestTag("today_goal_ring"))
     onNodeWithTag("today_goal_ring").assertRangeInfoEquals(ProgressBarRangeInfo(1f, 0f..1f))
     onNodeWithTag("today_cta").assertIsDisplayed()
-    onNode(hasText("0 cards", substring = true)).assertIsDisplayed()
+    // KineticButton merges its subtree's semantics, so the count tag on the label inside it is
+    // only visible via the unmerged tree.
+    onNodeWithTag("today_cta_pending_count_0", useUnmergedTree = true).assertIsDisplayed()
 
     onNodeWithTag("today_cta").performClick()
 
@@ -156,7 +166,8 @@ class TestToday : TestWithKoin() {
 
     waitUntilAtLeastOneExists(hasTestTag("today_goal_ring"))
     onNodeWithTag("today_goal_ring").assertRangeInfoEquals(ProgressBarRangeInfo(0f, 0f..1f))
-    onNode(hasText("0 done", substring = true)).assertIsDisplayed()
+    onNodeWithTag("today_goal_label_done").assertIsDisplayed()
+    onNodeWithTag("today_goal_label_progress").assertDoesNotExist()
   }
 
   // PICK UP CARD — no repertoires installed vs. a populated repertoire
@@ -202,7 +213,8 @@ class TestToday : TestWithKoin() {
     schedulerOver(database).pendingCount() shouldBe 1
     setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
 
-    waitUntilAtLeastOneExists(hasText("Start review · 1 card"))
+    waitUntilAtLeastOneExists(hasTestTag("today_cta"))
+    onNodeWithTag("today_cta_pending_count_1", useUnmergedTree = true).assertIsDisplayed()
   }
 
   @Test
@@ -212,54 +224,91 @@ class TestToday : TestWithKoin() {
     schedulerOver(database).pendingCount() shouldBe 2
     setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
 
-    waitUntilAtLeastOneExists(hasText("Start review · 2 cards"))
+    waitUntilAtLeastOneExists(hasTestTag("today_cta"))
+    onNodeWithTag("today_cta_pending_count_2", useUnmergedTree = true).assertIsDisplayed()
   }
 
-  // WEEK CELL CLASSIFICATION — every arm, independent of which real day the suite runs on
+  // WEEK CELL CLASSIFICATION — every arm, independent of which real day the suite runs on.
+  // Drives WeekStrip (an internal, testable seam) directly with a chosen todayIsoIndex, rather
+  // than calling the page-private classifyWeekCell, and reads the classification back off each
+  // cell's semantics state description instead of its (locale dependent) background colour.
 
-  @Test
-  fun aPastActiveDayIsDone() {
-    classifyWeekCell(isoIndex = 2, todayIsoIndex = 4, active = true) shouldBe WeekCellState.DONE
+  private fun ComposeUiTest.setWeekStrip(week: List<Boolean>, todayIsoIndex: Int) {
+    setContent { InitializeApp { WeekStrip(week = week, todayIsoIndex = todayIsoIndex) } }
   }
 
-  @Test
-  fun aPastInactiveDayIsMissed() {
-    classifyWeekCell(isoIndex = 2, todayIsoIndex = 4, active = false) shouldBe WeekCellState.MISSED
+  /** A 7 day week with every isoIndex in [activeIsoIndices] marked active, the rest inactive. */
+  private fun weekOf(vararg activeIsoIndices: Int): List<Boolean> {
+    val active = activeIsoIndices.toSet()
+    return (1..7).map { it in active }
   }
 
-  @Test
-  fun todayIsAlwaysTodayEvenWhenAlreadyActive() {
-    classifyWeekCell(isoIndex = 4, todayIsoIndex = 4, active = true) shouldBe WeekCellState.TODAY
-  }
+  private fun hasWeekCellState(state: String) =
+    SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, state)
 
   @Test
-  fun todayIsAlwaysTodayWhenNotYetActive() {
-    classifyWeekCell(isoIndex = 4, todayIsoIndex = 4, active = false) shouldBe WeekCellState.TODAY
-  }
+  fun aPastActiveDayIsDone() = runTestFromSetup {
+    setWeekStrip(week = weekOf(2), todayIsoIndex = 4)
 
-  @Test
-  fun aFutureDayIsFutureRegardlessOfItsStoredActivity() {
-    classifyWeekCell(isoIndex = 6, todayIsoIndex = 4, active = true) shouldBe WeekCellState.FUTURE
-    classifyWeekCell(isoIndex = 6, todayIsoIndex = 4, active = false) shouldBe WeekCellState.FUTURE
+    onNodeWithTag("today_week_cell_2").assert(hasWeekCellState("DONE"))
   }
 
   @Test
-  fun mondayBoundaryHasNoPastDayLeftFuture() {
+  fun aPastInactiveDayIsMissed() = runTestFromSetup {
+    setWeekStrip(week = weekOf(), todayIsoIndex = 4)
+
+    onNodeWithTag("today_week_cell_2").assert(hasWeekCellState("MISSED"))
+  }
+
+  @Test
+  fun todayIsAlwaysTodayEvenWhenAlreadyActive() = runTestFromSetup {
+    setWeekStrip(week = weekOf(4), todayIsoIndex = 4)
+
+    onNodeWithTag("today_week_cell_4").assert(hasWeekCellState("TODAY"))
+  }
+
+  @Test
+  fun todayIsAlwaysTodayWhenNotYetActive() = runTestFromSetup {
+    setWeekStrip(week = weekOf(), todayIsoIndex = 4)
+
+    onNodeWithTag("today_week_cell_4").assert(hasWeekCellState("TODAY"))
+  }
+
+  @Test
+  fun aFutureActiveDayIsStillFuture() = runTestFromSetup {
+    setWeekStrip(week = weekOf(6), todayIsoIndex = 4)
+
+    onNodeWithTag("today_week_cell_6").assert(hasWeekCellState("FUTURE"))
+  }
+
+  @Test
+  fun aFutureInactiveDayIsFuture() = runTestFromSetup {
+    setWeekStrip(week = weekOf(), todayIsoIndex = 4)
+
+    onNodeWithTag("today_week_cell_6").assert(hasWeekCellState("FUTURE"))
+  }
+
+  @Test
+  fun mondayBoundaryHasNoPastDayLeftFuture() = runTestFromSetup {
     // Today is Monday (isoIndex 1): every other day of the week is FUTURE, none can be
-    // DONE/MISSED — the boundary the spec calls out explicitly.
+    // DONE/MISSED, the boundary the spec calls out explicitly.
+    setWeekStrip(week = weekOf(), todayIsoIndex = 1)
+
     (2..7).forEach { isoIndex ->
-      classifyWeekCell(isoIndex, todayIsoIndex = 1, active = false) shouldBe WeekCellState.FUTURE
+      onNodeWithTag("today_week_cell_$isoIndex").assert(hasWeekCellState("FUTURE"))
     }
-    classifyWeekCell(isoIndex = 1, todayIsoIndex = 1, active = false) shouldBe WeekCellState.TODAY
+    onNodeWithTag("today_week_cell_1").assert(hasWeekCellState("TODAY"))
   }
 
   @Test
-  fun sundayBoundaryHasNoFutureDayLeft() {
+  fun sundayBoundaryHasNoFutureDayLeft() = runTestFromSetup {
     // Today is Sunday (isoIndex 7): every other day is in the past, none can be FUTURE.
+    setWeekStrip(week = weekOf(7), todayIsoIndex = 7)
+
     (1..6).forEach { isoIndex ->
-      classifyWeekCell(isoIndex, todayIsoIndex = 7, active = false) shouldBe WeekCellState.MISSED
+      onNodeWithTag("today_week_cell_$isoIndex").assert(hasWeekCellState("MISSED"))
     }
-    classifyWeekCell(isoIndex = 7, todayIsoIndex = 7, active = true) shouldBe WeekCellState.TODAY
+    onNodeWithTag("today_week_cell_7").assert(hasWeekCellState("TODAY"))
   }
 
   // LOADING CONTRACT

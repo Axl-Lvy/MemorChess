@@ -98,6 +98,7 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
                 (labelByRouteKey[entry.destination.getLabel()] ?: entry.destination.getLabel())
                   .uppercase(),
               number = (entry.index + 1).toString().padStart(2, '0'),
+              ownedRoutes = entry.ownedRouteLabels,
             )
           }
         }

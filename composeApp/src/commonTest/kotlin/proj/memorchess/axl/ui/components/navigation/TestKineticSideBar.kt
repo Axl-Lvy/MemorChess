@@ -38,6 +38,7 @@ import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
+import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.setKineticContent
 
 /** Per-row test tag, mirroring the shape of the caller-supplied production tags. */
@@ -305,6 +306,23 @@ internal class TestKineticSideBar {
   fun activeRowIsSelected() = runComposeUiTest {
     val store = InMemoryDailyActivityStore()
     setRail(StreakTracker(store), schedulerOver(dbWithDueCards(0)))
+
+    onNodeWithTag(rowTag(NavigationBarItemContent.Training)).assertIsSelected()
+    items
+      .filter { it != NavigationBarItemContent.Training }
+      .forEach { onNodeWithTag(rowTag(it)).assertIsNotSelected() }
+  }
+
+  @Test
+  fun trainingRowStaysSelectedOnThePushedTrainingBoard() = runComposeUiTest {
+    // Training's destination is TodayRoute, but the row must also stay selected once the pushed
+    // TrainingRoute board is on screen, not just on the Today dashboard itself.
+    val store = InMemoryDailyActivityStore()
+    setRail(
+      StreakTracker(store),
+      schedulerOver(dbWithDueCards(0)),
+      currentRoute = Route.TrainingRoute.DEFAULT.getLabel(),
+    )
 
     onNodeWithTag(rowTag(NavigationBarItemContent.Training)).assertIsSelected()
     items

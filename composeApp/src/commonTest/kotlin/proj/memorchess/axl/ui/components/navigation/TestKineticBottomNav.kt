@@ -86,6 +86,18 @@ internal class TestKineticBottomNav : TestWithKoin() {
   }
 
   @Test
+  fun trainingCellStaysSelectedOnThePushedTrainingBoard() = runTestFromSetup {
+    // Training's destination is TodayRoute, but the tab must also stay selected once the pushed
+    // TrainingRoute board is on screen, not just on the Today dashboard itself.
+    setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
+
+    onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
+    items
+      .filter { it != NavigationBarItemContent.Training }
+      .forEach { onNodeWithTag(tagOf(it)).assertIsNotSelected() }
+  }
+
+  @Test
   fun activeCellFollowsCurrentRoute() = runTestFromSetup {
     val route = mutableStateOf(NavigationBarItemContent.Training.destination.getLabel())
     setContent {

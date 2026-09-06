@@ -253,7 +253,10 @@
   <string name="repertoire_view_not_found">Le répertoire \"%1$s\" n'est plus dans le catalogue.</string>
 
   <!-- Navigation: side rail -->
-  <string name="side_rail_day_streak">JOURS D'AFFILÉE</string>
+  <plurals name="side_rail_day_streak">
+    <item quantity="one">JOUR D'AFFILÉE</item>
+    <item quantity="other">JOURS D'AFFILÉE</item>
+  </plurals>
   <string name="side_rail_today_progress">%1$d/%2$d aujourd'hui</string>
   <string name="side_rail_today_done">%1$d aujourd'hui</string>
 
@@ -266,7 +269,10 @@
   <string name="today_weekday_friday">Vendredi</string>
   <string name="today_weekday_saturday">Samedi</string>
   <string name="today_weekday_sunday">Dimanche</string>
-  <string name="today_streak_label">jours d'affilée</string>
+  <plurals name="today_streak_label">
+    <item quantity="one">jour d'affilée</item>
+    <item quantity="other">jours d'affilée</item>
+  </plurals>
   <string name="today_goal_progress">%1$d sur %2$d</string>
   <string name="today_goal_done">%1$d fait</string>
   <plurals name="today_start_review_cta">

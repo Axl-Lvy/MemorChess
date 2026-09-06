@@ -18,38 +18,26 @@ import kotlin.math.sin
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
 /**
- * Outer diameter of the ring.
- *
- * NOT read off an artboard: screens `1a`/`1g`/`1m` of the design canvas
- * (`claude.ai/design/p/db4f236e-b602-4b5f-bcbb-a4cf70525664`) could not be reached from this
- * sandboxed environment (no authenticated browser session, no design-system project access — see
- * the commit body for every access path attempted). Chosen to read as a hero-sized dashboard
- * centerpiece; needs a pass against the real artboard before merge.
+ * Outer diameter of the ring. Not read off the design canvas, which this sandbox could not reach.
+ * Sized to read as a bold dashboard centerpiece pending a design pass.
  */
 private val RING_DIAMETER = 120.dp
 
 /**
- * Stroke width of both the track and the progress arc.
- *
- * Reused verbatim from [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s
- * `RAIL_HEIGHT` (10.dp) rather than an artboard read (see [RING_DIAMETER]'s note), so the ring's
- * line weight stays consistent with the rail's.
+ * Stroke width of both the track and the progress arc, matching
+ * [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s height.
  */
 private val RING_STROKE_WIDTH = 10.dp
 
 /**
- * Radius of the soft glow halo at the progress tip.
- *
- * Reused verbatim from [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker
- * glow (a 12.dp diameter halo) rather than an artboard read (see [RING_DIAMETER]'s note).
+ * Radius of the soft glow halo at the progress tip, matching
+ * [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker glow.
  */
 private val TIP_GLOW_RADIUS = 6.dp
 
 /**
- * Radius of the solid dot at the progress tip.
- *
- * Reused verbatim from [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker
- * dot (an 8.dp diameter dot) rather than an artboard read (see [RING_DIAMETER]'s note).
+ * Radius of the solid dot at the progress tip, matching
+ * [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker dot.
  */
 private val TIP_DOT_RADIUS = 4.dp
 
