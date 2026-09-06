@@ -284,6 +284,21 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
+  fun playMoveOnAnIllegalSanDoesNotCrash() = test {
+    val startPosition = interactionsManager.engine.toPositionKey()
+
+    // Simulates a move suggested by an external source (e.g. the Lichess opening explorer panel)
+    // that does not apply to the current position.
+    interactionsManager.playMove("Qxe4")
+
+    assertEquals(
+      startPosition,
+      interactionsManager.engine.toPositionKey(),
+      "An illegal move must be rejected, not applied.",
+    )
+  }
+
+  @Test
   fun getNextMovesIsUnaffectedByScopeWhenUnscoped() = test {
     val origin = PositionKey.START_POSITION
     interactionsManager.playMove("e4")
