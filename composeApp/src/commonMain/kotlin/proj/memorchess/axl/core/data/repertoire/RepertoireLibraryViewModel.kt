@@ -23,8 +23,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * The catalog and install collaborators are injected as suspending functions rather than concrete
  * classes so tests can substitute trivial fakes. Production wiring binds them to
  * [CachedRepertoireCatalog.getManifest], [RepertoireCatalogClient.fetchPgn],
- * [proj.memorchess.axl.core.pgn.PgnImporter.import] and
- * [proj.memorchess.axl.core.pgn.PgnImporter.preview].
+ * [proj.memorchess.axl.core.pgn.PgnImporter.import],
+ * [proj.memorchess.axl.core.pgn.PgnImporter.preview] and [RepertoireCatalogClient.reportInstall].
  *
  * Reentrancy: [refresh] is ignored while a load is in flight, [install] is ignored only while a
  * fetch or import for the same repertoire is in flight (an installed repertoire may be
@@ -45,6 +45,10 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *   [RepertoireInstallState.Importing] is updated.
  * @param previewGames Computes, without writing anything, how much of the repertoire the user
  *   already has from the repertoire's [RepertoireColor] perspective.
+ * @param reportInstall Reports one completed first install of the given repertoire id, feeding the
+ *   catalog's anonymous popularity counter (see [RepertoireDescriptor.downloadCount]'s KDoc). Must
+ *   never throw; production wiring binds [RepertoireCatalogClient.reportInstall], which satisfies
+ *   that by design.
  * @param installedStore Records which repertoires are installed on this device.
  * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
  *   normally through [proj.memorchess.axl.core.graph.TreeStore.repertoires].
@@ -62,6 +66,7 @@ class RepertoireLibraryViewModel(
     ) -> PgnImportSummary,
   private val previewGames:
     suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportPreview,
+  private val reportInstall: suspend (id: String) -> Unit,
   private val installedStore: InstalledRepertoireStore,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val scope: CoroutineScope,
@@ -193,6 +198,9 @@ class RepertoireLibraryViewModel(
         fail(descriptor.id, it)
       } ?: return
     setInstallState(descriptor.id, RepertoireInstallState.Importing(0f))
+    // Read before markInstalled flips it, so a reinstall of an already-installed repertoire is
+    // never counted as a second install of it.
+    val isFirstInstall = !installedStore.isInstalled(descriptor.id)
     val summary =
       try {
         val importSummary =
@@ -208,7 +216,13 @@ class RepertoireLibraryViewModel(
         fail(descriptor.id, InstallError.ImportFailed(e.message ?: "Import failed"))
         return
       }
+    // Installed is published before the best-effort telemetry call below, not after: reportInstall
+    // suspends on a network round trip, and the bar must never sit at 100% under "Importing…"
+    // waiting on that when the install itself is already done.
     setInstallState(descriptor.id, RepertoireInstallState.Installed(summary))
+    if (isFirstInstall) {
+      reportInstall(descriptor.id)
+    }
   }
 
   private suspend fun runPreview(descriptor: RepertoireDescriptor) {
