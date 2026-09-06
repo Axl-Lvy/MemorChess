@@ -1,9 +1,18 @@
 package proj.memorchess.axl.ui.repertoire
 
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertRangeInfoEquals
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.ktor.client.HttpClient
@@ -12,16 +21,20 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
+import proj.memorchess.axl.core.data.repertoire.InstallError
 import proj.memorchess.axl.core.data.repertoire.LibraryCatalogState
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireInstallState
 import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
+import proj.memorchess.axl.core.data.repertoire.placeholderRepertoireMastery
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
+import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertTileContainsPiece
 import proj.memorchess.axl.ui.assertTileIsEmpty
@@ -45,6 +58,34 @@ class TestRepertoireView : TestWithKoin() {
       moveCount = 3,
       file = "pgn/test.pgn",
     )
+
+  /**
+   * A second WHITE fixture, used whenever a test needs to tell "the hero" apart from "the card".
+   */
+  private val secondDescriptor =
+    RepertoireDescriptor(
+      id = "test-rep-2",
+      name = "Second Repertoire",
+      color = RepertoireColor.WHITE,
+      description = "Another tiny repertoire.",
+      moveCount = 5,
+      file = "pgn/test2.pgn",
+    )
+
+  /** A BLACK fixture, used to exercise the color filter chips against a mixed catalog. */
+  private val blackDescriptor =
+    RepertoireDescriptor(
+      id = "test-rep-black",
+      name = "Black Repertoire",
+      color = RepertoireColor.BLACK,
+      description = "A black repertoire.",
+      moveCount = 4,
+      file = "pgn/testblack.pgn",
+    )
+
+  private fun cardTag(d: RepertoireDescriptor) = "library_repertoire_card:${d.id}"
+
+  private fun progressTag(d: RepertoireDescriptor) = "library_progress:${d.id}"
 
   /** Catalog + client backed by a [MockEngine] serving a one line manifest and PGN. */
   private fun mockCatalog(
@@ -79,6 +120,42 @@ class TestRepertoireView : TestWithKoin() {
       block()
     } finally {
       koinTearDown()
+    }
+  }
+
+  /** Runs a [RepertoireLibraryContent] test with Koin set up and torn down around [block]. */
+  private fun runLibraryTest(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
+    koinSetUp()
+    try {
+      block()
+    } finally {
+      koinTearDown()
+    }
+  }
+
+  /** Renders [RepertoireLibraryContent] with the given state, recording actions by default. */
+  private fun ComposeUiTest.setLibraryContent(
+    catalogState: LibraryCatalogState,
+    installStates: Map<String, RepertoireInstallState> = emptyMap(),
+    onInstall: (RepertoireDescriptor) -> Unit = {},
+    onRetry: () -> Unit = {},
+    onView: (RepertoireDescriptor) -> Unit = {},
+  ) {
+    setContent {
+      InitializeApp {
+        RepertoireLibraryContent(
+          catalogState = catalogState,
+          installStates = installStates,
+          previewStates = emptyMap<String, RepertoirePreviewState>(),
+          actions =
+            RepertoireLibraryActions(
+              onInstall = onInstall,
+              onPreviewRequest = {},
+              onRetry = onRetry,
+              onView = onView,
+            ),
+        )
+      }
     }
   }
 
@@ -132,5 +209,335 @@ class TestRepertoireView : TestWithKoin() {
     } finally {
       koinTearDown()
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // LibraryCatalogState coverage
+  // ---------------------------------------------------------------------------------------------
+
+  @Test
+  fun loadingStateShowsSkeletons() = runLibraryTest {
+    setLibraryContent(catalogState = LibraryCatalogState.Loading)
+    onAllNodesWithTag("library_catalog_skeleton").assertCountEquals(3)
+    onNodeWithTag(cardTag(descriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun networkErrorShowsRetry() = runLibraryTest {
+    var retried = false
+    setLibraryContent(
+      catalogState = LibraryCatalogState.NetworkError("boom"),
+      onRetry = { retried = true },
+    )
+    onNodeWithText("RETRY").performClick()
+    assertTrue(retried)
+  }
+
+  @Test
+  fun httpErrorShowsRetry() = runLibraryTest {
+    var retried = false
+    setLibraryContent(
+      catalogState = LibraryCatalogState.HttpError(503),
+      onRetry = { retried = true },
+    )
+    onNodeWithText("RETRY").performClick()
+    assertTrue(retried)
+  }
+
+  @Test
+  fun malformedManifestShowsRetry() = runLibraryTest {
+    var retried = false
+    setLibraryContent(
+      catalogState = LibraryCatalogState.MalformedManifest("bad json"),
+      onRetry = { retried = true },
+    )
+    onNodeWithText("RETRY").performClick()
+    assertTrue(retried)
+  }
+
+  @Test
+  fun loadedEmptyShowsEmptyMessage() = runLibraryTest {
+    setLibraryContent(catalogState = LibraryCatalogState.Loaded(emptyList(), isStale = false))
+    onNodeWithText("The catalog is empty for now. Check back later.").assertExists()
+    onNodeWithTag("library_hero_card").assertDoesNotExist()
+    onNodeWithTag("library_filter_chip:all").assertDoesNotExist()
+  }
+
+  @Test
+  fun loadedStaleShowsStaleHint() = runLibraryTest {
+    setLibraryContent(catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = true))
+    onNodeWithText("Showing a previously downloaded catalog. It may be out of date.").assertExists()
+    onNodeWithTag("library_hero_card").assertExists()
+    onNodeWithTag(cardTag(descriptor)).assertExists()
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // RepertoireInstallState coverage. Every case here uses a two entry catalog so the hero (which
+  // always picks the first entry, `descriptor`) never collides on name or tag with the card under
+  // test (`secondDescriptor`).
+  // ---------------------------------------------------------------------------------------------
+
+  @Test
+  fun notInstalledShowsInstallButtonAndNewBadge() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = emptyMap(),
+    )
+    onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNode(hasText("NEW").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor))))).assertExists()
+    onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun fetchingShowsThirtyPercentProgress() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching),
+    )
+    onNodeWithTag(progressTag(secondDescriptor))
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
+    onNode(hasText("Downloading…").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+  }
+
+  @Test
+  fun importingShowsHundredPercentProgress() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing),
+    )
+    onNodeWithTag(progressTag(secondDescriptor))
+      .assertRangeInfoEquals(ProgressBarRangeInfo(1.00f, 0f..1f))
+    onNode(hasText("Importing…").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+  }
+
+  @Test
+  fun installedWithSummaryShowsSummaryAndInTrainingBadge() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to
+            RepertoireInstallState.Installed(
+              summary = PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2)
+            )
+        ),
+    )
+    onNodeWithText("Moves added: 5 · Already present: 2").assertExists()
+    onNode(hasText("IN TRAINING").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNodeWithTag(progressTag(secondDescriptor))
+      .assertRangeInfoEquals(
+        ProgressBarRangeInfo(placeholderRepertoireMastery().solidPercent / 100f, 0f..1f)
+      )
+  }
+
+  @Test
+  fun installedWithNullSummaryShowsNoSummaryButInTrainingBadge() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNode(hasText("IN TRAINING").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNodeWithText("Moves added:", substring = true).assertDoesNotExist()
+  }
+
+  @Test
+  fun failedNetworkShowsErrorAndInstallRetry() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to RepertoireInstallState.Failed(InstallError.Network("offline"))
+        ),
+    )
+    onNodeWithText("Download failed: offline").assertExists()
+    onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun failedHttpShowsErrorAndInstallRetry() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Failed(InstallError.Http(500))),
+    )
+    onNodeWithText("Download failed with HTTP error 500.").assertExists()
+    onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun failedMalformedPgnShowsErrorAndInstallRetry() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to RepertoireInstallState.Failed(InstallError.MalformedPgn("bad pgn"))
+        ),
+    )
+    onNodeWithText("This repertoire file could not be read: bad pgn").assertExists()
+    onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun failedImportShowsErrorAndInstallRetry() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to
+            RepertoireInstallState.Failed(InstallError.ImportFailed("import blew up"))
+        ),
+    )
+    onNodeWithText("Import failed: import blew up").assertExists()
+    onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun heroIgnoresItsOwnInstalledState() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(descriptor.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNodeWithTag("library_hero_card").assertExists()
+    onNode(hasText("PICKED FOR YOU").and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+    // The CTA's Text child merges into the KineticButton's own semantics node, so the tagged node
+    // itself carries both the tag and the label rather than the label living on a separate
+    // descendant.
+    onNode(hasTestTag("library_hero_card:cta").and(hasText("Add to my training"))).assertExists()
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Filter chip coverage
+  // ---------------------------------------------------------------------------------------------
+
+  @Test
+  fun filterChipsShowLiveCountsForMixedCatalog() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(
+          listOf(descriptor, secondDescriptor, blackDescriptor),
+          isStale = false,
+        )
+    )
+    onNodeWithTag("library_filter_chip:all").assertTextEquals("All 3")
+    onNodeWithTag("library_filter_chip:white").assertTextEquals("White 2")
+    onNodeWithTag("library_filter_chip:black").assertTextEquals("Black 1")
+  }
+
+  @Test
+  fun filterChipsShowZeroCountForAbsentColorEdgeCase() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+    )
+    onNodeWithTag("library_filter_chip:black").assertExists().assertTextEquals("Black 0")
+  }
+
+  @Test
+  fun selectingWhiteChipFiltersToWhiteOnly() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(
+          listOf(descriptor, secondDescriptor, blackDescriptor),
+          isStale = false,
+        )
+    )
+    onNodeWithTag("library_filter_chip:white").performClick()
+    onNodeWithTag(cardTag(descriptor)).assertExists()
+    onNodeWithTag(cardTag(secondDescriptor)).assertExists()
+    onNodeWithTag(cardTag(blackDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun selectingBlackChipFiltersToBlackOnly() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(
+          listOf(descriptor, secondDescriptor, blackDescriptor),
+          isStale = false,
+        )
+    )
+    onNodeWithTag("library_filter_chip:black").performClick()
+    onNodeWithTag(cardTag(blackDescriptor)).assertExists()
+    onNodeWithTag(cardTag(descriptor)).assertDoesNotExist()
+    onNodeWithTag(cardTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun selectingMineChipFiltersToInstalledOnly() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(
+          listOf(descriptor, secondDescriptor, blackDescriptor),
+          isStale = false,
+        ),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNodeWithTag("library_filter_chip:mine").performClick()
+    onNodeWithTag(cardTag(secondDescriptor)).assertExists()
+    onNodeWithTag(cardTag(descriptor)).assertDoesNotExist()
+    onNodeWithTag(cardTag(blackDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun allChipShowsEveryRepertoireByDefault() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(
+          listOf(descriptor, secondDescriptor, blackDescriptor),
+          isStale = false,
+        )
+    )
+    onNodeWithTag(cardTag(descriptor)).assertExists()
+    onNodeWithTag(cardTag(secondDescriptor)).assertExists()
+    onNodeWithTag(cardTag(blackDescriptor)).assertExists()
+  }
+
+  @Test
+  fun selectingChipWithZeroMatchesShowsEmptyFilterMessage() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+    )
+    onNodeWithTag("library_filter_chip:black").performClick()
+    onNodeWithTag("library_filter_empty").assertExists()
+    onNodeWithTag(cardTag(descriptor)).assertDoesNotExist()
+    onNodeWithTag(cardTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun selectingMineChipWithNothingInstalledShowsEmptyFilterMessage() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = emptyMap(),
+    )
+    onNodeWithTag("library_filter_chip:mine").performClick()
+    onNodeWithTag("library_filter_empty").assertExists()
   }
 }
