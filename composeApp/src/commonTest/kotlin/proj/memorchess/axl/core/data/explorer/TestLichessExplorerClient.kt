@@ -70,6 +70,26 @@ class TestLichessExplorerClient {
   }
 
   @Test
+  fun userAgentHeaderMatchesPlatformValue() = runTest {
+    var sentUserAgent: String? = null
+    val engine = MockEngine { request ->
+      sentUserAgent = request.headers["User-Agent"]
+      respond(
+        content = ByteReadChannel(sampleJson),
+        status = HttpStatusCode.OK,
+        headers = headersOf("Content-Type", "application/json"),
+      )
+    }
+    val client = buildClient(engine)
+
+    client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+
+    // The platform actual decides whether to send a User-Agent at all (see its wasmJs
+    // implementation). This only checks the client wires that decision through unchanged.
+    sentUserAgent shouldBe explorerUserAgent()
+  }
+
+  @Test
   fun rateLimitedAfterRetriesReturnsRateLimited() = runTest {
     var calls = 0
     val engine = MockEngine { _ ->
