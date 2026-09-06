@@ -1,11 +1,12 @@
 package proj.memorchess.axl.ui.pages
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -17,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.library_error_http
 import memorchess.composeapp.generated.resources.library_error_malformed
@@ -25,6 +28,7 @@ import memorchess.composeapp.generated.resources.library_install_error_import
 import memorchess.composeapp.generated.resources.library_install_error_malformed_pgn
 import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.repertoire_view_not_found
+import memorchess.composeapp.generated.resources.repertoire_view_read_only
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
@@ -34,10 +38,12 @@ import proj.memorchess.axl.core.data.repertoire.CatalogResult
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.RepertoireExplorer
 import proj.memorchess.axl.core.pgn.PgnImportException
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
+import proj.memorchess.axl.ui.components.loading.KineticBootIndicator
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -77,7 +83,7 @@ fun RepertoireView(
     contentAlignment = Alignment.Center,
   ) {
     when (val current = state) {
-      is RepertoireViewState.Loading -> CircularProgressIndicator()
+      is RepertoireViewState.Loading -> KineticBootIndicator()
       is RepertoireViewState.Error ->
         RepertoireViewError(error = current.error, onRetry = { reloadKey++ })
       is RepertoireViewState.Ready ->
@@ -96,6 +102,7 @@ private fun RepertoireViewReady(
   explorer: RepertoireExplorer,
   descriptor: RepertoireDescriptor,
   cachedExplorer: CachedExplorer,
+  myTreeStore: TreeStore = koinInject(),
 ) {
   val explorerViewModel = rememberExplorerViewModel(explorer, cachedExplorer)
   ExplorerContent(
@@ -103,12 +110,31 @@ private fun RepertoireViewReady(
     explorerViewModel = explorerViewModel,
     onSave = {},
     onDelete = {},
+    header = { ReadOnlyChip() },
     viewerMode =
       ExplorerViewerMode(
         initialInverted = descriptor.color == RepertoireColor.BLACK,
         cornerTag = descriptor.name,
       ),
+    myTreeStore = myTreeStore,
   )
+}
+
+/** Small pill stating the repertoire viewer is read only, shown once above the board. */
+@Composable
+private fun ReadOnlyChip() {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  Box(modifier = Modifier.padding(12.dp)) {
+    Text(
+      text = stringResource(Res.string.repertoire_view_read_only),
+      style =
+        typography.labelSm.copy(fontSize = 8.5.sp, letterSpacing = 0.08.em, color = palette.ink2),
+      modifier =
+        Modifier.background(palette.panel3, RoundedCornerShape(9.dp))
+          .padding(horizontal = 7.dp, vertical = 3.dp),
+    )
+  }
 }
 
 /** Error body with a retry action, mirroring the catalog error styling of the library page. */

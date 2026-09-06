@@ -1,5 +1,7 @@
 package proj.memorchess.axl.ui.components.board
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -10,7 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.DpOffset
@@ -29,7 +33,19 @@ import proj.memorchess.axl.core.config.MOVE_ANIMATION_DURATION_SETTING
 import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.core.engine.BoardUtils
 import proj.memorchess.axl.core.engine.TileColor
+import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 import proj.memorchess.axl.ui.theme.KineticMotion
+import proj.memorchess.axl.ui.theme.KineticPalette
+import proj.memorchess.axl.ui.theme.LocalKineticPalette
+
+/** Distance the "+1" floater rises before fading out. */
+private val PLUS_ONE_FLOAT_DISTANCE = 24.dp
+
+/** Fraction of the tile size the correct-answer ring expands to, past the tile's own edge. */
+private const val RING_MAX_RADIUS_FRACTION = 0.75f
+
+/** How far [KineticMotion.Celebratory.correctAnswer]'s scale pop grows a played square. */
+private const val SQUARE_POP_SCALE = 1.14f
 
 /**
  * Displays the chess board grid with interactive tiles and animated pieces.
@@ -39,18 +55,49 @@ import proj.memorchess.axl.ui.theme.KineticMotion
  *
  * @param state The board state containing tile, piece, and move information.
  * @param bestMoveArrow Arrow overlay data, or `null` to hide the arrow.
+ * @param feedback Training feedback for the current attempt, or the default (nothing to show).
  * @param modifier Modifier for customizing the board layout.
  */
 @Composable
 fun BoardGrid(
   state: BoardGridState,
   bestMoveArrow: BestMoveArrowData? = null,
+  feedback: BoardTrainingFeedback = BoardTrainingFeedback(),
   modifier: Modifier = Modifier,
 ) {
   val scope = rememberCoroutineScope()
   val tilePositions = remember { mutableMapOf<BoardLocation, DpOffset>() }
 
   val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
+
+  // Hoisted here, rather than into DrawTileGrid alongside the other overlay animatables, purely
+  // for z order: BoardGrid composes DrawTileGrid, then DrawPieceGrid, then BestMoveArrow, so a
+  // sibling composed after all three paints above every piece and the arrow, where the floater
+  // needs to be read. BoardGrid is DrawTileGrid's own parent, at least as long lived, so "fires
+  // exactly once per attempt" still holds one level up.
+  val plusOneOffsetY = remember { Animatable(0f) }
+  val plusOneAlpha = remember { Animatable(0f) }
+  val plusOneFloatPx = with(LocalDensity.current) { PLUS_ONE_FLOAT_DISTANCE.toPx() }
+  LaunchedEffect(feedback.attempt) {
+    if (feedback.attempt <= 0) return@LaunchedEffect
+    plusOneOffsetY.snapTo(0f)
+    plusOneAlpha.snapTo(0f)
+    if (
+      feedback.isCorrect &&
+        feedback.playedSquare != null &&
+        KineticMotion.shouldAnimateBoardFeedback()
+    ) {
+      plusOneAlpha.snapTo(1f)
+      launch {
+        plusOneOffsetY.animateTo(-plusOneFloatPx, KineticMotion.Celebratory.correctAnswer())
+      }
+      plusOneAlpha.animateTo(0f, KineticMotion.Celebratory.correctAnswer())
+    }
+    // else: reduced motion, a wrong answer, or no move played yet. Both animatables are already
+    // snapped to rest above, and PlusOneFloater is not even composed unless
+    // feedback.isCorrect && feedback.playedSquare != null, so there is nothing further to do.
+  }
+
   BoxWithConstraints(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
     // Derive every tile's offset from a single measurement. The board is uniform, so each tile is
     // maxWidth / 8; recording positions this way avoids the 64 per-tile BoxWithConstraints
@@ -66,9 +113,13 @@ fun BoardGrid(
       }
       tileSize
     }
-    DrawTileGrid(state, scope)
+    DrawTileGrid(state, scope, feedback)
     DrawPieceGrid(state, animationDuration, tilePositions)
     BestMoveArrow(bestMoveArrow, state.inverted, Modifier.fillMaxSize())
+    val playedSquare = feedback.playedSquare
+    if (feedback.isCorrect && playedSquare != null && KineticMotion.shouldAnimateBoardFeedback()) {
+      PlusOneFloater(playedSquare, tileSize, state.inverted, plusOneOffsetY, plusOneAlpha)
+    }
   }
 }
 
@@ -86,40 +137,55 @@ fun BoardGrid(
  *
  * @param state The board state containing tile information and selection.
  * @param scope Coroutine scope for handling tile click events asynchronously.
+ * @param feedback Training feedback for the current attempt; drives the played-square scale pop /
+ *   pink pulse, the correct-answer ring, and the wrong-answer square outline.
  */
 @Composable
-private fun DrawTileGrid(state: BoardGridState, scope: CoroutineScope) {
+private fun DrawTileGrid(
+  state: BoardGridState,
+  scope: CoroutineScope,
+  feedback: BoardTrainingFeedback,
+) {
   val colors = CHESS_BOARD_COLOR_SETTING.getValue()
+  val palette = LocalKineticPalette.current
   val borderWidth = with(LocalDensity.current) { 3.dp.toPx() }
   val tileDescriptionTemplate = stringResource(Res.string.description_board_tile)
+
+  // Every Animatable driving an overlay DrawTileGrid itself paints or composes is hoisted here and
+  // driven by exactly one LaunchedEffect(feedback.attempt), mirroring registeredFlash's shape: this
+  // composable stays mounted for the whole time the board is shown, so "fires exactly once per
+  // attempt" holds. (The "+1" floater is the one exception, hoisted into BoardGrid instead. See
+  // there for why.)
+  val squareScale = remember { Animatable(1f) } // correct: 1 -> 1.14 -> 1
+  val wrongPulseAlpha = remember { Animatable(0f) } // wrong: 0 -> 1 -> 0, pink
+  val ringRadiusFraction = remember { Animatable(0f) } // correct: expanding ring
+  val ringAlpha = remember { Animatable(0f) }
+  val outlineAlpha = remember { Animatable(0f) } // wrong: correct-square outline
+
+  LaunchedEffect(feedback.attempt) {
+    animateTileFeedback(
+      feedback,
+      squareScale,
+      wrongPulseAlpha,
+      ringRadiusFraction,
+      ringAlpha,
+      outlineAlpha,
+    )
+  }
+
   DrawGrid(
     modifier =
       Modifier.drawBehind {
-        val tileSize = size.width / 8f
-        val selected = state.selectedTile
-        for (index in 0..63) {
-          val location = state.getBoardLocationAt(index)
-          val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
-          drawRect(
-            color =
-              if (location.color == TileColor.BLACK) colors.darkSquareColor
-              else colors.lightSquareColor,
-            topLeft = topLeft,
-            size = Size(tileSize, tileSize),
-          )
-          if (
-            selected != null && selected.first == location.row && selected.second == location.col
-          ) {
-            // Inset by half the stroke so the border stays inside the tile, matching the previous
-            // Modifier.border rendering.
-            drawRect(
-              color = colors.selectedBorderColor,
-              topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
-              size = Size(tileSize - borderWidth, tileSize - borderWidth),
-              style = Stroke(borderWidth),
-            )
-          }
-        }
+        drawTilesAndOverlays(
+          state,
+          feedback,
+          colors,
+          palette,
+          borderWidth,
+          ringAlpha,
+          ringRadiusFraction,
+          outlineAlpha,
+        )
       },
     boxModifier = {
       val location = state.getBoardLocationAt(it)
@@ -128,7 +194,162 @@ private fun DrawTileGrid(state: BoardGridState, scope: CoroutineScope) {
       val clickLabel = formatSingleArgTemplate(tileDescriptionTemplate, tileName)
       clickable(onClickLabel = clickLabel, onClick = { scope.launch { state.onTileClick(coords) } })
     },
-  ) {}
+  ) { index ->
+    val location = state.getBoardLocationAt(index)
+    if (location == feedback.playedSquare) {
+      PlayedSquareOverlay(feedback.isCorrect, squareScale, wrongPulseAlpha, palette)
+    }
+  }
+}
+
+/**
+ * Resets [squareScale], [wrongPulseAlpha], [ringRadiusFraction], [ringAlpha] and [outlineAlpha] to
+ * rest, then plays the correct- or wrong-answer celebration for [feedback]. Resetting first avoids
+ * a prior attempt's still-running animation leaving a stale value (e.g. a second wrong answer in a
+ * row finding the outline already at alpha 1 and treating `animateTo(1f)` as a no-op).
+ */
+private suspend fun CoroutineScope.animateTileFeedback(
+  feedback: BoardTrainingFeedback,
+  squareScale: Animatable<Float, AnimationVector1D>,
+  wrongPulseAlpha: Animatable<Float, AnimationVector1D>,
+  ringRadiusFraction: Animatable<Float, AnimationVector1D>,
+  ringAlpha: Animatable<Float, AnimationVector1D>,
+  outlineAlpha: Animatable<Float, AnimationVector1D>,
+) {
+  if (feedback.attempt <= 0) return
+  squareScale.snapTo(1f)
+  wrongPulseAlpha.snapTo(0f)
+  ringRadiusFraction.snapTo(0f)
+  ringAlpha.snapTo(0f)
+  outlineAlpha.snapTo(0f)
+
+  val animate = KineticMotion.shouldAnimateBoardFeedback()
+  if (feedback.isCorrect && feedback.playedSquare != null) {
+    if (animate) {
+      launch {
+        squareScale.animateTo(SQUARE_POP_SCALE, KineticMotion.Celebratory.correctAnswer())
+        squareScale.animateTo(1f, KineticMotion.Celebratory.correctAnswer())
+      }
+      launch {
+        ringAlpha.snapTo(1f)
+        launch { ringRadiusFraction.animateTo(1f, KineticMotion.Celebratory.correctAnswer()) }
+        ringAlpha.animateTo(0f, KineticMotion.Celebratory.correctAnswer())
+      }
+    }
+    // else: every animatable is already at rest above. That resting state (scale 1, alpha 0
+    // everywhere) is the "instant, no celebration" end state the reduced-motion path asks for.
+  } else if (!feedback.isCorrect && feedback.playedSquare != null) {
+    if (animate) {
+      wrongPulseAlpha.animateTo(1f, KineticMotion.Routine.wrongAnswer())
+      wrongPulseAlpha.animateTo(0f, KineticMotion.Routine.wrongAnswer())
+    }
+    if (feedback.correctSquare != null) {
+      if (animate) outlineAlpha.animateTo(1f, KineticMotion.Routine.wrongAnswer())
+      else outlineAlpha.snapTo(1f) // reduced motion: outline appears immediately, stays visible
+    }
+  }
+}
+
+/**
+ * Paints every tile's opaque background, then every overlay (selection border, correct-answer ring,
+ * wrong-answer outline) in a second pass.
+ *
+ * Two passes on purpose: a tile's background must be down before any overlay is drawn, or a later
+ * tile in draw order (to the right / below) paints its background over an earlier tile's overlay.
+ * The ring especially spills past its own tile's edge into its neighbours at full expansion, so
+ * painting overlays tile-by-tile inside a single pass clips them there.
+ */
+private fun DrawScope.drawTilesAndOverlays(
+  state: BoardGridState,
+  feedback: BoardTrainingFeedback,
+  colors: ChessBoardColorScheme,
+  palette: KineticPalette,
+  borderWidth: Float,
+  ringAlpha: Animatable<Float, AnimationVector1D>,
+  ringRadiusFraction: Animatable<Float, AnimationVector1D>,
+  outlineAlpha: Animatable<Float, AnimationVector1D>,
+) {
+  val tileSize = size.width / 8f
+  val selected = state.selectedTile
+
+  for (index in 0..63) {
+    val location = state.getBoardLocationAt(index)
+    val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
+    drawRect(
+      color =
+        if (location.color == TileColor.BLACK) colors.darkSquareColor else colors.lightSquareColor,
+      topLeft = topLeft,
+      size = Size(tileSize, tileSize),
+    )
+  }
+  for (index in 0..63) {
+    val location = state.getBoardLocationAt(index)
+    val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
+    val isSelected =
+      selected != null && selected.first == location.row && selected.second == location.col
+    if (isSelected) {
+      // Inset by half the stroke so the border stays inside the tile, matching the previous
+      // Modifier.border rendering.
+      drawRect(
+        color = colors.selectedBorderColor,
+        topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
+        size = Size(tileSize - borderWidth, tileSize - borderWidth),
+        style = Stroke(borderWidth),
+      )
+    }
+    if (location == feedback.playedSquare && ringAlpha.value > 0f) {
+      drawCircle(
+        color = palette.progress,
+        radius = tileSize * RING_MAX_RADIUS_FRACTION * ringRadiusFraction.value,
+        center = topLeft + Offset(tileSize / 2f, tileSize / 2f),
+        alpha = ringAlpha.value,
+        style = Stroke(width = borderWidth),
+      )
+    }
+    if (location == feedback.correctSquare && outlineAlpha.value > 0f) {
+      drawRect(
+        color = palette.progress,
+        topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
+        size = Size(tileSize - borderWidth, tileSize - borderWidth),
+        style = Stroke(borderWidth),
+        alpha = outlineAlpha.value,
+      )
+    }
+  }
+}
+
+/**
+ * Played-square feedback overlay: a scale pop with a soft flash on a correct answer, a pink pulse
+ * flash on a wrong one.
+ */
+@Composable
+private fun PlayedSquareOverlay(
+  isCorrect: Boolean,
+  squareScale: Animatable<Float, AnimationVector1D>,
+  wrongPulseAlpha: Animatable<Float, AnimationVector1D>,
+  palette: KineticPalette,
+) {
+  if (isCorrect) {
+    Box(
+      Modifier.fillMaxSize()
+        .graphicsLayer {
+          scaleX = squareScale.value
+          scaleY = squareScale.value
+        }
+        .drawBehind {
+          val ramp = ((squareScale.value - 1f) / (SQUARE_POP_SCALE - 1f)).coerceIn(0f, 1f)
+          drawRect(palette.progressSoft, alpha = ramp)
+        }
+    )
+  } else {
+    Box(
+      Modifier.fillMaxSize().drawBehind {
+        if (wrongPulseAlpha.value > 0f) {
+          drawRect(color = palette.destructive, alpha = wrongPulseAlpha.value)
+        }
+      }
+    )
+  }
 }
 
 /**
