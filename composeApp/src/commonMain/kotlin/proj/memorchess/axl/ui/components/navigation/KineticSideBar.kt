@@ -39,6 +39,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -104,8 +105,9 @@ private val STREAK_NAV_SPACER = 6.dp
 private data class RailStats(val streak: Int, val done: Int, val target: Int, val due: Int)
 
 /**
- * Kinetic vertical chrome rail. Used on compact-height screens (phone landscape, desktop) where a
- * horizontal top bar would eat too much vertical space.
+ * Kinetic vertical chrome rail. Used on compact-height screens — phone landscape, or a desktop
+ * window shortened below the medium-height breakpoint — where a horizontal top bar would eat too
+ * much vertical space. A desktop window at a normal height still gets the top bar, not this rail.
  *
  * Owns the chrome — `panel` background, 1.5.dp `line` right border, system-bar insets and padding —
  * and stacks a brand row, a streak card and a [KineticSideNav] block of full-width labelled rows.
@@ -208,6 +210,11 @@ private fun RailBrandRow() {
     Text(
       text = wordmark,
       style = typography.brand.copy(fontSize = 18.sp, fontWeight = FontWeight.ExtraBold),
+      // The row leaves the wordmark ~144.dp; at a large system font scale it would otherwise wrap
+      // to two lines and push the streak card down. Clip instead of ellipsis: the brand mark beside
+      // it already identifies the app, so a trailing "…" would only add noise.
+      maxLines = 1,
+      overflow = TextOverflow.Clip,
     )
   }
 }

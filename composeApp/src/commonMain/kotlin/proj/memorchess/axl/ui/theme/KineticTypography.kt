@@ -15,7 +15,9 @@ import memorchess.composeapp.generated.resources.Baloo2_Medium
 import memorchess.composeapp.generated.resources.Baloo2_SemiBold
 import memorchess.composeapp.generated.resources.JetBrainsMono_Medium
 import memorchess.composeapp.generated.resources.JetBrainsMono_Regular
+import memorchess.composeapp.generated.resources.Nunito_Black
 import memorchess.composeapp.generated.resources.Nunito_Bold
+import memorchess.composeapp.generated.resources.Nunito_ExtraBold
 import memorchess.composeapp.generated.resources.Nunito_Regular
 import memorchess.composeapp.generated.resources.Nunito_SemiBold
 import memorchess.composeapp.generated.resources.Res
@@ -31,13 +33,22 @@ private fun balooFamily(): FontFamily =
     Font(Res.font.Baloo2_ExtraBold, weight = FontWeight.ExtraBold),
   )
 
-/** Nunito — Kinetic body font. */
+/**
+ * Nunito — Kinetic body font.
+ *
+ * ExtraBold (800) and Black (900) are registered even though no [KineticTypography] role defaults
+ * to them: the nav labels ask for those weights per-call, and without a matching face Compose would
+ * resolve both down to Bold (700) and synthesise nothing (synthesis only fakes bold below W600), so
+ * the active/inactive weight contrast would silently vanish.
+ */
 @Composable
 private fun nunitoFamily(): FontFamily =
   FontFamily(
     Font(Res.font.Nunito_Regular, weight = FontWeight.Normal),
     Font(Res.font.Nunito_SemiBold, weight = FontWeight.SemiBold),
     Font(Res.font.Nunito_Bold, weight = FontWeight.Bold),
+    Font(Res.font.Nunito_ExtraBold, weight = FontWeight.ExtraBold),
+    Font(Res.font.Nunito_Black, weight = FontWeight.Black),
   )
 
 /** JetBrains Mono — Kinetic mono font for chess notation. */

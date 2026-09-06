@@ -88,6 +88,13 @@ internal fun isActive(item: NavigationBarItemContent, currentRoute: String): Boo
  * through Oklab, so fading the violet pill to it would drag the mid-animation frames through grey.
  * Keeping the hue fixed and animating only the alpha gives a clean fade, and still paints nothing
  * where the fill is applied statically.
+ *
+ * The active fill is the [KineticPalette.actionDim] role rather than a literal match of the dark
+ * artboard's `#2E1D52`. That hex is [KineticPalette.panel3], which is the *inert* surface elsewhere
+ * (the toggle's off track, the slider's inactive track, a number field's ground), so reusing it for
+ * a selected cell would make one token mean both "on" and "off". Light is exact either way —
+ * `actionDim` and `panel3` are both `#EDE4FF` there — and dark ends up one step brighter than the
+ * artboard.
  */
 @Immutable
 internal data class KineticNavCellStyle(
