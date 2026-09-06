@@ -18,12 +18,12 @@ import java.io.File
 private const val HASHED_ASSET_MAX_AGE_SECONDS = 31_536_000
 
 /**
- * Matches the content-hashed frontend bundle name the wasmJs build produces
- * (`composeApp.<hash>.js`, see `composeApp/build.gradle.kts`'s hashing task). A file matching this
- * is safe to cache as long as a `.wasm` file, since a new deploy gives it a new name instead of
+ * Matches the content-hashed frontend file names the wasmJs build produces (`composeApp.<hash>.js`,
+ * `styles.<hash>.css`, see `composeApp/build.gradle.kts`'s hashing task). A file matching this is
+ * safe to cache as long as a `.wasm` file, since a new deploy gives it a new name instead of
  * overwriting this one.
  */
-private val HASHED_BUNDLE_PATTERN = Regex("""composeApp\.[0-9a-f]{20}\.js""")
+private val HASHED_ASSET_PATTERN = Regex("""(composeApp|styles)\.[0-9a-f]{20}\.(js|css)""")
 
 /**
  * Path portion of the wasmJs sync/OIDC redirect URI; kept in sync with the client's own copy of
@@ -76,8 +76,8 @@ internal fun Application.staticFrontendModule(staticDir: File?) {
 
 /**
  * Mounts the frontend bundle at `/`. Content-hashed `*.wasm` files and the content-hashed
- * `composeApp.<hash>.js` bundle are cached for a year; every other file (`index.html`,
- * `styles.css`, and any unhashed leftover) is revalidated on every request, since a cached one of
+ * `composeApp.<hash>.js`/`styles.<hash>.css` files are cached for a year; every other file
+ * (`index.html` and any unhashed leftover) is revalidated on every request, since a cached one of
  * those could point at a bundle hash from a previous deploy. [SYNC_OAUTH_CALLBACK_PATH] is one
  * deliberate exception, serving the shell so the wasmJs redirect sign-in flow can cold-boot there.
  * [LICHESS_OAUTH_CALLBACK_PATH] is a second one: it must answer with a real body rather than
@@ -98,7 +98,7 @@ internal fun Route.staticFrontendRoutes(staticDir: File) {
   }
   staticFiles("/", staticDir) {
     cacheControl { file ->
-      if (file.extension == "wasm" || HASHED_BUNDLE_PATTERN.matches(file.name)) {
+      if (file.extension == "wasm" || HASHED_ASSET_PATTERN.matches(file.name)) {
         listOf(CacheControl.MaxAge(maxAgeSeconds = HASHED_ASSET_MAX_AGE_SECONDS))
       } else {
         listOf(CacheControl.NoCache(visibility = null))

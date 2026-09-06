@@ -244,14 +244,14 @@ tasks.withType<KotlinJsTest>().configureEach {
   )
 }
 
-// Renames the production bundle from the fixed "composeApp.js" (see `outputFileName` above) to a
-// content-hashed "composeApp.<hash>.js", the same trick already applied to the `.wasm` binaries.
-// Without this, an intermediary that ignores the server's `Cache-Control: no-cache` on unhashed
-// files (observed with Cloudflare's edge cache) can keep serving a previous deploy's
-// "composeApp.js" for hours after a new one lands, paired with the new deploy's `.wasm`/resources.
-// A content hash sidesteps that: any change gets a brand new URL, so a cache still holding the old
-// file is just holding something nobody references anymore.
-// `StaticFrontendRoutes.HASHED_BUNDLE_PATTERN` (`:server`) must keep matching the name produced
+// Renames the production build's fixed-name entry files ("composeApp.js", see `outputFileName`
+// above, and "styles.css") to content-hashed names, the same trick already applied to the `.wasm`
+// binaries. Without this, an intermediary that ignores the server's `Cache-Control: no-cache` on
+// unhashed files (observed with Cloudflare's edge cache) can keep serving a previous deploy's file
+// for hours after a new one lands, paired with the new deploy's `.wasm`/resources. A content hash
+// sidesteps that: any change gets a brand new URL, so a cache still holding the old file is just
+// holding something nobody references anymore.
+// `StaticFrontendRoutes.HASHED_ASSET_PATTERN` (`:server`) must keep matching the names produced
 // here.
 val wasmJsProductionDist = layout.buildDirectory.dir("dist/wasmJs/productionExecutable")
 
@@ -262,24 +262,34 @@ val hashWasmJsBundle by tasks.registering {
   )
   doLast {
     val distDir = wasmJsProductionDist.get().asFile
-    val bundle = File(distDir, "composeApp.js")
-    if (!bundle.exists()) {
-      error("Expected $bundle to exist; did the wasmJs output filename change?")
-    }
-    val hash =
-      MessageDigest.getInstance("SHA-256")
-        .digest(bundle.readBytes())
-        .joinToString("") { "%02x".format(it) }
-        .take(20)
-    val hashedName = "composeApp.$hash.js"
-    bundle.copyTo(File(distDir, hashedName), overwrite = true)
-    bundle.delete()
 
-    val indexHtml = File(distDir, "index.html")
-    val original = indexHtml.readText()
-    val rewritten = original.replace("src=\"composeApp.js\"", "src=\"$hashedName\"")
-    check(rewritten != original) { "$indexHtml did not reference composeApp.js" }
-    indexHtml.writeText(rewritten)
+    // Hashes `distDir/fileName`, then rewrites its one reference in index.html (the
+    // `htmlAttribute="fileName"` occurrence) to the hashed name.
+    fun hashEntryFile(fileName: String, htmlAttribute: String) {
+      val asset = File(distDir, fileName)
+      if (!asset.exists()) {
+        error("Expected $asset to exist; did the wasmJs output filename change?")
+      }
+      val hash =
+        MessageDigest.getInstance("SHA-256")
+          .digest(asset.readBytes())
+          .joinToString("") { "%02x".format(it) }
+          .take(20)
+      val hashedName =
+        "${fileName.substringBeforeLast('.')}.$hash.${fileName.substringAfterLast('.')}"
+      asset.copyTo(File(distDir, hashedName), overwrite = true)
+      asset.delete()
+
+      val indexHtml = File(distDir, "index.html")
+      val original = indexHtml.readText()
+      val rewritten =
+        original.replace("$htmlAttribute=\"$fileName\"", "$htmlAttribute=\"$hashedName\"")
+      check(rewritten != original) { "$indexHtml did not reference $fileName" }
+      indexHtml.writeText(rewritten)
+    }
+
+    hashEntryFile("composeApp.js", htmlAttribute = "src")
+    hashEntryFile("styles.css", htmlAttribute = "href")
   }
 }
 

@@ -68,6 +68,29 @@ class TestStaticFrontendRoutes {
   }
 
   @Test
+  fun `an unhashed css file is never cached`() = testApplication {
+    val dir = frontendDir()
+    File(dir, "styles.css").writeText("body{margin:0}")
+    application { routing { staticFrontendRoutes(dir) } }
+
+    val response = client.get("/styles.css")
+
+    response.headers[HttpHeaders.CacheControl]!! shouldContain "no-cache"
+  }
+
+  @Test
+  fun `a content-hashed styles css file is cached for a year`() = testApplication {
+    val dir = frontendDir()
+    File(dir, "styles.1234567890abcdef1234.css").writeText("body{margin:0}")
+    application { routing { staticFrontendRoutes(dir) } }
+
+    val response = client.get("/styles.1234567890abcdef1234.css")
+
+    response.status shouldBe HttpStatusCode.OK
+    response.headers[HttpHeaders.CacheControl]!! shouldContain "max-age=31536000"
+  }
+
+  @Test
   fun `the lichess oauth callback path serves a non-empty page with no-cache`() = testApplication {
     application { routing { staticFrontendRoutes(frontendDir()) } }
 
