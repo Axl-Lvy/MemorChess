@@ -1,6 +1,9 @@
 package proj.memorchess.axl.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
+import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.floats.shouldBeBetween
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -24,21 +27,40 @@ private fun hueDegrees(color: Color): Float {
   return if (rawHue < 0f) rawHue + 360f else rawHue
 }
 
+/** Maximum hue drift tolerated for a role that is meant to keep one hue across both themes. */
+private const val MAX_CROSS_THEME_HUE_DRIFT = 12f
+
+/** Smallest angular distance in degrees between two hues, handling the 360 wraparound. */
+private fun hueDistance(a: Color, b: Color): Float {
+  val raw = kotlin.math.abs(hueDegrees(a) - hueDegrees(b))
+  return if (raw > 180f) 360f - raw else raw
+}
+
+/** HSL lightness in `[0, 1]`: the midpoint of the brightest and darkest RGB channel. */
+private fun lightness(color: Color): Float {
+  val max = maxOf(color.red, color.green, color.blue)
+  val min = minOf(color.red, color.green, color.blue)
+  return (max + min) / 2f
+}
+
 class TestKineticPalette {
 
   @Test
   fun actionIsHueStableAcrossThemes() {
-    KineticDarkPalette.action shouldBe KineticLightPalette.action
+    hueDistance(KineticDarkPalette.action, KineticLightPalette.action)
+      .shouldBeBetween(0f, MAX_CROSS_THEME_HUE_DRIFT, 0f)
   }
 
   @Test
   fun streakIsHueStableAcrossThemes() {
-    KineticDarkPalette.streak shouldBe KineticLightPalette.streak
+    hueDistance(KineticDarkPalette.streak, KineticLightPalette.streak)
+      .shouldBeBetween(0f, MAX_CROSS_THEME_HUE_DRIFT, 0f)
   }
 
   @Test
   fun destructiveIsHueStableAcrossThemes() {
-    KineticDarkPalette.destructive shouldBe KineticLightPalette.destructive
+    hueDistance(KineticDarkPalette.destructive, KineticLightPalette.destructive)
+      .shouldBeBetween(0f, MAX_CROSS_THEME_HUE_DRIFT, 0f)
   }
 
   @Test
@@ -47,13 +69,39 @@ class TestKineticPalette {
   }
 
   @Test
-  fun lightProgressDiffersFromLightAction() {
-    KineticLightPalette.progress shouldNotBe KineticLightPalette.action
+  fun progressIsLimeInDarkAndVioletInLight() {
+    hueDegrees(KineticDarkPalette.progress).shouldBeBetween(60f, 100f, 0f)
+    hueDegrees(KineticLightPalette.progress).shouldBeBetween(250f, 280f, 0f)
   }
 
   @Test
-  fun destructiveDiffersFromStreak() {
-    KineticDarkPalette.destructive shouldNotBe KineticDarkPalette.streak
+  fun destructiveAndStreakShareOnePinkPerTheme() {
+    KineticDarkPalette.destructive shouldBe KineticDarkPalette.streak
+    KineticLightPalette.destructive shouldBe KineticLightPalette.streak
+    hueDegrees(KineticDarkPalette.streak).shouldBeBetween(300f, 350f, 0f)
+    hueDegrees(KineticLightPalette.streak).shouldBeBetween(300f, 350f, 0f)
+  }
+
+  @Test
+  fun dangerBorderIsAtLeastAsVisibleAsTheNeutralBorder() {
+    for (palette in listOf(KineticDarkPalette, KineticLightPalette)) {
+      val dangerDelta =
+        kotlin.math.abs(lightness(palette.destructiveDim) - lightness(palette.panel))
+      val neutralDelta = kotlin.math.abs(lightness(palette.line) - lightness(palette.panel))
+      dangerDelta.shouldBeGreaterThanOrEqualTo(neutralDelta)
+    }
+  }
+
+  @Test
+  fun surfaceLadderIsMonotonic() {
+    lightness(KineticLightPalette.bg).shouldBeGreaterThan(lightness(KineticLightPalette.bg2))
+    lightness(KineticDarkPalette.bg).shouldBeLessThan(lightness(KineticDarkPalette.panel))
+  }
+
+  @Test
+  fun pressableEdgeIsVisibleAgainstTheDefaultButtonFill() {
+    KineticDarkPalette.lineBright shouldNotBe KineticDarkPalette.panel2
+    KineticLightPalette.lineBright shouldNotBe KineticLightPalette.panel2
   }
 
   @Test
@@ -108,5 +156,18 @@ class TestKineticPalette {
   @Test
   fun destructiveHueIsPinkNotRedInLightPalette() {
     hueDegrees(KineticLightPalette.destructive).shouldBeBetween(300f, 350f, 0f)
+  }
+
+  @Test
+  fun streakEdgeIsHueStableAcrossThemes() {
+    hueDistance(KineticDarkPalette.streakEdge, KineticLightPalette.streakEdge)
+      .shouldBeBetween(0f, MAX_CROSS_THEME_HUE_DRIFT, 0f)
+  }
+
+  @Test
+  fun streakEdgeIsDarkerThanStreak() {
+    lightness(KineticDarkPalette.streakEdge).shouldBeLessThan(lightness(KineticDarkPalette.streak))
+    lightness(KineticLightPalette.streakEdge)
+      .shouldBeLessThan(lightness(KineticLightPalette.streak))
   }
 }

@@ -214,7 +214,6 @@
   <string name="library_error_http">Le serveur du catalogue a répondu avec l'erreur %1$d.</string>
   <string name="library_error_malformed">Le catalogue n'a pas pu être lu : %1$s</string>
   <string name="library_retry">RÉESSAYER</string>
-  <string name="library_installed_badge">INSTALLÉ</string>
   <string name="library_install">Installer</string>
   <string name="library_reinstall">Réinstaller</string>
   <string name="library_color_white">BLANCS</string>
@@ -234,6 +233,16 @@
   <string name="library_my_repertoires_title">MES RÉPERTOIRES</string>
   <string name="library_explore">Explorer</string>
   <string name="library_train">Entraîner</string>
+  <string name="library_hero_badge">SÉLECTIONNÉ POUR VOUS</string>
+  <string name="library_hero_cta">Ajouter à mon entraînement</string>
+  <string name="library_hero_progress">%1$d sur %2$d déjà acquis</string>
+  <string name="library_filter_all">Tous %1$d</string>
+  <string name="library_filter_white">Blancs %1$d</string>
+  <string name="library_filter_black">Noirs %1$d</string>
+  <string name="library_filter_mine">Les miens %1$d</string>
+  <string name="library_filter_empty">Aucun pack ne correspond à ce filtre pour l'instant.</string>
+  <string name="library_badge_in_training">EN ENTRAÎNEMENT</string>
+  <string name="library_badge_new">NOUVEAU</string>
   <plurals name="library_move_count">
     <item quantity="one">%1$d coup</item>
     <item quantity="other">%1$d coups</item>
@@ -241,6 +250,11 @@
 
   <!-- Repertoire viewer -->
   <string name="repertoire_view_not_found">Le répertoire \"%1$s\" n'est plus dans le catalogue.</string>
+
+  <!-- Navigation: side rail -->
+  <string name="side_rail_day_streak">JOURS D'AFFILÉE</string>
+  <string name="side_rail_today_progress">%1$d/%2$d aujourd'hui</string>
+  <string name="side_rail_today_done">%1$d aujourd'hui</string>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">Aucun coup précédent.</string>

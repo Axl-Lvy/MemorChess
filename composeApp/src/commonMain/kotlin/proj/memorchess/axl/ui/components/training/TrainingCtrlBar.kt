@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,15 +30,17 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 /**
  * Bottom control bar for the Kinetic Training page.
  *
- * Mirrors the `.ctrlbar` rule in `design-proposals/kinetic-base.css`. Layout, left to right:
- * - **SKIP** — default [KineticButton]; wired to [onSkip].
- * - **Turn pill** — a small `panel2`-backed Box with a 1.dp `line` border showing `"BLACK TO MOVE"`
- *   or `"WHITE TO MOVE"` in 10sp uppercase text. The pill text is derived from [playerTurn].
+ * Follows artboards `1b`/`1h`. Layout, left to right:
+ * - **SKIP** — default [KineticButton]; wired to [onSkip]. Like the other two it carries the chunky
+ *   pressable edge every filled [KineticButton] now has.
+ * - **Turn pill** — a small `panel2`-backed Box with a 12.dp radius and a 1.5.dp `line` border
+ *   showing `"BLACK TO MOVE"` or `"WHITE TO MOVE"` in 10sp uppercase text, derived from
+ *   [playerTurn].
  * - **HINT** and **REVEAL** — default + primary [KineticButton]s wired to [onHint] / [onReveal].
  *   These are stubs for v1; the actual hint/reveal logic is out of scope of this visual port.
  *
- * The whole bar sits on a `panel` background with a 1.dp `line` border. Padding is 14.dp vertical /
- * 12.dp horizontal so the bar feels tighter than the rest of the page.
+ * The whole bar sits on a 20.dp-radius `panel` background with a 1.5.dp `line` border. Padding is
+ * 10.dp vertical / 12.dp horizontal so the bar feels tighter than the rest of the page.
  *
  * @param playerTurn The side whose turn it is; controls the turn pill text.
  * @param onSkip Invoked when the user taps SKIP.
@@ -62,8 +65,8 @@ fun TrainingCtrlBar(
   Row(
     modifier =
       modifier
-        .background(palette.panel)
-        .border(1.dp, palette.line)
+        .background(palette.panel, MaterialTheme.shapes.medium)
+        .border(1.5.dp, palette.line, MaterialTheme.shapes.medium)
         .padding(horizontal = 12.dp, vertical = 10.dp),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -74,8 +77,8 @@ fun TrainingCtrlBar(
     Box(
       modifier =
         Modifier.weight(1f)
-          .background(palette.panel2)
-          .border(1.dp, palette.line)
+          .background(palette.panel2, MaterialTheme.shapes.extraSmall)
+          .border(1.5.dp, palette.line, MaterialTheme.shapes.extraSmall)
           .padding(horizontal = 12.dp, vertical = 8.dp),
       contentAlignment = Alignment.Center,
     ) {

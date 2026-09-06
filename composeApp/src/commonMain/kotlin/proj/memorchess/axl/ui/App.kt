@@ -9,6 +9,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.compose.rememberNavController
 import androidx.window.core.layout.WindowSizeClass
 import kotlin.time.Duration
@@ -121,6 +122,11 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
             items = sortedNavItems,
             currentRoute = currentRoute,
             onSelect = { navigator.navigateTo(it.destination) },
+            // Same tags as the bottom bar: MainLayout renders the two in mutually exclusive
+            // branches, so they can never collide in one composition.
+            itemModifier = {
+              Modifier.testTag("bottom_navigation_bar_item_${it.destination.getLabel()}")
+            },
           )
         },
       ) { innerPadding ->

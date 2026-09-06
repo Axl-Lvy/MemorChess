@@ -23,3 +23,6 @@ kotlin-js-store
 # Room schema export is disabled (exportSchema = false); these must never be committed.
 composeApp/schemas/
 docs/superpowers/
+
+# Transient git worktrees used by agents (see CLAUDE.md); never committed.
+.claude/worktrees/

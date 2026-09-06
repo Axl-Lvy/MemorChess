@@ -20,6 +20,15 @@ internal data class RepertoireMastery(
 }
 
 /**
+ * Placeholder mastery snapshot for `RepertoireLibrary`'s hero card and per-descriptor progress bar,
+ * standing in until a real per-descriptor aggregation is wired in (tracked separately from
+ * [mostRecentRepertoireMastery], which answers a different question: the most recently trained
+ * repertoire overall, not mastery scoped to one specific descriptor).
+ */
+internal fun placeholderRepertoireMastery(): RepertoireMastery =
+  RepertoireMastery(repertoireName = "Italian Game", solidCount = 46, totalCount = 68)
+
+/**
  * The most recently trained repertoire's mastery snapshot, or `null` when no registered repertoire
  * has any trainable position yet. Ties in recency break on repertoire name, ascending.
  */
