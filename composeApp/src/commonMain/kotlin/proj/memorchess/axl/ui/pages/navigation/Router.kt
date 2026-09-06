@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.pages.navigation
 
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
@@ -91,6 +92,21 @@ private fun tabAwareExit(from: NavBackStackEntry, to: NavBackStackEntry): ExitTr
   else KineticMotion.holdExit()
 
 /**
+ * Full-size [Box] around [content], wipe-revealed per [revealFromRight] unless [tabToTabTransition]
+ * is true, in which case [tabAwareEnter]/[tabAwareExit] already handle the motion and no wipe is
+ * layered on top.
+ */
+@Composable
+private fun AnimatedVisibilityScope.RevealBox(
+  tabToTabTransition: Boolean,
+  revealFromRight: Boolean,
+  content: @Composable () -> Unit,
+) {
+  val revealModifier = if (tabToTabTransition) Modifier else wipeReveal(revealFromRight)
+  Box(modifier = Modifier.fillMaxSize().then(revealModifier)) { content() }
+}
+
+/**
  * Renders the navigation graph.
  *
  * The [navController] is owned by the caller (normally [proj.memorchess.axl.ui.App]) so that its
@@ -148,49 +164,21 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
     }
     composable<Route.TrainingRoute> {
       val repertoireId = it.toRoute<Route.TrainingRoute>().repertoireId
-      Box(
-        modifier =
-          Modifier.fillMaxSize()
-            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
-      ) {
-        Training(repertoireId)
-      }
+      RevealBox(tabToTabTransition, revealFromRight) { Training(repertoireId) }
     }
     composable<Route.LibraryRoute> {
-      Box(
-        modifier =
-          Modifier.fillMaxSize()
-            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
-      ) {
-        RepertoireLibrary()
-      }
+      RevealBox(tabToTabTransition, revealFromRight) { RepertoireLibrary() }
     }
     composable<Route.RepertoireViewRoute> {
       val repertoireId = it.toRoute<Route.RepertoireViewRoute>().repertoireId
-      Box(
-        modifier =
-          Modifier.fillMaxSize()
-            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
-      ) {
-        RepertoireView(repertoireId)
-      }
+      RevealBox(tabToTabTransition, revealFromRight) { RepertoireView(repertoireId) }
     }
     composable<Route.SettingsRoute> {
-      Box(
-        modifier =
-          Modifier.fillMaxSize()
-            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
-      ) {
-        Settings()
-      }
+      RevealBox(tabToTabTransition, revealFromRight) { Settings() }
     }
     composable<Route.ExploreRoute> {
       val route = it.toRoute<Route.ExploreRoute>()
-      Box(
-        modifier =
-          Modifier.fillMaxSize()
-            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
-      ) {
+      RevealBox(tabToTabTransition, revealFromRight) {
         Explore(
           route.position?.let { p -> PositionKey.validateAndCreateOrNull(p) },
           route.repertoireId,
