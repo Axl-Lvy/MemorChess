@@ -43,7 +43,12 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
 
     post("/v1/sync") {
       val request = call.receive<SyncPushRequest>()
-      val rows = request.nodes.size + request.edges.size + request.settings.size
+      val rows =
+        request.nodes.size +
+          request.edges.size +
+          request.settings.size +
+          request.repertoires.size +
+          request.tags.size
       if (rows > MAX_PUSH_ROWS) {
         throw TooLargeException("a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows")
       }

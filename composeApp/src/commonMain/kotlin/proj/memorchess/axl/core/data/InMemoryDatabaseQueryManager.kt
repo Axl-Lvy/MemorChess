@@ -31,6 +31,18 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   /** Backing outbox, keyed by the dirty key itself so a repeat mark is a no-op collapse. */
   private val outbox: LinkedHashMap<DirtyKey, Long> = linkedMapOf()
 
+  /** Backing store for the repertoire registry, keyed by id. */
+  private val repertoires: MutableMap<String, DataRepertoire> = mutableMapOf()
+
+  /** Backing store for edge to repertoire tags, keyed by the edge's endpoints and repertoire. */
+  private val tags: MutableMap<Triple<PositionKey, PositionKey, String>, DataEdgeRepertoireTag> =
+    mutableMapOf()
+
+  /**
+   * Backing store for the `NodeRepertoireTrainable` projection, keyed by position and repertoire.
+   */
+  private val trainable: MutableMap<Pair<PositionKey, String>, Instant?> = mutableMapOf()
+
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
     nodes[positionKey]?.takeIf { !it.isDeleted }
 
@@ -284,6 +296,9 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun eraseAll() {
     nodes.clear()
     outbox.clear()
+    repertoires.clear()
+    tags.clear()
+    trainable.clear()
   }
 
   override suspend fun getLastUpdate(): Instant? =
@@ -306,35 +321,48 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
   private fun DataNode.toTrainingEntry(): TrainingEntry = TrainingEntry(positionKey, cardState)
 
-  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
+  override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
     live()
       .filter { it.hasGoodOutgoing && it.isInSession() && it.cardState.dueDate <= now }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minByOrNull { it.cardState.dueDate }
       ?.toTrainingEntry()
 
-  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
+  override suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
     live()
       .filter { it.hasGoodOutgoing && it.isInSession() && it.cardState.dueDate > now }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minByOrNull { it.cardState.dueDate }
       ?.toTrainingEntry()
 
-  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? =
+  override suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
     live()
       .filter {
         it.hasGoodOutgoing &&
           it.cardState.phase == CardPhase.REVIEW &&
           it.cardState.dueDate < dayEndExclusive
       }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minByOrNull { it.depth }
       ?.toTrainingEntry()
 
-  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? =
+  override suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
     live()
       .filter {
         it.hasGoodOutgoing &&
           it.cardState.phase == CardPhase.NEW &&
           it.cardState.dueDate < dayEndExclusive
       }
+      .filter { isTrainableFor(it.positionKey, repertoireId) }
       .minWithOrNull(compareBy({ it.depth }, { it.createdAt }))
       ?.toTrainingEntry()
 
@@ -407,16 +435,44 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
+    repertoireId: String?,
   ): TrainingEntry? =
     keys
       .firstNotNullOfOrNull { key ->
         nodes[key]?.takeIf {
           !it.isDeleted &&
             it.hasGoodOutgoing &&
-            (it.isInSession() || it.cardState.dueDate < dayEndExclusive)
+            (it.isInSession() || it.cardState.dueDate < dayEndExclusive) &&
+            isTrainableFor(key, repertoireId)
         }
       }
       ?.toTrainingEntry()
+
+  override suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts {
+    val scopedLive = live().filter { isTrainableFor(it.positionKey, repertoireId) }
+    return ScopedSchedulingCounts(
+      dueReviews =
+        scopedLive.count {
+          it.hasGoodOutgoing &&
+            it.cardState.phase == CardPhase.REVIEW &&
+            it.cardState.dueDate < dayEndExclusive
+        },
+      dueNew =
+        scopedLive.count {
+          it.hasGoodOutgoing &&
+            it.cardState.phase == CardPhase.NEW &&
+            it.cardState.dueDate < dayEndExclusive
+        },
+      inSession = scopedLive.count { it.hasGoodOutgoing && it.isInSession() },
+    )
+  }
+
+  /** `true` when [repertoireId] is `null` (no scope), or [positionKey] is trainable within it. */
+  private fun isTrainableFor(positionKey: PositionKey, repertoireId: String?): Boolean =
+    repertoireId == null || (positionKey to repertoireId) in trainable
 
   private fun PreviousAndNextMoves.withoutNext(
     move: String,
@@ -475,5 +531,71 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       val stored = outbox[entry.key] ?: continue
       if (stored <= entry.deviceSeq) outbox.remove(entry.key)
     }
+  }
+
+  override suspend fun getRepertoire(id: String): DataRepertoire? =
+    repertoires[id]?.takeIf { !it.isDeleted }
+
+  override suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire? = repertoires[id]
+
+  override suspend fun getRepertoires(): List<DataRepertoire> =
+    repertoires.values.filter { !it.isDeleted }
+
+  override suspend fun insertRepertoire(repertoire: DataRepertoire) {
+    repertoires[repertoire.id] = repertoire
+    mark(DirtyKey.RepertoireKey(repertoire.id), repertoire.deviceSeq)
+  }
+
+  override suspend fun applyRemoteRepertoire(repertoire: DataRepertoire) {
+    repertoires[repertoire.id] = repertoire
+  }
+
+  override suspend fun getTags(
+    origin: PositionKey,
+    destination: PositionKey,
+  ): List<DataEdgeRepertoireTag> =
+    tags.values.filter { it.origin == origin && it.destination == destination && !it.isDeleted }
+
+  override suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag? = tags[Triple(origin, destination, repertoireId)]
+
+  override suspend fun insertTag(tag: DataEdgeRepertoireTag) {
+    tags[Triple(tag.origin, tag.destination, tag.repertoireId)] = tag
+    mark(DirtyKey.TagKey(tag.origin, tag.destination, tag.repertoireId), tag.deviceSeq)
+  }
+
+  override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) {
+    tags[Triple(tag.origin, tag.destination, tag.repertoireId)] = tag
+  }
+
+  override suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  ) {
+    trainable.keys.removeAll { it.first == positionKey }
+    for (id in repertoireIds) trainable[positionKey to id] = lastReview
+  }
+
+  override suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot> = repertoireIds.associateWith { id ->
+    // A tombstoned position's trainable row is stale until its own delete path clears it (see
+    // TreeStore); filtering it out here too is the correctness backstop, not merely an
+    // optimization. Mirrors the Room/IndexedDB backends' inner join against the node table: a
+    // trainable row whose position was never inserted at all does not count either, the same as
+    // one whose position was later deleted, since TreeStore itself never writes a trainable row
+    // for a position it cannot resolve.
+    val live =
+      trainable.entries.filter { it.key.second == id && nodes[it.key.first]?.isDeleted == false }
+    val solid = live.count { nodes[it.key.first]?.cardState?.phase == CardPhase.REVIEW }
+    RepertoireMasterySnapshot(
+      solidCount = solid,
+      totalCount = live.size,
+      lastReview = live.mapNotNull { it.value }.maxOrNull(),
+    )
   }
 }

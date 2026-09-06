@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
@@ -673,15 +674,48 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   @Test
-  fun outboxAcceptsAllThreeKeyKinds() = runTest {
+  fun outboxAcceptsAllFiveKeyKinds() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val node = DirtyKey.NodeKey(key0)
     val edge = DirtyKey.EdgeKey(key0, key1)
     val setting = DirtyKey.SettingKey("appTheme")
+    val repertoire = DirtyKey.RepertoireKey("italian-game")
+    val tag = DirtyKey.TagKey(key0, key1, "italian-game")
     database.markDirty(node, 1L)
     database.markDirty(edge, 1L)
     database.markDirty(setting, 1L)
-    assertEquals(setOf(node, edge, setting), database.getOutbox().map { it.key }.toSet())
+    database.markDirty(repertoire, 1L)
+    database.markDirty(tag, 1L)
+    assertEquals(
+      setOf(node, edge, setting, repertoire, tag),
+      database.getOutbox().map { it.key }.toSet(),
+    )
+  }
+
+  @Test
+  fun insertRepertoireQueuesItsOwnRepertoireKey() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+
+    database.insertRepertoire(
+      DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+    )
+
+    assertEquals(
+      setOf(DirtyKey.RepertoireKey("italian-game")),
+      database.getOutbox().map { it.key }.toSet(),
+    )
+  }
+
+  @Test
+  fun insertTagQueuesItsOwnTagKey() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+
+    assertEquals(
+      setOf(DirtyKey.TagKey(key0, key1, "italian-game")),
+      database.getOutbox().map { it.key }.toSet(),
+    )
   }
 
   // --- Soft delete cascades to incident moves, and insertNodes never clobbers a tombstone --------
@@ -725,5 +759,156 @@ class TestInMemoryDatabaseQueryManager {
     assertTrue(
       !database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted
     )
+  }
+
+  // --- Repertoire registry and edge tag CRUD -------------------------------------------------
+
+  @Test
+  fun insertRepertoireThenGetRepertoireReturnsIt() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val repertoire = DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+
+    database.insertRepertoire(repertoire)
+
+    assertEquals(repertoire, database.getRepertoire("italian-game"))
+  }
+
+  @Test
+  fun insertTagThenGetTagsReturnsTheLiveTagDeletedTagsExcluded() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val origin = key0
+    val destination = key1
+    val live = DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game")
+    val deleted =
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "ruy-lopez", isDeleted = true)
+
+    database.insertTag(live)
+    database.insertTag(deleted)
+
+    assertEquals(listOf(live), database.getTags(origin, destination))
+  }
+
+  // --- NodeRepertoireTrainable projection --------------------------------------------------
+
+  @Test
+  fun replaceTrainableRepertoiresOverwritesThePreviousMembershipSet() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val position = key0
+    // TreeStore never writes a trainable row for a position it cannot resolve, so this seam's own
+    // "position is live" backstop assumes the position exists.
+    database.insertNodes(DataNode(position, PreviousAndNextMoves(), CardStateFactory.new()))
+
+    database.replaceTrainableRepertoires(
+      position,
+      setOf("italian-game", "ruy-lopez"),
+      lastReview = null,
+    )
+    database.replaceTrainableRepertoires(position, setOf("ruy-lopez"), lastReview = null)
+    val snapshots = database.getRepertoireMasterySnapshots(listOf("italian-game", "ruy-lopez"))
+
+    assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshots.getValue("italian-game"))
+    assertEquals(RepertoireMasterySnapshot(0, 1, null), snapshots.getValue("ruy-lopez"))
+  }
+
+  @Test
+  fun getRepertoireMasterySnapshotsCountsSolidPositionsAndTracksTheLatestReview() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val solidPosition = key0
+    val newPosition = key1
+    val reviewedAt = Instant.fromEpochSeconds(2_000)
+    database.insertNodes(
+      DataNode(
+        solidPosition,
+        PreviousAndNextMoves(),
+        CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = reviewedAt),
+      ),
+      DataNode(newPosition, PreviousAndNextMoves(), CardStateFactory.new()),
+    )
+    database.replaceTrainableRepertoires(solidPosition, setOf("italian-game"), reviewedAt)
+    database.replaceTrainableRepertoires(newPosition, setOf("italian-game"), lastReview = null)
+
+    val snapshot =
+      database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
+
+    assertEquals(
+      RepertoireMasterySnapshot(solidCount = 1, totalCount = 2, lastReview = reviewedAt),
+      snapshot,
+    )
+  }
+
+  @Test
+  fun getRepertoireMasterySnapshotsReturnsAZeroSnapshotForARepertoireWithNoTrainablePosition() =
+    runTest {
+      val database = InMemoryDatabaseQueryManager()
+
+      val snapshots = database.getRepertoireMasterySnapshots(listOf("empty-repertoire"))
+
+      assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshots.getValue("empty-repertoire"))
+    }
+
+  @Test
+  fun getRepertoireMasterySnapshotsExcludesATrainableRowWhoseOwnPositionWasDeleted() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val position = key0
+    val reviewedAt = Instant.fromEpochSeconds(2_000)
+    database.insertNodes(
+      DataNode(
+        position,
+        PreviousAndNextMoves(),
+        CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = reviewedAt),
+      )
+    )
+    database.replaceTrainableRepertoires(position, setOf("italian-game"), reviewedAt)
+
+    database.deletePosition(position, DeleteMode.SOFT, "device-a", 1L, DateUtil.now())
+
+    val snapshot =
+      database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
+    assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshot)
+  }
+
+  // --- Scoped scheduling queries ---------------------------------------------------------
+
+  @Test
+  fun nextDueNewCardExcludesACardOutsideTheGivenRepertoire() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val taggedPosition = PositionKey("posA b K")
+    database.insertNodes(
+      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+      schedNode("posB w K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+    )
+    database.replaceTrainableRepertoires(taggedPosition, setOf("italian-game"), null)
+
+    val result = database.nextDueNewCard(dayEnd, repertoireId = "italian-game")
+
+    assertEquals(taggedPosition, result?.positionKey)
+  }
+
+  @Test
+  fun nextDueNewCardWithANullRepertoireIdReproducesTheUnscopedResult() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+    )
+
+    assertEquals(
+      database.nextDueNewCard(dayEnd),
+      database.nextDueNewCard(dayEnd, repertoireId = null),
+    )
+  }
+
+  @Test
+  fun getScopedCountsReportsOnlyTheGivenRepertoiresDueAndInSessionCards() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val taggedPosition = PositionKey("posA b K")
+    database.insertNodes(
+      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+      schedNode("posB w K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
+    )
+    database.replaceTrainableRepertoires(taggedPosition, setOf("italian-game"), null)
+
+    val counts = database.getScopedCounts(dayEnd, "italian-game")
+
+    assertEquals(ScopedSchedulingCounts(dueReviews = 0, dueNew = 1, inSession = 0), counts)
   }
 }

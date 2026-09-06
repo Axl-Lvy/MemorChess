@@ -7,6 +7,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import proj.memorchess.axl.core.config.INSTALLED_REPERTOIRES_SETTING
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportException
 import proj.memorchess.axl.core.pgn.PgnImportPreview
@@ -47,7 +48,8 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     fetchPgn: suspend (String, (Float) -> Unit) -> CatalogResult<List<PgnGame>> = { _, _ ->
       CatalogResult.Ok(emptyList())
     },
-    importGames: suspend (RepertoireColor, List<PgnGame>, (Float) -> Unit) -> PgnImportSummary =
+    importGames:
+      suspend (RepertoireDescriptor, List<PgnGame>, (Float) -> Unit) -> PgnImportSummary =
       { _, _, _ ->
         PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
       },
@@ -55,6 +57,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       PgnImportPreview(totalMoves = 4, movesInCommon = 1)
     },
     store: InstalledRepertoireStore = InstalledRepertoireStore(),
+    loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
   ) =
     RepertoireLibraryViewModel(
       loadManifest = loadManifest,
@@ -62,6 +65,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       importGames = importGames,
       previewGames = previewGames,
       installedStore = store,
+      loadMyRepertoires = loadMyRepertoires,
       scope = backgroundScope,
     )
 
@@ -144,6 +148,27 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   }
 
   @Test
+  fun myRepertoiresIsPopulatedFromTheInjectedLoaderOnConstruction() = test {
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest()) },
+        loadMyRepertoires = {
+          listOf(
+            DataRepertoire(
+              id = "italian-game",
+              name = "Italian Game",
+              color = RepertoireColor.WHITE,
+            )
+          )
+        },
+      )
+
+    val loaded = viewModel.myRepertoires.first { it.isNotEmpty() }
+
+    loaded.map { it.id } shouldBe listOf("italian-game")
+  }
+
+  @Test
   fun refreshWhileLoadIsInFlightIsIgnored() = test {
     val gate = CompletableDeferred<Unit>()
     var loadCalls = 0
@@ -202,8 +227,8 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
-        importGames = { color, _, _ ->
-          importedColor = color
+        importGames = { descriptor, _, _ ->
+          importedColor = descriptor.color
           PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
         },
       )

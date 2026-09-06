@@ -9,6 +9,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
@@ -24,6 +25,7 @@ import proj.memorchess.axl.core.auth.SignInResult
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.graph.TreeStore
 
 /** Minimal fake: always returns the same [TokenResult]. */
@@ -183,5 +185,39 @@ class TestSyncEngineCycle {
     pullCalls shouldBe 2
     cursorStore.read() shouldBe null // the final page's nextCursor was null
     database.getPosition(PositionKey("a")).shouldNotBeNull()
+  }
+
+  @Test
+  fun pushCycleIncludesADirtyRepertoireAndADirtyTagInTheRequest() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val origin = PositionKey.START_POSITION
+    val destination = PositionKey("posA b K")
+    store.addMove(from = origin, move = "e4", to = destination, isGood = true, fromDepth = 0)
+    store.tagEdge(origin, destination, "italian-game")
+    var pushBody: String? = null
+    val engine = MockEngine { request ->
+      if (request.method.value == "GET") {
+        jsonResponse(emptyPullBody)
+      } else {
+        pushBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+        jsonResponse(emptyPushBody)
+      }
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        store,
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+      )
+
+    outcome shouldBe CycleOutcome.Success
+    val sentRequest = SYNC_JSON.decodeFromString<SyncPushRequest>(pushBody!!)
+    sentRequest.repertoires.map { it.id } shouldBe listOf("italian-game")
+    sentRequest.tags.map { it.repertoireId } shouldBe listOf("italian-game")
   }
 }

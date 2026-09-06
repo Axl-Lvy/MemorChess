@@ -34,12 +34,12 @@ class TestNavigation {
 
   @Test
   fun testGoToTraining() {
-    this.clickOnDestinationButton(Route.TrainingRoute)
+    this.clickOnDestinationButton(Route.TrainingRoute.DEFAULT)
     composeTestRule.waitUntilAtLeastOneExists(
       hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TrainingRoute.getLabel()}")
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TrainingRoute.DEFAULT.getLabel()}")
   }
 
   @Test

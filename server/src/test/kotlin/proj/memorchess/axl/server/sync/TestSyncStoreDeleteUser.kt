@@ -5,8 +5,10 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
+import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.server.db.PostgresTestDb
@@ -66,6 +68,30 @@ internal class TestSyncStoreDeleteUser {
               deviceSeq = 1,
             )
           ),
+        repertoires =
+          listOf(
+            RepertoireSyncRow(
+              id = "italian-game",
+              name = "Italian Game",
+              color = "WHITE",
+              isDeleted = false,
+              updatedAt = serverNow,
+              originDevice = "device-a",
+              deviceSeq = 1,
+            )
+          ),
+        tags =
+          listOf(
+            EdgeRepertoireTagSyncRow(
+              origin = origin,
+              destination = destination,
+              repertoireId = "italian-game",
+              isDeleted = false,
+              updatedAt = serverNow,
+              originDevice = "device-a",
+              deviceSeq = 1,
+            )
+          ),
       ),
       serverNow,
     )
@@ -83,6 +109,8 @@ internal class TestSyncStoreDeleteUser {
     page.nodes.shouldBeEmpty()
     page.edges.shouldBeEmpty()
     page.settings.shouldBeEmpty()
+    page.repertoires.shouldBeEmpty()
+    page.tags.shouldBeEmpty()
   }
 
   @Test
@@ -114,6 +142,9 @@ internal class TestSyncStoreDeleteUser {
 
     store.deleteUser(mine)
 
-    store.pull(theirs, 0, 100, serverNow).settings.single().value shouldBe "dark"
+    val page = store.pull(theirs, 0, 100, serverNow)
+    page.settings.single().value shouldBe "dark"
+    page.repertoires.single().id shouldBe "italian-game"
+    page.tags.single().repertoireId shouldBe "italian-game"
   }
 }

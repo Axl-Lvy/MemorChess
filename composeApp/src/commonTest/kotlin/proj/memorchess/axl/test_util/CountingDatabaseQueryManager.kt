@@ -1,13 +1,17 @@
 package proj.memorchess.axl.test_util
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.DataEdgeRepertoireTag
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.OutboxEntry
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.SchedulingCounts
+import proj.memorchess.axl.core.data.ScopedSchedulingCounts
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 
@@ -60,27 +64,39 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
 
   override suspend fun getLastUpdate(): Instant? = delegate.getLastUpdate()
 
-  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
-    delegate.nextReadyLearningCard(now)
+  override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+    delegate.nextReadyLearningCard(now, repertoireId)
 
-  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
-    delegate.nextPendingLearningCard(now)
+  override suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.nextPendingLearningCard(now, repertoireId)
 
-  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? =
-    delegate.nextDueReviewCard(dayEndExclusive)
+  override suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.nextDueReviewCard(dayEndExclusive, repertoireId)
 
-  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? =
-    delegate.nextDueNewCard(dayEndExclusive)
+  override suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.nextDueNewCard(dayEndExclusive, repertoireId)
 
   override suspend fun getSchedulingCounts(
     dayStart: Instant,
     dayEndExclusive: Instant,
   ): SchedulingCounts = delegate.getSchedulingCounts(dayStart, dayEndExclusive)
 
+  override suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts = delegate.getScopedCounts(dayEndExclusive, repertoireId)
+
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
-  ): TrainingEntry? = delegate.findEligibleAmong(keys, dayEndExclusive)
+    repertoireId: String?,
+  ): TrainingEntry? = delegate.findEligibleAmong(keys, dayEndExclusive, repertoireId)
 
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int =
     delegate.countDescendants(key, cap)
@@ -98,4 +114,42 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun applyRemoteNode(node: DataNode) = delegate.applyRemoteNode(node)
 
   override suspend fun applyRemoteMove(move: DataMove) = delegate.applyRemoteMove(move)
+
+  override suspend fun getRepertoire(id: String): DataRepertoire? = delegate.getRepertoire(id)
+
+  override suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire? =
+    delegate.getRepertoireIncludingDeleted(id)
+
+  override suspend fun getRepertoires(): List<DataRepertoire> = delegate.getRepertoires()
+
+  override suspend fun insertRepertoire(repertoire: DataRepertoire) =
+    delegate.insertRepertoire(repertoire)
+
+  override suspend fun applyRemoteRepertoire(repertoire: DataRepertoire) =
+    delegate.applyRemoteRepertoire(repertoire)
+
+  override suspend fun getTags(
+    origin: PositionKey,
+    destination: PositionKey,
+  ): List<DataEdgeRepertoireTag> = delegate.getTags(origin, destination)
+
+  override suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag? = delegate.getTagIncludingDeleted(origin, destination, repertoireId)
+
+  override suspend fun insertTag(tag: DataEdgeRepertoireTag) = delegate.insertTag(tag)
+
+  override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) = delegate.applyRemoteTag(tag)
+
+  override suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  ) = delegate.replaceTrainableRepertoires(positionKey, repertoireIds, lastReview)
+
+  override suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot> = delegate.getRepertoireMasterySnapshots(repertoireIds)
 }

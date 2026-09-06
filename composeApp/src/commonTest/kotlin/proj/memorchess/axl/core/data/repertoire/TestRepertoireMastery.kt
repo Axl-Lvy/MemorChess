@@ -2,6 +2,13 @@ package proj.memorchess.axl.core.data.repertoire
 
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
+import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.scheduling.CardPhase
+import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testTreeStore
 
 class TestRepertoireMastery {
 
@@ -56,12 +63,71 @@ class TestRepertoireMastery {
   }
 
   @Test
-  fun placeholderReturnsAFixedShapedSnapshot() {
-    val mastery = placeholderRepertoireMastery()
+  fun noRepertoireWithATrainablePositionYieldsNoMastery() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
 
-    mastery.repertoireName shouldBe "Italian Game"
-    mastery.solidCount shouldBe 46
-    mastery.totalCount shouldBe 68
-    mastery.solidPercent shouldBe 68
+    mostRecentRepertoireMastery(store) shouldBe null
+  }
+
+  @Test
+  fun zeroSolidPositionsYieldsZeroPercent() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val destination = PositionKey("posA b K")
+    store.addMove(PositionKey.START_POSITION, "e4", destination, isGood = true, fromDepth = 0)
+    store.tagEdge(PositionKey.START_POSITION, destination, "italian-game")
+    // A card mid learning (not yet REVIEW) but with a stamped lastReview: trainable, not solid.
+    store.updateCardState(
+      PositionKey.START_POSITION,
+      CardStateFactory.new().copy(phase = CardPhase.LEARNING, lastReview = DateUtil.now()),
+    )
+
+    val mastery = mostRecentRepertoireMastery(store)!!
+
+    mastery.solidCount shouldBe 0
+    mastery.solidPercent shouldBe 0
+  }
+
+  @Test
+  fun allSolidPositionsYieldsHundredPercent() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val destination = PositionKey("posA b K")
+    store.addMove(PositionKey.START_POSITION, "e4", destination, isGood = true, fromDepth = 0)
+    store.tagEdge(PositionKey.START_POSITION, destination, "italian-game")
+    store.updateCardState(
+      PositionKey.START_POSITION,
+      CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = DateUtil.now()),
+    )
+
+    val mastery = mostRecentRepertoireMastery(store)!!
+
+    mastery.solidCount shouldBe mastery.totalCount
+    mastery.solidPercent shouldBe 100
+  }
+
+  @Test
+  fun aTieInMostRecentActivityBreaksOnRepertoireNameAscending() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.registerRepertoire("ruy-lopez", "Ruy Lopez", RepertoireColor.WHITE)
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val destinationA = PositionKey("posA b K")
+    val destinationB = PositionKey("posB b K")
+    store.addMove(PositionKey.START_POSITION, "e4", destinationA, isGood = true, fromDepth = 0)
+    store.addMove(PositionKey.START_POSITION, "d4", destinationB, isGood = true, fromDepth = 0)
+    store.tagEdge(PositionKey.START_POSITION, destinationA, "ruy-lopez")
+    store.tagEdge(PositionKey.START_POSITION, destinationB, "italian-game")
+    // The start position now has one good outgoing edge in each repertoire, so a single
+    // updateCardState stamps the exact same lastReview into both repertoires' trainable rows: a
+    // genuine tie, not merely two separately-timed writes that happen to match.
+    store.updateCardState(
+      PositionKey.START_POSITION,
+      CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = DateUtil.now()),
+    )
+
+    val mastery = mostRecentRepertoireMastery(store)!!
+
+    mastery.repertoireName shouldBe "Italian Game" // "Italian Game" < "Ruy Lopez" ascending
   }
 }

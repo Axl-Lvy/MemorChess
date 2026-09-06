@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.pgn
 
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.IllegalMoveException
 import proj.memorchess.axl.core.engine.Player
@@ -41,30 +42,61 @@ class PgnImporter(private val treeStore: TreeStore) {
    * @param perspective Side whose repertoire is being imported: only its moves are marked `isGood`,
    *   the opponent's replies are stored as not good. `null` marks every move good, for two sided
    *   content such as a Lichess study.
+   * @param repertoireId When not `null`, every planned move is tagged with this repertoire, present
+   *   or not: an edge this import shares with an already tagged repertoire is tagged too (the
+   *   "extend on reinstall" case). `null` imports untagged, exactly as before this parameter
+   *   existed.
    * @param onProgress Reports `gamesPlanned / (games.size + 1)` as each game finishes replaying,
    *   reserving the last slice for what follows planning: the already-present lookups (one
-   *   [TreeStore.node] read per planned move) and the final [TreeStore.addMoves] write, together a
-   *   single unsplit phase since the write itself is atomic (see this class's own KDoc on why it is
-   *   never split). Reaches `1f` only once that phase has completed, so a caller driving a progress
-   *   bar off it never reads "done" while the slower, DB-bound part of the import is still running.
-   *   `games.isEmpty()` reports only the final `1f`, nothing during planning.
+   *   [TreeStore.node] read per planned move), the final [TreeStore.addMoves] write, and, when
+   *   [repertoireId] is not `null`, the edge tagging loop, together a single unsplit phase since
+   *   the write itself is atomic (see this class's own KDoc on why it is never split). Reaches `1f`
+   *   only once that phase has completed, so a caller driving a progress bar off it never reads
+   *   "done" while the slower, DB-bound part of the import is still running. `games.isEmpty()`
+   *   reports only the final `1f`, nothing during planning.
    * @return How many moves were added and how many were already present.
-   * @throws PgnImportException if any move of any variation is illegal. Nothing is written in that
-   *   case.
+   * @throws PgnImportException if any move of any variation is illegal, or if [repertoireId] names
+   *   a repertoire already registered with a [RepertoireColor] that conflicts with [perspective].
+   *   Nothing is written in either case.
    */
   suspend fun import(
     games: List<PgnGame>,
     perspective: Player? = null,
+    repertoireId: String? = null,
     onProgress: (Float) -> Unit = {},
   ): PgnImportSummary {
+    if (repertoireId != null) checkPerspectiveCompatible(repertoireId, perspective)
     val plannedMoves = planMoves(games, perspective, onProgress)
     val (alreadyPresent, movesToInsert) = plannedMoves.partition { isAlreadyPresent(it) }
     treeStore.addMoves(movesToInsert)
+    if (repertoireId != null) {
+      for (move in plannedMoves) treeStore.tagEdge(move.from, move.to, repertoireId)
+    }
     onProgress(1f)
     return PgnImportSummary(
       movesAdded = movesToInsert.size,
       movesAlreadyPresent = alreadyPresent.size,
     )
+  }
+
+  /**
+   * Rejects extending [repertoireId] with an import whose [perspective] declares a color that
+   * conflicts with the repertoire's already registered [RepertoireColor]. A repertoire not yet
+   * registered, or one registered with no fixed color (a two sided import such as a Lichess study),
+   * accepts any perspective.
+   *
+   * @throws PgnImportException on a conflict. Nothing is written in that case.
+   */
+  private suspend fun checkPerspectiveCompatible(repertoireId: String, perspective: Player?) {
+    val existing = treeStore.repertoires().firstOrNull { it.id == repertoireId } ?: return
+    val existingColor = existing.color ?: return
+    val incomingColor = perspective?.toRepertoireColor() ?: return
+    if (existingColor != incomingColor) {
+      throw PgnImportException(
+        "Repertoire '$repertoireId' is registered as $existingColor, cannot extend it with a " +
+          "$incomingColor import"
+      )
+    }
   }
 
   /**
@@ -168,3 +200,9 @@ class PgnImporter(private val treeStore: TreeStore) {
   ): PgnImportException =
     PgnImportException("Illegal move $san at ply ${depth + 1} in game ${gameIndex + 1}", cause)
 }
+
+private fun Player.toRepertoireColor(): RepertoireColor =
+  when (this) {
+    Player.WHITE -> RepertoireColor.WHITE
+    Player.BLACK -> RepertoireColor.BLACK
+  }
