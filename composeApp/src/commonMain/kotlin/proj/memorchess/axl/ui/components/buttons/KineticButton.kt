@@ -171,6 +171,24 @@ private suspend fun Animatable<Float, AnimationVector1D>.settleForPress(pressed:
 }
 
 /**
+ * Everything [Modifier.kineticButtonShell] needs, bundled into one parameter so the function itself
+ * stays under Sonar's 7-parameter ceiling (kotlin:S107) rather than taking each field separately.
+ */
+private class ButtonShellState(
+  val iconOnly: Boolean,
+  val enabled: Boolean,
+  val metrics: ButtonMetrics,
+  val interactionSource: MutableInteractionSource,
+  val onClick: () -> Unit,
+  val pressScale: Animatable<Float, AnimationVector1D>,
+  val elevated: Boolean,
+  val pressed: Boolean,
+  val outline: BorderStroke,
+  val background: Color,
+  val indication: Indication,
+)
+
+/**
  * Builds the pressable button's shell modifier: sizing, the click target, the press-scale layer,
  * the chunky pressable edge (filled styles only) or a plain stroke (transparent styles), the fill,
  * and finally the clipped indication layer.
@@ -178,54 +196,43 @@ private suspend fun Animatable<Float, AnimationVector1D>.settleForPress(pressed:
  * Order is load-bearing and kept exactly as authored: pointer input first, since the elevation's
  * press translate is a layout offset and a `clickable` chained after it would slide the touch
  * target out from under a finger held near the top edge; the indication is applied further down
- * instead, where it can be clipped to [shape]. The elevated styles hand their outline to the
+ * instead, where it can be clipped to the shape. The elevated styles hand their outline to the
  * elevation, which draws it inside the press offset — a `border` chained after the elevation would
  * be painted over by its own stroke, so the plain `border` only runs for non-elevated styles. The
  * background is placed after the elevation, or the hard edge gets painted over. The final `clip`
  * covers only the state layer: the elevation's hard edge is drawn outside the node's bounds and a
  * clip chained above it would cut the edge off.
  *
- * [pressScale] is read as `.value` inside the `graphicsLayer` block (the draw phase), never during
- * composition, so animating it costs a redraw, not a recomposition.
+ * [ButtonShellState.pressScale] is read as `.value` inside the `graphicsLayer` block (the draw
+ * phase), never during composition, so animating it costs a redraw, not a recomposition.
  */
 @Composable
-private fun Modifier.kineticButtonShell(
-  iconOnly: Boolean,
-  enabled: Boolean,
-  metrics: ButtonMetrics,
-  interactionSource: MutableInteractionSource,
-  onClick: () -> Unit,
-  pressScale: Animatable<Float, AnimationVector1D>,
-  elevated: Boolean,
-  pressed: Boolean,
-  outline: BorderStroke,
-  background: Color,
-  indication: Indication,
-): Modifier =
-  this.height(metrics.height)
-    .defaultMinSize(minWidth = metrics.height)
-    .then(if (iconOnly) Modifier.width(metrics.height) else Modifier)
+private fun Modifier.kineticButtonShell(state: ButtonShellState): Modifier =
+  this.height(state.metrics.height)
+    .defaultMinSize(minWidth = state.metrics.height)
+    .then(if (state.iconOnly) Modifier.width(state.metrics.height) else Modifier)
     .clickable(
-      interactionSource = interactionSource,
+      interactionSource = state.interactionSource,
       indication = null,
-      enabled = enabled,
+      enabled = state.enabled,
       role = Role.Button,
-      onClick = onClick,
+      onClick = state.onClick,
     )
     .graphicsLayer {
-      alpha = if (enabled) 1f else DISABLED_ALPHA
-      scaleX = pressScale.value
-      scaleY = pressScale.value
+      alpha = if (state.enabled) 1f else DISABLED_ALPHA
+      scaleX = state.pressScale.value
+      scaleY = state.pressScale.value
     }
     .then(
-      if (elevated) Modifier.kineticPressableElevation(pressed, metrics.shape, outline)
-      else Modifier
+      if (state.elevated) {
+        Modifier.kineticPressableElevation(state.pressed, state.metrics.shape, state.outline)
+      } else Modifier
     )
-    .background(color = background, shape = metrics.shape)
-    .then(if (elevated) Modifier else Modifier.border(outline, metrics.shape))
-    .clip(metrics.shape)
-    .indication(interactionSource, indication)
-    .then(if (iconOnly) Modifier else Modifier.padding(horizontal = 14.dp))
+    .background(color = state.background, shape = state.metrics.shape)
+    .then(if (state.elevated) Modifier else Modifier.border(state.outline, state.metrics.shape))
+    .clip(state.metrics.shape)
+    .indication(state.interactionSource, state.indication)
+    .then(if (state.iconOnly) Modifier else Modifier.padding(horizontal = 14.dp))
 
 /**
  * Kinetic button. Mirrors `.btn`, `.btn.primary`, `.btn.danger`, `.btn.danger.outline`,
@@ -276,17 +283,19 @@ fun KineticButton(
   Box(
     modifier =
       modifier.kineticButtonShell(
-        iconOnly = iconOnly,
-        enabled = enabled,
-        metrics = metrics,
-        interactionSource = interactionSource,
-        onClick = onClick,
-        pressScale = pressScale,
-        elevated = colors.elevated,
-        pressed = pressed,
-        outline = outline,
-        background = face.background,
-        indication = indication,
+        ButtonShellState(
+          iconOnly = iconOnly,
+          enabled = enabled,
+          metrics = metrics,
+          interactionSource = interactionSource,
+          onClick = onClick,
+          pressScale = pressScale,
+          elevated = colors.elevated,
+          pressed = pressed,
+          outline = outline,
+          background = face.background,
+          indication = indication,
+        )
       ),
     contentAlignment = Alignment.Center,
   ) {
