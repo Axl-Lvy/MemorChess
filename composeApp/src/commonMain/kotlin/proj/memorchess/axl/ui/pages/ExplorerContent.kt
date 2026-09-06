@@ -135,28 +135,11 @@ fun ExplorerContent(
   val nextMoves = remember { mutableStateListOf<String>() }
   val yoursBySan = remember { mutableStateMapOf<String, Boolean>() }
 
-  // Marks each SAN in `moves` as YOURS when `myTreeStore` holds it as a good move at the current
-  // position.
-  suspend fun refreshYours(moves: List<String>) {
-    val store = myTreeStore ?: return
-    if (moves.isEmpty()) return
-    val mineSans =
-      store
-        .node(explorer.engine.toPositionKey())
-        ?.outgoing
-        ?.values
-        ?.filter { it.isGood == true }
-        ?.map { it.move }
-        ?.toSet()
-        .orEmpty()
-    yoursBySan.putAll(moves.associateWith { it in mineSans })
-  }
-
   LaunchedEffect(explorer) {
     nextMoves.clear()
     yoursBySan.clear()
     nextMoves.addAll(explorer.getNextMoves())
-    refreshYours(nextMoves)
+    refreshYours(nextMoves, myTreeStore, explorer, yoursBySan)
   }
   var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
   val bestMoveArrowEnabled by remember {
@@ -213,7 +196,7 @@ fun ExplorerContent(
         nextMoves.clear()
         yoursBySan.clear()
         nextMoves.addAll(moves)
-        refreshYours(nextMoves)
+        refreshYours(nextMoves, myTreeStore, explorer, yoursBySan)
       }
       evaluator?.let { eval ->
         coroutineScope.launch {
@@ -341,6 +324,30 @@ fun ExplorerContent(
       else LandscapeExploreLayout(Modifier.fillMaxSize(), content)
     }
   }
+}
+
+/**
+ * Marks each SAN in [moves] as YOURS in [yoursBySan] when [myTreeStore] holds it as a good move at
+ * [explorer]'s current position. No-op when [myTreeStore] is `null` or [moves] is empty.
+ */
+private suspend fun refreshYours(
+  moves: List<String>,
+  myTreeStore: TreeStore?,
+  explorer: LinesExplorer,
+  yoursBySan: MutableMap<String, Boolean>,
+) {
+  val store = myTreeStore ?: return
+  if (moves.isEmpty()) return
+  val mineSans =
+    store
+      .node(explorer.engine.toPositionKey())
+      ?.outgoing
+      ?.values
+      ?.filter { it.isGood == true }
+      ?.map { it.move }
+      ?.toSet()
+      .orEmpty()
+  yoursBySan.putAll(moves.associateWith { it in mineSans })
 }
 
 /**
