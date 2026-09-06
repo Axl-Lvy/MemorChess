@@ -7,9 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
@@ -32,9 +31,20 @@ private const val LIGHT_SHADOW_ALPHA_BIG = 0.06f
  * base and clashes with the current violet one.)
  *
  * @param big When true uses the larger 12.dp offset (board shells, modals); otherwise 5.dp.
+ * @param shape Outline the offset block (and, when [drawBorder] is true, the 1.dp line stroke)
+ *   follow. Defaults to [RectangleShape], reproducing the old square-only behaviour so
+ *   [KineticBoardShell] and [KineticDialog] — which pass neither this nor [drawBorder] — render
+ *   pixel-identical to before this parameter existed.
+ * @param drawBorder When false, suppresses this modifier's own 1.dp `line` stroke. Set this for a
+ *   caller whose own `.border(...)` must be the single visible stroke on the surface — chaining
+ *   both would paint this one on top, covering the caller's.
  */
 @Composable
-fun Modifier.kineticShadow(big: Boolean = false): Modifier = composed {
+fun Modifier.kineticShadow(
+  big: Boolean = false,
+  shape: Shape = RectangleShape,
+  drawBorder: Boolean = true,
+): Modifier = composed {
   val palette = LocalKineticPalette.current
   val offset: Dp = if (big) 12.dp else 5.dp
   val shadowColor: Color =
@@ -45,9 +55,14 @@ fun Modifier.kineticShadow(big: Boolean = false): Modifier = composed {
     }
   this.drawBehind {
       val o = offset.toPx()
-      drawRect(color = shadowColor, topLeft = Offset(o, o), size = Size(size.width, size.height))
+      translate(left = o, top = o) {
+        drawOutline(shape.createOutline(size, layoutDirection, this), color = shadowColor)
+      }
     }
-    .border(width = 1.dp, color = palette.line)
+    .then(
+      if (drawBorder) Modifier.border(width = 1.dp, color = palette.line, shape = shape)
+      else Modifier
+    )
 }
 
 /**

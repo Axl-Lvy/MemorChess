@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -60,13 +62,14 @@ data class KineticSwatch<T>(
  * `.swatch.active`, and `.swatch .grid-bg` from `design-proposals/kinetic-base.css` and the Board
  * Style block in `design-proposals/kinetic-settings-desktop.html` (lines 207–243).
  *
- * Each [KineticSwatch] is drawn as a 48.dp square showing a 2×2 checkered preview of its
- * `lightSquareColor` and `darkSquareColor`, with the swatch's [KineticSwatch.label] rendered below
- * in `labelSm` uppercase. Idle swatches carry a 1.dp `line` border. The active swatch (where
- * `swatch.value == selected`) gets a 2.dp `action` border, a small `action` check-mark badge in the
- * bottom-right of the preview, and an `ink` label color (idle labels use `ink3`). When [enabled] is
- * false the whole row dims to 0.5 alpha and clicks are suppressed. Press/hover indication is taken
- * from [LocalIndication] so each platform's Material theme controls the ripple.
+ * Each [KineticSwatch] is drawn as a 48.dp square, rounded to 14.dp, showing a 2×2 checkered
+ * preview of its `lightSquareColor` and `darkSquareColor`, with the swatch's [KineticSwatch.label]
+ * rendered below in `labelSm` uppercase. Idle swatches carry a 1.dp `line` border. The active
+ * swatch (where `swatch.value == selected`) gets a 2.dp `action` border, a small `action`
+ * check-mark badge in the bottom-right of the preview, and an `ink` label color (idle labels use
+ * `ink3`). When [enabled] is false the whole row dims to 0.5 alpha and clicks are suppressed.
+ * Press/hover indication is taken from [LocalIndication] so each platform's Material theme controls
+ * the ripple.
  *
  * @param T value type backing each option — typically an enum identifying a board style.
  * @param options the swatches to render, in display order.
@@ -101,6 +104,9 @@ fun <T> KineticSwatchPicker(
       val borderWidth = if (isActive) 2.dp else 1.dp
       val labelColor = if (isActive) palette.ink else palette.ink3
       val interactionSource = remember(swatch.value) { MutableInteractionSource() }
+      // 1n literal: board swatches are `border-radius:14px` (not the SHAPE CONTRACT's "icon tiles"
+      // row, which the 1n artboard itself overrides for this specific control).
+      val swatchShape = RoundedCornerShape(14.dp)
 
       Column(
         modifier = Modifier.width(SWATCH_COLUMN_WIDTH),
@@ -110,7 +116,8 @@ fun <T> KineticSwatchPicker(
         Box(
           modifier =
             Modifier.size(48.dp)
-              .border(BorderStroke(borderWidth, borderColor))
+              .clip(swatchShape)
+              .border(BorderStroke(borderWidth, borderColor), swatchShape)
               .clickable(
                 interactionSource = interactionSource,
                 indication = indication,

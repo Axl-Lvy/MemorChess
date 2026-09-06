@@ -1,9 +1,7 @@
 package proj.memorchess.axl.ui.components.controls
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +12,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
@@ -24,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -36,11 +35,13 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * Kinetic segmented control. Mirrors `.segs`, `.segs.two`, `.segs.three`, `.seg`, `.seg.active`,
  * and `.seg small` from `design-proposals/kinetic-base.css`.
  *
- * Renders [options] as a horizontal row of equal-width segments wrapped in a 1.dp `lineBright`
- * border over a `bg2` background, with 1.dp `lineBright` vertical dividers between segments. Each
- * segment shows a Baloo 2 display label (600 12sp idle, 700 12sp when active) produced by [label];
- * if [subtext] is provided, a `labelSm` caption is rendered below the label and the segment's
- * minimum height grows from 36.dp to 44.dp.
+ * Renders [options] as a horizontal row of equal-width segments inside a 14.dp-rounded `bg2`
+ * container with a 4.dp inset and a 5.dp gap between segments — the full 1f/1l/1n recipe
+ * (`background:bg; border-radius:14px; padding:4px; gap:5px`), which has **no** border and **no**
+ * dividers between segments; those would clash with the 11.dp-rounded active pill wherever a
+ * straight divider met a rounded corner. Each segment shows a Baloo 2 display label (600 12sp idle,
+ * 700 12sp when active) produced by [label]; if [subtext] is provided, a `labelSm` caption is
+ * rendered below the label and the segment's minimum height grows from 36.dp to 44.dp.
  *
  * The currently [selected] segment is filled with `action` and switches its content color to
  * `onAction` (subtext at 0.7 alpha); idle segments use `ink3` for the label and `ink4` for the
@@ -72,17 +73,24 @@ fun <T> KineticSegmentedControl(
   val palette = LocalKineticPalette.current
   val hasSubtext = subtext != null
   val rowHeight = if (hasSubtext) 44.dp else 36.dp
+  // 1f/1l/1n literal: container border-radius:14px.
+  val containerShape = RoundedCornerShape(14.dp)
 
   Row(
     modifier =
       modifier
         .height(rowHeight)
         .alpha(if (enabled) 1f else 0.5f)
-        .background(color = palette.bg2)
-        .border(BorderStroke(1.dp, palette.lineBright)),
+        .clip(containerShape)
+        .background(color = palette.bg2, shape = containerShape)
+        // 1f/1l/1n literal: container padding:4px.
+        .padding(4.dp),
+    // 1f/1l/1n literal: container gap:5px. No dividers — the mockup relies on the gap alone to
+    // separate segments, so the active pill's rounded corners never meet a straight edge.
+    horizontalArrangement = Arrangement.spacedBy(5.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    options.forEachIndexed { index, option ->
+    options.forEach { option ->
       KineticSegment(
         label = label(option),
         subtext = subtext?.invoke(option),
@@ -90,10 +98,6 @@ fun <T> KineticSegmentedControl(
         enabled = enabled,
         onClick = { onSelect(option) },
       )
-
-      if (index < options.lastIndex) {
-        Box(modifier = Modifier.fillMaxHeight().width(1.dp).background(palette.lineBright))
-      }
     }
   }
 }
@@ -124,12 +128,17 @@ private fun RowScope.KineticSegment(
   val subtextColor = if (isActive) palette.onAction.copy(alpha = 0.7f) else palette.ink4
   val labelWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold
   val interactionSource = remember { MutableInteractionSource() }
+  // 1f/1l/1n literal: active-segment border-radius:11px. Given its own shape (rather than relying
+  // on the container's clip) so a middle selection — not just the first/last segment — still
+  // renders rounded.
+  val segmentShape = RoundedCornerShape(11.dp)
 
   Box(
     modifier =
       Modifier.fillMaxHeight()
         .weight(1f)
-        .background(color = background)
+        .clip(segmentShape)
+        .background(color = background, shape = segmentShape)
         .clickable(
           interactionSource = interactionSource,
           indication = indication,
