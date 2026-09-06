@@ -54,6 +54,13 @@ internal sealed class CycleOutcome {
   data object Transient : CycleOutcome()
 
   data object PausedNoAuth : CycleOutcome()
+
+  /**
+   * A push would exceed the server's per user storage quota. Distinct from [Transient]: retrying
+   * the same outbox can never succeed until the user frees space, so [DefaultSyncEngine] pauses
+   * instead of backing off.
+   */
+  data object QuotaExceeded : CycleOutcome()
 }
 
 /**
@@ -110,7 +117,8 @@ internal class DefaultSyncEngine(
         pendingRetriggerDuringRun = true
       }
       SyncJobStatus.BACKING_OFF,
-      SyncJobStatus.PAUSED_NO_AUTH -> Unit // own timer/pause governs
+      SyncJobStatus.PAUSED_NO_AUTH,
+      SyncJobStatus.PAUSED_QUOTA_EXCEEDED -> Unit // own timer/pause governs
     }
   }
 
@@ -172,6 +180,8 @@ internal class DefaultSyncEngine(
         scheduleTimer(at)
       }
       CycleOutcome.PausedNoAuth -> setState(SyncJobState(SyncJobStatus.PAUSED_NO_AUTH, null, 0))
+      CycleOutcome.QuotaExceeded ->
+        setState(SyncJobState(SyncJobStatus.PAUSED_QUOTA_EXCEEDED, null, 0))
     }
   }
 
@@ -262,6 +272,11 @@ private suspend fun pushOutbox(
       }
       SyncPushOutcome.Unauthorized -> return CycleOutcome.Transient
       SyncPushOutcome.TooLarge -> return CycleOutcome.Transient
+      SyncPushOutcome.RateLimited -> return CycleOutcome.Transient
+      SyncPushOutcome.QuotaExceeded -> {
+        LOGGER.w { "Push refused: per user quota exceeded" }
+        return CycleOutcome.QuotaExceeded
+      }
       is SyncPushOutcome.Error -> {
         LOGGER.w { "Push batch failed: ${outcome.message}" }
         return CycleOutcome.Transient
@@ -353,6 +368,7 @@ private suspend fun pullAll(
         if (cursor == null) return null
       }
       SyncPullOutcome.Unauthorized -> return CycleOutcome.Transient
+      SyncPullOutcome.RateLimited -> return CycleOutcome.Transient
       is SyncPullOutcome.Error -> {
         LOGGER.w { "Pull failed: ${outcome.message}" }
         return CycleOutcome.Transient

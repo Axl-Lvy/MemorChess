@@ -184,4 +184,8 @@ class TestSyncAccountSection : TestWithKoin() {
   @Test fun backingOffStatusRendersLine() = statusRendersLine(SyncJobStatus.BACKING_OFF)
 
   @Test fun pausedNoAuthStatusRendersLine() = statusRendersLine(SyncJobStatus.PAUSED_NO_AUTH)
+
+  @Test
+  fun pausedQuotaExceededStatusRendersLine() =
+    statusRendersLine(SyncJobStatus.PAUSED_QUOTA_EXCEEDED)
 }

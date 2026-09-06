@@ -42,6 +42,7 @@ class SyncApiClient(
       when {
         response.status.isSuccess() -> SyncPullOutcome.Ok(response.body())
         response.status == HttpStatusCode.Unauthorized -> SyncPullOutcome.Unauthorized
+        response.status == HttpStatusCode.TooManyRequests -> SyncPullOutcome.RateLimited
         else -> {
           LOGGER.w { "Pull failed with ${response.status}" }
           SyncPullOutcome.Error("HTTP ${response.status.value}")
@@ -66,6 +67,9 @@ class SyncApiClient(
         response.status.isSuccess() -> SyncPushOutcome.Ok(response.body())
         response.status == HttpStatusCode.Unauthorized -> SyncPushOutcome.Unauthorized
         response.status == HttpStatusCode.PayloadTooLarge -> SyncPushOutcome.TooLarge
+        response.status == HttpStatusCode.TooManyRequests -> SyncPushOutcome.RateLimited
+        response.status == HttpStatusCode.Forbidden && response.namesQuotaExceeded() ->
+          SyncPushOutcome.QuotaExceeded
         else -> {
           LOGGER.w { "Push failed with ${response.status}" }
           SyncPushOutcome.Error("HTTP ${response.status.value}")
@@ -83,6 +87,16 @@ class SyncApiClient(
   }
 }
 
+/**
+ * Whether this 403 response's body names [ApiErrorCode.QUOTA_EXCEEDED].
+ *
+ * A 403 is not unambiguous the way 401/413 are on this endpoint: [ApiError]'s own doc says a client
+ * branches on [ApiError.code], never on status alone. A body that fails to decode as [ApiError] is
+ * treated as not naming it, same as any other cause `push` cannot otherwise attribute.
+ */
+private suspend fun HttpResponse.namesQuotaExceeded(): Boolean =
+  runCatching { body<ApiError>() }.getOrNull()?.code == ApiErrorCode.QUOTA_EXCEEDED
+
 /** Outcome of [SyncApiClient.pull]. */
 sealed class SyncPullOutcome {
   data class Ok(val response: SyncPullResponse) : SyncPullOutcome()
@@ -92,6 +106,9 @@ sealed class SyncPullOutcome {
    * [proj.memorchess.axl.core.auth.AuthProvider.accessToken] call already happened before this.
    */
   data object Unauthorized : SyncPullOutcome()
+
+  /** The caller exceeded its request budget. Transient: the caller's own backoff will clear it. */
+  data object RateLimited : SyncPullOutcome()
 
   data class Error(val message: String) : SyncPullOutcome()
 }
@@ -104,6 +121,16 @@ sealed class SyncPushOutcome {
 
   /** The batch exceeded the server's row cap; the caller must have already chunked below it. */
   data object TooLarge : SyncPushOutcome()
+
+  /**
+   * The batch would push the caller past a per user storage quota. Not transient: retrying the same
+   * batch can never succeed until the caller frees space, so [SyncEngine] pauses rather than
+   * backing off.
+   */
+  data object QuotaExceeded : SyncPushOutcome()
+
+  /** The caller exceeded its request budget. Transient: the caller's own backoff will clear it. */
+  data object RateLimited : SyncPushOutcome()
 
   data class Error(val message: String) : SyncPushOutcome()
 }

@@ -31,6 +31,15 @@ enum class SyncJobStatus {
    * in.
    */
   PAUSED_NO_AUTH,
+
+  /**
+   * The last push would have exceeded a per user storage quota. No retry timer, since retrying the
+   * same outbox can never succeed on its own. A dirty write does not resume it either, same as
+   * every other paused or backing off state, and doubly so here: a further local write only makes
+   * the quota worse, never better. Resumes only on an explicit [SyncEngine.syncNow] or
+   * [SyncEngine.onAppForeground].
+   */
+  PAUSED_QUOTA_EXCEEDED,
 }
 
 /** One persisted snapshot of the sync job's state. */

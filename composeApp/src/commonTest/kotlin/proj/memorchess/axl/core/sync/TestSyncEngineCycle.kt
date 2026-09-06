@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.sync
 
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -154,6 +155,87 @@ class TestSyncEngineCycle {
 
     outcome shouldBe CycleOutcome.Success
     database.getOutbox() shouldBe emptyList()
+  }
+
+  @Test
+  fun quotaExceededPushPausesTheCycleWithoutClearingTheOutbox() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    val engine = MockEngine { request ->
+      if (request.method.value == "GET") {
+        jsonResponse(emptyPullBody)
+      } else {
+        respond(
+          content = ByteReadChannel("""{"code":"quota_exceeded","message":"too many nodes"}"""),
+          status = HttpStatusCode.Forbidden,
+          headers = headersOf(HttpHeaders.ContentType, "application/json"),
+        )
+      }
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        store,
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+      )
+
+    outcome shouldBe CycleOutcome.QuotaExceeded
+    database.getOutbox().shouldNotBeEmpty()
+  }
+
+  @Test
+  fun rateLimitedPushIsTreatedAsTransient() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    val engine = MockEngine { request ->
+      if (request.method.value == "GET") jsonResponse(emptyPullBody)
+      else respond(content = "", status = HttpStatusCode.TooManyRequests)
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        store,
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+      )
+
+    outcome shouldBe CycleOutcome.Transient
+  }
+
+  @Test
+  fun rateLimitedPullIsTreatedAsTransient() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        treeStore(database),
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+      )
+
+    outcome shouldBe CycleOutcome.Transient
   }
 
   @Test
