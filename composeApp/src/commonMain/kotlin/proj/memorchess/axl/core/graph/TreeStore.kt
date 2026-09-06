@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardState
@@ -349,6 +350,13 @@ class TreeStore(
 
   /** Every registered repertoire. Read through of [DatabaseQueryManager.getRepertoires]. */
   suspend fun repertoires(): List<DataRepertoire> = database.getRepertoires()
+
+  /**
+   * Mastery snapshot per registered repertoire. See
+   * [DatabaseQueryManager.getRepertoireMasterySnapshots]; bounded by [repertoires]' own id list.
+   */
+  suspend fun repertoireMasterySnapshots(): Map<String, RepertoireMasterySnapshot> =
+    database.getRepertoireMasterySnapshots(database.getRepertoires().map { it.id })
 
   /**
    * Registers [id] in the repertoire registry with [name] and [color], or overwrites an existing
