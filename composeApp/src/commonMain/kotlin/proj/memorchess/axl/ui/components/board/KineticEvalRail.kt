@@ -79,47 +79,33 @@ internal fun evalRailMarkerBand(
 internal fun kineticEvalMarkerColor(palette: KineticPalette): Color = palette.progress
 
 /**
- * Colour of the soft glow behind the parity marker: the `progressGlow` role. Drawn at half alpha by
- * [KineticEvalRail], so this returns the opaque role and the caller applies the transparency.
- *
- * @param palette Palette to resolve the role against.
- * @return The glow colour for [palette].
- */
-internal fun kineticEvalGlowColor(palette: KineticPalette): Color = palette.progressGlow
-
-/**
- * Colour of the evaluation text under the rail: the `progressText` role, which stays a shade deeper
- * than `progress` in light so the small 12sp label keeps its contrast.
- *
- * @param palette Palette to resolve the role against.
- * @return The value-text colour for [palette].
- */
-internal fun kineticEvalValueColor(palette: KineticPalette): Color = palette.progressText
-
-/**
  * Kinetic evaluation rail. Renders a vertical rail showing the balance between white (top,
  * `palette.sqLight`) and black (bottom, `palette.sqDark`), with a 2.dp marker and a soft glow at
  * the parity point and an optional [displayValue] text (e.g. `"+0.4"` or `"M3"`) below it.
  *
- * The marker, its glow and the value text ride the `progress` role, each through its own seam
- * ([kineticEvalMarkerColor], [kineticEvalGlowColor], [kineticEvalValueColor]), so the tick is lime
- * in dark and violet in light with no per-theme branching.
+ * The marker rides the `progress` role through its own seam ([kineticEvalMarkerColor]); its glow
+ * (`palette.progressGlow`, drawn at half alpha) and the value text (`palette.progressText`) read
+ * the role directly, so the tick is lime in dark and violet in light with no per-theme branching.
  *
  * Shape: the rail clips to `MaterialTheme.shapes.extraSmall` (12.dp, the chip / in-card bucket) so
  * the white and black section rects cannot paint over the corners, and carries a 1.5.dp
  * `palette.line` stroke on that same shape. At the rail's 14-18.dp width a 12.dp radius exceeds
- * half the width, so `RoundedCornerShape` clamps it and the rail reads as a pill — which is what
- * the artboards draw.
+ * half the width, so `RoundedCornerShape` clamps it to roughly half the rail's width (7-9.dp) and
+ * the rail reads as a pill — which is what the artboards draw.
  *
  * Clamping behaviour lives in [evalRailSafeRatio] and the marker geometry in [evalRailMarkerBand]:
  * `NaN` and infinite ratios fall back to `0.5f`, everything else is coerced into `0f..1f` with
  * `-0.0f` normalised to `+0.0f`, and the marker always ends up fully inside the rail even when the
- * rail measures shorter than the marker.
+ * rail measures shorter than the marker. That guarantee is in layout coordinates only: at the
+ * extremes (`whiteRatio` `0f`/`1f`) the marker centres on the pill's rounded cap rather than its
+ * flat side, so it is mostly hidden behind the clip and reads as a thin sliver rather than a full
+ * 2.dp tick. That is accepted as by-design — extreme evaluations still read (the tick is visible,
+ * just capped), and the pill shape is what the artboards specify.
  *
  * @param whiteRatio Position of the parity marker. `0f` = black has the entire rail, `1f` = white
  *   has the entire rail. Values outside `0f..1f` are clamped; `NaN`/`Infinity` fall back to `0.5f`.
  * @param displayValue Optional evaluation text rendered beneath the rail (Baloo 2 700 12sp, in
- *   [kineticEvalValueColor]).
+ *   `palette.progressText`).
  * @param modifier External modifier applied to the rail column.
  * @param thin When `true`, the rail is 14.dp wide instead of the default 18.dp.
  */
@@ -140,7 +126,7 @@ fun KineticEvalRail(
   val sqLight = palette.sqLight
   val sqDark = palette.sqDark
   val markerColor = kineticEvalMarkerColor(palette)
-  val markerGlow = kineticEvalGlowColor(palette).copy(alpha = 0.5f)
+  val markerGlow = palette.progressGlow.copy(alpha = 0.5f)
 
   Column(
     modifier = modifier,
@@ -197,7 +183,7 @@ fun KineticEvalRail(
     if (displayValue != null) {
       Text(
         text = displayValue,
-        style = typography.displaySm.copy(fontSize = 12.sp, color = kineticEvalValueColor(palette)),
+        style = typography.displaySm.copy(fontSize = 12.sp, color = palette.progressText),
         modifier = Modifier.padding(top = 2.dp),
       )
     }

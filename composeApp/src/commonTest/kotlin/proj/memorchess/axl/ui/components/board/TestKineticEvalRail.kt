@@ -20,8 +20,9 @@ import proj.memorchess.axl.ui.theme.KineticLightPalette
 /**
  * Pins [KineticEvalRail]'s production seams: [evalRailSafeRatio] (the clamping contract),
  * [evalRailMarkerBand] (the marker never escapes the rail, and a zero-height rail does not throw),
- * and the three colour seams [kineticEvalMarkerColor], [kineticEvalGlowColor] and
- * [kineticEvalValueColor], which the issue's acceptance criterion moved off the `action` family.
+ * and [kineticEvalMarkerColor], which the issue's acceptance criterion moved off the `action`
+ * family. The glow and value-text colours read `palette.progressGlow`/`palette.progressText`
+ * directly in production and are covered by `TestKineticPalette`, so they are not repinned here.
  *
  * Groups 1-3 are plain non-composable assertions and carry the whole contract on purpose: the
  * composable smoke tests of group 4 only prove that composition completes, because the draw pass
@@ -142,7 +143,7 @@ internal class TestKineticEvalRail {
     band.endInclusive shouldBe MARKER_THICKNESS
   }
 
-  // GROUP 3 — the three progress-role colours the rail rides.
+  // GROUP 3 — the marker colour seam the rail rides.
   //
   // Each test pins a literal hex rather than the palette property the seam returns: asserting
   // `seam(palette) shouldBe palette.progress` restates the seam's own body and cannot fail.
@@ -167,42 +168,6 @@ internal class TestKineticEvalRail {
   fun markerHueSplitsBetweenPalettes() {
     kineticEvalMarkerColor(KineticDarkPalette) shouldNotBe
       kineticEvalMarkerColor(KineticLightPalette)
-  }
-
-  @Test
-  fun glowIsLimeTintedInDarkPalette() {
-    kineticEvalGlowColor(KineticDarkPalette) shouldBe Color(0xFFD6F5A8)
-  }
-
-  @Test
-  fun glowLeavesTheActionRoleInDarkPalette() {
-    kineticEvalGlowColor(KineticDarkPalette) shouldNotBe KineticDarkPalette.actionGlow
-  }
-
-  @Test
-  fun glowIsVioletTintedInLightPalette() {
-    // `progressGlow` and `actionGlow` share this violet in light; only dark separates them.
-    kineticEvalGlowColor(KineticLightPalette) shouldBe Color(0xFFB99BFF)
-  }
-
-  @Test
-  fun valueTextIsLimeInDarkPalette() {
-    kineticEvalValueColor(KineticDarkPalette) shouldBe Color(0xFFB4F542)
-  }
-
-  @Test
-  fun valueTextLeavesTheActionRoleInDarkPalette() {
-    kineticEvalValueColor(KineticDarkPalette) shouldNotBe KineticDarkPalette.actionText
-  }
-
-  @Test
-  fun valueTextIsDeepVioletInLightPalette() {
-    kineticEvalValueColor(KineticLightPalette) shouldBe Color(0xFF5B21B6)
-  }
-
-  @Test
-  fun valueTextLeavesTheActionRoleInLightPalette() {
-    kineticEvalValueColor(KineticLightPalette) shouldNotBe KineticLightPalette.actionText
   }
 
   // GROUP 4 — composition smoke tests.

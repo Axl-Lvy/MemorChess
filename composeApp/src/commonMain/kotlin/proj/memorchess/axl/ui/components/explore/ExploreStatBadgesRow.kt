@@ -27,12 +27,16 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
- * Compact 3-badge stat row used on mobile above the moves trail.
+ * Compact 3-badge stat row: eval / position count / retention.
  *
  * The artboards draw three separate cards, not one segmented bar, so each badge carries its own
  * 12.dp shape and 1.5.dp stroke and the row itself is a plain three-up with a gutter. That is why
  * this does not reuse the top bar's `KineticTopBarPill`, whose flush left stripe would read as a
  * doubled edge once every badge has a frame of its own.
+ *
+ * Not currently wired into either explore layout: `PortraitExploreLayout` intentionally omits it
+ * (see its KDoc), and `LandscapeExploreLayout` does not consume the
+ * `ExploreLayoutContent.statBadges` slot either, so this row is unreachable at runtime today.
  *
  * Values are placeholders for v1; wiring to real evaluation/position/retention data is left for a
  * follow-up wave.
@@ -65,7 +69,7 @@ fun ExploreStatBadgesRow(modifier: Modifier = Modifier) {
 }
 
 /**
- * One stat card of [ExploreStatBadgesRow]: a 44.dp panel-2 card with a 12.dp shape and a 1.5.dp
+ * One stat card of [ExploreStatBadgesRow]: a 44.dp `panel` card with a 12.dp shape and a 1.5.dp
  * `line` stroke, stacking an uppercase [label] over a Baloo 2 [value].
  *
  * @param label Small uppercase caption, e.g. `"EVAL"`.
@@ -82,7 +86,7 @@ private fun ExploreStatBadge(label: String, value: String, modifier: Modifier = 
       modifier
         .height(44.dp)
         .clip(shape)
-        .background(palette.bg2, shape)
+        .background(palette.panel, shape)
         .border(width = 1.5.dp, color = palette.line, shape = shape)
         .padding(horizontal = 12.dp),
     verticalArrangement = Arrangement.Center,
