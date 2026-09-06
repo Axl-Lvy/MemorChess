@@ -67,6 +67,18 @@ class TestStaticFrontendRoutes {
   }
 
   @Test
+  fun `the lichess oauth callback page broadcasts its href and closes itself`() = testApplication {
+    application { routing { staticFrontendRoutes(frontendDir()) } }
+
+    val response = client.get("/oauth-callback?code=abc&state=xyz")
+
+    val body = response.bodyAsText()
+    body shouldContain "BroadcastChannel('memorchess-oauth')"
+    body shouldContain "postMessage({href:location.href})"
+    body shouldContain "window.close()"
+  }
+
+  @Test
   fun `a genuinely unmatched path 404s instead of falling back to index html`() = testApplication {
     application { routing { staticFrontendRoutes(frontendDir()) } }
 
