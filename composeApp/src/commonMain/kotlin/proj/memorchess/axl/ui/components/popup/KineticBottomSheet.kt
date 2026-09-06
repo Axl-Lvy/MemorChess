@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -34,9 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.dialog_close
+import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.KineticMotion
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
-import proj.memorchess.axl.ui.theme.kineticShadow
 
 /**
  * Scrim darkness, a fixed value independent of theme so it always reads as a dim, not a highlight.
@@ -121,6 +125,7 @@ internal fun KineticBottomSheet(
               .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                onClickLabel = stringResource(Res.string.dialog_close),
               ) {
                 onDismissRequest()
               }
@@ -135,7 +140,13 @@ internal fun KineticBottomSheet(
                   slideOutVertically(animationSpec = KineticMotion.Routine.bottomSheet()) { it },
               )
               .fillMaxWidth()
-              .kineticShadow(big = true)
+              // A plain border rather than kineticShadow: the offset shadow block that big=true
+              // draws sits 12.dp past the panel's own bounds. For a full-width, bottom-anchored
+              // sheet that falls outside the popup and gets clipped. KineticDialog can afford the
+              // offset because its Dialog window reserves shadow room around a content-wrapped
+              // panel; a sheet pinned to the screen edge has no room to give.
+              .pointerInput(Unit) {} // Absorb taps so they don't fall through to the scrim behind.
+              .border(width = 1.dp, color = palette.line)
               .background(palette.panel)
           ) {
             // HUD strip flush to the top edge, mirrors KineticDialog.
