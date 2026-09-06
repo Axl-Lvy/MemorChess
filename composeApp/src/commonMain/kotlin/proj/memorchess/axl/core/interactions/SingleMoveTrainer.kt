@@ -1,7 +1,10 @@
 package proj.memorchess.axl.core.interactions
 
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.engine.BoardLocation
+import proj.memorchess.axl.core.engine.BoardUtils
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.Node
 import proj.memorchess.axl.core.graph.TrainingScheduler
@@ -15,13 +18,14 @@ import proj.memorchess.axl.core.scheduling.ReviewGrade
  * @property repertoireScope When not `null`, a move is only accepted when it is also tagged with
  *   this repertoire, even when it is otherwise a correct, classified move. `null` behaves exactly
  *   as before this parameter existed.
- * @property callBackOnCorrect Called after each move with the [Edge] for a correct move, or `null`
- *   for an incorrect or unknown move.
+ * @property callBackOnCorrect Called after each move with the [Edge] for a correct move (or `null`
+ *   for an incorrect or unknown move), the square the move was played to, and, only for a wrong
+ *   attempt with an in-scope good edge, the square that move should have landed on.
  */
 class SingleMoveTrainer(
   private var node: Node,
   private val repertoireScope: String? = null,
-  private val callBackOnCorrect: (Edge?) -> Unit,
+  private val callBackOnCorrect: (Edge?, BoardLocation, BoardLocation?) -> Unit,
 ) : InteractionsManager(GameEngine(node.positionKey)) {
 
   private val trainingScheduler: TrainingScheduler by inject()
@@ -31,13 +35,22 @@ class SingleMoveTrainer(
 
   override suspend fun afterPlayMove(move: String) {
     val matchingEdge = node.outgoing.values.firstOrNull { it.move == move }
-    val inScope =
-      repertoireScope == null ||
-        (matchingEdge != null &&
-          repertoireScope in treeStore.tagsFor(matchingEdge.from, matchingEdge.to))
+    suspend fun edgeInScope(edge: Edge) =
+      repertoireScope == null || repertoireScope in treeStore.tagsFor(edge.from, edge.to)
+    val inScope = repertoireScope == null || (matchingEdge != null && edgeInScope(matchingEdge))
     isCorrect = matchingEdge != null && matchingEdge.isGood == true && inScope
+
+    val moverWasWhite = engine.playerTurn == Player.BLACK // engine already advanced past this move
+    val playedSquare = BoardUtils.destinationSquare(move, moverWasWhite)
+    val correctSquare =
+      if (isCorrect) null
+      else
+        node.outgoing.values
+          .firstOrNull { it.isGood == true && edgeInScope(it) }
+          ?.let { BoardUtils.destinationSquare(it.move, moverWasWhite) }
+
     block()
-    callBackOnCorrect(if (isCorrect) matchingEdge else null)
+    callBackOnCorrect(if (isCorrect) matchingEdge else null, playedSquare, correctSquare)
     trainingScheduler.grade(
       node.positionKey,
       if (isCorrect) ReviewGrade.GOOD else ReviewGrade.AGAIN,

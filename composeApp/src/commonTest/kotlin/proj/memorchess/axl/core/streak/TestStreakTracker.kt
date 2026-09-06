@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 
@@ -144,5 +145,66 @@ class TestStreakTracker {
 
     tracker.streakDays(lastDay) shouldBe streakSize
     tracker.cardsCompletedToday(lastDay) shouldBe 1
+  }
+
+  // WEEK ACTIVITY
+
+  @Test
+  fun weekActivityMarksOnlyTheActiveMidWeekDay() = runTest {
+    val tracker = StreakTracker(InMemoryDailyActivityStore())
+    // 2026-09-02 is a Wednesday.
+    val wednesday = LocalDate(2026, 9, 2)
+    tracker.recordReview(wednesday)
+
+    tracker.weekActivity(wednesday) shouldBe listOf(false, false, true, false, false, false, false)
+  }
+
+  @Test
+  fun weekActivityAnchoredOnMondayStartsTheWeekAtItself() = runTest {
+    val tracker = StreakTracker(InMemoryDailyActivityStore())
+    // 2026-08-31 is a Monday.
+    val monday = LocalDate(2026, 8, 31)
+    tracker.recordReview(monday)
+
+    tracker.weekActivity(monday) shouldBe listOf(true, false, false, false, false, false, false)
+  }
+
+  @Test
+  fun weekActivityAnchoredOnSundayEndsTheWeekAtItself() = runTest {
+    val tracker = StreakTracker(InMemoryDailyActivityStore())
+    // 2026-09-06 is a Sunday.
+    val sunday = LocalDate(2026, 9, 6)
+    tracker.recordReview(sunday)
+
+    tracker.weekActivity(sunday) shouldBe listOf(false, false, false, false, false, false, true)
+  }
+
+  @Test
+  fun weekActivityIsAllFalseForAnEmptyStore() = runTest {
+    val tracker = StreakTracker(InMemoryDailyActivityStore())
+
+    tracker.weekActivity(LocalDate(2026, 9, 2)) shouldBe List(7) { false }
+  }
+
+  @Test
+  fun weekActivityIsAllTrueWhenEveryDayInTheWeekIsActive() = runTest {
+    val tracker = StreakTracker(InMemoryDailyActivityStore())
+    val monday = LocalDate(2026, 8, 31)
+    for (offset in 0..6) {
+      tracker.recordReview(monday.plus(offset, DateTimeUnit.DAY))
+    }
+
+    tracker.weekActivity(LocalDate(2026, 9, 2)) shouldBe List(7) { true }
+  }
+
+  @Test
+  fun weekActivityDoesNotBleedIntoTheAdjacentWeek() = runTest {
+    val tracker = StreakTracker(InMemoryDailyActivityStore())
+    val wednesday = LocalDate(2026, 9, 2)
+    // The Monday before and the Monday after this ISO week: both out of range.
+    tracker.recordReview(wednesday.minus(7, DateTimeUnit.DAY))
+    tracker.recordReview(wednesday.plus(7, DateTimeUnit.DAY))
+
+    tracker.weekActivity(wednesday) shouldBe List(7) { false }
   }
 }
