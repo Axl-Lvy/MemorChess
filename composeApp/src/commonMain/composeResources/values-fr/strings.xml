@@ -262,4 +262,5 @@
   <string name="toast_saved">Enregistré</string>
   <string name="toast_deleted">Supprimé</string>
   <string name="toast_not_in_repertoire">Ce coup ne fait pas partie de ce répertoire.</string>
+  <string name="toast_illegal_move">Coup illégal.</string>
 </resources>
