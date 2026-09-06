@@ -50,6 +50,7 @@ import memorchess.composeapp.generated.resources.brand_wordmark_second
 import memorchess.composeapp.generated.resources.side_rail_day_streak
 import memorchess.composeapp.generated.resources.side_rail_today_done
 import memorchess.composeapp.generated.resources.side_rail_today_progress
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.graph.TrainingScheduler
@@ -268,7 +269,8 @@ private fun RailStreakCard(stats: RailStats?) {
     )
     Column {
       Text(
-        text = stringResource(Res.string.side_rail_day_streak),
+        // 0 while stats are still loading: the plural form a real streak of 0 would use.
+        text = pluralStringResource(Res.plurals.side_rail_day_streak, stats?.streak ?: 0),
         // labelSm already carries the mockup's 9sp size and 0.1em tracking.
         style = typography.labelSm.copy(fontWeight = FontWeight.Black, color = palette.onStreak),
       )

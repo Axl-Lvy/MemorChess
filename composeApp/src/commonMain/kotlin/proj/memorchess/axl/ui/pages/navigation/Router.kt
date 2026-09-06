@@ -23,6 +23,7 @@ import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.pages.RepertoireLibrary
 import proj.memorchess.axl.ui.pages.RepertoireView
 import proj.memorchess.axl.ui.pages.Settings
+import proj.memorchess.axl.ui.pages.Today
 import proj.memorchess.axl.ui.pages.Training
 import proj.memorchess.axl.ui.theme.KineticMotion
 
@@ -31,9 +32,13 @@ private data class RouteClass(val ordinal: Int, val isTabRoute: Boolean)
 
 /**
  * Classifies a raw destination route string against [NavigationBarItemContent], the authoritative
- * registry of bottom nav destinations. A route string added there is picked up here for free. The
- * repertoire viewer is not in that registry. It shares Library's ordinal for wipe direction only
- * and is not a tab route. Any other unrecognised destination falls back to Training's ordinal.
+ * registry of bottom nav destinations. A route string added there is picked up here for free, so
+ * this needed no changes when the Training tab's destination became [Route.TodayRoute]: the
+ * registry now points Training at Today, and [Route.TrainingRoute] (reached by pushing from Today's
+ * "Start review" CTA) simply falls through to the unrecognised-destination case below, correctly
+ * landing it outside the tab set. The repertoire viewer is not in that registry either. It shares
+ * Library's ordinal for wipe direction only and is not a tab route. Any other unrecognised
+ * destination falls back to Training's ordinal.
  */
 private fun classifyRoute(route: String): RouteClass {
   val tabItem =
@@ -48,7 +53,8 @@ private fun classifyRoute(route: String): RouteClass {
 
 /**
  * Ordinal of a destination along the navigation bar, per [NavigationBarItemContent]'s declared
- * order.
+ * order (Explore `0`, Today/Training `1`, Library `2`, Settings `3`; Today shares Training's
+ * ordinal, since it opens onto the same tab).
  *
  * Drives the direction of the screen transition: navigating toward a higher ordinal reveals the new
  * screen from the right, toward a lower one from the left. Matched against the destination route
@@ -130,13 +136,16 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
 
   NavHost(
     navController = navController,
-    startDestination = Route.TrainingRoute.DEFAULT,
+    startDestination = Route.TodayRoute,
     modifier = modifier,
     enterTransition = { tabAwareEnter(initialState, targetState) },
     exitTransition = { tabAwareExit(initialState, targetState) },
     popEnterTransition = { tabAwareEnter(initialState, targetState) },
     popExitTransition = { tabAwareExit(initialState, targetState) },
   ) {
+    composable<Route.TodayRoute> {
+      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Today() }
+    }
     composable<Route.TrainingRoute> {
       val repertoireId = it.toRoute<Route.TrainingRoute>().repertoireId
       Box(

@@ -37,6 +37,20 @@ sealed interface Route {
   }
 
   /**
+   * Today landing route (the dashboard the Training tab now opens onto). Carries no arguments. The
+   * board itself is still [TrainingRoute], reached by pushing it from Today's "Start review" CTA.
+   */
+  @Serializable
+  @SerialName("today")
+  data object TodayRoute : Route {
+    override fun getLabel(): String = "Today"
+
+    // Reuses the Training tab's own label. The tab is still conceptually "Training".
+    // It now opens onto a dashboard instead of the board directly.
+    override fun displayNameRes() = Res.string.nav_training
+  }
+
+  /**
    * Explore route
    *
    * @property position Optional starting position.

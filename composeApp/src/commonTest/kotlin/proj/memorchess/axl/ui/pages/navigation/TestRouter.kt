@@ -12,7 +12,8 @@ internal class TestRouter {
 
   @Test
   fun `two bottom-nav tabs are a tab-to-tab transition`() {
-    isTabToTabTransition("training", "library") shouldBe true
+    // "today", not "training": the Training tab's destination is now Route.TodayRoute.
+    isTabToTabTransition("today", "library") shouldBe true
     isTabToTabTransition("explore?position=abc&repertoireId=xyz", "settings") shouldBe true
   }
 
@@ -49,7 +50,7 @@ internal class TestRouter {
 
   @Test
   fun `an unrecognised or empty route is never a tab-to-tab transition`() {
-    isTabToTabTransition("", "training") shouldBe false
-    isTabToTabTransition("training", "") shouldBe false
+    isTabToTabTransition("", "today") shouldBe false
+    isTabToTabTransition("today", "") shouldBe false
   }
 }

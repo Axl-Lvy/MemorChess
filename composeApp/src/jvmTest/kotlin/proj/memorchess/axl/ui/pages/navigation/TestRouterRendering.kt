@@ -43,7 +43,19 @@ internal class TestRouterRendering : TestWithKoin() {
 
   @Test
   fun rendersTheStartDestinationWithNoCrash() = runTestFromSetup {
+    // The start destination is Route.TodayRoute, not the board directly; see Route.TodayRoute.
+    assertNodeWithTagExists(Route.TodayRoute.getLabel())
+  }
+
+  @Test
+  fun pushingTheTrainingBoardFromTodayRendersWithNoCrash() = runTestFromSetup { navController ->
+    navController.navigate(Route.TrainingRoute.DEFAULT)
+    waitForIdle()
     assertNodeWithTagExists(Route.TrainingRoute.DEFAULT.getLabel())
+
+    navController.popBackStack()
+    waitForIdle()
+    assertNodeWithTagExists(Route.TodayRoute.getLabel())
   }
 
   @Test
