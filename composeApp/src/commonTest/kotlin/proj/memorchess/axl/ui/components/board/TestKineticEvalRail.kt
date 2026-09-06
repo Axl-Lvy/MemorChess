@@ -18,9 +18,10 @@ import proj.memorchess.axl.ui.theme.KineticDarkPalette
 import proj.memorchess.axl.ui.theme.KineticLightPalette
 
 /**
- * Pins [KineticEvalRail]'s two production seams: [evalRailSafeRatio] (the clamping contract) and
+ * Pins [KineticEvalRail]'s production seams: [evalRailSafeRatio] (the clamping contract),
  * [evalRailMarkerBand] (the marker never escapes the rail, and a zero-height rail does not throw),
- * plus [kineticEvalMarkerColor]'s palette role.
+ * and the three colour seams [kineticEvalMarkerColor], [kineticEvalGlowColor] and
+ * [kineticEvalValueColor], which the issue's acceptance criterion moved off the `action` family.
  *
  * Groups 1-3 are plain non-composable assertions and carry the whole contract on purpose: the
  * composable smoke tests of group 4 only prove that composition completes, because the draw pass
@@ -141,12 +142,10 @@ internal class TestKineticEvalRail {
     band.endInclusive shouldBe MARKER_THICKNESS
   }
 
-  // GROUP 3 — marker colour role.
-
-  @Test
-  fun markerUsesProgressInDarkPalette() {
-    kineticEvalMarkerColor(KineticDarkPalette) shouldBe KineticDarkPalette.progress
-  }
+  // GROUP 3 — the three progress-role colours the rail rides.
+  //
+  // Each test pins a literal hex rather than the palette property the seam returns: asserting
+  // `seam(palette) shouldBe palette.progress` restates the seam's own body and cannot fail.
 
   @Test
   fun markerIsLimeInDarkPalette() {
@@ -159,27 +158,113 @@ internal class TestKineticEvalRail {
   }
 
   @Test
-  fun markerUsesProgressInLightPalette() {
+  fun markerIsVioletInLightPalette() {
     // In light, `progress` deliberately coincides with `action`; the roles split only in dark.
-    kineticEvalMarkerColor(KineticLightPalette) shouldBe KineticLightPalette.progress
+    kineticEvalMarkerColor(KineticLightPalette) shouldBe Color(0xFF6D28D9)
+  }
+
+  @Test
+  fun markerHueSplitsBetweenPalettes() {
+    kineticEvalMarkerColor(KineticDarkPalette) shouldNotBe
+      kineticEvalMarkerColor(KineticLightPalette)
+  }
+
+  @Test
+  fun glowIsLimeTintedInDarkPalette() {
+    kineticEvalGlowColor(KineticDarkPalette) shouldBe Color(0xFFD6F5A8)
+  }
+
+  @Test
+  fun glowLeavesTheActionRoleInDarkPalette() {
+    kineticEvalGlowColor(KineticDarkPalette) shouldNotBe KineticDarkPalette.actionGlow
+  }
+
+  @Test
+  fun glowIsVioletTintedInLightPalette() {
+    // `progressGlow` and `actionGlow` share this violet in light; only dark separates them.
+    kineticEvalGlowColor(KineticLightPalette) shouldBe Color(0xFFB99BFF)
+  }
+
+  @Test
+  fun valueTextIsLimeInDarkPalette() {
+    kineticEvalValueColor(KineticDarkPalette) shouldBe Color(0xFFB4F542)
+  }
+
+  @Test
+  fun valueTextLeavesTheActionRoleInDarkPalette() {
+    kineticEvalValueColor(KineticDarkPalette) shouldNotBe KineticDarkPalette.actionText
+  }
+
+  @Test
+  fun valueTextIsDeepVioletInLightPalette() {
+    kineticEvalValueColor(KineticLightPalette) shouldBe Color(0xFF5B21B6)
+  }
+
+  @Test
+  fun valueTextLeavesTheActionRoleInLightPalette() {
+    kineticEvalValueColor(KineticLightPalette) shouldNotBe KineticLightPalette.actionText
   }
 
   // GROUP 4 — composition smoke tests.
 
   @Test
-  fun railComposesForEveryRatio() {
-    listOf(0f, -0.0f, 0.5f, 1f, Float.NaN).forEach { ratio ->
-      runComposeUiTest {
-        setKineticContent {
-          KineticEvalRail(
-            whiteRatio = ratio,
-            displayValue = "+0.3",
-            modifier = Modifier.height(200.dp),
-          )
-        }
-        onNodeWithText("+0.3").assertIsDisplayed()
-      }
+  fun railComposesAtRatioZero() = runComposeUiTest {
+    setKineticContent {
+      KineticEvalRail(
+        whiteRatio = 0f,
+        displayValue = "+0.3",
+        modifier = Modifier.height(200.dp),
+      )
     }
+    onNodeWithText("+0.3").assertIsDisplayed()
+  }
+
+  @Test
+  fun railComposesAtNegativeZeroRatio() = runComposeUiTest {
+    setKineticContent {
+      KineticEvalRail(
+        whiteRatio = -0.0f,
+        displayValue = "+0.3",
+        modifier = Modifier.height(200.dp),
+      )
+    }
+    onNodeWithText("+0.3").assertIsDisplayed()
+  }
+
+  @Test
+  fun railComposesAtHalfRatio() = runComposeUiTest {
+    setKineticContent {
+      KineticEvalRail(
+        whiteRatio = 0.5f,
+        displayValue = "+0.3",
+        modifier = Modifier.height(200.dp),
+      )
+    }
+    onNodeWithText("+0.3").assertIsDisplayed()
+  }
+
+  @Test
+  fun railComposesAtRatioOne() = runComposeUiTest {
+    setKineticContent {
+      KineticEvalRail(
+        whiteRatio = 1f,
+        displayValue = "+0.3",
+        modifier = Modifier.height(200.dp),
+      )
+    }
+    onNodeWithText("+0.3").assertIsDisplayed()
+  }
+
+  @Test
+  fun railComposesAtNanRatio() = runComposeUiTest {
+    setKineticContent {
+      KineticEvalRail(
+        whiteRatio = Float.NaN,
+        displayValue = "+0.3",
+        modifier = Modifier.height(200.dp),
+      )
+    }
+    onNodeWithText("+0.3").assertIsDisplayed()
   }
 
   @Test

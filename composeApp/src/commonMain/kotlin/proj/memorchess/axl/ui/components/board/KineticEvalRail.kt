@@ -79,13 +79,31 @@ internal fun evalRailMarkerBand(
 internal fun kineticEvalMarkerColor(palette: KineticPalette): Color = palette.progress
 
 /**
+ * Colour of the soft glow behind the parity marker: the `progressGlow` role. Drawn at half alpha by
+ * [KineticEvalRail], so this returns the opaque role and the caller applies the transparency.
+ *
+ * @param palette Palette to resolve the role against.
+ * @return The glow colour for [palette].
+ */
+internal fun kineticEvalGlowColor(palette: KineticPalette): Color = palette.progressGlow
+
+/**
+ * Colour of the evaluation text under the rail: the `progressText` role, which stays a shade deeper
+ * than `progress` in light so the small 12sp label keeps its contrast.
+ *
+ * @param palette Palette to resolve the role against.
+ * @return The value-text colour for [palette].
+ */
+internal fun kineticEvalValueColor(palette: KineticPalette): Color = palette.progressText
+
+/**
  * Kinetic evaluation rail. Renders a vertical rail showing the balance between white (top,
  * `palette.sqLight`) and black (bottom, `palette.sqDark`), with a 2.dp marker and a soft glow at
  * the parity point and an optional [displayValue] text (e.g. `"+0.4"` or `"M3"`) below it.
  *
- * The marker, its glow and the value text ride the `progress` role
- * ([kineticEvalMarkerColor]/`progressGlow`/`progressText`), so the tick is lime in dark and violet
- * in light with no per-theme branching.
+ * The marker, its glow and the value text ride the `progress` role, each through its own seam
+ * ([kineticEvalMarkerColor], [kineticEvalGlowColor], [kineticEvalValueColor]), so the tick is lime
+ * in dark and violet in light with no per-theme branching.
  *
  * Shape: the rail clips to `MaterialTheme.shapes.extraSmall` (12.dp, the chip / in-card bucket) so
  * the white and black section rects cannot paint over the corners, and carries a 1.5.dp
@@ -100,8 +118,8 @@ internal fun kineticEvalMarkerColor(palette: KineticPalette): Color = palette.pr
  *
  * @param whiteRatio Position of the parity marker. `0f` = black has the entire rail, `1f` = white
  *   has the entire rail. Values outside `0f..1f` are clamped; `NaN`/`Infinity` fall back to `0.5f`.
- * @param displayValue Optional evaluation text rendered beneath the rail (Baloo 2 700 12sp,
- *   `progressText`).
+ * @param displayValue Optional evaluation text rendered beneath the rail (Baloo 2 700 12sp, in
+ *   [kineticEvalValueColor]).
  * @param modifier External modifier applied to the rail column.
  * @param thin When `true`, the rail is 14.dp wide instead of the default 18.dp.
  */
@@ -122,7 +140,7 @@ fun KineticEvalRail(
   val sqLight = palette.sqLight
   val sqDark = palette.sqDark
   val markerColor = kineticEvalMarkerColor(palette)
-  val markerGlow = palette.progressGlow.copy(alpha = 0.5f)
+  val markerGlow = kineticEvalGlowColor(palette).copy(alpha = 0.5f)
 
   Column(
     modifier = modifier,
@@ -179,7 +197,7 @@ fun KineticEvalRail(
     if (displayValue != null) {
       Text(
         text = displayValue,
-        style = typography.displaySm.copy(fontSize = 12.sp, color = palette.progressText),
+        style = typography.displaySm.copy(fontSize = 12.sp, color = kineticEvalValueColor(palette)),
         modifier = Modifier.padding(top = 2.dp),
       )
     }
