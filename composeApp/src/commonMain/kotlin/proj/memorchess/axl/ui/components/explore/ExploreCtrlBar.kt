@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -61,7 +62,10 @@ data class ExploreCtrlBarActions(
 /**
  * Compact Kinetic control bar replacing the loose reset / reverse / back / forward / eval-toggle /
  * save / delete row. Each control uses an icon-only [KineticButton]; the player turn indicator sits
- * mid-row as a small panel pill showing whose move it is.
+ * mid-row as a small panel-2 pill showing whose move it is, rounded to 12.dp with a 1.5.dp stroke.
+ *
+ * The buttons carry no local styling: their radius, stroke and press feedback come from
+ * [KineticButton] itself, so the bar stays in step with every other Kinetic button by construction.
  *
  * @param actions Callbacks for each button.
  * @param evalEnabled `true` if the eval bar is currently enabled (drives Primary vs Default style).
@@ -80,6 +84,7 @@ fun ExploreCtrlBar(
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
+  val pillShape = MaterialTheme.shapes.extraSmall
 
   Row(
     modifier = modifier.fillMaxWidth(),
@@ -105,10 +110,11 @@ fun ExploreCtrlBar(
       )
     }
 
+    // No clip: the only child is a Text inset by the padding below, so nothing reaches a corner.
     Box(
       modifier =
-        Modifier.background(palette.panel2)
-          .border(width = 1.dp, color = palette.line)
+        Modifier.background(palette.panel2, pillShape)
+          .border(width = 1.5.dp, color = palette.line, shape = pillShape)
           .padding(horizontal = 10.dp, vertical = 8.dp),
       contentAlignment = Alignment.Center,
     ) {
