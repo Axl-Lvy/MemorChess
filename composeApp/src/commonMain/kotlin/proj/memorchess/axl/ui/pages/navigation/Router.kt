@@ -159,9 +159,7 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
     popEnterTransition = { tabAwareEnter(initialState, targetState) },
     popExitTransition = { tabAwareExit(initialState, targetState) },
   ) {
-    composable<Route.TodayRoute> {
-      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Today() }
-    }
+    composable<Route.TodayRoute> { RevealBox(tabToTabTransition, revealFromRight) { Today() } }
     composable<Route.TrainingRoute> {
       val repertoireId = it.toRoute<Route.TrainingRoute>().repertoireId
       RevealBox(tabToTabTransition, revealFromRight) { Training(repertoireId) }
