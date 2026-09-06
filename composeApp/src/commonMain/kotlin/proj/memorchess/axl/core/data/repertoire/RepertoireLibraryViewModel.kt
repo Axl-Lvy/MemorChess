@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
@@ -33,22 +34,27 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *
  * @param loadManifest Returns the catalog manifest, normally through the persisted cache.
  * @param fetchPgn Downloads and parses the PGN file at the given catalog relative path.
- * @param importGames Merges parsed games into the opening graph from the repertoire's
- *   [RepertoireColor] perspective and reports the summary. Any exception it throws is surfaced as
- *   [InstallError.ImportFailed] and the repertoire is not marked installed.
+ * @param importGames Merges parsed games into the opening graph for the repertoire named by
+ *   `descriptor`, tagging every move with `descriptor.id` and registering it in the repertoire
+ *   registry on first install (see the wiring in `RepertoireLibrary.kt`), and reports the summary.
+ *   Any exception it throws is surfaced as [InstallError.ImportFailed] and the repertoire is not
+ *   marked installed.
  * @param previewGames Computes, without writing anything, how much of the repertoire the user
  *   already has from the repertoire's [RepertoireColor] perspective.
  * @param installedStore Records which repertoires are installed on this device.
+ * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
+ *   normally through [proj.memorchess.axl.core.graph.TreeStore.repertoires].
  * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).
  */
 class RepertoireLibraryViewModel(
   private val loadManifest: suspend () -> CachedManifestResult,
   private val fetchPgn: suspend (file: String) -> CatalogResult<List<PgnGame>>,
   private val importGames:
-    suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportSummary,
+    suspend (descriptor: RepertoireDescriptor, games: List<PgnGame>) -> PgnImportSummary,
   private val previewGames:
     suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportPreview,
   private val installedStore: InstalledRepertoireStore,
+  private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val scope: CoroutineScope,
 ) {
 
@@ -58,6 +64,7 @@ class RepertoireLibraryViewModel(
     MutableStateFlow<Map<String, RepertoireInstallState>>(emptyMap())
   private val internalPreviewStates =
     MutableStateFlow<Map<String, RepertoirePreviewState>>(emptyMap())
+  private val internalMyRepertoires = MutableStateFlow<List<DataRepertoire>>(emptyList())
   private var loadInFlight = false
 
   /** Current state of the catalog list. */
@@ -77,8 +84,12 @@ class RepertoireLibraryViewModel(
   val previewStates: StateFlow<Map<String, RepertoirePreviewState>> =
     internalPreviewStates.asStateFlow()
 
+  /** The user's own registered repertoires, for the "My Repertoires" list. */
+  val myRepertoires: StateFlow<List<DataRepertoire>> = internalMyRepertoires.asStateFlow()
+
   init {
     refresh()
+    scope.launch { internalMyRepertoires.value = loadMyRepertoires() }
   }
 
   /** Reloads the catalog manifest. Ignored while a load is already in flight. */
@@ -169,7 +180,7 @@ class RepertoireLibraryViewModel(
     setInstallState(descriptor.id, RepertoireInstallState.Importing)
     val summary =
       try {
-        val importSummary = importGames(descriptor.color, games)
+        val importSummary = importGames(descriptor, games)
         installedStore.markInstalled(descriptor.id)
         importSummary
       } catch (e: CancellationException) {

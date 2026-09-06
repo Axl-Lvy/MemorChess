@@ -26,13 +26,17 @@ class LichessStudyImporter(
    * Imports the study referenced by [input].
    *
    * @param input A study URL or a bare study id.
+   * @param repertoireId When not `null`, tags every imported move with this repertoire. `null`
+   *   imports untagged, exactly as before this parameter existed.
    * @return A typed result the UI can render without inspecting exceptions.
    */
-  suspend fun import(input: String): LichessStudyImportResult =
+  suspend fun import(input: String, repertoireId: String? = null): LichessStudyImportResult =
     when (val fetched = client.fetchStudy(input)) {
       is LichessStudyResult.Ok ->
         try {
-          LichessStudyImportResult.Success(pgnImporter.import(fetched.games))
+          LichessStudyImportResult.Success(
+            pgnImporter.import(fetched.games, repertoireId = repertoireId)
+          )
         } catch (e: PgnImportException) {
           LichessStudyImportResult.ImportFailed(e.message ?: "Import failed")
         }

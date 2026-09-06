@@ -103,6 +103,28 @@ class TestSingleMoveTrainer : TestWithKoin() {
     assertEquals(testNode.cardState.reps + 1, updatedNode.cardState.reps)
   }
 
+  @Test
+  fun aScopedTrainerRejectsACorrectMoveTaggedWithADifferentRepertoire() = test {
+    val e4Position = GameEngine().apply { playSanMove("e4") }.toPositionKey()
+    treeStore.tagEdge(testNode.positionKey, e4Position, "ruy-lopez")
+    var correctEdge: proj.memorchess.axl.core.graph.Edge? = null
+    val node = treeStore.node(testNode.positionKey)
+    checkNotNull(node)
+    val scopedTrainer =
+      SingleMoveTrainer(node, repertoireScope = "italian-game") { edge -> correctEdge = edge }
+
+    tileClick(scopedTrainer, "e2")
+    tileClick(scopedTrainer, "e4")
+
+    assertEquals(null, correctEdge) // rejected: correct chess move, wrong repertoire
+  }
+
+  private suspend fun tileClick(trainer: SingleMoveTrainer, tile: String) {
+    val col = tile[0] - 'a'
+    val row = tile[1] - '1'
+    trainer.clickOnTile(Pair(row, col))
+  }
+
   private suspend fun clickOnTile(tile: String) {
     val col = tile[0] - 'a'
     val row = tile[1] - '1'

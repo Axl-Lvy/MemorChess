@@ -282,6 +282,8 @@ private suspend fun buildPushRequest(
 ): SyncPushRequest {
   val nodes = mutableListOf<NodeSyncRow>()
   val edges = mutableListOf<EdgeSyncRow>()
+  val repertoires = mutableListOf<RepertoireSyncRow>()
+  val tags = mutableListOf<EdgeRepertoireTagSyncRow>()
   for (entry in batch) {
     when (val key = entry.key) {
       is DirtyKey.NodeKey -> {
@@ -291,9 +293,25 @@ private suspend fun buildPushRequest(
         localMove(database, key.origin, key.destination)?.let { edges += it.toEdgeSyncRow() }
       }
       is DirtyKey.SettingKey -> Unit
+      is DirtyKey.RepertoireKey -> {
+        database.getRepertoireIncludingDeleted(key.repertoireId)?.let {
+          repertoires += it.toRepertoireSyncRow()
+        }
+      }
+      is DirtyKey.TagKey -> {
+        database.getTagIncludingDeleted(key.origin, key.destination, key.repertoireId)?.let {
+          tags += it.toEdgeRepertoireTagSyncRow()
+        }
+      }
     }
   }
-  return SyncPushRequest(nodes = nodes, edges = edges, settings = emptyList())
+  return SyncPushRequest(
+    nodes = nodes,
+    edges = edges,
+    settings = emptyList(),
+    repertoires = repertoires,
+    tags = tags,
+  )
 }
 
 /** The move connecting [origin] to [destination], read off [origin]'s own denormalized map. */
@@ -309,6 +327,14 @@ private suspend fun localMove(
     ?.values
     ?.firstOrNull { it.destination == destination }
 
+/** Applies every row of one pulled [page] to [treeStore]. */
+private suspend fun applyPulledPage(page: SyncPullResponse, treeStore: TreeStore) {
+  for (node in page.nodes) treeStore.applySyncedNode(node)
+  for (edge in page.edges) treeStore.applySyncedMove(edge)
+  for (repertoire in page.repertoires) treeStore.applySyncedRepertoire(repertoire)
+  for (tag in page.tags) treeStore.applySyncedTag(tag)
+}
+
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pullAll(
   token: String,
@@ -321,8 +347,7 @@ private suspend fun pullAll(
     when (val outcome = apiClient.pull(token, cursor, PULL_LIMIT)) {
       is SyncPullOutcome.Ok -> {
         val page = outcome.response
-        for (node in page.nodes) treeStore.applySyncedNode(node)
-        for (edge in page.edges) treeStore.applySyncedMove(edge)
+        applyPulledPage(page, treeStore)
         cursor = page.nextCursor
         cursorStore.write(cursor)
         if (cursor == null) return null

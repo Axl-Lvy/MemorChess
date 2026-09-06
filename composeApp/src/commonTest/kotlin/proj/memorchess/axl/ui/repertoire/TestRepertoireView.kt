@@ -155,6 +155,7 @@ class TestRepertoireView : TestWithKoin() {
           catalogState = catalogState,
           installStates = installStates,
           previewStates = emptyMap<String, RepertoirePreviewState>(),
+          myRepertoires = emptyList(),
           actions =
             RepertoireLibraryActions(
               onInstall = onInstall,
@@ -202,6 +203,7 @@ class TestRepertoireView : TestWithKoin() {
             catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
             installStates = emptyMap<String, RepertoireInstallState>(),
             previewStates = emptyMap<String, RepertoirePreviewState>(),
+            myRepertoires = emptyList(),
             actions =
               RepertoireLibraryActions(
                 onInstall = {},
@@ -471,6 +473,7 @@ class TestRepertoireView : TestWithKoin() {
               LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
             installStates = installStates,
             previewStates = emptyMap(),
+            myRepertoires = emptyList(),
             actions =
               RepertoireLibraryActions(
                 onInstall = {},
@@ -542,6 +545,7 @@ class TestRepertoireView : TestWithKoin() {
               LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
             installStates = installStates,
             previewStates = emptyMap(),
+            myRepertoires = emptyList(),
             actions =
               RepertoireLibraryActions(
                 onInstall = {},

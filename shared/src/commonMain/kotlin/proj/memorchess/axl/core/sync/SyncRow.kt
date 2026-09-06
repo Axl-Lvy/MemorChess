@@ -101,3 +101,41 @@ data class SettingSyncRow(
   override val originDevice: String,
   override val deviceSeq: Long,
 ) : SyncRow
+
+/**
+ * A repertoire's identity: display name and perspective.
+ *
+ * @property id Slug: a catalog descriptor id, or a slugified user chosen name.
+ * @property name Display name shown in the library and picker.
+ * @property color Serialized [proj.memorchess.axl.core.data.repertoire.RepertoireColor] name, or
+ *   `null` when the repertoire mixes both sides (a two sided import such as a Lichess study).
+ */
+@Serializable
+data class RepertoireSyncRow(
+  val id: String,
+  val name: String,
+  val color: String?,
+  override val isDeleted: Boolean,
+  override val updatedAt: Instant,
+  override val originDevice: String,
+  override val deviceSeq: Long,
+) : SyncRow
+
+/**
+ * One edge tagged as belonging to one repertoire. Many to many: the same edge can carry more than
+ * one row, one per repertoire it belongs to.
+ *
+ * @property origin Cropped FEN of the origin position.
+ * @property destination Cropped FEN of the destination position.
+ * @property repertoireId The repertoire this edge belongs to.
+ */
+@Serializable
+data class EdgeRepertoireTagSyncRow(
+  val origin: String,
+  val destination: String,
+  val repertoireId: String,
+  override val isDeleted: Boolean,
+  override val updatedAt: Instant,
+  override val originDevice: String,
+  override val deviceSeq: Long,
+) : SyncRow

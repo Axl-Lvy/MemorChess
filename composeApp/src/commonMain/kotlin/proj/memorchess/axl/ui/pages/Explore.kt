@@ -40,11 +40,13 @@ private val LOGGER = Logger.withTag("Explore")
  *
  * The persisted graph is demand paged, so nothing is preloaded: the loading phase only resolves
  * whether the requested [position] is stored (a single point lookup), then the board reads each
- * position on demand through [TreeStore.node].
+ * position on demand through [TreeStore.node]. [repertoireId] narrows the session to one
+ * repertoire, or `null` for the unscoped default.
  */
 @Composable
 fun Explore(
   position: PositionKey? = null,
+  repertoireId: String? = null,
   treeStore: TreeStore = koinInject(),
   cachedExplorer: CachedExplorer = koinInject(),
 ) {
@@ -56,7 +58,8 @@ fun Explore(
     // the root when the requested position is not stored yet.
     var initialPosition by remember { mutableStateOf<PositionKey?>(null) }
     LoadingWidget({ initialPosition = extractInitialPosition(position, treeStore) }) {
-      val linesExplorer = remember { LinesExplorer(initialPosition, treeStore) }
+      val linesExplorer =
+        remember(repertoireId) { LinesExplorer(initialPosition, treeStore, repertoireId) }
       LaunchedEffect(linesExplorer) { linesExplorer.initState() }
       val coroutineScope = rememberCoroutineScope()
       val explorerViewModel = rememberExplorerViewModel(linesExplorer, cachedExplorer)

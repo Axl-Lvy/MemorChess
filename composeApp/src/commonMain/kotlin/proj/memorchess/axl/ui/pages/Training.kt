@@ -10,14 +10,14 @@ import proj.memorchess.axl.ui.components.board.control.TrainingBoardPage
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 @Composable
-fun Training() {
+fun Training(repertoireId: String? = null) {
   Column(
     modifier =
       Modifier.fillMaxSize()
         .padding(horizontal = 2.dp, vertical = 8.dp)
-        .testTag(Route.TrainingRoute.getLabel()),
+        .testTag(Route.TrainingRoute.DEFAULT.getLabel()),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    TrainingBoardPage(modifier = Modifier.fillMaxSize())
+    TrainingBoardPage(modifier = Modifier.fillMaxSize(), repertoireId = repertoireId)
   }
 }

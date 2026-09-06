@@ -5,25 +5,37 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.Node
 import proj.memorchess.axl.core.graph.TrainingScheduler
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.ReviewGrade
 
 /**
  * Trainer that drills a single position by asking the user to play one of its good outgoing moves.
  *
  * @property node The position being trained.
+ * @property repertoireScope When not `null`, a move is only accepted when it is also tagged with
+ *   this repertoire, even when it is otherwise a correct, classified move. `null` behaves exactly
+ *   as before this parameter existed.
  * @property callBackOnCorrect Called after each move with the [Edge] for a correct move, or `null`
  *   for an incorrect or unknown move.
  */
-class SingleMoveTrainer(private var node: Node, private val callBackOnCorrect: (Edge?) -> Unit) :
-  InteractionsManager(GameEngine(node.positionKey)) {
+class SingleMoveTrainer(
+  private var node: Node,
+  private val repertoireScope: String? = null,
+  private val callBackOnCorrect: (Edge?) -> Unit,
+) : InteractionsManager(GameEngine(node.positionKey)) {
 
   private val trainingScheduler: TrainingScheduler by inject()
+  private val treeStore: TreeStore by inject()
 
   private var isCorrect: Boolean = true
 
   override suspend fun afterPlayMove(move: String) {
     val matchingEdge = node.outgoing.values.firstOrNull { it.move == move }
-    isCorrect = matchingEdge != null && matchingEdge.isGood == true
+    val inScope =
+      repertoireScope == null ||
+        (matchingEdge != null &&
+          repertoireScope in treeStore.tagsFor(matchingEdge.from, matchingEdge.to))
+    isCorrect = matchingEdge != null && matchingEdge.isGood == true && inScope
     block()
     callBackOnCorrect(if (isCorrect) matchingEdge else null)
     trainingScheduler.grade(

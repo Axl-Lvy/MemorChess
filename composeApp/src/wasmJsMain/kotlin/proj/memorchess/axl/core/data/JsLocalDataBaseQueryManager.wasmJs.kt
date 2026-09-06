@@ -18,6 +18,7 @@ import kotlin.time.Instant
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
@@ -68,7 +69,37 @@ private external interface JsOutboxEntry : JsAny {
   var kind: String
   var key1: String
   var key2: String
+  var key3: String
   var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
+}
+
+/** JS object stored in the "repertoires" object store. */
+private external interface JsRepertoireEntity : JsAny {
+  var id: String
+  var name: String
+  var color: String? // RepertoireColor name, or null
+  var isDeleted: Boolean
+  var updatedAt: Double // epoch seconds
+  var originDevice: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
+}
+
+/** JS object stored in the "edgeRepertoireTags" object store. */
+private external interface JsEdgeRepertoireTagEntity : JsAny {
+  var origin: String
+  var destination: String
+  var repertoireId: String
+  var isDeleted: Boolean
+  var updatedAt: Double // epoch seconds
+  var originDevice: String
+  var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
+}
+
+/** JS object stored in the "nodeRepertoireTrainable" object store. */
+private external interface JsNodeRepertoireTrainableEntity : JsAny {
+  var positionKey: String
+  var repertoireId: String
+  var lastReview: Double // epoch seconds; 0 means null, same convention as JsNodeEntity
 }
 
 // ---------------------------------------------------------------------------
@@ -234,23 +265,83 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
   }
 }
 
+private fun DataRepertoire.toJsRepertoireEntity(): JsRepertoireEntity {
+  val repertoire = this
+  return emptyObject<JsRepertoireEntity>().apply {
+    id = repertoire.id
+    name = repertoire.name
+    color = repertoire.color?.name
+    isDeleted = repertoire.isDeleted
+    updatedAt = repertoire.updatedAt.epochSeconds.toDouble()
+    originDevice = repertoire.originDevice
+    deviceSeq = repertoire.deviceSeq.toDouble()
+  }
+}
+
+private fun JsRepertoireEntity.toDataRepertoire(): DataRepertoire =
+  DataRepertoire(
+    id = id,
+    name = name,
+    color = color?.let { RepertoireColor.valueOf(it) },
+    isDeleted = isDeleted,
+    updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
+    originDevice = originDevice,
+    deviceSeq = deviceSeq.toLong(),
+  )
+
+private fun DataEdgeRepertoireTag.toJsEdgeRepertoireTagEntity(): JsEdgeRepertoireTagEntity {
+  val tag = this
+  return emptyObject<JsEdgeRepertoireTagEntity>().apply {
+    origin = tag.origin.value
+    destination = tag.destination.value
+    repertoireId = tag.repertoireId
+    isDeleted = tag.isDeleted
+    updatedAt = tag.updatedAt.epochSeconds.toDouble()
+    originDevice = tag.originDevice
+    deviceSeq = tag.deviceSeq.toDouble()
+  }
+}
+
+private fun JsEdgeRepertoireTagEntity.toDataEdgeRepertoireTag(): DataEdgeRepertoireTag =
+  DataEdgeRepertoireTag(
+    origin = PositionKey(origin),
+    destination = PositionKey(destination),
+    repertoireId = repertoireId,
+    isDeleted = isDeleted,
+    updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
+    originDevice = originDevice,
+    deviceSeq = deviceSeq.toLong(),
+  )
+
 // ---------------------------------------------------------------------------
 // Conversion: DirtyKey <-> JS outbox entry
 // ---------------------------------------------------------------------------
 
-private fun DirtyKey.outboxKeyParts(): Triple<String, String, String> =
+/** The parts a [JsOutboxEntry]'s compound key splits into. See [DirtyKey.outboxKeyParts]. */
+private data class OutboxKeyParts(
+  val kind: String,
+  val key1: String,
+  val key2: String = "",
+  val key3: String = "",
+)
+
+private fun DirtyKey.outboxKeyParts(): OutboxKeyParts =
   when (this) {
-    is DirtyKey.NodeKey -> Triple(OutboxKind.NODE, positionKey.value, "")
-    is DirtyKey.EdgeKey -> Triple(OutboxKind.EDGE, origin.value, destination.value)
-    is DirtyKey.SettingKey -> Triple(OutboxKind.SETTING, key, "")
+    is DirtyKey.NodeKey -> OutboxKeyParts(OutboxKind.NODE, positionKey.value)
+    is DirtyKey.EdgeKey -> OutboxKeyParts(OutboxKind.EDGE, origin.value, destination.value)
+    is DirtyKey.SettingKey -> OutboxKeyParts(OutboxKind.SETTING, key)
+    is DirtyKey.RepertoireKey -> OutboxKeyParts(OutboxKind.REPERTOIRE, repertoireId)
+    is DirtyKey.TagKey ->
+      OutboxKeyParts(OutboxKind.TAG, origin.value, destination.value, repertoireId)
   }
 
 private fun DirtyKey.toJsOutboxEntry(deviceSeq: Long): JsOutboxEntry {
-  val (kind, key1, key2) = outboxKeyParts()
+  val parts = outboxKeyParts()
   return emptyObject<JsOutboxEntry>().apply {
-    this.kind = kind
-    this.key1 = key1
-    this.key2 = key2
+    kind = parts.kind
+    key1 = parts.key1
+    key2 = parts.key2
+    key3 = parts.key3
     this.deviceSeq = deviceSeq.toDouble()
   }
 }
@@ -260,6 +351,8 @@ private fun JsOutboxEntry.toDirtyKey(): DirtyKey =
     OutboxKind.NODE -> DirtyKey.NodeKey(PositionKey(key1))
     OutboxKind.EDGE -> DirtyKey.EdgeKey(PositionKey(key1), PositionKey(key2))
     OutboxKind.SETTING -> DirtyKey.SettingKey(key1)
+    OutboxKind.REPERTOIRE -> DirtyKey.RepertoireKey(key1)
+    OutboxKind.TAG -> DirtyKey.TagKey(PositionKey(key1), PositionKey(key2), key3)
     else -> error("Unknown outbox entry kind: $kind")
   }
 
@@ -271,6 +364,8 @@ private object OutboxKind {
   const val NODE = "NODE"
   const val EDGE = "EDGE"
   const val SETTING = "SETTING"
+  const val REPERTOIRE = "REPERTOIRE"
+  const val TAG = "TAG"
 }
 
 // ---------------------------------------------------------------------------
@@ -282,8 +377,11 @@ internal const val MOVES_STORE = "moves"
 internal const val EXPLORER_CACHE_STORE = "explorerCache"
 internal const val OUTBOX_STORE = "outbox"
 internal const val DAILY_ACTIVITY_STORE = "dailyActivity"
+internal const val REPERTOIRES_STORE = "repertoires"
+internal const val TAGS_STORE = "edgeRepertoireTags"
+internal const val NODE_REPERTOIRE_TRAINABLE_STORE = "nodeRepertoireTrainable"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 10
+internal const val DB_VERSION = 12
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -309,11 +407,18 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     key: DirtyKey,
     deviceSeq: Long,
   ) {
-    val (kind, key1, key2) = key.outboxKeyParts()
+    val parts = key.outboxKeyParts()
     val store = objectStore(OUTBOX_STORE)
     val existing =
       store
-        .get(Key(kind.toJsString(), key1.toJsString(), key2.toJsString()))
+        .get(
+          Key(
+            parts.kind.toJsString(),
+            parts.key1.toJsString(),
+            parts.key2.toJsString(),
+            parts.key3.toJsString(),
+          )
+        )
         ?.unsafeCast<JsOutboxEntry>()
     val newSeq = maxOf(existing?.deviceSeq?.toLong() ?: Long.MIN_VALUE, deviceSeq)
     store.put(key.toJsOutboxEntry(newSeq))
@@ -538,18 +643,37 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun eraseAll() {
     val database = db()
-    database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
+    database.writeTransaction(
+      NODES_STORE,
+      MOVES_STORE,
+      OUTBOX_STORE,
+      REPERTOIRES_STORE,
+      TAGS_STORE,
+    ) {
       objectStore(MOVES_STORE).clear()
       objectStore(NODES_STORE).clear()
       objectStore(OUTBOX_STORE).clear()
+      objectStore(REPERTOIRES_STORE).clear()
+      objectStore(TAGS_STORE).clear()
     }
   }
 
-  override suspend fun nextReadyLearningCard(now: Instant): TrainingEntry? =
-    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = true)
+  override suspend fun nextReadyLearningCard(now: Instant, repertoireId: String?): TrainingEntry? =
+    nextLearningCard(
+      dueBound = now.epochSeconds.toDouble(),
+      ready = true,
+      repertoireId = repertoireId,
+    )
 
-  override suspend fun nextPendingLearningCard(now: Instant): TrainingEntry? =
-    nextLearningCard(dueBound = now.epochSeconds.toDouble(), ready = false)
+  override suspend fun nextPendingLearningCard(
+    now: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? =
+    nextLearningCard(
+      dueBound = now.epochSeconds.toDouble(),
+      ready = false,
+      repertoireId = repertoireId,
+    )
 
   /**
    * Earliest-due in-session card. [ready] selects `dueDate <= now`, otherwise `dueDate > now`. Runs
@@ -557,9 +681,13 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
    * date, mirroring the SQL `phase IN (LEARNING, RELEARNING) ORDER BY dueDate ASC LIMIT 1`. Soft
    * deleted rows are skipped so the result matches the Room `WHERE isDeleted = 0` queries.
    */
-  private suspend fun nextLearningCard(dueBound: Double, ready: Boolean): TrainingEntry? {
+  private suspend fun nextLearningCard(
+    dueBound: Double,
+    ready: Boolean,
+    repertoireId: String?,
+  ): TrainingEntry? {
     val database = db()
-    return database.transaction(NODES_STORE) {
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val index = objectStore(NODES_STORE).index("good_phase_due")
       var best: JsNodeEntity? = null
       for (phase in IN_SESSION_PHASES) {
@@ -582,7 +710,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
           index
             .openCursor(range, Cursor.Direction.Next)
             .map { it.value as JsNodeEntity }
-            .firstOrNull { !it.isDeleted }
+            .firstOrNull { !it.isDeleted && isTrainableFor(it.positionKey, repertoireId) }
         if (candidate != null && (best == null || candidate.dueDate < best.dueDate)) {
           best = candidate
         }
@@ -591,21 +719,27 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry? {
+  override suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? {
     val database = db()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
-      dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end)
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
+      dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end, repertoireId = repertoireId)
         .minWithOrNull(compareBy { it.depth })
         ?.toTrainingEntry()
     }
   }
 
-  override suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry? {
+  override suspend fun nextDueNewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String?,
+  ): TrainingEntry? {
     val database = db()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
-      dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end)
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
+      dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end, repertoireId = repertoireId)
         .minWithOrNull(compareBy({ it.depth }, { it.createdAt }))
         ?.toTrainingEntry()
     }
@@ -613,14 +747,15 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   /**
    * All trainable, live rows of [phase] due before [dayEnd], read from the bounded compound range
-   * on `good_phase_due_depth_created`. The set is bounded to the due rows of one phase; the caller
-   * reduces it by the tier's ordering (`depth`, or `depth` then `createdAt`) because the index
-   * orders by due date first. Soft deleted rows are excluded to match the Room `WHERE isDeleted =
-   * 0` queries.
+   * on `good_phase_due_depth_created`, optionally narrowed to [repertoireId]. The set is bounded to
+   * the due rows of one phase; the caller reduces it by the tier's ordering (`depth`, or `depth`
+   * then `createdAt`) because the index orders by due date first. Soft deleted rows are excluded to
+   * match the Room `WHERE isDeleted = 0` queries.
    */
   private suspend fun com.juul.indexeddb.Transaction.dueGoodRows(
     phase: String,
     dayEnd: Double,
+    repertoireId: String? = null,
   ): List<JsNodeEntity> {
     val range =
       bound(
@@ -633,7 +768,21 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       .openCursor(range, Cursor.Direction.Next)
       .map { it.value as JsNodeEntity }
       .toList()
-      .filter { !it.isDeleted }
+      .filter { !it.isDeleted && isTrainableFor(it.positionKey, repertoireId) }
+  }
+
+  /**
+   * `true` when [repertoireId] is `null` (no scope), or [positionKey] has a live
+   * `NodeRepertoireTrainable` row for it. A point lookup on the trainable store's compound primary
+   * key, bounded the same way every other candidate check in this class already is.
+   */
+  private suspend fun com.juul.indexeddb.Transaction.isTrainableFor(
+    positionKey: String,
+    repertoireId: String?,
+  ): Boolean {
+    if (repertoireId == null) return true
+    return objectStore(NODE_REPERTOIRE_TRAINABLE_STORE)
+      .get(Key(positionKey.toJsString(), repertoireId.toJsString())) != null
   }
 
   override suspend fun getSchedulingCounts(
@@ -643,7 +792,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     val start = dayStart.epochSeconds.toDouble()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val store = objectStore(NODES_STORE)
       // firstReview/lastReview store the "never reviewed" null as the 0.0 sentinel, so a day window
       // that begins at epoch 0 would otherwise sweep those nulls in. Excluding values <= 0.0 keeps
@@ -697,21 +846,52 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun findEligibleAmong(
     keys: List<PositionKey>,
     dayEndExclusive: Instant,
+    repertoireId: String?,
   ): TrainingEntry? {
     if (keys.isEmpty()) return null
     val database = db()
     val end = dayEndExclusive.epochSeconds.toDouble()
-    return database.transaction(NODES_STORE) {
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val store = objectStore(NODES_STORE)
       // Bounded by the candidate count (branching factor): one primary-key get per key, in order.
       for (key in keys) {
         val node = store.get(Key(key.value.toJsString()))?.unsafeCast<JsNodeEntity>() ?: continue
         if (node.isDeleted || node.hasGoodOutgoing != 1) continue
+        if (!isTrainableFor(node.positionKey, repertoireId)) continue
         val inSession =
           node.phase == CardPhase.LEARNING.name || node.phase == CardPhase.RELEARNING.name
         if (inSession || node.dueDate < end) return@transaction node.toTrainingEntry()
       }
       null
+    }
+  }
+
+  override suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts {
+    val database = db()
+    val end = dayEndExclusive.epochSeconds.toDouble()
+    return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
+      val dueReviews =
+        dueGoodRows(phase = CardPhase.REVIEW.name, dayEnd = end, repertoireId = repertoireId).size
+      val dueNew =
+        dueGoodRows(phase = CardPhase.NEW.name, dayEnd = end, repertoireId = repertoireId).size
+      val inSession = IN_SESSION_PHASES.sumOf { phase ->
+        objectStore(NODES_STORE)
+          .index("good_phase_due")
+          .openCursor(
+            bound(
+              jsKeyArray(GOOD, phase.toJsString(), LOW_NUMBER),
+              jsKeyArray(GOOD, phase.toJsString(), HIGH_NUMBER),
+            ),
+            Cursor.Direction.Next,
+          )
+          .map { it.value as JsNodeEntity }
+          .toList()
+          .count { !it.isDeleted && isTrainableFor(it.positionKey, repertoireId) }
+      }
+      ScopedSchedulingCounts(dueReviews, dueNew, inSession)
     }
   }
 
@@ -819,11 +999,176 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     database.writeTransaction(OUTBOX_STORE) {
       val store = objectStore(OUTBOX_STORE)
       for (entry in entries) {
-        val (kind, key1, key2) = entry.key.outboxKeyParts()
-        val key = Key(kind.toJsString(), key1.toJsString(), key2.toJsString())
+        val parts = entry.key.outboxKeyParts()
+        val key =
+          Key(
+            parts.kind.toJsString(),
+            parts.key1.toJsString(),
+            parts.key2.toJsString(),
+            parts.key3.toJsString(),
+          )
         val existing = store.get(key)?.unsafeCast<JsOutboxEntry>()
         // Only remove the entry when no fresher mark has landed since it was read for push.
         if (existing != null && existing.deviceSeq.toLong() <= entry.deviceSeq) store.delete(key)
+      }
+    }
+  }
+
+  override suspend fun getRepertoire(id: String): DataRepertoire? {
+    val database = db()
+    return database.transaction(REPERTOIRES_STORE) {
+      objectStore(REPERTOIRES_STORE)
+        .get(Key(id.toJsString()))
+        ?.unsafeCast<JsRepertoireEntity>()
+        ?.takeIf { !it.isDeleted }
+        ?.toDataRepertoire()
+    }
+  }
+
+  override suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire? {
+    val database = db()
+    return database.transaction(REPERTOIRES_STORE) {
+      objectStore(REPERTOIRES_STORE)
+        .get(Key(id.toJsString()))
+        ?.unsafeCast<JsRepertoireEntity>()
+        ?.toDataRepertoire()
+    }
+  }
+
+  override suspend fun getRepertoires(): List<DataRepertoire> {
+    val database = db()
+    return database.transaction(REPERTOIRES_STORE) {
+      objectStore(REPERTOIRES_STORE)
+        .openCursor(autoContinue = true, direction = Cursor.Direction.Next)
+        .map { it.value as JsRepertoireEntity }
+        .toList()
+        .filter { !it.isDeleted }
+        .map { it.toDataRepertoire() }
+    }
+  }
+
+  override suspend fun insertRepertoire(repertoire: DataRepertoire) {
+    val database = db()
+    database.writeTransaction(REPERTOIRES_STORE, OUTBOX_STORE) {
+      objectStore(REPERTOIRES_STORE).put(repertoire.toJsRepertoireEntity())
+      upsertOutboxEntry(DirtyKey.RepertoireKey(repertoire.id), repertoire.deviceSeq)
+    }
+  }
+
+  override suspend fun applyRemoteRepertoire(repertoire: DataRepertoire) {
+    val database = db()
+    database.writeTransaction(REPERTOIRES_STORE) {
+      objectStore(REPERTOIRES_STORE).put(repertoire.toJsRepertoireEntity())
+    }
+  }
+
+  override suspend fun getTags(
+    origin: PositionKey,
+    destination: PositionKey,
+  ): List<DataEdgeRepertoireTag> {
+    val database = db()
+    return database.transaction(TAGS_STORE) {
+      val rows: List<JsEdgeRepertoireTagEntity> =
+        objectStore(TAGS_STORE)
+          .index("origin_destination")
+          .getAll(Key(origin.value.toJsString(), destination.value.toJsString()))
+          .toList()
+      rows.filter { !it.isDeleted }.map { it.toDataEdgeRepertoireTag() }
+    }
+  }
+
+  override suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag? {
+    val database = db()
+    return database.transaction(TAGS_STORE) {
+      objectStore(TAGS_STORE)
+        .get(
+          Key(
+            origin.value.toJsString(),
+            destination.value.toJsString(),
+            repertoireId.toJsString(),
+          )
+        )
+        ?.unsafeCast<JsEdgeRepertoireTagEntity>()
+        ?.toDataEdgeRepertoireTag()
+    }
+  }
+
+  override suspend fun insertTag(tag: DataEdgeRepertoireTag) {
+    val database = db()
+    database.writeTransaction(TAGS_STORE, OUTBOX_STORE) {
+      objectStore(TAGS_STORE).put(tag.toJsEdgeRepertoireTagEntity())
+      upsertOutboxEntry(
+        DirtyKey.TagKey(tag.origin, tag.destination, tag.repertoireId),
+        tag.deviceSeq,
+      )
+    }
+  }
+
+  override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) {
+    val database = db()
+    database.writeTransaction(TAGS_STORE) {
+      objectStore(TAGS_STORE).put(tag.toJsEdgeRepertoireTagEntity())
+    }
+  }
+
+  override suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  ) {
+    val database = db()
+    database.writeTransaction(NODE_REPERTOIRE_TRAINABLE_STORE) {
+      val store = objectStore(NODE_REPERTOIRE_TRAINABLE_STORE)
+      val existing: List<JsNodeRepertoireTrainableEntity> =
+        store.index("positionKey").getAll(Key(positionKey.value.toJsString())).toList()
+      for (row in existing) {
+        store.delete(Key(row.positionKey.toJsString(), row.repertoireId.toJsString()))
+      }
+      for (id in repertoireIds) {
+        val row =
+          emptyObject<JsNodeRepertoireTrainableEntity>().apply {
+            this.positionKey = positionKey.value
+            this.repertoireId = id
+            this.lastReview = lastReview?.epochSeconds?.toDouble() ?: 0.0
+          }
+        store.put(row)
+      }
+    }
+  }
+
+  override suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot> {
+    val database = db()
+    return database.transaction(NODE_REPERTOIRE_TRAINABLE_STORE, NODES_STORE) {
+      val trainableIndex =
+        objectStore(NODE_REPERTOIRE_TRAINABLE_STORE).index("repertoireId_lastReview")
+      val nodesStore = objectStore(NODES_STORE)
+      repertoireIds.associateWith { id ->
+        val range =
+          bound(jsKeyArray(id.toJsString(), LOW_NUMBER), jsKeyArray(id.toJsString(), HIGH_NUMBER))
+        val rows: List<JsNodeRepertoireTrainableEntity> =
+          trainableIndex
+            .openCursor(range, Cursor.Direction.Next)
+            .map { it.value as JsNodeRepertoireTrainableEntity }
+            .toList()
+        // A tombstoned position's trainable row is stale until its own delete path clears it (see
+        // TreeStore); this filter is the correctness backstop for that, not merely an optimization.
+        val live = rows.mapNotNull { row ->
+          val node = nodesStore.get(Key(row.positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
+          if (node != null && !node.isDeleted) row to node else null
+        }
+        val solid = live.count { (_, node) -> node.phase == CardPhase.REVIEW.name }
+        val lastReview = live.map { (row, _) -> row.lastReview }.maxOrNull()?.takeIf { it > 0.0 }
+        RepertoireMasterySnapshot(
+          solidCount = solid,
+          totalCount = live.size,
+          lastReview = lastReview?.let { Instant.fromEpochSeconds(it.toLong()) },
+        )
       }
     }
   }

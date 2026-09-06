@@ -1,9 +1,12 @@
 package proj.memorchess.axl.core.sync
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.DataEdgeRepertoireTag
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
@@ -99,4 +102,44 @@ fun EdgeSyncRow.toDataMove(): DataMove =
     updatedAt = updatedAt,
     originDevice = originDevice,
     deviceSeq = deviceSeq,
+  )
+
+/** The wire shape of a [DataRepertoire]. */
+fun DataRepertoire.toRepertoireSyncRow(): RepertoireSyncRow =
+  RepertoireSyncRow(id, name, color?.name, isDeleted, updatedAt, originDevice, deviceSeq)
+
+/** Rebuilds a [DataRepertoire] from a pulled [RepertoireSyncRow]. */
+fun RepertoireSyncRow.toDataRepertoire(): DataRepertoire =
+  DataRepertoire(
+    id,
+    name,
+    color?.let { RepertoireColor.valueOf(it) },
+    isDeleted,
+    updatedAt,
+    originDevice,
+    deviceSeq,
+  )
+
+/** The wire shape of a [DataEdgeRepertoireTag]. */
+fun DataEdgeRepertoireTag.toEdgeRepertoireTagSyncRow(): EdgeRepertoireTagSyncRow =
+  EdgeRepertoireTagSyncRow(
+    origin.value,
+    destination.value,
+    repertoireId,
+    isDeleted,
+    updatedAt,
+    originDevice,
+    deviceSeq,
+  )
+
+/** Rebuilds a [DataEdgeRepertoireTag] from a pulled [EdgeRepertoireTagSyncRow]. */
+fun EdgeRepertoireTagSyncRow.toDataEdgeRepertoireTag(): DataEdgeRepertoireTag =
+  DataEdgeRepertoireTag(
+    PositionKey(origin),
+    PositionKey(destination),
+    repertoireId,
+    isDeleted,
+    updatedAt,
+    originDevice,
+    deviceSeq,
   )
