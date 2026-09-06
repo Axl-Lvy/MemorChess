@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.data.repertoire
 
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.onDownload
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -70,10 +71,18 @@ class RepertoireCatalogClient(
    *
    * A document that does not parse, or that contains no playable move at all, is reported as
    * [CatalogResult.MalformedPgn].
+   *
+   * @param onProgress Reports the fraction of the response body downloaded so far, from the
+   *   underlying Ktor client's byte counter. Never called at all when the server's response carries
+   *   no `Content-Length` (there is then nothing to divide by), so a caller must not assume it
+   *   fires even once.
    */
-  suspend fun fetchPgn(file: String): CatalogResult<List<PgnGame>> {
+  suspend fun fetchPgn(
+    file: String,
+    onProgress: (Float) -> Unit = {},
+  ): CatalogResult<List<PgnGame>> {
     val body =
-      when (val download = download(file)) {
+      when (val download = download(file, onProgress)) {
         is Download.Body -> download.text
         is Download.Failure -> return download.result
       }
@@ -90,9 +99,16 @@ class RepertoireCatalogClient(
     return CatalogResult.Ok(games)
   }
 
-  private suspend fun download(path: String): Download =
+  private suspend fun download(path: String, onProgress: (Float) -> Unit = {}): Download =
     try {
-      val response: HttpResponse = httpClient.get("$baseUrl/$path")
+      val response: HttpResponse =
+        httpClient.get("$baseUrl/$path") {
+          onDownload { bytesSentTotal, contentLength ->
+            if (contentLength != null && contentLength > 0) {
+              onProgress((bytesSentTotal.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f))
+            }
+          }
+        }
       if (response.status.isSuccess()) {
         Download.Body(response.bodyAsText())
       } else {

@@ -145,9 +145,9 @@ fun RepertoireLibrary(
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
         fetchPgn = client::fetchPgn,
-        importGames = { color, games ->
+        importGames = { color, games, onProgress ->
           // The importer reads the persisted graph on demand through the bounded cache.
-          PgnImporter(treeStore).import(games, color.toPlayer())
+          PgnImporter(treeStore).import(games, color.toPlayer(), onProgress)
         },
         previewGames = { color, games ->
           // The overlap is read against the persisted graph on demand through the bounded cache.
@@ -481,16 +481,15 @@ private fun SkeletonBlock(modifier: Modifier, shape: Shape, color: Color, testTa
 
 /**
  * Maps [state] to the determinate install-progress fraction shown on a pack card's progress bar,
- * per #282's SEMI-REAL mapping: Fetching sweeps to 30%, Importing to 100%, driven by
- * [KineticMotion.Routine.loadingSkeleton] timing rather than real byte counts
- * ([RepertoireInstallState] carries no numeric progress — do not widen it here, that is #309's
- * job). `null` means "no install bar" — [NotInstalled][RepertoireInstallState.NotInstalled] and
+ * from the real per-phase fraction [RepertoireInstallState] now carries (#309): Fetching's byte
+ * progress covers 0%-30%, Importing's game-planning progress covers 30%-100%. `null` means "no
+ * install bar" — [NotInstalled][RepertoireInstallState.NotInstalled] and
  * [Failed][RepertoireInstallState.Failed] show the action button instead.
  */
 private fun installProgressFraction(state: RepertoireInstallState): Float? =
   when (state) {
-    is RepertoireInstallState.Fetching -> 0.30f
-    is RepertoireInstallState.Importing -> 1.00f
+    is RepertoireInstallState.Fetching -> 0.30f * state.fraction.coerceIn(0f, 1f)
+    is RepertoireInstallState.Importing -> 0.30f + 0.70f * state.fraction.coerceIn(0f, 1f)
     is RepertoireInstallState.Installed,
     is RepertoireInstallState.NotInstalled,
     is RepertoireInstallState.Failed -> null
@@ -867,12 +866,13 @@ private fun ColorTag(color: RepertoireColor) {
  * installed in this session (no summary when restored from persistence), and the failure message
  * plus a retry button after a failed attempt.
  *
- * The install-progress sweep is one [Animatable] hoisted for the whole row, not per branch, so
- * transitioning Fetching -> Importing continues the fill from wherever it last sat (30% -> 100%)
- * instead of resetting to 0. A reinstall goes the other way — Installed/Importing (at or near 100%)
- * back to Fetching (30%) — where continuing from wherever it sat would sweep the bar backward
- * instead of restarting it; that case snaps to 0 first. [LibraryProgressBar] only reads the
- * animatable in the draw phase, so this composable itself never recomposes on animation frames.
+ * The install-progress bar is one [Animatable] hoisted for the whole row, not per branch, so a new
+ * [installProgressFraction] target — whether from the next real progress tick or the Fetching ->
+ * Importing hand-off — glides from wherever the bar last sat instead of jumping. A reinstall goes
+ * the other way — Installed/Importing (at or near 100%) back to Fetching's freshly reset 0% — where
+ * continuing from wherever it sat would sweep the bar backward instead of restarting it; that case
+ * snaps to 0 first. [LibraryProgressBar] only reads the animatable in the draw phase, so this
+ * composable itself never recomposes on animation frames.
  */
 @Composable
 private fun InstallStatusRow(

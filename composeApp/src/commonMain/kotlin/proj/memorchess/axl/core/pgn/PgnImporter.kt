@@ -41,14 +41,26 @@ class PgnImporter(private val treeStore: TreeStore) {
    * @param perspective Side whose repertoire is being imported: only its moves are marked `isGood`,
    *   the opponent's replies are stored as not good. `null` marks every move good, for two sided
    *   content such as a Lichess study.
+   * @param onProgress Reports `gamesPlanned / (games.size + 1)` as each game finishes replaying,
+   *   reserving the last slice for what follows planning: the already-present lookups (one
+   *   [TreeStore.node] read per planned move) and the final [TreeStore.addMoves] write, together a
+   *   single unsplit phase since the write itself is atomic (see this class's own KDoc on why it is
+   *   never split). Reaches `1f` only once that phase has completed, so a caller driving a progress
+   *   bar off it never reads "done" while the slower, DB-bound part of the import is still running.
+   *   `games.isEmpty()` reports only the final `1f`, nothing during planning.
    * @return How many moves were added and how many were already present.
    * @throws PgnImportException if any move of any variation is illegal. Nothing is written in that
    *   case.
    */
-  suspend fun import(games: List<PgnGame>, perspective: Player? = null): PgnImportSummary {
-    val plannedMoves = planMoves(games, perspective)
+  suspend fun import(
+    games: List<PgnGame>,
+    perspective: Player? = null,
+    onProgress: (Float) -> Unit = {},
+  ): PgnImportSummary {
+    val plannedMoves = planMoves(games, perspective, onProgress)
     val (alreadyPresent, movesToInsert) = plannedMoves.partition { isAlreadyPresent(it) }
     treeStore.addMoves(movesToInsert)
+    onProgress(1f)
     return PgnImportSummary(
       movesAdded = movesToInsert.size,
       movesAlreadyPresent = alreadyPresent.size,
@@ -83,15 +95,26 @@ class PgnImporter(private val treeStore: TreeStore) {
   /**
    * Replays every variation of every game and returns the distinct moves to merge, in discovery
    * order. Throws [PgnImportException] on the first illegal move, before any write happens.
+   *
+   * Reports [onProgress] as each game finishes replaying; see [import]'s KDoc for its exact
+   * contract. [preview] does not need it and passes the default no-op.
    */
-  private fun planMoves(games: List<PgnGame>, perspective: Player?): List<MoveInsertion> {
+  private fun planMoves(
+    games: List<PgnGame>,
+    perspective: Player?,
+    onProgress: (Float) -> Unit = {},
+  ): List<MoveInsertion> {
     val plannedMoves = mutableListOf<MoveInsertion>()
     val seenMoves = mutableSetOf<Pair<PositionKey, String>>()
     val rootKey = GameEngine().toPositionKey()
+    if (games.isEmpty()) {
+      return plannedMoves
+    }
     for ((gameIndex, game) in games.withIndex()) {
       for (firstMove in game.moves) {
         walk(rootKey, 0, firstMove, gameIndex, perspective, plannedMoves, seenMoves)
       }
+      onProgress((gameIndex + 1).toFloat() / (games.size + 1))
     }
     return plannedMoves
   }
