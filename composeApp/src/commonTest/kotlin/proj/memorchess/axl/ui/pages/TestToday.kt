@@ -35,6 +35,7 @@ import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.testTreeStore
+import proj.memorchess.axl.ui.components.today.WeekStrip
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 /**
@@ -233,8 +234,14 @@ class TestToday : TestWithKoin() {
   // than calling the page-private classifyWeekCell, and reads the classification back off each
   // cell's semantics state description instead of its (locale dependent) background colour.
 
-  private fun ComposeUiTest.setWeekStrip(week: List<Boolean>, todayIsoIndex: Int) {
-    setContent { InitializeApp { WeekStrip(week = week, todayIsoIndex = todayIsoIndex) } }
+  private fun ComposeUiTest.setWeekStrip(
+    week: List<Boolean>,
+    todayIsoIndex: Int,
+    tagPrefix: String = "today_week",
+  ) {
+    setContent {
+      InitializeApp { WeekStrip(week = week, todayIsoIndex = todayIsoIndex, tagPrefix = tagPrefix) }
+    }
   }
 
   /** A 7 day week with every isoIndex in [activeIsoIndices] marked active, the rest inactive. */
@@ -309,6 +316,17 @@ class TestToday : TestWithKoin() {
       onNodeWithTag("today_week_cell_$isoIndex").assert(hasWeekCellState("MISSED"))
     }
     onNodeWithTag("today_week_cell_7").assert(hasWeekCellState("TODAY"))
+  }
+
+  @Test
+  fun customTagPrefixRendersTagsUnderThatPrefix() = runTestFromSetup {
+    // The desktop rail renders its own WeekStrip alongside Today's on a wide window; a distinct
+    // prefix is what keeps the two from colliding on the same test tags.
+    setWeekStrip(week = weekOf(2), todayIsoIndex = 4, tagPrefix = "rail_week")
+
+    onNodeWithTag("rail_week_strip").assertExists()
+    onNodeWithTag("rail_week_cell_2").assert(hasWeekCellState("DONE"))
+    onNodeWithTag("today_week_strip").assertDoesNotExist()
   }
 
   // LOADING CONTRACT
