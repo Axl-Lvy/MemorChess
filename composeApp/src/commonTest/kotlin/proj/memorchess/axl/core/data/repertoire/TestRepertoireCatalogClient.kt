@@ -6,6 +6,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlin.test.Test
@@ -280,6 +281,37 @@ class TestRepertoireCatalogClient {
 
     // Nothing to divide by: guarded rather than reporting a NaN or infinite fraction.
     reported shouldBe emptyList()
+  }
+
+  @Test
+  fun reportInstallPostsToTheIdsInstallsPath() = runTest {
+    var requestedUrl: String? = null
+    var requestedMethod: HttpMethod? = null
+    val engine = MockEngine { request ->
+      requestedUrl = request.url.toString()
+      requestedMethod = request.method
+      respond(content = "", status = HttpStatusCode.NoContent)
+    }
+    val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
+
+    client.reportInstall("london-system-white")
+
+    requestedMethod shouldBe HttpMethod.Post
+    requestedUrl shouldBe "$TEST_BASE_URL/london-system-white/installs"
+  }
+
+  @Test
+  fun reportInstallSwallowsANetworkFailure() = runTest {
+    // Must not throw: a caller reporting a completed install never has its own state disturbed by
+    // this being best-effort telemetry.
+    clientThrowing().reportInstall("london-system-white")
+  }
+
+  @Test
+  fun reportInstallSwallowsAnHttpErrorStatus() = runTest {
+    val client = clientRespondingWith("Internal Server Error", HttpStatusCode.InternalServerError)
+
+    client.reportInstall("london-system-white")
   }
 
   private companion object {

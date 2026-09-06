@@ -108,6 +108,69 @@ class TestRepertoireRoutes {
   }
 
   @Test
+  fun `manifest json reports zero downloadCount for a repertoire with no recorded installs`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+
+    app(store) { client ->
+      val response = client.get("/v1/repertoires/manifest.json")
+
+      val manifest = SYNC_JSON.decodeFromString<RepertoireManifest>(response.bodyAsText())
+      manifest.repertoires.first { it.id == id }.downloadCount shouldBe 0
+    }
+  }
+
+  @Test
+  fun `install route increments downloadCount and reports it back in the manifest`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+
+    app(store) { client ->
+      val first = client.post("/v1/repertoires/$id/installs")
+      val second = client.post("/v1/repertoires/$id/installs")
+
+      first.status shouldBe HttpStatusCode.NoContent
+      second.status shouldBe HttpStatusCode.NoContent
+      val manifest =
+        SYNC_JSON.decodeFromString<RepertoireManifest>(
+          client.get("/v1/repertoires/manifest.json").bodyAsText()
+        )
+      manifest.repertoires.first { it.id == id }.downloadCount shouldBe 2
+    }
+  }
+
+  @Test
+  fun `install route requires no authentication`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+
+    app(store) { client ->
+      // No Authorization header at all, unlike the authenticated publish/delete routes below.
+      client.post("/v1/repertoires/$id/installs").status shouldBe HttpStatusCode.NoContent
+    }
+  }
+
+  @Test
+  fun `install route on an unknown id still answers no content, harmlessly recording it`() {
+    app(newStore()) { client ->
+      client.post("/v1/repertoires/${newId()}/installs").status shouldBe HttpStatusCode.NoContent
+    }
+  }
+
+  @Test
+  fun `install route rejects a malformed id with bad request, never recording it`() {
+    app(newStore()) { client ->
+      // Contains an uppercase letter, which ID_PATTERN rejects; unlike the "unknown id" case above,
+      // this shape is invalid regardless of whether anything with it was ever published.
+      client.post("/v1/repertoires/Not-A-Valid-Id/installs").status shouldBe
+        HttpStatusCode.BadRequest
+    }
+  }
+
+  @Test
   fun `manifest json omits unlisted and removed repertoires`() {
     val store = newStore()
     val unlisted = newId()

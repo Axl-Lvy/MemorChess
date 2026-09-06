@@ -35,8 +35,11 @@ internal data class RepertoireCatalogPage(
  *
  * The PGN path is content addressed by [RepertoireRow.payloadSha256] rather than by id and version,
  * so it never changes for an already published version and can be cached immutably.
+ *
+ * @param downloadCount The id's recorded install count (see [RepertoireStore.countsFor]), `0` when
+ *   the caller has none to report.
  */
-internal fun RepertoireRow.toDescriptor(): RepertoireDescriptor =
+internal fun RepertoireRow.toDescriptor(downloadCount: Long = 0): RepertoireDescriptor =
   RepertoireDescriptor(
     id = id,
     name = title,
@@ -44,4 +47,5 @@ internal fun RepertoireRow.toDescriptor(): RepertoireDescriptor =
     description = description,
     moveCount = moveCount,
     file = "pgn/$payloadSha256.pgn",
+    downloadCount = downloadCount.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
   )

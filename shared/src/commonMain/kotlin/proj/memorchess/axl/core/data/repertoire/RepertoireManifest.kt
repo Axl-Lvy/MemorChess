@@ -27,6 +27,10 @@ data class RepertoireManifest(val schemaVersion: Int, val repertoires: List<Repe
  * @property moveCount Number of moves in the PGN, informational only. May be zero.
  * @property file Path of the PGN file relative to the catalog base URL, such as
  *   `pgn/london-system-white.pgn`.
+ * @property downloadCount Number of times this repertoire has been installed, across every user.
+ *   Defaults to `0` so a manifest from before this field existed (or a stale cached one) still
+ *   decodes. An anonymous, unauthenticated counter: spammable, treated as a popularity hint rather
+ *   than an exact count.
  */
 @Serializable
 data class RepertoireDescriptor(
@@ -36,6 +40,7 @@ data class RepertoireDescriptor(
   val description: String,
   val moveCount: Int,
   val file: String,
+  val downloadCount: Int = 0,
 )
 
 /** Side a repertoire is built for. */

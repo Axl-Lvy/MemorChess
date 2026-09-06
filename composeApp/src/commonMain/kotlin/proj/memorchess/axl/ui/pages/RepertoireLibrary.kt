@@ -153,6 +153,7 @@ fun RepertoireLibrary(
           // The overlap is read against the persisted graph on demand through the bounded cache.
           PgnImporter(treeStore).preview(games, color.toPlayer())
         },
+        reportInstall = client::reportInstall,
         installedStore = installedStore,
         scope = coroutineScope,
       )
@@ -317,7 +318,10 @@ private fun CatalogList(
       )
     } else {
       var filter by remember { mutableStateOf(LibraryColorFilter.ALL) }
-      val hero = remember(state.repertoires) { pickHeroRepertoire(state.repertoires) }
+      val hero =
+        remember(state.repertoires, installStates) {
+          pickHeroRepertoire(state.repertoires, installStates)
+        }
       if (hero != null) {
         HeroPackCard(descriptor = hero, onInstallRequest = { onInstallRequest(hero) })
       }
@@ -351,15 +355,27 @@ private fun CatalogList(
 }
 
 /**
- * PLACEHOLDER hero pick (#282): the catalog carries no recommendation signal yet, so this simply
- * takes the first entry — including one the user has already installed (see [HeroPackCard]'s KDoc:
- * the hero card deliberately does not special-case that; #309 owns deciding what "picked for you"
- * should mean once something is already picked). #309 tracks giving the library a real "picked for
- * you" signal — swap the body of this function only when that lands, the call site should not need
- * to change.
+ * Picks the "picked for you" hero repertoire: the most downloaded one (#309's real recommendation
+ * signal) among the ones the user has not installed yet, so the hero never recommends something
+ * already trained. Falls back to the overall most downloaded repertoire when every one of them is
+ * already installed — there is then no better recommendation to make, and [HeroPackCard] renders
+ * that fallback the same as any other pick (see its own KDoc on why it never special-cases install
+ * state itself).
+ *
+ * [List.maxByOrNull] keeps the first element on a tie, so a catalog whose entries all carry the
+ * same [RepertoireDescriptor.downloadCount] (every manifest predating this field, `0` for all)
+ * falls back to catalog order, identical to the placeholder behavior this replaces.
  */
-private fun pickHeroRepertoire(repertoires: List<RepertoireDescriptor>): RepertoireDescriptor? =
-  repertoires.firstOrNull()
+private fun pickHeroRepertoire(
+  repertoires: List<RepertoireDescriptor>,
+  installStates: Map<String, RepertoireInstallState>,
+): RepertoireDescriptor? {
+  val notInstalled = repertoires.filterNot {
+    installStates[it.id] is RepertoireInstallState.Installed
+  }
+  val candidates = notInstalled.ifEmpty { repertoires }
+  return candidates.maxByOrNull { it.downloadCount }
+}
 
 /**
  * Filter chip selection.
@@ -546,15 +562,16 @@ private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme 
 
 /**
  * Hero "picked for you" pack card at the top of the library. [descriptor] is chosen by
- * [pickHeroRepertoire] — a PLACEHOLDER (#282) pending #309's real recommendation signal. Its
- * progress readout also uses [placeholderRepertoireMastery] (#292's stub), so the numerator and
- * denominator shown here are not guaranteed to relate to [descriptor]'s own `moveCount` — both are
- * placeholders pending #292/#309, not a computed fact about this specific repertoire.
+ * [pickHeroRepertoire]'s real most-downloaded signal (#309). Its progress readout still uses
+ * [placeholderRepertoireMastery] (#292's stub), so the numerator and denominator shown here are not
+ * guaranteed to relate to [descriptor]'s own `moveCount` — a placeholder pending #292, not a
+ * computed fact about this specific repertoire.
  *
- * Does NOT look at [descriptor]'s own [RepertoireInstallState]: the badge and CTA are identical
- * whether or not this exact repertoire is already installed. Deciding what "picked for you" should
- * show for an already-installed pick is deferred to #309 alongside the rest of the recommendation
- * signal.
+ * Does NOT look at [descriptor]'s own [RepertoireInstallState] itself: the badge and CTA render the
+ * same whether or not this exact repertoire happens to be installed. That never matters in practice
+ * — [pickHeroRepertoire] already excludes an installed repertoire whenever a not-yet- installed one
+ * exists, falling back to an installed one only once the whole catalog is — so this composable
+ * stays free of install-state branching by construction rather than needing its own.
  */
 @Composable
 private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () -> Unit) {

@@ -280,9 +280,11 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // RepertoireInstallState coverage. Every case here uses a two entry catalog so the hero (which
-  // always picks the first entry, `descriptor`) never collides on name or tag with the card under
-  // test (`secondDescriptor`).
+  // RepertoireInstallState coverage. Every case here uses a two entry catalog and only ever puts
+  // `secondDescriptor` into an install state, leaving `descriptor` not installed; with both
+  // carrying the same (default 0) downloadCount, pickHeroRepertoire's tie-break lands on
+  // `descriptor` as the hero, so it never collides on name or tag with the card under test
+  // (`secondDescriptor`).
   // ---------------------------------------------------------------------------------------------
 
   @Test
@@ -458,10 +460,12 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
-  fun heroIgnoresItsOwnInstalledState() = runLibraryTest {
+  fun heroRendersTheSameWhenTheFallbackPickIsInstalled() = runLibraryTest {
+    // A single-entry catalog where that one entry is already installed: pickHeroRepertoire's
+    // exclusion has nowhere else to fall back to but this installed pick, exercising the card
+    // ignoring its own install state (see HeroPackCard's own KDoc) for real, rather than trivially.
     setLibraryContent(
-      catalogState =
-        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
       installStates = mapOf(descriptor.id to RepertoireInstallState.Installed(summary = null)),
     )
     onNodeWithTag("library_hero_card").assertExists()
@@ -471,6 +475,48 @@ class TestRepertoireView : TestWithKoin() {
     // itself carries both the tag and the label rather than the label living on a separate
     // descendant.
     onNode(hasTestTag("library_hero_card:cta").and(hasText("Add to my training"))).assertExists()
+  }
+
+  @Test
+  fun heroPicksTheMostDownloadedNotYetInstalledRepertoire() = runLibraryTest {
+    // descriptor out-downloads secondDescriptor, but is already installed: the hero must be
+    // secondDescriptor, the most downloaded among the ones not yet installed.
+    val mostDownloaded = descriptor.copy(downloadCount = 100)
+    val runnerUp = secondDescriptor.copy(downloadCount = 10)
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(mostDownloaded, runnerUp), isStale = false),
+      installStates = mapOf(mostDownloaded.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNode(hasText(runnerUp.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+  }
+
+  @Test
+  fun heroFallsBackToTheOverallMostDownloadedWhenEverythingIsInstalled() = runLibraryTest {
+    val mostDownloaded = descriptor.copy(downloadCount = 100)
+    val runnerUp = secondDescriptor.copy(downloadCount = 10)
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(runnerUp, mostDownloaded), isStale = false),
+      installStates =
+        mapOf(
+          mostDownloaded.id to RepertoireInstallState.Installed(summary = null),
+          runnerUp.id to RepertoireInstallState.Installed(summary = null),
+        ),
+    )
+    onNode(hasText(mostDownloaded.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+  }
+
+  @Test
+  fun heroBreaksATieOnDownloadCountByCatalogOrder() = runLibraryTest {
+    // Neither carries a downloadCount (the default 0, e.g. every manifest predating the field):
+    // the tie falls back to catalog order, identical to the placeholder behavior this replaced.
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+    )
+    onNode(hasText(descriptor.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
   }
 
   @Test
