@@ -109,7 +109,10 @@ internal class TestKineticBottomNav : TestWithKoin() {
   }
 
   @Test
-  fun reduceMotionKeepsSelectionCorrectAcrossARouteChange() = runTestFromSetup {
+  fun selectionStillFollowsRouteWhenReduceMotionIsOn() = runTestFromSetup {
+    // graphicsLayer scale is invisible to the semantics tree, so this cannot observe the icon pop
+    // itself. That pixel level assertion lives in TestKineticBottomNavReduceMotion (jvmTest). This
+    // only pins that selection still tracks the route when reduce motion is on.
     REDUCE_MOTION_SETTING.setValue(true)
     val route = mutableStateOf(Route.ExploreRoute.DEFAULT.getLabel())
     setContent {

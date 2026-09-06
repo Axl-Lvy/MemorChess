@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.ui.components.navigation.NavigationBarItemContent
 import proj.memorchess.axl.ui.components.navigation.wipeReveal
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.pages.RepertoireLibrary
@@ -29,27 +30,25 @@ import proj.memorchess.axl.ui.theme.KineticMotion
 private data class RouteClass(val ordinal: Int, val isTabRoute: Boolean)
 
 /**
- * Classifies a raw destination route string. The single place that knows which route strings exist
- * and which of them sit in the bottom nav, read by both [routeOrdinal] and [isTabToTabTransition].
+ * Classifies a raw destination route string against [NavigationBarItemContent], the authoritative
+ * registry of bottom nav destinations. A route string added there is picked up here for free. The
+ * repertoire viewer is not in that registry. It shares Library's ordinal for wipe direction only
+ * and is not a tab route. Any other unrecognised destination falls back to Training's ordinal.
  */
 private fun classifyRoute(route: String): RouteClass {
-  val lower = route.lowercase()
-  return when {
-    lower.contains("explore") -> RouteClass(0, isTabRoute = true)
-    lower.contains("training") -> RouteClass(1, isTabRoute = true)
-    // Kept ahead of the "library" branch. The viewer's route string ("repertoireview") is
-    // disjoint from "library" but shares its ordinal only for wipe direction purposes. It is
-    // not itself a destination in the bottom nav.
-    lower.contains("repertoireview") -> RouteClass(2, isTabRoute = false)
-    lower.contains("library") -> RouteClass(2, isTabRoute = true)
-    lower.contains("settings") -> RouteClass(3, isTabRoute = true)
-    else -> RouteClass(1, isTabRoute = false)
-  }
+  val tabItem =
+    NavigationBarItemContent.entries.firstOrNull {
+      route.contains(it.destination.getLabel(), ignoreCase = true)
+    }
+  if (tabItem != null) return RouteClass(tabItem.index, isTabRoute = true)
+  return if (route.contains("repertoireview", ignoreCase = true))
+    RouteClass(NavigationBarItemContent.Library.index, isTabRoute = false)
+  else RouteClass(NavigationBarItemContent.Training.index, isTabRoute = false)
 }
 
 /**
- * Ordinal of a destination along the navigation bar (Explore `0`, Training `1`, Library `2`,
- * Settings `3`).
+ * Ordinal of a destination along the navigation bar, per [NavigationBarItemContent]'s declared
+ * order.
  *
  * Drives the direction of the screen transition: navigating toward a higher ordinal reveals the new
  * screen from the right, toward a lower one from the left. Matched against the destination route
@@ -62,7 +61,7 @@ internal fun NavBackStackEntry.routeOrdinal(): Int =
 
 /**
  * Whether a navigation between [fromRoute] and [toRoute] (raw destination route strings) stays
- * within the bottom nav tab destinations (Explore, Training, Library, Settings today).
+ * within the bottom nav tab destinations declared by [NavigationBarItemContent].
  */
 internal fun isTabToTabTransition(fromRoute: String, toRoute: String): Boolean =
   classifyRoute(fromRoute).isTabRoute && classifyRoute(toRoute).isTabRoute

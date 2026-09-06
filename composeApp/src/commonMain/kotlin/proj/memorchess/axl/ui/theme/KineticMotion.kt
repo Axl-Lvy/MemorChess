@@ -144,11 +144,7 @@ object KineticMotion {
    */
   fun shouldShowStreakMilestone(): Boolean = !reduceMotionEnabled()
 
-  /**
-   * Whether the bottom nav icon pop should play. False when reduce motion is on, so callers must
-   * check this before touching the pop [androidx.compose.animation.core.Animatable] rather than
-   * relying on [Routine.iconPop]'s spec, which only flattens the pop.
-   */
+  /** Whether the bottom nav icon pop should play. False when reduce motion is on. */
   fun shouldPlayIconPop(): Boolean = !reduceMotionEnabled()
 
   /**

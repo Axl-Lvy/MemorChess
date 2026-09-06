@@ -2,7 +2,10 @@ package proj.memorchess.axl.ui.theme
 
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -157,5 +160,39 @@ class TestKineticMotion : TestWithKoin() {
 
     // Act & Assert.
     KineticMotion.shouldPlayIconPop() shouldBe false
+  }
+
+  @kotlin.test.Test
+  fun `reduce motion collapses tabEnter to the same plain fade regardless of direction`() = test {
+    // Arrange.
+    REDUCE_MOTION_SETTING.setValue(true)
+    val plainFade = fadeIn(animationSpec = KineticMotion.Routine.screenTransition())
+
+    // Act.
+    val fromRight = KineticMotion.tabEnter(fromRight = true)
+    val fromLeft = KineticMotion.tabEnter(fromRight = false)
+
+    // Assert.
+    fromRight shouldBe plainFade
+    fromLeft shouldBe plainFade
+  }
+
+  @kotlin.test.Test
+  fun `full motion tabEnter also slides, so it differs from the plain fade`() = test {
+    // Act.
+    val enter = KineticMotion.tabEnter(fromRight = true)
+
+    // Assert.
+    enter shouldNotBe fadeIn(animationSpec = KineticMotion.Routine.screenTransition())
+  }
+
+  @kotlin.test.Test
+  fun `tabExit is always a plain fade, with or without reduce motion`() = test {
+    // Act & Assert.
+    KineticMotion.tabExit() shouldBe
+      fadeOut(animationSpec = KineticMotion.Routine.screenTransition())
+    REDUCE_MOTION_SETTING.setValue(true)
+    KineticMotion.tabExit() shouldBe
+      fadeOut(animationSpec = KineticMotion.Routine.screenTransition())
   }
 }
