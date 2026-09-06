@@ -44,6 +44,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import kotlinx.datetime.isoDayNumber
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.brand_wordmark_first
 import memorchess.composeapp.generated.resources.brand_wordmark_second
@@ -53,9 +54,11 @@ import memorchess.composeapp.generated.resources.side_rail_today_progress
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.ui.components.brand.BrandMark
+import proj.memorchess.axl.ui.components.today.WeekStrip
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -108,7 +111,7 @@ private data class RailStats(val streak: Int, val done: Int, val target: Int, va
 /**
  * Kinetic vertical chrome rail. Used on compact-height screens — phone landscape, or a desktop
  * window shortened below the medium-height breakpoint — where a horizontal top bar would eat too
- * much vertical space. A desktop window at a normal height still gets the top bar, not this rail.
+ * much vertical space. A desktop window at a normal height gets [KineticDesktopRail] instead.
  *
  * Owns the chrome — `panel` background, 1.5.dp `line` right border, system-bar insets and padding —
  * and stacks a brand row, a streak card and a [KineticSideNav] block of full-width labelled rows.
@@ -177,7 +180,7 @@ fun KineticSideBar(
     verticalArrangement = Arrangement.spacedBy(RAIL_GAP),
   ) {
     RailBrandRow()
-    RailStreakCard(stats)
+    StreakCard(streak = stats?.streak, done = stats?.done ?: 0, target = stats?.target ?: 0)
     Spacer(modifier = Modifier.height(STREAK_NAV_SPACER))
     KineticSideNav(
       items = items,
@@ -229,22 +232,24 @@ private fun RailBrandRow() {
 /**
  * Streak card: the day count beside a "DAY STREAK" label over today's progress.
  *
- * Renders with both number slots empty while [stats] is still `null`, so the card never flashes a
- * "0" it is about to replace. The whole card inks with `onStreak` in both themes.
+ * Shared between [KineticSideBar] and [KineticDesktopRail]. Renders with both number slots empty
+ * while [streak] is still `null`, so the card never flashes a "0" it is about to replace. The whole
+ * card inks with `onStreak` in both themes.
  *
- * @param stats Resolved rail numbers, or `null` while the first fetch is in flight.
+ * @param streak Resolved streak count, or `null` while the first fetch is in flight.
+ * @param done Cards completed today; ignored while [streak] is `null`.
+ * @param target Today's goal target; ignored while [streak] is `null`.
  */
 @Composable
-private fun RailStreakCard(stats: RailStats?) {
+internal fun StreakCard(streak: Int?, done: Int, target: Int) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val shape = MaterialTheme.shapes.small
   val todayLine =
     when {
-      stats == null -> ""
-      stats.target > 0 ->
-        stringResource(Res.string.side_rail_today_progress, stats.done, stats.target)
-      else -> stringResource(Res.string.side_rail_today_done, stats.done)
+      streak == null -> ""
+      target > 0 -> stringResource(Res.string.side_rail_today_progress, done, target)
+      else -> stringResource(Res.string.side_rail_today_done, done)
     }
   Row(
     modifier =
@@ -264,13 +269,13 @@ private fun RailStreakCard(stats: RailStats?) {
     horizontalArrangement = Arrangement.spacedBy(12.dp),
   ) {
     Text(
-      text = stats?.streak?.toString() ?: "",
+      text = streak?.toString() ?: "",
       style = typography.displayLg.copy(fontSize = 26.sp, color = palette.onStreak),
     )
     Column {
       Text(
         // 0 while stats are still loading: the plural form a real streak of 0 would use.
-        text = pluralStringResource(Res.plurals.side_rail_day_streak, stats?.streak ?: 0),
+        text = pluralStringResource(Res.plurals.side_rail_day_streak, streak ?: 0),
         // labelSm already carries the mockup's 9sp size and 0.1em tracking.
         style = typography.labelSm.copy(fontWeight = FontWeight.Black, color = palette.onStreak),
       )
@@ -372,6 +377,115 @@ fun KineticSideNav(
             }
           }
       }
+    }
+  }
+}
+
+/** Snapshot of the numbers [KineticDesktopRail] renders; `null` until the first fetch resolves. */
+@Immutable
+private data class DesktopRailStats(
+  val streak: Int,
+  val done: Int,
+  val target: Int,
+  val due: Int,
+  val week: List<Boolean>,
+  val todayIsoIndex: Int,
+)
+
+/**
+ * Kinetic wide-screen desktop rail. Used on a wide **and** tall window
+ * (`WIDTH_DP_EXPANDED_LOWER_BOUND` or greater, `HEIGHT_DP_MEDIUM_LOWER_BOUND` or greater) — a
+ * desktop window at a normal height gets this rail instead of [KineticSideBar]'s compact-height
+ * treatment or a horizontal top bar.
+ *
+ * Stacks a brand row, a streak card and a [KineticSideNav] block in a scrollable middle section (so
+ * a window right at the height breakpoint, or a large font scale, never clips them), with a
+ * [WeekStrip] as a fixed last child so it stays genuinely anchored at the rail's bottom edge
+ * instead of scrolling away with the rest.
+ *
+ * See [KineticSideBar]'s KDoc for where the streak target and refresh contract come from; this rail
+ * follows the exact same rule, plus [StreakTracker.weekActivity] for the week strip.
+ *
+ * @param items Route entries to render as nav rows.
+ * @param currentRoute Active route label (matched against `item.destination.getLabel()`).
+ * @param onSelect Invoked with the tapped item.
+ * @param modifier Outer modifier.
+ * @param itemModifier Optional per-row modifier, e.g. for attaching `Modifier.testTag(...)`.
+ * @param streakTracker Source of the streak, today's completed count and this week's activity.
+ * @param scheduler Source of the still-due count driving the target and the Training badge.
+ */
+@Composable
+fun KineticDesktopRail(
+  items: List<NavigationBarItemContent>,
+  currentRoute: String,
+  onSelect: (NavigationBarItemContent) -> Unit,
+  modifier: Modifier = Modifier,
+  itemModifier: (NavigationBarItemContent) -> Modifier = { Modifier },
+  streakTracker: StreakTracker = koinInject(),
+  scheduler: TrainingScheduler = koinInject(),
+) {
+  val palette = LocalKineticPalette.current
+  val stats by
+    produceState<DesktopRailStats?>(null, streakTracker, scheduler, currentRoute) {
+      val done = streakTracker.cardsCompletedToday()
+      val due = scheduler.pendingCount()
+      val target = done + scheduler.dueCount()
+      value =
+        DesktopRailStats(
+          streak = streakTracker.streakDays(),
+          done = done,
+          target = target,
+          due = due,
+          week = streakTracker.weekActivity(),
+          todayIsoIndex = DateUtil.today().dayOfWeek.isoDayNumber,
+        )
+    }
+  Column(
+    modifier =
+      modifier
+        .width(SIDE_BAR_WIDTH)
+        .fillMaxHeight()
+        .background(palette.panel)
+        .drawWithContent {
+          drawContent()
+          val borderPx = RAIL_BORDER.toPx()
+          drawRect(
+            color = palette.line,
+            topLeft = Offset(size.width - borderPx, 0f),
+            size = Size(borderPx, size.height),
+          )
+        }
+        .windowInsetsPadding(WindowInsets.systemBars)
+        .padding(vertical = RAIL_VERTICAL_PADDING, horizontal = RAIL_HORIZONTAL_PADDING)
+  ) {
+    Column(
+      modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+      verticalArrangement = Arrangement.spacedBy(RAIL_GAP),
+    ) {
+      RailBrandRow()
+      StreakCard(streak = stats?.streak, done = stats?.done ?: 0, target = stats?.target ?: 0)
+      Spacer(modifier = Modifier.height(STREAK_NAV_SPACER))
+      KineticSideNav(
+        items = items,
+        currentRoute = currentRoute,
+        onSelect = onSelect,
+        itemModifier = itemModifier,
+        badgeCount = { item ->
+          if (item == NavigationBarItemContent.Training) stats?.due else null
+        },
+      )
+    }
+    stats?.let {
+      Spacer(modifier = Modifier.height(RAIL_GAP))
+      WeekStrip(
+        week = it.week,
+        todayIsoIndex = it.todayIsoIndex,
+        tagPrefix = "rail_week",
+        // The rail's content column is only SIDE_BAR_WIDTH (232.dp) minus its own horizontal
+        // padding wide; Today's default 40.dp cells don't fit seven-across in that space.
+        // RAIL_ICON_SIZE (21.dp) does: 7 * 21.dp + 6 * WEEK_CELL_GAP (8.dp) = 195.dp.
+        cellSize = RAIL_ICON_SIZE,
+      )
     }
   }
 }

@@ -2,7 +2,6 @@
   <!-- Brand / shell -->
   <string name="brand_wordmark_first">MEMOR</string>
   <string name="brand_wordmark_second">CHESS</string>
-  <string name="brand_version_label">0.0.1 · MULTIPLATFORM</string>
 
   <!-- Navigation -->
   <string name="nav_explore">Explore</string>

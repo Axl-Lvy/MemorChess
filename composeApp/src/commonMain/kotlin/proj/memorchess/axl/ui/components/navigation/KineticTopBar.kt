@@ -72,8 +72,6 @@ data class KineticTopBarNavItem(
  * @param activeRoute Route currently selected; matched against [KineticTopBarNavItem.route].
  * @param onNavigate Invoked with a nav item's route when the user taps it.
  * @param modifier Outer modifier.
- * @param versionLabel Optional caption under the brand name (e.g. `"0.0.1 · MULTIPLATFORM"`).
- *   Skipped when blank.
  * @param compact When true, uses a 44.dp bar height and a 28.dp brand mark — intended for mobile.
  * @param metaPills Optional right-side slot for [KineticTopBarPill]s (or any other content).
  */
@@ -83,7 +81,6 @@ fun KineticTopBar(
   activeRoute: String,
   onNavigate: (route: String) -> Unit,
   modifier: Modifier = Modifier,
-  versionLabel: String = "",
   compact: Boolean = false,
   metaPills: @Composable RowScope.() -> Unit = {},
 ) {
@@ -131,7 +128,7 @@ fun KineticTopBar(
     verticalAlignment = Alignment.CenterVertically,
   ) {
     // LEFT — brand block
-    BrandBlock(markSize = markSize, versionLabel = versionLabel)
+    BrandBlock(markSize = markSize)
 
     // CENTER — nav items, fills remaining space, items left-aligned at start.
     Row(
@@ -164,29 +161,23 @@ fun KineticTopBar(
 
 /** Brand block: skewed violet mark + "MEMOR/CHESS" wordmark with a slash in the action colour. */
 @Composable
-private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp, versionLabel: String) {
+private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
 
   Row(verticalAlignment = Alignment.CenterVertically) {
     BrandMark(size = markSize)
     Spacer(modifier = Modifier.width(12.dp))
-    Column {
-      val first = stringResource(Res.string.brand_wordmark_first)
-      val second = stringResource(Res.string.brand_wordmark_second)
-      val wordmark: AnnotatedString = buildAnnotatedString {
-        withStyle(SpanStyle(color = palette.ink)) { append(first) }
-        withStyle(SpanStyle(color = palette.action, fontWeight = FontWeight.ExtraBold)) {
-          append("/")
-        }
-        withStyle(SpanStyle(color = palette.ink)) { append(second) }
+    val first = stringResource(Res.string.brand_wordmark_first)
+    val second = stringResource(Res.string.brand_wordmark_second)
+    val wordmark: AnnotatedString = buildAnnotatedString {
+      withStyle(SpanStyle(color = palette.ink)) { append(first) }
+      withStyle(SpanStyle(color = palette.action, fontWeight = FontWeight.ExtraBold)) {
+        append("/")
       }
-      Text(text = wordmark, style = typography.brand)
-      if (versionLabel.isNotEmpty()) {
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = versionLabel.uppercase(), style = typography.labelSm.copy(color = palette.ink3))
-      }
+      withStyle(SpanStyle(color = palette.ink)) { append(second) }
     }
+    Text(text = wordmark, style = typography.brand)
   }
 }
 

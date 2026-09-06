@@ -1,25 +1,15 @@
 package proj.memorchess.axl.ui
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.navigation.compose.rememberNavController
-import androidx.window.core.layout.WindowSizeClass
 import kotlin.time.Duration
-import memorchess.composeapp.generated.resources.Res
-import memorchess.composeapp.generated.resources.brand_version_label
-import memorchess.composeapp.generated.resources.nav_explore
-import memorchess.composeapp.generated.resources.nav_library
-import memorchess.composeapp.generated.resources.nav_settings
-import memorchess.composeapp.generated.resources.nav_training
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.dsl.koinConfiguration
@@ -27,9 +17,9 @@ import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.core.sync.SyncEngine
 import proj.memorchess.axl.initKoinModules
 import proj.memorchess.axl.ui.components.navigation.BottomNavigationBar
+import proj.memorchess.axl.ui.components.navigation.KineticDesktopRail
 import proj.memorchess.axl.ui.components.navigation.KineticSideBar
 import proj.memorchess.axl.ui.components.navigation.KineticTopBar
-import proj.memorchess.axl.ui.components.navigation.KineticTopBarNavItem
 import proj.memorchess.axl.ui.components.navigation.NavigationBarItemContent
 import proj.memorchess.axl.ui.layout.MainLayout
 import proj.memorchess.axl.ui.pages.navigation.DelegateNavigator
@@ -70,50 +60,21 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
       val navBackStackEntry by navigator.currentBackStackEntryAsState()
       val currentRoute =
         navBackStackEntry?.destination?.route?.substringBefore("?") ?: Route.TodayRoute.getLabel()
-      val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-      val isWide by
-        remember(windowSizeClass) {
-          derivedStateOf {
-            windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
-          }
-        }
-      val exploreLabel = stringResource(Res.string.nav_explore)
-      val trainingLabel = stringResource(Res.string.nav_training)
-      val libraryLabel = stringResource(Res.string.nav_library)
-      val settingsLabel = stringResource(Res.string.nav_settings)
-      val labelByRouteKey =
-        mapOf(
-          Route.TodayRoute.getLabel() to trainingLabel,
-          Route.ExploreRoute.DEFAULT.getLabel() to exploreLabel,
-          Route.LibraryRoute.getLabel() to libraryLabel,
-          Route.SettingsRoute.getLabel() to settingsLabel,
-        )
       val sortedNavItems = remember { NavigationBarItemContent.entries.sortedBy { it.index } }
-      val navItems =
-        remember(sortedNavItems, labelByRouteKey) {
-          sortedNavItems.map { entry ->
-            KineticTopBarNavItem(
-              route = entry.destination.getLabel(),
-              label =
-                (labelByRouteKey[entry.destination.getLabel()] ?: entry.destination.getLabel())
-                  .uppercase(),
-              number = (entry.index + 1).toString().padStart(2, '0'),
-              ownedRoutes = entry.ownedRouteLabels,
-            )
-          }
-        }
+      // Same tags as the bottom bar: MainLayout renders the side bar, the desktop rail and the
+      // bottom bar in mutually exclusive branches, so they can never collide in one composition.
+      val railItemModifier: (NavigationBarItemContent) -> Modifier = {
+        Modifier.testTag("bottom_navigation_bar_item_${it.destination.getLabel()}")
+      }
       MainLayout(
         topBar = {
+          // Only ever rendered on narrow-portrait (MainLayout's desktop-rail branch replaces the
+          // top bar entirely on a wide window), so this is always the compact, no-nav-items bar.
           KineticTopBar(
-            navItems = if (isWide) navItems else emptyList(),
+            navItems = emptyList(),
             activeRoute = currentRoute,
-            onNavigate = { route ->
-              sortedNavItems
-                .firstOrNull { it.destination.getLabel() == route }
-                ?.let { entry -> navigator.navigateTo(entry.destination) }
-            },
-            versionLabel = stringResource(Res.string.brand_version_label),
-            compact = !isWide,
+            onNavigate = {},
+            compact = true,
           )
         },
         bottomBar = { BottomNavigationBar(currentRoute, NavigationBarItemContent.entries) },
@@ -122,11 +83,15 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
             items = sortedNavItems,
             currentRoute = currentRoute,
             onSelect = { navigator.navigateTo(it.destination) },
-            // Same tags as the bottom bar: MainLayout renders the two in mutually exclusive
-            // branches, so they can never collide in one composition.
-            itemModifier = {
-              Modifier.testTag("bottom_navigation_bar_item_${it.destination.getLabel()}")
-            },
+            itemModifier = railItemModifier,
+          )
+        },
+        desktopRail = {
+          KineticDesktopRail(
+            items = sortedNavItems,
+            currentRoute = currentRoute,
+            onSelect = { navigator.navigateTo(it.destination) },
+            itemModifier = railItemModifier,
           )
         },
       ) { innerPadding ->
