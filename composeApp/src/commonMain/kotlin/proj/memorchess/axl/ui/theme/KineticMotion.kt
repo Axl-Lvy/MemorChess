@@ -148,6 +148,13 @@ object KineticMotion {
   fun shouldPlayIconPop(): Boolean = !reduceMotionEnabled()
 
   /**
+   * Whether the board training feedback overlays (correct/wrong square animations, the "+1"
+   * floater, the counter roll) should animate. False when reduce motion is on: every one of those
+   * effects is skipped outright, with its end state rendered immediately instead.
+   */
+  fun shouldAnimateBoardFeedback(): Boolean = !reduceMotionEnabled()
+
+  /**
    * Springs with visible overshoot, reserved for the two gamification payoffs the "register, don't
    * drift" law deliberately excludes: a correct answer and a streak milestone.
    */

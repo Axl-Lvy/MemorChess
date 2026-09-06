@@ -29,6 +29,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.Edge
@@ -36,6 +37,7 @@ import proj.memorchess.axl.core.graph.Node
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
+import proj.memorchess.axl.ui.components.board.BoardTrainingFeedback
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
@@ -74,6 +76,8 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
   private val reloader = BasicReloader()
   private val moveDelay = TRAINING_MOVE_DELAY_SETTING.getValue()
   private var previousPlayedEdge: Edge? = null
+  private var previousPlayedSquare by mutableStateOf<BoardLocation?>(null)
+  private var previousCorrectSquare by mutableStateOf<BoardLocation?>(null)
   private val treeStore: TreeStore by inject()
   private val trainingScheduler: TrainingScheduler by inject()
   private val localReloader = BasicReloader()
@@ -216,10 +220,15 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
     val trainer = remember {
       val trainer =
         SingleMoveTrainer(nodeToLearn, repertoireScope = repertoireId) {
+          edge,
+          playedSquare,
+          correctSquare ->
           state =
-            if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
+            if (edge != null) TrainingBoardState.SHOW_CORRECT_MOVE
             else TrainingBoardState.SHOW_WRONG_MOVE
-          previousPlayedEdge = it
+          previousPlayedEdge = edge
+          previousPlayedSquare = playedSquare
+          previousCorrectSquare = correctSquare
         }
       trainer.registerCallBack { reloader.reload() }
       trainer
@@ -251,6 +260,13 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
         0f
       }
     val playerTurn = trainer.engine.playerTurn
+    val feedback =
+      BoardTrainingFeedback(
+        playedSquare = previousPlayedSquare.takeIf { state.isShowing },
+        correctSquare = previousCorrectSquare.takeIf { state.isShowing && !state.isCorrect },
+        isCorrect = state.isCorrect,
+        attempt = totalAttempts,
+      )
 
     BoxWithConstraints {
       val portrait = maxHeight > maxWidth
@@ -263,8 +279,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
               modifier = mod,
               compact = portrait,
               cornerTagText = cornerTag,
-              attempt = totalAttempts,
-              success = state.isCorrect,
+              feedback = feedback,
             )
           },
           counters = { mod ->
@@ -287,6 +302,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
               onSkip = { scope.launch { choseNextNode() } },
               onHint = {}, // stub for v1
               onReveal = {}, // stub for v1
+              feedbackActive = state == TrainingBoardState.SHOW_WRONG_MOVE,
               modifier = mod,
             )
           },

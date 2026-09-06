@@ -148,6 +148,21 @@ class TestKineticMotion : TestWithKoin() {
   }
 
   @kotlin.test.Test
+  fun `board training feedback animates by default`() = test {
+    // Act & Assert.
+    KineticMotion.shouldAnimateBoardFeedback() shouldBe true
+  }
+
+  @kotlin.test.Test
+  fun `reduce motion skips board training feedback animation`() = test {
+    // Arrange.
+    REDUCE_MOTION_SETTING.setValue(true)
+
+    // Act & Assert.
+    KineticMotion.shouldAnimateBoardFeedback() shouldBe false
+  }
+
+  @kotlin.test.Test
   fun `iconPop plays by default`() = test {
     // Act & Assert.
     KineticMotion.shouldPlayIconPop() shouldBe true
