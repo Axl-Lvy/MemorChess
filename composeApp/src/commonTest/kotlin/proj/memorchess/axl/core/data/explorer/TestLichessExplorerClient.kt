@@ -29,9 +29,14 @@ class TestLichessExplorerClient {
     """
       .trimIndent()
 
-  private fun buildClient(engine: MockEngine, minGap: kotlin.time.Duration = 0.milliseconds) =
+  private fun buildClient(
+    engine: MockEngine,
+    minGap: kotlin.time.Duration = 0.milliseconds,
+    userAgentProvider: () -> String? = { null },
+  ) =
     LichessExplorerClient(
       tokenProvider = { "test-token" },
+      userAgentProvider = userAgentProvider,
       httpClient =
         HttpClient(engine) {
           install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
@@ -67,6 +72,44 @@ class TestLichessExplorerClient {
     val result = client.fetch(ExplorerSource.LICHESS, fen = "f")
 
     result.shouldBeInstanceOf<ExplorerResult.NetworkError>()
+  }
+
+  @Test
+  fun sendsUserAgentHeaderWhenProviderReturnsOne() = runTest {
+    var sentUserAgent: String? = null
+    val engine = MockEngine { request ->
+      sentUserAgent = request.headers["User-Agent"]
+      respond(
+        content = ByteReadChannel(sampleJson),
+        status = HttpStatusCode.OK,
+        headers = headersOf("Content-Type", "application/json"),
+      )
+    }
+    val client = buildClient(engine, userAgentProvider = { "test-agent" })
+
+    client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+
+    sentUserAgent shouldBe "test-agent"
+  }
+
+  @Test
+  fun omitsUserAgentHeaderWhenProviderReturnsNull() = runTest {
+    var sentUserAgent: String? = "unset"
+    val engine = MockEngine { request ->
+      sentUserAgent = request.headers["User-Agent"]
+      respond(
+        content = ByteReadChannel(sampleJson),
+        status = HttpStatusCode.OK,
+        headers = headersOf("Content-Type", "application/json"),
+      )
+    }
+    // wasmJs sends none: a browser owns the wire User-Agent, and a script supplied override
+    // fails explorer.lichess.ovh's CORS preflight on Firefox.
+    val client = buildClient(engine, userAgentProvider = { null })
+
+    client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+
+    sentUserAgent shouldBe null
   }
 
   @Test

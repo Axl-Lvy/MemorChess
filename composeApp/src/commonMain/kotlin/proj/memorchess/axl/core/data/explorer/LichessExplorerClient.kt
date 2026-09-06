@@ -32,6 +32,7 @@ import proj.memorchess.axl.core.date.DateUtil
 class LichessExplorerClient(
   private val httpClient: HttpClient,
   private val tokenProvider: () -> String? = { null },
+  private val userAgentProvider: () -> String? = ::explorerUserAgent,
   private val minGap: Duration = DEFAULT_MIN_GAP,
   private val maxAttemptsOn429: Int = DEFAULT_MAX_ATTEMPTS_ON_429,
 ) {
@@ -68,7 +69,7 @@ class LichessExplorerClient(
     return try {
       val response: HttpResponse =
         httpClient.get(url) {
-          header(HttpHeaders.UserAgent, USER_AGENT)
+          userAgentProvider()?.let { header(HttpHeaders.UserAgent, it) }
           bearerAuth(token)
           parameter("fen", fen)
           parameter("moves", plies)
@@ -142,7 +143,7 @@ class LichessExplorerClient(
      * to set a descriptive User-Agent so they can contact maintainers if something goes wrong;
      * their CDN rejects requests with a generic library User-Agent on the explorer host.
      */
-    private const val USER_AGENT = "MemorChess (https://github.com/Axl-Lvy/MemorChess)"
+    internal const val USER_AGENT = "MemorChess (https://github.com/Axl-Lvy/MemorChess)"
 
     /** Minimum interval between consecutive requests. */
     val DEFAULT_MIN_GAP: Duration = 250.milliseconds
@@ -176,3 +177,6 @@ sealed class ExplorerResult {
 }
 
 private val LOGGER = Logger.withTag("LichessExplorerClient")
+
+/** The User-Agent header to send with explorer requests, or `null` to send none. */
+internal expect fun explorerUserAgent(): String?
