@@ -193,7 +193,7 @@ class TestKineticMotion : TestWithKoin() {
   }
 
   @kotlin.test.Test
-  fun `full motion tabEnter also slides, so it differs from the plain fade`() = test {
+  fun `full motion tabEnter also slides so it differs from the plain fade`() = test {
     // Act.
     val enter = KineticMotion.tabEnter(fromRight = true)
 
@@ -202,7 +202,7 @@ class TestKineticMotion : TestWithKoin() {
   }
 
   @kotlin.test.Test
-  fun `tabExit is always a plain fade, with or without reduce motion`() = test {
+  fun `tabExit is always a plain fade with or without reduce motion`() = test {
     // Act & Assert.
     KineticMotion.tabExit() shouldBe
       fadeOut(animationSpec = KineticMotion.Routine.screenTransition())
