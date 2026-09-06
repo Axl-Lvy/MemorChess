@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.components.buttons
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -17,21 +18,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import proj.memorchess.axl.ui.theme.KineticMotion
 import proj.memorchess.axl.ui.theme.KineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
+import proj.memorchess.axl.ui.theme.kineticPressableElevation
+
+/**
+ * Scale a button settles to while held. Just short of 1, so the press registers without jumping.
+ */
+private const val PRESSED_SCALE = 0.972f
+
+/** Alpha applied to a disabled button. */
+private const val DISABLED_ALPHA = 0.5f
 
 /** Visual variant of a [KineticButton]. */
 enum class KineticButtonStyle {
@@ -54,6 +67,12 @@ private data class ButtonColors(
   val hoverBackground: Color,
   val hoverBorder: Color,
   val hoverContent: Color,
+  /**
+   * Whether this style carries the chunky hard bottom edge. Only the filled styles do: the edge is
+   * an affordance of a solid button face, and giving a transparent style a 4.dp edge plus the
+   * elevation's own outline would draw a phantom box around an inline link.
+   */
+  val elevated: Boolean,
 )
 
 private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): ButtonColors =
@@ -66,6 +85,7 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
         hoverBackground = palette.panel2,
         hoverBorder = palette.ink3,
         hoverContent = palette.ink,
+        elevated = true,
       )
     KineticButtonStyle.Primary ->
       ButtonColors(
@@ -75,6 +95,7 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
         hoverBackground = palette.actionGlow,
         hoverBorder = palette.actionGlow,
         hoverContent = palette.onAction,
+        elevated = true,
       )
     KineticButtonStyle.Danger ->
       ButtonColors(
@@ -84,6 +105,7 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
         hoverBackground = palette.destructive,
         hoverBorder = palette.destructive,
         hoverContent = palette.onDestructive,
+        elevated = true,
       )
     KineticButtonStyle.DangerOutline ->
       ButtonColors(
@@ -93,6 +115,7 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
         hoverBackground = palette.destructive,
         hoverBorder = palette.destructive,
         hoverContent = palette.onDestructive,
+        elevated = false,
       )
     KineticButtonStyle.Ghost ->
       ButtonColors(
@@ -102,6 +125,7 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
         hoverBackground = Color.Transparent,
         hoverBorder = Color.Transparent,
         hoverContent = palette.ink,
+        elevated = false,
       )
   }
 
@@ -109,9 +133,16 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
  * Kinetic button. Mirrors `.btn`, `.btn.primary`, `.btn.danger`, `.btn.danger.outline`,
  * `.btn.icon-only`, and `.btn.lg` from `design-proposals/kinetic-base.css`.
  *
- * Buttons are intentionally square (no rounded corners), with a 1.dp border and Baloo 2 600 12sp
- * label. Default height is 36.dp; set [large] to true for the 44.dp CTAs used in Settings rows. Set
- * [iconOnly] for a square (height × height) toolbar button with no horizontal padding.
+ * Buttons round to 12.dp at the default 36.dp height and to 16.dp when [large] (44.dp, the CTAs
+ * used in Settings rows), carry a 1.5.dp border and a Baloo 2 600 12sp label. Set [iconOnly] for a
+ * square (height × height) toolbar button with no horizontal padding and the same radius.
+ *
+ * The three filled styles (Default, Primary, Danger) carry the chunky Kinetic pressable hard bottom
+ * edge: 4.dp at rest, collapsing to a 1.dp sliver on press while the button translates 3.dp down.
+ * The two transparent styles (DangerOutline, Ghost) do not — that edge is an affordance of a solid
+ * button face. Every style animates a small press scale through
+ * [KineticMotion.Routine.buttonPress], whose spec is built on the first real press rather than on
+ * mount, so composing a button costs no settings read.
  *
  * The button uses [LocalIndication] for the ripple/highlight indication, so it picks up whatever
  * the surrounding Material theme provides on each target.
@@ -138,14 +169,25 @@ fun KineticButton(
   val fg = if (active) colors.hoverContent else colors.content
   val indication = LocalIndication.current
   val height = if (large) 44.dp else 36.dp
+  val shape = if (large) MaterialTheme.shapes.small else MaterialTheme.shapes.extraSmall
+  val pressScale = remember { Animatable(1f) }
+
+  LaunchedEffect(pressed) {
+    // Also runs on first composition with pressed == false. Returning before building the spec
+    // keeps the Koin-backed reduce-motion read a press-time cost, not a mount-time one.
+    if (!pressed && pressScale.value == 1f) return@LaunchedEffect
+    val spec = KineticMotion.Routine.buttonPress<Float>()
+    pressScale.animateTo(if (pressed) PRESSED_SCALE else 1f, spec)
+  }
 
   Box(
     modifier =
       modifier
         .height(height)
         .defaultMinSize(minWidth = height)
-        .alpha(if (enabled) 1f else 0.5f)
         .then(if (iconOnly) Modifier.width(height) else Modifier)
+        // Pointer input first: the elevation's press translate is a layout offset, so a clickable
+        // chained after it would slide out from under a finger held near the top edge.
         .clickable(
           interactionSource = interactionSource,
           indication = indication,
@@ -153,8 +195,15 @@ fun KineticButton(
           role = Role.Button,
           onClick = onClick,
         )
-        .background(color = bg)
-        .border(BorderStroke(1.dp, borderColor))
+        .graphicsLayer {
+          alpha = if (enabled) 1f else DISABLED_ALPHA
+          scaleX = pressScale.value
+          scaleY = pressScale.value
+        }
+        .then(if (colors.elevated) Modifier.kineticPressableElevation(pressed, shape) else Modifier)
+        // Background after the elevation, or the hard edge gets painted over.
+        .background(color = bg, shape = shape)
+        .border(BorderStroke(1.5.dp, borderColor), shape)
         .then(if (iconOnly) Modifier else Modifier.padding(horizontal = 14.dp)),
     contentAlignment = Alignment.Center,
   ) {

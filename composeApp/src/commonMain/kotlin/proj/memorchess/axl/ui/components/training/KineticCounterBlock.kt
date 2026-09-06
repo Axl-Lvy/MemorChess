@@ -5,9 +5,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -33,9 +35,10 @@ enum class KineticCounterTone {
 /**
  * Small numeric stat card used on the Training page.
  *
- * Mirrors the `.counter` rule from `design-proposals/kinetic-base.css`: panel background, 1.dp
- * `line` border on top/right/bottom, and a 3.dp colored stripe on the left whose color is selected
- * by [tone]. Inside, a small uppercase [label] sits above a big Baloo 2 [value].
+ * Follows artboards `1b`/`1h`: a 20.dp-radius panel card with a 1.5.dp `line` border and a 3.dp
+ * colored stripe on the left whose color is selected by [tone]. The card is clipped to its shape
+ * before the stripe is drawn, so the stripe's left end rounds with the card. Inside, a small
+ * uppercase [label] sits above a big Baloo 2 [value].
  *
  * The component never sets its own width; the caller is expected to provide it through [modifier]
  * (typically `Modifier.weight(1f)` inside a 3-cell Row). When called without any width modifier the
@@ -60,11 +63,14 @@ fun KineticCounterBlock(
       KineticCounterTone.Neutral -> palette.ink3
     }
 
+  val shape = MaterialTheme.shapes.medium
+
   Column(
     modifier =
       modifier
-        .background(palette.panel)
-        .border(1.dp, palette.line)
+        .clip(shape)
+        .background(palette.panel, shape)
+        .border(1.5.dp, palette.line, shape)
         .drawBehind {
           val stripePx = 3.dp.toPx()
           drawRect(

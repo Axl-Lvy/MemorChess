@@ -14,9 +14,8 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Three-counter row used by the Kinetic Training page.
  *
- * Mirrors the `.counter-block` / `.counters-row` rule in `design-proposals/kinetic-base.css` —
- * SUCCESS, FAIL, LEFT side by side, each rendered through [KineticCounterBlock] with its semantic
- * [KineticCounterTone].
+ * Follows artboards `1b`/`1h` — SUCCESS, FAIL, LEFT side by side with an 8.dp gap, each rendered
+ * through [KineticCounterBlock] with its semantic [KineticCounterTone].
  *
  * The three [KineticCounterBlock] instances are placed inside a [Row] with `Arrangement.spacedBy`
  * and each receives `Modifier.weight(1f)` so the row distributes evenly across the available width.
