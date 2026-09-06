@@ -24,7 +24,9 @@ import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.drainAllNodes
+import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.pages.Training
+import proj.memorchess.axl.ui.util.hasClickLabel
 
 private const val BRAVO_TEXT = "Bravo !"
 
@@ -262,6 +264,67 @@ class TestTraining : TestWithKoin() {
       playMove("h7", "h8")
       promoteTo("queen")
       assertNodeWithTextExists(BRAVO_TEXT)
+    } finally {
+      koinTearDown()
+    }
+  }
+
+  /**
+   * Clicks a board tile without [proj.memorchess.axl.ui.clickOnTile]'s wait loop, which polls via
+   * [mainClock]-driven recomposition passes and so cannot make progress once [mainClock] is
+   * paused. Only safe once the board is already known to be settled and the tile already visible.
+   */
+  private fun ComposeUiTest.clickSettledTile(tileName: String) {
+    onNode(hasClickLabel(getTileDescription(tileName))).performClick()
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Issue #286: board-anchored correct/wrong training motion. PlusOneFloater is composed only
+  // while feedback.playedSquare != null, which the .takeIf { state.isShowing } guard limits to the
+  // window before choseNextNode() runs, gated by TRAINING_MOVE_DELAY_SETTING (default one second).
+  // runComposeUiTest's clock auto-advances through that delay the moment any node lookup calls
+  // waitForIdle, which performClick/onNodeWithTag already do, so the clock must be held still to
+  // observe either side of the transition reliably instead of racing it: the first (selecting)
+  // click settles the board through the normal, clock-driven wait helper, then the clock is
+  // paused before the second (move-completing) click, which uses the non-waiting
+  // clickSettledTile — clickOnTile's wait loop cannot make progress once autoAdvance is off.
+  // ---------------------------------------------------------------------------------------------
+
+  @Test
+  fun testPlusOneFloaterAppearsAfterACorrectMove() = runComposeUiTest {
+    koinSetUp()
+    disableShortTermScheduler()
+    try {
+      resetDatabase()
+      setContent { InitializeApp { Training() } }
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+
+      clickOnTile("e2")
+      mainClock.autoAdvance = false
+      clickSettledTile("e4")
+      mainClock.advanceTimeByFrame()
+      assertNodeWithTagExists("training-plus-one")
+      mainClock.autoAdvance = true
+    } finally {
+      koinTearDown()
+    }
+  }
+
+  @Test
+  fun testPlusOneFloaterDoesNotAppearAfterAWrongMove() = runComposeUiTest {
+    koinSetUp()
+    disableShortTermScheduler()
+    try {
+      resetDatabase()
+      setContent { InitializeApp { Training() } }
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+
+      clickOnTile("e2")
+      mainClock.autoAdvance = false
+      clickSettledTile("e3") // wrong: e4 is the node's only good move
+      mainClock.advanceTimeByFrame()
+      assertNodeWithTagDoesNotExists("training-plus-one")
+      mainClock.autoAdvance = true
     } finally {
       koinTearDown()
     }
