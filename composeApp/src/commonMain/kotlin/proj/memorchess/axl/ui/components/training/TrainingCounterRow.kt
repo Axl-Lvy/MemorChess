@@ -40,6 +40,7 @@ fun TrainingCounterRow(
       value = successCount,
       tone = KineticCounterTone.Success,
       modifier = Modifier.weight(1f),
+      animateOnChange = true,
     )
     KineticCounterBlock(
       label = stringResource(Res.string.training_fail),
