@@ -282,9 +282,11 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // RepertoireInstallState coverage. Every case here uses a two entry catalog so the hero (which
-  // always picks the first entry, `descriptor`) never collides on name or tag with the card under
-  // test (`secondDescriptor`).
+  // RepertoireInstallState coverage. Every case here uses a two entry catalog and only ever puts
+  // `secondDescriptor` into an install state, leaving `descriptor` not installed; with both
+  // carrying the same (default 0) downloadCount, pickHeroRepertoire's tie-break lands on
+  // `descriptor` as the hero, so it never collides on name or tag with the card under test
+  // (`secondDescriptor`).
   // ---------------------------------------------------------------------------------------------
 
   @Test
@@ -301,11 +303,11 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
-  fun fetchingShowsThirtyPercentProgress() = runLibraryTest {
+  fun fetchingAtFullByteProgressShowsThirtyPercent() = runLibraryTest {
     setLibraryContent(
       catalogState =
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching(1f)),
     )
     onNodeWithTag(progressTag(secondDescriptor))
       .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
@@ -314,16 +316,51 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
-  fun importingShowsHundredPercentProgress() = runLibraryTest {
+  fun fetchingAtHalfByteProgressShowsFifteenPercent() = runLibraryTest {
     setLibraryContent(
       catalogState =
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching(0.5f)),
+    )
+    onNodeWithTag(progressTag(secondDescriptor))
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0.15f, 0f..1f))
+  }
+
+  @Test
+  fun fetchingAtZeroByteProgressShowsZeroPercent() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching(0f)),
+    )
+    onNodeWithTag(progressTag(secondDescriptor))
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0f, 0f..1f))
+  }
+
+  @Test
+  fun importingAtFullPlanningProgressShowsHundredPercent() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing(1f)),
     )
     onNodeWithTag(progressTag(secondDescriptor))
       .assertRangeInfoEquals(ProgressBarRangeInfo(1.00f, 0f..1f))
     onNode(hasText("Importing…").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
       .assertExists()
+  }
+
+  @Test
+  fun importingAtZeroPlanningProgressShowsThirtyPercent() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing(0f)),
+    )
+    // Importing(0f) hands off exactly where Fetching(1f) left the bar (30%): the game-planning
+    // loop has not reported its first game yet, but the fetch phase it follows is done.
+    onNodeWithTag(progressTag(secondDescriptor))
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
   }
 
   @Test
@@ -425,10 +462,12 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
-  fun heroIgnoresItsOwnInstalledState() = runLibraryTest {
+  fun heroRendersTheSameWhenTheFallbackPickIsInstalled() = runLibraryTest {
+    // A single-entry catalog where that one entry is already installed: pickHeroRepertoire's
+    // exclusion has nowhere else to fall back to but this installed pick, exercising the card
+    // ignoring its own install state (see HeroPackCard's own KDoc) for real, rather than trivially.
     setLibraryContent(
-      catalogState =
-        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
       installStates = mapOf(descriptor.id to RepertoireInstallState.Installed(summary = null)),
     )
     onNodeWithTag("library_hero_card").assertExists()
@@ -438,6 +477,48 @@ class TestRepertoireView : TestWithKoin() {
     // itself carries both the tag and the label rather than the label living on a separate
     // descendant.
     onNode(hasTestTag("library_hero_card:cta").and(hasText("Add to my training"))).assertExists()
+  }
+
+  @Test
+  fun heroPicksTheMostDownloadedNotYetInstalledRepertoire() = runLibraryTest {
+    // descriptor out-downloads secondDescriptor, but is already installed: the hero must be
+    // secondDescriptor, the most downloaded among the ones not yet installed.
+    val mostDownloaded = descriptor.copy(downloadCount = 100)
+    val runnerUp = secondDescriptor.copy(downloadCount = 10)
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(mostDownloaded, runnerUp), isStale = false),
+      installStates = mapOf(mostDownloaded.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNode(hasText(runnerUp.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+  }
+
+  @Test
+  fun heroFallsBackToTheOverallMostDownloadedWhenEverythingIsInstalled() = runLibraryTest {
+    val mostDownloaded = descriptor.copy(downloadCount = 100)
+    val runnerUp = secondDescriptor.copy(downloadCount = 10)
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(runnerUp, mostDownloaded), isStale = false),
+      installStates =
+        mapOf(
+          mostDownloaded.id to RepertoireInstallState.Installed(summary = null),
+          runnerUp.id to RepertoireInstallState.Installed(summary = null),
+        ),
+    )
+    onNode(hasText(mostDownloaded.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+  }
+
+  @Test
+  fun heroBreaksATieOnDownloadCountByCatalogOrder() = runLibraryTest {
+    // Neither carries a downloadCount (the default 0, e.g. every manifest predating the field):
+    // the tie falls back to catalog order, identical to the placeholder behavior this replaced.
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+    )
+    onNode(hasText(descriptor.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
   }
 
   @Test
@@ -453,11 +534,11 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Install-progress bar transitions (issue #282 round-2 review): a static render of each
-  // RepertoireInstallState (above) never exercises the animated hand-off *between* states, which is
-  // exactly where a hoisted Animatable can sweep the wrong way. These mutate installStates across
-  // recompositions with the clock paused, so the assertions cover direction, not just the settled
-  // value.
+  // Install-progress bar transitions (issue #282 round-2 review, extended by #309's real
+  // fractions): a static render of each RepertoireInstallState (above) never exercises the
+  // animated hand-off *between* states, which is exactly where a hoisted Animatable can sweep the
+  // wrong way. These mutate installStates across recompositions with the clock paused, so the
+  // assertions cover direction, not just the settled value.
   // ---------------------------------------------------------------------------------------------
 
   @Test
@@ -488,32 +569,38 @@ class TestRepertoireView : TestWithKoin() {
       onNode(hasText("NEW").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
         .assertExists()
 
-      // Fetching sweeps 0% -> 30% over 300ms: sampled partway through, the bar must have risen
-      // from empty, not merely settled somewhere below 30%.
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching)
+      // Fetching(0f) -> Fetching(1f) glides 0% -> 30% over 300ms: sampled partway through, the bar
+      // must have risen from empty, not merely settled somewhere below 30%.
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching(0f))
+      mainClock.advanceTimeByFrame()
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching(1f))
       mainClock.advanceTimeByFrame()
       mainClock.advanceTimeBy(100)
       mainClock.advanceTimeByFrame()
       val midFetch = currentProgress(progressTag(secondDescriptor))
       assertTrue(
         midFetch in 0f..0.30f,
-        "expected the Fetching sweep to be rising from 0% toward 30%, was $midFetch",
+        "expected the Fetching glide to be rising from 0% toward 30%, was $midFetch",
       )
       mainClock.advanceTimeBy(300)
       mainClock.advanceTimeByFrame()
       onNodeWithTag(progressTag(secondDescriptor))
         .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
 
-      // Importing continues the same sweep 30% -> 100%: sampled partway through, the bar must have
-      // risen past 30%, not dropped back toward it.
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing)
+      // Importing(0f) hands off exactly at 30% (no jump), then Importing(1f) continues the glide
+      // 30% -> 100%: sampled partway through, the bar must have risen past 30%, not dropped back.
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing(0f))
+      mainClock.advanceTimeByFrame()
+      onNodeWithTag(progressTag(secondDescriptor))
+        .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing(1f))
       mainClock.advanceTimeByFrame()
       mainClock.advanceTimeBy(100)
       mainClock.advanceTimeByFrame()
       val midImport = currentProgress(progressTag(secondDescriptor))
       assertTrue(
         midImport in 0.30f..1.00f,
-        "expected the Importing sweep to be rising from 30% toward 100%, was $midImport",
+        "expected the Importing glide to be rising from 30% toward 100%, was $midImport",
       )
       mainClock.advanceTimeBy(300)
       mainClock.advanceTimeByFrame()
@@ -536,7 +623,7 @@ class TestRepertoireView : TestWithKoin() {
       mainClock.autoAdvance = false
       var installStates by
         mutableStateOf<Map<String, RepertoireInstallState>>(
-          mapOf(secondDescriptor.id to RepertoireInstallState.Importing)
+          mapOf(secondDescriptor.id to RepertoireInstallState.Importing(1f))
         )
       setContent {
         InitializeApp {
@@ -562,17 +649,19 @@ class TestRepertoireView : TestWithKoin() {
       onNodeWithTag(progressTag(secondDescriptor))
         .assertRangeInfoEquals(ProgressBarRangeInfo(1.00f, 0f..1f))
 
-      // Reinstalling: Importing (100%) -> Fetching must restart the sweep at 0%. Before the fix,
-      // the hoisted Animatable animated from 1.00 down to Fetching's 0.30 target instead, so a
-      // sample shortly after the transition would read close to 1.00 and falling.
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching)
+      // Reinstalling: Importing(1f) (100%) -> Fetching(0f) must restart the glide at 0%. Before
+      // the fix, the hoisted Animatable animated from 1.00 down to Fetching's 0% target instead, so
+      // a sample shortly after the transition would read close to 1.00 and falling.
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching(0f))
+      mainClock.advanceTimeByFrame()
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching(1f))
       mainClock.advanceTimeByFrame()
       mainClock.advanceTimeBy(100)
       mainClock.advanceTimeByFrame()
       val midReinstall = currentProgress(progressTag(secondDescriptor))
       assertTrue(
         midReinstall in 0f..0.30f,
-        "expected the reinstall sweep to rise from 0% toward 30%, not drain down from 100%, " +
+        "expected the reinstall glide to rise from 0% toward 30%, not drain down from 100%, " +
           "was $midReinstall",
       )
       mainClock.advanceTimeBy(300)

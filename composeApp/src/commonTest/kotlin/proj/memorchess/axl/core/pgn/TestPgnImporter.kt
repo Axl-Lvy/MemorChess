@@ -121,6 +121,58 @@ class TestPgnImporter {
   }
 
   @Test
+  fun importReportsPerGameProgressReservingTheLastSliceForTheWrite() = runTest {
+    // Arrange: three single-move games, so planning advances in three equal, observable steps,
+    // with a fourth (the already-present lookups plus the write) reserved for after planning.
+    val games = PgnParser.parse("1. e4 *\n\n1. d4 *\n\n1. c4 *")
+    val reported = mutableListOf<Float>()
+
+    // Act
+    importer.import(games, onProgress = reported::add)
+
+    // Assert: the write phase only ever reports the trailing 1f, never mid-planning.
+    assertEquals(listOf(0.25f, 0.5f, 0.75f, 1f), reported)
+  }
+
+  @Test
+  fun importOfOneGameReservesHalfForPlanningAndHalfForTheWrite() = runTest {
+    // Arrange: the lowest non-zero game count, the other boundary from the empty-list case.
+    val games = PgnParser.parse("1. e4 e5 *")
+    val reported = mutableListOf<Float>()
+
+    // Act
+    importer.import(games, onProgress = reported::add)
+
+    // Assert
+    assertEquals(listOf(0.5f, 1f), reported)
+  }
+
+  @Test
+  fun importOfNoGamesReportsOnlyTheFinalWrite() = runTest {
+    // Arrange
+    val reported = mutableListOf<Float>()
+
+    // Act
+    val summary = importer.import(emptyList(), onProgress = reported::add)
+
+    // Assert: nothing to plan, so the only report is the write completing.
+    assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 0), summary)
+    assertEquals(listOf(1f), reported)
+  }
+
+  @Test
+  fun importWithoutAProgressCallbackStillImports() = runTest {
+    // Arrange
+    val games = PgnParser.parse("1. e4 e5 *")
+
+    // Act
+    val summary = importer.import(games)
+
+    // Assert: the default no-op callback does not interfere with the import itself.
+    assertEquals(PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 0), summary)
+  }
+
+  @Test
   fun blackPerspectiveMarksOnlyBlackMovesAsGood() = runTest {
     // Arrange: the Scandinavian, a black repertoire.
     val games = PgnParser.parse("1. e4 d5 2. exd5 Qxd5 *")

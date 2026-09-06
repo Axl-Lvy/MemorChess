@@ -6,6 +6,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlin.test.Test
@@ -213,6 +214,104 @@ class TestRepertoireCatalogClient {
     val result = client.fetchPgn("pgn/empty.pgn")
 
     result.shouldBeInstanceOf<CatalogResult.MalformedPgn>()
+  }
+
+  @Test
+  fun fetchPgnReportsDownloadProgressEndingAtOne() = runTest {
+    val engine = MockEngine { _ ->
+      respond(
+        content = validPgn,
+        status = HttpStatusCode.OK,
+        headers =
+          headersOf(
+            "Content-Type" to listOf("text/plain; charset=utf-8"),
+            "Content-Length" to listOf(validPgn.encodeToByteArray().size.toString()),
+          ),
+      )
+    }
+    val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
+    val reported = mutableListOf<Float>()
+
+    val result = client.fetchPgn("pgn/test.pgn", onProgress = reported::add)
+
+    result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+    reported shouldHaveSize 1
+    reported.last() shouldBe 1f
+  }
+
+  @Test
+  fun fetchPgnWithoutAProgressCallbackStillParses() = runTest {
+    val client = clientRespondingWith(validPgn)
+
+    val result = client.fetchPgn("pgn/test.pgn")
+
+    result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+  }
+
+  @Test
+  fun fetchPgnWithoutContentLengthReportsNoProgress() = runTest {
+    val client = clientRespondingWith(validPgn)
+    val reported = mutableListOf<Float>()
+
+    val result = client.fetchPgn("pgn/test.pgn", onProgress = reported::add)
+
+    result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+    reported shouldBe emptyList()
+  }
+
+  @Test
+  fun fetchPgnWithZeroContentLengthReportsNoProgress() = runTest {
+    // An honestly empty body, Content-Length included, is the boundary case that would otherwise
+    // divide by zero when computing bytesSentTotal / contentLength.
+    val engine = MockEngine { _ ->
+      respond(
+        content = "",
+        status = HttpStatusCode.OK,
+        headers =
+          headersOf(
+            "Content-Type" to listOf("text/plain; charset=utf-8"),
+            "Content-Length" to listOf("0"),
+          ),
+      )
+    }
+    val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
+    val reported = mutableListOf<Float>()
+
+    client.fetchPgn("pgn/test.pgn", onProgress = reported::add)
+
+    // Nothing to divide by: guarded rather than reporting a NaN or infinite fraction.
+    reported shouldBe emptyList()
+  }
+
+  @Test
+  fun reportInstallPostsToTheIdsInstallsPath() = runTest {
+    var requestedUrl: String? = null
+    var requestedMethod: HttpMethod? = null
+    val engine = MockEngine { request ->
+      requestedUrl = request.url.toString()
+      requestedMethod = request.method
+      respond(content = "", status = HttpStatusCode.NoContent)
+    }
+    val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
+
+    client.reportInstall("london-system-white")
+
+    requestedMethod shouldBe HttpMethod.Post
+    requestedUrl shouldBe "$TEST_BASE_URL/london-system-white/installs"
+  }
+
+  @Test
+  fun reportInstallSwallowsANetworkFailure() = runTest {
+    // Must not throw: a caller reporting a completed install never has its own state disturbed by
+    // this being best-effort telemetry.
+    clientThrowing().reportInstall("london-system-white")
+  }
+
+  @Test
+  fun reportInstallSwallowsAnHttpErrorStatus() = runTest {
+    val client = clientRespondingWith("Internal Server Error", HttpStatusCode.InternalServerError)
+
+    client.reportInstall("london-system-white")
   }
 
   private companion object {

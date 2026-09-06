@@ -2,7 +2,9 @@ package proj.memorchess.axl.core.data.repertoire
 
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.onDownload
 import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
@@ -24,7 +26,8 @@ import proj.memorchess.axl.core.pgn.PgnParser
  * Responses are read as plain text, which both backends serve every file as, then decoded here: the
  * manifest with kotlinx.serialization (unknown fields tolerated) and PGN files with [PgnParser].
  * Every failure is mapped to a typed [CatalogResult] so callers never have to inspect Ktor
- * exceptions.
+ * exceptions — except [reportInstall], a fire and forget write with no result to map, since a
+ * caller's own install outcome must never depend on this telemetry succeeding.
  *
  * @param httpClient The Ktor client used for requests.
  * @param baseUrl Root URL of the catalog, without a trailing slash. Injectable for tests.
@@ -70,10 +73,18 @@ class RepertoireCatalogClient(
    *
    * A document that does not parse, or that contains no playable move at all, is reported as
    * [CatalogResult.MalformedPgn].
+   *
+   * @param onProgress Reports the fraction of the response body downloaded so far, from the
+   *   underlying Ktor client's byte counter. Never called at all when the server's response carries
+   *   no `Content-Length` (there is then nothing to divide by), so a caller must not assume it
+   *   fires even once.
    */
-  suspend fun fetchPgn(file: String): CatalogResult<List<PgnGame>> {
+  suspend fun fetchPgn(
+    file: String,
+    onProgress: (Float) -> Unit = {},
+  ): CatalogResult<List<PgnGame>> {
     val body =
-      when (val download = download(file)) {
+      when (val download = download(file, onProgress)) {
         is Download.Body -> download.text
         is Download.Failure -> return download.result
       }
@@ -90,9 +101,35 @@ class RepertoireCatalogClient(
     return CatalogResult.Ok(games)
   }
 
-  private suspend fun download(path: String): Download =
+  /**
+   * Reports one completed install of the repertoire [id], for the anonymous popularity counter the
+   * catalog's `downloadCount` field carries (see [RepertoireDescriptor.downloadCount]'s KDoc). Best
+   * effort: a network failure or a non success HTTP status is logged and otherwise swallowed, never
+   * thrown, so a caller's own install outcome is never disturbed by this being unreachable.
+   */
+  suspend fun reportInstall(id: String) {
     try {
-      val response: HttpResponse = httpClient.get("$baseUrl/$path")
+      val response = httpClient.post("$baseUrl/$id/installs")
+      if (!response.status.isSuccess()) {
+        LOGGER.w { "Reporting install of repertoire $id got ${response.status}" }
+      }
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      LOGGER.w(e) { "Reporting install of repertoire $id failed" }
+    }
+  }
+
+  private suspend fun download(path: String, onProgress: (Float) -> Unit = {}): Download =
+    try {
+      val response: HttpResponse =
+        httpClient.get("$baseUrl/$path") {
+          onDownload { bytesSentTotal, contentLength ->
+            if (contentLength != null && contentLength > 0) {
+              onProgress((bytesSentTotal.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f))
+            }
+          }
+        }
       if (response.status.isSuccess()) {
         Download.Body(response.bodyAsText())
       } else {

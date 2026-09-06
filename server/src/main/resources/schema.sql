@@ -126,4 +126,13 @@ CREATE TABLE IF NOT EXISTS repertoire_version (
 -- The only multi row read paths are "the latest version per id with this status" and "every
 -- non removed repertoire this author currently owns", for quota accounting.
 CREATE INDEX IF NOT EXISTS repertoire_version_status ON repertoire_version (status, id);
+
+-- Anonymous install-popularity counter, keyed by id alone so it survives a republish under a new
+-- version (repertoire_version's primary key includes version). A row here with no matching
+-- repertoire_version is harmless: nothing joins to it except by id, and the catalog never lists an
+-- id that was never published.
+CREATE TABLE IF NOT EXISTS repertoire_install_count (
+  id text PRIMARY KEY,
+  count bigint NOT NULL
+);
 CREATE INDEX IF NOT EXISTS repertoire_version_author ON repertoire_version (author_id, status);

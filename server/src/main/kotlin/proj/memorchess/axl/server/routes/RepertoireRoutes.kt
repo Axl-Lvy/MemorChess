@@ -30,6 +30,7 @@ import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.repertoire.SetStatusOutcome
+import proj.memorchess.axl.server.repertoire.idProblem
 import proj.memorchess.axl.server.repertoire.toDescriptor
 
 /** Largest page [RepertoireStore.listPublished] will be asked to serve in one call. */
@@ -75,6 +76,7 @@ private fun Route.repertoireRoutes(store: RepertoireStore, clock: () -> Instant)
   get("/v1/repertoires/pgn/{sha256}.pgn") { getPayload(store) }
   get("/v1/repertoires") { getCatalogPage(store) }
   get("/v1/repertoires/{id}") { getById(store) }
+  post("/v1/repertoires/{id}/installs") { recordInstall(store) }
 
   authenticate(SYNC_AUTH) {
     post("/v1/repertoires") { publish(store, clock) }
@@ -85,11 +87,20 @@ private fun Route.repertoireRoutes(store: RepertoireStore, clock: () -> Instant)
 }
 
 private suspend fun RoutingContext.getManifest(store: RepertoireStore) {
-  val repertoires = store.allPublished().map { it.toDescriptor() }
+  val rows = store.allPublished()
+  val counts = store.countsFor(rows.map { it.id })
+  val repertoires = rows.map { it.toDescriptor(counts.getValue(it.id)) }
   call.cacheControl(CATALOG_CACHE_CONTROL)
   call.respond(
     RepertoireManifest(schemaVersion = MANIFEST_SCHEMA_VERSION, repertoires = repertoires)
   )
+}
+
+private suspend fun RoutingContext.recordInstall(store: RepertoireStore) {
+  val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
+  idProblem(id)?.let { throw BadRequestException(it) }
+  store.recordInstall(id)
+  call.respond(HttpStatusCode.NoContent)
 }
 
 private suspend fun RoutingContext.getPayload(store: RepertoireStore) {
@@ -105,11 +116,12 @@ private suspend fun RoutingContext.getPayload(store: RepertoireStore) {
 
 private suspend fun RoutingContext.getCatalogPage(store: RepertoireStore) {
   val page = store.listPublished(cursor(), limit())
+  val counts = store.countsFor(page.rows.map { it.id })
   call.cacheControl(CATALOG_CACHE_CONTROL)
   call.respond(
     RepertoireCatalogPage(
       nextCursor = page.nextCursor,
-      repertoires = page.rows.map { it.toDescriptor() },
+      repertoires = page.rows.map { it.toDescriptor(counts.getValue(it.id)) },
     )
   )
 }
@@ -120,8 +132,9 @@ private suspend fun RoutingContext.getById(store: RepertoireStore) {
   if (row == null) {
     call.respondNoSuchRepertoire()
   } else {
+    val count = store.countsFor(listOf(id)).getValue(id)
     call.cacheControl(CATALOG_CACHE_CONTROL)
-    call.respond(row.toDescriptor())
+    call.respond(row.toDescriptor(count))
   }
 }
 

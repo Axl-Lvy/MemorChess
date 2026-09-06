@@ -23,8 +23,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * The catalog and install collaborators are injected as suspending functions rather than concrete
  * classes so tests can substitute trivial fakes. Production wiring binds them to
  * [CachedRepertoireCatalog.getManifest], [RepertoireCatalogClient.fetchPgn],
- * [proj.memorchess.axl.core.pgn.PgnImporter.import] and
- * [proj.memorchess.axl.core.pgn.PgnImporter.preview].
+ * [proj.memorchess.axl.core.pgn.PgnImporter.import],
+ * [proj.memorchess.axl.core.pgn.PgnImporter.preview] and [RepertoireCatalogClient.reportInstall].
  *
  * Reentrancy: [refresh] is ignored while a load is in flight, [install] is ignored only while a
  * fetch or import for the same repertoire is in flight (an installed repertoire may be
@@ -33,14 +33,22 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * frame is still coalesced.
  *
  * @param loadManifest Returns the catalog manifest, normally through the persisted cache.
- * @param fetchPgn Downloads and parses the PGN file at the given catalog relative path.
+ * @param fetchPgn Downloads and parses the PGN file at the given catalog relative path, reporting
+ *   download progress (`0f`..`1f`) through its second parameter as
+ *   [RepertoireInstallState.Fetching] is updated. May never call it at all, see
+ *   [RepertoireCatalogClient.fetchPgn]'s own KDoc.
  * @param importGames Merges parsed games into the opening graph for the repertoire named by
  *   `descriptor`, tagging every move with `descriptor.id` and registering it in the repertoire
  *   registry on first install (see the wiring in `RepertoireLibrary.kt`), and reports the summary.
  *   Any exception it throws is surfaced as [InstallError.ImportFailed] and the repertoire is not
- *   marked installed.
+ *   marked installed. Reports import progress (`0f`..`1f`) through its third parameter as
+ *   [RepertoireInstallState.Importing] is updated.
  * @param previewGames Computes, without writing anything, how much of the repertoire the user
  *   already has from the repertoire's [RepertoireColor] perspective.
+ * @param reportInstall Reports one completed first install of the given repertoire id, feeding the
+ *   catalog's anonymous popularity counter (see [RepertoireDescriptor.downloadCount]'s KDoc). Must
+ *   never throw; production wiring binds [RepertoireCatalogClient.reportInstall], which satisfies
+ *   that by design.
  * @param installedStore Records which repertoires are installed on this device.
  * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
  *   normally through [proj.memorchess.axl.core.graph.TreeStore.repertoires].
@@ -48,11 +56,17 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  */
 class RepertoireLibraryViewModel(
   private val loadManifest: suspend () -> CachedManifestResult,
-  private val fetchPgn: suspend (file: String) -> CatalogResult<List<PgnGame>>,
+  private val fetchPgn:
+    suspend (file: String, onProgress: (Float) -> Unit) -> CatalogResult<List<PgnGame>>,
   private val importGames:
-    suspend (descriptor: RepertoireDescriptor, games: List<PgnGame>) -> PgnImportSummary,
+    suspend (
+      descriptor: RepertoireDescriptor,
+      games: List<PgnGame>,
+      onProgress: (Float) -> Unit,
+    ) -> PgnImportSummary,
   private val previewGames:
     suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportPreview,
+  private val reportInstall: suspend (id: String) -> Unit,
   private val installedStore: InstalledRepertoireStore,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val scope: CoroutineScope,
@@ -124,7 +138,7 @@ class RepertoireLibraryViewModel(
       is RepertoireInstallState.NotInstalled,
       null -> Unit
     }
-    setInstallState(descriptor.id, RepertoireInstallState.Fetching)
+    setInstallState(descriptor.id, RepertoireInstallState.Fetching(0f))
     scope.launch { runInstall(descriptor) }
   }
 
@@ -176,11 +190,23 @@ class RepertoireLibraryViewModel(
   }
 
   private suspend fun runInstall(descriptor: RepertoireDescriptor) {
-    val games = fetchGames(descriptor) { fail(descriptor.id, it) } ?: return
-    setInstallState(descriptor.id, RepertoireInstallState.Importing)
+    val games =
+      fetchGames(
+        descriptor,
+        onProgress = { setInstallState(descriptor.id, RepertoireInstallState.Fetching(it)) },
+      ) {
+        fail(descriptor.id, it)
+      } ?: return
+    setInstallState(descriptor.id, RepertoireInstallState.Importing(0f))
+    // Read before markInstalled flips it, so a reinstall of an already-installed repertoire is
+    // never counted as a second install of it.
+    val isFirstInstall = !installedStore.isInstalled(descriptor.id)
     val summary =
       try {
-        val importSummary = importGames(descriptor, games)
+        val importSummary =
+          importGames(descriptor, games) {
+            setInstallState(descriptor.id, RepertoireInstallState.Importing(it))
+          }
         installedStore.markInstalled(descriptor.id)
         importSummary
       } catch (e: CancellationException) {
@@ -190,7 +216,13 @@ class RepertoireLibraryViewModel(
         fail(descriptor.id, InstallError.ImportFailed(e.message ?: "Import failed"))
         return
       }
+    // Installed is published before the best-effort telemetry call below, not after: reportInstall
+    // suspends on a network round trip, and the bar must never sit at 100% under "Importing…"
+    // waiting on that when the install itself is already done.
     setInstallState(descriptor.id, RepertoireInstallState.Installed(summary))
+    if (isFirstInstall) {
+      reportInstall(descriptor.id)
+    }
   }
 
   private suspend fun runPreview(descriptor: RepertoireDescriptor) {
@@ -218,13 +250,17 @@ class RepertoireLibraryViewModel(
    * fetch it reports the matching [InstallError] through [onError] and returns `null`; otherwise it
    * returns the parsed games. A PGN fetch never reports [CatalogResult.MalformedManifest], but it
    * is mapped defensively for exhaustiveness.
+   *
+   * @param onProgress Forwarded to [fetchPgn]. Defaults to a no-op: [runPreview] has no progress
+   *   bar to drive, only [runInstall] passes one.
    */
   private suspend fun fetchGames(
     descriptor: RepertoireDescriptor,
+    onProgress: (Float) -> Unit = {},
     onError: (InstallError) -> Unit,
   ): List<PgnGame>? {
     val error =
-      when (val result = fetchPgn(descriptor.file)) {
+      when (val result = fetchPgn(descriptor.file, onProgress)) {
         is CatalogResult.Ok -> return result.value
         is CatalogResult.NetworkError -> InstallError.Network(result.message)
         is CatalogResult.HttpError -> InstallError.Http(result.status)
@@ -277,11 +313,16 @@ sealed class RepertoireInstallState {
   /** The repertoire is not installed and no install is running. */
   data object NotInstalled : RepertoireInstallState()
 
-  /** The PGN file is being downloaded. */
-  data object Fetching : RepertoireInstallState()
+  /** The PGN file is being downloaded. [fraction] is the download's `0f`..`1f` byte progress. */
+  data class Fetching(val fraction: Float) : RepertoireInstallState()
 
-  /** The downloaded games are being merged into the opening graph. */
-  data object Importing : RepertoireInstallState()
+  /**
+   * The downloaded games are being merged into the opening graph. [fraction] is the `0f`..`1f`
+   * progress reported by [proj.memorchess.axl.core.pgn.PgnImporter.import]'s `onProgress` parameter
+   * (see its KDoc for the exact contract): it reaches `1f` only once the write itself has
+   * completed, not merely once every game is planned.
+   */
+  data class Importing(val fraction: Float) : RepertoireInstallState()
 
   /**
    * The repertoire is installed. [summary] is available when the install happened in this session

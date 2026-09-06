@@ -45,13 +45,18 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   private fun TestScope.buildViewModel(
     loadManifest: suspend () -> CachedManifestResult,
-    fetchPgn: suspend (String) -> CatalogResult<List<PgnGame>> = { CatalogResult.Ok(emptyList()) },
-    importGames: suspend (RepertoireDescriptor, List<PgnGame>) -> PgnImportSummary = { _, _ ->
-      PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
+    fetchPgn: suspend (String, (Float) -> Unit) -> CatalogResult<List<PgnGame>> = { _, _ ->
+      CatalogResult.Ok(emptyList())
     },
+    importGames:
+      suspend (RepertoireDescriptor, List<PgnGame>, (Float) -> Unit) -> PgnImportSummary =
+      { _, _, _ ->
+        PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
+      },
     previewGames: suspend (RepertoireColor, List<PgnGame>) -> PgnImportPreview = { _, _ ->
       PgnImportPreview(totalMoves = 4, movesInCommon = 1)
     },
+    reportInstall: suspend (String) -> Unit = {},
     store: InstalledRepertoireStore = InstalledRepertoireStore(),
     loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
   ) =
@@ -60,6 +65,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       fetchPgn = fetchPgn,
       importGames = importGames,
       previewGames = previewGames,
+      reportInstall = reportInstall,
       installedStore = store,
       loadMyRepertoires = loadMyRepertoires,
       scope = backgroundScope,
@@ -204,7 +210,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        importGames = { _, _ -> PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2) },
+        importGames = { _, _, _ -> PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2) },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -223,7 +229,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
-        importGames = { descriptor, _ ->
+        importGames = { descriptor, _, _ ->
           importedColor = descriptor.color
           PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
         },
@@ -242,7 +248,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = { CatalogResult.NetworkError("offline") },
+        fetchPgn = { _, _ -> CatalogResult.NetworkError("offline") },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -260,7 +266,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = { CatalogResult.HttpError(500) },
+        fetchPgn = { _, _ -> CatalogResult.HttpError(500) },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -278,7 +284,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = { CatalogResult.MalformedPgn("no moves") },
+        fetchPgn = { _, _ -> CatalogResult.MalformedPgn("no moves") },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -296,7 +302,9 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        importGames = { _, _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
+        importGames = { _, _, _ ->
+          throw PgnImportException("Illegal move Qx9 at ply 4 in game 1")
+        },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -318,7 +326,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = {
+        fetchPgn = { _, _ ->
           fetchCalls++
           gate.await()
           CatalogResult.Ok(emptyList())
@@ -342,11 +350,11 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = {
+        fetchPgn = { _, _ ->
           fetchCalls++
           CatalogResult.Ok(emptyList())
         },
-        importGames = { _, _ -> PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 6) },
+        importGames = { _, _, _ -> PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 6) },
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -365,11 +373,173 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   }
 
   @Test
+  fun firstInstallReportsItToTheServer() = test {
+    val reportedIds = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        reportInstall = { reportedIds.add(it) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+    // Installed is published before reportInstall is even called (it must never gate on the
+    // report), so a fake that itself suspends needs the scheduler drained before asserting.
+    testScheduler.advanceUntilIdle()
+
+    reportedIds shouldBe listOf(london.id)
+  }
+
+  @Test
+  fun installIsShownAsCompleteWithoutWaitingForReportInstallToReturn() = test {
+    val gate = CompletableDeferred<Unit>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        reportInstall = { gate.await() },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+
+    // Installed must be observable while the (never completing here) report call is still in
+    // flight, proving the install outcome is not gated on that best-effort telemetry round trip.
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+    gate.complete(Unit)
+  }
+
+  @Test
+  fun reinstallOfAnAlreadyInstalledRepertoireDoesNotReportAgain() = test {
+    val store = InstalledRepertoireStore()
+    store.markInstalled(london.id)
+    val reportedIds = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        reportInstall = { reportedIds.add(it) },
+        store = store,
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+
+    reportedIds shouldBe emptyList()
+  }
+
+  @Test
+  fun aFailedInstallNeverReportsIt() = test {
+    val reportedIds = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { _, _ -> CatalogResult.HttpError(500) },
+        reportInstall = { reportedIds.add(it) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Failed }
+
+    reportedIds shouldBe emptyList()
+  }
+
+  @Test
+  fun installStartsAtZeroFetchProgress() = test {
+    val gate = CompletableDeferred<Unit>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { _, _ ->
+          gate.await()
+          CatalogResult.Ok(emptyList())
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+
+    // The guard sets Fetching(0f) synchronously, before the fetch coroutine is even launched.
+    viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.Fetching(0f)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+  }
+
+  @Test
+  fun installReportsFetchProgress() = test {
+    val gate = CompletableDeferred<Unit>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { _, onProgress ->
+          onProgress(0.5f)
+          gate.await()
+          CatalogResult.Ok(emptyList())
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    val midFetch =
+      viewModel.installStates.first { it[london.id] == RepertoireInstallState.Fetching(0.5f) }
+
+    midFetch[london.id] shouldBe RepertoireInstallState.Fetching(0.5f)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+  }
+
+  @Test
+  fun installStartsImportAtZeroProgress() = test {
+    val gate = CompletableDeferred<Unit>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        importGames = { _, _, _ ->
+          gate.await()
+          PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    val midImport =
+      viewModel.installStates.first { it[london.id] == RepertoireInstallState.Importing(0f) }
+
+    midImport[london.id] shouldBe RepertoireInstallState.Importing(0f)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+  }
+
+  @Test
+  fun installReportsImportProgress() = test {
+    val gate = CompletableDeferred<Unit>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        importGames = { _, _, onProgress ->
+          onProgress(0.5f)
+          gate.await()
+          PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    val midImport =
+      viewModel.installStates.first { it[london.id] == RepertoireInstallState.Importing(0.5f) }
+
+    midImport[london.id] shouldBe RepertoireInstallState.Importing(0.5f)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+  }
+
+  @Test
   fun requestPreviewPublishesTheOverlap() = test {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
-        fetchPgn = { CatalogResult.Ok(emptyList()) },
+        fetchPgn = { _, _ -> CatalogResult.Ok(emptyList()) },
         previewGames = { _, _ -> PgnImportPreview(totalMoves = 12, movesInCommon = 5) },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -405,7 +575,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = { CatalogResult.HttpError(404) },
+        fetchPgn = { _, _ -> CatalogResult.HttpError(404) },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
 
@@ -422,7 +592,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = {
+        fetchPgn = { _, _ ->
           fetchCalls++
           gate.await()
           CatalogResult.Ok(emptyList())
@@ -443,7 +613,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = { CatalogResult.Ok(emptyList()) },
+        fetchPgn = { _, _ -> CatalogResult.Ok(emptyList()) },
         previewGames = { _, _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
@@ -462,7 +632,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = { CatalogResult.MalformedManifest("bad") },
+        fetchPgn = { _, _ -> CatalogResult.MalformedManifest("bad") },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
 
@@ -479,7 +649,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
-        fetchPgn = {
+        fetchPgn = { _, _ ->
           if (failNext) {
             failNext = false
             CatalogResult.HttpError(503)

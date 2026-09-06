@@ -414,6 +414,32 @@ internal class RepertoireStore(
     return if (referenced) blobs.get(sha256) else null
   }
 
+  /**
+   * Records one more anonymous install of [id], for the popularity hint the catalog's
+   * `downloadCount` field carries. Keyed by [id] alone (not `(id, version)`), so a later republish
+   * under a new version does not reset the count. [id] need not be a currently published
+   * repertoire; recording one anyway is harmless (see the `repertoire_install_count` table's own
+   * comment in `schema.sql`).
+   */
+  suspend fun recordInstall(id: String) {
+    withContext(ioDispatcher) {
+      dataSource.connection.use { connection -> connection.incrementInstallCount(id) }
+    }
+  }
+
+  /**
+   * The recorded install count of every id in [ids], defaulting to `0` for one with no
+   * [recordInstall] call yet. The returned map has exactly one entry per (distinct) id in [ids],
+   * regardless of order.
+   */
+  suspend fun countsFor(ids: List<String>): Map<String, Long> {
+    if (ids.isEmpty()) return emptyMap()
+    val distinctIds = ids.distinct()
+    return withContext(ioDispatcher) {
+      dataSource.connection.use { connection -> connection.installCountsFor(distinctIds) }
+    }
+  }
+
   private suspend fun <T> inTransaction(block: (Connection) -> T): T =
     withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
@@ -426,16 +452,20 @@ internal class RepertoireStore(
         }
       }
     }
-
-  private fun idProblem(id: String): String? =
-    when {
-      id.length < MIN_ID_LENGTH || id.length > MAX_ID_LENGTH ->
-        "id must be $MIN_ID_LENGTH to $MAX_ID_LENGTH characters, was ${id.length}"
-      !ID_PATTERN.matches(id) ->
-        "id must be lowercase letters, digits and single hyphens, was '$id'"
-      else -> null
-    }
 }
+
+/**
+ * Describes what is wrong with [id] as a catalog slug, or `null` when it is well formed. Shared
+ * with the routing layer so an anonymous write keyed by a caller supplied id (see `recordInstall`'s
+ * route) can reject a malformed one before it ever reaches the store.
+ */
+internal fun idProblem(id: String): String? =
+  when {
+    id.length < MIN_ID_LENGTH || id.length > MAX_ID_LENGTH ->
+      "id must be $MIN_ID_LENGTH to $MAX_ID_LENGTH characters, was ${id.length}"
+    !ID_PATTERN.matches(id) -> "id must be lowercase letters, digits and single hyphens, was '$id'"
+    else -> null
+  }
 
 private const val STATUS_REMOVED = "removed"
 
@@ -530,6 +560,38 @@ private fun Connection.blobStillReferenced(sha256: String): Boolean =
         rows.getLong(1) > 0
       }
     }
+
+/**
+ * Upserts [id]'s row in `repertoire_install_count`, starting at 1 or incrementing an existing row.
+ * The `ON CONFLICT` clause resolves entirely inside Postgres, so two concurrent calls for the same
+ * [id] never race the way a separate read-then-write would.
+ */
+private fun Connection.incrementInstallCount(id: String) {
+  prepareStatement(
+      "INSERT INTO repertoire_install_count (id, count) VALUES (?, 1) " +
+        "ON CONFLICT (id) DO UPDATE SET count = repertoire_install_count.count + 1"
+    )
+    .use { statement ->
+      statement.setString(1, id)
+      statement.executeUpdate()
+    }
+}
+
+/** The recorded install count of every id in [ids], defaulting to 0 for one with no row yet. */
+private fun Connection.installCountsFor(ids: List<String>): Map<String, Long> {
+  val counts = mutableMapOf<String, Long>()
+  ids.associateWithTo(counts) { 0L }
+  prepareStatement("SELECT id, count FROM repertoire_install_count WHERE id = ANY(?)").use {
+    statement ->
+    statement.setArray(1, createArrayOf("text", ids.toTypedArray()))
+    statement.executeQuery().use { rows ->
+      while (rows.next()) {
+        counts[rows.getString(1)] = rows.getLong(2)
+      }
+    }
+  }
+  return counts
+}
 
 /**
  * Sets every version of [id], not only its latest, to [STATUS_REMOVED], then returns the distinct

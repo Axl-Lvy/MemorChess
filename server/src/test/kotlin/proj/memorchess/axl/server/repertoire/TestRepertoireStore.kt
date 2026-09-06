@@ -595,4 +595,70 @@ internal class TestRepertoireStore {
       val versions = outcomes.map { (it as PublishOutcome.Published).row.version }
       versions.toSet() shouldBe (1..concurrency).toSet()
     }
+
+  @Test
+  fun `an id with no recorded installs has a zero count`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+
+      store.countsFor(listOf(id)) shouldBe mapOf(id to 0L)
+    }
+
+  @Test
+  fun `recordInstall increments the count for that id only`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      val otherId = newId()
+
+      store.recordInstall(id)
+      store.recordInstall(id)
+
+      store.countsFor(listOf(id, otherId)) shouldBe mapOf(id to 2L, otherId to 0L)
+    }
+
+  @Test
+  fun `recordInstall survives a republish under a new version`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      store.publish(author1, id, "T", "D", "white", pgn(), now)
+      store.recordInstall(id)
+
+      store.publish(author1, id, "T2", "D2", "white", pgn("d4"), now)
+
+      store.countsFor(listOf(id)) shouldBe mapOf(id to 1L)
+    }
+
+  @Test
+  fun `countsFor an empty id list returns an empty map`() =
+    kotlinx.coroutines.test.runTest { store().countsFor(emptyList()) shouldBe emptyMap() }
+
+  @Test
+  fun `recordInstall on an unpublished id still counts it, harmlessly ignored by the catalog`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val neverPublishedId = newId()
+
+      store.recordInstall(neverPublishedId)
+
+      store.countsFor(listOf(neverPublishedId)) shouldBe mapOf(neverPublishedId to 1L)
+    }
+
+  @Test
+  fun `concurrent recordInstall calls for the same id never lose an increment`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      val concurrency = 8
+
+      coroutineScope {
+        (1..concurrency)
+          .map { async(Dispatchers.IO) { store.recordInstall(id) } }
+          .map { it.await() }
+      }
+
+      store.countsFor(listOf(id)) shouldBe mapOf(id to concurrency.toLong())
+    }
 }

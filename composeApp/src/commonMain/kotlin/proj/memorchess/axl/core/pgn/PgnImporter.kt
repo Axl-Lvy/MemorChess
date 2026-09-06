@@ -46,6 +46,14 @@ class PgnImporter(private val treeStore: TreeStore) {
    *   or not: an edge this import shares with an already tagged repertoire is tagged too (the
    *   "extend on reinstall" case). `null` imports untagged, exactly as before this parameter
    *   existed.
+   * @param onProgress Reports `gamesPlanned / (games.size + 1)` as each game finishes replaying,
+   *   reserving the last slice for what follows planning: the already-present lookups (one
+   *   [TreeStore.node] read per planned move), the final [TreeStore.addMoves] write, and, when
+   *   [repertoireId] is not `null`, the edge tagging loop, together a single unsplit phase since
+   *   the write itself is atomic (see this class's own KDoc on why it is never split). Reaches `1f`
+   *   only once that phase has completed, so a caller driving a progress bar off it never reads
+   *   "done" while the slower, DB-bound part of the import is still running. `games.isEmpty()`
+   *   reports only the final `1f`, nothing during planning.
    * @return How many moves were added and how many were already present.
    * @throws PgnImportException if any move of any variation is illegal, or if [repertoireId] names
    *   a repertoire already registered with a [RepertoireColor] that conflicts with [perspective].
@@ -55,14 +63,16 @@ class PgnImporter(private val treeStore: TreeStore) {
     games: List<PgnGame>,
     perspective: Player? = null,
     repertoireId: String? = null,
+    onProgress: (Float) -> Unit = {},
   ): PgnImportSummary {
     if (repertoireId != null) checkPerspectiveCompatible(repertoireId, perspective)
-    val plannedMoves = planMoves(games, perspective)
+    val plannedMoves = planMoves(games, perspective, onProgress)
     val (alreadyPresent, movesToInsert) = plannedMoves.partition { isAlreadyPresent(it) }
     treeStore.addMoves(movesToInsert)
     if (repertoireId != null) {
       for (move in plannedMoves) treeStore.tagEdge(move.from, move.to, repertoireId)
     }
+    onProgress(1f)
     return PgnImportSummary(
       movesAdded = movesToInsert.size,
       movesAlreadyPresent = alreadyPresent.size,
@@ -117,15 +127,26 @@ class PgnImporter(private val treeStore: TreeStore) {
   /**
    * Replays every variation of every game and returns the distinct moves to merge, in discovery
    * order. Throws [PgnImportException] on the first illegal move, before any write happens.
+   *
+   * Reports [onProgress] as each game finishes replaying; see [import]'s KDoc for its exact
+   * contract. [preview] does not need it and passes the default no-op.
    */
-  private fun planMoves(games: List<PgnGame>, perspective: Player?): List<MoveInsertion> {
+  private fun planMoves(
+    games: List<PgnGame>,
+    perspective: Player?,
+    onProgress: (Float) -> Unit = {},
+  ): List<MoveInsertion> {
     val plannedMoves = mutableListOf<MoveInsertion>()
     val seenMoves = mutableSetOf<Pair<PositionKey, String>>()
     val rootKey = GameEngine().toPositionKey()
+    if (games.isEmpty()) {
+      return plannedMoves
+    }
     for ((gameIndex, game) in games.withIndex()) {
       for (firstMove in game.moves) {
         walk(rootKey, 0, firstMove, gameIndex, perspective, plannedMoves, seenMoves)
       }
+      onProgress((gameIndex + 1).toFloat() / (games.size + 1))
     }
     return plannedMoves
   }

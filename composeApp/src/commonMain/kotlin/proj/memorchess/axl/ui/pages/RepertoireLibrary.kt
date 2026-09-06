@@ -150,15 +150,17 @@ fun RepertoireLibrary(
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
         fetchPgn = client::fetchPgn,
-        importGames = { descriptor, games ->
+        importGames = { descriptor, games, onProgress ->
           treeStore.registerRepertoire(descriptor.id, descriptor.name, descriptor.color)
           // The importer reads the persisted graph on demand through the bounded cache.
-          PgnImporter(treeStore).import(games, descriptor.color.toPlayer(), descriptor.id)
+          PgnImporter(treeStore)
+            .import(games, descriptor.color.toPlayer(), descriptor.id, onProgress)
         },
         previewGames = { color, games ->
           // The overlap is read against the persisted graph on demand through the bounded cache.
           PgnImporter(treeStore).preview(games, color.toPlayer())
         },
+        reportInstall = client::reportInstall,
         installedStore = installedStore,
         loadMyRepertoires = treeStore::repertoires,
         scope = coroutineScope,
@@ -388,7 +390,10 @@ private fun CatalogList(
       )
     } else {
       var filter by remember { mutableStateOf(LibraryColorFilter.ALL) }
-      val hero = remember(state.repertoires) { pickHeroRepertoire(state.repertoires) }
+      val hero =
+        remember(state.repertoires, installStates) {
+          pickHeroRepertoire(state.repertoires, installStates)
+        }
       if (hero != null) {
         HeroPackCard(descriptor = hero, onInstallRequest = { onInstallRequest(hero) })
       }
@@ -422,15 +427,27 @@ private fun CatalogList(
 }
 
 /**
- * PLACEHOLDER hero pick (#282): the catalog carries no recommendation signal yet, so this simply
- * takes the first entry — including one the user has already installed (see [HeroPackCard]'s KDoc:
- * the hero card deliberately does not special-case that; #309 owns deciding what "picked for you"
- * should mean once something is already picked). #309 tracks giving the library a real "picked for
- * you" signal — swap the body of this function only when that lands, the call site should not need
- * to change.
+ * Picks the "picked for you" hero repertoire: the most downloaded one (#309's real recommendation
+ * signal) among the ones the user has not installed yet, so the hero never recommends something
+ * already trained. Falls back to the overall most downloaded repertoire when every one of them is
+ * already installed — there is then no better recommendation to make, and [HeroPackCard] renders
+ * that fallback the same as any other pick (see its own KDoc on why it never special-cases install
+ * state itself).
+ *
+ * [List.maxByOrNull] keeps the first element on a tie, so a catalog whose entries all carry the
+ * same [RepertoireDescriptor.downloadCount] (every manifest predating this field, `0` for all)
+ * falls back to catalog order, identical to the placeholder behavior this replaces.
  */
-private fun pickHeroRepertoire(repertoires: List<RepertoireDescriptor>): RepertoireDescriptor? =
-  repertoires.firstOrNull()
+private fun pickHeroRepertoire(
+  repertoires: List<RepertoireDescriptor>,
+  installStates: Map<String, RepertoireInstallState>,
+): RepertoireDescriptor? {
+  val notInstalled = repertoires.filterNot {
+    installStates[it.id] is RepertoireInstallState.Installed
+  }
+  val candidates = notInstalled.ifEmpty { repertoires }
+  return candidates.maxByOrNull { it.downloadCount }
+}
 
 /**
  * Filter chip selection.
@@ -552,16 +569,15 @@ private fun SkeletonBlock(modifier: Modifier, shape: Shape, color: Color, testTa
 
 /**
  * Maps [state] to the determinate install-progress fraction shown on a pack card's progress bar,
- * per #282's SEMI-REAL mapping: Fetching sweeps to 30%, Importing to 100%, driven by
- * [KineticMotion.Routine.loadingSkeleton] timing rather than real byte counts
- * ([RepertoireInstallState] carries no numeric progress — do not widen it here, that is #309's
- * job). `null` means "no install bar" — [NotInstalled][RepertoireInstallState.NotInstalled] and
+ * from the real per-phase fraction [RepertoireInstallState] now carries (#309): Fetching's byte
+ * progress covers 0%-30%, Importing's game-planning progress covers 30%-100%. `null` means "no
+ * install bar" — [NotInstalled][RepertoireInstallState.NotInstalled] and
  * [Failed][RepertoireInstallState.Failed] show the action button instead.
  */
 private fun installProgressFraction(state: RepertoireInstallState): Float? =
   when (state) {
-    is RepertoireInstallState.Fetching -> 0.30f
-    is RepertoireInstallState.Importing -> 1.00f
+    is RepertoireInstallState.Fetching -> 0.30f * state.fraction.coerceIn(0f, 1f)
+    is RepertoireInstallState.Importing -> 0.30f + 0.70f * state.fraction.coerceIn(0f, 1f)
     is RepertoireInstallState.Installed,
     is RepertoireInstallState.NotInstalled,
     is RepertoireInstallState.Failed -> null
@@ -618,15 +634,16 @@ private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme 
 
 /**
  * Hero "picked for you" pack card at the top of the library. [descriptor] is chosen by
- * [pickHeroRepertoire] — a PLACEHOLDER (#282) pending #309's real recommendation signal. Its
- * progress readout also uses [placeholderRepertoireMastery] (#292's stub), so the numerator and
- * denominator shown here are not guaranteed to relate to [descriptor]'s own `moveCount` — both are
- * placeholders pending #292/#309, not a computed fact about this specific repertoire.
+ * [pickHeroRepertoire]'s real most-downloaded signal (#309). Its progress readout still uses
+ * [placeholderRepertoireMastery] (#292's stub), so the numerator and denominator shown here are not
+ * guaranteed to relate to [descriptor]'s own `moveCount` — a placeholder pending #292, not a
+ * computed fact about this specific repertoire.
  *
- * Does NOT look at [descriptor]'s own [RepertoireInstallState]: the badge and CTA are identical
- * whether or not this exact repertoire is already installed. Deciding what "picked for you" should
- * show for an already-installed pick is deferred to #309 alongside the rest of the recommendation
- * signal.
+ * Does NOT look at [descriptor]'s own [RepertoireInstallState] itself: the badge and CTA render the
+ * same whether or not this exact repertoire happens to be installed. That never matters in practice
+ * — [pickHeroRepertoire] already excludes an installed repertoire whenever a not-yet- installed one
+ * exists, falling back to an installed one only once the whole catalog is — so this composable
+ * stays free of install-state branching by construction rather than needing its own.
  */
 @Composable
 private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () -> Unit) {
@@ -938,12 +955,13 @@ private fun ColorTag(color: RepertoireColor) {
  * installed in this session (no summary when restored from persistence), and the failure message
  * plus a retry button after a failed attempt.
  *
- * The install-progress sweep is one [Animatable] hoisted for the whole row, not per branch, so
- * transitioning Fetching -> Importing continues the fill from wherever it last sat (30% -> 100%)
- * instead of resetting to 0. A reinstall goes the other way — Installed/Importing (at or near 100%)
- * back to Fetching (30%) — where continuing from wherever it sat would sweep the bar backward
- * instead of restarting it; that case snaps to 0 first. [LibraryProgressBar] only reads the
- * animatable in the draw phase, so this composable itself never recomposes on animation frames.
+ * The install-progress bar is one [Animatable] hoisted for the whole row, not per branch, so a new
+ * [installProgressFraction] target — whether from the next real progress tick or the Fetching ->
+ * Importing hand-off — glides from wherever the bar last sat instead of jumping. A reinstall goes
+ * the other way — Installed/Importing (at or near 100%) back to Fetching's freshly reset 0% — where
+ * continuing from wherever it sat would sweep the bar backward instead of restarting it; that case
+ * snaps to 0 first. [LibraryProgressBar] only reads the animatable in the draw phase, so this
+ * composable itself never recomposes on animation frames.
  */
 @Composable
 private fun InstallStatusRow(
