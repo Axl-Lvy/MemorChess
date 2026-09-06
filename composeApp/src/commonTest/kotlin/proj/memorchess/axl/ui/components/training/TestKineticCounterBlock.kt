@@ -18,9 +18,10 @@ import proj.memorchess.axl.ui.setKineticContent
  * one case per [KineticCounterTone] arm.
  *
  * The eight value/tone tests below never pass `animateOnChange`, so they exercise only the default
- * `false` path (a plain `Text`), which short-circuits before [KineticMotion.shouldAnimateBoardFeedback]
- * (and therefore Koin) is ever reached — that is what keeps them Koin-free while the two
- * `animateOnChange = true` tests at the bottom need [TestWithKoin]'s lifecycle.
+ * `false` path (a plain `Text`), which short-circuits before
+ * [KineticMotion.shouldAnimateBoardFeedback] (and therefore Koin) is ever reached — that is what
+ * keeps them Koin-free while the two `animateOnChange = true` tests at the bottom need
+ * [TestWithKoin]'s lifecycle.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestKineticCounterBlock : TestWithKoin() {

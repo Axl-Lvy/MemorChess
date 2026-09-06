@@ -80,7 +80,9 @@ fun BoardGrid(
     plusOneOffsetY.snapTo(0f)
     plusOneAlpha.snapTo(0f)
     if (
-      feedback.isCorrect && feedback.playedSquare != null && KineticMotion.shouldAnimateBoardFeedback()
+      feedback.isCorrect &&
+        feedback.playedSquare != null &&
+        KineticMotion.shouldAnimateBoardFeedback()
     ) {
       plusOneAlpha.snapTo(1f)
       launch {

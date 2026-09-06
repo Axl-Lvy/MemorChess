@@ -271,8 +271,8 @@ class TestTraining : TestWithKoin() {
 
   /**
    * Clicks a board tile without [proj.memorchess.axl.ui.clickOnTile]'s wait loop, which polls via
-   * [mainClock]-driven recomposition passes and so cannot make progress once [mainClock] is
-   * paused. Only safe once the board is already known to be settled and the tile already visible.
+   * [mainClock]-driven recomposition passes and so cannot make progress once [mainClock] is paused.
+   * Only safe once the board is already known to be settled and the tile already visible.
    */
   private fun ComposeUiTest.clickSettledTile(tileName: String) {
     onNode(hasClickLabel(getTileDescription(tileName))).performClick()
