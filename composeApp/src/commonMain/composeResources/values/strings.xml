@@ -70,6 +70,9 @@
   <string name="settings_import_invalid">Invalid file format: %1$s</string>
   <string name="settings_lichess_study_field">Lichess study URL or ID</string>
   <string name="settings_lichess_study_import">IMPORT STUDY</string>
+  <string name="settings_lichess_no_repertoire">No repertoire</string>
+  <string name="settings_lichess_new_repertoire">New repertoire…</string>
+  <string name="settings_lichess_new_repertoire_name">New repertoire name</string>
   <string name="lichess_study_import_success">Imported %1$d new moves, %2$d already present.</string>
   <string name="lichess_study_invalid_url">Invalid study URL or ID.</string>
   <string name="lichess_study_not_found">Study not found. It may be private.</string>

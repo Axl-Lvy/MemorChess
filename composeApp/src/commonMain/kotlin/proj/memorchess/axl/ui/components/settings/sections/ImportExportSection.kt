@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,19 +35,25 @@ import memorchess.composeapp.generated.resources.settings_export
 import memorchess.composeapp.generated.resources.settings_import
 import memorchess.composeapp.generated.resources.settings_import_confirm
 import memorchess.composeapp.generated.resources.settings_import_invalid
+import memorchess.composeapp.generated.resources.settings_lichess_new_repertoire
+import memorchess.composeapp.generated.resources.settings_lichess_new_repertoire_name
+import memorchess.composeapp.generated.resources.settings_lichess_no_repertoire
 import memorchess.composeapp.generated.resources.settings_lichess_study_field
 import memorchess.composeapp.generated.resources.settings_lichess_study_import
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.study.LichessStudyImportResult
 import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.data.study.LichessStudyResult
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.GraphSerializer
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
+import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.util.exportToFile
 
@@ -136,20 +143,38 @@ private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDial
 }
 
 /**
- * Text field and button that import a public Lichess study by URL or id.
+ * Text field and button that import a public Lichess study by URL or id, tagging every imported
+ * move with the repertoire chosen from [RepertoirePicker].
  *
- * The button is disabled while the input is blank or an import is in flight, so a double tap cannot
- * start two imports. The outcome of the last import, success summary or typed error, is rendered
- * below the button.
+ * The button is disabled while the input is blank, an import is in flight, or "New repertoire" is
+ * selected with a blank name, so a double tap cannot start two imports. The outcome of the last
+ * import, success summary or typed error, is rendered below the button. Visible for tests; not
+ * otherwise used outside this file.
  */
 @Composable
-private fun LichessStudyImportField(studyImporter: LichessStudyImporter) {
+internal fun LichessStudyImportField(
+  studyImporter: LichessStudyImporter,
+  treeStore: TreeStore = koinInject(),
+) {
   val coroutineScope = rememberCoroutineScope()
   var input by remember { mutableStateOf("") }
   var importing by remember { mutableStateOf(false) }
   var resultMessage by remember { mutableStateOf<String?>(null) }
+  var repertoires by remember { mutableStateOf<List<DataRepertoire>>(emptyList()) }
+  // null means "no repertoire": the import is not tagged at all, same as today's behavior.
+  var selectedRepertoireId by remember { mutableStateOf<String?>(null) }
+  var newRepertoireName by remember { mutableStateOf("") }
+
+  LaunchedEffect(Unit) { repertoires = treeStore.repertoires() }
 
   Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    RepertoirePicker(
+      repertoires = repertoires,
+      selectedId = selectedRepertoireId,
+      onSelect = { selectedRepertoireId = it },
+      newName = newRepertoireName,
+      onNewNameChange = { newRepertoireName = it },
+    )
     OutlinedTextField(
       value = input,
       onValueChange = { input = it },
@@ -160,20 +185,28 @@ private fun LichessStudyImportField(studyImporter: LichessStudyImporter) {
     )
     KineticButton(
       onClick = {
-        if (importing || input.isBlank()) {
-          return@KineticButton
-        }
+        if (importing || input.isBlank()) return@KineticButton
         importing = true
         resultMessage = null
         coroutineScope.launch {
           try {
-            resultMessage = describeStudyImport(studyImporter.import(input))
+            val repertoireId =
+              when (selectedRepertoireId) {
+                NEW_REPERTOIRE_SENTINEL -> {
+                  val id = newRepertoireName.trim().lowercase().replace(' ', '-')
+                  treeStore.registerRepertoire(id, newRepertoireName.trim(), color = null)
+                  id
+                }
+                else -> selectedRepertoireId
+              }
+            resultMessage = describeStudyImport(studyImporter.import(input, repertoireId))
           } finally {
             importing = false
           }
         }
       },
-      enabled = !importing && input.isNotBlank(),
+      enabled = !importing && input.isNotBlank() &&
+        (selectedRepertoireId != NEW_REPERTOIRE_SENTINEL || newRepertoireName.isNotBlank()),
       modifier = Modifier.fillMaxWidth().testTag("lichessStudyImportButton"),
       style = KineticButtonStyle.Default,
     ) {
@@ -182,6 +215,52 @@ private fun LichessStudyImportField(studyImporter: LichessStudyImporter) {
     val message = resultMessage
     if (message != null) {
       Text(text = message, modifier = Modifier.testTag("lichessStudyImportResult"))
+    }
+  }
+}
+
+/** Sentinel `selectedRepertoireId` value meaning "create a new repertoire named [newName]". */
+private const val NEW_REPERTOIRE_SENTINEL = "__new__"
+
+/**
+ * Picker over "no repertoire" (the default, `null`), the user's existing repertoires, and "new
+ * repertoire". A text field for [newName] only shows while [NEW_REPERTOIRE_SENTINEL] is selected.
+ * There is no Untagged option: leaving the import untagged is exactly what selecting "no
+ * repertoire" already does.
+ */
+@Composable
+private fun RepertoirePicker(
+  repertoires: List<DataRepertoire>,
+  selectedId: String?,
+  onSelect: (String?) -> Unit,
+  newName: String,
+  onNewNameChange: (String) -> Unit,
+) {
+  val noRepertoireLabel = stringResource(Res.string.settings_lichess_no_repertoire)
+  val newRepertoireLabel = stringResource(Res.string.settings_lichess_new_repertoire)
+  val options = listOf(null) + repertoires.map { it.id } + NEW_REPERTOIRE_SENTINEL
+  val labelById =
+    buildMap<String?, String> {
+      put(null, noRepertoireLabel)
+      repertoires.forEach { put(it.id, it.name) }
+      put(NEW_REPERTOIRE_SENTINEL, newRepertoireLabel)
+    }
+  Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    KineticSegmentedControl(
+      options = options,
+      selected = selectedId,
+      onSelect = onSelect,
+      label = { labelById.getValue(it) },
+      modifier = Modifier.fillMaxWidth().testTag("lichessRepertoirePicker"),
+    )
+    if (selectedId == NEW_REPERTOIRE_SENTINEL) {
+      OutlinedTextField(
+        value = newName,
+        onValueChange = onNewNameChange,
+        label = { Text(text = stringResource(Res.string.settings_lichess_new_repertoire_name)) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().testTag("lichessNewRepertoireName"),
+      )
     }
   }
 }
