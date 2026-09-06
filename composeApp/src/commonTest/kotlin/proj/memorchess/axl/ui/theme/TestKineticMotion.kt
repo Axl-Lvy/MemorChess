@@ -30,6 +30,7 @@ class TestKineticMotion : TestWithKoin() {
     val screenTransition = KineticMotion.Routine.screenTransition<Float>()
     val buttonPress = KineticMotion.Routine.buttonPress<Float>()
     val bottomSheet = KineticMotion.Routine.bottomSheet<Float>()
+    val iconPop = KineticMotion.Routine.iconPop<Float>()
 
     // Assert.
     val screenTransitionSpring = screenTransition.shouldBeInstanceOf<SpringSpec<Float>>()
@@ -41,6 +42,10 @@ class TestKineticMotion : TestWithKoin() {
     val bottomSheetSpring = bottomSheet.shouldBeInstanceOf<SpringSpec<Float>>()
     bottomSheetSpring.dampingRatio shouldBe 0.78f
     bottomSheetSpring.stiffness shouldBe 560f
+    // iconPop reuses screenTransition's exact spring: the mockup pins only the pop's amplitude.
+    val iconPopSpring = iconPop.shouldBeInstanceOf<SpringSpec<Float>>()
+    iconPopSpring.dampingRatio shouldBe 0.8f
+    iconPopSpring.stiffness shouldBe 600f
   }
 
   @kotlin.test.Test
@@ -89,6 +94,7 @@ class TestKineticMotion : TestWithKoin() {
         KineticMotion.Routine.screenTransition<Float>(),
         KineticMotion.Routine.buttonPress<Float>(),
         KineticMotion.Routine.bottomSheet<Float>(),
+        KineticMotion.Routine.iconPop<Float>(),
       )
 
     // Assert.
@@ -136,5 +142,20 @@ class TestKineticMotion : TestWithKoin() {
 
     // Act & Assert.
     KineticMotion.shouldShowStreakMilestone() shouldBe false
+  }
+
+  @kotlin.test.Test
+  fun `iconPop plays by default`() = test {
+    // Act & Assert.
+    KineticMotion.shouldPlayIconPop() shouldBe true
+  }
+
+  @kotlin.test.Test
+  fun `reduce motion skips the icon pop entirely`() = test {
+    // Arrange.
+    REDUCE_MOTION_SETTING.setValue(true)
+
+    // Act & Assert.
+    KineticMotion.shouldPlayIconPop() shouldBe false
   }
 }

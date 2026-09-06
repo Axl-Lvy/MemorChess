@@ -1,5 +1,7 @@
 package proj.memorchess.axl.ui.pages.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -23,6 +25,28 @@ import proj.memorchess.axl.ui.pages.Settings
 import proj.memorchess.axl.ui.pages.Training
 import proj.memorchess.axl.ui.theme.KineticMotion
 
+/** A route string's ordinal and whether it is one of the bottom nav tab destinations. */
+private data class RouteClass(val ordinal: Int, val isTabRoute: Boolean)
+
+/**
+ * Classifies a raw destination route string. The single place that knows which route strings exist
+ * and which of them sit in the bottom nav, read by both [routeOrdinal] and [isTabToTabTransition].
+ */
+private fun classifyRoute(route: String): RouteClass {
+  val lower = route.lowercase()
+  return when {
+    lower.contains("explore") -> RouteClass(0, isTabRoute = true)
+    lower.contains("training") -> RouteClass(1, isTabRoute = true)
+    // Kept ahead of the "library" branch. The viewer's route string ("repertoireview") is
+    // disjoint from "library" but shares its ordinal only for wipe direction purposes. It is
+    // not itself a destination in the bottom nav.
+    lower.contains("repertoireview") -> RouteClass(2, isTabRoute = false)
+    lower.contains("library") -> RouteClass(2, isTabRoute = true)
+    lower.contains("settings") -> RouteClass(3, isTabRoute = true)
+    else -> RouteClass(1, isTabRoute = false)
+  }
+}
+
 /**
  * Ordinal of a destination along the navigation bar (Explore `0`, Training `1`, Library `2`,
  * Settings `3`).
@@ -33,19 +57,33 @@ import proj.memorchess.axl.ui.theme.KineticMotion
  * trailing `?position=…` argument on the explore route and any package qualifier. Defaults to
  * Training's ordinal for any unrecognised destination.
  */
-internal fun NavBackStackEntry.routeOrdinal(): Int {
-  val route = destination.route.orEmpty().lowercase()
-  return when {
-    route.contains("explore") -> 0
-    route.contains("training") -> 1
-    // The viewer shares the library ordinal so the wipe direction stays consistent. Its route
-    // string ("repertoireview") is disjoint from "library", so it needs its own branch.
-    route.contains("repertoireview") -> 2
-    route.contains("library") -> 2
-    route.contains("settings") -> 3
-    else -> 1
-  }
-}
+internal fun NavBackStackEntry.routeOrdinal(): Int =
+  classifyRoute(destination.route.orEmpty()).ordinal
+
+/**
+ * Whether a navigation between [fromRoute] and [toRoute] (raw destination route strings) stays
+ * within the bottom nav tab destinations (Explore, Training, Library, Settings today).
+ */
+internal fun isTabToTabTransition(fromRoute: String, toRoute: String): Boolean =
+  classifyRoute(fromRoute).isTabRoute && classifyRoute(toRoute).isTabRoute
+
+/**
+ * Enter transition for a push between two back stack entries: [KineticMotion.tabEnter]'s slide and
+ * fade when both ends are bottom nav tabs, otherwise the plain curtain [KineticMotion.holdEnter].
+ */
+private fun tabAwareEnter(from: NavBackStackEntry, to: NavBackStackEntry): EnterTransition =
+  if (isTabToTabTransition(from.destination.route.orEmpty(), to.destination.route.orEmpty()))
+    KineticMotion.tabEnter(fromRight = to.routeOrdinal() > from.routeOrdinal())
+  else KineticMotion.holdEnter()
+
+/**
+ * Exit transition mirroring [tabAwareEnter]: a fade alone between two tabs, otherwise the plain
+ * curtain hold.
+ */
+private fun tabAwareExit(from: NavBackStackEntry, to: NavBackStackEntry): ExitTransition =
+  if (isTabToTabTransition(from.destination.route.orEmpty(), to.destination.route.orEmpty()))
+    KineticMotion.tabExit()
+  else KineticMotion.holdExit()
 
 /**
  * Renders the navigation graph.
@@ -58,52 +96,93 @@ internal fun NavBackStackEntry.routeOrdinal(): Int {
  * composed for the transition ([KineticMotion.holdEnter] / [holdExit] hold them on screen with no
  * visible fade) and each is clipped to its side of a moving accent seam by
  * [proj.memorchess.axl.ui.components.navigation.wipeReveal]. The seam travels right-to-left when
- * navigating toward a higher-ordinal destination and left-to-right otherwise.
+ * navigating toward a higher-ordinal destination and left-to-right otherwise. Transitions between
+ * two bottom nav tabs skip the curtain entirely: they use [KineticMotion.tabEnter] and
+ * [KineticMotion.tabExit] instead, sliding and fading in while fading out alone. Every other
+ * transition, a push onto or a pop off [Route.RepertoireViewRoute], keeps the curtain unchanged.
  */
 @Composable
 fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
   val backStackEntry by navController.currentBackStackEntryAsState()
+  val currentRoute = backStackEntry?.destination?.route.orEmpty()
   val currentOrdinal = backStackEntry?.routeOrdinal() ?: 1
+  val currentEntryId = backStackEntry?.id
+  var previousRoute by remember { mutableStateOf(currentRoute) }
   var previousOrdinal by remember { mutableStateOf(currentOrdinal) }
+  var previousEntryId by remember { mutableStateOf(currentEntryId) }
   var revealFromRight by remember { mutableStateOf(true) }
-  // Freeze the direction at the moment the route changes so it stays stable for the whole wipe.
+  var tabToTabTransition by remember { mutableStateOf(false) }
+  // Freeze the direction at the moment the ordinal changes so it stays stable for the whole wipe.
+  // Library and RepertoireView share an ordinal, so this does not recompute between them and keeps
+  // whatever direction the last ordinal-changing push set.
   if (currentOrdinal != previousOrdinal) {
     revealFromRight = currentOrdinal > previousOrdinal
     previousOrdinal = currentOrdinal
+  }
+  // Freeze separately, keyed on the back stack entry id rather than the route string. A route
+  // string is a pattern shared by every instance of a destination (e.g. two different Explore
+  // positions), so keying this on the route would leave it stale across a push between two
+  // instances of the same destination.
+  if (currentEntryId != previousEntryId) {
+    tabToTabTransition = isTabToTabTransition(previousRoute, currentRoute)
+    previousRoute = currentRoute
+    previousEntryId = currentEntryId
   }
 
   NavHost(
     navController = navController,
     startDestination = Route.TrainingRoute.DEFAULT,
     modifier = modifier,
-    enterTransition = { KineticMotion.holdEnter() },
-    exitTransition = { KineticMotion.holdExit() },
-    popEnterTransition = { KineticMotion.holdEnter() },
-    popExitTransition = { KineticMotion.holdExit() },
+    enterTransition = { tabAwareEnter(initialState, targetState) },
+    exitTransition = { tabAwareExit(initialState, targetState) },
+    popEnterTransition = { tabAwareEnter(initialState, targetState) },
+    popExitTransition = { tabAwareExit(initialState, targetState) },
   ) {
     composable<Route.TrainingRoute> {
       val repertoireId = it.toRoute<Route.TrainingRoute>().repertoireId
-      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
+      Box(
+        modifier =
+          Modifier.fillMaxSize()
+            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
+      ) {
         Training(repertoireId)
       }
     }
     composable<Route.LibraryRoute> {
-      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
+      Box(
+        modifier =
+          Modifier.fillMaxSize()
+            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
+      ) {
         RepertoireLibrary()
       }
     }
     composable<Route.RepertoireViewRoute> {
       val repertoireId = it.toRoute<Route.RepertoireViewRoute>().repertoireId
-      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
+      Box(
+        modifier =
+          Modifier.fillMaxSize()
+            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
+      ) {
         RepertoireView(repertoireId)
       }
     }
     composable<Route.SettingsRoute> {
-      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Settings() }
+      Box(
+        modifier =
+          Modifier.fillMaxSize()
+            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
+      ) {
+        Settings()
+      }
     }
     composable<Route.ExploreRoute> {
       val route = it.toRoute<Route.ExploreRoute>()
-      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
+      Box(
+        modifier =
+          Modifier.fillMaxSize()
+            .then(if (tabToTabTransition) Modifier else wipeReveal(revealFromRight))
+      ) {
         Explore(
           route.position?.let { p -> PositionKey.validateAndCreateOrNull(p) },
           route.repertoireId,

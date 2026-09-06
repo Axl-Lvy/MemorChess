@@ -1,6 +1,8 @@
 package proj.memorchess.axl.ui.components.navigation
 
 import androidx.compose.animation.Animatable
+import androidx.compose.animation.core.Animatable as CoreAnimatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +34,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -111,13 +116,56 @@ internal fun kineticNavCellStyle(palette: KineticPalette, active: Boolean): Kine
 /**
  * Renders [item]'s icon constrained to [size] and tinted with [tint]. The enum's icon lambda relies
  * on `LocalContentColor` (it builds plain [androidx.compose.material3.Icon] composables), so the
- * tint flows through via [CompositionLocalProvider].
+ * tint flows through via [CompositionLocalProvider]. When [active] flips to `true`, the icon plays
+ * [KineticMotion.Routine.iconPop]'s scale bump once, skipped entirely when
+ * [KineticMotion.shouldPlayIconPop] is false.
  */
 @Composable
-internal fun NavCellIcon(item: NavigationBarItemContent, tint: Color, size: Dp = ICON_SIZE) {
-  Box(modifier = Modifier.size(size), contentAlignment = Alignment.Center) {
+internal fun NavCellIcon(
+  item: NavigationBarItemContent,
+  tint: Color,
+  size: Dp = ICON_SIZE,
+  active: Boolean = false,
+) {
+  val scale = remember { CoreAnimatable(1f) }
+  val wasActive = remember { mutableStateOf(active) }
+  LaunchedEffect(active) { scale.pop(active, wasActive) }
+  Box(
+    modifier =
+      Modifier.size(size).graphicsLayer {
+        scaleX = scale.value
+        scaleY = scale.value
+      },
+    contentAlignment = Alignment.Center,
+  ) {
     CompositionLocalProvider(LocalContentColor provides tint) { item.icon() }
   }
+}
+
+/**
+ * Drives an icon scale [androidx.compose.animation.core.Animatable] through the pop, 1 to 1.12 and
+ * back to 1, exactly once per transition from inactive to active.
+ */
+private suspend fun CoreAnimatable<Float, AnimationVector1D>.pop(
+  active: Boolean,
+  wasActive: MutableState<Boolean>,
+) {
+  val justActivated = active && !wasActive.value
+  wasActive.value = active
+  // Newly inactive: reset first, so tapping away mid pop snaps back to rest rather than freezing
+  // near 1.1.
+  if (!active) {
+    if (value != 1f) snapTo(1f)
+    return
+  }
+  // A tab that mounts already active must not pop.
+  if (!justActivated) return
+  // The requirement is no pop at all, not a merely flattened one, so this returns before any
+  // animateTo call rather than relying on iconPop()'s spec collapsing on its own.
+  if (!KineticMotion.shouldPlayIconPop()) return
+  val spec = KineticMotion.Routine.iconPop<Float>()
+  animateTo(1.12f, spec)
+  animateTo(1f, spec)
 }
 
 /**
@@ -208,7 +256,7 @@ fun KineticBottomNav(
                 horizontal = PILL_HORIZONTAL_PADDING,
               )
         ) {
-          NavCellIcon(item, style.content)
+          NavCellIcon(item, style.content, active = active)
         }
         Spacer(modifier = Modifier.height(ICON_LABEL_SPACER))
         Text(
