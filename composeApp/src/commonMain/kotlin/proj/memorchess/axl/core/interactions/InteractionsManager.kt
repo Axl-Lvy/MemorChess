@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.toast_illegal_move
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionKey
@@ -91,11 +93,21 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
   /**
    * Plays a move directly.
    *
-   * @param move the move to play
+   * @param move the move to play, in Standard Algebraic Notation. An illegal move (e.g. one coming
+   *   from an external source such as the Lichess opening explorer) is rejected with a toast rather
+   *   than applied.
    */
   suspend fun playMove(move: String) {
-    engine.playSanMove(move)
-    afterPlayMove(move)
+    try {
+      engine.playSanMove(move)
+    } catch (e: IllegalMoveException) {
+      LOGGER.w(e) { "Rejected illegal move: $move" }
+      toastRenderer.info(Res.string.toast_illegal_move)
+      return
+    }
+    // An external source (e.g. the Lichess opening explorer) may include the "+"/"#" markers that
+    // every other move stored through this app has stripped; keep the same edge either way.
+    afterPlayMove(move.trimEnd('+', '#'))
   }
 
   /**

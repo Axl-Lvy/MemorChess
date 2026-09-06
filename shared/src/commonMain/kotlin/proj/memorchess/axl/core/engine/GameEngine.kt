@@ -41,7 +41,16 @@ class GameEngine private constructor(private val game: ChessGame) {
    * @throws IllegalMoveException if the move is not legal in the current position.
    */
   fun playSanMove(san: String) {
-    val success = game.makeSanMove(san)
+    // chess-core signals some rejections by returning false, but others (no matching legal move
+    // at all, an unavailable castle) by throwing IllegalArgumentException or
+    // NoSuchElementException instead. Normalize every case into the one exception this method
+    // promises.
+    val success =
+      try {
+        game.makeSanMove(san)
+      } catch (e: RuntimeException) {
+        throw IllegalMoveException("Illegal SAN move: $san", e)
+      }
     if (!success) {
       throw IllegalMoveException("Illegal SAN move: $san")
     }

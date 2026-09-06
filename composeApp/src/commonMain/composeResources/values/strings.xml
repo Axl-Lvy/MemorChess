@@ -262,4 +262,5 @@
   <string name="toast_saved">Saved</string>
   <string name="toast_deleted">Deleted</string>
   <string name="toast_not_in_repertoire">That move is not in this repertoire.</string>
+  <string name="toast_illegal_move">Illegal move.</string>
 </resources>
