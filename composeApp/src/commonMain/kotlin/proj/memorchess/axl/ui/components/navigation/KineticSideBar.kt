@@ -50,6 +50,7 @@ import memorchess.composeapp.generated.resources.brand_wordmark_second
 import memorchess.composeapp.generated.resources.side_rail_day_streak
 import memorchess.composeapp.generated.resources.side_rail_today_done
 import memorchess.composeapp.generated.resources.side_rail_today_progress
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.graph.TrainingScheduler
@@ -268,7 +269,8 @@ private fun RailStreakCard(stats: RailStats?) {
     )
     Column {
       Text(
-        text = stringResource(Res.string.side_rail_day_streak),
+        // 0 while stats are still loading: the plural form a real streak of 0 would use.
+        text = pluralStringResource(Res.plurals.side_rail_day_streak, stats?.streak ?: 0),
         // labelSm already carries the mockup's 9sp size and 0.1em tracking.
         style = typography.labelSm.copy(fontWeight = FontWeight.Black, color = palette.onStreak),
       )
@@ -292,7 +294,8 @@ private fun RailStreakCard(stats: RailStats?) {
  * `actionDim` at a 14.dp radius and inks with `action`; inactive rows paint nothing (their style
  * colour is `actionDim` at alpha 0) and ink with `ink3`. Unlike the bottom bar's pill the fill is
  * **not** animated — a full-row fill is not an appearing pill, and keeping it static leaves the
- * rail with no animation cost and no reduce-motion settings read.
+ * rail with no animation cost and no reduce-motion settings read. The row icons skip the bottom
+ * bar's selection pop for the same reason.
  *
  * @param items Navigation entries; rendered in the order supplied.
  * @param currentRoute The current route label; compared against [NavigationBarItemContent]'s
@@ -333,7 +336,9 @@ fun KineticSideNav(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(ROW_GAP),
       ) {
-        NavCellIcon(item, style.content, size = RAIL_ICON_SIZE)
+        // Explicitly false rather than the row's active above: the rail's icons never pop, per
+        // this composable's KDoc.
+        NavCellIcon(item, style.content, size = RAIL_ICON_SIZE, active = false)
         Text(
           // Kept uppercase for the same reason as the bottom bar's labels.
           text = stringResource(item.destination.displayNameRes()).uppercase(),

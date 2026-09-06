@@ -1,5 +1,11 @@
 package proj.memorchess.axl.ui.components.training
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +20,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import proj.memorchess.axl.ui.theme.KineticMotion
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -47,6 +54,10 @@ enum class KineticCounterTone {
  *
  * The [value] is rendered via [Int.toString] without thousand separators, so it gracefully handles
  * the full Int range including [Int.MAX_VALUE] and negative values (with a leading minus sign).
+ *
+ * @param animateOnChange When `true`, a value change rolls the digits up (the outgoing value
+ *   slides/fades out upward, the incoming one slides/fades in from below), gated behind
+ *   [KineticMotion.shouldAnimateBoardFeedback] so reduced motion swaps the value with no animation.
  */
 @Composable
 fun KineticCounterBlock(
@@ -54,6 +65,7 @@ fun KineticCounterBlock(
   value: Int,
   tone: KineticCounterTone,
   modifier: Modifier = Modifier,
+  animateOnChange: Boolean = false,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -87,6 +99,23 @@ fun KineticCounterBlock(
     verticalArrangement = Arrangement.spacedBy(6.dp),
   ) {
     Text(text = label.uppercase(), style = typography.labelSm.copy(color = palette.ink3))
-    Text(text = value.toString(), style = typography.displayLg.copy(color = palette.ink))
+    if (animateOnChange && KineticMotion.shouldAnimateBoardFeedback()) {
+      AnimatedContent(
+        targetState = value,
+        transitionSpec = {
+          (slideInVertically(KineticMotion.Celebratory.correctAnswer()) { height -> height } +
+              fadeIn(KineticMotion.Celebratory.correctAnswer()))
+            .togetherWith(
+              slideOutVertically(KineticMotion.Celebratory.correctAnswer()) { height -> -height } +
+                fadeOut(KineticMotion.Celebratory.correctAnswer())
+            )
+        },
+        label = "counter value",
+      ) { v ->
+        Text(text = v.toString(), style = typography.displayLg.copy(color = palette.ink))
+      }
+    } else {
+      Text(text = value.toString(), style = typography.displayLg.copy(color = palette.ink))
+    }
   }
 }
