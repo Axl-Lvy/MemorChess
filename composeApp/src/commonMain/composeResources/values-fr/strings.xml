@@ -252,6 +252,8 @@
 
   <!-- Repertoire viewer -->
   <string name="repertoire_view_not_found">Le répertoire \"%1$s\" n'est plus dans le catalogue.</string>
+  <string name="repertoire_view_read_only">LECTURE SEULE</string>
+  <string name="repertoire_view_yours">ACQUIS</string>
 
   <!-- Navigation: side rail -->
   <plurals name="side_rail_day_streak">
