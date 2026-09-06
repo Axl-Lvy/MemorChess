@@ -12,6 +12,7 @@ import kotlin.test.Test
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.setKineticContent
+import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
  * Covers [KineticCounterBlock]'s KDoc promise that any [Int] renders through [Int.toString], plus

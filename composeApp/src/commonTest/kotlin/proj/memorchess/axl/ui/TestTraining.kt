@@ -2,12 +2,16 @@ package proj.memorchess.axl.ui
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
+import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
 import kotlin.test.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.core.config.SHORT_TERM_ENABLED_SETTING
 import proj.memorchess.axl.core.config.TRAINING_MOVE_DELAY_SETTING
 import proj.memorchess.axl.core.data.DataMove
@@ -322,6 +326,53 @@ class TestTraining : TestWithKoin() {
       clickOnTile("e2")
       mainClock.autoAdvance = false
       clickSettledTile("e3") // wrong: e4 is the node's only good move
+      mainClock.advanceTimeByFrame()
+      assertNodeWithTagDoesNotExists("training-plus-one")
+      mainClock.autoAdvance = true
+    } finally {
+      koinTearDown()
+    }
+  }
+
+  /** Regression test for issue #286: the floater must sit over the square it celebrates. */
+  @Test
+  fun testPlusOneFloaterIsAnchoredOverThePlayedSquare() = runComposeUiTest {
+    koinSetUp()
+    disableShortTermScheduler()
+    try {
+      resetDatabase()
+      setContent { InitializeApp { Training() } }
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+
+      clickOnTile("e2")
+      mainClock.autoAdvance = false
+      clickSettledTile("e4")
+      mainClock.advanceTimeByFrame()
+      val floaterBounds = assertNodeWithTagExists("training-plus-one").getBoundsInRoot()
+      val tileBounds = onNode(hasClickLabel(getTileDescription("e4"))).getBoundsInRoot()
+      floaterBounds.left shouldBeGreaterThanOrEqualTo tileBounds.left
+      floaterBounds.right shouldBeLessThanOrEqualTo tileBounds.right
+      floaterBounds.top shouldBeGreaterThanOrEqualTo tileBounds.top
+      floaterBounds.bottom shouldBeLessThanOrEqualTo tileBounds.bottom
+      mainClock.autoAdvance = true
+    } finally {
+      koinTearDown()
+    }
+  }
+
+  @Test
+  fun testPlusOneFloaterDoesNotAppearUnderReducedMotion() = runComposeUiTest {
+    koinSetUp()
+    disableShortTermScheduler()
+    try {
+      REDUCE_MOTION_SETTING.setValue(true)
+      resetDatabase()
+      setContent { InitializeApp { Training() } }
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+
+      clickOnTile("e2")
+      mainClock.autoAdvance = false
+      clickSettledTile("e4")
       mainClock.advanceTimeByFrame()
       assertNodeWithTagDoesNotExists("training-plus-one")
       mainClock.autoAdvance = true

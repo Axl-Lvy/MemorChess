@@ -3,7 +3,6 @@ package proj.memorchess.axl.ui.components.board
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -114,7 +113,7 @@ fun BoardGrid(
     DrawPieceGrid(state, animationDuration, tilePositions)
     BestMoveArrow(bestMoveArrow, state.inverted, Modifier.fillMaxSize())
     val playedSquare = feedback.playedSquare
-    if (feedback.isCorrect && playedSquare != null) {
+    if (feedback.isCorrect && playedSquare != null && KineticMotion.shouldAnimateBoardFeedback()) {
       PlusOneFloater(playedSquare, tileSize, state.inverted, plusOneOffsetY, plusOneAlpha)
     }
   }
@@ -204,6 +203,12 @@ private fun DrawTileGrid(
       Modifier.drawBehind {
         val tileSize = size.width / 8f
         val selected = state.selectedTile
+
+        // Two passes on purpose: every tile's opaque background must be down before any overlay
+        // (selection border, correct-answer ring, wrong-answer outline) is drawn, or a later tile
+        // in draw order (to the right / below) paints its background over an earlier tile's
+        // overlay. The ring especially spills past its own tile's edge into its neighbours at full
+        // expansion, so painting overlays tile-by-tile inside a single pass clips them there.
         for (index in 0..63) {
           val location = state.getBoardLocationAt(index)
           val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
@@ -214,6 +219,10 @@ private fun DrawTileGrid(
             topLeft = topLeft,
             size = Size(tileSize, tileSize),
           )
+        }
+        for (index in 0..63) {
+          val location = state.getBoardLocationAt(index)
+          val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
           if (
             selected != null && selected.first == location.row && selected.second == location.col
           ) {
@@ -263,11 +272,10 @@ private fun DrawTileGrid(
               scaleX = squareScale.value
               scaleY = squareScale.value
             }
-            .background(
-              palette.progressSoft.copy(
-                alpha = ((squareScale.value - 1f) / (SQUARE_POP_SCALE - 1f)).coerceIn(0f, 1f)
-              )
-            )
+            .drawBehind {
+              val ramp = ((squareScale.value - 1f) / (SQUARE_POP_SCALE - 1f)).coerceIn(0f, 1f)
+              drawRect(palette.progressSoft, alpha = ramp)
+            }
         )
       } else {
         Box(

@@ -1,6 +1,7 @@
 package proj.memorchess.axl.ui.components.board
 
 import proj.memorchess.axl.core.engine.BoardLocation
+import proj.memorchess.axl.ui.components.training.BoardContainer
 
 /**
  * Bundles the training-feedback values that must reach the board's rendering layer together,
