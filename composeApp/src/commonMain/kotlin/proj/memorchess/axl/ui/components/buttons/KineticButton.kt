@@ -67,6 +67,14 @@ enum class KineticButtonStyle {
   DangerOutline,
   /** Transparent — used inline (toolbar overflow, secondary links). */
   Ghost,
+  /**
+   * Lime fill reserved for the Library hero card's CTA (and any future "picked for you" gamified
+   * accent). Not part of the Default/Primary/Danger/DangerOutline/Ghost ladder used elsewhere:
+   * light's `progress` role collapses onto `action` (see [KineticPalette]'s own KDoc), which reads
+   * as invisible against a violet fill, so this style needs a literal lime distinct from every
+   * existing role. See #282.
+   */
+  Accent,
 }
 
 private data class ButtonColors(
@@ -83,6 +91,23 @@ private data class ButtonColors(
    */
   val elevated: Boolean,
 )
+
+/**
+ * Literal lime fill for [KineticButtonStyle.Accent] and the Library re-skin's gamified badges
+ * ("PICKED FOR YOU", "IN TRAINING"). In light theme `palette.progress` is violet (it collapses onto
+ * `action`, documented on [KineticPalette]), which would vanish against the hero card's violet fill
+ * — so light needs a genuinely distinct hue here. Dark's `progress` already is this lime, so dark
+ * reuses it directly rather than duplicating the literal.
+ */
+internal fun kineticAccentLimeColor(palette: KineticPalette): Color =
+  if (palette.isLight) Color(0xFFA8F03A) else palette.progress
+
+/**
+ * Fixed dark-green text color that reads on [kineticAccentLimeColor] in both themes. Not
+ * `palette.onProgress`: that is white in light, tuned for `progress`'s violet fill there, not this
+ * lime one.
+ */
+internal val KineticOnAccentLime: Color = Color(0xFF24350A)
 
 private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): ButtonColors =
   when (style) {
@@ -136,6 +161,21 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
         hoverContent = palette.ink,
         elevated = false,
       )
+    KineticButtonStyle.Accent -> {
+      val fill = kineticAccentLimeColor(palette)
+      ButtonColors(
+        background = fill,
+        border = fill,
+        content = KineticOnAccentLime,
+        hoverBackground = fill,
+        hoverBorder = fill,
+        hoverContent = KineticOnAccentLime,
+        // Chunky edge; kineticPressableEdgeColor always returns palette.lineBright rather than a
+        // per-fill darker lime — a pre-existing, documented gap (see that function's own KDoc),
+        // out of scope for #282.
+        elevated = true,
+      )
+    }
   }
 
 /** The background/border/content triple for one hover/press state of [ButtonColors]. */
@@ -242,10 +282,10 @@ private fun Modifier.kineticButtonShell(state: ButtonShellState): Modifier =
  * used in Settings rows), carry a 1.5.dp border and a Baloo 2 600 12sp label. Set [iconOnly] for a
  * square (height × height) toolbar button with no horizontal padding and the same radius.
  *
- * The three filled styles (Default, Primary, Danger) carry the chunky Kinetic pressable hard bottom
- * edge: 4.dp at rest, collapsing to a 1.dp sliver on press while the button translates 3.dp down.
- * The two transparent styles (DangerOutline, Ghost) do not — that edge is an affordance of a solid
- * button face. Every style animates a small press scale through
+ * The filled styles (Default, Primary, Danger, Accent) carry the chunky Kinetic pressable hard
+ * bottom edge: 4.dp at rest, collapsing to a 1.dp sliver on press while the button translates 3.dp
+ * down. The two transparent styles (DangerOutline, Ghost) do not — that edge is an affordance of a
+ * solid button face. Every style animates a small press scale through
  * [KineticMotion.Routine.buttonPress], whose spec is built on the first real press rather than on
  * mount, so composing a button costs no settings read.
  *

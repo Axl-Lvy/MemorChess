@@ -211,7 +211,6 @@
   <string name="library_error_http">The catalog server answered with error %1$d.</string>
   <string name="library_error_malformed">The catalog could not be read: %1$s</string>
   <string name="library_retry">RETRY</string>
-  <string name="library_installed_badge">INSTALLED</string>
   <string name="library_install">Install</string>
   <string name="library_reinstall">Reinstall</string>
   <string name="library_color_white">WHITE</string>
@@ -228,6 +227,16 @@
   <string name="library_preview_in_common_error">Could not check your existing moves.</string>
   <string name="library_preview_question">Add this repertoire to your openings? Existing moves and their training history are kept.</string>
   <string name="library_view">Browse this repertoire</string>
+  <string name="library_hero_badge">PICKED FOR YOU</string>
+  <string name="library_hero_cta">Add to my training</string>
+  <string name="library_hero_progress">%1$d of %2$d already yours</string>
+  <string name="library_filter_all">All %1$d</string>
+  <string name="library_filter_white">White %1$d</string>
+  <string name="library_filter_black">Black %1$d</string>
+  <string name="library_filter_mine">Mine %1$d</string>
+  <string name="library_filter_empty">No packs match this filter yet.</string>
+  <string name="library_badge_in_training">IN TRAINING</string>
+  <string name="library_badge_new">NEW</string>
   <plurals name="library_move_count">
     <item quantity="one">%1$d move</item>
     <item quantity="other">%1$d moves</item>
