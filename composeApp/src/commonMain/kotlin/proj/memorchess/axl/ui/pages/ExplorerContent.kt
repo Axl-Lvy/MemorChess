@@ -3,6 +3,7 @@ package proj.memorchess.axl.ui.pages
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
@@ -14,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,6 +51,7 @@ import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
 import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
 import proj.memorchess.axl.core.graph.NodeState
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.BestMoveArrowData
 import proj.memorchess.axl.ui.components.board.Board
@@ -109,8 +112,11 @@ internal fun rememberExplorerViewModel(
  * @param explorerViewModel View model driving the Lichess opening explorer panels.
  * @param onSave Invoked when the Kinetic control bar Save button is tapped.
  * @param onDelete Invoked when the Kinetic control bar Delete button is tapped.
- * @param header Optional header content rendered above the layout (legacy).
+ * @param header Optional header content rendered above the layout.
  * @param viewerMode When non-null, renders the read-only viewer variant; see [ExplorerViewerMode].
+ * @param myTreeStore When non null, continuations already present as a classified good move the
+ *   user owns in this store at the current position are tagged YOURS in the sidebar (repertoire
+ *   viewer only).
  */
 @Composable
 fun ExplorerContent(
@@ -120,6 +126,7 @@ fun ExplorerContent(
   onDelete: () -> Unit,
   header: @Composable () -> Unit = {},
   viewerMode: ExplorerViewerMode? = null,
+  myTreeStore: TreeStore? = null,
 ) {
   val readOnly = viewerMode != null
   var inverted by remember { mutableStateOf(viewerMode?.initialInverted ?: false) }
@@ -127,9 +134,30 @@ fun ExplorerContent(
   // Demand paged: the next-move list is resolved through a suspend lookup, so it starts empty and
   // is filled once below and again on every navigation callback.
   val nextMoves = remember { mutableStateListOf<String>() }
+  val yoursBySan = remember { mutableStateMapOf<String, Boolean>() }
+
+  // Marks each SAN in `moves` as YOURS when `myTreeStore` holds it as a good move at the current
+  // position. Reused by both places `nextMoves` is refreshed.
+  suspend fun refreshYours(moves: List<String>) {
+    val store = myTreeStore ?: return
+    if (moves.isEmpty()) return
+    val mineSans =
+      store
+        .node(explorer.engine.toPositionKey())
+        ?.outgoing
+        ?.values
+        ?.filter { it.isGood == true }
+        ?.map { it.move }
+        ?.toSet()
+        .orEmpty()
+    yoursBySan.putAll(moves.associateWith { it in mineSans })
+  }
+
   LaunchedEffect(explorer) {
     nextMoves.clear()
+    yoursBySan.clear()
     nextMoves.addAll(explorer.getNextMoves())
+    refreshYours(nextMoves)
   }
   var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
   val bestMoveArrowEnabled by remember {
@@ -184,7 +212,9 @@ fun ExplorerContent(
       coroutineScope.launch {
         val moves = explorer.getNextMoves()
         nextMoves.clear()
+        yoursBySan.clear()
         nextMoves.addAll(moves)
+        refreshYours(nextMoves)
       }
       evaluator?.let { eval ->
         coroutineScope.launch {
@@ -288,6 +318,7 @@ fun ExplorerContent(
           onPlayMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
           explorerViewModel = explorerViewModel,
           onPlayLichessMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
+          isMine = { san -> yoursBySan[san] == true },
         )
       },
       mobileInfo = { infoModifier ->
@@ -297,17 +328,19 @@ fun ExplorerContent(
           onPlayMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
           explorerViewModel = explorerViewModel,
           onPlayLichessMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
+          isMine = { san -> yoursBySan[san] == true },
         )
       },
       statBadges = { badgeModifier -> ExploreStatBadgesRow(modifier = badgeModifier) },
       cornerTagText = cornerTagLabel,
     )
 
-  header()
-
-  BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-    if (maxHeight > maxWidth) PortraitExploreLayout(Modifier.fillMaxSize(), content)
-    else LandscapeExploreLayout(Modifier.fillMaxSize(), content)
+  Column(modifier = Modifier.fillMaxSize()) {
+    header()
+    BoxWithConstraints(modifier = Modifier.weight(1f)) {
+      if (maxHeight > maxWidth) PortraitExploreLayout(Modifier.fillMaxSize(), content)
+      else LandscapeExploreLayout(Modifier.fillMaxSize(), content)
+    }
   }
 }
 

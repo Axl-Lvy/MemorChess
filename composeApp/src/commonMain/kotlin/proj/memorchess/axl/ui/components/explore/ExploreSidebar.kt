@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import memorchess.composeapp.generated.resources.explore_no_continuations
@@ -30,6 +34,7 @@ import memorchess.composeapp.generated.resources.explore_notes_coming_soon
 import memorchess.composeapp.generated.resources.explore_tab_continuations
 import memorchess.composeapp.generated.resources.explore_tab_lichess
 import memorchess.composeapp.generated.resources.explore_tab_notes
+import memorchess.composeapp.generated.resources.repertoire_view_yours
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
@@ -60,6 +65,8 @@ enum class ExploreInfoTab {
  * @param onPlayMove Invoked when the user taps one of the continuation chips.
  * @param explorerViewModel View model driving the Lichess opening explorer tab.
  * @param onPlayLichessMove Invoked when the user taps a Lichess move.
+ * @param isMine Returns whether a SAN continuation is already a classified good move in the
+ *   viewer's own repertoire. Null everywhere except the repertoire viewer.
  * @param modifier Outer modifier (caller sets the panel size).
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -69,6 +76,7 @@ fun ExploreSidebar(
   onPlayMove: (String) -> Unit,
   explorerViewModel: ExplorerViewModel,
   onPlayLichessMove: (String) -> Unit,
+  isMine: ((String) -> Boolean)? = null,
   modifier: Modifier = Modifier,
 ) {
   val palette = LocalKineticPalette.current
@@ -105,7 +113,7 @@ fun ExploreSidebar(
 
     when (selected) {
       ExploreInfoTab.CONTINUATIONS ->
-        ContinuationsContent(nextMoves = nextMoves, onPlay = onPlayMove)
+        ContinuationsContent(nextMoves = nextMoves, onPlay = onPlayMove, isMine = isMine)
       ExploreInfoTab.LICHESS ->
         LichessExplorerPanel(
           viewModel = explorerViewModel,
@@ -129,7 +137,11 @@ fun ExploreSidebar(
 /** Flowing row of 12.dp mono SAN pills, 1.5.dp stroke, for the Continuations tab. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ContinuationsContent(nextMoves: List<String>, onPlay: (String) -> Unit) {
+private fun ContinuationsContent(
+  nextMoves: List<String>,
+  onPlay: (String) -> Unit,
+  isMine: ((String) -> Boolean)? = null,
+) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val chipShape = MaterialTheme.shapes.extraSmall
@@ -167,7 +179,28 @@ private fun ContinuationsContent(nextMoves: List<String>, onPlay: (String) -> Un
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
       ) {
-        Text(text = san, style = typography.mono.copy(color = palette.ink))
+        if (isMine?.invoke(san) == true) {
+          Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Text(text = san, style = typography.mono.copy(color = palette.ink))
+            Text(
+              text = stringResource(Res.string.repertoire_view_yours),
+              style =
+                typography.labelSm.copy(
+                  fontSize = 7.5.sp,
+                  letterSpacing = 0.08.em,
+                  color = palette.progressText,
+                ),
+              modifier =
+                Modifier.background(palette.progress, RoundedCornerShape(7.dp))
+                  .padding(horizontal = 5.dp, vertical = 2.dp),
+            )
+          }
+        } else {
+          Text(text = san, style = typography.mono.copy(color = palette.ink))
+        }
       }
     }
   }

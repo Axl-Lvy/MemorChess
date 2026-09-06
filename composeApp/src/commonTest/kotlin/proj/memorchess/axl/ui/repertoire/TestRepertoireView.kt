@@ -26,6 +26,8 @@ import io.ktor.http.HttpStatusCode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstallError
 import proj.memorchess.axl.core.data.repertoire.LibraryCatalogState
@@ -36,8 +38,10 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireInstallState
 import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
 import proj.memorchess.axl.core.data.repertoire.placeholderRepertoireMastery
 import proj.memorchess.axl.core.engine.ChessPiece
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertTileContainsPiece
@@ -47,11 +51,13 @@ import proj.memorchess.axl.ui.pages.RepertoireLibraryContent
 import proj.memorchess.axl.ui.pages.RepertoireView
 import proj.memorchess.axl.ui.playMove
 import proj.memorchess.axl.ui.waitUntilBoardAppears
+import proj.memorchess.axl.ui.waitUntilNodeExists
 
 @OptIn(ExperimentalTestApi::class)
 class TestRepertoireView : TestWithKoin() {
 
   private val whitePawn = ChessPiece(PieceKind.PAWN, Player.WHITE)
+  private val treeStore: TreeStore by inject()
 
   private val descriptor =
     RepertoireDescriptor(
@@ -117,11 +123,13 @@ class TestRepertoireView : TestWithKoin() {
 
   private fun runViewer(
     pgn: String = "1. e4 e5 2. Nf3 *",
+    seedTreeStore: suspend (TreeStore) -> Unit = {},
     block: suspend ComposeUiTest.() -> Unit,
   ) = runComposeUiTest {
     koinSetUp()
     try {
       val (catalog, client) = mockCatalog(pgn)
+      seedTreeStore(treeStore)
       setContent { InitializeApp { RepertoireView("test-rep", catalog, client) } }
       // Wait for the async PGN load to render the board before asserting (issue #228).
       waitUntilBoardAppears()
@@ -169,15 +177,60 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
-  fun bookMoveCanBePlayed() = runViewer {
-    assertTileContainsPiece("e2", whitePawn)
-    playMove("e2", "e4")
-    assertTileContainsPiece("e4", whitePawn)
-    assertTileIsEmpty("e2")
-  }
+  fun bookMoveCanBePlayed() =
+    runViewer(
+      seedTreeStore = { store ->
+        val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
+        store.addMove(
+          from = PositionKey.START_POSITION,
+          move = "e4",
+          to = afterE4,
+          isGood = true,
+          fromDepth = 0,
+        )
+      }
+    ) {
+      onNodeWithText("READ ONLY").assertExists()
+      waitUntilNodeExists(hasTestTag("Play e4").and(hasText("YOURS"))).assertExists()
+      assertTileContainsPiece("e2", whitePawn)
+      playMove("e2", "e4")
+      assertTileContainsPiece("e4", whitePawn)
+      assertTileIsEmpty("e2")
+      onNode(hasTestTag("Play e5")).assertExists()
+      onNode(hasTestTag("Play e5").and(hasText("YOURS"))).assertDoesNotExist()
+    }
+
+  @Test
+  fun yoursTagOnlyMarksClassifiedGoodMoves() =
+    runViewer(
+      pgn = "1. e4 (1. d4) 1... e5 *",
+      seedTreeStore = { store ->
+        val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
+        val afterD4 = GameEngine().apply { playSanMove("d4") }.toPositionKey()
+        store.addMove(
+          from = PositionKey.START_POSITION,
+          move = "e4",
+          to = afterE4,
+          isGood = true,
+          fromDepth = 0,
+        )
+        store.addMove(
+          from = PositionKey.START_POSITION,
+          move = "d4",
+          to = afterD4,
+          isGood = false,
+          fromDepth = 0,
+        )
+      },
+    ) {
+      waitUntilNodeExists(hasTestTag("Play e4").and(hasText("YOURS"))).assertExists()
+      onNode(hasTestTag("Play d4")).assertExists()
+      onNode(hasTestTag("Play d4").and(hasText("YOURS"))).assertDoesNotExist()
+    }
 
   @Test
   fun offBookMoveIsRejected() = runViewer {
+    onNodeWithText("READ ONLY").assertExists()
     assertTileContainsPiece("e2", whitePawn)
     // d2-d4 is legal but not in the repertoire whose only first move is e4.
     playMove("d2", "d4")
@@ -187,6 +240,7 @@ class TestRepertoireView : TestWithKoin() {
 
   @Test
   fun viewerHasNoSaveOrDeleteControls() = runViewer {
+    onNodeWithText("READ ONLY").assertExists()
     assertTileContainsPiece("e2", whitePawn)
     onNodeWithContentDescription("Save").assertDoesNotExist()
     onNodeWithContentDescription("Delete").assertDoesNotExist()
