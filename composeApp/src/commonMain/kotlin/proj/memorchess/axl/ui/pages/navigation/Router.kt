@@ -74,7 +74,7 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
 
   NavHost(
     navController = navController,
-    startDestination = Route.TrainingRoute,
+    startDestination = Route.TrainingRoute.DEFAULT,
     modifier = modifier,
     enterTransition = { KineticMotion.holdEnter() },
     exitTransition = { KineticMotion.holdExit() },
@@ -82,7 +82,10 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
     popExitTransition = { KineticMotion.holdExit() },
   ) {
     composable<Route.TrainingRoute> {
-      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Training() }
+      val repertoireId = it.toRoute<Route.TrainingRoute>().repertoireId
+      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
+        Training(repertoireId)
+      }
     }
     composable<Route.LibraryRoute> {
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
@@ -99,9 +102,9 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Settings() }
     }
     composable<Route.ExploreRoute> {
-      val position = it.toRoute<Route.ExploreRoute>().position
+      val route = it.toRoute<Route.ExploreRoute>()
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
-        Explore(position?.let { p -> PositionKey.validateAndCreateOrNull(p) })
+        Explore(route.position?.let { p -> PositionKey.validateAndCreateOrNull(p) }, route.repertoireId)
       }
     }
   }

@@ -19,10 +19,18 @@ sealed interface Route {
   /** Returns the string resource for the localized display name of the route. */
   fun displayNameRes(): StringResource
 
-  /** Training route. */
+  /**
+   * Training route.
+   *
+   * @property repertoireId Repertoire to train, or `null` for all (today's default, unchanged).
+   */
   @Serializable
   @SerialName("training")
-  data object TrainingRoute : Route {
+  data class TrainingRoute(@SerialName("repertoireId") val repertoireId: String? = null) : Route {
+    companion object {
+      val DEFAULT = TrainingRoute()
+    }
+
     override fun getLabel(): String = "Training"
 
     override fun displayNameRes() = Res.string.nav_training
@@ -32,11 +40,13 @@ sealed interface Route {
    * Explore route
    *
    * @property position Optional starting position.
+   * @property repertoireId Repertoire to explore, or `null` for all (today's default, unchanged).
    */
   @Serializable
   @SerialName("explore")
   data class ExploreRoute(
-    @SerialName("position") val position: String? = PositionKey.START_POSITION.value
+    @SerialName("position") val position: String? = PositionKey.START_POSITION.value,
+    @SerialName("repertoireId") val repertoireId: String? = null,
   ) : Route {
     companion object {
       val DEFAULT = ExploreRoute()

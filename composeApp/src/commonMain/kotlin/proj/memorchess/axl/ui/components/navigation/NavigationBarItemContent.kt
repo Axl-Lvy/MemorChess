@@ -36,7 +36,7 @@ enum class NavigationBarItemContent(
     },
   ),
   Training(
-    destination = Route.TrainingRoute,
+    destination = Route.TrainingRoute.DEFAULT,
     index = 1,
     icon = {
       Icon(
@@ -44,7 +44,7 @@ enum class NavigationBarItemContent(
         contentDescription =
           stringResource(
             Res.string.nav_button_content_description,
-            stringResource(Route.TrainingRoute.displayNameRes()),
+            stringResource(Route.TrainingRoute.DEFAULT.displayNameRes()),
           ),
         modifier = Modifier.size(32.dp),
       )
