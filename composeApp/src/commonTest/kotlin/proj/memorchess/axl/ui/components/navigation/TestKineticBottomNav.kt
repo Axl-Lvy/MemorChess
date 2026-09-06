@@ -70,14 +70,14 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun everyItemRendersACell() = runTestFromSetup {
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), mutableListOf())
 
     items.forEach { onNodeWithTag(tagOf(it)).assertIsDisplayed() }
   }
 
   @Test
   fun onlyTheActiveCellIsSelected() = runTestFromSetup {
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), mutableListOf())
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
     items
@@ -87,7 +87,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun activeCellFollowsCurrentRoute() = runTestFromSetup {
-    val route = mutableStateOf(Route.TrainingRoute.DEFAULT.getLabel())
+    val route = mutableStateOf(NavigationBarItemContent.Training.destination.getLabel())
     setContent {
       InitializeApp {
         KineticBottomNav(
@@ -137,7 +137,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
   @Test
   fun tappingInactiveCellFiresOnSelect() = runTestFromSetup {
     val selected = mutableListOf<NavigationBarItemContent>()
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), selected)
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), selected)
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Explore)).performClick()
 
@@ -147,7 +147,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
   @Test
   fun tappingActiveCellDoesNotFire() = runTestFromSetup {
     val selected = mutableListOf<NavigationBarItemContent>()
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), selected)
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), selected)
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).performClick()
 
@@ -156,7 +156,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun activeCellIsStillClickable() = runTestFromSetup {
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), mutableListOf())
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertHasClickAction()
   }

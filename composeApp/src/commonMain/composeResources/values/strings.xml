@@ -257,6 +257,26 @@
   <string name="side_rail_today_progress">%1$d/%2$d today</string>
   <string name="side_rail_today_done">%1$d today</string>
 
+  <!-- Today page -->
+  <string name="today_greeting">Ready to review?</string>
+  <string name="today_weekday_monday">Monday</string>
+  <string name="today_weekday_tuesday">Tuesday</string>
+  <string name="today_weekday_wednesday">Wednesday</string>
+  <string name="today_weekday_thursday">Thursday</string>
+  <string name="today_weekday_friday">Friday</string>
+  <string name="today_weekday_saturday">Saturday</string>
+  <string name="today_weekday_sunday">Sunday</string>
+  <string name="today_streak_label">%1$d day streak</string>
+  <string name="today_goal_progress">%1$d of %2$d</string>
+  <string name="today_goal_done">%1$d done</string>
+  <plurals name="today_start_review_cta">
+    <item quantity="one">Start review · %1$d card</item>
+    <item quantity="other">Start review · %1$d cards</item>
+  </plurals>
+  <string name="today_pickup_title">Pick up where you left off</string>
+  <string name="today_pickup_progress">%1$d of %2$d positions solid</string>
+  <string name="today_pickup_empty">Nothing to pick up yet</string>
+
   <!-- Core toasts -->
   <string name="toast_no_previous_move">No previous move.</string>
   <string name="toast_no_next_move">No next move.</string>

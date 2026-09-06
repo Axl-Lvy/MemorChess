@@ -2,7 +2,9 @@ package proj.memorchess.axl.core.streak
 
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import proj.memorchess.axl.core.data.DailyActivityRecord
 import proj.memorchess.axl.core.data.DailyActivityStore
 import proj.memorchess.axl.core.date.DateUtil
@@ -50,6 +52,20 @@ class StreakTracker(private val store: DailyActivityStore) {
         streakLength = streakLength,
       )
     )
+  }
+
+  /**
+   * Activity for the ISO calendar week (Monday to Sunday) containing [day], oldest first.
+   *
+   * Each element is `true` when that date counts towards the streak
+   * ([DailyActivityRecord.isActive]), `false` otherwise, including for a date with no record at
+   * all. Seven bounded [DailyActivityStore.getRecord] calls, never a range query.
+   */
+  suspend fun weekActivity(day: LocalDate = DateUtil.today()): List<Boolean> {
+    val monday = day.minus(day.dayOfWeek.isoDayNumber - 1, DateTimeUnit.DAY)
+    return (0..6).map { offset ->
+      store.getRecord(monday.plus(offset, DateTimeUnit.DAY))?.isActive == true
+    }
   }
 
   /** Wipes every recorded date, resetting the streak and today's count to zero. */

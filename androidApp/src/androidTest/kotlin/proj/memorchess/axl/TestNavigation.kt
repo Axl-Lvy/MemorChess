@@ -34,12 +34,15 @@ class TestNavigation {
 
   @Test
   fun testGoToTraining() {
-    this.clickOnDestinationButton(Route.TrainingRoute.DEFAULT)
+    // The Training tab now lands on Today first (see Route.TodayRoute), not the board directly.
+    this.clickOnDestinationButton(Route.TodayRoute)
+    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TodayRoute.getLabel()}")
+    waitUntilNodeExists(hasTestTag("today_cta")).performClick()
+
     composeTestRule.waitUntilAtLeastOneExists(
       hasClickLabel(getTileDescription("e2")).or(hasText("Bravo !")),
       TEST_TIMEOUT.inWholeMilliseconds,
     )
-    assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TrainingRoute.DEFAULT.getLabel()}")
   }
 
   @Test

@@ -38,7 +38,6 @@ import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
-import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.setKineticContent
 
 /** Per-row test tag, mirroring the shape of the caller-supplied production tags. */
@@ -121,7 +120,7 @@ internal class TestKineticSideBar {
   private fun ComposeUiTest.setRail(
     streakTracker: StreakTracker,
     scheduler: TrainingScheduler,
-    currentRoute: String = Route.TrainingRoute.DEFAULT.getLabel(),
+    currentRoute: String = NavigationBarItemContent.Training.destination.getLabel(),
     selected: MutableList<NavigationBarItemContent> = mutableListOf(),
   ) {
     setKineticContent {

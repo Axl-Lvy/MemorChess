@@ -20,12 +20,13 @@ import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.pages.RepertoireLibrary
 import proj.memorchess.axl.ui.pages.RepertoireView
 import proj.memorchess.axl.ui.pages.Settings
+import proj.memorchess.axl.ui.pages.Today
 import proj.memorchess.axl.ui.pages.Training
 import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
  * Ordinal of a destination along the navigation bar (Explore `0`, Training `1`, Library `2`,
- * Settings `3`).
+ * Settings `3`; Today shares Training's ordinal, since it opens onto the same tab).
  *
  * Drives the direction of the screen transition: navigating toward a higher ordinal reveals the new
  * screen from the right, toward a lower one from the left. Matched against the destination route
@@ -37,6 +38,7 @@ internal fun NavBackStackEntry.routeOrdinal(): Int {
   val route = destination.route.orEmpty().lowercase()
   return when {
     route.contains("explore") -> 0
+    route.contains("today") -> 1
     route.contains("training") -> 1
     // The viewer shares the library ordinal so the wipe direction stays consistent. Its route
     // string ("repertoireview") is disjoint from "library", so it needs its own branch.
@@ -74,13 +76,16 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
 
   NavHost(
     navController = navController,
-    startDestination = Route.TrainingRoute.DEFAULT,
+    startDestination = Route.TodayRoute,
     modifier = modifier,
     enterTransition = { KineticMotion.holdEnter() },
     exitTransition = { KineticMotion.holdExit() },
     popEnterTransition = { KineticMotion.holdEnter() },
     popExitTransition = { KineticMotion.holdExit() },
   ) {
+    composable<Route.TodayRoute> {
+      Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) { Today() }
+    }
     composable<Route.TrainingRoute> {
       val repertoireId = it.toRoute<Route.TrainingRoute>().repertoireId
       Box(modifier = Modifier.fillMaxSize().then(wipeReveal(revealFromRight))) {
