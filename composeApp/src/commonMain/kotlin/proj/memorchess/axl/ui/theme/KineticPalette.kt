@@ -62,6 +62,13 @@ data class KineticPalette(
    * pink as [destructiveDim] — the light artboards hold exactly one soft pink container tone.
    */
   val streakDim: Color,
+  /**
+   * Hard bottom edge of a streak container — the mockup's `box-shadow: 0 3px 0`. The only token in
+   * the palette that is deliberately DARKER than its own fill in both themes; no existing token
+   * qualifies ([streakText] equals [streak] in dark, and [lineBright] is a lavender grey that reads
+   * as a highlight on pink).
+   */
+  val streakEdge: Color,
   val streakSoft: Color,
   val onStreak: Color,
 
@@ -116,6 +123,7 @@ val KineticDarkPalette =
     streakText = Color(0xFFFF4FA3),
     streakGlow = Color(0xFFFFD1E6),
     streakDim = Color(0xFF4A0F2C),
+    streakEdge = Color(0xFFB01463),
     streakSoft = Color(0x24FF4FA3), // streak at 14% opacity
     onStreak = Color(0xFF2A0A1B),
     destructive = Color(0xFFFF4FA3),
@@ -164,6 +172,7 @@ val KineticLightPalette =
     streakText = Color(0xFFB01463),
     streakGlow = Color(0xFFFF4FA3),
     streakDim = Color(0xFFFFD1E6),
+    streakEdge = Color(0xFFA10D50),
     streakSoft = Color(0x1AD6106B), // streak at 10% opacity
     onStreak = Color(0xFFFFFFFF),
     destructive = Color(0xFFD6106B),

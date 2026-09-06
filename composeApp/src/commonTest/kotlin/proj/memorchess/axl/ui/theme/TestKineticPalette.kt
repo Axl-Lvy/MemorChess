@@ -157,4 +157,17 @@ class TestKineticPalette {
   fun destructiveHueIsPinkNotRedInLightPalette() {
     hueDegrees(KineticLightPalette.destructive).shouldBeBetween(300f, 350f, 0f)
   }
+
+  @Test
+  fun streakEdgeIsHueStableAcrossThemes() {
+    hueDistance(KineticDarkPalette.streakEdge, KineticLightPalette.streakEdge)
+      .shouldBeBetween(0f, MAX_CROSS_THEME_HUE_DRIFT, 0f)
+  }
+
+  @Test
+  fun streakEdgeIsDarkerThanStreak() {
+    lightness(KineticDarkPalette.streakEdge).shouldBeLessThan(lightness(KineticDarkPalette.streak))
+    lightness(KineticLightPalette.streakEdge)
+      .shouldBeLessThan(lightness(KineticLightPalette.streak))
+  }
 }
