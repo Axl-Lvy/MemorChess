@@ -140,12 +140,13 @@ internal fun KineticBottomSheet(
                   slideOutVertically(animationSpec = KineticMotion.Routine.bottomSheet()) { it },
               )
               .fillMaxWidth()
+              // Absorb taps so they don't fall through to the scrim behind the panel.
+              .pointerInput(Unit) {}
               // A plain border rather than kineticShadow: the offset shadow block that big=true
               // draws sits 12.dp past the panel's own bounds. For a full-width, bottom-anchored
               // sheet that falls outside the popup and gets clipped. KineticDialog can afford the
               // offset because its Dialog window reserves shadow room around a content-wrapped
-              // panel; a sheet pinned to the screen edge has no room to give.
-              .pointerInput(Unit) {} // Absorb taps so they don't fall through to the scrim behind.
+              // panel. A sheet pinned to the screen edge has no room to give.
               .border(width = 1.dp, color = palette.line)
               .background(palette.panel)
           ) {
