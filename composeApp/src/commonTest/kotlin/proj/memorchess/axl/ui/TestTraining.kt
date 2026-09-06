@@ -284,10 +284,10 @@ class TestTraining : TestWithKoin() {
   // window before choseNextNode() runs, gated by TRAINING_MOVE_DELAY_SETTING (default one second).
   // runComposeUiTest's clock auto-advances through that delay the moment any node lookup calls
   // waitForIdle, which performClick/onNodeWithTag already do, so the clock must be held still to
-  // observe either side of the transition reliably instead of racing it: the first (selecting)
-  // click settles the board through the normal, clock-driven wait helper, then the clock is
+  // observe either side of the transition reliably instead of racing it. The first (selecting)
+  // click settles the board through the normal, clock-driven wait helper. The clock is then
   // paused before the second (move-completing) click, which uses the non-waiting
-  // clickSettledTile — clickOnTile's wait loop cannot make progress once autoAdvance is off.
+  // clickSettledTile, since clickOnTile's wait loop cannot make progress once autoAdvance is off.
   // ---------------------------------------------------------------------------------------------
 
   @Test

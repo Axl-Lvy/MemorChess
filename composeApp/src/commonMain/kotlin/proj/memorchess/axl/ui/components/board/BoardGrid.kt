@@ -151,7 +151,7 @@ private fun DrawTileGrid(
   // Every Animatable driving an overlay DrawTileGrid itself paints or composes is hoisted here and
   // driven by exactly one LaunchedEffect(feedback.attempt), mirroring registeredFlash's shape: this
   // composable stays mounted for the whole time the board is shown, so "fires exactly once per
-  // attempt" holds. (The "+1" floater is the one exception, hoisted into BoardGrid instead — see
+  // attempt" holds. (The "+1" floater is the one exception, hoisted into BoardGrid instead. See
   // there for why.)
   val squareScale = remember { Animatable(1f) } // correct: 1 -> 1.14 -> 1
   val wrongPulseAlpha = remember { Animatable(0f) } // wrong: 0 -> 1 -> 0, pink

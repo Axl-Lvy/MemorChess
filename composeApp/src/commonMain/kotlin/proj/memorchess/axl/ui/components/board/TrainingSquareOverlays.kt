@@ -25,8 +25,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * Floating "+1" that rises above [square] on a correct answer, absolutely placed against
  * [BoardGrid]'s own [tileSize], the same row/col-to-pixel convention [BestMoveArrow] uses.
  *
- * Only composed while [BoardGrid] decides a correct move was just played, so this is never a
- * permanently present, zero-alpha node — its existence in the tree is itself meaningful.
+ * Only composed while [BoardGrid] decides a correct move was just played. It is never a permanently
+ * present, zero-alpha node, so its existence in the tree is itself meaningful.
  *
  * @param offsetY Vertical rise, read inside a layout-phase [Modifier.offset] lambda.
  * @param alpha Fade, read inside a draw-phase [Modifier.graphicsLayer] lambda.
