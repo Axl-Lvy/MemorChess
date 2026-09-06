@@ -46,7 +46,7 @@ private const val SCRIM_ALPHA: Float = 0.5f
 private val SCRIM_COLOR = Color.Black.copy(alpha = SCRIM_ALPHA)
 
 /**
- * Always anchors popup content at the window origin, so a full-bleed scrim reaches every edge
+ * Always anchors popup content at the window origin, so a scrim reaching edge to edge is possible
  * regardless of where [KineticBottomSheet] sits in the caller's own layout tree.
  */
 private object WindowOriginPopupPositionProvider : PopupPositionProvider {
@@ -67,12 +67,16 @@ private object WindowOriginPopupPositionProvider : PopupPositionProvider {
  *
  * The mount guard keeps the [Popup] alive for the whole exit animation (mirroring [KineticDialog]'s
  * own [AnimatedVisibility] placement inside its host window), so the scrim and sheet both finish
- * sliding/fading before the popup actually tears down.
+ * sliding or fading before the popup actually tears down.
+ *
+ * The scrim is drawn only up to the popup's own content area, not behind system bars or a notch,
+ * because `PopupProperties.usePlatformInsets` is a skiko only parameter as well and this file stays
+ * on the common expect surface throughout.
  *
  * @param visible Whether the sheet should be shown.
  * @param onDismissRequest Invoked when the user dismisses via scrim tap or system back.
  * @param modifier Modifier applied to the sheet panel (e.g. a `testTag`).
- * @param buttons Trailing action buttons, laid out end-aligned beneath [content].
+ * @param buttons Trailing action buttons, laid out aligned to the end beneath [content].
  * @param content The sheet body.
  */
 @Composable
@@ -99,8 +103,6 @@ internal fun KineticBottomSheet(
           // The sheet's own scrim click handles outside dismissal so it can drive the exit
           // animation instead of the popup tearing down instantly.
           dismissOnClickOutside = false,
-          // The scrim must reach behind system bars and a notch, not stop at the safe area.
-          usePlatformInsets = false,
         ),
     ) {
       AnimatedVisibility(
