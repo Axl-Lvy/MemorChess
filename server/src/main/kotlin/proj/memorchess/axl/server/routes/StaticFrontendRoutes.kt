@@ -30,11 +30,30 @@ internal const val SYNC_OAUTH_CALLBACK_PATH = "/sync-oauth-callback"
 internal const val LICHESS_OAUTH_CALLBACK_PATH = "/oauth-callback"
 
 /**
- * Placeholder body served at [LICHESS_OAUTH_CALLBACK_PATH]. Its only job is to be a 200 response
- * with a real body. The wasmJs popup that lands there reads its own URL for the OAuth code and
- * closes itself. A user is not expected to ever see this rendered.
+ * Name of the `BroadcastChannel` the Lichess OAuth callback page and the wasmJs popup's opener
+ * share; kept in sync with the client's own copy of this string (`OAUTH_BROADCAST_CHANNEL_NAME` in
+ * `OAuthLauncher.wasmJs.kt`) by hand, not by shared code.
  */
-private const val LICHESS_OAUTH_CALLBACK_BODY = "<!doctype html><title>MemorChess</title>"
+private const val BROADCAST_CHANNEL_NAME = "memorchess-oauth"
+
+/**
+ * Placeholder body served at [LICHESS_OAUTH_CALLBACK_PATH]. It broadcasts its own URL on a
+ * [BROADCAST_CHANNEL_NAME] `BroadcastChannel` and closes itself; the wasmJs popup's opener listens
+ * on that same channel and reads the OAuth code from it. A `BroadcastChannel` is used instead of
+ * `window.opener.postMessage`, because on Chrome the popup gets detached from its opener once it
+ * navigates to `lichess.org`: neither `popup.closed` nor `window.opener` can be trusted afterwards,
+ * even once the popup navigates back to our own origin, so nothing keyed on the window relationship
+ * (polling `popup.closed`/`popup.location.href`, or posting through `window.opener`) can reach the
+ * opener. `BroadcastChannel` is scoped by origin, not by window reference, so it is unaffected. A
+ * user is not expected to ever see this page rendered.
+ */
+private const val LICHESS_OAUTH_CALLBACK_BODY =
+  "<!doctype html><title>MemorChess</title><script>" +
+    "var c=new BroadcastChannel('$BROADCAST_CHANNEL_NAME');" +
+    "c.postMessage({href:location.href});" +
+    "c.close();" +
+    "window.close();" +
+    "</script>"
 
 /**
  * Serves the compiled wasmJs frontend bundle from [staticDir], if configured.
@@ -53,10 +72,11 @@ internal fun Application.staticFrontendModule(staticDir: File?) {
  * `composeApp.js` could reference a `.wasm` hash from a previous deploy. [SYNC_OAUTH_CALLBACK_PATH]
  * is one deliberate exception, serving the shell so the wasmJs redirect sign-in flow can cold-boot
  * there. [LICHESS_OAUTH_CALLBACK_PATH] is a second one: it must answer with a real body rather than
- * falling through to a bare 404. Firefox replaces any 4xx or 5xx response that has an empty body
- * with its own internal error page, and that page's URL is not the one the popup's polling loop is
- * watching for, so the popup would never detect the redirect and close itself. Every other
- * unmatched path still falls through to a plain 404, since no `default()` fallback is configured.
+ * falling through to a bare 404, because the body itself is what closes the popup and broadcasts
+ * the OAuth code (see [LICHESS_OAUTH_CALLBACK_BODY]); a 404 would leave the popup open
+ * indefinitely. Firefox also replaces any 4xx or 5xx response that has an empty body with its own
+ * internal error page, which would never run that script at all. Every other unmatched path still
+ * falls through to a plain 404, since no `default()` fallback is configured.
  */
 internal fun Route.staticFrontendRoutes(staticDir: File) {
   get(SYNC_OAUTH_CALLBACK_PATH) {
