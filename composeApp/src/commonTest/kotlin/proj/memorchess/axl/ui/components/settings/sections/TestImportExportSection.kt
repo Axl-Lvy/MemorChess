@@ -15,6 +15,8 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.test.Test
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionKey
@@ -24,6 +26,7 @@ import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.waitUntilSuspending
 
 /**
  * UI coverage for [LichessStudyImportField]'s repertoire picker, which routes to
@@ -61,9 +64,17 @@ class TestImportExportSection : TestWithKoin() {
     onNodeWithText("Italian Game").performClick()
     onNodeWithTag("lichessStudyInput").performTextInput("aaaaaaaa")
     onNodeWithTag("lichessStudyImportButton").performClick()
-    waitForIdle()
 
+    // The MockEngine response dispatches on Dispatchers.Default, which the compose test clock
+    // never yields to on its own, so the import's completion is polled instead of trusted to a
+    // single waitForIdle() (see waitUntilBoardAppears's kdoc for the same starvation on wasmJs).
     val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
-    treeStore.tagsFor(PositionKey.START_POSITION, afterE4) shouldBe setOf("italian-game")
+    var tags: Set<String>? = null
+    waitUntilSuspending {
+      withContext(Dispatchers.Default) {}
+      tags = treeStore.tagsFor(PositionKey.START_POSITION, afterE4)
+      tags == setOf("italian-game")
+    }
+    tags shouldBe setOf("italian-game")
   }
 }

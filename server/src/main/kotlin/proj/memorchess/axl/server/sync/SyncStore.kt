@@ -161,8 +161,7 @@ internal class SyncStore(
     val ids = HashMap<Pair<String, String>, Long>(endpoints.size)
     prepareStatement(
         "SELECT e.id FROM move_edge e " +
-          "JOIN position po ON po.id = e.origin_id " +
-          "JOIN position pd ON pd.id = e.destination_id " +
+          JOIN_EDGE_ENDPOINTS +
           "WHERE po.position_key = ? AND pd.position_key = ?"
       )
       .use { statement ->
@@ -301,8 +300,7 @@ internal class SyncStore(
         "SELECT po.position_key, pd.position_key, e.move, ue.is_good, ue.is_deleted, " +
           "ue.updated_at, ue.origin_device, ue.device_seq, ue.revision FROM user_edge ue " +
           "JOIN move_edge e ON e.id = ue.edge_id " +
-          "JOIN position po ON po.id = e.origin_id " +
-          "JOIN position pd ON pd.id = e.destination_id " +
+          JOIN_EDGE_ENDPOINTS +
           "WHERE ue.user_id = ? AND ue.revision > ? ORDER BY ue.revision ASC LIMIT ?"
       )
       .use { statement ->
@@ -500,9 +498,7 @@ internal class SyncStore(
         "INSERT INTO user_edge (user_id, edge_id, is_good, is_deleted, deleted_at, updated_at, " +
           "origin_device, device_seq, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
           "ON CONFLICT (user_id, edge_id) DO UPDATE SET is_good = EXCLUDED.is_good, " +
-          "is_deleted = EXCLUDED.is_deleted, deleted_at = EXCLUDED.deleted_at, " +
-          "updated_at = EXCLUDED.updated_at, origin_device = EXCLUDED.origin_device, " +
-          "device_seq = EXCLUDED.device_seq, revision = EXCLUDED.revision"
+          LAST_WRITE_WINS_UPDATE_SET
       )
       .use { statement ->
         statement.setString(1, userId)
@@ -572,9 +568,7 @@ internal class SyncStore(
         "INSERT INTO user_setting (user_id, key, value, is_deleted, deleted_at, updated_at, " +
           "origin_device, device_seq, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
           "ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value, " +
-          "is_deleted = EXCLUDED.is_deleted, deleted_at = EXCLUDED.deleted_at, " +
-          "updated_at = EXCLUDED.updated_at, origin_device = EXCLUDED.origin_device, " +
-          "device_seq = EXCLUDED.device_seq, revision = EXCLUDED.revision"
+          LAST_WRITE_WINS_UPDATE_SET
       )
       .use { statement ->
         statement.setString(1, userId)
@@ -760,9 +754,7 @@ internal class SyncStore(
           "deleted_at, updated_at, origin_device, device_seq, revision) " +
           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
           "ON CONFLICT (user_id, edge_id, repertoire_id) DO UPDATE SET " +
-          "is_deleted = EXCLUDED.is_deleted, deleted_at = EXCLUDED.deleted_at, " +
-          "updated_at = EXCLUDED.updated_at, origin_device = EXCLUDED.origin_device, " +
-          "device_seq = EXCLUDED.device_seq, revision = EXCLUDED.revision"
+          LAST_WRITE_WINS_UPDATE_SET
       )
       .use { statement ->
         statement.setString(1, userId)
@@ -820,8 +812,7 @@ internal class SyncStore(
         "SELECT po.position_key, pd.position_key, t.repertoire_id, t.is_deleted, t.updated_at, " +
           "t.origin_device, t.device_seq, t.revision FROM user_edge_repertoire_tag t " +
           "JOIN move_edge e ON e.id = t.edge_id " +
-          "JOIN position po ON po.id = e.origin_id " +
-          "JOIN position pd ON pd.id = e.destination_id " +
+          JOIN_EDGE_ENDPOINTS +
           "WHERE t.user_id = ? AND t.revision > ? ORDER BY t.revision ASC LIMIT ?"
       )
       .use { statement ->
@@ -864,6 +855,16 @@ internal class SyncStore(
  * silently overwrites the other's decision.
  */
 private const val FOR_UPDATE = " FOR UPDATE"
+
+/** Joins a `move_edge` row to the `position` rows at both its ends, keyed `po`/`pd`. */
+private const val JOIN_EDGE_ENDPOINTS =
+  "JOIN position po ON po.id = e.origin_id JOIN position pd ON pd.id = e.destination_id "
+
+/** The `ON CONFLICT ... DO UPDATE SET` tail shared by every last write wins upsert. */
+private const val LAST_WRITE_WINS_UPDATE_SET =
+  "is_deleted = EXCLUDED.is_deleted, deleted_at = EXCLUDED.deleted_at, " +
+    "updated_at = EXCLUDED.updated_at, origin_device = EXCLUDED.origin_device, " +
+    "device_seq = EXCLUDED.device_seq, revision = EXCLUDED.revision"
 
 /** The tables holding per user rows. The shared `position` and `move_edge` are not among them. */
 private val PER_USER_TABLES =

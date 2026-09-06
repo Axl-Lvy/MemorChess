@@ -327,6 +327,14 @@ private suspend fun localMove(
     ?.values
     ?.firstOrNull { it.destination == destination }
 
+/** Applies every row of one pulled [page] to [treeStore]. */
+private suspend fun applyPulledPage(page: SyncPullResponse, treeStore: TreeStore) {
+  for (node in page.nodes) treeStore.applySyncedNode(node)
+  for (edge in page.edges) treeStore.applySyncedMove(edge)
+  for (repertoire in page.repertoires) treeStore.applySyncedRepertoire(repertoire)
+  for (tag in page.tags) treeStore.applySyncedTag(tag)
+}
+
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pullAll(
   token: String,
@@ -339,10 +347,7 @@ private suspend fun pullAll(
     when (val outcome = apiClient.pull(token, cursor, PULL_LIMIT)) {
       is SyncPullOutcome.Ok -> {
         val page = outcome.response
-        for (node in page.nodes) treeStore.applySyncedNode(node)
-        for (edge in page.edges) treeStore.applySyncedMove(edge)
-        for (repertoire in page.repertoires) treeStore.applySyncedRepertoire(repertoire)
-        for (tag in page.tags) treeStore.applySyncedTag(tag)
+        applyPulledPage(page, treeStore)
         cursor = page.nextCursor
         cursorStore.write(cursor)
         if (cursor == null) return null
