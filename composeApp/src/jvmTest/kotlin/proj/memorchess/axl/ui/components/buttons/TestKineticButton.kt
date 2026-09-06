@@ -2,7 +2,6 @@ package proj.memorchess.axl.ui.components.buttons
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ComposeUiTest
@@ -19,10 +18,10 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.components.settings.sections.DangerZoneSection
 import proj.memorchess.axl.ui.setKineticContent
 import proj.memorchess.axl.ui.theme.KineticLightPalette
 
@@ -195,7 +194,6 @@ internal class TestKineticButton : TestWithKoin() {
     val size = node.fetchSemanticsNode().size
     val pixel = node.captureToImage().toPixelMap()[size.width / 2, size.height / 2]
     pixel shouldBe KineticLightPalette.destructive
-    pixel shouldNotBe Color(0xFFFF0000)
   }
 
   /**
@@ -216,6 +214,37 @@ internal class TestKineticButton : TestWithKoin() {
     val midHeight = with(density) { 18.dp.roundToPx() }
     val pixel = onNodeWithTag(BUTTON_TAG).captureToImage().toPixelMap()[0, midHeight]
     pixel shouldBe KineticLightPalette.destructiveDim
-    pixel shouldNotBe Color(0xFFFF0000)
+  }
+
+  /**
+   * The Danger Zone section itself — not just a manually-styled [KineticButton] — must wire its
+   * "erase all data" action to [KineticButtonStyle.Danger]. Renders the real [DangerZoneSection]
+   * and samples the actual `eraseAllDataButton` node, so swapping its `buttonStyle` to
+   * [KineticButtonStyle.Primary] in [DangerZoneSection] would fail this test, unlike sampling a
+   * bare button styled `Danger` in isolation. Unlike [dangerStyleFillsWithDestructiveNeverRed]'s
+   * empty-content button, this button carries a real centered label, so it samples column 0 at
+   * mid-height (the default 36.dp button is 18.dp tall at its midpoint) rather than the center, to
+   * land on the fill and not a text glyph.
+   */
+  @Test
+  fun eraseAllDataButtonInDangerZoneFillsWithDestructive() = runButtonTest {
+    setKineticContent { DangerZoneSection() }
+    val midHeight = with(density) { 18.dp.roundToPx() }
+    val pixel = onNodeWithTag("eraseAllDataButton").captureToImage().toPixelMap()[0, midHeight]
+    pixel shouldBe KineticLightPalette.destructive
+  }
+
+  /**
+   * The Danger Zone section itself must wire its "reset config" action to
+   * [KineticButtonStyle.DangerOutline]. Renders the real [DangerZoneSection] and samples the actual
+   * `resetConfigButton` node's border, so swapping its `buttonStyle` away from `DangerOutline` in
+   * [DangerZoneSection] would fail this test.
+   */
+  @Test
+  fun resetConfigButtonInDangerZoneStrokesWithDestructiveDim() = runButtonTest {
+    setKineticContent { DangerZoneSection() }
+    val midHeight = with(density) { 18.dp.roundToPx() }
+    val pixel = onNodeWithTag("resetConfigButton").captureToImage().toPixelMap()[0, midHeight]
+    pixel shouldBe KineticLightPalette.destructiveDim
   }
 }

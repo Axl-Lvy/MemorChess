@@ -1,7 +1,6 @@
 package proj.memorchess.axl.ui.components.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.Res
@@ -51,7 +53,9 @@ data class SettingsNavGroup(val title: StringResource, val sections: List<Settin
  *
  * A 280.dp wide column listing [groups]. Each item is a clickable row carrying the section's number
  * and label. The currently selected item is highlighted with a filled 14.dp rounded row in a
- * `panel` background and an `ink` label color, rather than an accent border tick.
+ * `panel` background and an `ink` label color, rather than an accent border tick. Per the SHAPE
+ * CONTRACT's edge-anchored chrome, the rail itself is bordered on its trailing (right) edge only —
+ * a four-sided stroke on a full-height rail would double both the window edge and the content edge.
  *
  * @param groups Grouped nav items to render, in display order.
  * @param selectedId The id of the currently selected section, used for highlight.
@@ -75,7 +79,15 @@ fun SettingsSidebar(
         .width(280.dp)
         .fillMaxHeight()
         .background(palette.bg2)
-        .border(width = 1.5.dp, color = palette.line)
+        .drawBehind {
+          // Trailing-edge-only stroke (per the SHAPE CONTRACT), not a four-sided border.
+          val strokePx = 1.5.dp.toPx()
+          drawRect(
+            color = palette.line,
+            topLeft = Offset(size.width - strokePx, 0f),
+            size = Size(strokePx, size.height),
+          )
+        }
         .verticalScroll(scroll)
         .padding(vertical = 24.dp)
   ) {
@@ -115,9 +127,8 @@ private fun SidebarItem(item: SettingsNavItem, active: Boolean, onClick: () -> U
   Row(
     modifier =
       Modifier.fillMaxWidth()
-        .padding(
-          horizontal = 10.dp
-        ) // outer inset so the pill doesn't touch the sidebar's own edges
+        // Outer inset so the pill doesn't touch the sidebar's own edges.
+        .padding(horizontal = 10.dp)
         .clip(itemShape)
         .background(color = background, shape = itemShape)
         .clickable(onClick = onClick)

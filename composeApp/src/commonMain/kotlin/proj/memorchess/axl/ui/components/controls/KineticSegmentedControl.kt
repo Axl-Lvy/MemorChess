@@ -1,9 +1,7 @@
 package proj.memorchess.axl.ui.components.controls
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -38,10 +35,11 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * Kinetic segmented control. Mirrors `.segs`, `.segs.two`, `.segs.three`, `.seg`, `.seg.active`,
  * and `.seg small` from `design-proposals/kinetic-base.css`.
  *
- * Renders [options] as a horizontal row of equal-width segments wrapped in a 14.dp-rounded
- * container (1.5.dp `lineBright` border over a `bg2` background — the 14px literal read directly
- * off the 1f/1l/1n mockups, not a shared `MaterialTheme.shapes` token), with 1.dp `lineBright`
- * vertical dividers between segments. Each segment shows a Baloo 2 display label (600 12sp idle,
+ * Renders [options] as a horizontal row of equal-width segments inside a 14.dp-rounded `bg2`
+ * container with a 4.dp inset and a 5.dp gap between segments — the full 1f/1l/1n recipe
+ * (`background:bg; border-radius:14px; padding:4px; gap:5px`), which has **no** border and **no**
+ * dividers between segments; those would clash with the 11.dp-rounded active pill wherever a
+ * straight divider met a rounded corner. Each segment shows a Baloo 2 display label (600 12sp idle,
  * 700 12sp when active) produced by [label]; if [subtext] is provided, a `labelSm` caption is
  * rendered below the label and the segment's minimum height grows from 36.dp to 44.dp.
  *
@@ -85,10 +83,14 @@ fun <T> KineticSegmentedControl(
         .alpha(if (enabled) 1f else 0.5f)
         .clip(containerShape)
         .background(color = palette.bg2, shape = containerShape)
-        .border(BorderStroke(1.5.dp, palette.lineBright), containerShape),
+        // 1f/1l/1n literal: container padding:4px.
+        .padding(4.dp),
+    // 1f/1l/1n literal: container gap:5px. No dividers — the mockup relies on the gap alone to
+    // separate segments, so the active pill's rounded corners never meet a straight edge.
+    horizontalArrangement = Arrangement.spacedBy(5.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    options.forEachIndexed { index, option ->
+    options.forEach { option ->
       KineticSegment(
         label = label(option),
         subtext = subtext?.invoke(option),
@@ -96,10 +98,6 @@ fun <T> KineticSegmentedControl(
         enabled = enabled,
         onClick = { onSelect(option) },
       )
-
-      if (index < options.lastIndex) {
-        Box(modifier = Modifier.fillMaxHeight().width(1.dp).background(palette.lineBright))
-      }
     }
   }
 }

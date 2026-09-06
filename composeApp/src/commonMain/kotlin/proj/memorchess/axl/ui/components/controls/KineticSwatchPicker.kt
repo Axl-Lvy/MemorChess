@@ -62,7 +62,7 @@ data class KineticSwatch<T>(
  * `.swatch.active`, and `.swatch .grid-bg` from `design-proposals/kinetic-base.css` and the Board
  * Style block in `design-proposals/kinetic-settings-desktop.html` (lines 207–243).
  *
- * Each [KineticSwatch] is drawn as a 48.dp square, rounded to 12.dp, showing a 2×2 checkered
+ * Each [KineticSwatch] is drawn as a 48.dp square, rounded to 14.dp, showing a 2×2 checkered
  * preview of its `lightSquareColor` and `darkSquareColor`, with the swatch's [KineticSwatch.label]
  * rendered below in `labelSm` uppercase. Idle swatches carry a 1.dp `line` border. The active
  * swatch (where `swatch.value == selected`) gets a 2.dp `action` border, a small `action`
@@ -104,8 +104,9 @@ fun <T> KineticSwatchPicker(
       val borderWidth = if (isActive) 2.dp else 1.dp
       val labelColor = if (isActive) palette.ink else palette.ink3
       val interactionSource = remember(swatch.value) { MutableInteractionSource() }
-      // SHAPE CONTRACT "Icon tiles ... 11-12dp (inline)".
-      val swatchShape = RoundedCornerShape(12.dp)
+      // 1n literal: board swatches are `border-radius:14px` (not the SHAPE CONTRACT's "icon tiles"
+      // row, which the 1n artboard itself overrides for this specific control).
+      val swatchShape = RoundedCornerShape(14.dp)
 
       Column(
         modifier = Modifier.width(SWATCH_COLUMN_WIDTH),

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -18,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -196,16 +198,21 @@ private fun LichessAccountAction(
   }
 }
 
-/** Small 56.dp square avatar with the user's initial; mirrors `.lichess-avatar` from the HTML. */
+/**
+ * Small 56.dp avatar with the user's initial, rounded to 8.dp per the 1f/1l "LINKED" badge literal;
+ * mirrors `.lichess-avatar` from the HTML.
+ */
 @Composable
 private fun LichessAvatar(initial: String) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
+  val avatarShape = RoundedCornerShape(8.dp)
   Box(
     modifier =
       Modifier.size(56.dp)
-        .background(color = palette.streak)
-        .border(width = 1.dp, color = palette.lineBright),
+        .clip(avatarShape)
+        .background(color = palette.streak, shape = avatarShape)
+        .border(width = 1.dp, color = palette.lineBright, shape = avatarShape),
     contentAlignment = Alignment.Center,
   ) {
     Text(text = initial, style = typography.brand.copy(color = palette.bg, fontSize = 22.sp))
