@@ -13,4 +13,13 @@ class TestGameEngine {
 
     shouldThrow<IllegalMoveException> { engine.playSanMove("Qxe4") }
   }
+
+  @Test
+  fun playSanMoveOnAnUnavailableCastleThrowsIllegalMoveException() {
+    // chess-core throws NoSuchElementException for this case (no legal move matches the intent),
+    // instead of returning false; same contract as the case above.
+    val engine = GameEngine()
+
+    shouldThrow<IllegalMoveException> { engine.playSanMove("O-O") }
+  }
 }

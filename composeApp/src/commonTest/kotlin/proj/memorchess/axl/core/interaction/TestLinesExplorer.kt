@@ -299,6 +299,21 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
+  fun playMoveStripsCheckMarkersBeforeStoringTheEdge() = test {
+    // Simulates a checking move suggested by an external source (e.g. the Lichess opening
+    // explorer panel), which includes the "+" marker chess-core itself does not persist.
+    interactionsManager.playMove("f3")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("g4")
+    val beforeMate = interactionsManager.engine.toPositionKey()
+
+    interactionsManager.playMove("Qh4#")
+
+    val storedMove = treeStore.node(beforeMate)?.outgoing?.keys
+    assertEquals(setOf("Qh4"), storedMove, "The stored move must not carry the mate marker.")
+  }
+
+  @Test
   fun getNextMovesIsUnaffectedByScopeWhenUnscoped() = test {
     val origin = PositionKey.START_POSITION
     interactionsManager.playMove("e4")

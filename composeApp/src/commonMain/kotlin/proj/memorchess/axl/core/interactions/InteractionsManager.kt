@@ -105,7 +105,9 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
       toastRenderer.info(Res.string.toast_illegal_move)
       return
     }
-    afterPlayMove(move)
+    // An external source (e.g. the Lichess opening explorer) may include the "+"/"#" markers that
+    // every other move stored through this app has stripped; keep the same edge either way.
+    afterPlayMove(move.trimEnd('+', '#'))
   }
 
   /**
