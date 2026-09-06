@@ -2,7 +2,10 @@ package proj.memorchess.axl.ui.theme
 
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -30,6 +33,7 @@ class TestKineticMotion : TestWithKoin() {
     val screenTransition = KineticMotion.Routine.screenTransition<Float>()
     val buttonPress = KineticMotion.Routine.buttonPress<Float>()
     val bottomSheet = KineticMotion.Routine.bottomSheet<Float>()
+    val iconPop = KineticMotion.Routine.iconPop<Float>()
 
     // Assert.
     val screenTransitionSpring = screenTransition.shouldBeInstanceOf<SpringSpec<Float>>()
@@ -41,6 +45,10 @@ class TestKineticMotion : TestWithKoin() {
     val bottomSheetSpring = bottomSheet.shouldBeInstanceOf<SpringSpec<Float>>()
     bottomSheetSpring.dampingRatio shouldBe 0.78f
     bottomSheetSpring.stiffness shouldBe 560f
+    // iconPop reuses screenTransition's exact spring: the mockup pins only the pop's amplitude.
+    val iconPopSpring = iconPop.shouldBeInstanceOf<SpringSpec<Float>>()
+    iconPopSpring.dampingRatio shouldBe 0.8f
+    iconPopSpring.stiffness shouldBe 600f
   }
 
   @kotlin.test.Test
@@ -89,6 +97,7 @@ class TestKineticMotion : TestWithKoin() {
         KineticMotion.Routine.screenTransition<Float>(),
         KineticMotion.Routine.buttonPress<Float>(),
         KineticMotion.Routine.bottomSheet<Float>(),
+        KineticMotion.Routine.iconPop<Float>(),
       )
 
     // Assert.
@@ -151,5 +160,54 @@ class TestKineticMotion : TestWithKoin() {
 
     // Act & Assert.
     KineticMotion.shouldAnimateBoardFeedback() shouldBe false
+  }
+
+  @kotlin.test.Test
+  fun `iconPop plays by default`() = test {
+    // Act & Assert.
+    KineticMotion.shouldPlayIconPop() shouldBe true
+  }
+
+  @kotlin.test.Test
+  fun `reduce motion skips the icon pop entirely`() = test {
+    // Arrange.
+    REDUCE_MOTION_SETTING.setValue(true)
+
+    // Act & Assert.
+    KineticMotion.shouldPlayIconPop() shouldBe false
+  }
+
+  @kotlin.test.Test
+  fun `reduce motion collapses tabEnter to the same plain fade regardless of direction`() = test {
+    // Arrange.
+    REDUCE_MOTION_SETTING.setValue(true)
+    val plainFade = fadeIn(animationSpec = KineticMotion.Routine.screenTransition())
+
+    // Act.
+    val fromRight = KineticMotion.tabEnter(fromRight = true)
+    val fromLeft = KineticMotion.tabEnter(fromRight = false)
+
+    // Assert.
+    fromRight shouldBe plainFade
+    fromLeft shouldBe plainFade
+  }
+
+  @kotlin.test.Test
+  fun `full motion tabEnter also slides, so it differs from the plain fade`() = test {
+    // Act.
+    val enter = KineticMotion.tabEnter(fromRight = true)
+
+    // Assert.
+    enter shouldNotBe fadeIn(animationSpec = KineticMotion.Routine.screenTransition())
+  }
+
+  @kotlin.test.Test
+  fun `tabExit is always a plain fade, with or without reduce motion`() = test {
+    // Act & Assert.
+    KineticMotion.tabExit() shouldBe
+      fadeOut(animationSpec = KineticMotion.Routine.screenTransition())
+    REDUCE_MOTION_SETTING.setValue(true)
+    KineticMotion.tabExit() shouldBe
+      fadeOut(animationSpec = KineticMotion.Routine.screenTransition())
   }
 }

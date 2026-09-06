@@ -254,9 +254,35 @@
   <string name="repertoire_view_not_found">Le répertoire \"%1$s\" n'est plus dans le catalogue.</string>
 
   <!-- Navigation: side rail -->
-  <string name="side_rail_day_streak">JOURS D'AFFILÉE</string>
+  <plurals name="side_rail_day_streak">
+    <item quantity="one">JOUR D'AFFILÉE</item>
+    <item quantity="other">JOURS D'AFFILÉE</item>
+  </plurals>
   <string name="side_rail_today_progress">%1$d/%2$d aujourd'hui</string>
   <string name="side_rail_today_done">%1$d aujourd'hui</string>
+
+  <!-- Today page -->
+  <string name="today_greeting">Prêt à réviser ?</string>
+  <string name="today_weekday_monday">Lundi</string>
+  <string name="today_weekday_tuesday">Mardi</string>
+  <string name="today_weekday_wednesday">Mercredi</string>
+  <string name="today_weekday_thursday">Jeudi</string>
+  <string name="today_weekday_friday">Vendredi</string>
+  <string name="today_weekday_saturday">Samedi</string>
+  <string name="today_weekday_sunday">Dimanche</string>
+  <plurals name="today_streak_label">
+    <item quantity="one">jour d'affilée</item>
+    <item quantity="other">jours d'affilée</item>
+  </plurals>
+  <string name="today_goal_progress">%1$d sur %2$d</string>
+  <string name="today_goal_done">%1$d fait</string>
+  <plurals name="today_start_review_cta">
+    <item quantity="one">Commencer la révision · %1$d carte</item>
+    <item quantity="other">Commencer la révision · %1$d cartes</item>
+  </plurals>
+  <string name="today_pickup_title">Reprendre là où vous en étiez</string>
+  <string name="today_pickup_progress">%1$d sur %2$d positions maîtrisées</string>
+  <string name="today_pickup_empty">Rien à reprendre pour le moment</string>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">Aucun coup précédent.</string>

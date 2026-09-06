@@ -18,6 +18,7 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
+import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.theme.KineticDarkPalette
@@ -70,13 +71,25 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun everyItemRendersACell() = runTestFromSetup {
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), mutableListOf())
 
     items.forEach { onNodeWithTag(tagOf(it)).assertIsDisplayed() }
   }
 
   @Test
   fun onlyTheActiveCellIsSelected() = runTestFromSetup {
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), mutableListOf())
+
+    onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
+    items
+      .filter { it != NavigationBarItemContent.Training }
+      .forEach { onNodeWithTag(tagOf(it)).assertIsNotSelected() }
+  }
+
+  @Test
+  fun trainingCellStaysSelectedOnThePushedTrainingBoard() = runTestFromSetup {
+    // Training's destination is TodayRoute, but the tab must also stay selected once the pushed
+    // TrainingRoute board is on screen, not just on the Today dashboard itself.
     setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
@@ -87,7 +100,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun activeCellFollowsCurrentRoute() = runTestFromSetup {
-    val route = mutableStateOf(Route.TrainingRoute.DEFAULT.getLabel())
+    val route = mutableStateOf(NavigationBarItemContent.Training.destination.getLabel())
     setContent {
       InitializeApp {
         KineticBottomNav(
@@ -105,6 +118,31 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Settings)).assertIsSelected()
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsNotSelected()
+  }
+
+  @Test
+  fun selectionStillFollowsRouteWhenReduceMotionIsOn() = runTestFromSetup {
+    // graphicsLayer scale is invisible to the semantics tree, so this cannot observe the icon pop
+    // itself. That pixel level assertion lives in TestKineticBottomNavReduceMotion (jvmTest). This
+    // only pins that selection still tracks the route when reduce motion is on.
+    REDUCE_MOTION_SETTING.setValue(true)
+    val route = mutableStateOf(Route.ExploreRoute.DEFAULT.getLabel())
+    setContent {
+      InitializeApp {
+        KineticBottomNav(
+          items = items,
+          currentRoute = route.value,
+          onSelect = {},
+          itemModifier = { Modifier.testTag(tagOf(it)) },
+        )
+      }
+    }
+
+    route.value = Route.TrainingRoute.DEFAULT.getLabel()
+    waitForIdle()
+
+    onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
+    onNodeWithTag(tagOf(NavigationBarItemContent.Explore)).assertIsNotSelected()
   }
 
   @Test
@@ -137,7 +175,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
   @Test
   fun tappingInactiveCellFiresOnSelect() = runTestFromSetup {
     val selected = mutableListOf<NavigationBarItemContent>()
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), selected)
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), selected)
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Explore)).performClick()
 
@@ -147,7 +185,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
   @Test
   fun tappingActiveCellDoesNotFire() = runTestFromSetup {
     val selected = mutableListOf<NavigationBarItemContent>()
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), selected)
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), selected)
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).performClick()
 
@@ -156,7 +194,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun activeCellIsStillClickable() = runTestFromSetup {
-    setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
+    setBar(NavigationBarItemContent.Training.destination.getLabel(), mutableListOf())
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertHasClickAction()
   }
