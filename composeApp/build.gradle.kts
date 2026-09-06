@@ -1,4 +1,6 @@
 import com.ncorti.ktfmt.gradle.tasks.KtfmtBaseTask
+import java.io.File
+import java.security.MessageDigest
 import org.jetbrains.compose.reload.gradle.ComposeHotRun
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -241,6 +243,47 @@ tasks.withType<KotlinJsTest>().configureEach {
     "Kotlin/JS testing tasks store Project references and use non-serializable types."
   )
 }
+
+// Renames the production bundle from the fixed "composeApp.js" (see `outputFileName` above) to a
+// content-hashed "composeApp.<hash>.js", the same trick already applied to the `.wasm` binaries.
+// Without this, an intermediary that ignores the server's `Cache-Control: no-cache` on unhashed
+// files (observed with Cloudflare's edge cache) can keep serving a previous deploy's
+// "composeApp.js" for hours after a new one lands, paired with the new deploy's `.wasm`/resources.
+// A content hash sidesteps that: any change gets a brand new URL, so a cache still holding the old
+// file is just holding something nobody references anymore.
+// `StaticFrontendRoutes.HASHED_BUNDLE_PATTERN` (`:server`) must keep matching the name produced
+// here.
+val wasmJsProductionDist = layout.buildDirectory.dir("dist/wasmJs/productionExecutable")
+
+val hashWasmJsBundle by tasks.registering {
+  dependsOn("wasmJsBrowserDistribution")
+  notCompatibleWithConfigurationCache(
+    "reads and rewrites files wasmJsBrowserDistribution just wrote"
+  )
+  doLast {
+    val distDir = wasmJsProductionDist.get().asFile
+    val bundle = File(distDir, "composeApp.js")
+    if (!bundle.exists()) {
+      error("Expected $bundle to exist; did the wasmJs output filename change?")
+    }
+    val hash =
+      MessageDigest.getInstance("SHA-256")
+        .digest(bundle.readBytes())
+        .joinToString("") { "%02x".format(it) }
+        .take(20)
+    val hashedName = "composeApp.$hash.js"
+    bundle.copyTo(File(distDir, hashedName), overwrite = true)
+    bundle.delete()
+
+    val indexHtml = File(distDir, "index.html")
+    val original = indexHtml.readText()
+    val rewritten = original.replace("src=\"composeApp.js\"", "src=\"$hashedName\"")
+    check(rewritten != original) { "$indexHtml did not reference composeApp.js" }
+    indexHtml.writeText(rewritten)
+  }
+}
+
+tasks.named("wasmJsBrowserDistribution") { finalizedBy(hashWasmJsBundle) }
 
 // Listing the source sets explicitly disables the scanner's Kotlin Multiplatform
 // auto-detection, which keeps the indexed directories under our control after the

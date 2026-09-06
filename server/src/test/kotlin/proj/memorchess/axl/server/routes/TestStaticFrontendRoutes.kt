@@ -56,6 +56,18 @@ class TestStaticFrontendRoutes {
   }
 
   @Test
+  fun `a content-hashed composeApp js file is cached for a year`() = testApplication {
+    val dir = frontendDir()
+    File(dir, "composeApp.1234567890abcdef1234.js").writeText("console.log('app')")
+    application { routing { staticFrontendRoutes(dir) } }
+
+    val response = client.get("/composeApp.1234567890abcdef1234.js")
+
+    response.status shouldBe HttpStatusCode.OK
+    response.headers[HttpHeaders.CacheControl]!! shouldContain "max-age=31536000"
+  }
+
+  @Test
   fun `the lichess oauth callback path serves a non-empty page with no-cache`() = testApplication {
     application { routing { staticFrontendRoutes(frontendDir()) } }
 

@@ -18,6 +18,14 @@ import java.io.File
 private const val HASHED_ASSET_MAX_AGE_SECONDS = 31_536_000
 
 /**
+ * Matches the content-hashed frontend bundle name the wasmJs build produces
+ * (`composeApp.<hash>.js`, see `composeApp/build.gradle.kts`'s hashing task). A file matching this
+ * is safe to cache as long as a `.wasm` file, since a new deploy gives it a new name instead of
+ * overwriting this one.
+ */
+private val HASHED_BUNDLE_PATTERN = Regex("""composeApp\.[0-9a-f]{20}\.js""")
+
+/**
  * Path portion of the wasmJs sync/OIDC redirect URI; kept in sync with the client's own copy of
  * this string (`SYNC_REDIRECT_PATH` in `:composeApp`) by the design spec, not by shared code.
  */
@@ -67,11 +75,12 @@ internal fun Application.staticFrontendModule(staticDir: File?) {
 }
 
 /**
- * Mounts the frontend bundle at `/`. Content-hashed `*.wasm` files are cached for a year; every
- * other file (unhashed HTML/JS/CSS/resources) is revalidated on every request, since a stale cached
- * `composeApp.js` could reference a `.wasm` hash from a previous deploy. [SYNC_OAUTH_CALLBACK_PATH]
- * is one deliberate exception, serving the shell so the wasmJs redirect sign-in flow can cold-boot
- * there. [LICHESS_OAUTH_CALLBACK_PATH] is a second one: it must answer with a real body rather than
+ * Mounts the frontend bundle at `/`. Content-hashed `*.wasm` files and the content-hashed
+ * `composeApp.<hash>.js` bundle are cached for a year; every other file (`index.html`,
+ * `styles.css`, and any unhashed leftover) is revalidated on every request, since a cached one of
+ * those could point at a bundle hash from a previous deploy. [SYNC_OAUTH_CALLBACK_PATH] is one
+ * deliberate exception, serving the shell so the wasmJs redirect sign-in flow can cold-boot there.
+ * [LICHESS_OAUTH_CALLBACK_PATH] is a second one: it must answer with a real body rather than
  * falling through to a bare 404, because the body itself is what closes the popup and broadcasts
  * the OAuth code (see [LICHESS_OAUTH_CALLBACK_BODY]); a 404 would leave the popup open
  * indefinitely. Firefox also replaces any 4xx or 5xx response that has an empty body with its own
@@ -89,7 +98,7 @@ internal fun Route.staticFrontendRoutes(staticDir: File) {
   }
   staticFiles("/", staticDir) {
     cacheControl { file ->
-      if (file.extension == "wasm") {
+      if (file.extension == "wasm" || HASHED_BUNDLE_PATTERN.matches(file.name)) {
         listOf(CacheControl.MaxAge(maxAgeSeconds = HASHED_ASSET_MAX_AGE_SECONDS))
       } else {
         listOf(CacheControl.NoCache(visibility = null))
