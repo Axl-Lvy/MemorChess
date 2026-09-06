@@ -1,6 +1,7 @@
 package proj.memorchess.axl.server.routes
 
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -55,14 +56,24 @@ class TestStaticFrontendRoutes {
   }
 
   @Test
-  fun `an unmatched path like the oauth callback 404s instead of falling back to index html`() =
-    testApplication {
-      application { routing { staticFrontendRoutes(frontendDir()) } }
+  fun `the lichess oauth callback path serves a non-empty page with no-cache`() = testApplication {
+    application { routing { staticFrontendRoutes(frontendDir()) } }
 
-      val response = client.get("/oauth-callback?code=abc&state=xyz")
+    val response = client.get("/oauth-callback?code=abc&state=xyz")
 
-      response.status shouldBe HttpStatusCode.NotFound
-    }
+    response.status shouldBe HttpStatusCode.OK
+    response.bodyAsText() shouldNotBe ""
+    response.headers[HttpHeaders.CacheControl]!! shouldContain "no-cache"
+  }
+
+  @Test
+  fun `a genuinely unmatched path 404s instead of falling back to index html`() = testApplication {
+    application { routing { staticFrontendRoutes(frontendDir()) } }
+
+    val response = client.get("/does-not-exist")
+
+    response.status shouldBe HttpStatusCode.NotFound
+  }
 
   @Test
   fun `the sync oauth callback path serves the shell with no-cache`() = testApplication {

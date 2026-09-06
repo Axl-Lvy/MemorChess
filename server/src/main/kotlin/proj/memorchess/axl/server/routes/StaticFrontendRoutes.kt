@@ -1,12 +1,14 @@
 package proj.memorchess.axl.server.routes
 
 import io.ktor.http.CacheControl
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.http.content.staticFiles
 import io.ktor.server.response.header
 import io.ktor.server.response.respondFile
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -20,6 +22,19 @@ private const val HASHED_ASSET_MAX_AGE_SECONDS = 31_536_000
  * this string (`SYNC_REDIRECT_PATH` in `:composeApp`) by the design spec, not by shared code.
  */
 internal const val SYNC_OAUTH_CALLBACK_PATH = "/sync-oauth-callback"
+
+/**
+ * Path portion of the Lichess OAuth redirect URI; kept in sync with the client's own copy of this
+ * string (`LICHESS_REDIRECT_URI` in `LichessRedirectUri.wasmJs.kt`) by hand, not by shared code.
+ */
+internal const val LICHESS_OAUTH_CALLBACK_PATH = "/oauth-callback"
+
+/**
+ * Placeholder body served at [LICHESS_OAUTH_CALLBACK_PATH]. Its only job is to be a 200 response
+ * with a real body. The wasmJs popup that lands there reads its own URL for the OAuth code and
+ * closes itself. A user is not expected to ever see this rendered.
+ */
+private const val LICHESS_OAUTH_CALLBACK_BODY = "<!doctype html><title>MemorChess</title>"
 
 /**
  * Serves the compiled wasmJs frontend bundle from [staticDir], if configured.
@@ -36,15 +51,21 @@ internal fun Application.staticFrontendModule(staticDir: File?) {
  * Mounts the frontend bundle at `/`. Content-hashed `*.wasm` files are cached for a year; every
  * other file (unhashed HTML/JS/CSS/resources) is revalidated on every request, since a stale cached
  * `composeApp.js` could reference a `.wasm` hash from a previous deploy. [SYNC_OAUTH_CALLBACK_PATH]
- * is the one deliberate exception, serving the shell so the wasmJs redirect sign-in flow can
- * cold-boot there. Every other unmatched path (e.g. `/oauth-callback`, Lichess's own redirect URI,
- * read only for its URL by that popup flow and never rendered) falls through to a plain 404 rather
- * than `index.html` — no `default()` fallback is configured, deliberately.
+ * is one deliberate exception, serving the shell so the wasmJs redirect sign-in flow can cold-boot
+ * there. [LICHESS_OAUTH_CALLBACK_PATH] is a second one: it must answer with a real body rather than
+ * falling through to a bare 404. Firefox replaces any 4xx or 5xx response that has an empty body
+ * with its own internal error page, and that page's URL is not the one the popup's polling loop is
+ * watching for, so the popup would never detect the redirect and close itself. Every other
+ * unmatched path still falls through to a plain 404, since no `default()` fallback is configured.
  */
 internal fun Route.staticFrontendRoutes(staticDir: File) {
   get(SYNC_OAUTH_CALLBACK_PATH) {
     call.response.header(HttpHeaders.CacheControl, "no-cache")
     call.respondFile(File(staticDir, "index.html"))
+  }
+  get(LICHESS_OAUTH_CALLBACK_PATH) {
+    call.response.header(HttpHeaders.CacheControl, "no-cache")
+    call.respondText(LICHESS_OAUTH_CALLBACK_BODY, ContentType.Text.Html)
   }
   staticFiles("/", staticDir) {
     cacheControl { file ->
