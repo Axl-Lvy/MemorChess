@@ -869,8 +869,10 @@ private fun ColorTag(color: RepertoireColor) {
  *
  * The install-progress sweep is one [Animatable] hoisted for the whole row, not per branch, so
  * transitioning Fetching -> Importing continues the fill from wherever it last sat (30% -> 100%)
- * instead of resetting to 0. [LibraryProgressBar] only reads it in the draw phase, so this
- * composable itself never recomposes on animation frames.
+ * instead of resetting to 0. A reinstall goes the other way — Installed/Importing (at or near 100%)
+ * back to Fetching (30%) — where continuing from wherever it sat would sweep the bar backward
+ * instead of restarting it; that case snaps to 0 first. [LibraryProgressBar] only reads the
+ * animatable in the draw phase, so this composable itself never recomposes on animation frames.
  */
 @Composable
 private fun InstallStatusRow(
@@ -883,6 +885,11 @@ private fun InstallStatusRow(
   val animatedFraction = remember { Animatable(0f) }
   LaunchedEffect(installState) {
     val target = installProgressFraction(installState) ?: return@LaunchedEffect
+    // Reinstalling restarts the sweep at 0 instead of draining backward from wherever a prior
+    // install cycle left it (Installed's implicit 100%, or a stalled Importing).
+    if (installState is RepertoireInstallState.Fetching && animatedFraction.value > target) {
+      animatedFraction.snapTo(0f)
+    }
     animatedFraction.animateTo(target, KineticMotion.Routine.loadingSkeleton())
   }
   when (installState) {
