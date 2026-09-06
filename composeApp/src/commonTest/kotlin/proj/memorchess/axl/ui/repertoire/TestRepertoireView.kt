@@ -181,6 +181,13 @@ class TestRepertoireView : TestWithKoin() {
     runViewer(
       seedTreeStore = { store ->
         val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
+        val afterE4E5 =
+          GameEngine()
+            .apply {
+              playSanMove("e4")
+              playSanMove("e5")
+            }
+            .toPositionKey()
         store.addMove(
           from = PositionKey.START_POSITION,
           move = "e4",
@@ -188,6 +195,7 @@ class TestRepertoireView : TestWithKoin() {
           isGood = true,
           fromDepth = 0,
         )
+        store.addMove(from = afterE4, move = "e5", to = afterE4E5, isGood = true, fromDepth = 1)
       }
     ) {
       onNodeWithText("READ ONLY").assertExists()
@@ -196,8 +204,7 @@ class TestRepertoireView : TestWithKoin() {
       playMove("e2", "e4")
       assertTileContainsPiece("e4", whitePawn)
       assertTileIsEmpty("e2")
-      onNode(hasTestTag("Play e5")).assertExists()
-      onNode(hasTestTag("Play e5").and(hasText("YOURS"))).assertDoesNotExist()
+      waitUntilNodeExists(hasTestTag("Play e5").and(hasText("YOURS"))).assertExists()
     }
 
   @Test

@@ -66,7 +66,7 @@ enum class ExploreInfoTab {
  * @param explorerViewModel View model driving the Lichess opening explorer tab.
  * @param onPlayLichessMove Invoked when the user taps a Lichess move.
  * @param isMine Returns whether a SAN continuation is already a classified good move in the
- *   viewer's own repertoire. Null everywhere except the repertoire viewer.
+ *   viewer's own repertoire. Matching continuations are tagged YOURS. Null disables the tagging.
  * @param modifier Outer modifier (caller sets the panel size).
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -191,7 +191,7 @@ private fun ContinuationsContent(
                 typography.labelSm.copy(
                   fontSize = 7.5.sp,
                   letterSpacing = 0.08.em,
-                  color = palette.progressText,
+                  color = palette.onProgress,
                 ),
               modifier =
                 Modifier.background(palette.progress, RoundedCornerShape(7.dp))

@@ -115,8 +115,7 @@ internal fun rememberExplorerViewModel(
  * @param header Optional header content rendered above the layout.
  * @param viewerMode When non-null, renders the read-only viewer variant; see [ExplorerViewerMode].
  * @param myTreeStore When non null, continuations already present as a classified good move the
- *   user owns in this store at the current position are tagged YOURS in the sidebar (repertoire
- *   viewer only).
+ *   user owns in this store at the current position are tagged YOURS in the sidebar.
  */
 @Composable
 fun ExplorerContent(
@@ -137,7 +136,7 @@ fun ExplorerContent(
   val yoursBySan = remember { mutableStateMapOf<String, Boolean>() }
 
   // Marks each SAN in `moves` as YOURS when `myTreeStore` holds it as a good move at the current
-  // position. Reused by both places `nextMoves` is refreshed.
+  // position.
   suspend fun refreshYours(moves: List<String>) {
     val store = myTreeStore ?: return
     if (moves.isEmpty()) return

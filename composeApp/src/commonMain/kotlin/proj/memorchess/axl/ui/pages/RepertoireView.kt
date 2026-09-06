@@ -131,7 +131,7 @@ private fun ReadOnlyChip() {
       style =
         typography.labelSm.copy(fontSize = 8.5.sp, letterSpacing = 0.08.em, color = palette.ink2),
       modifier =
-        Modifier.background(palette.panel2, RoundedCornerShape(9.dp))
+        Modifier.background(palette.panel3, RoundedCornerShape(9.dp))
           .padding(horizontal = 7.dp, vertical = 3.dp),
     )
   }
