@@ -236,6 +236,11 @@
   <!-- Repertoire viewer -->
   <string name="repertoire_view_not_found">Repertoire \"%1$s\" is not in the catalog anymore.</string>
 
+  <!-- Navigation: side rail -->
+  <string name="side_rail_day_streak">DAY STREAK</string>
+  <string name="side_rail_today_progress">%1$d/%2$d today</string>
+  <string name="side_rail_today_done">%1$d today</string>
+
   <!-- Core toasts -->
   <string name="toast_no_previous_move">No previous move.</string>
   <string name="toast_no_next_move">No next move.</string>
