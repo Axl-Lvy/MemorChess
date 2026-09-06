@@ -177,8 +177,6 @@ fun Today(
   treeStore: TreeStore = koinInject(),
 ) {
   val navigator = LocalNavigator.current
-  val palette = LocalKineticPalette.current
-  val typography = LocalKineticTypography.current
 
   val stats by
     produceState<TodayStats?>(null, streakTracker, scheduler) {
@@ -213,10 +211,10 @@ fun Today(
       pendingCount = currentStats.pendingCount,
       onClick = { navigator.navigateTo(Route.TrainingRoute.DEFAULT) },
     )
-    when (pickUpState) {
+    when (val state = pickUpState) {
       PickUpCardState.Loading -> Unit
       is PickUpCardState.Ready -> {
-        val mastery = (pickUpState as PickUpCardState.Ready).mastery
+        val mastery = state.mastery
         if (mastery != null) PickUpCard(mastery) else EmptyPickUpCard()
       }
     }
@@ -260,7 +258,7 @@ private fun StreakBadge(streak: Int) {
       style = typography.displayLg.copy(fontSize = 26.sp, color = palette.onStreak),
     )
     Text(
-      text = stringResource(Res.string.today_streak_label, streak),
+      text = stringResource(Res.string.today_streak_label),
       maxLines = 1,
       style = typography.labelSm.copy(fontWeight = FontWeight.Black, color = palette.onStreak),
     )

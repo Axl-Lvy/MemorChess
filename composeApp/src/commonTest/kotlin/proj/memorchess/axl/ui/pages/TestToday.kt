@@ -15,7 +15,6 @@ import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import proj.memorchess.axl.core.data.DailyActivityRecord
 import proj.memorchess.axl.core.data.DailyActivityStore
@@ -111,6 +110,18 @@ class TestToday : TestWithKoin() {
     onNodeWithText("0").assertIsDisplayed()
   }
 
+  // WEEK STRIP — every one of the seven cells renders
+
+  @Test
+  fun everyWeekStripCellRenders() = runTestFromSetup {
+    val store = InMemoryDailyActivityStore()
+    val database = dbWithDueCards(0)
+    setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
+
+    waitUntilAtLeastOneExists(hasTestTag("today_week_strip"))
+    (1..7).forEach { isoIndex -> onNodeWithTag("today_week_cell_$isoIndex").assertExists() }
+  }
+
   // GOAL RING — target == 0 vs target > 0, goal already met
 
   @Test
@@ -130,6 +141,7 @@ class TestToday : TestWithKoin() {
     waitUntilAtLeastOneExists(hasTestTag("today_goal_ring"))
     onNodeWithTag("today_goal_ring").assertRangeInfoEquals(ProgressBarRangeInfo(1f, 0f..1f))
     onNodeWithTag("today_cta").assertIsDisplayed()
+    onNode(hasText("0 cards", substring = true)).assertIsDisplayed()
 
     onNodeWithTag("today_cta").performClick()
 
@@ -165,16 +177,14 @@ class TestToday : TestWithKoin() {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(0)
     val treeStore = testTreeStore(database)
-    runBlocking {
-      treeStore.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
-      val destination = PositionKey("posA b K")
-      treeStore.addMove(PositionKey.START_POSITION, "e4", destination, isGood = true, fromDepth = 0)
-      treeStore.tagEdge(PositionKey.START_POSITION, destination, "italian-game")
-      treeStore.updateCardState(
-        PositionKey.START_POSITION,
-        CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = DateUtil.now()),
-      )
-    }
+    treeStore.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val destination = PositionKey("posA b K")
+    treeStore.addMove(PositionKey.START_POSITION, "e4", destination, isGood = true, fromDepth = 0)
+    treeStore.tagEdge(PositionKey.START_POSITION, destination, "italian-game")
+    treeStore.updateCardState(
+      PositionKey.START_POSITION,
+      CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = DateUtil.now()),
+    )
 
     setToday(StreakTracker(store), schedulerOver(database), treeStore)
 

@@ -266,7 +266,7 @@
   <string name="today_weekday_friday">Vendredi</string>
   <string name="today_weekday_saturday">Samedi</string>
   <string name="today_weekday_sunday">Dimanche</string>
-  <string name="today_streak_label">%1$d jour d'affilée</string>
+  <string name="today_streak_label">jours d'affilée</string>
   <string name="today_goal_progress">%1$d sur %2$d</string>
   <string name="today_goal_done">%1$d fait</string>
   <plurals name="today_start_review_cta">

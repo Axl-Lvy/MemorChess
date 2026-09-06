@@ -266,7 +266,7 @@
   <string name="today_weekday_friday">Friday</string>
   <string name="today_weekday_saturday">Saturday</string>
   <string name="today_weekday_sunday">Sunday</string>
-  <string name="today_streak_label">%1$d day streak</string>
+  <string name="today_streak_label">day streak</string>
   <string name="today_goal_progress">%1$d of %2$d</string>
   <string name="today_goal_done">%1$d done</string>
   <plurals name="today_start_review_cta">
