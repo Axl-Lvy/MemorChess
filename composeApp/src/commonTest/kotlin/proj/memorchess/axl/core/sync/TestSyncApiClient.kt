@@ -61,6 +61,13 @@ class TestSyncApiClient {
   }
 
   @Test
+  fun rateLimitedPullReturnsRateLimited() = runTest {
+    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+
+    client(engine).pull("tok", since = null, limit = 500) shouldBe SyncPullOutcome.RateLimited
+  }
+
+  @Test
   fun successfulPushReturnsResponse() = runTest {
     val engine = MockEngine { _ ->
       respond(
@@ -88,5 +95,43 @@ class TestSyncApiClient {
 
     client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
       SyncPushOutcome.TooLarge
+  }
+
+  @Test
+  fun quotaExceededPushReturnsQuotaExceeded() = runTest {
+    val engine = MockEngine { _ ->
+      respond(
+        content = ByteReadChannel("""{"code":"quota_exceeded","message":"too many nodes"}"""),
+        status = HttpStatusCode.Forbidden,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+      SyncPushOutcome.QuotaExceeded
+  }
+
+  @Test
+  fun forbiddenPushWithoutTheQuotaCodeReturnsError() = runTest {
+    // 403 is not unambiguous the way 401/413 are: branch on ApiError.code, never on status alone.
+    val engine = MockEngine { _ ->
+      respond(
+        content = ByteReadChannel("""{"code":"forbidden","message":"not your repertoire"}"""),
+        status = HttpStatusCode.Forbidden,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    client(engine)
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList()))
+      .shouldBeInstanceOf<SyncPushOutcome.Error>()
+  }
+
+  @Test
+  fun rateLimitedPushReturnsRateLimited() = runTest {
+    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+
+    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+      SyncPushOutcome.RateLimited
   }
 }

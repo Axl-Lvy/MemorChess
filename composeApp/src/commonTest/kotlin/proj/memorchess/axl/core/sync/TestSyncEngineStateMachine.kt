@@ -129,6 +129,65 @@ class TestSyncEngineStateMachine {
   }
 
   @Test
+  fun quotaExceededPausesWithNoRetryTimer() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.QuotaExceeded
+        }
+      )
+    e.start()
+
+    e.syncNow()
+    advanceTimeBy(100.milliseconds)
+    e.status.value shouldBe SyncJobStatus.PAUSED_QUOTA_EXCEEDED
+
+    // No further cycle should fire on its own after a long wait.
+    advanceTimeBy(600.seconds)
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun notifyDirtyDuringQuotaExceededPauseDoesNotResumeTheCycle() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.QuotaExceeded
+        }
+      )
+    e.start()
+    e.syncNow()
+    advanceTimeBy(100.milliseconds)
+    e.status.value shouldBe SyncJobStatus.PAUSED_QUOTA_EXCEEDED
+
+    e.notifyDirty()
+    advanceTimeBy(30.seconds)
+
+    e.status.value shouldBe SyncJobStatus.PAUSED_QUOTA_EXCEEDED
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun aStoredQuotaExceededPauseAtStartupStaysPausedWithNoRetryTimer() = runTest {
+    val jobStore = SyncJobStore(TestSettings())
+    jobStore.write(
+      SyncJobState(SyncJobStatus.PAUSED_QUOTA_EXCEEDED, nextAttemptAt = null, attempt = 0)
+    )
+    var cycles = 0
+    val e = engine(cycle = { cycles++.let { CycleOutcome.Success } }, jobStore = jobStore)
+
+    e.start()
+    advanceTimeBy(600.seconds)
+
+    e.status.value shouldBe SyncJobStatus.PAUSED_QUOTA_EXCEEDED
+    cycles shouldBe 0
+  }
+
+  @Test
   fun aStoredRunningStateAtStartupIsTreatedAsCrashedAndRescheduled() = runTest {
     val jobStore = SyncJobStore(TestSettings())
     jobStore.write(SyncJobState(SyncJobStatus.RUNNING, nextAttemptAt = null, attempt = 0))

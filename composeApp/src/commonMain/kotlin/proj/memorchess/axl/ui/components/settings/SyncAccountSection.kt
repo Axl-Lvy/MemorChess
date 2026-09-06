@@ -35,6 +35,7 @@ import memorchess.composeapp.generated.resources.sync_signing_in
 import memorchess.composeapp.generated.resources.sync_status_backing_off
 import memorchess.composeapp.generated.resources.sync_status_idle
 import memorchess.composeapp.generated.resources.sync_status_paused_no_auth
+import memorchess.composeapp.generated.resources.sync_status_paused_quota_exceeded
 import memorchess.composeapp.generated.resources.sync_status_syncing
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -159,6 +160,7 @@ private fun SyncJobStatus.toStringResource(): StringResource =
     SyncJobStatus.RUNNING -> Res.string.sync_status_syncing
     SyncJobStatus.BACKING_OFF -> Res.string.sync_status_backing_off
     SyncJobStatus.PAUSED_NO_AUTH -> Res.string.sync_status_paused_no_auth
+    SyncJobStatus.PAUSED_QUOTA_EXCEEDED -> Res.string.sync_status_paused_quota_exceeded
   }
 
 /** The account's display name, falling back to [Account.sub] when no name was decoded. */

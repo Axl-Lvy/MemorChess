@@ -59,13 +59,16 @@ class TestSyncRoutes {
     )
 
   /** Runs [block] against the real module, real store and real Postgres, as one caller. */
-  private fun withServer(block: suspend (HttpClient, String) -> Unit) = testApplication {
+  private fun withServer(
+    store: SyncStore = SyncStore(PostgresTestDb.dataSource()),
+    block: suspend (HttpClient, String) -> Unit,
+  ) = testApplication {
     val user = PostgresTestDb.newUserId()
     application {
       syncModule(
         config = config,
         jwkProvider = TestJwkProvider(key),
-        store = SyncStore(PostgresTestDb.dataSource()),
+        store = store,
         readiness = { true },
         clock = { serverNow },
       )
@@ -297,4 +300,45 @@ class TestSyncRoutes {
     client.post("/v1/sync") { setBody("{}") }.status shouldBe HttpStatusCode.Unauthorized
     client.delete("/v1/me").status shouldBe HttpStatusCode.Unauthorized
   }
+
+  @Test
+  fun `refuses a push that would cross the caller's storage quota`() =
+    withServer(store = SyncStore(PostgresTestDb.dataSource(), maxNodesPerUser = 0)) { client, token
+      ->
+      val response =
+        client.post("/v1/sync") {
+          header(HttpHeaders.Authorization, "Bearer $token")
+          contentType(ContentType.Application.Json)
+          setBody(
+            SYNC_JSON.encodeToString(
+              SyncPushRequest(
+                nodes =
+                  listOf(
+                    NodeSyncRow(
+                      positionKey = "fen-1",
+                      dueDate = serverNow,
+                      lastReview = null,
+                      firstReview = null,
+                      stability = 1.5,
+                      difficulty = 5.0,
+                      reps = 0,
+                      lapses = 0,
+                      phase = "REVIEW",
+                      step = 0,
+                      isDeleted = false,
+                      updatedAt = serverNow,
+                      originDevice = "device-a",
+                      deviceSeq = 1,
+                    )
+                  ),
+                edges = emptyList(),
+                settings = emptyList(),
+              )
+            )
+          )
+        }
+
+      response.status shouldBe HttpStatusCode.Forbidden
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "quota_exceeded"
+    }
 }
