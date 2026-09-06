@@ -118,17 +118,23 @@ const PR_SCHEMA = {
   required: ['prUrl'],
 }
 
-// GitHub MCP tools ONLY — gh (and any direct REST/GraphQL) is not available
-// in this harness. Every prompt that touches GitHub gets this block.
+// GitHub access differs by environment — DETECT, don't hard-code. Remotely
+// (this harness) gh does not work, only the MCP tools do. Locally (Claude
+// Code CLI on a dev machine) gh works fine but the GitHub MCP server may not
+// be attached. Every prompt that touches GitHub gets this block so it picks
+// the right path wherever it runs.
 const GH_RULES = `
-CRITICAL — GitHub access: the \`gh\` CLI and any direct GitHub REST/GraphQL call
-DO NOT WORK in this harness. Never write "gh ..." anywhere. Load the GitHub
-MCP tools first with, e.g.:
-  ToolSearch("select:mcp__github__issue_read,mcp__github__pull_request_read,mcp__github__create_pull_request,mcp__github__update_pull_request")
-Then use them directly (issue_read/get, pull_request_read with method
-get_check_runs / get_comments / get_diff, create_pull_request,
-update_pull_request draft:false, ...). Plain git over HTTPS (fetch, checkout,
-commit, push) works normally — only the GitHub API surface is affected.
+GitHub access — this may be running remotely (where the \`gh\` CLI and any
+direct GitHub REST/GraphQL call DO NOT WORK) or locally (where \`gh\` works
+normally but the GitHub MCP tools may not be attached). Detect which applies:
+  1. Try: ToolSearch("select:mcp__github__issue_read,mcp__github__pull_request_read,mcp__github__create_pull_request,mcp__github__update_pull_request")
+  2. If those resolve, use them (issue_read/get, pull_request_read with method
+     get_check_runs / get_comments / get_diff, create_pull_request,
+     update_pull_request draft:false, ...).
+  3. If ToolSearch finds nothing, fall back to the gh CLI directly (gh issue
+     view, gh pr create, gh pr checks, gh pr view --json ..., gh api ...).
+Never hard-code only one path. Plain git over HTTPS (fetch, checkout, commit,
+push) works normally either way — only the GitHub API surface differs.
 `
 
 const REPO_RULES = `
@@ -251,15 +257,17 @@ async function specAndImplement(issue, baseRef, phaseName) {
   let spec = (await agent(specPrompt(issue), { label: `spec-${issue.number}`, phase: phaseName, schema: SPEC_SCHEMA }))?.spec
   if (!spec) throw new Error(`Spec writer for #${issue.number} failed.`)
 
-  for (let round = 1; round <= 2; round++) {
-    const review = await agent(specReviewerPrompt(issue, spec), {
-      label: `spec-review-${issue.number}-r${round}`, phase: phaseName, model: 'fable', schema: REVIEW_SCHEMA,
-    })
-    const findings = review?.findings || []
-    if (findings.length === 0) { log(`#${issue.number}: spec clean.`); break }
-    log(`#${issue.number}: spec review round ${round} found ${findings.length} gap(s).`)
-    if (round === 2) { log(`#${issue.number}: spec review cap reached, proceeding with unresolved gaps.`); break }
-    const fixed = await agent(specFixerPrompt(issue, spec, findings), { label: `spec-fix-${issue.number}-r${round}`, phase: phaseName, schema: SPEC_SCHEMA })
+  // Spec review is a single pass: write, review once, fix once if needed.
+  // No re-review loop — that's the point, keep this cheap.
+  const specReview = await agent(specReviewerPrompt(issue, spec), {
+    label: `spec-review-${issue.number}`, phase: phaseName, model: 'opus', schema: REVIEW_SCHEMA,
+  })
+  const specFindings = specReview?.findings || []
+  if (specFindings.length === 0) {
+    log(`#${issue.number}: spec clean.`)
+  } else {
+    log(`#${issue.number}: spec review found ${specFindings.length} gap(s), fixing.`)
+    const fixed = await agent(specFixerPrompt(issue, spec, specFindings), { label: `spec-fix-${issue.number}`, phase: phaseName, schema: SPEC_SCHEMA })
     if (fixed?.spec) spec = fixed.spec
   }
 
@@ -272,7 +280,7 @@ async function specAndImplement(issue, baseRef, phaseName) {
   let unresolved = []
   for (let round = 1; round <= 2; round++) {
     const review = await agent(reviewerPrompt(issue, impl.branch, impl.worktreePath, baseRef, round === 1 ? 'first' : 'second'), {
-      label: `review-${issue.number}-r${round}`, phase: phaseName, model: 'fable', schema: REVIEW_SCHEMA,
+      label: `review-${issue.number}-r${round}`, phase: phaseName, model: 'opus', schema: REVIEW_SCHEMA,
     })
     const findings = review?.findings || []
     if (findings.length === 0) { log(`#${issue.number}: review round ${round} clean.`); unresolved = []; break }

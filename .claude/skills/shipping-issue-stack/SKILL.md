@@ -92,23 +92,34 @@ Get explicit approval before launching the workflow — this is
 superpowers:brainstorming's hard gate, it does not relax because the next
 step is "just running a workflow."
 
-## GitHub access: use the MCP tools, not `gh`
+## GitHub access: MCP tools remotely, `gh` locally — detect, don't assume
 
-**In this harness, `gh` and any direct GitHub REST/GraphQL access are not
-available to the session** (this is stated in the session's own system
-prompt, not something to rediscover per run). Do not write `gh issue view`,
-`gh pr create`, `gh pr checks`, `gh stack ...`, or any `gh api ...` call into
-any prompt in this skill's workflow — it will fail, and diagnosing that live
-burns a full round-trip for nothing.
+This skill runs in two different environments and the GitHub access path is
+**not** the same in both:
 
-Every prompt below (spec writer, reviewer, harmonizer, monitor) must instead
-tell its agent to reach the GitHub MCP tools via `ToolSearch` (they're
-session-connected and reachable from any workflow agent) — e.g.
-`ToolSearch("select:mcp__github__issue_read,mcp__github__pull_request_read")`
-— and use those: `issue_read` / `pull_request_read` (methods `get`,
-`get_diff`, `get_check_runs`, `get_comments`, ...), `create_pull_request`,
-`update_pull_request`. Plain `git` over HTTPS (fetch/checkout/commit/push)
-works normally throughout — only the GitHub API surface is affected.
+- **Remote (this harness, claude.ai/code)**: `gh` and any direct GitHub
+  REST/GraphQL access are not available to the session (confirmed by direct
+  testing, not something to rediscover per run). Only the GitHub MCP tools
+  work here.
+- **Local (Claude Code CLI on a developer machine)**: `gh` is installed and
+  authenticated and works normally. The GitHub MCP server may or may not be
+  attached in a given local setup — don't assume it is.
+
+So every prompt below (spec writer, reviewer, PR opener, monitor) must tell
+its agent to **detect which is available, not hard-code one**:
+
+1. Try `ToolSearch("select:mcp__github__issue_read,mcp__github__pull_request_read,mcp__github__create_pull_request,mcp__github__update_pull_request")`
+   first. If the MCP tools resolve, use them: `issue_read` / `pull_request_read`
+   (methods `get`, `get_diff`, `get_check_runs`, `get_comments`, ...),
+   `create_pull_request`, `update_pull_request`.
+2. If `ToolSearch` finds nothing (no GitHub MCP server in this session), fall
+   back to the `gh` CLI directly: `gh issue view`, `gh pr create`, `gh pr
+   checks`, `gh pr view --json ...`, `gh api ...`.
+
+Never write a prompt that hard-codes only one path — a script written for a
+local run with only `gh` will fail outright the next time it's run remotely,
+and vice versa. Plain `git` over HTTPS (fetch/checkout/commit/push) works
+normally in both environments regardless.
 
 ## Phase 1 — Spec → implement → review (per issue)
 
@@ -119,9 +130,10 @@ directory. Per issue, the pipeline is:
    reads the issue and the Phase-0 decisions, writes a concrete
    implementation spec (files touched, exact changes, edge cases, test
    plan). Returns spec text.
-2. **Spec review loop** (`fable`): checks the spec against the issue's
+2. **Spec review, once** (`opus`): checks the spec against the issue's
    acceptance criteria and repo conventions (CLAUDE.md, layer-map CLAUDE.mds).
-   Findings → writer revises the spec (not code). Loop, cap 2 rounds.
+   Findings → one fix pass on the spec text (not code). No loop, no
+   re-review after the fix — write, review, fix, move on.
 3. **Implement** (`isolation: 'worktree'`): TDD from the approved spec. First
    commands must re-pin the branch explicitly (`git fetch origin && git
    checkout -B <branch> <baseRef>`) since a fresh worktree can start from a
@@ -138,7 +150,7 @@ directory. Per issue, the pipeline is:
    <branch>` — plain push, this is a brand-new branch so it cannot conflict),
    then `git switch --detach` so the branch name is free for the next agent.
    Do not open a PR yet.
-4. **Code review loop** (`fable` reads `git diff <baseRef>...<branch>`;
+4. **Code review loop** (`opus` reads `git diff <baseRef>...<branch>`;
    writer fixes, re-attaching with `git checkout <branch>` and detaching
    again after committing **and pushing** — same plain push each round).
    Loop, cap 2 rounds — log unresolved findings on cap-out rather than
@@ -278,7 +290,7 @@ it):
 | Role | Model |
 |---|---|
 | Spec writer, implementer, fixer (spec or code) | Decided in Phase 0 — inherit session unless the user asked otherwise |
-| Spec reviewer, code reviewer | `fable` |
+| Spec reviewer, code reviewer | `opus` |
 | PR-opener, CI/Sonar babysitter | Cheap model is fine for polling; use judgment for the fix/no-fix decisions |
 
 ## Common mistakes
@@ -293,8 +305,9 @@ it):
   flow) after any issue in the batch has already completed a step — see
   "Resume-safety rules". This is the single most expensive mistake this
   skill can make; it has cost a full implementer redo twice.
-- Writing `gh ...` into any agent prompt — it does not work in this
-  harness. Use the GitHub MCP tools everywhere.
+- Hard-coding one GitHub access path into a prompt instead of detecting —
+  `gh` doesn't work remotely, MCP GitHub tools may not be attached locally.
+  Always try the MCP tools first, fall back to `gh` if they don't resolve.
 - `git add -A` in a reused worktree without reading `git status` first — has
   silently swept in and committed a stray, unrelated, uncommitted change
   from an earlier run twice, once masking a real unfixed bug.
