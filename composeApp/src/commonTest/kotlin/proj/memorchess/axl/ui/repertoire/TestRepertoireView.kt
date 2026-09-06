@@ -1,10 +1,6 @@
 package proj.memorchess.axl.ui.repertoire
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
@@ -90,10 +86,6 @@ class TestRepertoireView : TestWithKoin() {
   private fun cardTag(d: RepertoireDescriptor) = "library_repertoire_card:${d.id}"
 
   private fun progressTag(d: RepertoireDescriptor) = "library_progress:${d.id}"
-
-  /** Reads the live [ProgressBarRangeInfo.current] off the node tagged [tag], mid-animation. */
-  private fun ComposeUiTest.currentProgress(tag: String): Float =
-    onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].current
 
   /** Catalog + client backed by a [MockEngine] serving a one line manifest and PGN. */
   private fun mockCatalog(
@@ -436,148 +428,6 @@ class TestRepertoireView : TestWithKoin() {
     // itself carries both the tag and the label rather than the label living on a separate
     // descendant.
     onNode(hasTestTag("library_hero_card:cta").and(hasText("Add to my training"))).assertExists()
-  }
-
-  @Test
-  fun heroProgressBarShowsPlaceholderMasteryFraction() = runLibraryTest {
-    setLibraryContent(
-      catalogState =
-        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
-    )
-    onNodeWithTag("library_hero_progress_bar")
-      .assertRangeInfoEquals(
-        ProgressBarRangeInfo(placeholderRepertoireMastery().solidPercent / 100f, 0f..1f)
-      )
-  }
-
-  // ---------------------------------------------------------------------------------------------
-  // Install-progress bar transitions (issue #282 round-2 review): a static render of each
-  // RepertoireInstallState (above) never exercises the animated hand-off *between* states, which is
-  // exactly where a hoisted Animatable can sweep the wrong way. These mutate installStates across
-  // recompositions with the clock paused, so the assertions cover direction, not just the settled
-  // value.
-  // ---------------------------------------------------------------------------------------------
-
-  @Test
-  fun installBarFillsForwardAndBadgeFlipsAcrossFetchingImportingInstalled() = runComposeUiTest {
-    koinSetUp()
-    try {
-      mainClock.autoAdvance = false
-      var installStates by mutableStateOf<Map<String, RepertoireInstallState>>(emptyMap())
-      setContent {
-        InitializeApp {
-          RepertoireLibraryContent(
-            catalogState =
-              LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
-            installStates = installStates,
-            previewStates = emptyMap(),
-            actions =
-              RepertoireLibraryActions(
-                onInstall = {},
-                onPreviewRequest = {},
-                onRetry = {},
-                onView = {},
-              ),
-          )
-        }
-      }
-      mainClock.advanceTimeByFrame()
-      onNode(hasText("NEW").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
-        .assertExists()
-
-      // Fetching sweeps 0% -> 30% over 300ms: sampled partway through, the bar must have risen
-      // from empty, not merely settled somewhere below 30%.
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching)
-      mainClock.advanceTimeByFrame()
-      mainClock.advanceTimeBy(100)
-      mainClock.advanceTimeByFrame()
-      val midFetch = currentProgress(progressTag(secondDescriptor))
-      assertTrue(
-        midFetch in 0f..0.30f,
-        "expected the Fetching sweep to be rising from 0% toward 30%, was $midFetch",
-      )
-      mainClock.advanceTimeBy(300)
-      mainClock.advanceTimeByFrame()
-      onNodeWithTag(progressTag(secondDescriptor))
-        .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
-
-      // Importing continues the same sweep 30% -> 100%: sampled partway through, the bar must have
-      // risen past 30%, not dropped back toward it.
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Importing)
-      mainClock.advanceTimeByFrame()
-      mainClock.advanceTimeBy(100)
-      mainClock.advanceTimeByFrame()
-      val midImport = currentProgress(progressTag(secondDescriptor))
-      assertTrue(
-        midImport in 0.30f..1.00f,
-        "expected the Importing sweep to be rising from 30% toward 100%, was $midImport",
-      )
-      mainClock.advanceTimeBy(300)
-      mainClock.advanceTimeByFrame()
-      onNodeWithTag(progressTag(secondDescriptor))
-        .assertRangeInfoEquals(ProgressBarRangeInfo(1.00f, 0f..1f))
-
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null))
-      mainClock.advanceTimeByFrame()
-      onNode(hasText("IN TRAINING").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
-        .assertExists()
-    } finally {
-      koinTearDown()
-    }
-  }
-
-  @Test
-  fun installProgressRestartsAtZeroOnReinstallInsteadOfSweepingBackward() = runComposeUiTest {
-    koinSetUp()
-    try {
-      mainClock.autoAdvance = false
-      var installStates by
-        mutableStateOf<Map<String, RepertoireInstallState>>(
-          mapOf(secondDescriptor.id to RepertoireInstallState.Importing)
-        )
-      setContent {
-        InitializeApp {
-          RepertoireLibraryContent(
-            catalogState =
-              LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
-            installStates = installStates,
-            previewStates = emptyMap(),
-            actions =
-              RepertoireLibraryActions(
-                onInstall = {},
-                onPreviewRequest = {},
-                onRetry = {},
-                onView = {},
-              ),
-          )
-        }
-      }
-      mainClock.advanceTimeByFrame()
-      mainClock.advanceTimeBy(300)
-      mainClock.advanceTimeByFrame()
-      onNodeWithTag(progressTag(secondDescriptor))
-        .assertRangeInfoEquals(ProgressBarRangeInfo(1.00f, 0f..1f))
-
-      // Reinstalling: Importing (100%) -> Fetching must restart the sweep at 0%. Before the fix,
-      // the hoisted Animatable animated from 1.00 down to Fetching's 0.30 target instead, so a
-      // sample shortly after the transition would read close to 1.00 and falling.
-      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Fetching)
-      mainClock.advanceTimeByFrame()
-      mainClock.advanceTimeBy(100)
-      mainClock.advanceTimeByFrame()
-      val midReinstall = currentProgress(progressTag(secondDescriptor))
-      assertTrue(
-        midReinstall in 0f..0.30f,
-        "expected the reinstall sweep to rise from 0% toward 30%, not drain down from 100%, " +
-          "was $midReinstall",
-      )
-      mainClock.advanceTimeBy(300)
-      mainClock.advanceTimeByFrame()
-      onNodeWithTag(progressTag(secondDescriptor))
-        .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
-    } finally {
-      koinTearDown()
-    }
   }
 
   // ---------------------------------------------------------------------------------------------

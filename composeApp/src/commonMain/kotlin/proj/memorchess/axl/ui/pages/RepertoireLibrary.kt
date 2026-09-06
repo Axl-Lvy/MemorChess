@@ -8,7 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +45,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -119,6 +116,7 @@ import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.theme.KineticMotion
+import proj.memorchess.axl.ui.theme.KineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
@@ -290,11 +288,6 @@ private fun CatalogError(message: String, onRetry: () -> Unit) {
  * message when the catalog lists nothing, and otherwise a hero pick, the color filter chips and one
  * card per (filtered) repertoire — or a "nothing matches" message when the filter excludes
  * everything.
- *
- * The stale hint, hero card, and filter chips are leading items of the same [LazyColumn] as the
- * repertoire cards, rather than fixed content composed above it: the whole page then scrolls as one
- * surface, so a short viewport (a landscape phone, say) scrolls the hero and chips away with the
- * rest of the list instead of them permanently squeezing it down to about one visible card.
  */
 @Composable
 private fun CatalogList(
@@ -305,75 +298,56 @@ private fun CatalogList(
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
-  if (state.repertoires.isEmpty()) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      if (state.isStale) {
-        StaleCatalogHint()
-      }
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    if (state.isStale) {
+      Text(
+        text = stringResource(Res.string.library_stale_hint),
+        style = typography.bodySm.copy(color = palette.actionText),
+        modifier =
+          Modifier.fillMaxWidth()
+            .background(palette.panel2)
+            .border(width = 1.dp, color = palette.line)
+            .padding(8.dp),
+      )
+    }
+    if (state.repertoires.isEmpty()) {
       Text(
         text = stringResource(Res.string.library_empty),
         style = typography.bodySm.copy(color = palette.ink3),
       )
-    }
-    return
-  }
-  var filter by remember { mutableStateOf(LibraryColorFilter.ALL) }
-  val hero = remember(state.repertoires) { pickHeroRepertoire(state.repertoires) }
-  val filtered = filterRepertoires(state.repertoires, installStates, filter)
-  LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    if (state.isStale) {
-      item(key = "library-stale-hint") { StaleCatalogHint() }
-    }
-    if (hero != null) {
-      item(key = "library-hero") {
+    } else {
+      var filter by remember { mutableStateOf(LibraryColorFilter.ALL) }
+      val hero = remember(state.repertoires) { pickHeroRepertoire(state.repertoires) }
+      if (hero != null) {
         HeroPackCard(descriptor = hero, onInstallRequest = { onInstallRequest(hero) })
       }
-    }
-    item(key = "library-filters") {
       FilterChipRow(
         repertoires = state.repertoires,
         installStates = installStates,
         selected = filter,
         onSelect = { filter = it },
       )
-    }
-    if (filtered.isEmpty()) {
-      item(key = "library-filter-empty") {
+      val filtered = filterRepertoires(state.repertoires, installStates, filter)
+      if (filtered.isEmpty()) {
         Text(
           text = stringResource(Res.string.library_filter_empty),
           style = typography.bodySm.copy(color = palette.ink3),
           modifier = Modifier.testTag("library_filter_empty"),
         )
-      }
-    } else {
-      items(filtered, key = { it.id }) { descriptor ->
-        RepertoireCard(
-          descriptor = descriptor,
-          installState = installStates[descriptor.id] ?: RepertoireInstallState.NotInstalled,
-          onInstallRequest = { onInstallRequest(descriptor) },
-          onView = { onView(descriptor) },
-        )
+      } else {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          items(filtered, key = { it.id }) { descriptor ->
+            RepertoireCard(
+              descriptor = descriptor,
+              installState = installStates[descriptor.id] ?: RepertoireInstallState.NotInstalled,
+              onInstallRequest = { onInstallRequest(descriptor) },
+              onView = { onView(descriptor) },
+            )
+          }
+        }
       }
     }
   }
-}
-
-/** Bordered hint shown above the list when [CatalogList] is rendering an expired cached catalog. */
-@Composable
-private fun StaleCatalogHint() {
-  val palette = LocalKineticPalette.current
-  val typography = LocalKineticTypography.current
-  val shape = MaterialTheme.shapes.medium
-  Text(
-    text = stringResource(Res.string.library_stale_hint),
-    style = typography.bodySm.copy(color = palette.actionText),
-    modifier =
-      Modifier.fillMaxWidth()
-        .background(palette.panel2, shape)
-        .border(width = 1.5.dp, color = palette.line, shape = shape)
-        .clip(shape)
-        .padding(8.dp),
-  )
 }
 
 /**
@@ -420,11 +394,11 @@ private fun filterRepertoires(
 
 /**
  * 8dp-tall, 5dp-radius progress bar shared by the hero card, the per-pack mastery bar and the
- * install-progress bar. [fraction] is read lazily — inside the [semantics] block and again inside
- * [drawBehind] — but never during composition itself, so an animated caller (the install sweep)
- * does not force this composable (or its parent) to recompose every frame; only semantics and
- * drawing re-run. [testTag] carries a [ProgressBarRangeInfo] so tests can assert the exact fraction
- * via `assertRangeInfoEquals` without reaching into a private function from another package.
+ * install-progress bar. [fraction] is read lazily and only during the draw phase — never during
+ * composition — so an animated caller (the install sweep) does not force this composable (or its
+ * parent) to recompose every frame; only the draw pass re-runs. [testTag] carries a
+ * [ProgressBarRangeInfo] so tests can assert the exact fraction via `assertRangeInfoEquals` without
+ * reaching into a private function from another package.
  */
 @Composable
 private fun LibraryProgressBar(
@@ -472,7 +446,7 @@ private const val SKELETON_ALPHA_LOW = 0.4f
  * animations driven through `withInfiniteAnimationFrameNanos` (`InfiniteAnimationPolicy`), which is
  * exactly what [rememberInfiniteTransition] uses internally; a loop built on plain `withFrameNanos`
  * always leaves a pending frame awaiter, so `waitForIdle()` never returns and every test that
- * renders a skeleton hangs. The spec passed to [infiniteRepeatable] is built once, on first
+ * renders a skeleton hangs. The spec passed to [infiniteRepeatable] is built once, outside
  * composition, inside the [remember] block — never freshly on every recomposition, per
  * [KineticMotion]'s own KDoc on wasmJs cost.
  */
@@ -523,6 +497,55 @@ private fun installProgressFraction(state: RepertoireInstallState): Float? =
   }
 
 /**
+ * [HeroPackCard]'s light/dark values, pre-resolved once instead of eight separate `if
+ * (palette.isLight)` ternaries scattered through the composable — a SonarCloud finding on the
+ * original version (cognitive complexity 31, ceiling 15). Values are named per usage site even
+ * where two sites happen to share a color today, so a future palette tune can move them
+ * independently without hunting for coincidental sharing.
+ */
+private data class HeroCardTheme(
+  val cardBackground: Modifier,
+  val colorBadgeBackground: Color,
+  val colorBadgeContent: Color,
+  val iconTileBackground: Color,
+  val titleColor: Color,
+  val descriptionColor: Color,
+  val progressTrackColor: Color,
+  val progressLabelColor: Color,
+)
+
+@Composable
+private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme =
+  if (palette.isLight) {
+    HeroCardTheme(
+      cardBackground = Modifier.background(palette.action, shape),
+      colorBadgeBackground = Color.White.copy(alpha = 0.16f),
+      colorBadgeContent = Color.White,
+      iconTileBackground = Color.White.copy(alpha = 0.14f),
+      titleColor = Color.White,
+      descriptionColor = Color.White.copy(alpha = 0.78f),
+      progressTrackColor = Color.White.copy(alpha = 0.2f),
+      progressLabelColor = Color.White,
+    )
+  } else {
+    HeroCardTheme(
+      // Dark drops the solid violet fill for a bordered panel per 1j.html's own note, "so the
+      // lime CTA stays the brightest thing on screen". palette.panel2/lineBright are the closest
+      // existing tokens to 1j's literal #2A1B47/#4A2E86 (no exact palette match exists for those
+      // two bespoke hex values — approximated rather than adding new tokens).
+      cardBackground =
+        Modifier.background(palette.panel2, shape).border(1.5.dp, palette.lineBright, shape),
+      colorBadgeBackground = palette.actionDim,
+      colorBadgeContent = palette.ink2,
+      iconTileBackground = palette.actionDim,
+      titleColor = palette.ink,
+      descriptionColor = palette.ink2,
+      progressTrackColor = palette.panel3,
+      progressLabelColor = palette.ink2,
+    )
+  }
+
+/**
  * Hero "picked for you" pack card at the top of the library. [descriptor] is chosen by
  * [pickHeroRepertoire] — a PLACEHOLDER (#282) pending #309's real recommendation signal. Its
  * progress readout also uses [placeholderRepertoireMastery] (#292's stub), so the numerator and
@@ -541,18 +564,12 @@ private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () 
   val shape = MaterialTheme.shapes.medium
   val mastery = placeholderRepertoireMastery() // PLACEHOLDER — see this composable's own KDoc.
   val accent = kineticAccentLimeColor(palette)
+  val theme = heroCardTheme(palette, shape)
   Column(
     modifier =
       Modifier.fillMaxWidth()
         .testTag("library_hero_card")
-        .then(
-          if (palette.isLight) Modifier.background(palette.action, shape)
-          else Modifier.background(palette.panel2, shape).border(1.5.dp, palette.lineBright, shape)
-          // Dark drops the solid violet fill for a bordered panel per 1j.html's own note, "so the
-          // lime CTA stays the brightest thing on screen". palette.panel2/lineBright are the
-          // closest existing tokens to 1j's literal #2A1B47/#4A2E86 (no exact palette match exists
-          // for those two bespoke hex values — approximated rather than adding new tokens).
-        )
+        .then(theme.cardBackground)
         .clip(shape)
         .padding(15.dp),
     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -572,8 +589,8 @@ private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () 
             RepertoireColor.WHITE -> stringResource(Res.string.library_color_white)
             RepertoireColor.BLACK -> stringResource(Res.string.library_color_black)
           },
-        background = if (palette.isLight) Color.White.copy(alpha = 0.16f) else palette.actionDim,
-        content = if (palette.isLight) Color.White else palette.ink2,
+        background = theme.colorBadgeBackground,
+        content = theme.colorBadgeContent,
       )
     }
     Row(
@@ -581,21 +598,10 @@ private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () 
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Box(
-        Modifier.size(50.dp)
-          .background(
-            if (palette.isLight) Color.White.copy(alpha = 0.14f) else palette.actionDim,
-            RoundedCornerShape(15.dp),
-          ),
+        Modifier.size(50.dp).background(theme.iconTileBackground, RoundedCornerShape(15.dp)),
         contentAlignment = Alignment.Center,
       ) {
-        Text(
-          descriptor.name.take(1).uppercase(),
-          // Explicit color, like every sibling Text in this card: KineticTypography styles carry
-          // no color, so this would otherwise fall back to LocalContentColor (Scaffold's
-          // onBackground = palette.ink), a near-black glyph on the light theme's translucent tile.
-          style =
-            typography.displayLg.copy(color = if (palette.isLight) Color.White else palette.ink),
-        )
+        Text(descriptor.name.take(1).uppercase(), style = typography.displayLg)
       }
       Column(Modifier.weight(1f)) {
         Text(
@@ -604,7 +610,7 @@ private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () 
             typography.displayLg.copy(
               fontSize = 21.sp,
               fontWeight = FontWeight.ExtraBold,
-              color = if (palette.isLight) Color.White else palette.ink,
+              color = theme.titleColor,
             ),
         )
         Text(
@@ -613,7 +619,7 @@ private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () 
             typography.bodySm.copy(
               fontSize = 11.5.sp,
               fontWeight = FontWeight.Bold,
-              color = if (palette.isLight) Color.White.copy(alpha = 0.78f) else palette.ink2,
+              color = theme.descriptionColor,
             ),
         )
       }
@@ -624,18 +630,14 @@ private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () 
     ) {
       LibraryProgressBar(
         fraction = { mastery.solidPercent / 100f },
-        trackColor = if (palette.isLight) Color.White.copy(alpha = 0.2f) else palette.panel3,
+        trackColor = theme.progressTrackColor,
         fillColor = accent,
         testTag = "library_hero_progress_bar",
         modifier = Modifier.weight(1f),
       )
       Text(
         stringResource(Res.string.library_hero_progress, mastery.solidCount, mastery.totalCount),
-        style =
-          typography.labelSm.copy(
-            fontSize = 10.5.sp,
-            color = if (palette.isLight) Color.White else palette.ink2,
-          ),
+        style = typography.labelSm.copy(fontSize = 10.5.sp, color = theme.progressLabelColor),
       )
     }
     KineticButton(
@@ -693,10 +695,7 @@ private fun FilterChipRow(
           repertoires.count { installStates[it.id] is RepertoireInstallState.Installed },
       )
     }
-  Row(
-    modifier = Modifier.horizontalScroll(rememberScrollState()),
-    horizontalArrangement = Arrangement.spacedBy(7.dp),
-  ) {
+  Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
     for (filter in LibraryColorFilter.entries) {
       FilterChip(filter, counts.getValue(filter), selected == filter) { onSelect(filter) }
     }
@@ -718,15 +717,12 @@ private fun FilterChip(
   Row(
     modifier =
       Modifier.testTag("library_filter_chip:${filter.name.lowercase()}")
+        .clickable(onClick = onClick)
         .then(
           if (isSelected) Modifier.background(palette.ink, shape)
           else Modifier.background(palette.panel, shape).border(1.5.dp, palette.line, shape)
         )
-        // Clip before the click target, so the state layer (and the hit target's visual bounds)
-        // follow the pill rather than the node's square bounds; selectable (not clickable) so the
-        // chip carries Role.Tab and a selected semantics flag for assistive tech.
         .clip(shape)
-        .selectable(selected = isSelected, onClick = onClick, role = Role.Tab)
         .padding(horizontal = 13.dp, vertical = 7.dp)
   ) {
     Text(
@@ -758,10 +754,6 @@ private fun labelResFor(filter: LibraryColorFilter): StringResource =
 /**
  * One catalog entry: icon tile, name, color tag, NEW/IN TRAINING badge, description, move count,
  * and the install action or its progress and outcome.
- *
- * Deliberately `fillMaxWidth()` in [CatalogList]'s vertical list rather than the brainstormed 196dp
- * fixed card width: that width came from a horizontal-carousel mockup, and this page — like every
- * other list in the app — scrolls vertically, one full-width card per row.
  */
 @Composable
 private fun RepertoireCard(
@@ -877,11 +869,8 @@ private fun ColorTag(color: RepertoireColor) {
  *
  * The install-progress sweep is one [Animatable] hoisted for the whole row, not per branch, so
  * transitioning Fetching -> Importing continues the fill from wherever it last sat (30% -> 100%)
- * instead of resetting to 0. Entering Fetching itself always snaps the sweep back to 0% first —
- * covering the first install, a retry from [Failed][RepertoireInstallState.Failed], and a reinstall
- * from [Installed][RepertoireInstallState.Installed] — so the bar always fills forward and never
- * drains backward from wherever a previous attempt left it. [LibraryProgressBar] only reads the
- * value in the draw phase, so this composable itself never recomposes on animation frames.
+ * instead of resetting to 0. [LibraryProgressBar] only reads it in the draw phase, so this
+ * composable itself never recomposes on animation frames.
  */
 @Composable
 private fun InstallStatusRow(
@@ -894,12 +883,6 @@ private fun InstallStatusRow(
   val animatedFraction = remember { Animatable(0f) }
   LaunchedEffect(installState) {
     val target = installProgressFraction(installState) ?: return@LaunchedEffect
-    if (installState is RepertoireInstallState.Fetching) {
-      // Every fetch (first install, retry, or reinstall) restarts the sweep at 0% instead of
-      // animating from wherever a previous attempt left the bar (e.g. Importing's 100%, or a
-      // stale value from a Failed attempt) — otherwise the bar would sweep backwards.
-      animatedFraction.snapTo(0f)
-    }
     animatedFraction.animateTo(target, KineticMotion.Routine.loadingSkeleton())
   }
   when (installState) {
@@ -930,14 +913,11 @@ private fun InstallStatusRow(
     is RepertoireInstallState.Installed ->
       Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         // PLACEHOLDER mastery bar (#292's stub), shown only once installed — see CatalogList's
-        // scope-narrowing note: an un-installed card shows no fabricated progress at all. Kept on
-        // the same lime fill the install sweep just completed with (rather than palette.progress,
-        // which is violet in light) so a successful install doesn't also flip hue the instant it
-        // lands, on top of the value dropping from the sweep's 100% to the placeholder percentage.
+        // scope-narrowing note: an un-installed card shows no fabricated progress at all.
         LibraryProgressBar(
           fraction = { placeholderRepertoireMastery().solidPercent / 100f },
           trackColor = palette.panel3,
-          fillColor = kineticAccentLimeColor(palette),
+          fillColor = palette.progress,
           testTag = "library_progress:${descriptor.id}",
         )
         val summary = installState.summary
