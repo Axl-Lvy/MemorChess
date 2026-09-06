@@ -32,6 +32,7 @@ import proj.memorchess.axl.core.date.DateUtil
 class LichessExplorerClient(
   private val httpClient: HttpClient,
   private val tokenProvider: () -> String? = { null },
+  private val userAgentProvider: () -> String? = ::explorerUserAgent,
   private val minGap: Duration = DEFAULT_MIN_GAP,
   private val maxAttemptsOn429: Int = DEFAULT_MAX_ATTEMPTS_ON_429,
 ) {
@@ -68,7 +69,7 @@ class LichessExplorerClient(
     return try {
       val response: HttpResponse =
         httpClient.get(url) {
-          explorerUserAgent()?.let { header(HttpHeaders.UserAgent, it) }
+          userAgentProvider()?.let { header(HttpHeaders.UserAgent, it) }
           bearerAuth(token)
           parameter("fen", fen)
           parameter("moves", plies)
