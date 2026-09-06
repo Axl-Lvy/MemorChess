@@ -61,28 +61,36 @@ Phase 1.
 Also confirm with the user, explicitly:
 
 - **The real dependency shape — decide this now, not after implementation.**
-  Most batches are one of two shapes:
+  This skill ships **a linear stack** by default. There are two shapes:
   - **Independent** — the issues touch disjoint code and have no real
-    dependency on each other. Each is based directly on `master`, implemented
-    and reviewed fully in parallel, and opened as its own PR against `master`.
-    No chain, no rebasing, nothing to harmonize.
-  - **One foundation + N dependents** — one issue lands shared
-    infrastructure (a token system, a shared component) the rest build on.
-    Implement and land that one first (see "Foundation-first" below), then
-    fan the rest out **directly against the foundation branch** — one level,
-    not a rebase chain. Each dependent PR's base is the foundation branch;
-    GitHub retargets them to `master` automatically once it merges.
-  A genuine multi-level chain (issue C really does build on issue B's actual
-  changes, not just a review-convenience ordering) is rare. If it applies,
-  give C that exact branch as its `baseRef` **from the start** — never
-  retrofit a chain by rebasing an already-implemented, already-pushed branch
-  onto another one after the fact (see "Never rebase a pushed branch" below
-  for why that specific move broke a real PR mid-session).
+    dependency on each other, and review order genuinely does not matter.
+    Each is based directly on `master`, implemented and reviewed fully in
+    parallel, and opened as its own PR against `master`. No chain, no
+    rebasing, nothing to harmonize. Use this only when a stack would add
+    nothing — it's the exception, not the default.
+  - **Chain (the default for any related batch)** — order the issues (a
+    real foundation first if one exists, otherwise a sensible review order),
+    then implement and land them **strictly one at a time**: issue 1 is
+    based on `master`; issue 2 is based on issue 1's actual pushed branch;
+    issue 3 on issue 2's; and so on. This is a genuine linear stack, the
+    same shape `gh-stack` manages — not a one-level fan-out where every
+    dependent points at the same foundation branch. Each PR's base is the
+    previous issue's branch; GitHub retargets each one down the chain
+    automatically as the branch below it merges. Give every issue its exact
+    `baseRef` (the previous issue's branch name) **from the start** — never
+    retrofit a chain by rebasing an already-implemented, already-pushed
+    branch onto another one after the fact (see "Never rebase a pushed
+    branch" below for why that specific move broke a real PR mid-session).
+  Chaining costs wall-clock: issues in a chain implement and review
+  sequentially, not in parallel, because each one's spec/implementation can
+  only start once the branch it bases on is actually pushed. That is the
+  trade for landing as a real stack instead of a fan-out that needs manual
+  rebasing into one afterward — accept it unless the batch is genuinely
+  Independent.
 - branch names
-- if there's a foundation issue: **land it first, sequentially**, before
-  fanning out the rest. This costs some wall-clock but means the dependent
-  issues implement against a real, finished foundation instead of a moving
-  target — cheap insurance against needing to re-sync everything later.
+- for a chain: **the exact order**, issue by issue — this fixes every
+  issue's `baseRef` up front (the previous issue's branch name) and is what
+  makes the sequential implementation order in Phase 1 unambiguous.
 - **the model each role should run.** Set this once, before Phase 1 starts,
   for every issue. If the user asks to change it mid-run after some issues
   have already implemented, see "Resume-safety rules" — the fix is never to
@@ -165,13 +173,17 @@ ephemeral worktree. That happened three times before this rule existed; each
 time, recovering meant manually finding and pushing local branches by hand
 before doing anything else.
 
-Run all issues' pipelines concurrently (`parallel()`) unless Phase 0 decided
-on foundation-first (in which case: the foundation issue runs alone, *then*
-the rest run concurrently against its finished branch). The main cost driver
-here is wall-clock, not machine resources (unlike a full Gradle build per
-implementer, spec/review steps are cheap). Only serialize further if you have
-a real resource constraint (e.g. two implementers both need to run a full
-Gradle build and the machine can't take two concurrent ones).
+For an Independent batch, run all issues' pipelines concurrently
+(`parallel()`) — the main cost driver there is wall-clock, not machine
+resources (unlike a full Gradle build per implementer, spec/review steps are
+cheap), so there is no reason to serialize further.
+
+For a Chain, run the pipelines **strictly one issue at a time**, in the order
+decided in Phase 0: issue *N*'s spec/implement/review only starts once issue
+*N-1*'s branch is pushed, because issue *N*'s `baseRef` is that exact branch.
+This is slower wall-clock than a fan-out, by design — it is what makes the
+result an actual stack instead of N PRs that all need manual rebasing into
+one afterward.
 
 ### Resume-safety rules
 
@@ -191,9 +203,11 @@ full implementer redo:
   parameter or a conditional to the existing function — write a **new,
   separate function** used only by the not-yet-run issues, and leave every
   byte of the original function and its call sites untouched.
-- **Don't restructure the fan-out's control flow after a run has begun**
-  (e.g. splitting one `parallel()` of four into two sequential `parallel()`
-  calls of two, to make a spend-limit cutoff land more cleanly). This
+- **Don't restructure the pipeline's control flow after a run has begun**
+  (e.g. splitting a chain's sequential loop into two separate loops, or an
+  Independent batch's one `parallel()` of four into two sequential
+  `parallel()` calls of two, to make a spend-limit cutoff land more
+  cleanly). This
   changes the recorded call order even for issues whose own code never
   changed, and has broken their cache too. If a spend-limit cutoff is a real
   risk, the fix is the push-immediately rule above (the git deliverable
@@ -219,9 +233,9 @@ One agent, per issue (or one agent for the whole batch — either is fine,
 there's no shared mutable git state left to serialize on):
 
 - Open the PR via the GitHub MCP `create_pull_request` tool (load via
-  `ToolSearch` first): `base` is `master` for the foundation issue (or for
-  any genuinely independent issue), or the foundation branch for a
-  dependent issue in the one-level-fan-out shape.
+  `ToolSearch` first): `base` is `master` for the first issue in a chain (or
+  for any genuinely independent issue), or the previous issue's branch for
+  every other issue in the chain.
 - `title`: the issue's Conventional Commits title. A `validate-pr-title` CI
   job (or equivalent) may enforce this format — match it exactly.
 - `body`: start with the **exact content** of
@@ -261,17 +275,21 @@ it):
   fresh on every analysis and is the reliable source. If a finding needs
   detail beyond the comment's summary/count, that's the point to fall back
   to the API — not as the first check.
-- **Every PR above the bottom of a one-level fan-out must re-sync whenever
-  the foundation branch moves *for any reason*, not just during this
-  phase's initial pass** — including a fix pushed to the foundation branch
-  *after* the stack's PRs were already opened (e.g. a Sonar finding fixed
-  post-hoc). Re-sync: `git merge origin/<foundation-branch> --no-edit`, then
+- **Every PR above the bottom of a chain must re-sync whenever the branch
+  immediately below it moves *for any reason*, not just during this
+  phase's initial pass** — including a fix pushed to that branch *after*
+  the stack's PRs were already opened (e.g. a Sonar finding fixed
+  post-hoc). Re-sync: `git merge origin/<branch-below> --no-edit`, then
   a plain `git push` if that brought in new commits. Never rebase a pushed
   branch — merge is the only safe way to pull a lower branch's fix into a
-  higher one post-push. Treat "the foundation branch just got a new commit"
-  as an event that invalidates every dependent PR's babysitting state until
-  each has re-synced and re-verified, whether that commit landed during the
-  original CI-red loop or was discovered later while babysitting Sonar.
+  higher one post-push. Treat "the branch below just got a new commit" as
+  an event that invalidates that PR's babysitting state until it has
+  re-synced and re-verified, whether that commit landed during the original
+  CI-red loop or was discovered later while babysitting Sonar. In a chain
+  deeper than one level, a fix low in the stack can need to cascade up
+  through several re-syncs before every PR above it is clean again — don't
+  stop at the first one that re-syncs cleanly if branches above it haven't
+  caught up yet.
 - On any real CI failure, spawn a fixer with the concrete failure detail
   (the actual check-run output or log, fetched via the MCP tools — never a
   vague "fix CI"). On a real Sonar finding, spawn a fixer with the actual
@@ -297,11 +315,15 @@ it):
 
 - Skipping Phase 0 because the issue already lists acceptance criteria —
   this repo's issues deliberately leave some calls open; brainstorm anyway.
-- Deciding the dependency shape (independent vs. foundation-first vs. a
-  genuine chain) *after* implementation instead of before — retrofitting it
-  means rebasing already-pushed branches, which both forbids force-pushing
-  and (separately) has actually broken a PR mid-session.
-- Editing a shared pipeline function (or restructuring the fan-out's control
+- Deciding the dependency shape (independent vs. chain) *after*
+  implementation instead of before — retrofitting it means rebasing
+  already-pushed branches, which both forbids force-pushing and
+  (separately) has actually broken a PR mid-session.
+- Defaulting to a one-level fan-out (every dependent based on the same
+  foundation branch) when the batch is not genuinely Independent — that
+  produces PRs a human then has to manually rebase into a real stack after
+  the fact. Chain them from the start instead.
+- Editing a shared pipeline function (or restructuring the pipeline's control
   flow) after any issue in the batch has already completed a step — see
   "Resume-safety rules". This is the single most expensive mistake this
   skill can make; it has cost a full implementer redo twice.

@@ -18,8 +18,8 @@ export const meta = {
   name: 'ship-issue-stack',
   description: 'Spec, implement, review, open PRs and CI-babysit a batch of issues',
   phases: [
-    { title: 'Foundation' }, // omit if the batch has no foundation issue
-    { title: 'Screens' }, // the parallel fan-out (or the whole batch, if independent)
+    { title: 'Chain' }, // sequential, one issue at a time (omit if the batch is Independent)
+    { title: 'Independent' }, // parallel fan-out for a genuinely independent batch (omit if Chain)
     { title: 'Open PRs' },
     { title: 'Babysit CI' },
   ],
@@ -32,26 +32,27 @@ const SONAR_PROJECT_KEY = 'owner_repo'
 
 // DEPENDENCY SHAPE — decided in Phase 0, not inferred here. Two shapes:
 //
-// (a) INDEPENDENT: every issue's baseRef is 'origin/master'. No foundation,
-//     everything runs in one parallel() batch, every PR bases on master.
+// (a) INDEPENDENT: every issue's baseRef is 'origin/master'. Everything runs
+//     in one parallel() batch, every PR bases on master. Use only when the
+//     issues genuinely touch disjoint code and review order does not matter.
 //
-// (b) FOUNDATION + FAN-OUT: ISSUES[0] is the foundation (baseRef
-//     'origin/master'), implemented alone first; every other issue's baseRef
-//     is a *placeholder* string 'FOUNDATION_BRANCH' resolved at runtime to
-//     the foundation's actual branch once it's done (see the bottom of this
-//     file). Each dependent PR bases on the foundation branch — one level,
-//     not a chain. A genuine multi-level dependency (issue C really builds
-//     on issue B's own changes) is rare: if it applies, put B's literal
-//     branch name directly as C's baseRef instead of the placeholder, and
-//     implement C strictly after B is pushed — never rebase a branch onto
-//     another one after the fact.
+// (b) CHAIN (the default for any related batch): ISSUES is the exact review
+//     order. ISSUES[0]'s baseRef is 'origin/master'; every other entry's
+//     baseRef is documentation only ('PREVIOUS_BRANCH' — the real value is
+//     always the previous entry's actual pushed branch, resolved at runtime
+//     below since implementation is strictly sequential). Each issue is
+//     implemented and reviewed only after the previous one is pushed. This
+//     is a genuine linear stack (the same shape gh-stack manages), not a
+//     one-level fan-out where every dependent points at the same foundation
+//     branch — never collapse the chain back into a fan-out to save
+//     wall-clock; that just moves the rebasing work onto a human later.
 const ISSUES = [
-  { number: 0, branch: 'feat/example-foundation', baseRef: 'origin/master', plan: 'Fill in from Phase 0.' },
-  { number: 0, branch: 'feat/example-dependent-a', baseRef: 'FOUNDATION_BRANCH', plan: 'Fill in from Phase 0.' },
-  { number: 0, branch: 'feat/example-dependent-b', baseRef: 'FOUNDATION_BRANCH', plan: 'Fill in from Phase 0.' },
+  { number: 0, branch: 'feat/example-first', baseRef: 'origin/master', plan: 'Fill in from Phase 0.' },
+  { number: 0, branch: 'feat/example-second', baseRef: 'PREVIOUS_BRANCH', plan: 'Fill in from Phase 0.' },
+  { number: 0, branch: 'feat/example-third', baseRef: 'PREVIOUS_BRANCH', plan: 'Fill in from Phase 0.' },
 ]
-// Set to null for shape (a). Set to ISSUES[0] for shape (b).
-const FOUNDATION = ISSUES[0]
+// true for shape (b) CHAIN (the default). false for shape (a) INDEPENDENT.
+const IS_CHAIN = true
 
 const SPEC_SCHEMA = {
   type: 'object',
@@ -302,7 +303,7 @@ async function specAndImplement(issue, baseRef, phaseName) {
 //
 // async function specAndImplementAlt(issue, baseRef, phaseName) { ... }
 
-function prOpenerPrompt(result, baseRefLabel, foundationNote) {
+function prOpenerPrompt(result, baseRefLabel, chainNote) {
   return `Open a pull request for issue #${result.number} (${REPO}). The branch
 ${result.branch} is ALREADY PUSHED and ALREADY based on the right commit —
 this task does no git operations at all, only opens the PR.
@@ -314,7 +315,7 @@ base "${baseRefLabel}", draft: true.
     check may enforce this format — match it exactly).
   - body: start with the EXACT content of .github/pull_request_template.md,
     then a description of the change, then "Closes #${result.number}".
-    ${foundationNote}
+    ${chainNote}
     If any review finding said something must be stated in the PR body
     (a scope decision, a known limitation) rather than just a code comment,
     include it verbatim — a code comment alone does not satisfy that finding.
@@ -322,13 +323,13 @@ base "${baseRefLabel}", draft: true.
 Return the structured schema: prUrl, and notes on anything unusual.`
 }
 
-function monitorPrompt(result, prUrl, foundationBranch) {
-  const sync = foundationBranch
-    ? `This PR is part of a fan-out based on ${foundationBranch}. First sync with
-its latest state (it may have a new commit since this branch was created,
+function monitorPrompt(result, prUrl, belowBranch) {
+  const sync = belowBranch
+    ? `This PR is part of a chain, based on ${belowBranch}. First sync with its
+latest state (it may have a new commit since this branch was created,
 including a fix pushed to it AFTER this stack's PRs were first opened):
   git fetch origin && git checkout -B ${result.branch} origin/${result.branch}
-  git merge origin/${foundationBranch} --no-edit
+  git merge origin/${belowBranch} --no-edit
 On conflict, STOP and return status "issues" with a single failure
 {source:"merge-conflict", detail:"..."}. Never rebase — merge only. If the
 merge brought in new commits, push normally (never --force):
@@ -381,9 +382,9 @@ amend/rebase/force). Then: git push origin ${result.branch} (plain push).
 Return a summary of what you changed for each failure.`
 }
 
-async function babysit(result, prUrl, foundationBranch) {
+async function babysit(result, prUrl, belowBranch) {
   for (let round = 1; round <= 3; round++) {
-    const monitor = await agent(monitorPrompt(result, prUrl, foundationBranch), {
+    const monitor = await agent(monitorPrompt(result, prUrl, belowBranch), {
       label: `monitor-${result.number}-r${round}`, phase: 'Babysit CI', schema: MONITOR_SCHEMA,
     })
     if (!monitor) return { prUrl, status: 'error' }
@@ -402,49 +403,49 @@ async function babysit(result, prUrl, foundationBranch) {
   return { prUrl, status: 'unresolved' }
 }
 
-let foundationResult = null
-if (FOUNDATION) {
-  phase('Foundation')
-  log(`Foundation issue #${FOUNDATION.number} first, sequentially.`)
-  foundationResult = await specAndImplement(FOUNDATION, FOUNDATION.baseRef, 'Foundation')
-  log(`Foundation done on ${foundationResult.branch}. Fanning out the rest against it.`)
+let allResults
+if (IS_CHAIN) {
+  phase('Chain')
+  allResults = []
+  let previousBranch = null
+  for (const issue of ISSUES) {
+    const baseRef = previousBranch ?? issue.baseRef // first issue only: origin/master
+    log(`#${issue.number}: implementing against ${baseRef}.`)
+    const result = await specAndImplement(issue, baseRef, 'Chain')
+    allResults.push(result)
+    previousBranch = result.branch
+    log(`#${issue.number}: done on ${previousBranch}. Next issue in the chain bases on it.`)
+  }
+} else {
+  phase('Independent')
+  allResults = (await parallel(
+    ISSUES.map((issue) => () => specAndImplement(issue, issue.baseRef, 'Independent')),
+  )).filter(Boolean)
+  if (allResults.length !== ISSUES.length) {
+    log(`WARNING: only ${allResults.length}/${ISSUES.length} pipelines completed. Opening PRs for what succeeded.`)
+  }
 }
-
-const dependents = ISSUES.filter((i) => i !== FOUNDATION)
-
-phase('Screens')
-const dependentResults = (await parallel(
-  dependents.map((issue) => () => {
-    const baseRef = issue.baseRef === 'FOUNDATION_BRANCH' ? foundationResult.branch : issue.baseRef
-    return specAndImplement(issue, baseRef, 'Screens')
-  }),
-)).filter(Boolean)
-if (dependentResults.length !== dependents.length) {
-  log(`WARNING: only ${dependentResults.length}/${dependents.length} pipelines completed. Opening PRs for what succeeded.`)
-}
-
-const allResults = foundationResult ? [foundationResult, ...dependentResults] : dependentResults
 
 phase('Open PRs')
 const prResults = []
-for (const result of allResults) {
-  const isFoundation = foundationResult && result.number === foundationResult.number
-  const baseRefLabel = isFoundation ? 'master' : foundationResult ? foundationResult.branch : 'master'
-  const foundationNote = isFoundation
-    ? `Note in the body that this PR is the foundation for a batch of dependent PRs.`
-    : `Note in the body that this PR depends on #${foundationResult ? foundationResult.number : '?'} landing first (base branch ${baseRefLabel}).`
-  const opened = await agent(prOpenerPrompt(result, baseRefLabel, foundationNote), {
+for (let i = 0; i < allResults.length; i++) {
+  const result = allResults[i]
+  const previous = IS_CHAIN && i > 0 ? allResults[i - 1] : null
+  const baseRefLabel = previous ? previous.branch : 'master'
+  const chainNote = previous
+    ? `Note in the body that this PR is part of a stack and depends on #${previous.number} landing first (base branch ${baseRefLabel}).`
+    : IS_CHAIN
+      ? `Note in the body that this PR is the base of a stack of dependent PRs.`
+      : ''
+  const opened = await agent(prOpenerPrompt(result, baseRefLabel, chainNote), {
     label: `open-pr-${result.number}`, phase: 'Open PRs', schema: PR_SCHEMA,
   })
-  if (opened?.prUrl) prResults.push({ ...result, prUrl: opened.prUrl })
+  if (opened?.prUrl) prResults.push({ ...result, prUrl: opened.prUrl, belowBranch: previous ? previous.branch : null })
 }
 
 phase('Babysit CI')
 const babysat = await parallel(
-  prResults.map((r) => () => {
-    const isFoundation = foundationResult && r.number === foundationResult.number
-    return babysit(r, r.prUrl, isFoundation ? null : foundationResult ? foundationResult.branch : null)
-  }),
+  prResults.map((r) => () => babysit(r, r.prUrl, r.belowBranch)),
 )
 
 return { prUrls: prResults.map((r) => r.prUrl), babysat }
