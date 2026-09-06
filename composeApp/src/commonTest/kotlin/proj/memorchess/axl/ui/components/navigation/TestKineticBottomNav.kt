@@ -18,6 +18,7 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
+import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.theme.KineticDarkPalette
@@ -117,6 +118,31 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Settings)).assertIsSelected()
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsNotSelected()
+  }
+
+  @Test
+  fun selectionStillFollowsRouteWhenReduceMotionIsOn() = runTestFromSetup {
+    // graphicsLayer scale is invisible to the semantics tree, so this cannot observe the icon pop
+    // itself. That pixel level assertion lives in TestKineticBottomNavReduceMotion (jvmTest). This
+    // only pins that selection still tracks the route when reduce motion is on.
+    REDUCE_MOTION_SETTING.setValue(true)
+    val route = mutableStateOf(Route.ExploreRoute.DEFAULT.getLabel())
+    setContent {
+      InitializeApp {
+        KineticBottomNav(
+          items = items,
+          currentRoute = route.value,
+          onSelect = {},
+          itemModifier = { Modifier.testTag(tagOf(it)) },
+        )
+      }
+    }
+
+    route.value = Route.TrainingRoute.DEFAULT.getLabel()
+    waitForIdle()
+
+    onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
+    onNodeWithTag(tagOf(NavigationBarItemContent.Explore)).assertIsNotSelected()
   }
 
   @Test

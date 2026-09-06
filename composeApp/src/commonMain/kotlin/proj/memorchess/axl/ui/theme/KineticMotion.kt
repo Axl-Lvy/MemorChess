@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
@@ -89,6 +90,21 @@ object KineticMotion {
    */
   fun holdExit(): ExitTransition = fadeOut(animationSpec = sweepTween(), targetAlpha = 1f)
 
+  /**
+   * Incoming transition for a navigation between two bottom nav tabs: a slide from [fromRight]'s
+   * edge plus a fade, timed by [Routine.screenTransition]. Collapses to a plain fade when reduce
+   * motion is on.
+   */
+  fun tabEnter(fromRight: Boolean): EnterTransition =
+    if (reduceMotionEnabled()) fadeIn(animationSpec = Routine.screenTransition())
+    else
+      slideInHorizontally(animationSpec = Routine.screenTransition()) { fullWidth ->
+        if (fromRight) fullWidth else -fullWidth
+      } + fadeIn(animationSpec = Routine.screenTransition())
+
+  /** Outgoing transition for a navigation between two bottom nav tabs: a fade alone. */
+  fun tabExit(): ExitTransition = fadeOut(animationSpec = Routine.screenTransition())
+
   /** Scale a HUD element registers in from, just short of full size. */
   private const val HUD_INITIAL_SCALE: Float = 0.94f
 
@@ -127,6 +143,9 @@ object KineticMotion {
    * mockup's accessibility note: the overlay is skipped entirely rather than shown flat.
    */
   fun shouldShowStreakMilestone(): Boolean = !reduceMotionEnabled()
+
+  /** Whether the bottom nav icon pop should play. False when reduce motion is on. */
+  fun shouldPlayIconPop(): Boolean = !reduceMotionEnabled()
 
   /**
    * Springs with visible overshoot, reserved for the two gamification payoffs the "register, don't
@@ -181,6 +200,17 @@ object KineticMotion {
     /** Bottom sheet slide: a fast settle with slightly more visible mass than [buttonPress]. */
     fun <T> bottomSheet(): FiniteAnimationSpec<T> =
       reducibleSpring(dampingRatio = BOTTOM_SHEET_DAMPING, stiffness = BOTTOM_SHEET_STIFFNESS)
+
+    /**
+     * Bottom nav icon pop on selection: a fast, settled bump to 1.12x and back. Reuses
+     * [screenTransition]'s spring since the mockup pins only the pop's amplitude, not its own
+     * spring curve.
+     */
+    fun <T> iconPop(): FiniteAnimationSpec<T> =
+      reducibleSpring(
+        dampingRatio = SCREEN_TRANSITION_DAMPING,
+        stiffness = SCREEN_TRANSITION_STIFFNESS,
+      )
 
     /** Loading skeleton shimmer: the longest routine tween, paced for a readable pulse. */
     fun <T> loadingSkeleton(): FiniteAnimationSpec<T> =

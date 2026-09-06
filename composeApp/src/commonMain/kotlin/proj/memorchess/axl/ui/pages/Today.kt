@@ -199,7 +199,11 @@ fun Today(
   val todayIsoIndex = DateUtil.today().dayOfWeek.isoDayNumber
 
   Column(
-    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+    modifier =
+      Modifier.fillMaxSize()
+        .testTag(Route.TodayRoute.getLabel())
+        .verticalScroll(rememberScrollState())
+        .padding(20.dp),
     verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
     TodayHeader(todayIsoIndex)

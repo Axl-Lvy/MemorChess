@@ -294,7 +294,8 @@ private fun RailStreakCard(stats: RailStats?) {
  * `actionDim` at a 14.dp radius and inks with `action`; inactive rows paint nothing (their style
  * colour is `actionDim` at alpha 0) and ink with `ink3`. Unlike the bottom bar's pill the fill is
  * **not** animated — a full-row fill is not an appearing pill, and keeping it static leaves the
- * rail with no animation cost and no reduce-motion settings read.
+ * rail with no animation cost and no reduce-motion settings read. The row icons skip the bottom
+ * bar's selection pop for the same reason.
  *
  * @param items Navigation entries; rendered in the order supplied.
  * @param currentRoute The current route label; compared against [NavigationBarItemContent]'s
@@ -335,7 +336,9 @@ fun KineticSideNav(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(ROW_GAP),
       ) {
-        NavCellIcon(item, style.content, size = RAIL_ICON_SIZE)
+        // Explicitly false rather than the row's active above: the rail's icons never pop, per
+        // this composable's KDoc.
+        NavCellIcon(item, style.content, size = RAIL_ICON_SIZE, active = false)
         Text(
           // Kept uppercase for the same reason as the bottom bar's labels.
           text = stringResource(item.destination.displayNameRes()).uppercase(),
