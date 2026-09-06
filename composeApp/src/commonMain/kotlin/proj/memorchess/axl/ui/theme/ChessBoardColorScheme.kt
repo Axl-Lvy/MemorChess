@@ -9,7 +9,11 @@ import proj.memorchess.axl.core.util.CanDisplayName
  * @property lightSquareColor Light square color.
  * @property darkSquareColor Dark square color.
  * @property displayName The name to display for this color scheme.
- * @property selectedBorderColor The color of the border around selected squares.
+ * @property selectedBorderColor The color of the border around selected squares. The Kinetic
+ *   schemes keep this on the `action` role: selection is the interactive affordance.
+ * @property arrowColor The color of the best-move arrow. The Kinetic schemes ride the `progress`
+ *   role here, so the engine suggestion is lime in dark and violet in light, separated from
+ *   selection. The other schemes are user-chosen skins and keep their own hues.
  */
 enum class ChessBoardColorScheme(
   val lightSquareColor: Color,
@@ -22,14 +26,14 @@ enum class ChessBoardColorScheme(
     lightSquareColor = Color(0xFFD7DDE6),
     darkSquareColor = Color(0xFF3A4150),
     selectedBorderColor = KineticDarkPalette.action,
-    arrowColor = KineticDarkPalette.action.copy(alpha = 0.5f),
+    arrowColor = KineticDarkPalette.progress.copy(alpha = 0.5f),
     displayName = "Default Dark",
   ),
   KINETIC_LIGHT(
     lightSquareColor = Color(0xFFE5EDF5),
     darkSquareColor = Color(0xFF5E6A82),
     selectedBorderColor = KineticLightPalette.action,
-    arrowColor = KineticLightPalette.action.copy(alpha = 0.5f),
+    arrowColor = KineticLightPalette.progress.copy(alpha = 0.5f),
     displayName = "Default Light",
   ),
   GRASS(
