@@ -6,6 +6,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
@@ -45,6 +47,9 @@ private const val PRESSED_SCALE = 0.972f
 
 /** Alpha applied to a disabled button. */
 private const val DISABLED_ALPHA = 0.5f
+
+/** Stroke width of the button outline, whoever draws it. */
+private val BORDER_WIDTH = 1.5.dp
 
 /** Visual variant of a [KineticButton]. */
 enum class KineticButtonStyle {
@@ -145,7 +150,10 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
  * mount, so composing a button costs no settings read.
  *
  * The button uses [LocalIndication] for the ripple/highlight indication, so it picks up whatever
- * the surrounding Material theme provides on each target.
+ * the surrounding Material theme provides on each target. The indication is applied behind a [clip]
+ * to [shape] rather than through `clickable`, so the state layer follows the rounded face instead
+ * of the node's square bounds — the elevation's hard edge is drawn outside those bounds and must
+ * stay unclipped.
  */
 @Composable
 fun KineticButton(
@@ -170,6 +178,7 @@ fun KineticButton(
   val indication = LocalIndication.current
   val height = if (large) 44.dp else 36.dp
   val shape = if (large) MaterialTheme.shapes.small else MaterialTheme.shapes.extraSmall
+  val outline = BorderStroke(BORDER_WIDTH, borderColor)
   val pressScale = remember { Animatable(1f) }
 
   LaunchedEffect(pressed) {
@@ -187,10 +196,11 @@ fun KineticButton(
         .defaultMinSize(minWidth = height)
         .then(if (iconOnly) Modifier.width(height) else Modifier)
         // Pointer input first: the elevation's press translate is a layout offset, so a clickable
-        // chained after it would slide out from under a finger held near the top edge.
+        // chained after it would slide out from under a finger held near the top edge. The
+        // indication is applied further down instead, where it can be clipped to the shape.
         .clickable(
           interactionSource = interactionSource,
-          indication = indication,
+          indication = null,
           enabled = enabled,
           role = Role.Button,
           onClick = onClick,
@@ -200,10 +210,20 @@ fun KineticButton(
           scaleX = pressScale.value
           scaleY = pressScale.value
         }
-        .then(if (colors.elevated) Modifier.kineticPressableElevation(pressed, shape) else Modifier)
+        // The elevated styles hand their outline to the elevation, which draws it inside the press
+        // offset; a border chained after the elevation would be painted over by the elevation's
+        // own stroke. The transparent styles have no elevation and stroke themselves.
+        .then(
+          if (colors.elevated) Modifier.kineticPressableElevation(pressed, shape, outline)
+          else Modifier
+        )
         // Background after the elevation, or the hard edge gets painted over.
         .background(color = bg, shape = shape)
-        .border(BorderStroke(1.5.dp, borderColor), shape)
+        .then(if (colors.elevated) Modifier else Modifier.border(outline, shape))
+        // Clip only the state layer: the elevation's hard edge is drawn outside the node's bounds
+        // and a clip chained above it would cut the edge off.
+        .clip(shape)
+        .indication(interactionSource, indication)
         .then(if (iconOnly) Modifier else Modifier.padding(horizontal = 14.dp)),
     contentAlignment = Alignment.Center,
   ) {

@@ -136,6 +136,8 @@ val KineticDarkPalette =
 val KineticLightPalette =
   KineticPalette(
     bg = Color(0xFFF4F0FF),
+    // The one light token with no artboard of its own: bg2 is the mockup's canvas chrome, never a
+    // screen surface, so it is set by interpolation between bg #F4F0FF and panel3 #EDE4FF.
     bg2 = Color(0xFFEEEAF6),
     panel = Color(0xFFFFFFFF),
     panel2 = Color(0xFFF4F0FF),
