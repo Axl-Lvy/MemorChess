@@ -1,6 +1,6 @@
 # UI layer (`ui/`)
 
-Compose Multiplatform UI. `App.kt` is the entry point, `pages/` holds the screens, and `components/` holds the building blocks (`board`, `brand`, `buttons`, `controls`, `explore`, `loading`, `navigation`, `popup`, `settings`, `training`), with `layout/`, `theme/`, and `util/` alongside. DI via Koin, wired one level up in `axl/Koin.kt`.
+Compose Multiplatform UI. `App.kt` is the entry point, `pages/` holds the screens (now including `Today`, the dashboard the bottom nav's Training tab opens onto), and `components/` holds the building blocks (`board`, `brand`, `buttons`, `controls`, `explore`, `loading`, `navigation`, `popup`, `settings`, `today`, `training`), with `layout/`, `theme/`, and `util/` alongside. DI via Koin, wired one level up in `axl/Koin.kt`.
 
 ## There is no coverage safety net here
 

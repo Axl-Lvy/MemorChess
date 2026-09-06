@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.interaction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.days
 import org.koin.core.component.inject
@@ -10,6 +11,7 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.graph.TreeStore
@@ -23,6 +25,8 @@ class TestSingleMoveTrainer : TestWithKoin() {
   private val database: DatabaseQueryManager by inject()
   private val treeStore: TreeStore by inject()
   private lateinit var testNode: DataNode
+  private var lastPlayedSquare: BoardLocation? = null
+  private var lastCorrectSquare: BoardLocation? = null
 
   override suspend fun setUp() {
     database.eraseAll()
@@ -64,7 +68,11 @@ class TestSingleMoveTrainer : TestWithKoin() {
     database.insertNodes(testNode)
     val node = treeStore.node(testNode.positionKey)
     checkNotNull(node)
-    singleMoveTrainer = SingleMoveTrainer(node) {}
+    singleMoveTrainer =
+      SingleMoveTrainer(node) { _, played, correct ->
+        lastPlayedSquare = played
+        lastCorrectSquare = correct
+      }
   }
 
   @Test
@@ -79,6 +87,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
       due > DateUtil.now() + 1.days,
       "Next due date should be more than 1 day in the future for a correct review",
     )
+    assertEquals(BoardLocation(3, 4), lastPlayedSquare) // e4
   }
 
   @Test
@@ -90,6 +99,8 @@ class TestSingleMoveTrainer : TestWithKoin() {
     assertNotNull(updatedNode)
     assertTrue(updatedNode.cardState.lapses >= 1, "Lapses should increase on incorrect review")
     assertEquals(testNode.cardState.reps + 1, updatedNode.cardState.reps)
+    assertEquals(BoardLocation(3, 3), lastPlayedSquare) // d4
+    assertEquals(BoardLocation(3, 4), lastCorrectSquare) // e4, the node's good edge
   }
 
   @Test
@@ -101,6 +112,8 @@ class TestSingleMoveTrainer : TestWithKoin() {
     assertNotNull(updatedNode)
     assertTrue(updatedNode.cardState.lapses >= 1, "Lapses should increase on unknown move")
     assertEquals(testNode.cardState.reps + 1, updatedNode.cardState.reps)
+    assertEquals(BoardLocation(3, 2), lastPlayedSquare) // c4, matched no edge at all
+    assertEquals(BoardLocation(3, 4), lastCorrectSquare) // e4, the node's good edge still resolves
   }
 
   @Test
@@ -108,15 +121,20 @@ class TestSingleMoveTrainer : TestWithKoin() {
     val e4Position = GameEngine().apply { playSanMove("e4") }.toPositionKey()
     treeStore.tagEdge(testNode.positionKey, e4Position, "ruy-lopez")
     var correctEdge: proj.memorchess.axl.core.graph.Edge? = null
+    var correctSquare: BoardLocation? = null
     val node = treeStore.node(testNode.positionKey)
     checkNotNull(node)
     val scopedTrainer =
-      SingleMoveTrainer(node, repertoireScope = "italian-game") { edge -> correctEdge = edge }
+      SingleMoveTrainer(node, repertoireScope = "italian-game") { edge, _, correct ->
+        correctEdge = edge
+        correctSquare = correct
+      }
 
     tileClick(scopedTrainer, "e2")
     tileClick(scopedTrainer, "e4")
 
     assertEquals(null, correctEdge) // rejected: correct chess move, wrong repertoire
+    assertNull(correctSquare) // no edge is tagged for "italian-game", so nothing to outline
   }
 
   private suspend fun tileClick(trainer: SingleMoveTrainer, tile: String) {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.dialog_cancel
 import memorchess.composeapp.generated.resources.dialog_delete
 import memorchess.composeapp.generated.resources.explore_delete_confirm
 import memorchess.composeapp.generated.resources.explore_delete_confirm_many
@@ -29,7 +31,7 @@ import proj.memorchess.axl.core.data.explorer.CachedExplorer
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
-import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
+import proj.memorchess.axl.ui.components.popup.KineticBottomSheet
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 private val LOGGER = Logger.withTag("Explore")
@@ -64,38 +66,60 @@ fun Explore(
       val coroutineScope = rememberCoroutineScope()
       val explorerViewModel = rememberExplorerViewModel(linesExplorer, cachedExplorer)
 
-      val deletionConfirmationDialog = remember {
-        ConfirmationDialog(okText = Res.string.dialog_delete)
+      var showDeleteSheet by remember { mutableStateOf(false) }
+
+      KineticBottomSheet(
+        visible = showDeleteSheet,
+        onDismissRequest = { showDeleteSheet = false },
+        modifier = Modifier.testTag("pruneConfirmSheet"),
+        buttons = {
+          TextButton(
+            modifier = Modifier.testTag("pruneConfirmSheetCancelButton"),
+            onClick = { showDeleteSheet = false },
+          ) {
+            Text(stringResource(Res.string.dialog_cancel))
+          }
+          TextButton(
+            modifier = Modifier.testTag("pruneConfirmSheetOkButton"),
+            onClick = {
+              showDeleteSheet = false
+              coroutineScope.launch { linesExplorer.delete() }
+            },
+          ) {
+            Text(stringResource(Res.string.dialog_delete))
+          }
+        },
+      ) {
+        var nodesToDelete by remember { mutableStateOf<Int?>(null) }
+        val finalNodesToDelete = nodesToDelete
+        if (finalNodesToDelete == null) {
+          CircularProgressIndicator()
+        } else if (finalNodesToDelete >= DESCENDANT_COUNT_CAP) {
+          // The count is capped DB-side, so at the cap we only know "this many or more".
+          Text(stringResource(Res.string.explore_delete_confirm_many, DESCENDANT_COUNT_CAP))
+        } else {
+          Text(
+            pluralStringResource(
+              Res.plurals.explore_delete_confirm,
+              finalNodesToDelete,
+              finalNodesToDelete,
+            )
+          )
+        }
+        LaunchedEffect(showDeleteSheet) {
+          if (showDeleteSheet) {
+            // Reset so the spinner shows again on reopen, not a stale count from last time.
+            nodesToDelete = null
+            nodesToDelete = linesExplorer.calculateNumberOfNodeToDelete()
+          }
+        }
       }
-      deletionConfirmationDialog.DrawDialog()
 
       ExplorerContent(
         explorer = linesExplorer,
         explorerViewModel = explorerViewModel,
         onSave = { coroutineScope.launch { linesExplorer.save() } },
-        onDelete = {
-          deletionConfirmationDialog.show(
-            confirm = { coroutineScope.launch { linesExplorer.delete() } }
-          ) {
-            var nodesToDelete by remember { mutableStateOf<Int?>(null) }
-            val finalNodesToDelete = nodesToDelete
-            if (finalNodesToDelete == null) {
-              CircularProgressIndicator()
-            } else if (finalNodesToDelete >= DESCENDANT_COUNT_CAP) {
-              // The count is capped DB-side, so at the cap we only know "this many or more".
-              Text(stringResource(Res.string.explore_delete_confirm_many, DESCENDANT_COUNT_CAP))
-            } else {
-              Text(
-                pluralStringResource(
-                  Res.plurals.explore_delete_confirm,
-                  finalNodesToDelete,
-                  finalNodesToDelete,
-                )
-              )
-            }
-            LaunchedEffect(Unit) { nodesToDelete = linesExplorer.calculateNumberOfNodeToDelete() }
-          }
-        },
+        onDelete = { showDeleteSheet = true },
       )
     }
   }

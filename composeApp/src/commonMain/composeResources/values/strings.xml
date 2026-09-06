@@ -146,6 +146,7 @@
   <string name="training_increment_day">Increment a day</string>
   <string name="training_days_in_advance">Days in advance: %1$d</string>
   <string name="training_corner_tag">TRAINING</string>
+  <string name="training_plus_one">+1</string>
 
   <!-- Explore: Lichess explorer panel -->
   <string name="explore_lichess_title">LICHESS EXPLORER</string>
@@ -251,11 +252,39 @@
 
   <!-- Repertoire viewer -->
   <string name="repertoire_view_not_found">Repertoire \"%1$s\" is not in the catalog anymore.</string>
+  <string name="repertoire_view_read_only">READ ONLY</string>
+  <string name="repertoire_view_yours">YOURS</string>
 
   <!-- Navigation: side rail -->
-  <string name="side_rail_day_streak">DAY STREAK</string>
+  <plurals name="side_rail_day_streak">
+    <item quantity="one">DAY STREAK</item>
+    <item quantity="other">DAY STREAK</item>
+  </plurals>
   <string name="side_rail_today_progress">%1$d/%2$d today</string>
   <string name="side_rail_today_done">%1$d today</string>
+
+  <!-- Today page -->
+  <string name="today_greeting">Ready to review?</string>
+  <string name="today_weekday_monday">Monday</string>
+  <string name="today_weekday_tuesday">Tuesday</string>
+  <string name="today_weekday_wednesday">Wednesday</string>
+  <string name="today_weekday_thursday">Thursday</string>
+  <string name="today_weekday_friday">Friday</string>
+  <string name="today_weekday_saturday">Saturday</string>
+  <string name="today_weekday_sunday">Sunday</string>
+  <plurals name="today_streak_label">
+    <item quantity="one">day streak</item>
+    <item quantity="other">day streak</item>
+  </plurals>
+  <string name="today_goal_progress">%1$d of %2$d</string>
+  <string name="today_goal_done">%1$d done</string>
+  <plurals name="today_start_review_cta">
+    <item quantity="one">Start review · %1$d card</item>
+    <item quantity="other">Start review · %1$d cards</item>
+  </plurals>
+  <string name="today_pickup_title">Pick up where you left off</string>
+  <string name="today_pickup_progress">%1$d of %2$d positions solid</string>
+  <string name="today_pickup_empty">Nothing to pick up yet</string>
 
   <!-- Core toasts -->
   <string name="toast_no_previous_move">No previous move.</string>

@@ -49,8 +49,15 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  *   [KineticTopBar]. Typically a `Route` enum name.
  * @param label Uppercase nav label, e.g. `"EXPLORE"`.
  * @param number Small digit shown left of the label, e.g. `"01"`.
+ * @param ownedRoutes Every route label this entry is active for. Defaults to just [route]. Lets one
+ *   tab (e.g. Training) stay highlighted across more than one destination.
  */
-data class KineticTopBarNavItem(val route: String, val label: String, val number: String)
+data class KineticTopBarNavItem(
+  val route: String,
+  val label: String,
+  val number: String,
+  val ownedRoutes: Set<String> = setOf(route),
+)
 
 /**
  * Kinetic top bar — mirrors `.topbar`, `.brand`, `.topnav`, `.top-meta` from
@@ -133,9 +140,9 @@ fun KineticTopBar(
       horizontalArrangement = Arrangement.spacedBy(0.dp),
     ) {
       navItems.forEach { item ->
-        // The back-stack route is the lower-case serial name; nav-item routes use the capitalised
-        // label, so match case-insensitively.
-        val active = item.route.equals(activeRoute, ignoreCase = true)
+        // The back stack route is the serial name in lower case. Nav item routes use the
+        // capitalised label, so match ignoring case against every route the item owns.
+        val active = item.ownedRoutes.any { it.equals(activeRoute, ignoreCase = true) }
         TopNavLink(
           item = item,
           active = active,
