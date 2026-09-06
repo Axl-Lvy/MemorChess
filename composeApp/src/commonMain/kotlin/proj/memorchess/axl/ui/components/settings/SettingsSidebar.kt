@@ -11,13 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.Res
@@ -51,8 +50,8 @@ data class SettingsNavGroup(val title: StringResource, val sections: List<Settin
  * `.sn-item` blocks from `design-proposals/kinetic-settings-desktop.html`.
  *
  * A 280.dp wide column listing [groups]. Each item is a clickable row carrying the section's number
- * and label. The currently selected item is highlighted with a 2.dp accent left border, a `panel`
- * background, and an `ink` label color.
+ * and label. The currently selected item is highlighted with a filled 14.dp rounded row in a
+ * `panel` background and an `ink` label color, rather than an accent border tick.
  *
  * @param groups Grouped nav items to render, in display order.
  * @param selectedId The id of the currently selected section, used for highlight.
@@ -76,7 +75,7 @@ fun SettingsSidebar(
         .width(280.dp)
         .fillMaxHeight()
         .background(palette.bg2)
-        .border(width = 1.dp, color = palette.line)
+        .border(width = 1.5.dp, color = palette.line)
         .verticalScroll(scroll)
         .padding(vertical = 24.dp)
   ) {
@@ -110,21 +109,19 @@ private fun SidebarItem(item: SettingsNavItem, active: Boolean, onClick: () -> U
   val typography = LocalKineticTypography.current
   val labelColor = if (active) palette.ink else palette.ink2
   val numColor = if (active) palette.actionText else palette.ink4
-  val action = palette.action
   val background = if (active) palette.panel else Color.Transparent
+  val itemShape = RoundedCornerShape(14.dp)
 
   Row(
     modifier =
       Modifier.fillMaxWidth()
-        .background(background)
-        .drawBehind {
-          if (active) {
-            val strokePx = 2.dp.toPx()
-            drawRect(color = action, topLeft = Offset(0f, 0f), size = Size(strokePx, size.height))
-          }
-        }
+        .padding(
+          horizontal = 10.dp
+        ) // outer inset so the pill doesn't touch the sidebar's own edges
+        .clip(itemShape)
+        .background(color = background, shape = itemShape)
         .clickable(onClick = onClick)
-        .padding(horizontal = 22.dp, vertical = 10.dp),
+        .padding(horizontal = 12.dp, vertical = 10.dp),
     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     horizontalArrangement = Arrangement.SpaceBetween,
   ) {

@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -23,13 +25,18 @@ import proj.memorchess.axl.ui.theme.kineticShadow
  * Kinetic settings section container. Mirrors `.section`, `.section-h`, and `.card.full` from
  * `design-proposals/kinetic-settings-desktop.html`.
  *
- * Renders a `panel` background with a 1.dp `line` border and a 5.dp Kinetic offset shadow. The
- * [title] sits at the top in Baloo 2 700 16sp `ink`, with an optional [description] line beneath in
- * `labelSm` `ink3`. A 12.dp gap separates the title block from [content].
+ * Renders a `panel` background clipped and outlined to a 20.dp rounded
+ * [MaterialTheme.shapes.medium] card, with a 1.5.dp `line` border and a 5.dp Kinetic offset shadow
+ * following the same rounded outline. The card's own border is the single visible stroke on the
+ * card — [kineticShadow] is asked not to draw its own line stroke (`drawBorder = false`), since
+ * chained after this card's border it would otherwise paint over it. The [title] sits at the top in
+ * Baloo 2 700 16sp `ink`, with an optional [description] line beneath in `labelSm` `ink3`. A 12.dp
+ * gap separates the title block from [content].
  *
  * When [danger] is true the section gains a 3.dp `destructive` vertical strip on the left edge
- * (drawn via [drawBehind]) and the background is tinted with `destructiveSoft`; the border switches
- * to `destructiveDim`. Use this for the Danger Zone section only.
+ * (drawn via [drawBehind], clipped to the card's rounded outline) and the background is tinted with
+ * `destructiveSoft`; the border switches to `destructiveDim`. Use this for the Danger Zone section
+ * only.
  *
  * @param title Uppercase-ready section heading, rendered as-is.
  * @param modifier External modifier applied to the outer column.
@@ -52,14 +59,16 @@ fun SettingsSection(
   val borderColor = if (danger) palette.destructiveDim else palette.line
   val titleColor = if (danger) palette.destructive else palette.ink
   val strip = palette.destructive
+  val cardShape = MaterialTheme.shapes.medium // 20.dp, per SHAPE CONTRACT "Cards / panels / sheets"
 
   Column(
     modifier =
       modifier
         .fillMaxWidth()
-        .kineticShadow(big = false)
-        .background(color = background)
-        .border(width = 1.dp, color = borderColor)
+        .kineticShadow(big = false, shape = cardShape, drawBorder = false)
+        .clip(cardShape)
+        .background(color = background, shape = cardShape)
+        .border(width = 1.5.dp, color = borderColor, shape = cardShape)
         .then(
           if (danger) {
             Modifier.drawBehind {
