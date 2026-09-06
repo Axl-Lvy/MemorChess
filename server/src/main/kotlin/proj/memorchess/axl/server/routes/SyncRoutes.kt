@@ -3,6 +3,7 @@ package proj.memorchess.axl.server.routes
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -12,6 +13,8 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.RATE_LIMIT_SYNC_READ
+import proj.memorchess.axl.server.RATE_LIMIT_SYNC_WRITE
 import proj.memorchess.axl.server.TooLargeException
 import proj.memorchess.axl.server.auth.SYNC_AUTH
 import proj.memorchess.axl.server.auth.callerId
@@ -39,25 +42,31 @@ internal const val MAX_PUSH_ROWS: Int = 2_000
  */
 internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
   authenticate(SYNC_AUTH) {
-    get("/v1/sync") { call.respond(store.pull(call.callerId, since(), limit(), clock())) }
-
-    post("/v1/sync") {
-      val request = call.receive<SyncPushRequest>()
-      val rows =
-        request.nodes.size +
-          request.edges.size +
-          request.settings.size +
-          request.repertoires.size +
-          request.tags.size
-      if (rows > MAX_PUSH_ROWS) {
-        throw TooLargeException("a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows")
-      }
-      call.respond(store.push(call.callerId, request, clock()))
+    rateLimit(RATE_LIMIT_SYNC_READ) {
+      get("/v1/sync") { call.respond(store.pull(call.callerId, since(), limit(), clock())) }
     }
 
-    delete("/v1/me") {
-      store.deleteUser(call.callerId)
-      call.respond(HttpStatusCode.NoContent)
+    rateLimit(RATE_LIMIT_SYNC_WRITE) {
+      post("/v1/sync") {
+        val request = call.receive<SyncPushRequest>()
+        val rows =
+          request.nodes.size +
+            request.edges.size +
+            request.settings.size +
+            request.repertoires.size +
+            request.tags.size
+        if (rows > MAX_PUSH_ROWS) {
+          throw TooLargeException(
+            "a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows"
+          )
+        }
+        call.respond(store.push(call.callerId, request, clock()))
+      }
+
+      delete("/v1/me") {
+        store.deleteUser(call.callerId)
+        call.respond(HttpStatusCode.NoContent)
+      }
     }
   }
 }

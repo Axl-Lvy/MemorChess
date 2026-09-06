@@ -7,6 +7,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -21,8 +22,13 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.server.RATE_LIMIT_ADMIN
+import proj.memorchess.axl.server.RATE_LIMIT_PUBLIC_READ
+import proj.memorchess.axl.server.RATE_LIMIT_SYNC_WRITE
+import proj.memorchess.axl.server.RateLimitTiers
 import proj.memorchess.axl.server.auth.SYNC_AUTH
 import proj.memorchess.axl.server.auth.callerId
+import proj.memorchess.axl.server.installRateLimiting
 import proj.memorchess.axl.server.repertoire.PublishOutcome
 import proj.memorchess.axl.server.repertoire.PublishRepertoireRequest
 import proj.memorchess.axl.server.repertoire.RemoveOutcome
@@ -62,28 +68,40 @@ private const val BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable"
  * `ContentNegotiation`/`StatusPages`/auth plugin installs.
  *
  * The admin moderation route carries no credential of its own: Cloudflare Access gates it at the
- * edge, following the pattern the home lab's other admin endpoints already use.
+ * edge, following the pattern the home lab's other admin endpoints already use. Its own rate limit
+ * tier is the one thing standing between it and an open network, should that edge gate ever lapse.
+ *
+ * @param rateLimits The request budgets to enforce, substituted in tests that need to exhaust one.
+ *   Installed here rather than assumed already installed by
+ *   [proj.memorchess.axl.server.syncModule]: production always mounts both on the same
+ *   `Application`, but a test may mount this module alone.
  */
 internal fun Application.repertoireModule(
   store: RepertoireStore,
   clock: () -> Instant = Clock.System::now,
+  rateLimits: RateLimitTiers = RateLimitTiers(),
 ) {
+  installRateLimiting(rateLimits)
   routing { repertoireRoutes(store, clock) }
 }
 
 private fun Route.repertoireRoutes(store: RepertoireStore, clock: () -> Instant) {
-  get("/v1/repertoires/manifest.json") { getManifest(store) }
-  get("/v1/repertoires/pgn/{sha256}.pgn") { getPayload(store) }
-  get("/v1/repertoires") { getCatalogPage(store) }
-  get("/v1/repertoires/{id}") { getById(store) }
-  post("/v1/repertoires/{id}/installs") { recordInstall(store) }
-
-  authenticate(SYNC_AUTH) {
-    post("/v1/repertoires") { publish(store, clock) }
-    delete("/v1/repertoires/{id}") { removeRepertoire(store) }
+  rateLimit(RATE_LIMIT_PUBLIC_READ) {
+    get("/v1/repertoires/manifest.json") { getManifest(store) }
+    get("/v1/repertoires/pgn/{sha256}.pgn") { getPayload(store) }
+    get("/v1/repertoires") { getCatalogPage(store) }
+    get("/v1/repertoires/{id}") { getById(store) }
+    post("/v1/repertoires/{id}/installs") { recordInstall(store) }
   }
 
-  post("/admin/repertoires/{id}/status") { setStatus(store) }
+  authenticate(SYNC_AUTH) {
+    rateLimit(RATE_LIMIT_SYNC_WRITE) {
+      post("/v1/repertoires") { publish(store, clock) }
+      delete("/v1/repertoires/{id}") { removeRepertoire(store) }
+    }
+  }
+
+  rateLimit(RATE_LIMIT_ADMIN) { post("/admin/repertoires/{id}/status") { setStatus(store) } }
 }
 
 private suspend fun RoutingContext.getManifest(store: RepertoireStore) {

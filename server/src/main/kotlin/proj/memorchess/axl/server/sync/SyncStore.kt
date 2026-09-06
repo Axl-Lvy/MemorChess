@@ -25,6 +25,22 @@ import proj.memorchess.axl.server.db.EdgeIdentity
 import proj.memorchess.axl.server.db.resolveEdgeIds
 import proj.memorchess.axl.server.db.resolvePositionIds
 
+/** Largest number of nodes one user may own at once. Settings are exempt; see [SyncStore.push]. */
+internal const val MAX_SYNC_NODES_PER_USER: Int = 20_000
+
+/** Largest number of edges one user may own at once. */
+internal const val MAX_SYNC_EDGES_PER_USER: Int = 20_000
+
+/**
+ * Largest number of local repertoires one user may own at once. Distinct from
+ * [proj.memorchess.axl.server.repertoire.MAX_REPERTOIRES_PER_USER], which caps the published
+ * catalog rather than a device's own repertoire list.
+ */
+internal const val MAX_SYNC_REPERTOIRES_PER_USER: Int = 200
+
+/** Largest number of edge to repertoire tags one user may own at once. */
+internal const val MAX_SYNC_TAGS_PER_USER: Int = 50_000
+
 /**
  * The server side of the sync protocol, over a Postgres database.
  *
@@ -33,11 +49,19 @@ import proj.memorchess.axl.server.db.resolvePositionIds
  * the only way the two cannot drift apart.
  *
  * @param dataSource Pooled connections. Each call takes one and returns it.
+ * @param maxNodesPerUser Cap on how many nodes one user may own.
+ * @param maxEdgesPerUser Cap on how many edges one user may own.
+ * @param maxRepertoiresPerUser Cap on how many local repertoires one user may own.
+ * @param maxTagsPerUser Cap on how many edge to repertoire tags one user may own.
  * @param ioDispatcher Where the blocking JDBC work runs. Injected rather than hardcoded so a caller
  *   can substitute one, which also keeps the choice of dispatcher out of this class's business.
  */
 internal class SyncStore(
   private val dataSource: DataSource,
+  private val maxNodesPerUser: Int = MAX_SYNC_NODES_PER_USER,
+  private val maxEdgesPerUser: Int = MAX_SYNC_EDGES_PER_USER,
+  private val maxRepertoiresPerUser: Int = MAX_SYNC_REPERTOIRES_PER_USER,
+  private val maxTagsPerUser: Int = MAX_SYNC_TAGS_PER_USER,
   private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -51,7 +75,13 @@ internal class SyncStore(
    * The whole batch is one transaction, and rows are applied in key order so concurrent pushes take
    * locks in the same sequence.
    *
+   * Nodes, edges, repertoires and tags are also checked against their per user cap before anything
+   * is written: a push that would carry the owning user past one throws [QuotaExceededException]
+   * and stores nothing. Settings carry no cap; they are small, bounded key/value pairs rather than
+   * a resource a caller can grow without limit.
+   *
    * @param serverNow The server's clock, passed in so the refusal boundary is testable.
+   * @throws QuotaExceededException the batch would push some resource past its per user cap.
    */
   internal suspend fun push(
     userId: String,
@@ -99,6 +129,11 @@ internal class SyncStore(
    * no record of.
    *
    * Rows are sorted within each resource so that concurrent pushes take row locks in one order.
+   *
+   * @throws QuotaExceededException nodes, edges or repertoires would push [userId] past its cap.
+   *   Checked before anything is resolved or written, under [acquireUserLock], so two concurrent
+   *   pushes from the same user can never both slip past it. Tags are checked further down, once
+   *   the ones naming an edge the server has never seen are known and excluded from the count.
    */
   private fun Connection.applyBatch(
     userId: String,
@@ -108,6 +143,11 @@ internal class SyncStore(
     repertoires: List<RepertoireSyncRow>,
     tags: List<EdgeRepertoireTagSyncRow>,
   ): Pair<Long, List<RejectedRow>> {
+    acquireUserLock(userId)
+    checkNodeQuota(userId, nodes, maxNodesPerUser)
+    checkEdgeQuota(userId, edges, maxEdgesPerUser)
+    checkRepertoireQuota(userId, repertoires, maxRepertoiresPerUser)
+
     val positionIds = resolvePositionIds(nodes.map { it.positionKey })
     val edgeIds =
       resolveEdgeIds(edges.map { it.identity() }).mapKeys { (identity, _) ->
@@ -123,6 +163,7 @@ internal class SyncStore(
     val allEdgeIds = edgeIds + lookedUpEdgeIds
     val (resolvableTags, orphanedTags) =
       tags.partition { (it.origin to it.destination) in allEdgeIds }
+    checkTagQuota(userId, resolvableTags, maxTagsPerUser)
 
     val revisions = buildList {
       nodes
@@ -846,7 +887,156 @@ internal class SyncStore(
         rows.getLong(1)
       }
     }
+
+  /**
+   * Serializes every push from [userId] against each other for the rest of the transaction.
+   *
+   * Without it, two concurrent pushes from the same user could each check a quota against the same
+   * stale count, both decide they are under the cap, and together push the user over it.
+   */
+  private fun Connection.acquireUserLock(userId: String) {
+    prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
+      statement.setString(1, "sync-user:$userId")
+      statement.executeQuery().use { it.next() }
+    }
+  }
+
+  /** Rows [userId] already owns in [table]. [table] is always one of this file's own literals. */
+  private fun Connection.countUserRows(table: String, userId: String): Int =
+    prepareStatement("SELECT count(*) FROM $table WHERE user_id = ?").use { statement ->
+      statement.setString(1, userId)
+      statement.executeQuery().use { rows ->
+        rows.next()
+        rows.getInt(1)
+      }
+    }
+
+  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] nodes. */
+  private fun Connection.checkNodeQuota(
+    userId: String,
+    incoming: List<NodeSyncRow>,
+    cap: Int,
+  ) {
+    val keys = incoming.map { it.positionKey }.distinct()
+    if (keys.isEmpty()) return
+    val existingAmongIncoming =
+      prepareStatement(
+          "SELECT count(*) FROM user_node n JOIN position p ON p.id = n.position_id " +
+            "WHERE n.user_id = ? AND p.position_key = ANY (?)"
+        )
+        .use { statement ->
+          statement.setString(1, userId)
+          statement.setArray(2, createArrayOf("text", keys.toTypedArray()))
+          statement.executeQuery().use { rows ->
+            rows.next()
+            rows.getInt(1)
+          }
+        }
+    val projected = countUserRows("user_node", userId) + (keys.size - existingAmongIncoming)
+    if (projected > cap) {
+      throw QuotaExceededException("this push would use $projected of your $cap node quota")
+    }
+  }
+
+  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] edges. */
+  private fun Connection.checkEdgeQuota(
+    userId: String,
+    incoming: List<EdgeSyncRow>,
+    cap: Int,
+  ) {
+    val identities = incoming.map { it.origin to it.destination }.distinct()
+    if (identities.isEmpty()) return
+    var existingAmongIncoming = 0
+    prepareStatement(
+        "SELECT count(*) FROM user_edge ue " +
+          "JOIN move_edge e ON e.id = ue.edge_id " +
+          JOIN_EDGE_ENDPOINTS +
+          "WHERE ue.user_id = ? AND po.position_key = ? AND pd.position_key = ?"
+      )
+      .use { statement ->
+        for ((origin, destination) in identities) {
+          statement.setString(1, userId)
+          statement.setString(2, origin)
+          statement.setString(3, destination)
+          statement.executeQuery().use { rows ->
+            rows.next()
+            if (rows.getInt(1) > 0) existingAmongIncoming++
+          }
+        }
+      }
+    val projected = countUserRows("user_edge", userId) + (identities.size - existingAmongIncoming)
+    if (projected > cap) {
+      throw QuotaExceededException("this push would use $projected of your $cap edge quota")
+    }
+  }
+
+  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] repertoires. */
+  private fun Connection.checkRepertoireQuota(
+    userId: String,
+    incoming: List<RepertoireSyncRow>,
+    cap: Int,
+  ) {
+    val ids = incoming.map { it.id }.distinct()
+    if (ids.isEmpty()) return
+    val existingAmongIncoming =
+      prepareStatement(
+          "SELECT count(*) FROM user_repertoire WHERE user_id = ? AND repertoire_id = ANY (?)"
+        )
+        .use { statement ->
+          statement.setString(1, userId)
+          statement.setArray(2, createArrayOf("text", ids.toTypedArray()))
+          statement.executeQuery().use { rows ->
+            rows.next()
+            rows.getInt(1)
+          }
+        }
+    val projected = countUserRows("user_repertoire", userId) + (ids.size - existingAmongIncoming)
+    if (projected > cap) {
+      throw QuotaExceededException("this push would use $projected of your $cap repertoire quota")
+    }
+  }
+
+  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] tags. */
+  private fun Connection.checkTagQuota(
+    userId: String,
+    incoming: List<EdgeRepertoireTagSyncRow>,
+    cap: Int,
+  ) {
+    val identities = incoming.map { Triple(it.origin, it.destination, it.repertoireId) }.distinct()
+    if (identities.isEmpty()) return
+    var existingAmongIncoming = 0
+    prepareStatement(
+        "SELECT count(*) FROM user_edge_repertoire_tag t " +
+          "JOIN move_edge e ON e.id = t.edge_id " +
+          JOIN_EDGE_ENDPOINTS +
+          "WHERE t.user_id = ? AND po.position_key = ? AND pd.position_key = ? " +
+          "AND t.repertoire_id = ?"
+      )
+      .use { statement ->
+        for ((origin, destination, repertoireId) in identities) {
+          statement.setString(1, userId)
+          statement.setString(2, origin)
+          statement.setString(3, destination)
+          statement.setString(4, repertoireId)
+          statement.executeQuery().use { rows ->
+            rows.next()
+            if (rows.getInt(1) > 0) existingAmongIncoming++
+          }
+        }
+      }
+    val projected =
+      countUserRows("user_edge_repertoire_tag", userId) + (identities.size - existingAmongIncoming)
+    if (projected > cap) {
+      throw QuotaExceededException("this push would use $projected of your $cap tag quota")
+    }
+  }
 }
+
+/**
+ * Refused because applying the batch would push some resource past its per user cap. Nothing in the
+ * batch is stored, request row locks or not.
+ */
+internal class QuotaExceededException(message: String) : Exception(message)
 
 /**
  * Locks the selected row for the rest of the transaction.

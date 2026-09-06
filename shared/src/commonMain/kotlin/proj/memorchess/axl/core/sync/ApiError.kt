@@ -42,4 +42,7 @@ object ApiErrorCode {
 
   /** The request would exceed a per user quota. */
   const val QUOTA_EXCEEDED: String = "quota_exceeded"
+
+  /** The caller (or its IP, when unauthenticated) exceeded its request budget. */
+  const val RATE_LIMITED: String = "rate_limited"
 }
