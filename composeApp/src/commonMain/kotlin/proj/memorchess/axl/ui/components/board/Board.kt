@@ -16,6 +16,7 @@ import proj.memorchess.axl.ui.theme.KineticMotion
  * @param inverted Whether the board is shown from Black's perspective.
  * @param interactionsManager Handles piece interactions and move validation.
  * @param bestMoveArrow Arrow overlay data, or `null` to hide the arrow.
+ * @param feedback Training feedback for the current attempt, or the default (nothing to show).
  * @param modifier Modifier for the board.
  */
 @Composable
@@ -23,12 +24,18 @@ fun Board(
   inverted: Boolean = false,
   interactionsManager: InteractionsManager,
   bestMoveArrow: BestMoveArrowData? = null,
+  feedback: BoardTrainingFeedback = BoardTrainingFeedback(),
   modifier: Modifier = Modifier,
 ) {
   val state = remember(inverted) { BoardGridState(inverted, interactionsManager) }
 
   Box(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-    BoardGrid(state = state, bestMoveArrow = bestMoveArrow, modifier = Modifier.fillMaxSize())
+    BoardGrid(
+      state = state,
+      bestMoveArrow = bestMoveArrow,
+      feedback = feedback,
+      modifier = Modifier.fillMaxSize(),
+    )
 
     AnimatedVisibility(
       visible = interactionsManager.needPromotion.value,

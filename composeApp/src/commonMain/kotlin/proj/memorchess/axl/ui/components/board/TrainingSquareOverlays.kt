@@ -1,0 +1,56 @@
+package proj.memorchess.axl.ui.components.board
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import memorchess.composeapp.generated.resources.Res
+import memorchess.composeapp.generated.resources.training_plus_one
+import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.engine.BoardLocation
+import proj.memorchess.axl.ui.theme.LocalKineticPalette
+import proj.memorchess.axl.ui.theme.LocalKineticTypography
+
+/**
+ * Floating "+1" that rises above [square] on a correct answer, absolutely placed against
+ * [BoardGrid]'s own [tileSize], the same row/col-to-pixel convention [BestMoveArrow] uses.
+ *
+ * Only composed while [BoardGrid] decides a correct move was just played, so this is never a
+ * permanently present, zero-alpha node — its existence in the tree is itself meaningful.
+ *
+ * @param offsetY Vertical rise, read inside a layout-phase [Modifier.offset] lambda.
+ * @param alpha Fade, read inside a draw-phase [Modifier.graphicsLayer] lambda.
+ */
+@Composable
+internal fun PlusOneFloater(
+  square: BoardLocation,
+  tileSize: Dp,
+  inverted: Boolean,
+  offsetY: Animatable<Float, AnimationVector1D>,
+  alpha: Animatable<Float, AnimationVector1D>,
+) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  val baseX = if (inverted) tileSize * (7 - square.col) else tileSize * square.col
+  val baseY = if (inverted) tileSize * square.row else tileSize * (7 - square.row)
+  Box(Modifier.offset(x = baseX, y = baseY).size(tileSize), contentAlignment = Alignment.Center) {
+    Text(
+      text = stringResource(Res.string.training_plus_one),
+      modifier =
+        Modifier.testTag("training-plus-one")
+          .offset { IntOffset(0, offsetY.value.roundToInt()) }
+          .graphicsLayer { this.alpha = alpha.value },
+      style = typography.displaySm.copy(color = palette.progress),
+    )
+  }
+}

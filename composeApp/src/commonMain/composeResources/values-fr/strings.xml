@@ -146,6 +146,7 @@
   <string name="training_increment_day">Avancer d'un jour</string>
   <string name="training_days_in_advance">Jours d'avance : %1$d</string>
   <string name="training_corner_tag">ENTRAÎNEMENT</string>
+  <string name="training_plus_one">+1</string>
 
   <!-- Explore: Lichess explorer panel -->
   <string name="explore_lichess_title">EXPLORATEUR LICHESS</string>
