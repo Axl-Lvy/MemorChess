@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.graph
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -10,15 +11,17 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
 
 /**
- * Tests for the derived projection columns [DataNode.hasGoodOutgoing] and [DataNode.createdAt],
- * maintained by [TreeStore] on every write. Assertions read the persisted [DataNode] back through
- * the public [proj.memorchess.axl.core.data.DatabaseQueryManager.getPosition] API.
+ * Tests for the derived projection columns [DataNode.hasGoodOutgoing] and [DataNode.createdAt], and
+ * for the repertoire registry, edge tagging, and `NodeRepertoireTrainable` maintenance, maintained
+ * by [TreeStore] on every write. Assertions read the persisted [DataNode] back through the public
+ * [proj.memorchess.axl.core.data.DatabaseQueryManager.getPosition] API.
  */
 class TestTreeStore {
 
@@ -148,5 +151,95 @@ class TestTreeStore {
       persisted.createdAt >= before && persisted.createdAt <= after,
       "root createdAt must fall back to ~now when there are no incoming edges",
     )
+  }
+
+  // --- Repertoire registry, edge tagging, and trainable projection maintenance ----------------
+
+  @Test
+  fun tagEdgeAddsToAnEdgesExistingTagsRatherThanReplacingThem() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    store.tagEdge(start, posA, "italian-game")
+    store.tagEdge(start, posA, "ruy-lopez")
+
+    assertEquals(setOf("italian-game", "ruy-lopez"), store.tagsFor(start, posA))
+  }
+
+  @Test
+  fun taggingAGoodEdgeMakesItsOriginTrainableInThatRepertoire() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    store.tagEdge(start, posA, "italian-game")
+
+    assertEquals(
+      1,
+      database
+        .getRepertoireMasterySnapshots(listOf("italian-game"))
+        .getValue("italian-game")
+        .totalCount,
+    )
+  }
+
+  @Test
+  fun taggingABadEdgeDoesNotMakeItsOriginTrainable() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    store.addMove(from = start, move = "e4", to = posA, isGood = false, fromDepth = 0)
+
+    store.tagEdge(start, posA, "italian-game")
+
+    assertEquals(
+      0,
+      database
+        .getRepertoireMasterySnapshots(listOf("italian-game"))
+        .getValue("italian-game")
+        .totalCount,
+    )
+  }
+
+  @Test
+  fun deletingTheLastTaggedGoodEdgeClearsTheOriginsTrainableMembership() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.tagEdge(start, posA, "italian-game")
+
+    store.deleteMove(start, "e4")
+
+    assertEquals(
+      0,
+      database
+        .getRepertoireMasterySnapshots(listOf("italian-game"))
+        .getValue("italian-game")
+        .totalCount,
+    )
+  }
+
+  @Test
+  fun registerRepertoireThenRepertoiresListsIt() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+
+    assertEquals(listOf("italian-game"), store.repertoires().map { it.id })
+  }
+
+  @Test
+  fun registerRepertoireRejectsABlankId() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+
+    assertFailsWith<IllegalArgumentException> { store.registerRepertoire("", "Blank", null) }
+  }
+
+  @Test
+  fun registerRepertoireRejectsAnIdContainingAComma() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+
+    assertFailsWith<IllegalArgumentException> {
+      store.registerRepertoire("italian,game", "Italian Game", null)
+    }
   }
 }

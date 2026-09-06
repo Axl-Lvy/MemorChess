@@ -77,7 +77,7 @@ interface DatabaseQueryManager {
     updatedAt: Instant = DateUtil.now(),
   )
 
-  /** Hard wipe of every node and move. */
+  /** Hard wipe of every node, move, repertoire, and edge to repertoire tag. */
   suspend fun eraseAll()
 
   /**
@@ -101,8 +101,10 @@ interface DatabaseQueryManager {
    *
    * @param now Current instant. The due bound is inclusive, so a card due exactly at [now]
    *   qualifies.
+   * @param repertoireId When not `null`, narrows to positions trainable within this repertoire (see
+   *   `NodeRepertoireTrainable`). `null` reproduces today's unscoped behavior exactly.
    */
-  suspend fun nextReadyLearningCard(now: Instant): TrainingEntry?
+  suspend fun nextReadyLearningCard(now: Instant, repertoireId: String? = null): TrainingEntry?
 
   /**
    * Bounded `LIMIT 1` lookup of the next pending in session card.
@@ -114,8 +116,9 @@ interface DatabaseQueryManager {
    *
    * @param now Current instant. The due bound is strict, so a card due exactly at [now] does not
    *   qualify (it is ready, not pending).
+   * @param repertoireId See [nextReadyLearningCard].
    */
-  suspend fun nextPendingLearningCard(now: Instant): TrainingEntry?
+  suspend fun nextPendingLearningCard(now: Instant, repertoireId: String? = null): TrainingEntry?
 
   /**
    * Bounded `LIMIT 1` lookup of the next due review card.
@@ -126,8 +129,12 @@ interface DatabaseQueryManager {
    *
    * @param dayEndExclusive Start of the day after the target day. A card due exactly at this
    *   instant belongs to the next day and is excluded.
+   * @param repertoireId See [nextReadyLearningCard].
    */
-  suspend fun nextDueReviewCard(dayEndExclusive: Instant): TrainingEntry?
+  suspend fun nextDueReviewCard(
+    dayEndExclusive: Instant,
+    repertoireId: String? = null,
+  ): TrainingEntry?
 
   /**
    * Bounded `LIMIT 1` lookup of the next due new card.
@@ -139,8 +146,9 @@ interface DatabaseQueryManager {
    *
    * @param dayEndExclusive Start of the day after the target day. A card due exactly at this
    *   instant belongs to the next day and is excluded.
+   * @param repertoireId See [nextReadyLearningCard].
    */
-  suspend fun nextDueNewCard(dayEndExclusive: Instant): TrainingEntry?
+  suspend fun nextDueNewCard(dayEndExclusive: Instant, repertoireId: String? = null): TrainingEntry?
 
   /**
    * Computes the day's bounded scheduling tallies as five `COUNT(*)` queries over indexed
@@ -164,8 +172,23 @@ interface DatabaseQueryManager {
    *
    * @param keys The bounded set of candidate positions to consider.
    * @param dayEndExclusive Start of the day after the target day, the exclusive due bound.
+   * @param repertoireId See [nextReadyLearningCard].
    */
-  suspend fun findEligibleAmong(keys: List<PositionKey>, dayEndExclusive: Instant): TrainingEntry?
+  suspend fun findEligibleAmong(
+    keys: List<PositionKey>,
+    dayEndExclusive: Instant,
+    repertoireId: String? = null,
+  ): TrainingEntry?
+
+  /**
+   * The scoped counterpart of the three narrowable [SchedulingCounts] fields for [repertoireId].
+   * Backs [proj.memorchess.axl.core.graph.TrainingScheduler.pendingCount]'s scoped display; the
+   * daily cap fields have no scoped equivalent and stay read from [getSchedulingCounts].
+   */
+  suspend fun getScopedCounts(
+    dayEndExclusive: Instant,
+    repertoireId: String,
+  ): ScopedSchedulingCounts
 
   /**
    * Counts the non-deleted positions in the subtree reachable from [key] that a recursive delete
@@ -231,6 +254,71 @@ interface DatabaseQueryManager {
    * already assumes its endpoints are resolvable.
    */
   suspend fun applyRemoteMove(move: DataMove)
+
+  /** Retrieves a repertoire registry row, or `null` when missing or soft deleted. */
+  suspend fun getRepertoire(id: String): DataRepertoire?
+
+  /**
+   * [getRepertoire] ignoring the soft delete filter, so a caller can compare it against a pulled
+   * sync row even when the local copy is a tombstone. Used only by
+   * [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
+   */
+  suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire?
+
+  /** Every non deleted repertoire registry row. Unbounded: a user's own registry stays small. */
+  suspend fun getRepertoires(): List<DataRepertoire>
+
+  /** Inserts or replaces a repertoire registry row, queuing its own outbox entry. */
+  suspend fun insertRepertoire(repertoire: DataRepertoire)
+
+  /**
+   * Writes [repertoire] as the resolved winner of a sync conflict, without queuing an outbox entry,
+   * for the same reason as [applyRemoteNode].
+   */
+  suspend fun applyRemoteRepertoire(repertoire: DataRepertoire)
+
+  /** Every live tag on the edge from [origin] to [destination], across every repertoire. */
+  suspend fun getTags(origin: PositionKey, destination: PositionKey): List<DataEdgeRepertoireTag>
+
+  /**
+   * [getTags] ignoring the soft delete filter for one `(origin, destination, repertoireId)` triple,
+   * so a caller can compare it against a pulled sync row even when the local copy is a tombstone.
+   * Used only by [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
+   */
+  suspend fun getTagIncludingDeleted(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+  ): DataEdgeRepertoireTag?
+
+  /** Inserts or replaces one edge to repertoire tag row, queuing its own outbox entry. */
+  suspend fun insertTag(tag: DataEdgeRepertoireTag)
+
+  /**
+   * Writes [tag] as the resolved winner of a sync conflict, without queuing an outbox entry, for
+   * the same reason as [applyRemoteNode].
+   */
+  suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag)
+
+  /**
+   * Replaces [positionKey]'s entire trainable membership row set with [repertoireIds], stamping
+   * [lastReview] on every surviving row. The derived counterpart of [DataNode.hasGoodOutgoing],
+   * owned by [proj.memorchess.axl.core.graph.TreeStore] and recomputed the same way, never synced.
+   */
+  suspend fun replaceTrainableRepertoires(
+    positionKey: PositionKey,
+    repertoireIds: Set<String>,
+    lastReview: Instant?,
+  )
+
+  /**
+   * One mastery snapshot per id in [repertoireIds], zero filled for an id with no trainable
+   * position. Bounded by the caller supplied id list (normally every id [getRepertoires] returns),
+   * never a distinct value scan.
+   */
+  suspend fun getRepertoireMasterySnapshots(
+    repertoireIds: List<String>
+  ): Map<String, RepertoireMasterySnapshot>
 }
 
 /**

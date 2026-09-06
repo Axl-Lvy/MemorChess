@@ -53,10 +53,13 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
-/** Training board entry point. Selects the first card on entry. */
+/**
+ * Training board entry point. Selects the first card on entry. [repertoireId] narrows the session
+ * to one repertoire, or `null` for the unscoped default.
+ */
 @Composable
-fun TrainingBoardPage(modifier: Modifier = Modifier) {
-  val trainingBoard = remember { TrainingBoard() }
+fun TrainingBoardPage(modifier: Modifier = Modifier, repertoireId: String? = null) {
+  val trainingBoard = remember(repertoireId) { TrainingBoard(repertoireId) }
   // The initial card selection is suspendable, so it runs inside the loading phase: the board only
   // renders once the first card is chosen, avoiding a transient "nothing to train" flash before
   // selection completes. The graph is demand paged, so no eager load is needed.
@@ -64,7 +67,7 @@ fun TrainingBoardPage(modifier: Modifier = Modifier) {
 }
 
 /** State holder for the training session UI. */
-private class TrainingBoard : KoinComponent {
+private class TrainingBoard(private val repertoireId: String? = null) : KoinComponent {
 
   private var state by mutableStateOf(TrainingBoardState.FROM_CORRECT_MOVE)
   private var daysInAdvance by mutableStateOf(0)
@@ -87,7 +90,7 @@ private class TrainingBoard : KoinComponent {
   fun Draw(modifier: Modifier = Modifier) {
     val numberOfNodesToTrain by
       produceState(0, localReloader.getKey(), daysInAdvance) {
-        value = trainingScheduler.pendingCount(dayOffset(daysInAdvance))
+        value = trainingScheduler.pendingCount(dayOffset(daysInAdvance), repertoireId)
       }
     // Count each attempt exactly once: increment on the transition into a SHOW_* state. Using
     // LaunchedEffect(state) means we react only when `state` actually changes value, and the
@@ -133,9 +136,10 @@ private class TrainingBoard : KoinComponent {
     val previousEdge = previousPlayedEdge
     val entry =
       if (previousEdge == null) {
-        trainingScheduler.nextDue(day)
+        trainingScheduler.nextDue(day, repertoireId)
       } else {
-        trainingScheduler.nextAfter(previousEdge.to, day) ?: trainingScheduler.nextDue(day)
+        trainingScheduler.nextAfter(previousEdge.to, day, repertoireId)
+          ?: trainingScheduler.nextDue(day, repertoireId)
       }
     chosenNode = entry?.let { treeStore.node(it.positionKey) }
   }
@@ -211,7 +215,7 @@ private class TrainingBoard : KoinComponent {
     val scope = rememberCoroutineScope()
     val trainer = remember {
       val trainer =
-        SingleMoveTrainer(nodeToLearn) {
+        SingleMoveTrainer(nodeToLearn, repertoireScope = repertoireId) {
           state =
             if (it != null) TrainingBoardState.SHOW_CORRECT_MOVE
             else TrainingBoardState.SHOW_WRONG_MOVE

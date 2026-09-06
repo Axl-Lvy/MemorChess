@@ -121,7 +121,7 @@ internal class TestKineticSideBar {
   private fun ComposeUiTest.setRail(
     streakTracker: StreakTracker,
     scheduler: TrainingScheduler,
-    currentRoute: String = Route.TrainingRoute.getLabel(),
+    currentRoute: String = Route.TrainingRoute.DEFAULT.getLabel(),
     selected: MutableList<NavigationBarItemContent> = mutableListOf(),
   ) {
     setKineticContent {

@@ -309,4 +309,46 @@ class TestRoomSchedulingQueries {
     manager.findEligibleAmong(emptyList(), dayEnd) shouldBe null
     manager.findEligibleAmong(listOf(PositionKey("notDue")), dayEnd) shouldBe null
   }
+
+  // --- Scoped scheduling queries -----------------------------------------------------------
+
+  @Test
+  fun nextDueNewCard_scopedToARepertoireExcludesAnUntaggedCard() = runTest {
+    insert("tagged", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+    insert("untagged", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+    manager.replaceTrainableRepertoires(PositionKey("tagged"), setOf("italian-game"), null)
+
+    manager.nextDueNewCard(dayEnd, repertoireId = "italian-game")?.positionKey shouldBe
+      PositionKey("tagged")
+  }
+
+  @Test
+  fun nextDueNewCard_withANullRepertoireIdReproducesTheUnscopedResult() = runTest {
+    insert("a", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+
+    manager.nextDueNewCard(dayEnd) shouldBe manager.nextDueNewCard(dayEnd, repertoireId = null)
+  }
+
+  @Test
+  fun findEligibleAmong_scopedToARepertoireExcludesAnUntaggedCandidate() = runTest {
+    insert("tagged", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(100))
+    insert("untagged", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(100))
+    manager.replaceTrainableRepertoires(PositionKey("tagged"), setOf("italian-game"), null)
+
+    manager.findEligibleAmong(
+      listOf(PositionKey("untagged"), PositionKey("tagged")),
+      dayEnd,
+      repertoireId = "italian-game",
+    ) shouldBe manager.findEligibleAmong(listOf(PositionKey("tagged")), dayEnd)
+  }
+
+  @Test
+  fun getScopedCounts_reportsOnlyTheGivenRepertoiresDueAndInSessionCards() = runTest {
+    insert("tagged", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+    insert("untagged", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+    manager.replaceTrainableRepertoires(PositionKey("tagged"), setOf("italian-game"), null)
+
+    manager.getScopedCounts(dayEnd, "italian-game") shouldBe
+      ScopedSchedulingCounts(dueReviews = 0, dueNew = 1, inSession = 0)
+  }
 }

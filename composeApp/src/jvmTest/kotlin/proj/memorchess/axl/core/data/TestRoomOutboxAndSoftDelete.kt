@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.data
 
 import androidx.room.Room
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.maps.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -108,16 +109,59 @@ class TestRoomOutboxAndSoftDelete {
   }
 
   @Test
-  fun outboxRoundTripsAllThreeKeyKindsThroughRoom() = runTest {
+  fun outboxRoundTripsAllFiveKeyKindsThroughRoom() = runTest {
     val node = DirtyKey.NodeKey(PositionKey("k1"))
     val edge = DirtyKey.EdgeKey(PositionKey("k1"), PositionKey("k2"))
     val setting = DirtyKey.SettingKey("appTheme")
+    val repertoire = DirtyKey.RepertoireKey("italian-game")
+    val tag = DirtyKey.TagKey(PositionKey("k1"), PositionKey("k2"), "italian-game")
 
     manager.markDirty(node, 1L)
     manager.markDirty(edge, 1L)
     manager.markDirty(setting, 1L)
+    manager.markDirty(repertoire, 1L)
+    manager.markDirty(tag, 1L)
 
-    manager.getOutbox().map { it.key } shouldContainExactlyInAnyOrder listOf(node, edge, setting)
+    manager.getOutbox().map { it.key } shouldContainExactlyInAnyOrder
+      listOf(node, edge, setting, repertoire, tag)
+  }
+
+  @Test
+  fun insertRepertoireThenGetRepertoireRoundTripsThroughRoom() = runTest {
+    // Room's DateConverters store an Instant at second precision, so updatedAt must already be
+    // whole seconds for a byte-identical round trip, exactly like TestSyncStorePush's own
+    // sub-millisecond-precision test documents server side.
+    val repertoire =
+      DataRepertoire(
+        id = "italian-game",
+        name = "Italian Game",
+        color = null,
+        updatedAt = Instant.fromEpochSeconds(1_000),
+      )
+
+    manager.insertRepertoire(repertoire)
+
+    manager.getRepertoire("italian-game") shouldBe repertoire
+    manager.getOutbox().map { it.key } shouldBe listOf(DirtyKey.RepertoireKey("italian-game"))
+  }
+
+  @Test
+  fun insertTagThenGetTagsRoundTripsThroughRoom() = runTest {
+    val origin = PositionKey("k1")
+    val destination = PositionKey("k2")
+    val tag =
+      DataEdgeRepertoireTag(
+        origin,
+        destination,
+        repertoireId = "italian-game",
+        updatedAt = Instant.fromEpochSeconds(1_000),
+      )
+
+    manager.insertTag(tag)
+
+    manager.getTags(origin, destination) shouldBe listOf(tag)
+    manager.getOutbox().map { it.key } shouldBe
+      listOf(DirtyKey.TagKey(origin, destination, "italian-game"))
   }
 
   @Test
@@ -175,5 +219,20 @@ class TestRoomOutboxAndSoftDelete {
     manager.eraseAll()
 
     manager.getOutbox() shouldBe emptyList()
+  }
+
+  @Test
+  fun eraseAllClearsRepertoiresAndTags() = runTest {
+    val origin = PositionKey("k1")
+    val destination = PositionKey("k2")
+    manager.insertRepertoire(
+      DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+    )
+    manager.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
+
+    manager.eraseAll()
+
+    manager.getRepertoire("italian-game") shouldBe null
+    manager.getTags(origin, destination).shouldBeEmpty()
   }
 }

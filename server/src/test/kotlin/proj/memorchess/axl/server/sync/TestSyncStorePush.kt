@@ -7,9 +7,11 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
+import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.SYNC_SKEW_TOLERANCE
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
@@ -329,6 +331,103 @@ internal class TestSyncStorePush {
     store.readNodeForTest(user, key)?.reps shouldBe 1
     store.readEdgeForTest(user, theEdge)?.isGood shouldBe true
     store.readSettingForTest(user, "theme")?.value shouldBe "dark"
+  }
+
+  @Test
+  fun pushingARepertoireRoundTripsThroughPull() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val row =
+      RepertoireSyncRow(
+        id = "italian-game",
+        name = "Italian Game",
+        color = "WHITE",
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+
+    store.push(
+      user,
+      SyncPushRequest(
+        nodes = emptyList(),
+        edges = emptyList(),
+        settings = emptyList(),
+        repertoires = listOf(row),
+        tags = emptyList(),
+      ),
+      serverNow,
+    )
+    val stored = store.readRepertoireForTest(user, "italian-game")
+
+    stored shouldBe row
+  }
+
+  @Test
+  fun pushingAnEdgeRepertoireTagRoundTripsThroughPull() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val origin = fen("tag-o")
+    val destination = fen("tag-d")
+    val theEdge = edge(origin, destination, isGood = true, at = serverNow)
+    val tag =
+      EdgeRepertoireTagSyncRow(
+        origin = origin,
+        destination = destination,
+        repertoireId = "italian-game",
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+
+    store.push(
+      user,
+      SyncPushRequest(
+        nodes = emptyList(),
+        edges = listOf(theEdge),
+        settings = emptyList(),
+        repertoires = emptyList(),
+        tags = listOf(tag),
+      ),
+      serverNow,
+    )
+    val stored = store.readTagForTest(user, tag)
+
+    stored shouldBe tag
+  }
+
+  @Test
+  fun pushingATagForAnEdgeTheServerHasNeverSeenIsRefusedAndNotStored() = runTest {
+    val user = PostgresTestDb.newUserId()
+    val origin = fen("orphan-o")
+    val destination = fen("orphan-d")
+    val tag =
+      EdgeRepertoireTagSyncRow(
+        origin = origin,
+        destination = destination,
+        repertoireId = "italian-game",
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+
+    val response =
+      store.push(
+        user,
+        SyncPushRequest(
+          nodes = emptyList(),
+          edges = emptyList(),
+          settings = emptyList(),
+          repertoires = emptyList(),
+          tags = listOf(tag),
+        ),
+        serverNow,
+      )
+
+    response.rejected shouldHaveSize 1
+    response.rejected.single().code shouldBe RejectionCode.EDGE_NOT_FOUND
+    store.readTagForTest(user, tag) shouldBe null
   }
 
   @Test

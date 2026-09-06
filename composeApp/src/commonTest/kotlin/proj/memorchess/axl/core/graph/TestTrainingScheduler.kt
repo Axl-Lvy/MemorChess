@@ -612,4 +612,46 @@ class TestTrainingScheduler {
       phase = CardPhase.RELEARNING,
       step = 0,
     )
+
+  // --- Scoped scheduling -------------------------------------------------------------------
+
+  @Test
+  fun nextAfterOnlyOffersADestinationTaggedWithTheActiveScope() = runTest {
+    val (store, scheduler) = newScheduler()
+    val destinationA = PositionKey("posA b K")
+    val destinationB = PositionKey("posB b K")
+    val leafA = PositionKey("posLeafA w K")
+    val leafB = PositionKey("posLeafB w K")
+    store.addMove(startPos, "e4", destinationA, isGood = true, fromDepth = 0)
+    store.addMove(startPos, "d4", destinationB, isGood = true, fromDepth = 0)
+    // Each destination needs its own good outgoing edge to be eligible; see
+    // nextAfterReturnsNullWhenNoReachableChildIsEligible above.
+    store.addMove(destinationA, "e5", leafA, isGood = true, fromDepth = 1)
+    store.addMove(destinationB, "d5", leafB, isGood = true, fromDepth = 1)
+    store.tagEdge(startPos, destinationA, "italian-game")
+    store.tagEdge(startPos, destinationB, "queens-gambit")
+    // destinationA/destinationB must each be trainable within the scope too (their own outgoing
+    // edge tagged the same way), not merely reached by a tagged edge: see the design's
+    // NodeRepertoireTrainable
+    // note on findEligibleAmong's own scope check.
+    store.tagEdge(destinationA, leafA, "italian-game")
+    store.tagEdge(destinationB, leafB, "queens-gambit")
+
+    val next = scheduler.nextAfter(startPos, repertoireId = "italian-game")
+
+    assertEquals(destinationA, next?.positionKey)
+  }
+
+  @Test
+  fun pendingCountScopedToARepertoireCountsOnlyItsOwnTrainableCards() = runTest {
+    val (store, scheduler) = newScheduler()
+    val destinationA = PositionKey("posA b K")
+    val destinationB = PositionKey("posB b K")
+    store.addMove(startPos, "e4", destinationA, isGood = true, fromDepth = 0)
+    store.addMove(startPos, "d4", destinationB, isGood = true, fromDepth = 0)
+    store.tagEdge(startPos, destinationA, "italian-game")
+    store.tagEdge(startPos, destinationB, "queens-gambit")
+
+    assertEquals(1, scheduler.pendingCount(repertoireId = "italian-game"))
+  }
 }

@@ -70,7 +70,7 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
       val navBackStackEntry by navigator.currentBackStackEntryAsState()
       val currentRoute =
         navBackStackEntry?.destination?.route?.substringBefore("?")
-          ?: Route.TrainingRoute.getLabel()
+          ?: Route.TrainingRoute.DEFAULT.getLabel()
       val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
       val isWide by
         remember(windowSizeClass) {
@@ -84,7 +84,7 @@ fun App(onNavHostReady: suspend (Navigator) -> Unit = {}) {
       val settingsLabel = stringResource(Res.string.nav_settings)
       val labelByRouteKey =
         mapOf(
-          Route.TrainingRoute.getLabel() to trainingLabel,
+          Route.TrainingRoute.DEFAULT.getLabel() to trainingLabel,
           Route.ExploreRoute.DEFAULT.getLabel() to exploreLabel,
           Route.LibraryRoute.getLabel() to libraryLabel,
           Route.SettingsRoute.getLabel() to settingsLabel,

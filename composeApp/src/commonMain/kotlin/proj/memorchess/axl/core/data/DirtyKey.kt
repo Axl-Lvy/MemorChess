@@ -17,6 +17,16 @@ sealed interface DirtyKey {
 
   /** A dirty setting, keyed by its [proj.memorchess.axl.core.config.ConfigItem.name]. */
   data class SettingKey(val key: String) : DirtyKey
+
+  /** A dirty repertoire registry row, keyed by its id. */
+  data class RepertoireKey(val repertoireId: String) : DirtyKey
+
+  /** A dirty edge to repertoire tag, keyed by the edge's endpoints and the repertoire. */
+  data class TagKey(
+    val origin: PositionKey,
+    val destination: PositionKey,
+    val repertoireId: String,
+  ) : DirtyKey
 }
 
 /**
