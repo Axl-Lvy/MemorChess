@@ -20,6 +20,7 @@ import io.ktor.server.routing.routing
 import kotlin.time.Clock
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 import proj.memorchess.axl.server.RATE_LIMIT_ADMIN
@@ -35,7 +36,6 @@ import proj.memorchess.axl.server.repertoire.RemoveOutcome
 import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
-import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.server.repertoire.SetStatusOutcome
 import proj.memorchess.axl.server.repertoire.toDescriptor
 

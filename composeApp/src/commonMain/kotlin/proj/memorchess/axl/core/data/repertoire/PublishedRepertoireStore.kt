@@ -43,7 +43,9 @@ class PublishedRepertoireStore {
 
   private fun save(entries: Map<String, String>) {
     PUBLISHED_REPERTOIRES_SETTING.setValue(
-      entries.entries.sortedBy { it.key }.joinToString(SEPARATOR) { "${it.key}$PAIR_SEPARATOR${it.value}" }
+      entries.entries
+        .sortedBy { it.key }
+        .joinToString(SEPARATOR) { "${it.key}$PAIR_SEPARATOR${it.value}" }
     )
   }
 

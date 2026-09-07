@@ -22,7 +22,8 @@ import proj.memorchess.axl.core.sync.ApiErrorCode
  *
  * @param baseUrl Root URL of `/v1/repertoires`, without a trailing slash. Koin wires the real
  *   deployed server here; [DEFAULT_BASE_URL] is a deliberately unresolvable placeholder for callers
- *   that construct this client directly, same convention as [RepertoireCatalogClient]'s own default.
+ *   that construct this client directly, same convention as [RepertoireCatalogClient]'s own
+ *   default.
  */
 class RepertoirePublishClient(
   private val httpClient: HttpClient,
@@ -104,11 +105,15 @@ private data class PublishRequestBody(
   val pgn: String,
 )
 
-/** Whether this response's body names [code], defaulting to `false` on a body that fails to decode. */
+/**
+ * Whether this response's body names [code], defaulting to `false` on a body that fails to decode.
+ */
 private suspend fun HttpResponse.namesCode(code: String): Boolean =
   runCatching { body<ApiError>() }.getOrNull()?.code == code
 
-/** This response's error message, or a generic fallback when the body fails to decode as [ApiError]. */
+/**
+ * This response's error message, or a generic fallback when the body fails to decode as [ApiError].
+ */
 private suspend fun HttpResponse.errorMessage(): String =
   runCatching { body<ApiError>() }.getOrNull()?.message ?: "HTTP ${status.value}"
 

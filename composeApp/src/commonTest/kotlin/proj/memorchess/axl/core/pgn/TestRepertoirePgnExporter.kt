@@ -35,7 +35,13 @@ class TestRepertoirePgnExporter {
     val tree = store()
     tree.addMove(rootKey, "e4", after(rootKey, "e4"), isGood = true, fromDepth = 0)
     tree.tagEdge(rootKey, after(rootKey, "e4"), "italian-game")
-    tree.addMove(after(rootKey, "e4"), "e5", after(rootKey, "e4", "e5"), isGood = true, fromDepth = 1)
+    tree.addMove(
+      after(rootKey, "e4"),
+      "e5",
+      after(rootKey, "e4", "e5"),
+      isGood = true,
+      fromDepth = 1,
+    )
     tree.tagEdge(after(rootKey, "e4"), after(rootKey, "e4", "e5"), "italian-game")
 
     val result = exporter(tree).export("italian-game") as RepertoireExportResult.Pgn

@@ -29,10 +29,11 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
 
   private fun viewModel(
     scope: TestScope,
-    export: suspend (String) -> RepertoireExportResult = { RepertoireExportResult.Pgn("1. e4", 1, 1) },
+    export: suspend (String) -> RepertoireExportResult = {
+      RepertoireExportResult.Pgn("1. e4", 1, 1)
+    },
     accessToken: suspend () -> TokenResult = { TokenResult.Ok("token") },
-    publish:
-      suspend (String, String, String, String, String, String) -> PublishOutcome =
+    publish: suspend (String, String, String, String, String, String) -> PublishOutcome =
       { _, _, _, _, _, _ ->
         PublishOutcome.Published(descriptor)
       },
@@ -58,7 +59,8 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
 
   @Test
   fun startsPublishedWhenTheStoreAlreadyHasASlug() = test {
-    val store = PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
     val vm = viewModel(this, store = store)
 
     vm.state.value shouldBe PublishState.Published("my-italian-game")
@@ -78,9 +80,14 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
 
   @Test
   fun publishSurfacesRemovedOnServerAndClearsTheStoredSlug() = test {
-    val store = PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
     val vm =
-      viewModel(this, store = store, publish = { _, _, _, _, _, _ -> PublishOutcome.RemovedOnServer })
+      viewModel(
+        this,
+        store = store,
+        publish = { _, _, _, _, _, _ -> PublishOutcome.RemovedOnServer },
+      )
 
     vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
     advanceUntilIdle()
@@ -127,13 +134,15 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
     vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
     advanceUntilIdle()
 
-    (vm.state.value as PublishState.Failed).error should beInstanceOf<PublishError.PayloadTooLarge>()
+    (vm.state.value as PublishState.Failed).error should
+      beInstanceOf<PublishError.PayloadTooLarge>()
     networkCalled shouldBe false
   }
 
   @Test
   fun removeSucceedsAndClearsTheStoredSlug() = test {
-    val store = PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
     val vm = viewModel(this, store = store)
 
     vm.remove()

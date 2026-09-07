@@ -471,7 +471,9 @@ private fun PublishAction(localId: String, name: String, color: RepertoireColor)
   )
 }
 
-/** Sanitizes [name] into a default publish slug candidate: lowercase, non alphanumerics to hyphens. */
+/**
+ * Sanitizes [name] into a default publish slug candidate: lowercase, non alphanumerics to hyphens.
+ */
 private fun defaultSlug(name: String): String =
   name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-')
 

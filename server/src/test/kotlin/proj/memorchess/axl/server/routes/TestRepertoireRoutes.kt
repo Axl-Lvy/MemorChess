@@ -451,8 +451,7 @@ class TestRepertoireRoutes {
         }
 
       response.status shouldBe HttpStatusCode.Forbidden
-      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
-        ApiErrorCode.REMOVED
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe ApiErrorCode.REMOVED
     }
   }
 

@@ -387,7 +387,10 @@ class TreeStore(
   suspend fun tagsFor(origin: PositionKey, destination: PositionKey): Set<String> =
     database.getTags(origin, destination).map { it.repertoireId }.toSet()
 
-  /** Every live tagged edge of [repertoireId]. Read through of [DatabaseQueryManager.edgesTaggedWith]. */
+  /**
+   * Every live tagged edge of [repertoireId]. Read through of
+   * [DatabaseQueryManager.edgesTaggedWith].
+   */
   suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
     database.edgesTaggedWith(repertoireId)
 

@@ -171,7 +171,11 @@ class TestRoomOutboxAndSoftDelete {
     val move = DataMove(origin, destination, "e4", isGood = true)
     manager.insertNodes(
       DataNode(origin, PreviousAndNextMoves(emptyList(), listOf(move)), CardStateFactory.new()),
-      DataNode(destination, PreviousAndNextMoves(listOf(move), emptyList()), CardStateFactory.new()),
+      DataNode(
+        destination,
+        PreviousAndNextMoves(listOf(move), emptyList()),
+        CardStateFactory.new(),
+      ),
     )
     manager.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
 
@@ -185,7 +189,11 @@ class TestRoomOutboxAndSoftDelete {
     val move = DataMove(origin, destination, "e4", isGood = true)
     manager.insertNodes(
       DataNode(origin, PreviousAndNextMoves(emptyList(), listOf(move)), CardStateFactory.new()),
-      DataNode(destination, PreviousAndNextMoves(listOf(move), emptyList()), CardStateFactory.new()),
+      DataNode(
+        destination,
+        PreviousAndNextMoves(listOf(move), emptyList()),
+        CardStateFactory.new(),
+      ),
     )
     manager.insertTag(
       DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", isDeleted = true)

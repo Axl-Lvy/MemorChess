@@ -30,8 +30,8 @@ import proj.memorchess.axl.ui.components.popup.KineticDialog
  * prefilled from [initialSlug]/[repertoireName] and always submitted under [side]. Submit is
  * disabled until every field passes the shared [RepertoirePublishLimits] bounds.
  *
- * Fields reset to their initial values every time [visible] turns true, so a dialog reopened after a
- * cancel starts fresh rather than keeping a stale edit.
+ * Fields reset to their initial values every time [visible] turns true, so a dialog reopened after
+ * a cancel starts fresh rather than keeping a stale edit.
  */
 @Composable
 fun PublishRepertoireDialog(
@@ -62,7 +62,10 @@ fun PublishRepertoireDialog(
     onDismissRequest = onDismiss,
     modifier = Modifier.testTag("publishRepertoireDialog"),
     buttons = {
-      TextButton(modifier = Modifier.testTag("publishRepertoireDialogCancelButton"), onClick = onDismiss) {
+      TextButton(
+        modifier = Modifier.testTag("publishRepertoireDialogCancelButton"),
+        onClick = onDismiss,
+      ) {
         Text(stringResource(Res.string.dialog_cancel))
       }
       TextButton(

@@ -41,7 +41,8 @@ object RepertoirePublishLimits {
     when {
       id.length < MIN_ID_LENGTH || id.length > MAX_ID_LENGTH ->
         "id must be $MIN_ID_LENGTH to $MAX_ID_LENGTH characters, was ${id.length}"
-      !ID_PATTERN.matches(id) -> "id must be lowercase letters, digits and single hyphens, was '$id'"
+      !ID_PATTERN.matches(id) ->
+        "id must be lowercase letters, digits and single hyphens, was '$id'"
       else -> null
     }
 }

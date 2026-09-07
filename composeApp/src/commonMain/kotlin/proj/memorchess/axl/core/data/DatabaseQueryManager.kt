@@ -302,8 +302,8 @@ interface DatabaseQueryManager {
 
   /**
    * Every live tagged edge of [repertoireId], the SAN move joined in from its [DataMove] row. A tag
-   * whose move is soft deleted, or a move whose tag is soft deleted, is excluded from either side of
-   * the join.
+   * whose move is soft deleted, or a move whose tag is soft deleted, is excluded from either side
+   * of the join.
    */
   suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge>
 

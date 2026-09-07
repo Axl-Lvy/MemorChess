@@ -28,9 +28,9 @@ sealed class RepertoireExportResult {
  * A line that transposes into already known theory can have one or more untagged edges between the
  * starting position and a tagged one further down (`LinesExplorer` only tags an edge the first time
  * it is newly played). Exporting tagged edges alone would silently drop such a tagged edge, since
- * nothing would connect it back to the root. This walks every persisted edge from the root and keeps
- * one only when it is itself tagged with [repertoireId] or some tagged edge for it is reachable
- * somewhere in its subtree, so every exported line stays whole and playable.
+ * nothing would connect it back to the root. This walks every persisted edge from the root and
+ * keeps one only when it is itself tagged with [repertoireId] or some tagged edge for it is
+ * reachable somewhere in its subtree, so every exported line stays whole and playable.
  *
  * Does not re run chess legality checking: every edge walked already exists as a legal edge in the
  * local graph. A repertoire's good or bad move classification does not survive the round trip (PGN
@@ -60,8 +60,7 @@ class RepertoirePgnExporter(private val treeStore: TreeStore) {
       val node = treeStore.node(position)
       val result =
         node?.outgoing?.values.orEmpty().any { edge ->
-          !edge.isDeleted &&
-            ((edge.from to edge.to) in taggedEdges || hasTaggedDescendant(edge.to))
+          !edge.isDeleted && ((edge.from to edge.to) in taggedEdges || hasTaggedDescendant(edge.to))
         }
       visiting.remove(position)
       reachability[position] = result
@@ -73,8 +72,7 @@ class RepertoirePgnExporter(private val treeStore: TreeStore) {
       val node = treeStore.node(position) ?: return emptyList()
       val included =
         node.outgoing.values.filter { edge ->
-          !edge.isDeleted &&
-            ((edge.from to edge.to) in taggedEdges || hasTaggedDescendant(edge.to))
+          !edge.isDeleted && ((edge.from to edge.to) in taggedEdges || hasTaggedDescendant(edge.to))
         }
       return included.map { edge ->
         distinctMoves += edge.from to edge.to

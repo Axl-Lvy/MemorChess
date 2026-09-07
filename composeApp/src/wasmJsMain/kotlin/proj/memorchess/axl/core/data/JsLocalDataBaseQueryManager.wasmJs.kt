@@ -1119,16 +1119,21 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     return database.transaction(TAGS_STORE, MOVES_STORE) {
       val tags: List<JsEdgeRepertoireTagEntity> =
-        objectStore(TAGS_STORE).index("repertoireId").getAll(Key(repertoireId.toJsString())).toList()
+        objectStore(TAGS_STORE)
+          .index("repertoireId")
+          .getAll(Key(repertoireId.toJsString()))
+          .toList()
       val movesStore = objectStore(MOVES_STORE)
-      tags.filter { !it.isDeleted }.mapNotNull { tag ->
-        val move =
-          movesStore
-            .get(Key(tag.origin.toJsString(), tag.destination.toJsString()))
-            ?.unsafeCast<JsMoveEntity>()
-        if (move == null || move.isDeleted) null
-        else TaggedEdge(PositionKey(tag.origin), PositionKey(tag.destination), move.move)
-      }
+      tags
+        .filter { !it.isDeleted }
+        .mapNotNull { tag ->
+          val move =
+            movesStore
+              .get(Key(tag.origin.toJsString(), tag.destination.toJsString()))
+              ?.unsafeCast<JsMoveEntity>()
+          if (move == null || move.isDeleted) null
+          else TaggedEdge(PositionKey(tag.origin), PositionKey(tag.destination), move.move)
+        }
     }
   }
 
