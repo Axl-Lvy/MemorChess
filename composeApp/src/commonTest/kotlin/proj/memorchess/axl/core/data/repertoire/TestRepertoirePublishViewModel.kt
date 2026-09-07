@@ -151,4 +151,242 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
     vm.state.value shouldBe PublishState.NotPublished
     store.publishedSlug("italian-game") shouldBe null
   }
+
+  @Test
+  fun removeIsANoOpWhenNotCurrentlyPublished() = test {
+    val vm = viewModel(this)
+
+    vm.remove()
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.NotPublished
+  }
+
+  @Test
+  fun publishFailsWhenTheRepertoireHasNothingTaggedToExport() = test {
+    val vm = viewModel(this, export = { RepertoireExportResult.Empty })
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.NothingToPublish)
+  }
+
+  @Test
+  fun publishFailsLocallyWhenThePayloadIsOverTheByteCap() = test {
+    var networkCalled = false
+    val oversized = "x".repeat(RepertoirePublishLimits.MAX_REPERTOIRE_PAYLOAD_BYTES + 1)
+    val vm =
+      viewModel(
+        this,
+        export = { RepertoireExportResult.Pgn(oversized, 1, 1) },
+        publish = { _, _, _, _, _, _ ->
+          networkCalled = true
+          PublishOutcome.Published(descriptor)
+        },
+      )
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    (vm.state.value as PublishState.Failed).error should
+      beInstanceOf<PublishError.PayloadTooLarge>()
+    networkCalled shouldBe false
+  }
+
+  @Test
+  fun publishFailsLocallyWhenALineGoesPastTheDepthCap() = test {
+    var networkCalled = false
+    val vm =
+      viewModel(
+        this,
+        export = {
+          RepertoireExportResult.Pgn("1. e4", 1, RepertoirePublishLimits.MAX_PLY_DEPTH + 1)
+        },
+        publish = { _, _, _, _, _, _ ->
+          networkCalled = true
+          PublishOutcome.Published(descriptor)
+        },
+      )
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    (vm.state.value as PublishState.Failed).error should
+      beInstanceOf<PublishError.PayloadTooLarge>()
+    networkCalled shouldBe false
+  }
+
+  @Test
+  fun publishSurfacesInvalidPayloadFromTheServer() = test {
+    val vm =
+      viewModel(
+        this,
+        publish = { _, _, _, _, _, _ -> PublishOutcome.InvalidPayload("bad pgn") },
+      )
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.InvalidPayload("bad pgn"))
+  }
+
+  @Test
+  fun publishSurfacesPayloadTooLargeFromTheServer() = test {
+    val vm =
+      viewModel(
+        this,
+        publish = { _, _, _, _, _, _ -> PublishOutcome.PayloadTooLarge("too big") },
+      )
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.PayloadTooLarge("too big"))
+  }
+
+  @Test
+  fun publishSurfacesForbidden() = test {
+    val vm = viewModel(this, publish = { _, _, _, _, _, _ -> PublishOutcome.Forbidden })
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.Forbidden)
+  }
+
+  @Test
+  fun publishSurfacesQuotaExceeded() = test {
+    val vm =
+      viewModel(
+        this,
+        publish = { _, _, _, _, _, _ -> PublishOutcome.QuotaExceeded("too many") },
+      )
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.QuotaExceeded("too many"))
+  }
+
+  @Test
+  fun publishSurfacesRateLimited() = test {
+    val vm = viewModel(this, publish = { _, _, _, _, _, _ -> PublishOutcome.RateLimited })
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.RateLimited)
+  }
+
+  @Test
+  fun publishSurfacesAGenericServerFailure() = test {
+    val vm = viewModel(this, publish = { _, _, _, _, _, _ -> PublishOutcome.Failed("boom") })
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.ServerError)
+  }
+
+  @Test
+  fun publishSurfacesRateLimitedWhenTheTokenLookupIsTransientlyFailing() = test {
+    var networkCalled = false
+    val vm =
+      viewModel(
+        this,
+        accessToken = { TokenResult.Failed.Transient },
+        publish = { _, _, _, _, _, _ ->
+          networkCalled = true
+          PublishOutcome.Published(descriptor)
+        },
+      )
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.RateLimited)
+    networkCalled shouldBe false
+  }
+
+  @Test
+  fun publishSurfacesSignedOutWhenTheTokenLookupTerminallyFails() = test {
+    var networkCalled = false
+    val vm =
+      viewModel(
+        this,
+        accessToken = { TokenResult.Failed.Terminal },
+        publish = { _, _, _, _, _, _ ->
+          networkCalled = true
+          PublishOutcome.Published(descriptor)
+        },
+      )
+
+    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.SignedOut)
+    networkCalled shouldBe false
+  }
+
+  @Test
+  fun removeSurfacesForbidden() = test {
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val vm = viewModel(this, store = store, remove = { _, _ -> RemoveOutcome.Forbidden })
+
+    vm.remove()
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.Forbidden)
+  }
+
+  @Test
+  fun removeSurfacesSignedOut() = test {
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val vm = viewModel(this, store = store, accessToken = { TokenResult.SignedOut })
+
+    vm.remove()
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.SignedOut)
+  }
+
+  @Test
+  fun removeSurfacesRateLimited() = test {
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val vm = viewModel(this, store = store, remove = { _, _ -> RemoveOutcome.RateLimited })
+
+    vm.remove()
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.RateLimited)
+  }
+
+  @Test
+  fun removeSurfacesAGenericServerFailure() = test {
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val vm = viewModel(this, store = store, remove = { _, _ -> RemoveOutcome.Failed("boom") })
+
+    vm.remove()
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.Failed(PublishError.ServerError)
+  }
+
+  @Test
+  fun removeTreatsNotFoundAsAlreadyRemoved() = test {
+    val store =
+      PublishedRepertoireStore().apply { recordPublished("italian-game", "my-italian-game") }
+    val vm = viewModel(this, store = store, remove = { _, _ -> RemoveOutcome.NotFound })
+
+    vm.remove()
+    advanceUntilIdle()
+
+    vm.state.value shouldBe PublishState.NotPublished
+    store.publishedSlug("italian-game") shouldBe null
+  }
 }

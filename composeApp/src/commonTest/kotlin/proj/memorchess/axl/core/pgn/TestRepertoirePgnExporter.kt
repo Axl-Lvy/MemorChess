@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
@@ -122,5 +123,26 @@ class TestRepertoirePgnExporter {
 
     result.moveCount shouldBe 3
     result.maxPlyDepth shouldBe 3
+  }
+
+  @Test
+  fun excludesASoftDeletedEdgeEvenWhenItWasTagged() = runTest {
+    val tree = store()
+    val afterE4 = after(rootKey, "e4")
+    tree.addMove(rootKey, "e4", afterE4, isGood = true, fromDepth = 0)
+    tree.tagEdge(rootKey, afterE4, "italian-game")
+    val afterE4E5 = after(rootKey, "e4", "e5")
+    tree.addMove(afterE4, "e5", afterE4E5, isGood = true, fromDepth = 1)
+    tree.tagEdge(afterE4, afterE4E5, "italian-game")
+    val afterE4C5 = after(rootKey, "e4", "c5")
+    tree.addMove(afterE4, "c5", afterE4C5, isGood = true, fromDepth = 1)
+    tree.tagEdge(afterE4, afterE4C5, "italian-game")
+    tree.deleteMove(afterE4, "c5", DeleteMode.SOFT)
+
+    val result = exporter(tree).export("italian-game") as RepertoireExportResult.Pgn
+
+    val parsed = PgnParser.parse(result.text).single().moves.single()
+    parsed.san shouldBe "e4"
+    parsed.children.map { it.san } shouldBe listOf("e5")
   }
 }

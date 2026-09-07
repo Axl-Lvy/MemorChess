@@ -818,6 +818,14 @@ class TestInMemoryDatabaseQueryManager {
     assertEquals(emptyList(), database.edgesTaggedWith("never-tagged"))
   }
 
+  @Test
+  fun edgesTaggedWithExcludesATagWhoseOriginNodeDoesNotExist() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+
+    assertEquals(emptyList(), database.edgesTaggedWith("italian-game"))
+  }
+
   // --- NodeRepertoireTrainable projection --------------------------------------------------
 
   @Test
