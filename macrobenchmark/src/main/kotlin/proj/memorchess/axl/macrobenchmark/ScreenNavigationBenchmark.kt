@@ -29,7 +29,7 @@ class ScreenNavigationBenchmark {
       startupMode = StartupMode.WARM,
       setupBlock = { startActivityAndWait() },
     ) {
-      navigateTo("Training")
+      navigateTo("Today")
       navigateTo("Settings")
       navigateTo("Explore")
     }
