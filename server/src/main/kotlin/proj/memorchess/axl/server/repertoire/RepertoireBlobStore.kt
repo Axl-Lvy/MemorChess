@@ -12,7 +12,7 @@ internal interface RepertoireBlobStore {
   suspend fun put(sha256: String, bytes: ByteArray)
 
   /** Returns the bytes stored under [sha256], or `null` when nothing is stored there. */
-  suspend fun get(sha256: String): ByteArray?
+  suspend operator fun get(sha256: String): ByteArray?
 
   /** Removes the object stored under [sha256]. Removing an absent hash is a no op. */
   suspend fun delete(sha256: String)

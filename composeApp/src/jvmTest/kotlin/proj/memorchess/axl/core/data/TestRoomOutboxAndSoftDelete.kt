@@ -165,6 +165,44 @@ class TestRoomOutboxAndSoftDelete {
   }
 
   @Test
+  fun edgesTaggedWithJoinsTheTagOntoItsMoveThroughRoom() = runTest {
+    val origin = PositionKey("k1")
+    val destination = PositionKey("k2")
+    val move = DataMove(origin, destination, "e4", isGood = true)
+    manager.insertNodes(
+      DataNode(origin, PreviousAndNextMoves(emptyList(), listOf(move)), CardStateFactory.new()),
+      DataNode(
+        destination,
+        PreviousAndNextMoves(listOf(move), emptyList()),
+        CardStateFactory.new(),
+      ),
+    )
+    manager.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
+
+    manager.edgesTaggedWith("italian-game") shouldBe listOf(TaggedEdge(origin, destination, "e4"))
+  }
+
+  @Test
+  fun edgesTaggedWithExcludesADeletedTagThroughRoom() = runTest {
+    val origin = PositionKey("k1")
+    val destination = PositionKey("k2")
+    val move = DataMove(origin, destination, "e4", isGood = true)
+    manager.insertNodes(
+      DataNode(origin, PreviousAndNextMoves(emptyList(), listOf(move)), CardStateFactory.new()),
+      DataNode(
+        destination,
+        PreviousAndNextMoves(listOf(move), emptyList()),
+        CardStateFactory.new(),
+      ),
+    )
+    manager.insertTag(
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", isDeleted = true)
+    )
+
+    manager.edgesTaggedWith("italian-game") shouldBe emptyList()
+  }
+
+  @Test
   fun softDeletingAPositionQueuesTheNodeAndIncidentEdgesInTheSameTransaction() = runTest {
     val origin = PositionKey("k1")
     val destination = PositionKey("k2")

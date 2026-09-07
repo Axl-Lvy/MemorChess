@@ -2,22 +2,12 @@ package proj.memorchess.axl.server.repertoire
 
 import org.slf4j.LoggerFactory
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.IllegalMoveException
 import proj.memorchess.axl.core.pgn.PgnMoveNode
 import proj.memorchess.axl.core.pgn.PgnParseException
 import proj.memorchess.axl.core.pgn.PgnParser
-
-/**
- * Deepest line accepted, in plies from the starting position.
- *
- * A real opening repertoire never needs more than a few dozen plies down any single line. The cap
- * exists to bound recursion depth: without it, a payload well under the byte cap can still walk a
- * line thousands of plies deep (for example a short sequence of legal moves repeated many times),
- * which overflows the call stack before [MAX_REPERTOIRE_MOVES] is ever reached, because a repeated
- * line keeps revisiting the same small set of distinct moves.
- */
-private const val MAX_PLY_DEPTH = 200
 
 /**
  * Stack size given to the worker thread [RepertoirePgnValidator.validate] runs on, generous
@@ -161,8 +151,10 @@ internal object RepertoirePgnValidator {
     maxMoves: Int,
     seen: MutableSet<Pair<PositionKey, String>>,
   ): RepertoireValidation? {
-    if (depth > MAX_PLY_DEPTH) {
-      return RepertoireValidation.TooLarge("a line goes past $MAX_PLY_DEPTH plies deep")
+    if (depth > RepertoirePublishLimits.MAX_PLY_DEPTH) {
+      return RepertoireValidation.TooLarge(
+        "a line goes past ${RepertoirePublishLimits.MAX_PLY_DEPTH} plies deep"
+      )
     }
     val engine = GameEngine(fromKey)
     try {

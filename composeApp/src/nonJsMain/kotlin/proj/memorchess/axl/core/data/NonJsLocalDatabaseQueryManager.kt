@@ -244,6 +244,11 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     database.getRepertoireDao().insertTag(EdgeRepertoireTagEntity.convertToEntity(tag))
   }
 
+  override suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
+    database.getRepertoireDao().edgesTaggedWith(repertoireId).map {
+      TaggedEdge(PositionKey(it.origin), PositionKey(it.destination), it.move)
+    }
+
   override suspend fun replaceTrainableRepertoires(
     positionKey: PositionKey,
     repertoireIds: Set<String>,

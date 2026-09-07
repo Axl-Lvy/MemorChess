@@ -12,6 +12,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.SchedulingCounts
 import proj.memorchess.axl.core.data.ScopedSchedulingCounts
+import proj.memorchess.axl.core.data.TaggedEdge
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 
@@ -142,6 +143,9 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   override suspend fun insertTag(tag: DataEdgeRepertoireTag) = delegate.insertTag(tag)
 
   override suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag) = delegate.applyRemoteTag(tag)
+
+  override suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
+    delegate.edgesTaggedWith(repertoireId)
 
   override suspend fun replaceTrainableRepertoires(
     positionKey: PositionKey,

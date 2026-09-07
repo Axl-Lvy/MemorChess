@@ -90,6 +90,7 @@ internal object IndexedDbInstance {
       database.createObjectStore(TAGS_STORE, KeyPath("origin", "destination", "repertoireId"))
     tagsStore.createIndex("origin_destination", KeyPath("origin", "destination"), unique = false)
     tagsStore.createIndex("isDeleted", KeyPath("isDeleted"), unique = false)
+    tagsStore.createIndex("repertoireId", KeyPath("repertoireId"), unique = false)
 
     val trainableStore =
       database.createObjectStore(

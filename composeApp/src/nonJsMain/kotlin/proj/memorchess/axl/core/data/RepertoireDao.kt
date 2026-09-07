@@ -69,6 +69,17 @@ interface RepertoireDao {
   ): EdgeRepertoireTagEntity?
 
   /**
+   * Every live tagged edge of [repertoireId], joined onto its [MoveEntity] for the SAN the tag row
+   * does not carry. A tag or move that is soft deleted is excluded from either side of the join.
+   */
+  @Query(
+    "SELECT m.* FROM EdgeRepertoireTagEntity t JOIN MoveEntity m " +
+      "ON t.origin = m.origin AND t.destination = m.destination " +
+      "WHERE t.repertoireId = :repertoireId AND t.isDeleted IS FALSE AND m.isDeleted IS FALSE"
+  )
+  suspend fun edgesTaggedWith(repertoireId: String): List<MoveEntity>
+
+  /**
    * Queues an outbox entry, keeping the higher of the stored and new `deviceSeq` on a repeat mark.
    * Duplicates [OutboxDao.upsert]'s query so it can share a `@Transaction` with the row write it
    * names, the same reason [NodeEntityDao.upsertOutboxEntry] does.
