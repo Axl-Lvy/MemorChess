@@ -2,8 +2,11 @@ package proj.memorchess.axl.ui.components.settings.sections
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -92,7 +95,12 @@ fun ImportExportSection(
 private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDialog) {
   val coroutineScope = rememberCoroutineScope()
 
-  Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+  // IntrinsicSize.Min lets fillMaxHeight() below match the taller of the two buttons — the one
+  // whose label wrapped to two lines — instead of the other button stretching to its own height.
+  Row(
+    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+    horizontalArrangement = Arrangement.spacedBy(10.dp),
+  ) {
     KineticButton(
       onClick = {
         coroutineScope.launch {
@@ -106,7 +114,7 @@ private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDial
           exportToFile(content, baseName, "memorchess")
         }
       },
-      modifier = Modifier.weight(1f).testTag("exportButton"),
+      modifier = Modifier.weight(1f).fillMaxHeight().testTag("exportButton"),
       style = KineticButtonStyle.Default,
       large = true,
     ) {
@@ -133,7 +141,7 @@ private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDial
           }
         }
       },
-      modifier = Modifier.weight(1f).testTag("importButton"),
+      modifier = Modifier.weight(1f).fillMaxHeight().testTag("importButton"),
       style = KineticButtonStyle.Default,
       large = true,
     ) {

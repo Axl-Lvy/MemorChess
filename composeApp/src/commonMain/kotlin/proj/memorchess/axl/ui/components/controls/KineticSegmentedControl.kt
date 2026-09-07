@@ -7,10 +7,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
@@ -41,7 +43,9 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * dividers between segments; those would clash with the 11.dp-rounded active pill wherever a
  * straight divider met a rounded corner. Each segment shows a Baloo 2 display label (600 12sp idle,
  * 700 12sp when active) produced by [label]; if [subtext] is provided, a `labelSm` caption is
- * rendered below the label and the segment's minimum height grows from 36.dp to 44.dp.
+ * rendered below the label and the segment's minimum height grows from 36.dp to 44.dp. That row
+ * height is a floor, not a fixed value: a label too wide for its segment wraps, and every segment
+ * grows together to fit the tallest one rather than clipping its second line.
  *
  * The currently [selected] segment is filled with `action` and switches its content color to
  * `onAction` (subtext at 0.7 alpha); idle segments use `ink3` for the label and `ink4` for the
@@ -79,7 +83,11 @@ fun <T> KineticSegmentedControl(
   Row(
     modifier =
       modifier
-        .height(rowHeight)
+        // IntrinsicSize.Min lets every segment's fillMaxHeight() below match the tallest one — the
+        // one whose label wrapped to two lines — instead of that segment being clipped to
+        // rowHeight.
+        .height(IntrinsicSize.Min)
+        .heightIn(min = rowHeight)
         .alpha(if (enabled) 1f else 0.5f)
         .clip(containerShape)
         .background(color = palette.bg2, shape = containerShape)
