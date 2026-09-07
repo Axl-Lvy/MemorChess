@@ -52,12 +52,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
+import compose.icons.feathericons.Copy
 import compose.icons.feathericons.Eye
+import compose.icons.feathericons.Plus
+import kotlinx.coroutines.CoroutineScope
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.library_badge_in_training
 import memorchess.composeapp.generated.resources.library_badge_new
 import memorchess.composeapp.generated.resources.library_color_black
 import memorchess.composeapp.generated.resources.library_color_white
+import memorchess.composeapp.generated.resources.library_create
+import memorchess.composeapp.generated.resources.library_create_error_blank_name
+import memorchess.composeapp.generated.resources.library_create_error_duplicate_id
+import memorchess.composeapp.generated.resources.library_create_error_invalid_pgn
 import memorchess.composeapp.generated.resources.library_empty
 import memorchess.composeapp.generated.resources.library_error_http
 import memorchess.composeapp.generated.resources.library_error_malformed
@@ -69,6 +76,7 @@ import memorchess.composeapp.generated.resources.library_filter_black
 import memorchess.composeapp.generated.resources.library_filter_empty
 import memorchess.composeapp.generated.resources.library_filter_mine
 import memorchess.composeapp.generated.resources.library_filter_white
+import memorchess.composeapp.generated.resources.library_fork
 import memorchess.composeapp.generated.resources.library_hero_badge
 import memorchess.composeapp.generated.resources.library_hero_cta
 import memorchess.composeapp.generated.resources.library_hero_progress
@@ -113,6 +121,8 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
+import proj.memorchess.axl.core.data.repertoire.CreationError
+import proj.memorchess.axl.core.data.repertoire.CreationState
 import proj.memorchess.axl.core.data.repertoire.InstallError
 import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.LibraryCatalogState
@@ -121,6 +131,7 @@ import proj.memorchess.axl.core.data.repertoire.PublishState
 import proj.memorchess.axl.core.data.repertoire.PublishedRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.core.data.repertoire.RepertoireCreationViewModel
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireInstallState
 import proj.memorchess.axl.core.data.repertoire.RepertoireLibraryViewModel
@@ -128,6 +139,7 @@ import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishViewModel
 import proj.memorchess.axl.core.data.repertoire.placeholderRepertoireMastery
+import proj.memorchess.axl.core.data.repertoire.slugify
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImporter
@@ -138,6 +150,8 @@ import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.buttons.KineticOnAccentLime
 import proj.memorchess.axl.ui.components.buttons.kineticAccentLimeColor
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
+import proj.memorchess.axl.ui.components.repertoire.CreateRepertoireDialog
+import proj.memorchess.axl.ui.components.repertoire.ForkRepertoireDialog
 import proj.memorchess.axl.ui.components.repertoire.PublishRepertoireDialog
 import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 import proj.memorchess.axl.ui.pages.navigation.Route
@@ -207,6 +221,7 @@ fun RepertoireLibrary(
         onView = { descriptor -> navigator.navigateTo(Route.RepertoireViewRoute(descriptor.id)) },
         onExplore = { id -> navigator.navigateTo(Route.ExploreRoute(repertoireId = id)) },
         onTrain = { id -> navigator.navigateTo(Route.TrainingRoute(repertoireId = id)) },
+        onRepertoireListChanged = viewModel::refreshMyRepertoires,
       ),
     modifier = Modifier.fillMaxSize().testTag(Route.LibraryRoute.getLabel()),
   )
@@ -229,6 +244,8 @@ private fun RepertoireColor.toPlayer(): Player =
  * @property onView Open the read-only viewer for the given repertoire.
  * @property onExplore Open the Explore page scoped to the given registered repertoire.
  * @property onTrain Open the Training page scoped to the given registered repertoire.
+ * @property onRepertoireListChanged Reloads the "My Repertoires" list; called after a create or
+ *   fork completes so the new repertoire shows up without leaving the page.
  */
 internal data class RepertoireLibraryActions(
   val onInstall: (RepertoireDescriptor) -> Unit,
@@ -237,6 +254,7 @@ internal data class RepertoireLibraryActions(
   val onView: (RepertoireDescriptor) -> Unit = {},
   val onExplore: (repertoireId: String) -> Unit = {},
   val onTrain: (repertoireId: String) -> Unit = {},
+  val onRepertoireListChanged: () -> Unit = {},
 )
 
 /**
@@ -274,6 +292,7 @@ internal fun RepertoireLibraryContent(
       installedIds = installedIds,
       onExplore = actions.onExplore,
       onTrain = actions.onTrain,
+      onRepertoireListChanged = actions.onRepertoireListChanged,
     )
     when (catalogState) {
       is LibraryCatalogState.Loading ->
@@ -330,14 +349,22 @@ private fun MyRepertoiresSection(
   installedIds: Set<String>,
   onExplore: (repertoireId: String) -> Unit,
   onTrain: (repertoireId: String) -> Unit,
+  onRepertoireListChanged: () -> Unit,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-    Text(
-      text = stringResource(Res.string.library_my_repertoires_title),
-      style = typography.labelSm.copy(color = palette.actionText),
-    )
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Text(
+        text = stringResource(Res.string.library_my_repertoires_title),
+        style = typography.labelSm.copy(color = palette.actionText),
+      )
+      CreateRepertoireAction(onRepertoireListChanged = onRepertoireListChanged)
+    }
     for (repertoire in repertoires) {
       MyRepertoireRow(
         name = repertoire.name,
@@ -349,14 +376,15 @@ private fun MyRepertoiresSection(
         canPublish = repertoire.id !in installedIds && repertoire.color != null,
         onExplore = onExplore,
         onTrain = onTrain,
+        onRepertoireListChanged = onRepertoireListChanged,
       )
     }
   }
 }
 
 /**
- * One row of [MyRepertoiresSection]: the repertoire's name, its Explore/Train buttons, and, for a
- * self authored single sided repertoire ([canPublish]), its Publish/Update/Unpublish action.
+ * One row of [MyRepertoiresSection]: the repertoire's name, its Explore/Train/Fork buttons, and,
+ * for a self authored single sided repertoire ([canPublish]), its Publish/Update/Unpublish action.
  */
 @Composable
 private fun MyRepertoireRow(
@@ -366,6 +394,7 @@ private fun MyRepertoireRow(
   canPublish: Boolean,
   onExplore: (repertoireId: String) -> Unit,
   onTrain: (repertoireId: String) -> Unit,
+  onRepertoireListChanged: () -> Unit,
 ) {
   Row(
     modifier = Modifier.fillMaxWidth().testTag("$TEST_TAG_MY_REPERTOIRE_ROW:$id"),
@@ -380,12 +409,139 @@ private fun MyRepertoireRow(
       KineticButton(onClick = { onTrain(id) }) {
         KineticButtonLabel(stringResource(Res.string.library_train))
       }
+      ForkRepertoireAction(
+        sourceId = id,
+        sourceName = name,
+        sourceColor = color,
+        onRepertoireListChanged = onRepertoireListChanged,
+      )
       if (canPublish) {
         PublishAction(localId = id, name = name, color = color!!)
       }
     }
   }
 }
+
+/**
+ * "Create repertoire" icon action shown next to [MyRepertoiresSection]'s title. Owns its own
+ * [RepertoireCreationViewModel] (mirroring [PublishAction]'s self contained wiring) and closes the
+ * dialog, resets the view model, and calls [onRepertoireListChanged] once the create completes.
+ */
+@Composable
+private fun CreateRepertoireAction(onRepertoireListChanged: () -> Unit) {
+  val treeStore: TreeStore = koinInject()
+  val coroutineScope = rememberCoroutineScope()
+  val viewModel =
+    remember(treeStore, coroutineScope) { repertoireCreationViewModel(treeStore, coroutineScope) }
+  val state by viewModel.state.collectAsState()
+  var showDialog by remember { mutableStateOf(false) }
+  LaunchedEffect(state) {
+    if (state is CreationState.Done) {
+      showDialog = false
+      onRepertoireListChanged()
+      viewModel.reset()
+    }
+  }
+
+  KineticButton(
+    onClick = { showDialog = true },
+    iconOnly = true,
+    modifier = Modifier.testTag("library_create_button"),
+  ) {
+    Icon(
+      imageVector = FeatherIcons.Plus,
+      contentDescription = stringResource(Res.string.library_create),
+    )
+  }
+  CreateRepertoireDialog(
+    visible = showDialog,
+    working = state is CreationState.Working,
+    errorMessage = (state as? CreationState.Failed)?.error?.let { creationErrorMessage(it) },
+    onSubmit = { name, color, pgnText -> viewModel.create(name, color, pgnText) },
+    onDismiss = {
+      showDialog = false
+      viewModel.reset()
+    },
+  )
+}
+
+/**
+ * "Fork repertoire" icon action shown on every [MyRepertoireRow]. Duplicates [sourceId]'s tagged
+ * edges into a new repertoire under a name the dialog suggests, keeping [sourceColor]. Wiring
+ * mirrors [CreateRepertoireAction].
+ */
+@Composable
+private fun ForkRepertoireAction(
+  sourceId: String,
+  sourceName: String,
+  sourceColor: RepertoireColor?,
+  onRepertoireListChanged: () -> Unit,
+) {
+  val treeStore: TreeStore = koinInject()
+  val coroutineScope = rememberCoroutineScope()
+  val viewModel =
+    remember(sourceId, treeStore, coroutineScope) {
+      repertoireCreationViewModel(treeStore, coroutineScope)
+    }
+  val state by viewModel.state.collectAsState()
+  var showDialog by remember { mutableStateOf(false) }
+  LaunchedEffect(state) {
+    if (state is CreationState.Done) {
+      showDialog = false
+      onRepertoireListChanged()
+      viewModel.reset()
+    }
+  }
+
+  KineticButton(
+    onClick = { showDialog = true },
+    iconOnly = true,
+    modifier = Modifier.testTag("library_fork_button:$sourceId"),
+  ) {
+    Icon(
+      imageVector = FeatherIcons.Copy,
+      contentDescription = stringResource(Res.string.library_fork),
+    )
+  }
+  ForkRepertoireDialog(
+    visible = showDialog,
+    sourceName = sourceName,
+    sourceColor = sourceColor,
+    working = state is CreationState.Working,
+    errorMessage = (state as? CreationState.Failed)?.error?.let { creationErrorMessage(it) },
+    onSubmit = { newName, color -> viewModel.fork(sourceId, newName, color) },
+    onDismiss = {
+      showDialog = false
+      viewModel.reset()
+    },
+  )
+}
+
+/**
+ * Builds a [RepertoireCreationViewModel] wired to [treeStore]: [TreeStore.repertoires] for the
+ * existing-id check, [TreeStore.registerRepertoire] and [TreeStore.forkRepertoire] directly, and a
+ * [PgnImporter] for pasted-PGN imports (mirroring [RepertoireLibrary]'s own `importGames` wiring).
+ */
+private fun repertoireCreationViewModel(treeStore: TreeStore, scope: CoroutineScope) =
+  RepertoireCreationViewModel(
+    existingIds = { treeStore.repertoires().map { it.id }.toSet() },
+    registerRepertoire = treeStore::registerRepertoire,
+    importGames = { repertoireId, color, games ->
+      PgnImporter(treeStore).import(games, color?.toPlayer(), repertoireId)
+    },
+    forkRepertoire = treeStore::forkRepertoire,
+    scope = scope,
+  )
+
+/** Maps [error] to its user facing message. */
+@Composable
+private fun creationErrorMessage(error: CreationError): String =
+  when (error) {
+    CreationError.BlankName -> stringResource(Res.string.library_create_error_blank_name)
+    CreationError.DuplicateId -> stringResource(Res.string.library_create_error_duplicate_id)
+    is CreationError.InvalidPgn ->
+      stringResource(Res.string.library_create_error_invalid_pgn, error.reason)
+  }
 
 /**
  * Publish lifecycle action for one repertoire's row: Publish when never published, Update and
@@ -457,7 +613,7 @@ private fun PublishAction(localId: String, name: String, color: RepertoireColor)
       }
   }
 
-  val initialSlug = (state as? PublishState.Published)?.slug ?: defaultSlug(name)
+  val initialSlug = (state as? PublishState.Published)?.slug ?: slugify(name)
   PublishRepertoireDialog(
     visible = showDialog,
     repertoireName = name,
@@ -470,12 +626,6 @@ private fun PublishAction(localId: String, name: String, color: RepertoireColor)
     onDismiss = { showDialog = false },
   )
 }
-
-/**
- * Sanitizes [name] into a default publish slug candidate: lowercase, non alphanumerics to hyphens.
- */
-private fun defaultSlug(name: String): String =
-  name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-')
 
 /** Maps [error] to its user facing message, per the spec's error handling section. */
 @Composable

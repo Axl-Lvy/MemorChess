@@ -266,6 +266,18 @@
     <item quantity="one">%1$d move</item>
     <item quantity="other">%1$d moves</item>
   </plurals>
+  <string name="library_create">Create repertoire</string>
+  <string name="library_create_dialog_title">Create repertoire</string>
+  <string name="library_create_name_label">Name</string>
+  <string name="library_create_pgn_label">Paste PGN (optional)</string>
+  <string name="library_create_color_mixed">MIXED</string>
+  <string name="library_create_error_blank_name">Give the repertoire a name.</string>
+  <string name="library_create_error_duplicate_id">A repertoire with that name already exists.</string>
+  <string name="library_create_error_invalid_pgn">This PGN could not be imported: %1$s</string>
+  <string name="library_fork">Fork</string>
+  <string name="library_fork_dialog_title">Fork repertoire</string>
+  <string name="library_fork_name_label">New name</string>
+  <string name="library_fork_default_name">%1$s copy</string>
 
   <!-- Repertoire viewer -->
   <string name="repertoire_view_not_found">Repertoire \"%1$s\" is not in the catalog anymore.</string>

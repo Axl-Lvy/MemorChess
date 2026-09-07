@@ -254,4 +254,67 @@ class TestTreeStore {
       store.registerRepertoire("italian,game", "Italian Game", null)
     }
   }
+
+  @Test
+  fun forkRepertoireRegistersTheNewRepertoire() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+
+    store.forkRepertoire(
+      "italian-game",
+      "italian-game-copy",
+      "Italian Game copy",
+      RepertoireColor.WHITE,
+    )
+
+    assertEquals(
+      listOf("italian-game", "italian-game-copy"),
+      store.repertoires().map { it.id }.sorted(),
+    )
+  }
+
+  @Test
+  fun forkRepertoireCopiesTheSourcesTaggedEdgesToTheNewId() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.tagEdge(start, posA, "italian-game")
+
+    store.forkRepertoire(
+      "italian-game",
+      "italian-game-copy",
+      "Italian Game copy",
+      RepertoireColor.WHITE,
+    )
+
+    assertEquals(
+      listOf(TaggedEdge(start, posA, "e4")),
+      store.edgesTaggedWith("italian-game-copy"),
+    )
+  }
+
+  @Test
+  fun forkRepertoireLeavesTheSourcesOwnTagsUntouched() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.tagEdge(start, posA, "italian-game")
+
+    store.forkRepertoire(
+      "italian-game",
+      "italian-game-copy",
+      "Italian Game copy",
+      RepertoireColor.WHITE,
+    )
+
+    assertEquals(listOf(TaggedEdge(start, posA, "e4")), store.edgesTaggedWith("italian-game"))
+  }
+
+  @Test
+  fun forkRepertoireRejectsABlankNewId() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+
+    assertFailsWith<IllegalArgumentException> {
+      store.forkRepertoire("italian-game", "", "Copy", RepertoireColor.WHITE)
+    }
+  }
 }

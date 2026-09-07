@@ -266,6 +266,18 @@
     <item quantity="one">%1$d coup</item>
     <item quantity="other">%1$d coups</item>
   </plurals>
+  <string name="library_create">Créer un répertoire</string>
+  <string name="library_create_dialog_title">Créer un répertoire</string>
+  <string name="library_create_name_label">Nom</string>
+  <string name="library_create_pgn_label">Coller un PGN (facultatif)</string>
+  <string name="library_create_color_mixed">MIXTE</string>
+  <string name="library_create_error_blank_name">Donnez un nom au répertoire.</string>
+  <string name="library_create_error_duplicate_id">Un répertoire porte déjà ce nom.</string>
+  <string name="library_create_error_invalid_pgn">Ce PGN n'a pas pu être importé : %1$s</string>
+  <string name="library_fork">Dupliquer</string>
+  <string name="library_fork_dialog_title">Dupliquer le répertoire</string>
+  <string name="library_fork_name_label">Nouveau nom</string>
+  <string name="library_fork_default_name">%1$s (copie)</string>
 
   <!-- Repertoire viewer -->
   <string name="repertoire_view_not_found">Le répertoire \"%1$s\" n'est plus dans le catalogue.</string>

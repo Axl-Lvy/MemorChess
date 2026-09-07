@@ -383,6 +383,27 @@ class TreeStore(
     notifyDirty()
   }
 
+  /**
+   * Registers [newId] as a new repertoire and tags it with every live edge currently tagged with
+   * [sourceId]. Nodes and moves are shared across repertoires, so this only duplicates the tag
+   * rows, never the underlying graph. [sourceId]'s own tags are left untouched, so the same edge
+   * ends up tagged with both repertoires.
+   *
+   * @throws IllegalArgumentException if [newId] is blank, or contains a comma (see
+   *   [registerRepertoire]).
+   */
+  suspend fun forkRepertoire(
+    sourceId: String,
+    newId: String,
+    newName: String,
+    color: RepertoireColor?,
+  ) {
+    registerRepertoire(newId, newName, color)
+    for (edge in edgesTaggedWith(sourceId)) {
+      tagEdge(edge.origin, edge.destination, newId)
+    }
+  }
+
   /** Every repertoire the live edge from [origin] to [destination] is tagged with. */
   suspend fun tagsFor(origin: PositionKey, destination: PositionKey): Set<String> =
     database.getTags(origin, destination).map { it.repertoireId }.toSet()
