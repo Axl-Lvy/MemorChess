@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LocalContentColor
@@ -248,7 +248,7 @@ private class ButtonShellState(
  */
 @Composable
 private fun Modifier.kineticButtonShell(state: ButtonShellState): Modifier =
-  this.height(state.metrics.height)
+  this.heightIn(min = state.metrics.height)
     .defaultMinSize(minWidth = state.metrics.height)
     .then(if (state.iconOnly) Modifier.width(state.metrics.height) else Modifier)
     .clickable(
@@ -278,9 +278,11 @@ private fun Modifier.kineticButtonShell(state: ButtonShellState): Modifier =
  * Kinetic button. Mirrors `.btn`, `.btn.primary`, `.btn.danger`, `.btn.danger.outline`,
  * `.btn.icon-only`, and `.btn.lg` from `design-proposals/kinetic-base.css`.
  *
- * Buttons round to 12.dp at the default 36.dp height and to 16.dp when [large] (44.dp, the CTAs
- * used in Settings rows), carry a 1.5.dp border and a Baloo 2 600 12sp label. Set [iconOnly] for a
- * square (height × height) toolbar button with no horizontal padding and the same radius.
+ * Buttons round to 12.dp at a minimum 36.dp height and to 16.dp when [large] (44.dp, the CTAs used
+ * in Settings rows), carry a 1.5.dp border and a Baloo 2 600 12sp label. That height is a floor,
+ * not a fixed value: a label too wide to fit its button on one line wraps, and the button grows
+ * taller to fit both lines rather than clipping the second one. Set [iconOnly] for a square (height
+ * × height) toolbar button with no horizontal padding and the same radius.
  *
  * The filled styles (Default, Primary, Danger, Accent) carry the chunky Kinetic pressable hard
  * bottom edge: 4.dp at rest, collapsing to a 1.dp sliver on press while the button translates 3.dp
