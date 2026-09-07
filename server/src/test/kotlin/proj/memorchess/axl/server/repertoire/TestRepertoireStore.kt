@@ -11,6 +11,7 @@ import kotlin.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestRepertoireStore {
@@ -31,8 +32,8 @@ internal class TestRepertoireStore {
   private val author2 = newAuthor()
 
   private fun store(
-    maxPayloadBytes: Int = MAX_REPERTOIRE_PAYLOAD_BYTES,
-    maxMoves: Int = MAX_REPERTOIRE_MOVES,
+    maxPayloadBytes: Int = RepertoirePublishLimits.MAX_REPERTOIRE_PAYLOAD_BYTES,
+    maxMoves: Int = RepertoirePublishLimits.MAX_REPERTOIRE_MOVES,
     maxRepertoiresPerUser: Int = MAX_REPERTOIRES_PER_USER,
     maxTotalPayloadBytesPerUser: Long = MAX_TOTAL_PAYLOAD_BYTES_PER_USER,
     blobs: RepertoireBlobStore = InMemoryRepertoireBlobStore(),
