@@ -136,15 +136,13 @@ class RepertoirePublishViewModel(
   private suspend fun resolveToken(): String? =
     when (val result = accessToken()) {
       is TokenResult.Ok -> result.accessToken
-      TokenResult.SignedOut -> {
-        fail(PublishError.SignedOut)
-        null
-      }
       TokenResult.Failed.Transient -> {
         fail(PublishError.RateLimited)
         null
       }
-      // The session is already cleared; SignedOut is the same terminal state the UI shows for it.
+      // TokenResult.Failed.Terminal means the session is already cleared; SignedOut is the same
+      // terminal state the UI shows for it.
+      TokenResult.SignedOut,
       TokenResult.Failed.Terminal -> {
         fail(PublishError.SignedOut)
         null

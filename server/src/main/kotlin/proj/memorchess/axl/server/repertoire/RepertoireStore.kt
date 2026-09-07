@@ -396,7 +396,7 @@ internal class RepertoireStore(
       withContext(ioDispatcher) {
         dataSource.connection.use { connection -> connection.blobStillReferenced(sha256) }
       }
-    return if (referenced) blobs.get(sha256) else null
+    return if (referenced) blobs[sha256] else null
   }
 
   /**
