@@ -25,12 +25,16 @@ import proj.memorchess.axl.core.auth.parseDecodedQuery
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 import proj.memorchess.axl.core.sync.SyncEngine
 import proj.memorchess.axl.ui.App
+import proj.memorchess.axl.ui.pages.navigation.routeFromHash
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalBrowserHistoryApi::class)
 fun main() {
-  // Must run before ComposeViewport/Koin: bindToBrowserNavigation (inside App) seeds its initial
-  // route from location.hash at bind time and overwrites any later history fix, so the callback
-  // URL has to be cleaned up first. See the design spec's "critical ordering constraint".
+  // Must run before ComposeViewport/Koin: NavHost (inside App) always commits Route.TodayRoute as
+  // its first back-stack entry before bindToBrowserNavigation ever attaches (that happens later, in
+  // a LaunchedEffect), so by the time it binds, location.hash no longer seeds anything — the binder
+  // just syncs the already-wrong current route back into history. So the callback URL has to be
+  // cleaned up first (see the design spec's "critical ordering constraint"), and separately, App's
+  // startRoute below has to be computed from the hash itself rather than left to the binder.
   val pendingStore = PendingOidcRedirectStore(getPlatformSpecificSettings())
   val decision =
     decideOidcRedirectExchange(
@@ -48,6 +52,9 @@ fun main() {
       }
       OidcRedirectDecision.NotACallback -> null
     }
+  // Read after the Callback branch above has already cleaned the URL, so a refresh mid OIDC
+  // redirect resolves against the restored pre-sign-in hash rather than the callback's own.
+  val startRoute = routeFromHash(window.location.hash)
 
   ComposeViewport(document.body ?: return) {
     KoinApplication(configuration = koinConfiguration { modules(*initKoinModules()) }) {
@@ -66,7 +73,9 @@ fun main() {
           )
         }
       }
-      App { it.callDelegate { navHostController -> navHostController.bindToBrowserNavigation() } }
+      App(startRoute = startRoute) {
+        it.callDelegate { navHostController -> navHostController.bindToBrowserNavigation() }
+      }
     }
   }
 }

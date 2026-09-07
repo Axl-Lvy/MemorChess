@@ -53,4 +53,32 @@ internal class TestRouter {
     isTabToTabTransition("", "today") shouldBe false
     isTabToTabTransition("today", "") shouldBe false
   }
+
+  @Test
+  fun `a hash names a plain bottom-nav tab route`() {
+    routeFromHash("#today") shouldBe Route.TodayRoute
+    routeFromHash("#explore") shouldBe Route.ExploreRoute.DEFAULT
+    routeFromHash("#library") shouldBe Route.LibraryRoute
+    routeFromHash("#settings") shouldBe Route.SettingsRoute
+  }
+
+  @Test
+  fun `a hash is matched case-insensitively and without its leading hash`() {
+    routeFromHash("#LIBRARY") shouldBe Route.LibraryRoute
+    routeFromHash("library") shouldBe Route.LibraryRoute
+  }
+
+  @Test
+  fun `an empty or unrecognised hash falls back to today`() {
+    routeFromHash("") shouldBe Route.TodayRoute
+    routeFromHash("#") shouldBe Route.TodayRoute
+    routeFromHash("#repertoireview/italian-game") shouldBe Route.TodayRoute
+  }
+
+  @Test
+  fun `a hash carrying arguments resolves to its tab with the default arguments`() {
+    // The tab's own arguments are dropped rather than reconstructed — still lands on the right
+    // screen instead of always falling back to Today.
+    routeFromHash("#explore?position=abc&repertoireId=xyz") shouldBe Route.ExploreRoute.DEFAULT
+  }
 }

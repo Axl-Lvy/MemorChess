@@ -74,6 +74,21 @@ internal fun isTabToTabTransition(fromRoute: String, toRoute: String): Boolean =
   classifyRoute(fromRoute).isTabRoute && classifyRoute(toRoute).isTabRoute
 
 /**
+ * Resolves the bottom-nav tab [Route] named by a wasmJs `location.hash` value (e.g. `"#library"`),
+ * for seeding [Router]'s `startDestination` so a page refresh reopens the tab the user was actually
+ * on instead of always falling back to [Route.TodayRoute] — see `main.kt`'s wasmJs entry point.
+ * Anything that isn't one of [NavigationBarItemContent]'s four plain tab destinations (an empty
+ * hash, an unrecognised one, or one carrying arguments such as `"explore?position=…"`) also falls
+ * back to [Route.TodayRoute], matching [Router]'s own default.
+ */
+internal fun routeFromHash(hash: String): Route {
+  val serialName = hash.removePrefix("#").substringBefore('?')
+  return NavigationBarItemContent.entries
+    .map { it.destination }
+    .firstOrNull { it.getLabel().equals(serialName, ignoreCase = true) } ?: Route.TodayRoute
+}
+
+/**
  * Enter transition for a push between two back stack entries: [KineticMotion.tabEnter]'s slide and
  * fade when both ends are bottom nav tabs, otherwise the plain curtain [KineticMotion.holdEnter].
  */
@@ -121,9 +136,16 @@ private fun AnimatedVisibilityScope.RevealBox(
  * two bottom nav tabs skip the curtain entirely: they use [KineticMotion.tabEnter] and
  * [KineticMotion.tabExit] instead, sliding and fading in while fading out alone. Every other
  * transition, a push onto or a pop off [Route.RepertoireViewRoute], keeps the curtain unchanged.
+ *
+ * @param startDestination Initial route. Defaults to [Route.TodayRoute]; wasmJs overrides it with
+ *   [routeFromHash] so a page refresh reopens the tab the user was on (see `main.kt`).
  */
 @Composable
-fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
+fun Router(
+  navController: NavHostController,
+  modifier: Modifier = Modifier,
+  startDestination: Route = Route.TodayRoute,
+) {
   val backStackEntry by navController.currentBackStackEntryAsState()
   val currentRoute = backStackEntry?.destination?.route.orEmpty()
   val currentOrdinal = backStackEntry?.routeOrdinal() ?: 1
@@ -152,7 +174,7 @@ fun Router(navController: NavHostController, modifier: Modifier = Modifier) {
 
   NavHost(
     navController = navController,
-    startDestination = Route.TodayRoute,
+    startDestination = startDestination,
     modifier = modifier,
     enterTransition = { tabAwareEnter(initialState, targetState) },
     exitTransition = { tabAwareExit(initialState, targetState) },
