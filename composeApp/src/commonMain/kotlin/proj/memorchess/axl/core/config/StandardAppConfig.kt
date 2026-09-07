@@ -76,6 +76,9 @@ val REPERTOIRE_MANIFEST_FETCHED_AT_SETTING =
 /** Comma joined ids of the catalog repertoires installed on this device. */
 val INSTALLED_REPERTOIRES_SETTING = StringBasedConfig("installedRepertoireIds", "")
 
+/** Comma joined `localId=slug` pairs recording each repertoire's last published public slug. */
+val PUBLISHED_REPERTOIRES_SETTING = StringBasedConfig("publishedRepertoireSlugs", "")
+
 val ALL_SETTINGS_ITEMS =
   listOf(
     TRAINING_MOVE_DELAY_SETTING,
@@ -91,6 +94,7 @@ val ALL_SETTINGS_ITEMS =
     REPERTOIRE_MANIFEST_CACHE_SETTING,
     REPERTOIRE_MANIFEST_FETCHED_AT_SETTING,
     INSTALLED_REPERTOIRES_SETTING,
+    PUBLISHED_REPERTOIRES_SETTING,
   )
 
 internal expect fun getPlatformSpecificSettings(): Settings
