@@ -171,6 +171,25 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   }
 
   @Test
+  fun refreshMyRepertoiresReloadsFromTheInjectedLoader() = test {
+    var currentIds = listOf("italian-game")
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest()) },
+        loadMyRepertoires = {
+          currentIds.map { DataRepertoire(id = it, name = it, color = RepertoireColor.WHITE) }
+        },
+      )
+    viewModel.myRepertoires.first { it.isNotEmpty() }
+    currentIds = listOf("italian-game", "italian-game-copy")
+
+    viewModel.refreshMyRepertoires()
+    val loaded = viewModel.myRepertoires.first { it.size == 2 }
+
+    loaded.map { it.id } shouldBe listOf("italian-game", "italian-game-copy")
+  }
+
+  @Test
   fun refreshWhileLoadIsInFlightIsIgnored() = test {
     val gate = CompletableDeferred<Unit>()
     var loadCalls = 0

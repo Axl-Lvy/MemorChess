@@ -103,6 +103,14 @@ class RepertoireLibraryViewModel(
 
   init {
     refresh()
+    refreshMyRepertoires()
+  }
+
+  /**
+   * Reloads [myRepertoires] from [loadMyRepertoires]. Called on construction, and again after a
+   * create or fork completes so the new repertoire shows up without leaving the page.
+   */
+  fun refreshMyRepertoires() {
     scope.launch { internalMyRepertoires.value = loadMyRepertoires() }
   }
 
