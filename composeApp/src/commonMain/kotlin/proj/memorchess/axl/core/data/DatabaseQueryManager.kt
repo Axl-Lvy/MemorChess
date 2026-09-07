@@ -301,6 +301,13 @@ interface DatabaseQueryManager {
   suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag)
 
   /**
+   * Every live tagged edge of [repertoireId], the SAN move joined in from its [DataMove] row. A tag
+   * whose move is soft deleted, or a move whose tag is soft deleted, is excluded from either side of
+   * the join.
+   */
+  suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge>
+
+  /**
    * Replaces [positionKey]'s entire trainable membership row set with [repertoireIds], stamping
    * [lastReview] on every surviving row. The derived counterpart of [DataNode.hasGoodOutgoing],
    * owned by [proj.memorchess.axl.core.graph.TreeStore] and recomputed the same way, never synced.
