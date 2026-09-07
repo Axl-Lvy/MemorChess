@@ -49,6 +49,43 @@ boards, and real fun! ♟️✨
 
 ---
 
+## 🏗️ Architecture
+
+MemorChess is a Kotlin Multiplatform client (Android, iOS, desktop, and web) backed by a small
+Ktor sync server. Everything works fully offline first, since each client keeps its own local
+database, and syncing is an optional layer on top.
+
+```mermaid
+flowchart LR
+    subgraph Client["Client (Android / iOS / Desktop / Web)"]
+        UI["Compose UI"]
+        Engine["Chess engine & spaced repetition core"]
+        LocalDB[("Room / IndexedDB\nlocal database")]
+        UI --> Engine --> LocalDB
+    end
+
+    Lichess["Lichess\nOAuth & opening explorer"]
+    Server["Sync server (Ktor)\n/v1/sync, /v1/me, /v1/repertoire"]
+    Postgres[("Postgres\nsync rows, last write wins")]
+    R2[("S3 compatible storage\nrepertoire PGN blobs")]
+
+    Client -- "sign in" --> Lichess
+    Client -- "explore moves" --> Lichess
+    Client -- "JWT authenticated sync" --> Server
+    Server --> Postgres
+    Server -- "publish / fetch repertoires" --> R2
+```
+
+- The **client** holds the source of truth locally (Room on Android/desktop/iOS, IndexedDB on
+  web) and can be used without any account.
+- Signing in with Lichess or a generic OIDC provider gets the client a JWT, which the **sync
+  server** verifies against the issuer's JWKS before accepting a sync batch.
+- The server stores sync rows in **Postgres** and the published repertoires' PGN payloads as
+  blobs in **S3 compatible object storage**, so the public repertoire library serves large files
+  straight from object storage instead of the database.
+
+---
+
 ## 🛠️ Setting up environment
 
 To setup the environment, please consult
