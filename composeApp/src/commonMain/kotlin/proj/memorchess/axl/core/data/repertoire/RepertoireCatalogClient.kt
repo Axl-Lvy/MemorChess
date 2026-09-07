@@ -17,17 +17,15 @@ import proj.memorchess.axl.core.pgn.PgnParser
 /**
  * HTTP client for the remote repertoire catalog.
  *
- * Originally served as static files from the `repertoire-data` branch on raw GitHub. Now served by
- * `:server` at the same relative paths (`manifest.json`, `pgn/<hash>.pgn`) under
- * [DEFAULT_BASE_URL]. The migration this client went through was a base URL change and nothing
- * else, because the two backends serve the identical `RepertoireManifest`/`RepertoireDescriptor`
- * contract.
+ * Served by `:server` at [DEFAULT_BASE_URL] (`manifest.json`, `pgn/<hash>.pgn`); the catalog is
+ * populated by users publishing their own repertoires (see `RepertoirePublishClient`), not by any
+ * static file source.
  *
- * Responses are read as plain text, which both backends serve every file as, then decoded here: the
- * manifest with kotlinx.serialization (unknown fields tolerated) and PGN files with [PgnParser].
- * Every failure is mapped to a typed [CatalogResult] so callers never have to inspect Ktor
- * exceptions — except [reportInstall], a fire and forget write with no result to map, since a
- * caller's own install outcome must never depend on this telemetry succeeding.
+ * Responses are read as plain text, then decoded here: the manifest with kotlinx.serialization
+ * (unknown fields tolerated) and PGN files with [PgnParser]. Every failure is mapped to a typed
+ * [CatalogResult] so callers never have to inspect Ktor exceptions — except [reportInstall], a fire
+ * and forget write with no result to map, since a caller's own install outcome must never depend on
+ * this telemetry succeeding.
  *
  * @param httpClient The Ktor client used for requests.
  * @param baseUrl Root URL of the catalog, without a trailing slash. Injectable for tests.

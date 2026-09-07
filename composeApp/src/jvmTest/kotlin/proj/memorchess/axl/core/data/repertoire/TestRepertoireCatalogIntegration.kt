@@ -9,17 +9,13 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.pgn.PgnGame
 
 /**
- * Live integration test that downloads the real catalog from the `repertoire-data` branch on raw
- * GitHub.
- *
- * The client's own default now points at `:server`, which has no public hostname yet (see
- * `RepertoireCatalogClient.DEFAULT_BASE_URL`'s KDoc). This test therefore pins the URL explicitly
- * to the old static file backend it actually exercises, rather than relying on the default.
+ * Live integration test that downloads the real catalog from the production `:server` deployment.
  *
  * Unlike the Lichess integration test this one needs no secret, so it always runs. It is the end to
  * end guarantee that the published manifest and every published PGN file stay compatible with the
- * Kotlin PGN parser. A failure here with a network related clue means the machine is offline or
- * GitHub is unreachable, not that the code is broken.
+ * Kotlin PGN parser. A failure here with a network related clue means the machine is offline or the
+ * server is unreachable, not that the code is broken. The catalog is populated by users publishing
+ * their own repertoires, so an empty manifest is a valid outcome and not itself a failure.
  */
 class TestRepertoireCatalogIntegration {
 
@@ -29,7 +25,7 @@ class TestRepertoireCatalogIntegration {
     val client =
       RepertoireCatalogClient(
         httpClient = HttpClient(),
-        baseUrl = "https://raw.githubusercontent.com/Axl-Lvy/MemorChess/repertoire-data",
+        baseUrl = "https://memorchess.axl-lvy.fr/v1/repertoires",
       )
 
     val manifestResult = client.fetchManifest()
@@ -37,11 +33,10 @@ class TestRepertoireCatalogIntegration {
     val manifest =
       withClue(
         "Fetching the live catalog manifest failed: $manifestResult." +
-          " This test needs network access to raw.githubusercontent.com."
+          " This test needs network access to memorchess.axl-lvy.fr."
       ) {
         manifestResult.shouldBeInstanceOf<CatalogResult.Ok<RepertoireManifest>>().value
       }
-    manifest.repertoires.shouldNotBeEmpty()
     for (descriptor in manifest.repertoires) {
       val pgnResult = client.fetchPgn(descriptor.file)
       val games =

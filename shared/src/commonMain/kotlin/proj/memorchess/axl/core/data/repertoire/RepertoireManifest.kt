@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Catalog manifest published on the `repertoire-data` branch.
+ * Catalog manifest served by `:server` at `/v1/repertoires/manifest.json`.
  *
  * Decoded with `ignoreUnknownKeys` so future additive fields are tolerated. Only [schemaVersion] 1
  * is accepted; any other value is treated as malformed because a version bump may change field
