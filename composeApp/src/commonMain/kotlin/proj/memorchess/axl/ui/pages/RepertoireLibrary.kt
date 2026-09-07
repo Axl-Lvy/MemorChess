@@ -85,38 +85,60 @@ import memorchess.composeapp.generated.resources.library_preview_checking
 import memorchess.composeapp.generated.resources.library_preview_in_common
 import memorchess.composeapp.generated.resources.library_preview_in_common_error
 import memorchess.composeapp.generated.resources.library_preview_question
+import memorchess.composeapp.generated.resources.library_publish
+import memorchess.composeapp.generated.resources.library_publish_error_forbidden
+import memorchess.composeapp.generated.resources.library_publish_error_invalid
+import memorchess.composeapp.generated.resources.library_publish_error_nothing_to_publish
+import memorchess.composeapp.generated.resources.library_publish_error_quota
+import memorchess.composeapp.generated.resources.library_publish_error_rate_limited
+import memorchess.composeapp.generated.resources.library_publish_error_removed
+import memorchess.composeapp.generated.resources.library_publish_error_server
+import memorchess.composeapp.generated.resources.library_publish_error_signed_out
+import memorchess.composeapp.generated.resources.library_publish_error_too_large
 import memorchess.composeapp.generated.resources.library_reinstall
 import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.library_stale_hint
 import memorchess.composeapp.generated.resources.library_subtitle
 import memorchess.composeapp.generated.resources.library_title
 import memorchess.composeapp.generated.resources.library_train
+import memorchess.composeapp.generated.resources.library_unpublish
+import memorchess.composeapp.generated.resources.library_unpublish_confirm_message
+import memorchess.composeapp.generated.resources.library_unpublish_confirm_title
+import memorchess.composeapp.generated.resources.library_update
 import memorchess.composeapp.generated.resources.library_view
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstallError
 import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.LibraryCatalogState
+import proj.memorchess.axl.core.data.repertoire.PublishError
+import proj.memorchess.axl.core.data.repertoire.PublishState
+import proj.memorchess.axl.core.data.repertoire.PublishedRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireInstallState
 import proj.memorchess.axl.core.data.repertoire.RepertoireLibraryViewModel
 import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishViewModel
 import proj.memorchess.axl.core.data.repertoire.placeholderRepertoireMastery
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImporter
+import proj.memorchess.axl.core.pgn.RepertoirePgnExporter
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.buttons.KineticOnAccentLime
 import proj.memorchess.axl.ui.components.buttons.kineticAccentLimeColor
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
+import proj.memorchess.axl.ui.components.repertoire.PublishRepertoireDialog
 import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.theme.KineticMotion
@@ -176,6 +198,7 @@ fun RepertoireLibrary(
     installStates = installStates,
     previewStates = previewStates,
     myRepertoires = myRepertoires,
+    installedIds = installedStore.installedIds(),
     actions =
       RepertoireLibraryActions(
         onInstall = viewModel::install,
@@ -227,6 +250,7 @@ internal fun RepertoireLibraryContent(
   previewStates: Map<String, RepertoirePreviewState>,
   myRepertoires: List<DataRepertoire>,
   actions: RepertoireLibraryActions,
+  installedIds: Set<String> = emptySet(),
   modifier: Modifier = Modifier,
 ) {
   val palette = LocalKineticPalette.current
@@ -247,6 +271,7 @@ internal fun RepertoireLibraryContent(
     )
     MyRepertoiresSection(
       repertoires = myRepertoires,
+      installedIds = installedIds,
       onExplore = actions.onExplore,
       onTrain = actions.onTrain,
     )
@@ -302,6 +327,7 @@ internal fun RepertoireLibraryContent(
 @Composable
 private fun MyRepertoiresSection(
   repertoires: List<DataRepertoire>,
+  installedIds: Set<String>,
   onExplore: (repertoireId: String) -> Unit,
   onTrain: (repertoireId: String) -> Unit,
 ) {
@@ -313,16 +339,31 @@ private fun MyRepertoiresSection(
       style = typography.labelSm.copy(color = palette.actionText),
     )
     for (repertoire in repertoires) {
-      MyRepertoireRow(repertoire.name, repertoire.id, onExplore, onTrain)
+      MyRepertoireRow(
+        name = repertoire.name,
+        id = repertoire.id,
+        color = repertoire.color,
+        // A catalog installed repertoire, or one mixing both colors (color == null), is never
+        // offered a publish action: the former is not the user's own content, and the latter has
+        // no single declared side for RepertoirePublishClient.publish's side field.
+        canPublish = repertoire.id !in installedIds && repertoire.color != null,
+        onExplore = onExplore,
+        onTrain = onTrain,
+      )
     }
   }
 }
 
-/** One row of [MyRepertoiresSection]: the repertoire's name plus its Explore/Train buttons. */
+/**
+ * One row of [MyRepertoiresSection]: the repertoire's name, its Explore/Train buttons, and, for a
+ * self authored single sided repertoire ([canPublish]), its Publish/Update/Unpublish action.
+ */
 @Composable
 private fun MyRepertoireRow(
   name: String,
   id: String,
+  color: RepertoireColor?,
+  canPublish: Boolean,
   onExplore: (repertoireId: String) -> Unit,
   onTrain: (repertoireId: String) -> Unit,
 ) {
@@ -339,9 +380,119 @@ private fun MyRepertoireRow(
       KineticButton(onClick = { onTrain(id) }) {
         KineticButtonLabel(stringResource(Res.string.library_train))
       }
+      if (canPublish) {
+        PublishAction(localId = id, name = name, color = color!!)
+      }
     }
   }
 }
+
+/**
+ * Publish lifecycle action for one repertoire's row: Publish when never published, Update and
+ * Unpublish once published, both disabled mid flight, and a sign in hint instead of the dialog
+ * while signed out.
+ */
+@Composable
+private fun PublishAction(localId: String, name: String, color: RepertoireColor) {
+  val exporter: RepertoirePgnExporter = koinInject()
+  val publishClient: RepertoirePublishClient = koinInject()
+  val publishedStore: PublishedRepertoireStore = koinInject()
+  val authProvider: AuthProvider = koinInject()
+  val coroutineScope = rememberCoroutineScope()
+  val viewModel =
+    remember(localId, exporter, publishClient, publishedStore, authProvider, coroutineScope) {
+      RepertoirePublishViewModel(
+        localId = localId,
+        exportRepertoire = { exporter.export(localId) },
+        accessToken = authProvider::accessToken,
+        publish = { token, slug, title, description, side, pgn ->
+          publishClient.publish(token, slug, title, description, side, pgn)
+        },
+        remove = { token, slug -> publishClient.remove(token, slug) },
+        publishedStore = publishedStore,
+        scope = coroutineScope,
+      )
+    }
+  val state by viewModel.state.collectAsState()
+  var showDialog by remember { mutableStateOf(false) }
+  val unpublishDialog = remember { ConfirmationDialog(okText = Res.string.library_unpublish) }
+  unpublishDialog.DrawDialog()
+
+  val busy = state is PublishState.Publishing || state is PublishState.Removing
+  when (val current = state) {
+    is PublishState.Published -> {
+      KineticButton(onClick = { showDialog = true }, enabled = !busy) {
+        KineticButtonLabel(stringResource(Res.string.library_update))
+      }
+      KineticButton(
+        onClick = {
+          unpublishDialog.show(confirm = { viewModel.remove() }) {
+            Column {
+              Text(stringResource(Res.string.library_unpublish_confirm_title))
+              Text(stringResource(Res.string.library_unpublish_confirm_message))
+            }
+          }
+        },
+        enabled = !busy,
+      ) {
+        KineticButtonLabel(stringResource(Res.string.library_unpublish))
+      }
+    }
+    is PublishState.Failed ->
+      if (current.error == PublishError.SignedOut) {
+        Text(stringResource(Res.string.library_publish_error_signed_out))
+      } else {
+        Column {
+          KineticButton(onClick = { showDialog = true }, enabled = !busy) {
+            KineticButtonLabel(stringResource(Res.string.library_publish))
+          }
+          Text(publishErrorMessage(current.error))
+        }
+      }
+    PublishState.NotPublished,
+    PublishState.Publishing,
+    PublishState.Removing ->
+      KineticButton(onClick = { showDialog = true }, enabled = !busy) {
+        KineticButtonLabel(stringResource(Res.string.library_publish))
+      }
+  }
+
+  val initialSlug = (state as? PublishState.Published)?.slug ?: defaultSlug(name)
+  PublishRepertoireDialog(
+    visible = showDialog,
+    repertoireName = name,
+    initialSlug = initialSlug,
+    side = if (color == RepertoireColor.WHITE) "white" else "black",
+    onSubmit = { slug, title, description, side ->
+      showDialog = false
+      viewModel.publish(slug, title, description, side)
+    },
+    onDismiss = { showDialog = false },
+  )
+}
+
+/** Sanitizes [name] into a default publish slug candidate: lowercase, non alphanumerics to hyphens. */
+private fun defaultSlug(name: String): String =
+  name.lowercase().trim().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+
+/** Maps [error] to its user facing message, per the spec's error handling section. */
+@Composable
+private fun publishErrorMessage(error: PublishError): String =
+  when (error) {
+    is PublishError.InvalidPayload ->
+      stringResource(Res.string.library_publish_error_invalid, error.reason)
+    is PublishError.PayloadTooLarge ->
+      stringResource(Res.string.library_publish_error_too_large, error.reason)
+    PublishError.Forbidden -> stringResource(Res.string.library_publish_error_forbidden)
+    PublishError.RemovedOnServer -> stringResource(Res.string.library_publish_error_removed)
+    is PublishError.QuotaExceeded ->
+      stringResource(Res.string.library_publish_error_quota, error.reason)
+    PublishError.SignedOut -> stringResource(Res.string.library_publish_error_signed_out)
+    PublishError.RateLimited -> stringResource(Res.string.library_publish_error_rate_limited)
+    PublishError.ServerError -> stringResource(Res.string.library_publish_error_server)
+    PublishError.NothingToPublish ->
+      stringResource(Res.string.library_publish_error_nothing_to_publish)
+  }
 
 /** Error body for a catalog that could not be loaded at all, with a retry action. */
 @Composable

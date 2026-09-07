@@ -39,7 +39,10 @@ import proj.memorchess.axl.core.data.getPlatformSpecificDailyActivityStore
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
+import proj.memorchess.axl.core.data.repertoire.PublishedRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
+import proj.memorchess.axl.core.pgn.RepertoirePgnExporter
 import proj.memorchess.axl.core.data.study.LichessStudyClient
 import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.date.DateUtil
@@ -211,6 +214,11 @@ fun initKoinModules(): Array<Module> {
     }
     single { CachedRepertoireCatalog(get()) }
     single { InstalledRepertoireStore() }
+    single {
+      RepertoirePublishClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1/repertoires")
+    }
+    single { PublishedRepertoireStore() }
+    single { RepertoirePgnExporter(get()) }
   }
 
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }
