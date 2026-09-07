@@ -16,16 +16,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.dialog_cancel
-import memorchess.composeapp.generated.resources.library_color_black
-import memorchess.composeapp.generated.resources.library_color_white
 import memorchess.composeapp.generated.resources.library_create
-import memorchess.composeapp.generated.resources.library_create_color_mixed
 import memorchess.composeapp.generated.resources.library_create_dialog_title
 import memorchess.composeapp.generated.resources.library_create_name_label
 import memorchess.composeapp.generated.resources.library_create_pgn_label
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
-import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.components.popup.KineticDialog
 
 /**
@@ -85,20 +81,9 @@ fun CreateRepertoireDialog(
         isError = name.isBlank(),
         modifier = Modifier.testTag("createRepertoireDialogNameField"),
       )
-      val whiteLabel = stringResource(Res.string.library_color_white)
-      val blackLabel = stringResource(Res.string.library_color_black)
-      val mixedLabel = stringResource(Res.string.library_create_color_mixed)
-      KineticSegmentedControl(
-        options = listOf(RepertoireColor.WHITE, RepertoireColor.BLACK, null),
+      RepertoireColorPicker(
         selected = color,
         onSelect = { color = it },
-        label = {
-          when (it) {
-            RepertoireColor.WHITE -> whiteLabel
-            RepertoireColor.BLACK -> blackLabel
-            null -> mixedLabel
-          }
-        },
         modifier = Modifier.testTag("createRepertoireDialogColorControl"),
       )
       TextField(
