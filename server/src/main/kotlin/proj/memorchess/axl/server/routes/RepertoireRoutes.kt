@@ -190,7 +190,7 @@ private suspend fun RoutingContext.respondToPublishOutcome(outcome: PublishOutco
       call.respond(
         HttpStatusCode.Forbidden,
         ApiError(
-          ApiErrorCode.FORBIDDEN,
+          ApiErrorCode.REMOVED,
           "this id was removed by a moderator and cannot be republished",
         ),
       )
