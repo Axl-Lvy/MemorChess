@@ -788,6 +788,44 @@ class TestInMemoryDatabaseQueryManager {
     assertEquals(listOf(live), database.getTags(origin, destination))
   }
 
+  @Test
+  fun edgesTaggedWithJoinsTheTagOntoItsMoveForItsSan() = runTest {
+    val database = seededLine()
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+
+    val edges = database.edgesTaggedWith("italian-game")
+
+    assertEquals(listOf(TaggedEdge(key0, key1, "e4")), edges)
+  }
+
+  @Test
+  fun edgesTaggedWithExcludesADeletedTagOrADeletedMove() = runTest {
+    val database = seededLine()
+    database.insertTag(
+      DataEdgeRepertoireTag(key0, key1, repertoireId = "deleted-tag", isDeleted = true)
+    )
+    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+    database.insertTag(DataEdgeRepertoireTag(key1, key2, repertoireId = "deleted-move"))
+
+    assertEquals(emptyList(), database.edgesTaggedWith("deleted-tag"))
+    assertEquals(emptyList(), database.edgesTaggedWith("deleted-move"))
+  }
+
+  @Test
+  fun edgesTaggedWithReturnsEmptyForAnUnknownRepertoire() = runTest {
+    val database = seededLine()
+
+    assertEquals(emptyList(), database.edgesTaggedWith("never-tagged"))
+  }
+
+  @Test
+  fun edgesTaggedWithExcludesATagWhoseOriginNodeDoesNotExist() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+
+    assertEquals(emptyList(), database.edgesTaggedWith("italian-game"))
+  }
+
   // --- NodeRepertoireTrainable projection --------------------------------------------------
 
   @Test

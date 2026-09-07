@@ -571,6 +571,17 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     tags[Triple(tag.origin, tag.destination, tag.repertoireId)] = tag
   }
 
+  override suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
+    tags.values
+      .filter { it.repertoireId == repertoireId && !it.isDeleted }
+      .mapNotNull { tag ->
+        val move =
+          nodes[tag.origin]?.previousAndNextMoves?.nextMoves?.values?.firstOrNull {
+            it.destination == tag.destination && !it.isDeleted
+          }
+        move?.let { TaggedEdge(tag.origin, tag.destination, it.move) }
+      }
+
   override suspend fun replaceTrainableRepertoires(
     positionKey: PositionKey,
     repertoireIds: Set<String>,

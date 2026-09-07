@@ -14,6 +14,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
+import proj.memorchess.axl.core.data.TaggedEdge
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardState
@@ -385,6 +386,13 @@ class TreeStore(
   /** Every repertoire the live edge from [origin] to [destination] is tagged with. */
   suspend fun tagsFor(origin: PositionKey, destination: PositionKey): Set<String> =
     database.getTags(origin, destination).map { it.repertoireId }.toSet()
+
+  /**
+   * Every live tagged edge of [repertoireId]. Read through of
+   * [DatabaseQueryManager.edgesTaggedWith].
+   */
+  suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
+    database.edgesTaggedWith(repertoireId)
 
   /**
    * Tags the edge from [origin] to [destination] with [repertoireId], adding to any existing tags

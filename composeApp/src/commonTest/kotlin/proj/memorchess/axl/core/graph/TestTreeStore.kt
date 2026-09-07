@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.TaggedEdge
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardStateFactory
@@ -164,6 +165,17 @@ class TestTreeStore {
     store.tagEdge(start, posA, "ruy-lopez")
 
     assertEquals(setOf("italian-game", "ruy-lopez"), store.tagsFor(start, posA))
+  }
+
+  @Test
+  fun edgesTaggedWithReadsThroughToTheDatabase() = runTest {
+    val store = testTreeStore(TestDatabases.empty())
+    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.tagEdge(start, posA, "italian-game")
+
+    val edges = store.edgesTaggedWith("italian-game")
+
+    assertEquals(listOf(TaggedEdge(start, posA, "e4")), edges)
   }
 
   @Test

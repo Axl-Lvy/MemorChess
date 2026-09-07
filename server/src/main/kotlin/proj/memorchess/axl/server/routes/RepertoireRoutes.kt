@@ -20,6 +20,7 @@ import io.ktor.server.routing.routing
 import kotlin.time.Clock
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 import proj.memorchess.axl.server.RATE_LIMIT_ADMIN
@@ -36,7 +37,6 @@ import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.repertoire.SetStatusOutcome
-import proj.memorchess.axl.server.repertoire.idProblem
 import proj.memorchess.axl.server.repertoire.toDescriptor
 
 /** Largest page [RepertoireStore.listPublished] will be asked to serve in one call. */
@@ -116,7 +116,7 @@ private suspend fun RoutingContext.getManifest(store: RepertoireStore) {
 
 private suspend fun RoutingContext.recordInstall(store: RepertoireStore) {
   val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
-  idProblem(id)?.let { throw BadRequestException(it) }
+  RepertoirePublishLimits.idProblem(id)?.let { throw BadRequestException(it) }
   store.recordInstall(id)
   call.respond(HttpStatusCode.NoContent)
 }
@@ -190,7 +190,7 @@ private suspend fun RoutingContext.respondToPublishOutcome(outcome: PublishOutco
       call.respond(
         HttpStatusCode.Forbidden,
         ApiError(
-          ApiErrorCode.FORBIDDEN,
+          ApiErrorCode.REMOVED,
           "this id was removed by a moderator and cannot be republished",
         ),
       )

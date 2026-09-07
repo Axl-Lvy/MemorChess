@@ -381,7 +381,7 @@ internal const val REPERTOIRES_STORE = "repertoires"
 internal const val TAGS_STORE = "edgeRepertoireTags"
 internal const val NODE_REPERTOIRE_TRAINABLE_STORE = "nodeRepertoireTrainable"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 12
+internal const val DB_VERSION = 13
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -1112,6 +1112,28 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     database.writeTransaction(TAGS_STORE) {
       objectStore(TAGS_STORE).put(tag.toJsEdgeRepertoireTagEntity())
+    }
+  }
+
+  override suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> {
+    val database = db()
+    return database.transaction(TAGS_STORE, MOVES_STORE) {
+      val tags: List<JsEdgeRepertoireTagEntity> =
+        objectStore(TAGS_STORE)
+          .index("repertoireId")
+          .getAll(Key(repertoireId.toJsString()))
+          .toList()
+      val movesStore = objectStore(MOVES_STORE)
+      tags
+        .filter { !it.isDeleted }
+        .mapNotNull { tag ->
+          val move =
+            movesStore
+              .get(Key(tag.origin.toJsString(), tag.destination.toJsString()))
+              ?.unsafeCast<JsMoveEntity>()
+          if (move == null || move.isDeleted) null
+          else TaggedEdge(PositionKey(tag.origin), PositionKey(tag.destination), move.move)
+        }
     }
   }
 

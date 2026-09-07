@@ -434,7 +434,7 @@ class TestRepertoireRoutes {
   }
 
   @Test
-  fun `post is forbidden when the author republishes an id a moderator removed`() {
+  fun `post answers removed, not forbidden, when the author republishes an id a moderator removed`() {
     val store = newStore()
     val id = newId()
     runBlocking {
@@ -451,6 +451,7 @@ class TestRepertoireRoutes {
         }
 
       response.status shouldBe HttpStatusCode.Forbidden
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe ApiErrorCode.REMOVED
     }
   }
 

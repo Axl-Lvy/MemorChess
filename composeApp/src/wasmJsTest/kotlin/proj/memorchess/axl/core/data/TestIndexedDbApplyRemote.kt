@@ -66,4 +66,34 @@ class TestIndexedDbApplyRemote {
     db.getPosition(PositionKey("b"))!!.previousAndNextMoves.previousMoves.keys shouldBe setOf("e4")
     db.getOutbox() shouldBe emptyList()
   }
+
+  @Test
+  fun edgesTaggedWithJoinsTheTagOntoItsMoveThroughIndexedDb() = runTest {
+    val db = manager()
+    db.eraseAll()
+    val origin = PositionKey("a")
+    val destination = PositionKey("b")
+    db.applyRemoteNode(node("a"))
+    db.applyRemoteNode(node("b"))
+    db.applyRemoteMove(DataMove(origin, destination, "e4", isGood = true, updatedAt = now))
+    db.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
+
+    db.edgesTaggedWith("italian-game") shouldBe listOf(TaggedEdge(origin, destination, "e4"))
+  }
+
+  @Test
+  fun edgesTaggedWithExcludesADeletedTagThroughIndexedDb() = runTest {
+    val db = manager()
+    db.eraseAll()
+    val origin = PositionKey("a")
+    val destination = PositionKey("b")
+    db.applyRemoteNode(node("a"))
+    db.applyRemoteNode(node("b"))
+    db.applyRemoteMove(DataMove(origin, destination, "e4", isGood = true, updatedAt = now))
+    db.insertTag(
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", isDeleted = true)
+    )
+
+    db.edgesTaggedWith("italian-game") shouldBe emptyList()
+  }
 }

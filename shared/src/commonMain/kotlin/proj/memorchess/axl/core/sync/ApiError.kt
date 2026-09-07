@@ -34,6 +34,9 @@ object ApiErrorCode {
   /** The caller is authenticated but is not the author of the resource. */
   const val FORBIDDEN: String = "forbidden"
 
+  /** The resource existed but was permanently removed and can never be republished. */
+  const val REMOVED: String = "removed"
+
   /** No resource exists at the given id, or it is not visible to this caller. */
   const val NOT_FOUND: String = "not_found"
 

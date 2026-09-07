@@ -9,12 +9,7 @@ import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-/** Largest payload accepted for one repertoire version, checked before parsing. */
-internal const val MAX_REPERTOIRE_PAYLOAD_BYTES: Int = 512 * 1024
-
-/** Largest number of distinct `(position, move)` edges accepted in one repertoire. */
-internal const val MAX_REPERTOIRE_MOVES: Int = 5_000
+import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 
 /** Largest number of non removed repertoires one author may own at once. */
 internal const val MAX_REPERTOIRES_PER_USER: Int = 20
@@ -25,24 +20,12 @@ internal const val MAX_TOTAL_PAYLOAD_BYTES_PER_USER: Long = 5L * 1024 * 1024
 /** Largest number of rows [RepertoireStore.allPublished] will ever return. */
 private const val MAX_MANIFEST_ROWS: Int = 10_000
 
-/** Shape a repertoire id (a catalog slug) must match. */
-private val ID_PATTERN = Regex("^[a-z0-9]+(-[a-z0-9]+)*$")
-
 /**
  * Shape a stored payload's sha256 must match: 64 lowercase hex characters. Checked before the hash
  * is used in a database lookup or an S3 key, so a path segment carrying something else (for example
  * a decoded `/` aimed at another key in the bucket) is rejected outright rather than looked up.
  */
 private val SHA256_PATTERN = Regex("^[0-9a-f]{64}$")
-
-private const val MIN_ID_LENGTH = 3
-private const val MAX_ID_LENGTH = 64
-
-/** Longest title accepted. It is shown in the public catalog, so an unbounded one is a footgun. */
-private const val MAX_TITLE_LENGTH = 200
-
-/** Longest description accepted, for the same reason as [MAX_TITLE_LENGTH]. */
-private const val MAX_DESCRIPTION_LENGTH = 2_000
 
 /** One stored version of a repertoire: exactly one row of `repertoire_version`. */
 internal data class RepertoireRow(
@@ -141,8 +124,8 @@ internal data class RepertoirePage(val rows: List<RepertoireRow>, val nextCursor
 internal class RepertoireStore(
   private val dataSource: DataSource,
   private val blobs: RepertoireBlobStore,
-  private val maxPayloadBytes: Int = MAX_REPERTOIRE_PAYLOAD_BYTES,
-  private val maxMoves: Int = MAX_REPERTOIRE_MOVES,
+  private val maxPayloadBytes: Int = RepertoirePublishLimits.MAX_REPERTOIRE_PAYLOAD_BYTES,
+  private val maxMoves: Int = RepertoirePublishLimits.MAX_REPERTOIRE_MOVES,
   private val maxRepertoiresPerUser: Int = MAX_REPERTOIRES_PER_USER,
   private val maxTotalPayloadBytesPerUser: Long = MAX_TOTAL_PAYLOAD_BYTES_PER_USER,
   private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -167,20 +150,22 @@ internal class RepertoireStore(
     pgn: String,
     now: Instant,
   ): PublishOutcome {
-    idProblem(id)?.let {
+    RepertoirePublishLimits.idProblem(id)?.let {
       return PublishOutcome.InvalidPayload(it)
     }
     if (side != "white" && side != "black") {
       return PublishOutcome.InvalidPayload("side must be 'white' or 'black', was '$side'")
     }
-    if (title.length > MAX_TITLE_LENGTH) {
+    if (title.length > RepertoirePublishLimits.MAX_TITLE_LENGTH) {
       return PublishOutcome.InvalidPayload(
-        "title must be at most $MAX_TITLE_LENGTH characters, was ${title.length}"
+        "title must be at most ${RepertoirePublishLimits.MAX_TITLE_LENGTH} characters," +
+          " was ${title.length}"
       )
     }
-    if (description.length > MAX_DESCRIPTION_LENGTH) {
+    if (description.length > RepertoirePublishLimits.MAX_DESCRIPTION_LENGTH) {
       return PublishOutcome.InvalidPayload(
-        "description must be at most $MAX_DESCRIPTION_LENGTH characters, was ${description.length}"
+        "description must be at most ${RepertoirePublishLimits.MAX_DESCRIPTION_LENGTH}" +
+          " characters, was ${description.length}"
       )
     }
 
@@ -411,7 +396,7 @@ internal class RepertoireStore(
       withContext(ioDispatcher) {
         dataSource.connection.use { connection -> connection.blobStillReferenced(sha256) }
       }
-    return if (referenced) blobs.get(sha256) else null
+    return if (referenced) blobs[sha256] else null
   }
 
   /**
@@ -453,19 +438,6 @@ internal class RepertoireStore(
       }
     }
 }
-
-/**
- * Describes what is wrong with [id] as a catalog slug, or `null` when it is well formed. Shared
- * with the routing layer so an anonymous write keyed by a caller supplied id (see `recordInstall`'s
- * route) can reject a malformed one before it ever reaches the store.
- */
-internal fun idProblem(id: String): String? =
-  when {
-    id.length < MIN_ID_LENGTH || id.length > MAX_ID_LENGTH ->
-      "id must be $MIN_ID_LENGTH to $MAX_ID_LENGTH characters, was ${id.length}"
-    !ID_PATTERN.matches(id) -> "id must be lowercase letters, digits and single hyphens, was '$id'"
-    else -> null
-  }
 
 private const val STATUS_REMOVED = "removed"
 
