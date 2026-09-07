@@ -180,6 +180,14 @@ internal fun kineticM3Typography(kinetic: KineticTypography): Typography =
     labelSmall = kinetic.labelSm,
   )
 
+/**
+ * The distinct custom [FontFamily]s [KineticTypography]'s styles draw from (Baloo 2, Nunito,
+ * JetBrains Mono), for eagerly preloading all three ahead of first paint rather than one text style
+ * at a time.
+ */
+fun KineticTypography.fontFamilies(): List<FontFamily> =
+  listOfNotNull(brand.fontFamily, body.fontFamily, mono.fontFamily).distinct()
+
 /** CompositionLocal exposing Kinetic-only text styles to consumers. */
 val LocalKineticTypography =
   staticCompositionLocalOf<KineticTypography> {
