@@ -71,4 +71,16 @@ enum class ChessBoardColorScheme(
     arrowColor = Color(0x80DE9A04),
     displayName = "Wood",
   ),
+  /**
+   * The on-brand board: violet squares, lime best-move arrow. Unlike [KINETIC_DARK] and
+   * [KINETIC_LIGHT], which use neutral greys, this is the one scheme that visually ties the board
+   * to the Kinetic palette regardless of the app's own light/dark theme. Default board style.
+   */
+  KINETIC_VIOLET(
+    lightSquareColor = Color(0xFFD9C9FF),
+    darkSquareColor = Color(0xFF6D28D9),
+    selectedBorderColor = Color(0xFFB99BFF),
+    arrowColor = Color(0x80B4F542),
+    displayName = "Violet",
+  ),
 }
