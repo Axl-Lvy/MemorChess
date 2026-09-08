@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
 ## Project Overview
 
@@ -9,66 +9,49 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 ## Build & Test Commands
 
 ```sh
-# Build
-./gradlew build
-
-# Run desktop (JVM)
-./gradlew :composeApp:jvmRun
-
-# Run tests
-./gradlew jvmTest                              # JVM/desktop tests
-./gradlew :androidApp:connectedCheck           # Android instrumented tests
-./gradlew :server:test                         # server tests (needs Docker for Testcontainers)
-./gradlew :server:installDist                  # build the server distribution
-
-# Run a single test class (desktop)
-./gradlew jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"
-
-# Code formatting (ktfmt, Google style)
-./gradlew ktfmtCheck                           # Check formatting
-./gradlew ktfmtFormat                          # Auto-format
-
-# UI performance benchmarks (Android device/emulator only, see macrobenchmark/README.md)
-./gradlew :macrobenchmark:connectedBenchmarkAndroidTest
-
-# Core logic microbenchmarks (plain JVM, see microbenchmark/README.md)
-./gradlew :microbenchmark:benchmark
+./gradlew build                                                              # build
+./gradlew :composeApp:jvmRun                                                 # run desktop
+./gradlew jvmTest                                                            # JVM/desktop tests
+./gradlew jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"  # single test class
+./gradlew :androidApp:connectedCheck                                        # Android instrumented tests
+./gradlew :server:test                                                      # server tests (needs Docker)
+./gradlew ktfmtCheck                                                        # check formatting
+./gradlew ktfmtFormat                                                       # auto-format (ktfmt, Google style)
 ```
+
+Android/JVM/iOS macro- and micro-benchmarks live in `:macrobenchmark` and `:microbenchmark`; see their READMEs before running them.
 
 ## Architecture
 
 Six Gradle modules:
 
-- **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with `:server`: the chess engine core (`core/engine/`, minus `evaluation/`), `PositionKey`, PGN parsing (`PgnParser`, `PgnGame`, `PgnParseException`), and the sync wire types (`core/sync/`: `SyncRow`, `ConflictResolver`, `SyncEnvelopes`, `ApiError`). Packages match their original `composeApp` locations, so a package split across the two modules is normal here and intended. `composeApp` depends on it with `api`, so the moved types stay visible to `androidApp` and `microbenchmark` transitively.
-- **`composeApp`** — the Kotlin Multiplatform library holding all shared code (`core/` logic, `ui/` Compose UI). Source sets: `commonMain`, `androidMain` (platform actuals, OAuth redirect activity, `AndroidContextProvider`), `jvmMain`, `iosMain`, `wasmJsMain`, `nonJsMain` (Room DB shared by Android/JVM/iOS), `debugMain` (hot-reload previews). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
-- **`server`** — JVM only Ktor server. `db/` (Postgres schema, id resolution), `sync/` (`SyncStore`: last write wins with tombstones), `auth/` (JWKS backed JWT verification), `routes/` (`/v1/sync`, `/v1/me`), `SyncApplication.kt` (module assembly: plugins, error mapping, probes), `Main.kt` (the only `public` declaration). Configured entirely from the environment (`ServerConfig`), no vendor named in code.
-- **`androidApp`** — the thin Android application shell: `MainActivity`, launcher manifest and resources, and the instrumented tests (`src/androidTest`). Adds a `benchmark` build type (release performance, debug signing, profileable) measured by `:macrobenchmark`.
-- **`macrobenchmark`** — UI performance benchmarks run against `androidApp`'s `benchmark` build on a device or emulator. See `macrobenchmark/README.md`.
-- **`microbenchmark`** — JVM only JMH benchmarks over `composeApp`'s pure Kotlin core. Catches algorithmic regressions only; JVM numbers are not ART numbers. See `microbenchmark/README.md`.
+- **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with `:server`: chess engine core, `PositionKey`, PGN parsing, sync wire types. `composeApp` depends on it with `api`, so its types stay visible to `androidApp` transitively.
+- **`composeApp`** — the KMP library holding all app code (`core/` logic, `ui/` Compose UI). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
+- **`server`** — JVM-only Ktor server (sync, JWKS-backed auth, REST routes). Configured entirely from the environment (`ServerConfig`); no vendor named in code.
+- **`androidApp`** — thin Android shell (`MainActivity`, manifest, instrumented tests). Has a `benchmark` build type for `:macrobenchmark`.
 
-Layer maps live next to the code they describe and load automatically when you work in those directories:
+Layer maps load automatically when you work in those directories:
 
-- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/CLAUDE.md` — the core layer, package by package.
-- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/ui/CLAUDE.md` — the UI layer, and why it has no coverage safety net.
+- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/CLAUDE.md`
+- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/ui/CLAUDE.md`
 
-The toolchain is deliberately held below AGP 9.1, and the Gradle wrapper below 9.7.0. Read `docs/adr/0002-toolchain-version-holds.md` before raising any of those pins.
+The toolchain is held below AGP 9.1 and the Gradle wrapper below 9.7.0. Read `docs/adr/0002-toolchain-version-holds.md` before touching either pin.
 
 ## Key Conventions
 
-- **Formatting**: ktfmt with Google style. Always run `./gradlew ktfmtFormat` before compiling, building, or testing. A pre-commit hook checks formatting on `master`.
-- **Testing**: Kotest assertions, no mocking, AAA pattern. Android UI tests live in `androidApp/src/androidTest` and use `createAndroidComposeRule<MainActivity>()`.
-- **Edge cases**: arithmetic, division, weighting, or formatting on numbers from external data must be tested at `0`, the lowest non zero value, either side of every formatting or branching boundary, and a representative large value. Adding a new state, branch, or sealed subclass to a state machine requires a propagation test through every consumer in the same PR.
-- **Database migrations**: the app is not in production, so change the Room (`nonJsMain`) and IndexedDB (`wasmJsMain`) schemas freely **without writing migrations** — recreating the local database is acceptable. Room runs with `exportSchema = false` and `fallbackToDestructiveMigration(dropAllTables = true)`; never re-enable schema export (no `schemas/*.json` should ever be generated or committed). For IndexedDB (`IndexedDbInstance`), bump `DB_VERSION` and keep the single destructive `recreate` upgrade — never add per-version branches.
-- **Adding a `wasmJs` target to a new module**: the first build fails on `:kotlinWasmStoreYarnLock` with "Lock file was changed", because a new wasm target re-registers the root npm store. Run `./gradlew kotlinWasmUpgradeYarnLock` once, then build again. It usually leaves `kotlin-js-store/yarn.lock` byte identical, so expect nothing to commit.
-- **Testcontainers on a modern Docker**: Testcontainers 1.21.3 bundles a docker-java that negotiates Docker API **1.32**, and Docker 29 refuses anything below **1.40**, so every container test dies with the useless message "Could not find a valid Docker environment". The fix is `systemProperty("api.version", "1.40")` on the test task, already set in `server/build.gradle.kts`. Note the env var `DOCKER_API_VERSION` does **not** work here, only the system property. Also put an slf4j provider on the test runtime classpath (`testRuntimeOnly(libs.slf4j.simple)`), or Testcontainers' diagnostics are swallowed and the real cause is invisible.
-- **DI**: Koin for dependency injection. Modules defined in `Koin.kt`.
-- **Visibility**: work down the ladder every time. `private` when possible, then `internal`, and `public` only when something outside the module genuinely needs it. Minimize public API surface. Note that **`internal` does not cross Gradle module boundaries**: anything in `shared` that `composeApp` or a future `server` module consumes has to be `public`, so in that module the ladder often bottoms out there. Test source sets are part of their module, so a test can see its module's `internal` declarations, and test classes and fakes should themselves be `internal`. A data class whose constructor you restrict needs `@ConsistentCopyVisibility`, or the generated `copy()` leaks it back out.
-- **Test-only code**: never introduce `public`/`internal` members solely for testing; test through the public API.
-- **Kotlin style**: prefer `val` over `var`, avoid `!!` and `lateinit`, use sealed classes for state, leverage coroutines for async.
-- **KDoc**: always add KDoc on all public declarations and every non-trivial `@Composable` function.
-- **Secrets**: there is no secrets-generation flow. Runtime credentials (e.g. `LICHESS_API_TOKEN`) are read from the process environment via `System.getenv`; CI injects them from GitHub Actions secrets.
-- **Server configuration**: `:server` reads `SYNC_DB_URL`, `SYNC_DB_USER`, `SYNC_DB_PASSWORD`, `SYNC_JWT_ISSUER`, `SYNC_JWT_AUDIENCE`, `SYNC_JWKS_URL` and optionally `SYNC_PORT` from the environment and validates them before binding, so a missing variable fails the boot rather than the first request. The JWKS URL is explicit rather than derived from the issuer, because vendors disagree on where they publish it.
-- **PR titles**: must follow Conventional Commits (`feat(module): ...`, `fix: ...`).
-- **PR descriptions**: You MUST always use `@.github/pull_request_template.md` as the base for every PR body. Start the body with the template content (the `## Options` checkboxes, unchecked by default) and add the description below it.
-- **No force pushes**: never force push (`git push --force` / `--force-with-lease`) to any branch, and never run history-rewriting commands (`git rebase`, `git commit --amend`, `git reset --hard` on pushed commits) that would require a force push to upload. Add commits on top instead. If a force push seems genuinely necessary, stop and ask the user first.
-- **Worktrees**: always do development work in a dedicated git worktree (`git worktree list` shows the ones already checked out under `.claude/worktrees/`), never directly in the main checkout. Reuse an available worktree instead of creating a new one each time; only create one when none is free. See the `using-git-worktrees` skill.
+- **Formatting**: run `./gradlew ktfmtFormat` before building or testing; a pre-commit hook checks it on `master`.
+- **Testing**: Kotest assertions, no mocking, AAA pattern.
+- **Edge cases**: arithmetic/formatting on external data must be tested at `0`, the lowest non-zero value, both sides of every boundary, and a large value. A new state/branch/sealed subclass needs a propagation test through every consumer in the same PR.
+- **Database migrations**: the app isn't in production — change Room/IndexedDB schemas freely, no migrations needed. Never re-enable Room schema export.
+- **Adding `wasmJs` to a new module**: the first build fails on `:kotlinWasmStoreYarnLock` ("Lock file was changed"). Run `./gradlew kotlinWasmUpgradeYarnLock` once, then rebuild.
+- **Testcontainers**: needs `systemProperty("api.version", "1.40")` on the test task (already set in `server/build.gradle.kts`), or every container test fails with a useless "no valid Docker environment" message. `DOCKER_API_VERSION` does not work here.
+- **DI**: Koin; modules defined in `Koin.kt`.
+- **Visibility**: work down the ladder (`private` → `internal` → `public`). `internal` does not cross Gradle module boundaries, so anything `shared` exposes to `composeApp` must be `public` there. A data class with a restricted constructor needs `@ConsistentCopyVisibility`.
+- **Test-only code**: never add `public`/`internal` members solely for testing; test through the public API.
+- **KDoc**: on all public declarations and every non-trivial `@Composable`.
+- **Secrets**: no generation flow. Runtime credentials come from `System.getenv`; CI injects them from GitHub Actions secrets.
+- **Server env vars**: `SYNC_DB_URL`, `SYNC_DB_USER`, `SYNC_DB_PASSWORD`, `SYNC_JWT_ISSUER`, `SYNC_JWT_AUDIENCE`, `SYNC_JWKS_URL`, optional `SYNC_PORT`. Validated at boot, so a missing one fails the boot rather than the first request.
+- **PR titles**: Conventional Commits (`feat(module): ...`).
+- **PR descriptions**: base every PR body on `@.github/pull_request_template.md`.
+- **No force pushes**: never force-push or rewrite pushed history (`rebase`, `commit --amend`, `reset --hard`). Add commits on top; ask first if a force push seems genuinely necessary.
+- **Worktrees**: always develop in a dedicated git worktree, never the main checkout — see the `using-git-worktrees` skill.
