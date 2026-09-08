@@ -314,6 +314,30 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
+  fun playedMovesTracksTheOrderedPathFromRootToCurrent() = test {
+    assertEquals(emptyList(), interactionsManager.playedMoves())
+    assertEquals(0, interactionsManager.depth)
+
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("Nf3")
+    assertEquals(listOf("e4", "e5", "Nf3"), interactionsManager.playedMoves())
+    assertEquals(3, interactionsManager.depth)
+
+    interactionsManager.back()
+    assertEquals(listOf("e4", "e5"), interactionsManager.playedMoves())
+    assertEquals(2, interactionsManager.depth)
+
+    interactionsManager.forward()
+    assertEquals(listOf("e4", "e5", "Nf3"), interactionsManager.playedMoves())
+    assertEquals(3, interactionsManager.depth)
+
+    interactionsManager.reset()
+    assertEquals(emptyList(), interactionsManager.playedMoves())
+    assertEquals(0, interactionsManager.depth)
+  }
+
+  @Test
   fun getNextMovesIsUnaffectedByScopeWhenUnscoped() = test {
     val origin = PositionKey.START_POSITION
     interactionsManager.playMove("e4")
