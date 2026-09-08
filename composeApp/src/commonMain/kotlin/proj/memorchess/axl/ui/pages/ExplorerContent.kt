@@ -134,12 +134,16 @@ fun ExplorerContent(
   // is filled once below and again on every navigation callback.
   val nextMoves = remember { mutableStateListOf<String>() }
   val yoursBySan = remember { mutableStateMapOf<String, Boolean>() }
+  // SAN path from the explorer's root to the current position, for the moves trail.
+  val playedSans = remember { mutableStateListOf<String>() }
 
   LaunchedEffect(explorer) {
     nextMoves.clear()
     yoursBySan.clear()
     nextMoves.addAll(explorer.getNextMoves())
     refreshYours(nextMoves, myTreeStore, explorer, yoursBySan)
+    playedSans.clear()
+    playedSans.addAll(explorer.playedMoves())
   }
   var evalBarEnabled by remember { mutableStateOf(EVAL_BAR_ENABLED_SETTING.getValue()) }
   val bestMoveArrowEnabled by remember {
@@ -167,11 +171,8 @@ fun ExplorerContent(
     }
   }
 
-  // v1 trail: track the last-played SAN as a single chip. The explorer's NavigationHistory is
-  // protected so we cannot derive the full played-moves list here without touching core/. We keep
-  // a local list that grows with each new playMove and reset alongside the explorer.
-  val playedMoves = remember { mutableStateListOf<MoveDisplay>() }
   var playerTurnWhite by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
+  val playedMoves by remember { derivedStateOf { buildMoveDisplays(playedSans, playerTurnWhite) } }
 
   // Read the live save-state of the current position. `LinesExplorer.state` is
   // mutableStateOf-backed
@@ -191,6 +192,8 @@ fun ExplorerContent(
   remember {
     explorer.registerCallBack {
       playerTurnWhite = explorer.engine.playerTurn == Player.WHITE
+      playedSans.clear()
+      playedSans.addAll(explorer.playedMoves())
       coroutineScope.launch {
         val moves = explorer.getNextMoves()
         nextMoves.clear()
@@ -264,10 +267,14 @@ fun ExplorerContent(
         MovesTrail(
           moves = playedMoves,
           currentIndex = playedMoves.lastIndex,
-          onSeek = {},
+          onSeek = { index ->
+            // Reads the live depth on each iteration (rather than a step count captured once) so
+            // two quick taps converge on their own targets instead of over-backing past the root.
+            coroutineScope.launch { while (explorer.depth > index + 1) explorer.back() }
+          },
           modifier = trailModifier,
           openingName = null,
-          pgnText = null,
+          pgnText = buildPgnText(playedMoves),
         )
       },
       controlBar = { ctrlModifier ->
@@ -385,6 +392,47 @@ private fun nodeStateColor(
     NodeState.UNKNOWN -> palette.ink3
     NodeState.BAD_STATE -> palette.destructive
   }
+
+/**
+ * Builds the moves-trail chip list from the SAN path [sans], inferring each ply's color and move
+ * number from [currentPlayerTurnWhite] (the side to move once every SAN in [sans] has been played),
+ * since [proj.memorchess.axl.core.data.PositionKey] retains no real full-move number for the path's
+ * root.
+ */
+private fun buildMoveDisplays(
+  sans: List<String>,
+  currentPlayerTurnWhite: Boolean,
+): List<MoveDisplay> {
+  if (sans.isEmpty()) return emptyList()
+  val firstMoveWhite = if (sans.size % 2 == 1) !currentPlayerTurnWhite else currentPlayerTurnWhite
+  val numberOffset = if (firstMoveWhite) 0 else 1
+  return sans.mapIndexed { index, san ->
+    MoveDisplay(
+      san = san,
+      moveNumber = (index + numberOffset) / 2 + 1,
+      isWhiteMove = if (index % 2 == 0) firstMoveWhite else !firstMoveWhite,
+    )
+  }
+}
+
+/**
+ * Minimal PGN movetext built from [moves] (no tags), e.g. `"1. e4 e5 2. Nf3"`. Returns `null` when
+ * [moves] is empty so the trail's PGN button stays hidden until a move has been played.
+ */
+private fun buildPgnText(moves: List<MoveDisplay>): String? {
+  if (moves.isEmpty()) return null
+  return moves
+    .mapIndexed { index, move ->
+      val prefix =
+        when {
+          move.isWhiteMove -> "${move.moveNumber}."
+          index == 0 -> "${move.moveNumber}..."
+          else -> null
+        }
+      if (prefix != null) "$prefix ${move.san}" else move.san
+    }
+    .joinToString(" ")
+}
 
 /**
  * Approximate eval ratio from an [EvaluationScore]. Returns `0.5f` when null. Maps centipawns into

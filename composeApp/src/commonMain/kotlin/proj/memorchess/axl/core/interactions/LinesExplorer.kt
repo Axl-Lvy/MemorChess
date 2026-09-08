@@ -105,6 +105,13 @@ open class LinesExplorer(
     return scoped.map { it.move }.sorted()
   }
 
+  /** SAN moves played from the root position to [navigation.current], in playing order. */
+  fun playedMoves(): List<String> = navigation.getBackPath().map { it.second.move }
+
+  /** Plies played from the root position to [navigation.current]. */
+  val depth: Int
+    get() = navigation.depth
+
   /** Resets the explorer to the initial chess position. */
   suspend fun reset() {
     val resetPosition = PositionKey.START_POSITION
