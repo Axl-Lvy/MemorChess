@@ -469,7 +469,7 @@ private fun formatEvaluationScore(score: EvaluationScore): String =
 @Composable
 private fun PlayerTurnIndicator(explorer: LinesExplorer) {
   var playerTurn by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
-  explorer.registerCallBack { playerTurn = explorer.engine.playerTurn == Player.WHITE }
+  remember { explorer.registerCallBack { playerTurn = explorer.engine.playerTurn == Player.WHITE } }
   Piece(
     if (playerTurn) ChessPiece(PieceKind.KING, Player.WHITE)
     else ChessPiece(PieceKind.KING, Player.BLACK)
