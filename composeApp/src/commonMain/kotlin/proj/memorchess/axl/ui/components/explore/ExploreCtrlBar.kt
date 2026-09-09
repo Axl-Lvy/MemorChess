@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -31,9 +32,11 @@ import memorchess.composeapp.generated.resources.description_reset
 import memorchess.composeapp.generated.resources.description_reverse
 import memorchess.composeapp.generated.resources.description_toggle_eval_bar
 import memorchess.composeapp.generated.resources.explore_black
+import memorchess.composeapp.generated.resources.explore_save
 import memorchess.composeapp.generated.resources.explore_white
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.components.buttons.KineticButton
+import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -60,9 +63,36 @@ data class ExploreCtrlBarActions(
 )
 
 /**
+ * Narrowest bar width that comfortably fits a labeled Save button alongside the other six controls,
+ * without squeezing Delete down to zero width. A [Row] this tight does not overflow past its own
+ * bounds when a child grows. It shrinks later non-weighted children instead, so a labeled Save that
+ * does not fit can make Delete disappear rather than merely crowd it.
+ *
+ * Measured footprints at the bar's fixed 36.dp button height: the four nav icons plus Delete are
+ * 36.dp each, the turn pill is 55.dp in English ("WHITE"/"BLACK") and 62.dp in French
+ * ("BLANCS"/"NOIRS"), the eval toggle is 36.dp, and the 8 inter-item gaps are 6.dp each. A labeled
+ * Save adds 87.dp in English ("SAVE") and 132.dp in French ("ENREGISTRER") on top of those fixed
+ * items. That puts the English minimum at 406.dp and the French minimum at 458.dp. This constant
+ * sits above both with margin.
+ *
+ * [PortraitExploreLayout][proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout] gives the
+ * bar the full (portrait) device width, which falls well short of this constant on any phone, so
+ * Save stays icon-only there.
+ * [LandscapeExploreLayout][proj.memorchess.axl.ui.layout.explore.LandscapeExploreLayout] splits the
+ * window between the bar's column and a fixed-width side panel (280.dp to 420.dp); on a landscape
+ * phone that split usually leaves the bar's column under this constant too, so most landscape
+ * phones also stay icon-only. Tablets and desktop windows comfortably clear it. See #349.
+ */
+private val SAVE_LABEL_MIN_WIDTH = 500.dp
+
+/**
  * Compact Kinetic control bar replacing the loose reset / reverse / back / forward / eval-toggle /
- * save / delete row. Each control uses an icon-only [KineticButton]; the player turn indicator sits
- * mid-row as a small panel-2 pill showing whose move it is, rounded to 12.dp with a 1.5.dp stroke.
+ * save / delete row. Every control is an icon-only [KineticButton] except Save. Save carries a text
+ * label, so it reads as the row's primary CTA rather than one icon among several, whenever the bar
+ * is at least [SAVE_LABEL_MIN_WIDTH] wide. Narrower than that, which in practice is most phones in
+ * either orientation, Save falls back to icon-only so Delete keeps its own layout space. The player
+ * turn indicator sits mid-row as a small panel-2 pill showing whose move it is, rounded to 12.dp
+ * with a 1.5.dp stroke.
  *
  * The buttons carry no local styling: their radius, stroke and press feedback come from
  * [KineticButton] itself, so the bar stays in step with every other Kinetic button by construction.
@@ -70,7 +100,7 @@ data class ExploreCtrlBarActions(
  * @param actions Callbacks for each button.
  * @param evalEnabled `true` if the eval bar is currently enabled (drives Primary vs Default style).
  * @param playerTurnWhite `true` when it is white's move, used for the central player-turn pill.
- * @param modifier External modifier applied to the row.
+ * @param modifier External modifier applied to the bar.
  * @param showSaveDelete `true` to render the save and delete buttons; `false` hides them for read
  *   only contexts such as the repertoire viewer.
  */
@@ -82,12 +112,32 @@ fun ExploreCtrlBar(
   modifier: Modifier = Modifier,
   showSaveDelete: Boolean = true,
 ) {
+  BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+    ExploreCtrlBarRow(
+      actions = actions,
+      evalEnabled = evalEnabled,
+      playerTurnWhite = playerTurnWhite,
+      showSaveDelete = showSaveDelete,
+      showSaveLabel = maxWidth >= SAVE_LABEL_MIN_WIDTH,
+    )
+  }
+}
+
+/** The bar's actual content row, split out so [ExploreCtrlBar] can measure width above it. */
+@Composable
+private fun ExploreCtrlBarRow(
+  actions: ExploreCtrlBarActions,
+  evalEnabled: Boolean,
+  playerTurnWhite: Boolean,
+  showSaveDelete: Boolean,
+  showSaveLabel: Boolean,
+) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val pillShape = MaterialTheme.shapes.extraSmall
 
   Row(
-    modifier = modifier.fillMaxWidth(),
+    modifier = Modifier.fillMaxWidth(),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(6.dp),
   ) {
@@ -141,11 +191,18 @@ fun ExploreCtrlBar(
     Box(modifier = Modifier.weight(1f).fillMaxWidth())
 
     if (showSaveDelete) {
-      KineticButton(onClick = actions.onSave, style = KineticButtonStyle.Primary, iconOnly = true) {
+      KineticButton(
+        onClick = actions.onSave,
+        style = KineticButtonStyle.Primary,
+        iconOnly = !showSaveLabel,
+      ) {
         Icon(
           FeatherIcons.Save,
           contentDescription = stringResource(Res.string.description_board_save),
         )
+        if (showSaveLabel) {
+          KineticButtonLabel(stringResource(Res.string.explore_save))
+        }
       }
       KineticButton(
         onClick = actions.onDelete,
