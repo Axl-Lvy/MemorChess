@@ -552,10 +552,7 @@ private data class CreationDialogPresentation(
   val done: Boolean,
 )
 
-/**
- * Maps [state] to its [CreationDialogPresentation], shared by [CreateRepertoireAction] and
- * [ForkRepertoireAction].
- */
+/** Maps [state] to its [CreationDialogPresentation]. */
 @Composable
 private fun creationDialogPresentation(state: CreationState): CreationDialogPresentation =
   when (state) {
