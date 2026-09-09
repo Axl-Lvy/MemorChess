@@ -67,9 +67,11 @@ private const val BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable"
  * `routing {}` block on one `Application` into a single tree, so this never needs its own
  * `ContentNegotiation`/`StatusPages`/auth plugin installs.
  *
- * The admin moderation route carries no credential of its own: Cloudflare Access gates it at the
- * edge, following the pattern the home lab's other admin endpoints already use. Its own rate limit
- * tier is the one thing standing between it and an open network, should that edge gate ever lapse.
+ * The admin moderation route requires a valid bearer token, like every other mutating route. That
+ * check only tells the app any signed in caller is making the request. It does not yet distinguish
+ * a moderator from any other user, so Cloudflare Access at the edge remains the actual
+ * authorization boundary until the app gains a real admin role. Its own rate limit tier is a second
+ * layer, should that edge gate ever lapse.
  *
  * @param rateLimits The request budgets to enforce, substituted in tests that need to exhaust one.
  *   Installed here rather than assumed already installed by
@@ -101,7 +103,9 @@ private fun Route.repertoireRoutes(store: RepertoireStore, clock: () -> Instant)
     }
   }
 
-  rateLimit(RATE_LIMIT_ADMIN) { post("/admin/repertoires/{id}/status") { setStatus(store) } }
+  authenticate(SYNC_AUTH) {
+    rateLimit(RATE_LIMIT_ADMIN) { post("/admin/repertoires/{id}/status") { setStatus(store) } }
+  }
 }
 
 private suspend fun RoutingContext.getManifest(store: RepertoireStore) {

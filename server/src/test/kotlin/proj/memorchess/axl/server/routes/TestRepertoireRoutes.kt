@@ -237,6 +237,7 @@ class TestRepertoireRoutes {
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
         contentType(ContentType.Application.Json)
         setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
       }
@@ -597,6 +598,7 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val response =
         client.post("/admin/repertoires/$id/status") {
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
           contentType(ContentType.Application.Json)
           setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
         }
@@ -606,10 +608,28 @@ class TestRepertoireRoutes {
   }
 
   @Test
+  fun `admin status change without a bearer token is unauthorized`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+
+    app(store) { client ->
+      val response =
+        client.post("/admin/repertoires/$id/status") {
+          contentType(ContentType.Application.Json)
+          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
+        }
+
+      response.status shouldBe HttpStatusCode.Unauthorized
+    }
+  }
+
+  @Test
   fun `admin status change on an unknown id is not_found`() {
     app(newStore()) { client ->
       val response =
         client.post("/admin/repertoires/${newId()}/status") {
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
           contentType(ContentType.Application.Json)
           setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
         }
@@ -626,6 +646,7 @@ class TestRepertoireRoutes {
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
         contentType(ContentType.Application.Json)
         setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
       }
