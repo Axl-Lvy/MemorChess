@@ -122,13 +122,10 @@ class TestRateLimiting {
 
   @Test
   fun `rate limits the admin route by ip`() = withServer { client ->
-    repeat(tiers.admin.limit) {
-      client.post("/admin/repertoires/some-id/status") { header("CF-Connecting-IP", "9.9.9.9") }
-    }
+    val token = key.token(subject = PostgresTestDb.newUserId())
+    repeat(tiers.admin.limit) { client.adminStatus(token, "9.9.9.9") }
 
-    client
-      .post("/admin/repertoires/some-id/status") { header("CF-Connecting-IP", "9.9.9.9") }
-      .status shouldBe HttpStatusCode.TooManyRequests
+    client.adminStatus(token, "9.9.9.9").status shouldBe HttpStatusCode.TooManyRequests
   }
 
   private suspend fun HttpClient.deleteMe(token: String) =
@@ -136,4 +133,10 @@ class TestRateLimiting {
 
   private suspend fun HttpClient.manifest(ip: String) =
     get("/v1/repertoires/manifest.json") { header("CF-Connecting-IP", ip) }
+
+  private suspend fun HttpClient.adminStatus(token: String, ip: String) =
+    post("/admin/repertoires/some-id/status") {
+      header(HttpHeaders.Authorization, "Bearer $token")
+      header("CF-Connecting-IP", ip)
+    }
 }
