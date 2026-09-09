@@ -173,6 +173,7 @@
   <string name="explore_stat_ret">RET</string>
   <string name="explore_white">WHITE</string>
   <string name="explore_black">BLACK</string>
+  <string name="explore_save">Save</string>
 
   <!-- Explore: delete confirmation (plural) -->
   <plurals name="explore_delete_confirm">
