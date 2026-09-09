@@ -435,8 +435,9 @@ private fun CreateRepertoireAction(onRepertoireListChanged: () -> Unit) {
     remember(treeStore, coroutineScope) { repertoireCreationViewModel(treeStore, coroutineScope) }
   val state by viewModel.state.collectAsState()
   var showDialog by remember { mutableStateOf(false) }
+  val presentation = creationDialogPresentation(state)
   LaunchedEffect(state) {
-    if (state is CreationState.Done) {
+    if (presentation.done) {
       showDialog = false
       onRepertoireListChanged()
       viewModel.reset()
@@ -455,8 +456,8 @@ private fun CreateRepertoireAction(onRepertoireListChanged: () -> Unit) {
   }
   CreateRepertoireDialog(
     visible = showDialog,
-    working = state is CreationState.Working,
-    errorMessage = (state as? CreationState.Failed)?.error?.let { creationErrorMessage(it) },
+    working = presentation.working,
+    errorMessage = presentation.errorMessage,
     onSubmit = { name, color, pgnText -> viewModel.create(name, color, pgnText) },
     onDismiss = {
       showDialog = false
@@ -485,8 +486,9 @@ private fun ForkRepertoireAction(
     }
   val state by viewModel.state.collectAsState()
   var showDialog by remember { mutableStateOf(false) }
+  val presentation = creationDialogPresentation(state)
   LaunchedEffect(state) {
-    if (state is CreationState.Done) {
+    if (presentation.done) {
       showDialog = false
       onRepertoireListChanged()
       viewModel.reset()
@@ -507,8 +509,8 @@ private fun ForkRepertoireAction(
     visible = showDialog,
     sourceName = sourceName,
     sourceColor = sourceColor,
-    working = state is CreationState.Working,
-    errorMessage = (state as? CreationState.Failed)?.error?.let { creationErrorMessage(it) },
+    working = presentation.working,
+    errorMessage = presentation.errorMessage,
     onSubmit = { newName, color -> viewModel.fork(sourceId, newName, color) },
     onDismiss = {
       showDialog = false
@@ -541,6 +543,34 @@ private fun creationErrorMessage(error: CreationError): String =
     CreationError.DuplicateId -> stringResource(Res.string.library_create_error_duplicate_id)
     is CreationError.InvalidPgn ->
       stringResource(Res.string.library_create_error_invalid_pgn, error.reason)
+  }
+
+/** Dialog facing projection of a [CreationState]: mid flight flag, error message, done flag. */
+private data class CreationDialogPresentation(
+  val working: Boolean,
+  val errorMessage: String?,
+  val done: Boolean,
+)
+
+/**
+ * Maps [state] to its [CreationDialogPresentation], shared by [CreateRepertoireAction] and
+ * [ForkRepertoireAction].
+ */
+@Composable
+private fun creationDialogPresentation(state: CreationState): CreationDialogPresentation =
+  when (state) {
+    CreationState.Idle ->
+      CreationDialogPresentation(working = false, errorMessage = null, done = false)
+    CreationState.Working ->
+      CreationDialogPresentation(working = true, errorMessage = null, done = false)
+    is CreationState.Failed ->
+      CreationDialogPresentation(
+        working = false,
+        errorMessage = creationErrorMessage(state.error),
+        done = false,
+      )
+    is CreationState.Done ->
+      CreationDialogPresentation(working = false, errorMessage = null, done = true)
   }
 
 /**
