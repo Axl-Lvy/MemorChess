@@ -46,4 +46,12 @@ internal class TestChessBoardColorScheme {
     ChessBoardColorScheme.BLACK_AND_WHITE.arrowColor shouldBe Color(0x80FFA726)
     ChessBoardColorScheme.WOOD.arrowColor shouldBe Color(0x80DE9A04)
   }
+
+  @Test
+  fun violetSchemeUsesLimeArrowOnVioletSquares() {
+    ChessBoardColorScheme.KINETIC_VIOLET.arrowColor shouldBe Color(0x80B4F542)
+    ChessBoardColorScheme.KINETIC_VIOLET.lightSquareColor shouldBe Color(0xFFD9C9FF)
+    ChessBoardColorScheme.KINETIC_VIOLET.darkSquareColor shouldBe Color(0xFF6D28D9)
+    ChessBoardColorScheme.KINETIC_VIOLET.selectedBorderColor shouldBe Color(0xFFB99BFF)
+  }
 }
