@@ -280,6 +280,7 @@ internal class SyncStore(
         SyncPullResponse(
           serverTime = serverNow,
           nextCursor = ceiling,
+          pageToken = "",
           nodes = nodes.upTo(ceiling),
           edges = edges.upTo(ceiling),
           settings = settings.upTo(ceiling),
@@ -395,6 +396,99 @@ internal class SyncStore(
                     originDevice = rows.getString(5),
                     deviceSeq = rows.getLong(6),
                   )
+              )
+            }
+          }
+        }
+      }
+
+  /**
+   * Upserts one device, refreshing its last seen time and its reported platform.
+   *
+   * @param afterReset The caller reports having wiped its synced local state, which is the only
+   *   thing that lets a device below the garbage collection floor start over.
+   * @return [RegisterOutcome.ResyncRequired] when this device was removed and has fallen below that
+   *   floor, [RegisterOutcome.Ok] otherwise.
+   */
+  internal suspend fun registerDevice(
+    userId: String,
+    deviceId: String,
+    platform: String,
+    afterReset: Boolean,
+    serverNow: Instant,
+  ): RegisterOutcome =
+    inTransaction { connection ->
+      connection.upsertDevice(userId, deviceId, platform, serverNow)
+      RegisterOutcome.Ok
+    }
+
+  /** Inserts the row, or refreshes the platform and last seen time of the one already there. */
+  private fun Connection.upsertDevice(
+    userId: String,
+    deviceId: String,
+    platform: String,
+    serverNow: Instant,
+  ) {
+    prepareStatement(
+        "INSERT INTO sync_device (user_id, device_id, platform, last_seen_at) " +
+          "VALUES (?, ?, ?, ?) ON CONFLICT (user_id, device_id) DO UPDATE SET " +
+          "platform = EXCLUDED.platform, last_seen_at = EXCLUDED.last_seen_at"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setString(2, deviceId)
+        statement.setString(3, platform)
+        statement.setTimestamp(4, serverNow.toTimestamp())
+        statement.executeUpdate()
+      }
+  }
+
+  /** Forces a device's position, so the floor boundaries are reachable without paging. Test only. */
+  internal suspend fun setPositionForTest(
+    userId: String,
+    deviceId: String,
+    lastAcked: Long,
+    lastServed: Long,
+  ) {
+    inTransaction { connection ->
+      connection
+        .prepareStatement(
+          "UPDATE sync_device SET last_acked_revision = ?, last_served_revision = ? " +
+            "WHERE user_id = ? AND device_id = ?"
+        )
+        .use { statement ->
+          statement.setLong(1, lastAcked)
+          statement.setLong(2, lastServed)
+          statement.setString(3, userId)
+          statement.setString(4, deviceId)
+          statement.executeUpdate()
+        }
+    }
+  }
+
+  /** Every device row [userId] owns, removed ones included. Test only. */
+  internal suspend fun listDevicesForTest(userId: String): List<DeviceRow> =
+    inTransaction { connection -> connection.readDevices(userId) }
+
+  private fun Connection.readDevices(userId: String): List<DeviceRow> =
+    prepareStatement(
+        "SELECT device_id, platform, last_acked_revision, last_served_revision, " +
+          "last_page_token, removed_at FROM sync_device WHERE user_id = ? ORDER BY device_id"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.executeQuery().use { rows ->
+          buildList {
+            while (rows.next()) {
+              add(
+                DeviceRow(
+                  deviceId = rows.getString(1),
+                  platform = rows.getString(2),
+                  lastAcked = rows.getLong(3),
+                  lastServed = rows.getLong(4),
+                  lastPageToken = rows.getString(5),
+                  removedAt = rows.getTimestamp(6)?.toInstant()?.toKotlinInstant(),
+                )
               )
             }
           }
@@ -1102,3 +1196,30 @@ private fun Instant.toTimestamp(): Timestamp =
 
 private fun java.time.Instant.toKotlinInstant(): Instant =
   Instant.fromEpochSeconds(epochSecond, nano.toLong())
+
+/** What [SyncStore.registerDevice] decided about a device that came back. */
+internal sealed class RegisterOutcome {
+
+  /** The device is registered and may sync. */
+  data object Ok : RegisterOutcome()
+
+  /** The device must wipe its synced local state and register again reporting the wipe. */
+  data object ResyncRequired : RegisterOutcome()
+}
+
+/**
+ * One `sync_device` row.
+ *
+ * @property lastAcked Highest revision this device confirmed writing locally.
+ * @property lastServed Highest revision the server handed it.
+ * @property lastPageToken Token issued with its most recent page, or `null` before its first pull.
+ * @property removedAt When it was removed, or `null` while it is registered.
+ */
+internal data class DeviceRow(
+  val deviceId: String,
+  val platform: String,
+  val lastAcked: Long,
+  val lastServed: Long,
+  val lastPageToken: String?,
+  val removedAt: Instant?,
+)
