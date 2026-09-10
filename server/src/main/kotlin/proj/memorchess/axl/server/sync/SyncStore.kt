@@ -628,6 +628,44 @@ internal class SyncStore(
       }
   }
 
+  /**
+   * Whether [deviceId] has confirmed committing every row [userId] has, or `null` when there is no
+   * live row for it.
+   *
+   * The comparison is `>=` rather than equality because collection can lower the user's maximum:
+   * when the newest row is a tombstone every device has committed, collecting it drops that maximum
+   * below the very acknowledgements that authorized the delete, and equality would then report a
+   * fully caught up device as behind.
+   */
+  internal suspend fun deviceStatus(userId: String, deviceId: String): Boolean? =
+    inTransaction { connection ->
+      val device =
+        connection.readDevice(userId, deviceId)?.takeIf { it.removedAt == null }
+          ?: return@inTransaction null
+      device.lastAcked >= connection.highestRevision(userId)
+    }
+
+  /**
+   * The highest revision [userId] owns across [PER_USER_TABLES], or `0` when they own nothing.
+   *
+   * Per user, and never the `sync_revision` sequence itself: that counter is global, so comparing
+   * against it would report every device as behind forever.
+   */
+  private fun Connection.highestRevision(userId: String): Long {
+    val union =
+      PER_USER_TABLES.joinToString(" UNION ALL ") {
+        "SELECT max(revision) AS revision FROM $it WHERE user_id = ?"
+      }
+    return prepareStatement("SELECT COALESCE(max(revision), 0) FROM ($union) AS revisions").use {
+      statement ->
+      PER_USER_TABLES.forEachIndexed { index, _ -> statement.setString(index + 1, userId) }
+      statement.executeQuery().use { rows ->
+        rows.next()
+        rows.getLong(1)
+      }
+    }
+  }
+
   /** Forces a device's position, so the floor boundaries are reachable without paging. Test only. */
   internal suspend fun setPositionForTest(
     userId: String,

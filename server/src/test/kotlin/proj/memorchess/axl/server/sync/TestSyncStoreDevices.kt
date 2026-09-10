@@ -6,6 +6,8 @@ import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.core.sync.SettingSyncRow
+import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStoreDevices {
@@ -146,6 +148,86 @@ internal class TestSyncStoreDevices {
 
     store.listDevicesForTest(user).single().lastAcked shouldBe 0L
   }
+
+  @Test
+  fun aUserWithNoRowsAtAllIsSynced() = runTest {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+
+    store.deviceStatus(user, DEVICE) shouldBe true
+  }
+
+  @Test
+  fun aDeviceThatHasNotCommittedTheUsersRowsIsNotSynced() = runTest {
+    val user = userWithOneSetting()
+
+    store.deviceStatus(user, DEVICE) shouldBe false
+  }
+
+  @Test
+  fun aDeviceThatHasCommittedEverythingIsSynced() = runTest {
+    val user = userWithOneSetting()
+    val page = store.pull(user, DEVICE, ack = null, limit = 100, now)
+    store.pull(user, DEVICE, ack = page.pageToken, limit = 100, now)
+
+    store.deviceStatus(user, DEVICE) shouldBe true
+  }
+
+  @Test
+  fun aDeviceOneRevisionBehindIsNotSynced() = runTest {
+    val user = userWithOneSetting()
+    val highest = store.listDevicesForTest(user).single().let { _ -> highestRevision(user) }
+    store.setPositionForTest(user, DEVICE, lastAcked = highest - 1, lastServed = highest)
+
+    store.deviceStatus(user, DEVICE) shouldBe false
+  }
+
+  @Test
+  fun anUnknownOrRemovedDeviceHasNoStatus() = runTest {
+    val user = PostgresTestDb.newUserId()
+
+    store.deviceStatus(user, DEVICE) shouldBe null
+
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+    store.removeDeviceForTest(user, DEVICE, now)
+    store.deviceStatus(user, DEVICE) shouldBe null
+  }
+
+  @Test
+  fun aDeviceRegisteredUnderAnotherUserHasNoStatus() = runTest {
+    val mine = PostgresTestDb.newUserId()
+    val theirs = PostgresTestDb.newUserId()
+    store.registerDevice(theirs, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+
+    store.deviceStatus(mine, DEVICE) shouldBe null
+  }
+
+  private fun setting(key: String, value: String, seq: Long = 1) =
+    SettingSyncRow(
+      key = key,
+      value = value,
+      isDeleted = false,
+      updatedAt = now,
+      originDevice = DEVICE,
+      deviceSeq = seq,
+    )
+
+  private suspend fun userWithOneSetting(): String {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+      now,
+    )
+    return user
+  }
+
+  private suspend fun highestRevision(user: String): Long =
+    store.push(user, DEVICE, SyncPushRequest(emptyList(), emptyList(), emptyList()), now).let {
+      store.listDevicesForTest(user).single().lastServed.coerceAtLeast(1)
+    }
 
   private companion object {
     const val DEVICE = "11111111-1111-4111-8111-111111111111"
