@@ -8,6 +8,7 @@ import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
@@ -503,7 +504,7 @@ internal class SyncStore(
   internal suspend fun registerDevice(
     userId: String,
     deviceId: String,
-    platform: String,
+    platform: DevicePlatform,
     afterReset: Boolean,
     serverNow: Instant,
   ): RegisterOutcome = inTransaction { connection ->
@@ -527,7 +528,7 @@ internal class SyncStore(
   private fun Connection.reinstateAndZero(
     userId: String,
     deviceId: String,
-    platform: String,
+    platform: DevicePlatform,
     serverNow: Instant,
   ) {
     upsertDevice(userId, deviceId, platform, serverNow)
@@ -547,7 +548,7 @@ internal class SyncStore(
   private fun Connection.reinstate(
     userId: String,
     deviceId: String,
-    platform: String,
+    platform: DevicePlatform,
     serverNow: Instant,
   ) {
     upsertDevice(userId, deviceId, platform, serverNow)
@@ -614,7 +615,7 @@ internal class SyncStore(
   private fun Connection.upsertDevice(
     userId: String,
     deviceId: String,
-    platform: String,
+    platform: DevicePlatform,
     serverNow: Instant,
   ) {
     prepareStatement(
@@ -625,7 +626,8 @@ internal class SyncStore(
       .use { statement ->
         statement.setString(1, userId)
         statement.setString(2, deviceId)
-        statement.setString(3, platform)
+        // The column is text, so the enum becomes its wire name here and nowhere else.
+        statement.setString(3, platform.wireName)
         statement.setTimestamp(4, serverNow.toTimestamp())
         statement.executeUpdate()
       }
@@ -713,7 +715,9 @@ internal class SyncStore(
               add(
                 DeviceRow(
                   deviceId = rows.getString(1),
-                  platform = rows.getString(2),
+                  platform =
+                    rows.getString(2).let(DevicePlatform::fromWire)
+                      ?: error("stored platform '${rows.getString(2)}' is not a known one"),
                   lastAcked = rows.getLong(3),
                   lastServed = rows.getLong(4),
                   lastPageToken = rows.getString(5),
@@ -1520,7 +1524,7 @@ internal sealed class RegisterOutcome {
  */
 internal data class DeviceRow(
   val deviceId: String,
-  val platform: String,
+  val platform: DevicePlatform,
   val lastAcked: Long,
   val lastServed: Long,
   val lastPageToken: String?,

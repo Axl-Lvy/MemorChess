@@ -40,7 +40,7 @@ class SyncApiClient(
   suspend fun registerDevice(
     accessToken: String,
     deviceId: String,
-    platform: String,
+    platform: DevicePlatform,
     afterReset: Boolean,
   ): SyncRegisterOutcome {
     return try {
@@ -48,7 +48,8 @@ class SyncApiClient(
         httpClient.put("$baseUrl/me/devices/$deviceId") {
           bearerAuth(accessToken)
           contentType(ContentType.Application.Json)
-          setBody(SyncDeviceRegisterRequest(platform, afterReset))
+          // The wire type keeps a plain string, so the enum is converted here and nowhere else.
+          setBody(SyncDeviceRegisterRequest(platform.wireName, afterReset))
         }
       when {
         response.status.isSuccess() -> SyncRegisterOutcome.Ok

@@ -16,6 +16,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
 import proj.memorchess.axl.core.sync.SyncDeviceStatusResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
@@ -84,11 +85,16 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
       put("/v1/me/devices/{deviceId}") {
         val deviceId = call.deviceId()
         val request = call.receive<SyncDeviceRegisterRequest>()
+        // The wire field is a plain string so decoding never throws on a value this build has not
+        // heard of. It becomes the enum here, at the boundary, and everything inland is typed.
+        val platform =
+          DevicePlatform.fromWire(request.platform)
+            ?: throw BadRequestException("unknown platform '${request.platform}'")
         when (
           store.registerDevice(
             call.callerId,
             deviceId,
-            request.platform,
+            platform,
             request.afterReset,
             clock(),
           )

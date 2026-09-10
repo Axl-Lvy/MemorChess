@@ -9,7 +9,7 @@ class TestSyncDeviceEnvelopes {
   fun aRegisterRequestDefaultsAfterResetToFalse() {
     val decoded = SYNC_JSON.decodeFromString<SyncDeviceRegisterRequest>("""{"platform":"jvm"}""")
 
-    decoded.platform shouldBe DevicePlatform.JVM
+    decoded.platform shouldBe DevicePlatform.JVM.wireName
     decoded.afterReset shouldBe false
   }
 
@@ -18,6 +18,18 @@ class TestSyncDeviceEnvelopes {
     val decoded = SYNC_JSON.decodeFromString<SyncDeviceRegisterRequest>("""{"platform":"fridge"}""")
 
     decoded.platform shouldBe "fridge"
+  }
+
+  @Test
+  fun everyPlatformRoundTripsThroughItsWireName() {
+    for (platform in DevicePlatform.entries) {
+      DevicePlatform.fromWire(platform.wireName) shouldBe platform
+    }
+  }
+
+  @Test
+  fun aPlatformThisBuildHasNeverHeardOfHasNoEnumEntry() {
+    DevicePlatform.fromWire("fridge") shouldBe null
   }
 
   @Test

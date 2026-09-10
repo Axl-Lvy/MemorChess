@@ -5,7 +5,9 @@ import kotlinx.serialization.Serializable
 /**
  * Registers one device, and reports a completed local wipe.
  *
- * @property platform One of [DevicePlatform], as a plain string.
+ * @property platform [DevicePlatform.wireName], kept as a plain string on the wire so a platform
+ *   added by a newer client never breaks an older peer's decoding. Callers work with the enum and
+ *   convert here, at the boundary.
  * @property afterReset `true` only on the register call that follows a `410`, once the caller has
  *   wiped its synced local state.
  */
@@ -23,20 +25,33 @@ data class SyncDeviceRegisterRequest(val platform: String, val afterReset: Boole
 /**
  * Platforms a device can report.
  *
- * Plain strings for the same reason as [RejectionCode]: a platform added by a newer client must not
- * break an older server's decoding.
+ * @property wireName How this platform is spelled on the wire and stored in `sync_device`.
  */
-object DevicePlatform {
+enum class DevicePlatform(val wireName: String) {
 
   /** Android, phone or tablet. */
-  const val ANDROID: String = "android"
+  ANDROID("android"),
 
   /** iOS. */
-  const val IOS: String = "ios"
+  IOS("ios"),
 
   /** Desktop, on the JVM. */
-  const val JVM: String = "jvm"
+  JVM("jvm"),
 
   /** The browser build, compiled to WebAssembly. */
-  const val WASM_JS: String = "wasmjs"
+  WASM_JS("wasmjs");
+
+  companion object {
+
+    /**
+     * The platform [wireName] names, or `null` when this build has never heard of it.
+     *
+     * `null` rather than a throw for the same reason [SyncDeviceRegisterRequest.platform] is a
+     * plain string: a platform added by a newer client must not break an older peer, which an enum
+     * on the wire would turn into a decoding failure.
+     */
+    fun fromWire(wireName: String): DevicePlatform? = entries.firstOrNull {
+      it.wireName == wireName
+    }
+  }
 }

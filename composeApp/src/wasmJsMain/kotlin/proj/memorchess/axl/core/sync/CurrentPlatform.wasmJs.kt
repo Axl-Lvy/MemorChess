@@ -1,3 +1,3 @@
 package proj.memorchess.axl.core.sync
 
-internal actual fun currentPlatform(): String = DevicePlatform.WASM_JS
+internal actual fun currentPlatform(): DevicePlatform = DevicePlatform.WASM_JS

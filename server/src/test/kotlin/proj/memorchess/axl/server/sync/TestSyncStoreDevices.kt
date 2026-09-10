@@ -108,8 +108,13 @@ internal class TestSyncStoreDevices {
     store.setPositionForTest(user, DEVICE, lastAcked = 1, lastServed = 1)
     store.setGcFloorForTest(user, 5_000)
 
-    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now) shouldBe
-      RegisterOutcome.Ok
+    store.registerDevice(
+      user,
+      DEVICE,
+      DevicePlatform.JVM,
+      afterReset = false,
+      now,
+    ) shouldBe RegisterOutcome.Ok
   }
 
   @Test
@@ -117,8 +122,13 @@ internal class TestSyncStoreDevices {
     val user = PostgresTestDb.newUserId()
     returningRemovedDevice(user, ack = 99, floor = 100)
 
-    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now) shouldBe
-      RegisterOutcome.ResyncRequired
+    store.registerDevice(
+      user,
+      DEVICE,
+      DevicePlatform.JVM,
+      afterReset = false,
+      now,
+    ) shouldBe RegisterOutcome.ResyncRequired
 
     store.listDevicesForTest(user).single().lastAcked shouldBe 99L
   }

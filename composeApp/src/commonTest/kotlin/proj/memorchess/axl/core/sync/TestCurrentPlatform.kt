@@ -1,18 +1,14 @@
 package proj.memorchess.axl.core.sync
 
-import io.kotest.matchers.collections.shouldBeIn
+import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 
 class TestCurrentPlatform {
 
   @Test
-  fun theCurrentPlatformIsOneOfTheKnownNames() {
-    currentPlatform() shouldBeIn
-      listOf(
-        DevicePlatform.ANDROID,
-        DevicePlatform.IOS,
-        DevicePlatform.JVM,
-        DevicePlatform.WASM_JS,
-      )
+  fun thisBuildsPlatformRoundTripsThroughItsWireName() {
+    val platform = currentPlatform()
+
+    DevicePlatform.fromWire(platform.wireName) shouldBe platform
   }
 }

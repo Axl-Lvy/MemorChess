@@ -75,13 +75,13 @@ class TestDeviceRoutes {
   private suspend fun HttpClient.register(
     token: String,
     deviceId: String = DEVICE,
-    platform: String = DevicePlatform.JVM,
+    platform: DevicePlatform = DevicePlatform.JVM,
     afterReset: Boolean = false,
   ): HttpResponse =
     put("/v1/me/devices/$deviceId") {
       header(HttpHeaders.Authorization, "Bearer $token")
       contentType(ContentType.Application.Json)
-      setBody(SYNC_JSON.encodeToString(SyncDeviceRegisterRequest(platform, afterReset)))
+      setBody(SYNC_JSON.encodeToString(SyncDeviceRegisterRequest(platform.wireName, afterReset)))
     }
 
   private suspend fun HttpClient.status(token: String, deviceId: String = DEVICE): HttpResponse =
@@ -97,6 +97,21 @@ class TestDeviceRoutes {
   @Test
   fun `a device id that is not a canonical uuid is refused`() = withServer { client, token, user ->
     val response = client.register(token, deviceId = "not-a-uuid")
+
+    response.status shouldBe HttpStatusCode.BadRequest
+    SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
+      ApiErrorCode.BAD_REQUEST
+    store.listDevicesForTest(user).isEmpty() shouldBe true
+  }
+
+  @Test
+  fun `a platform this build has never heard of is refused`() = withServer { client, token, user ->
+    val response =
+      client.put("/v1/me/devices/$DEVICE") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        contentType(ContentType.Application.Json)
+        setBody("""{"platform":"fridge","afterReset":false}""")
+      }
 
     response.status shouldBe HttpStatusCode.BadRequest
     SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
@@ -186,7 +201,7 @@ class TestDeviceRoutes {
     client
       .put("/v1/me/devices/$DEVICE") {
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncDeviceRegisterRequest(DevicePlatform.JVM)))
+        setBody(SYNC_JSON.encodeToString(SyncDeviceRegisterRequest(DevicePlatform.JVM.wireName)))
       }
       .status shouldBe HttpStatusCode.Unauthorized
 

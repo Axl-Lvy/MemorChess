@@ -65,7 +65,13 @@ class TestSyncRoutes {
   /** A token for a fresh caller whose device is already registered. */
   private suspend fun otherCaller(): String {
     val subject = PostgresTestDb.newUserId()
-    registrar.registerDevice(subject, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    registrar.registerDevice(
+      subject,
+      DEVICE,
+      DevicePlatform.JVM,
+      afterReset = false,
+      serverNow,
+    )
     return key.token(subject = subject)
   }
 

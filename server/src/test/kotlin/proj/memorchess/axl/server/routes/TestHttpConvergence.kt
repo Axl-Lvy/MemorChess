@@ -107,7 +107,13 @@ class TestHttpConvergence {
     // Registration is a prerequisite for pulling, and its own route arrives with the device
     // endpoints. Until then the store is primed directly, which is what the client does over HTTP.
     for (device in listOf("device-a", "device-b")) {
-      store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, clock.now())
+      store.registerDevice(
+        user,
+        device,
+        DevicePlatform.JVM,
+        afterReset = false,
+        clock.now(),
+      )
     }
     block(
       TestDevice("device-a"),

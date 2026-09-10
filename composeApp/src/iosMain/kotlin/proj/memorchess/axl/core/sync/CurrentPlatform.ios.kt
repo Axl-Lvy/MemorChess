@@ -1,3 +1,3 @@
 package proj.memorchess.axl.core.sync
 
-internal actual fun currentPlatform(): String = DevicePlatform.IOS
+internal actual fun currentPlatform(): DevicePlatform = DevicePlatform.IOS
