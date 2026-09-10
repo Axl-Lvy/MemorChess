@@ -18,6 +18,13 @@ import proj.memorchess.axl.server.db.resolvePositionIds
 internal class TestSyncStoreDeleteUser {
 
   private val store = SyncStore(PostgresTestDb.dataSource())
+
+  /** A fresh user with one registered device, which pushing now requires. */
+  private suspend fun newUser(): String {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    return user
+  }
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
@@ -25,6 +32,7 @@ internal class TestSyncStoreDeleteUser {
   private suspend fun populate(user: String, origin: String, destination: String) {
     store.push(
       user,
+      DEVICE,
       SyncPushRequest(
         nodes =
           listOf(
@@ -100,7 +108,7 @@ internal class TestSyncStoreDeleteUser {
 
   @Test
   fun deletingAUserRemovesEveryOneOfItsRows() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val origin = fen("o")
     populate(user, origin, fen("d"))
 
@@ -119,7 +127,7 @@ internal class TestSyncStoreDeleteUser {
 
   @Test
   fun deletingAUserLeavesTheSharedTablesAlone() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val origin = fen("shared-o")
     populate(user, origin, fen("shared-d"))
 
@@ -135,12 +143,12 @@ internal class TestSyncStoreDeleteUser {
   }
 
   @Test
-  fun deletingAUserWithNoRowsIsANoOp() = runTest { store.deleteUser(PostgresTestDb.newUserId()) }
+  fun deletingAUserWithNoRowsIsANoOp() = runTest { store.deleteUser(newUser()) }
 
   @Test
   fun deletingOneUserDoesNotTouchAnother() = runTest {
-    val mine = PostgresTestDb.newUserId()
-    val theirs = PostgresTestDb.newUserId()
+    val mine = newUser()
+    val theirs = newUser()
     populate(mine, fen("mine-o"), fen("mine-d"))
     populate(theirs, fen("theirs-o"), fen("theirs-d"))
 

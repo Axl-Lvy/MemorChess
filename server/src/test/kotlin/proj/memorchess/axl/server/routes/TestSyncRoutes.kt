@@ -105,7 +105,11 @@ class TestSyncRoutes {
     post("/v1/sync") {
       header(HttpHeaders.Authorization, "Bearer $token")
       contentType(ContentType.Application.Json)
-      setBody(SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows.toList())))
+      setBody(
+        SYNC_JSON.encodeToString(
+          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DEVICE)
+        )
+      )
     }
 
   private suspend fun HttpClient.pull(token: String, query: String = "") =
@@ -353,6 +357,7 @@ class TestSyncRoutes {
                   ),
                 edges = emptyList(),
                 settings = emptyList(),
+                device = DEVICE,
               )
             )
           )

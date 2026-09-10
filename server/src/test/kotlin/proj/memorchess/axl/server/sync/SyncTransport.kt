@@ -26,7 +26,7 @@ internal class StoreTransport(
 ) : SyncTransport {
 
   override suspend fun push(request: SyncPushRequest, serverNow: Instant) =
-    store.push(userId, request, serverNow)
+    store.push(userId, deviceId, request, serverNow)
 
   override suspend fun pull(ack: String?, limit: Int, serverNow: Instant) =
     store.pull(userId, deviceId, ack, limit, serverNow)

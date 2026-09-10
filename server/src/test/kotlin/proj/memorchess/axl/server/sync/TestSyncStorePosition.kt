@@ -18,6 +18,13 @@ import proj.memorchess.axl.server.db.PostgresTestDb
 internal class TestSyncStorePosition {
 
   private val store = SyncStore(PostgresTestDb.dataSource())
+
+  /** A fresh user with one registered device, which pushing now requires. */
+  private suspend fun newUser(): String {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+    return user
+  }
   private val now = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun setting(key: String, value: String) =
@@ -53,7 +60,7 @@ internal class TestSyncStorePosition {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
     if (rows.isNotEmpty()) {
-      store.push(user, SyncPushRequest(emptyList(), emptyList(), rows.toList()), now)
+      store.push(user, DEVICE, SyncPushRequest(emptyList(), emptyList(), rows.toList()), now)
     }
     return user
   }
@@ -145,7 +152,7 @@ internal class TestSyncStorePosition {
   @Test
   fun anUnknownDeviceIsRefused() = runTest {
     shouldThrow<UnknownDeviceException> {
-      store.pull(PostgresTestDb.newUserId(), "never-registered", null, 100, now)
+      store.pull(newUser(), "never-registered", null, 100, now)
     }
   }
 
@@ -159,6 +166,53 @@ internal class TestSyncStorePosition {
     shouldThrow<ResyncRequiredException> {
       store.pull(user, DEVICE, ack = null, limit = 100, now)
     }
+  }
+
+  @Test
+  fun aPushFromAnUnknownDeviceIsRefused() = runTest {
+    shouldThrow<UnknownDeviceException> {
+      store.push(
+        PostgresTestDb.newUserId(),
+        "never-registered",
+        SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+        now,
+      )
+    }
+  }
+
+  @Test
+  fun aPushFromARemovedDeviceBelowTheFloorIsRefused() = runTest {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+    store.setPositionForTest(user, DEVICE, lastAcked = 99, lastServed = 99)
+    store.removeDeviceForTest(user, DEVICE, now)
+    store.setGcFloorForTest(user, 100)
+
+    shouldThrow<ResyncRequiredException> {
+      store.push(
+        user,
+        DEVICE,
+        SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+        now,
+      )
+    }
+  }
+
+  @Test
+  fun aPushNeverMovesEitherPositionColumn() = runTest {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+      now,
+    )
+
+    val device = store.listDevicesForTest(user).single()
+    device.lastAcked shouldBe 0L
+    device.lastServed shouldBe 0L
   }
 
   private companion object {

@@ -86,6 +86,7 @@ internal class SyncStore(
    */
   internal suspend fun push(
     userId: String,
+    deviceId: String,
     request: SyncPushRequest,
     serverNow: Instant,
   ): SyncPushResponse {
@@ -103,6 +104,7 @@ internal class SyncStore(
       inTransaction { connection ->
         connection.applyBatch(
           userId,
+          deviceId,
           nodes.accepted,
           edges.accepted,
           settings.accepted,
@@ -135,9 +137,13 @@ internal class SyncStore(
    *   Checked before anything is resolved or written, under [acquireUserLock], so two concurrent
    *   pushes from the same user can never both slip past it. Tags are checked further down, once
    *   the ones naming an edge the server has never seen are known and excluded from the count.
+   * @throws UnknownDeviceException [deviceId] has no row under [userId].
+   * @throws ResyncRequiredException [deviceId] was removed and has fallen below the garbage
+   *   collection floor, so it may be holding rows whose tombstones are already gone.
    */
   private fun Connection.applyBatch(
     userId: String,
+    deviceId: String,
     nodes: List<NodeSyncRow>,
     edges: List<EdgeSyncRow>,
     settings: List<SettingSyncRow>,
@@ -145,6 +151,9 @@ internal class SyncStore(
     tags: List<EdgeRepertoireTagSyncRow>,
   ): Pair<Long, List<RejectedRow>> {
     acquireUserLock(userId)
+    // Under the same lock as everything else, so a device removed concurrently cannot slip a batch
+    // past the check.
+    requireSyncableDevice(userId, deviceId)
     checkNodeQuota(userId, nodes, maxNodesPerUser)
     checkEdgeQuota(userId, edges, maxEdgesPerUser)
     checkRepertoireQuota(userId, repertoires, maxRepertoiresPerUser)

@@ -62,7 +62,10 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
             "a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows"
           )
         }
-        call.respond(store.push(call.callerId, request, clock()))
+        if (request.device.isEmpty()) {
+          throw BadRequestException("device is required")
+        }
+        call.respond(store.push(call.callerId, request.device, request, clock()))
       }
 
       delete("/v1/me") {

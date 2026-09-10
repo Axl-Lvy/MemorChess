@@ -16,6 +16,13 @@ import proj.memorchess.axl.server.db.PostgresTestDb
 internal class TestSyncStorePull {
 
   private val store = SyncStore(PostgresTestDb.dataSource())
+
+  /** A fresh user with one registered device, which pushing now requires. */
+  private suspend fun newUser(): String {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    return user
+  }
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun setting(key: String, value: String, seq: Long = 1) =
@@ -49,7 +56,7 @@ internal class TestSyncStorePull {
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   private suspend fun pushSettings(user: String, vararg rows: SettingSyncRow) =
-    store.push(user, SyncPushRequest(emptyList(), emptyList(), rows.toList()), serverNow)
+    store.push(user, DEVICE, SyncPushRequest(emptyList(), emptyList(), rows.toList()), serverNow)
 
   /** A fresh user with one registered device, which pulling now requires. */
   private suspend fun registeredUser(): String {
@@ -65,10 +72,10 @@ internal class TestSyncStorePull {
   @Test
   fun aNonPositiveLimitIsRejected() = runTest {
     shouldThrow<IllegalArgumentException> {
-      store.pull(PostgresTestDb.newUserId(), DEVICE, null, 0, serverNow)
+      store.pull(newUser(), DEVICE, null, 0, serverNow)
     }
     shouldThrow<IllegalArgumentException> {
-      store.pull(PostgresTestDb.newUserId(), DEVICE, null, -1, serverNow)
+      store.pull(newUser(), DEVICE, null, -1, serverNow)
     }
   }
 
@@ -167,7 +174,7 @@ internal class TestSyncStorePull {
   @Test
   fun anotherUsersRowsAreNeverReturned() = runTest {
     val mine = registeredUser()
-    val theirs = PostgresTestDb.newUserId()
+    val theirs = newUser()
     pushSettings(theirs, setting("theme", "dark"))
     pull(mine).settings.shouldBeEmpty()
   }
@@ -178,6 +185,7 @@ internal class TestSyncStorePull {
     val key = fen("mixed")
     store.push(
       user,
+      DEVICE,
       SyncPushRequest(listOf(node(key)), emptyList(), listOf(setting("theme", "dark"))),
       serverNow,
     )
@@ -193,8 +201,8 @@ internal class TestSyncStorePull {
     pushSettings(user, setting("a", "1"))
     pushSettings(user, setting("b", "2"))
     pushSettings(user, setting("c", "3"))
-    store.push(user, SyncPushRequest(listOf(node(fen("n1"))), emptyList(), emptyList()), serverNow)
-    store.push(user, SyncPushRequest(listOf(node(fen("n2"))), emptyList(), emptyList()), serverNow)
+    store.push(user, DEVICE, SyncPushRequest(listOf(node(fen("n1"))), emptyList(), emptyList()), serverNow)
+    store.push(user, DEVICE, SyncPushRequest(listOf(node(fen("n2"))), emptyList(), emptyList()), serverNow)
 
     // With limit 2 the settings page fills and its ceiling is the second setting's revision, which
     // is BELOW both node revisions. The nodes must therefore be withheld entirely, or the caller

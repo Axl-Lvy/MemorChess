@@ -48,7 +48,7 @@ private class HttpTransport(
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(request))
+        setBody(SYNC_JSON.encodeToString(request.copy(device = deviceId)))
       }
     return SYNC_JSON.decodeFromString(response.bodyAsText())
   }
