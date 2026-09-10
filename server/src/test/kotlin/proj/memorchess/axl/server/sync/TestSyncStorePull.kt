@@ -7,6 +7,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
@@ -50,19 +51,30 @@ internal class TestSyncStorePull {
   private suspend fun pushSettings(user: String, vararg rows: SettingSyncRow) =
     store.push(user, SyncPushRequest(emptyList(), emptyList(), rows.toList()), serverNow)
 
+  /** A fresh user with one registered device, which pulling now requires. */
+  private suspend fun registeredUser(): String {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    return user
+  }
+
+  /** The device's next page, confirming [ack] first. */
+  private suspend fun pull(user: String, limit: Int = 10, ack: String? = null) =
+    store.pull(user, DEVICE, ack, limit, serverNow)
+
   @Test
   fun aNonPositiveLimitIsRejected() = runTest {
     shouldThrow<IllegalArgumentException> {
-      store.pull(PostgresTestDb.newUserId(), 0, 0, serverNow)
+      store.pull(PostgresTestDb.newUserId(), DEVICE, null, 0, serverNow)
     }
     shouldThrow<IllegalArgumentException> {
-      store.pull(PostgresTestDb.newUserId(), 0, -1, serverNow)
+      store.pull(PostgresTestDb.newUserId(), DEVICE, null, -1, serverNow)
     }
   }
 
   @Test
   fun emptyStoreReturnsNoRowsAndANullCursor() = runTest {
-    val page = store.pull(PostgresTestDb.newUserId(), 0, 10, serverNow)
+    val page = pull(registeredUser())
     page.nodes.shouldBeEmpty()
     page.edges.shouldBeEmpty()
     page.settings.shouldBeEmpty()
@@ -72,111 +84,111 @@ internal class TestSyncStorePull {
 
   @Test
   fun aSingleRowComesBackAndTheCursorTerminates() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = registeredUser()
     pushSettings(user, setting("theme", "dark"))
-    val page = store.pull(user, 0, 10, serverNow)
+    val page = pull(user)
     page.settings shouldHaveSize 1
     page.nextCursor shouldBe null
   }
 
   @Test
-  fun pullingFromTheReturnedCursorReturnsNothingFurther() = runTest {
-    val user = PostgresTestDb.newUserId()
+  fun acknowledgingAPageIsServedNothingFurther() = runTest {
+    val user = registeredUser()
     pushSettings(user, setting("a", "1"), setting("b", "2"))
-    val first = store.pull(user, 0, 2, serverNow)
+    val first = pull(user, limit = 2)
     first.settings shouldHaveSize 2
-    val second = store.pull(user, first.nextCursor!!, 2, serverNow)
+    val second = pull(user, limit = 2, ack = first.pageToken)
     second.settings.shouldBeEmpty()
     second.nextCursor shouldBe null
   }
 
   @Test
-  fun aZeroCursorReturnsEverything() = runTest {
-    val user = PostgresTestDb.newUserId()
+  fun aFreshDeviceIsServedEverything() = runTest {
+    val user = registeredUser()
     pushSettings(user, setting("a", "1"), setting("b", "2"), setting("c", "3"))
-    store.pull(user, 0, 10, serverNow).settings shouldHaveSize 3
+    pull(user).settings shouldHaveSize 3
   }
 
   @Test
-  fun aCursorAboveEveryRevisionReturnsNothing() = runTest {
-    val user = PostgresTestDb.newUserId()
+  fun aDevicePositionedAboveEveryRevisionIsServedNothing() = runTest {
+    val user = registeredUser()
     pushSettings(user, setting("a", "1"))
-    store.pull(user, Long.MAX_VALUE - 1, 10, serverNow).settings.shouldBeEmpty()
+    store.setPositionForTest(user, DEVICE, lastAcked = Long.MAX_VALUE - 1, lastServed = 0)
+
+    pull(user).settings.shouldBeEmpty()
   }
 
   @Test
   fun aLimitOfOneWalksTheWholeStoreOneRowAtATime() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = registeredUser()
     pushSettings(user, setting("a", "1"), setting("b", "2"), setting("c", "3"))
-    var cursor = 0L
+    var ack: String? = null
     val seen = mutableListOf<String>()
     var pages = 0
     while (true) {
-      val page = store.pull(user, cursor, 1, serverNow)
+      val page = pull(user, limit = 1, ack = ack)
+      if (page.settings.isEmpty()) break
       seen += page.settings.map { it.key }
-      pages++
-      cursor = page.nextCursor ?: break
-      if (pages > 10) error("paging did not terminate")
+      ack = page.pageToken
+      if (pages++ > 10) error("paging did not terminate")
     }
     seen shouldBe listOf("a", "b", "c")
   }
 
   @Test
   fun aStoreSizeThatIsAnExactMultipleOfTheLimitEndsWithAnEmptyPage() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = registeredUser()
     pushSettings(user, setting("a", "1"), setting("b", "2"))
-    val first = store.pull(user, 0, 2, serverNow)
+    val first = pull(user, limit = 2)
     first.settings shouldHaveSize 2
-    // A full page cannot know it was the last, so it returns a cursor and one empty page follows.
-    val second = store.pull(user, first.nextCursor!!, 2, serverNow)
+    // A full page cannot know it was the last, so one empty page follows and confirms it.
+    val second = pull(user, limit = 2, ack = first.pageToken)
     second.settings.shouldBeEmpty()
     second.nextCursor shouldBe null
   }
 
   @Test
   fun rowsComeBackInRevisionOrder() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = registeredUser()
     pushSettings(user, setting("first", "1"))
     pushSettings(user, setting("second", "2"))
     pushSettings(user, setting("third", "3"))
-    store.pull(user, 0, 10, serverNow).settings.map { it.key } shouldBe
-      listOf("first", "second", "third")
+    pull(user).settings.map { it.key } shouldBe listOf("first", "second", "third")
   }
 
   @Test
   fun tombstonesAreReturnedLikeAnyOtherRow() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = registeredUser()
     pushSettings(user, setting("theme", "dark", seq = 1))
     pushSettings(user, setting("theme", "dark", seq = 2).copy(isDeleted = true))
-    val page = store.pull(user, 0, 10, serverNow)
-    page.settings.single().isDeleted shouldBe true
+    pull(user).settings.single().isDeleted shouldBe true
   }
 
   @Test
   fun anotherUsersRowsAreNeverReturned() = runTest {
-    val mine = PostgresTestDb.newUserId()
+    val mine = registeredUser()
     val theirs = PostgresTestDb.newUserId()
     pushSettings(theirs, setting("theme", "dark"))
-    store.pull(mine, 0, 10, serverNow).settings.shouldBeEmpty()
+    pull(mine).settings.shouldBeEmpty()
   }
 
   @Test
   fun allThreeResourcesComeBackInOnePage() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = registeredUser()
     val key = fen("mixed")
     store.push(
       user,
       SyncPushRequest(listOf(node(key)), emptyList(), listOf(setting("theme", "dark"))),
       serverNow,
     )
-    val page = store.pull(user, 0, 10, serverNow)
+    val page = pull(user)
     page.nodes shouldHaveSize 1
     page.settings shouldHaveSize 1
   }
 
   @Test
   fun aFullPageInOneTableCapsTheCursorForTheOthers() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = registeredUser()
     // Settings take the LOW revisions, nodes the high ones.
     pushSettings(user, setting("a", "1"))
     pushSettings(user, setting("b", "2"))
@@ -187,23 +199,28 @@ internal class TestSyncStorePull {
     // With limit 2 the settings page fills and its ceiling is the second setting's revision, which
     // is BELOW both node revisions. The nodes must therefore be withheld entirely, or the caller
     // would advance its cursor past settings it never received.
-    val page = store.pull(user, 0, 2, serverNow)
+    val page = pull(user, limit = 2)
     page.settings.map { it.key } shouldBe listOf("a", "b")
     page.nodes.shouldBeEmpty()
 
     // The withheld rows arrive on later pages, and nothing is lost.
-    var cursor = page.nextCursor!!
+    var ack = page.pageToken
     val settingsSeen = page.settings.map { it.key }.toMutableList()
     var nodesSeen = 0
     var guard = 0
     while (true) {
-      val next = store.pull(user, cursor, 2, serverNow)
+      val next = pull(user, limit = 2, ack = ack)
+      if (next.settings.isEmpty() && next.nodes.isEmpty()) break
       settingsSeen += next.settings.map { it.key }
       nodesSeen += next.nodes.size
-      cursor = next.nextCursor ?: break
+      ack = next.pageToken
       if (guard++ > 10) error("paging did not terminate")
     }
     settingsSeen shouldBe listOf("a", "b", "c")
     nodesSeen shouldBe 2
+  }
+
+  private companion object {
+    const val DEVICE = "33333333-3333-4333-8333-333333333333"
   }
 }

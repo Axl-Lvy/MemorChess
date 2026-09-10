@@ -20,6 +20,7 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.core.sync.SyncPullResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
@@ -36,8 +37,11 @@ import proj.memorchess.axl.server.sync.TestDevice
 import proj.memorchess.axl.server.syncModule
 
 /** Drives the real routes with a real token, so the wire format is part of the property. */
-private class HttpTransport(private val client: HttpClient, private val token: String) :
-  SyncTransport {
+private class HttpTransport(
+  private val client: HttpClient,
+  private val token: String,
+  private val deviceId: String,
+) : SyncTransport {
 
   override suspend fun push(request: SyncPushRequest, serverNow: Instant): SyncPushResponse {
     val response =
@@ -49,9 +53,10 @@ private class HttpTransport(private val client: HttpClient, private val token: S
     return SYNC_JSON.decodeFromString(response.bodyAsText())
   }
 
-  override suspend fun pull(since: Long, limit: Int, serverNow: Instant): SyncPullResponse {
+  override suspend fun pull(ack: String?, limit: Int, serverNow: Instant): SyncPullResponse {
+    val ackParam = if (ack == null) "" else "&ack=$ack"
     val response =
-      client.get("/v1/sync?since=$since&limit=$limit") {
+      client.get("/v1/sync?device=$deviceId&limit=$limit$ackParam") {
         header(HttpHeaders.Authorization, "Bearer $token")
       }
     return SYNC_JSON.decodeFromString(response.bodyAsText())
@@ -87,22 +92,28 @@ class TestHttpConvergence {
   ) = testApplication {
     val user = PostgresTestDb.newUserId()
     val clock = ServerClock(base)
+    val store = SyncStore(PostgresTestDb.dataSource())
     application {
       syncModule(
         config = config,
         jwkProvider = TestJwkProvider(key),
-        store = SyncStore(PostgresTestDb.dataSource()),
+        store = store,
         readiness = { true },
         clock = clock::now,
       )
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
     val token = key.token(subject = user)
+    // Registration is a prerequisite for pulling, and its own route arrives with the device
+    // endpoints. Until then the store is primed directly, which is what the client does over HTTP.
+    for (device in listOf("device-a", "device-b")) {
+      store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, clock.now())
+    }
     block(
       TestDevice("device-a"),
-      HttpTransport(client, token),
+      HttpTransport(client, token, "device-a"),
       TestDevice("device-b"),
-      HttpTransport(client, token),
+      HttpTransport(client, token, "device-b"),
       clock,
     )
   }

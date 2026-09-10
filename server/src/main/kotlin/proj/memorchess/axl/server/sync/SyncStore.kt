@@ -4,6 +4,7 @@ import java.sql.Connection
 import java.sql.Timestamp
 import javax.sql.DataSource
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -235,60 +236,139 @@ internal class SyncStore(
     }
 
   /**
-   * One bounded page of rows the caller has not seen, ordered by the server assigned revision.
+   * One bounded page of rows [deviceId] has not been served, ordered by the server assigned
+   * revision.
    *
-   * The cursor is a revision and **never** a timestamp. Using `updated_at` instead looks equivalent
-   * and silently loses rows forever: a device with a slow clock writes a row stamped earlier than a
-   * cursor another device has already passed, and that row is never returned again.
+   * The position is a revision and **never** a timestamp. Using `updated_at` instead looks
+   * equivalent and silently loses rows forever: a device with a slow clock writes a row stamped
+   * earlier than a position another device has already passed, and that row is never returned again.
    *
    * Each resource is queried separately with its own limit, so a table that filled its page may
    * still be holding rows. [SyncPullResponse.nextCursor] is therefore the **lowest** such ceiling
-   * across the three, and rows above it are withheld until the next page. Advancing further could
+   * across the five, and rows above it are withheld until the next page. Advancing further could
    * skip a row in a table that had not caught up, and re-sending is free because applying a row is
-   * idempotent. A `null` cursor means every table returned a partial page and the caller is up to
-   * date.
+   * idempotent.
    *
+   * Runs in one transaction under [acquireUserLock], so the five queries see one snapshot. Without
+   * that, a push committing between two of them yields a page carrying an edge without the node
+   * from the same push, and confirming it would authorize purging a tombstone the page never
+   * carried.
+   *
+   * @param ack Token of the page the caller has just written locally, or `null` when it has
+   *   committed nothing since its last failure. A token that matches nothing confirms nothing,
+   *   which is what a replayed request looks like.
    * @param limit Maximum rows per resource; must be strictly positive.
    * @throws IllegalArgumentException when [limit] is not strictly positive.
+   * @throws UnknownDeviceException when [deviceId] has no row under [userId].
+   * @throws ResyncRequiredException when [deviceId] was removed and has fallen below the floor.
    */
   internal suspend fun pull(
     userId: String,
-    since: Long,
+    deviceId: String,
+    ack: String?,
     limit: Int,
     serverNow: Instant,
-  ): SyncPullResponse =
-    withContext(ioDispatcher) {
-      require(limit > 0) { "limit must be strictly positive, was $limit" }
+  ): SyncPullResponse {
+    require(limit > 0) { "limit must be strictly positive, was $limit" }
+    return inTransaction { connection ->
+      connection.acquireUserLock(userId)
+      val device = connection.requireSyncableDevice(userId, deviceId)
 
-      dataSource.connection.use { connection ->
-        val nodes = connection.pullNodes(userId, since, limit)
-        val edges = connection.pullEdges(userId, since, limit)
-        val settings = connection.pullSettings(userId, since, limit)
-        val repertoires = connection.pullRepertoires(userId, since, limit)
-        val tags = connection.pullTags(userId, since, limit)
+      // The token rotates on every response, so a replayed request holds one that no longer
+      // matches, confirms nothing and is simply re served.
+      val since =
+        if (ack != null && ack == device.lastPageToken) {
+          connection.setAcked(userId, deviceId, device.lastServed)
+          device.lastServed
+        } else {
+          device.lastAcked
+        }
 
-        // A page that came back full may be hiding more rows, so its last revision is a ceiling.
-        // A partial page is exhausted and imposes none.
-        val ceiling =
-          listOf(nodes, edges, settings, repertoires, tags)
-            .mapNotNull { page -> page.takeIf { it.size == limit }?.last()?.first }
-            .minOrNull()
+      val nodes = connection.pullNodes(userId, since, limit)
+      val edges = connection.pullEdges(userId, since, limit)
+      val settings = connection.pullSettings(userId, since, limit)
+      val repertoires = connection.pullRepertoires(userId, since, limit)
+      val tags = connection.pullTags(userId, since, limit)
 
-        fun <T> List<Pair<Long, T>>.upTo(bound: Long?) =
-          (if (bound == null) this else filter { it.first <= bound }).map { it.second }
+      // A page that came back full may be hiding more rows, so its last revision is a ceiling.
+      // A partial page is exhausted and imposes none.
+      val ceiling =
+        listOf(nodes, edges, settings, repertoires, tags)
+          .mapNotNull { page -> page.takeIf { it.size == limit }?.last()?.first }
+          .minOrNull()
 
-        SyncPullResponse(
-          serverTime = serverNow,
-          nextCursor = ceiling,
-          pageToken = "",
-          nodes = nodes.upTo(ceiling),
-          edges = edges.upTo(ceiling),
-          settings = settings.upTo(ceiling),
-          repertoires = repertoires.upTo(ceiling),
-          tags = tags.upTo(ceiling),
-        )
-      }
+      fun <T> List<Pair<Long, T>>.upTo(bound: Long?) =
+        (if (bound == null) this else filter { it.first <= bound }).map { it.second }
+
+      // A plain assignment. It states what this device was handed, which is what the column means.
+      // A maximum would behave identically, since the ceiling cannot fall while the acknowledgement
+      // is unchanged, but it would suggest a guarantee this column does not need.
+      val servedThrough =
+        listOf(nodes, edges, settings, repertoires, tags)
+          .flatMap { page -> page.map { it.first } }
+          .filter { ceiling == null || it <= ceiling }
+          .maxOrNull() ?: since
+      val pageToken = Uuid.random().toString()
+      connection.setServed(userId, deviceId, servedThrough, pageToken)
+
+      SyncPullResponse(
+        serverTime = serverNow,
+        nextCursor = ceiling,
+        pageToken = pageToken,
+        nodes = nodes.upTo(ceiling),
+        edges = edges.upTo(ceiling),
+        settings = settings.upTo(ceiling),
+        repertoires = repertoires.upTo(ceiling),
+        tags = tags.upTo(ceiling),
+      )
     }
+  }
+
+  /**
+   * The device's row, refusing a caller that may no longer sync.
+   *
+   * @throws UnknownDeviceException when there is no row: there is no position to serve from and no
+   *   floor to check against, and serving from `0` would hand a full dataset to a device the
+   *   watermark cannot see.
+   */
+  private fun Connection.requireSyncableDevice(userId: String, deviceId: String): DeviceRow {
+    val device = readDevice(userId, deviceId) ?: throw UnknownDeviceException(deviceId)
+    if (device.removedAt != null && device.lastAcked < gcFloor(userId)) {
+      throw ResyncRequiredException(deviceId)
+    }
+    return device
+  }
+
+  private fun Connection.setAcked(userId: String, deviceId: String, acked: Long) {
+    prepareStatement(
+        "UPDATE sync_device SET last_acked_revision = ? WHERE user_id = ? AND device_id = ?"
+      )
+      .use { statement ->
+        statement.setLong(1, acked)
+        statement.setString(2, userId)
+        statement.setString(3, deviceId)
+        statement.executeUpdate()
+      }
+  }
+
+  private fun Connection.setServed(
+    userId: String,
+    deviceId: String,
+    served: Long,
+    pageToken: String,
+  ) {
+    prepareStatement(
+        "UPDATE sync_device SET last_served_revision = ?, last_page_token = ? " +
+          "WHERE user_id = ? AND device_id = ?"
+      )
+      .use { statement ->
+        statement.setLong(1, served)
+        statement.setString(2, pageToken)
+        statement.setString(3, userId)
+        statement.setString(4, deviceId)
+        statement.executeUpdate()
+      }
+  }
 
   private fun Connection.pullNodes(
     userId: String,
@@ -1319,3 +1399,11 @@ internal data class DeviceRow(
   val lastPageToken: String?,
   val removedAt: Instant?,
 )
+
+/** A caller named a device the server has never been told about. */
+internal class UnknownDeviceException(deviceId: String) :
+  Exception("device '$deviceId' is not registered")
+
+/** A removed device came back below what garbage collection already purged. */
+internal class ResyncRequiredException(deviceId: String) :
+  Exception("device '$deviceId' must resync from scratch")

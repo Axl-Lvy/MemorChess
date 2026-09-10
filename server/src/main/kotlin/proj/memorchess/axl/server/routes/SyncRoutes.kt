@@ -43,7 +43,9 @@ internal const val MAX_PUSH_ROWS: Int = 2_000
 internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
   authenticate(SYNC_AUTH) {
     rateLimit(RATE_LIMIT_SYNC_READ) {
-      get("/v1/sync") { call.respond(store.pull(call.callerId, since(), limit(), clock())) }
+      get("/v1/sync") {
+        call.respond(store.pull(call.callerId, device(), ack(), limit(), clock()))
+      }
     }
 
     rateLimit(RATE_LIMIT_SYNC_WRITE) {
@@ -72,19 +74,16 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
 }
 
 /**
- * The caller's cursor.
+ * The calling device.
  *
- * A malformed cursor is refused rather than defaulted, because silently reading from `0` or from
- * some other revision hands back a plausible page that skips or repeats rows.
+ * Required, because the server keeps that device's position and has nothing to serve from without
+ * it.
  */
-private fun RoutingContext.since(): Long {
-  val raw = call.request.queryParameters["since"] ?: return 0L
-  val since = raw.toLongOrNull()
-  if (since == null || since < 0) {
-    throw BadRequestException("since must be a non negative integer, was '$raw'")
-  }
-  return since
-}
+private fun RoutingContext.device(): String =
+  call.request.queryParameters["device"] ?: throw BadRequestException("device is required")
+
+/** Token of the page the caller has just written locally, absent when it has committed none. */
+private fun RoutingContext.ack(): String? = call.request.queryParameters["ack"]
 
 /** The caller's requested page size, clamped to [MAX_PULL_LIMIT]. */
 private fun RoutingContext.limit(): Int {

@@ -5,6 +5,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
@@ -103,9 +104,12 @@ internal class TestSyncStoreDeleteUser {
     val origin = fen("o")
     populate(user, origin, fen("d"))
 
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+
     store.deleteUser(user)
 
-    val page = store.pull(user, 0, 100, serverNow)
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    val page = store.pull(user, DEVICE, null, 100, serverNow)
     page.nodes.shouldBeEmpty()
     page.edges.shouldBeEmpty()
     page.settings.shouldBeEmpty()
@@ -140,11 +144,17 @@ internal class TestSyncStoreDeleteUser {
     populate(mine, fen("mine-o"), fen("mine-d"))
     populate(theirs, fen("theirs-o"), fen("theirs-d"))
 
+    store.registerDevice(theirs, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+
     store.deleteUser(mine)
 
-    val page = store.pull(theirs, 0, 100, serverNow)
+    val page = store.pull(theirs, DEVICE, null, 100, serverNow)
     page.settings.single().value shouldBe "dark"
     page.repertoires.single().id shouldBe "italian-game"
     page.tags.single().repertoireId shouldBe "italian-game"
+  }
+
+  private companion object {
+    const val DEVICE = "44444444-4444-4444-8444-444444444444"
   }
 }

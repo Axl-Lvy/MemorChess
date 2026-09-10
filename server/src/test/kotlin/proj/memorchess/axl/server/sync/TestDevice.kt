@@ -23,7 +23,6 @@ internal class TestDevice(private val deviceId: String) {
 
   private val rows = mutableMapOf<String, SettingSyncRow>()
   private val dirty = mutableSetOf<String>()
-  private var cursor = 0L
   private var writeSeq = 0L
 
   internal fun edit(key: String, value: String, at: Instant) {
@@ -65,13 +64,15 @@ internal class TestDevice(private val deviceId: String) {
     }
 
     var guard = 0
+    var ack: String? = null
     while (true) {
-      val page = transport.pull(cursor, 100, serverNow)
+      val page = transport.pull(ack, 100, serverNow)
+      if (page.settings.isEmpty()) break
       for (incoming in page.settings) {
         val winner = resolve(local = rows[incoming.key], remote = incoming)
         if (winner.source == ResolutionSource.REMOTE) rows[incoming.key] = winner.row
       }
-      cursor = page.nextCursor ?: break
+      ack = page.pageToken
       if (guard++ > 100) error("paging did not terminate")
     }
   }

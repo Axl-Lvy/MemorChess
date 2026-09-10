@@ -89,16 +89,14 @@ cycle. Nothing is confirmed, rows above 1000 are served again, and the device ca
 One page re sent, none lost. The token it was holding for the lost page was never received, so
 there is nothing it could have sent to over confirm.
 
-**Why that step is an assignment and not a `GREATEST`.** In the trace above the two are the same value,
-and most of the time they are. They come apart when the retry's ceiling is *lower* than the lost
-response's. `pull` computes its ceiling as the minimum last revision across only those tables that
-filled their page, so a table that returned a partial page imposes no ceiling at all. Serve a page
-where nodes are partial and edges fill at revision 1200, and the ceiling is 1200. Lose that response,
-let 200 new node rows arrive, and on the retry the nodes query now fills its page too, at revision
-1150, so the ceiling drops to 1150 and the device is served strictly less than it was the first
-time. A `GREATEST` would leave `last_served` at 1200, and the next `ack` would confirm
-rows 1151 to 1200 that this device has never held. The column means "what I handed this device in
-its last response", so it is written as that and nothing else.
+**Why that step is an assignment rather than a `GREATEST`.** The two turn out to be equivalent, and
+it is worth recording why rather than leaving a reader to rediscover it. Under a fixed
+`last_acked_revision` the ceiling can never fall: new rows always take higher revisions, so a table
+that newly fills contributes a ceiling above the existing minimum, and a row that garbage collection
+removes can only push a table's ceiling up or drop its contribution altogether. A retry is therefore
+never served less than the response it retries. The assignment stays because it states what the
+column means, which is what this device was handed in its last response, and a maximum would invite
+a reader to assume a guarantee the column does not need.
 
 `last_acked_revision` stays monotonic regardless, since step 2 sets the two equal and steps 3 and 4
 then only raise the second above it.
@@ -679,11 +677,6 @@ The two position columns, which is where every value the watermark reads comes f
 - **The lost response case**, which is the reason there are two columns at all: after a page is
   served, a pull carrying no `ack` re serves everything above `last_acked_revision` and leaves
   `last_acked_revision` exactly where it was. The device loses nothing and confirms nothing.
-- **The lowered ceiling case**, which is why `last_served_revision` is assigned rather than raised:
-  serve a page whose ceiling comes from a table that filled, add rows to a table that had been
-  partial so that it now fills below that ceiling, re serve, and assert `last_served_revision` has
-  come *down* to the new ceiling. The following `ack` must then confirm only the lower value. This
-  is the one case where a `GREATEST` would silently over confirm.
 - A truncated page advances `last_served_revision` to that page's ceiling and no further.
 - An empty page leaves `last_served_revision` at `last_acked_revision`, and an `ack` carried by
   that same empty request still confirms the previous page. The empty response still rotates
