@@ -47,42 +47,47 @@ committing it to `TreeStore`. Collapsing the two and advancing a single position
 Kafka calls at most once delivery, and it loses that page for that device permanently. The split is
 what makes pull at least once instead, which is the property the client cursor used to provide.
 
-**`committed` is the client's confirmation.** One boolean on the pull request answering exactly one
-question: the page you served me last time, did I write it to my local database? It carries no
-number, no ordering and nothing to interpret. It is `false` on the first pull of a cycle, because
-there is no previous page in that cycle, and `true` on every later one.
+**`ack` is the client's confirmation, and it is a token the server issued.** Every pull response
+carries a fresh `pageToken`, generated server side. The client sends back, as `ack`, the `pageToken`
+of the page it has just written to its local database, and sends nothing on the first pull of a
+cycle because it has committed no page in that cycle yet.
 
-Every pull also carries a `pullId`, a fresh random UUID generated per request. It exists to make
-the confirmation idempotent, and 5.3 explains why that is required rather than merely tidy.
+That is the whole of the client's contribution beyond its own device id. It invents nothing, stores
+nothing, and interprets nothing. It echoes back one opaque string to mean "this is the page I
+wrote".
 
-`pull` then does this, in order, in one transaction:
+`pull` does this, in order, in one transaction:
 
-1. If `pullId` equals the stored `last_pull_id`, this request is a replay: skip step 2 entirely,
-   whatever `committed` says.
-2. Otherwise, if `committed`, set `last_acked_revision = last_served_revision`.
-3. Serve rows above `last_acked_revision`, with the existing ceiling truncation unchanged.
-4. Set `last_served_revision` to the highest revision in this response, or to
-   `last_acked_revision` if the response is empty, and store `pullId` as `last_pull_id`.
+1. If `ack` is present and equals the stored `last_page_token`, set
+   `last_acked_revision = last_served_revision`.
+2. Serve rows above `last_acked_revision`, with the existing ceiling truncation unchanged.
+3. Set `last_served_revision` to the highest revision in this response, or to
+   `last_acked_revision` if the response is empty. Generate a fresh `pageToken`, store it as
+   `last_page_token`, and return it with the page.
 
-A replay therefore re serves the same range and confirms nothing, which is exactly what the client
-would have got had the original response arrived.
+The token rotating on every response is what makes the confirmation idempotent, and it is why there
+is no separate replay guard. A replayed request carries an `ack` the first execution already
+rotated away from, so it matches nothing, confirms nothing and re serves the same range, which is
+exactly what the client would have got had the original response arrived. The same rotation is why
+two concurrent cycles cannot over confirm: whichever one acks second is holding a token that no
+longer matches.
 
 **Step 4 is a plain assignment, not a maximum**, and that matters. Take a user with rows at
 revisions 1 to 1200 and a page size of 500:
 
-| # | `committed` | `last_acked` after | `last_served` after | rows served |
+| # | `ack` | `last_acked` after | `last_served` after | rows served |
 |---|---|---|---|---|
-| 1 | false | 0 | 500 | 1 to 500 |
-| 2 | true | 500 | 1000 | 501 to 1000 |
-| 3 | true | 1000 | 1200 | 1001 to 1200 |
-| 4 | true | 1200 | 1200 | none, loop ends |
+| 1 | none | 0 | 500 | 1 to 500 |
+| 2 | token of 1 | 500 | 1000 | 501 to 1000 |
+| 3 | token of 2 | 1000 | 1200 | 1001 to 1200 |
+| 4 | token of 3 | 1200 | 1200 | none, loop ends |
 
 Now lose request 3's response. The server holds `last_acked = 1000` and `last_served = 1200`, while
 the client has committed only through 1000. The client sees a network error, the cycle returns
-`Transient`, and the next cycle opens with `committed = false`. Nothing is confirmed, rows above
-1000 are served again, and the device catches up from there. One page re sent, none lost. Had that
-retry carried `committed = true`, it would have confirmed a page the device never received, which is
-why a confirmation is never retried on its own.
+`Transient`, and the next cycle opens with no `ack`, because it has committed no page in that new
+cycle. Nothing is confirmed, rows above 1000 are served again, and the device catches up from there.
+One page re sent, none lost. The token it was holding for the lost page was never received, so
+there is nothing it could have sent to over confirm.
 
 **Why that step is an assignment and not a `GREATEST`.** In the trace above the two are the same value,
 and most of the time they are. They come apart when the retry's ceiling is *lower* than the lost
@@ -91,7 +96,7 @@ filled their page, so a table that returned a partial page imposes no ceiling at
 where nodes are partial and edges fill at revision 1200, and the ceiling is 1200. Lose that response,
 let 200 new node rows arrive, and on the retry the nodes query now fills its page too, at revision
 1150, so the ceiling drops to 1150 and the device is served strictly less than it was the first
-time. A `GREATEST` would leave `last_served` at 1200, and the next `committed = true` would confirm
+time. A `GREATEST` would leave `last_served` at 1200, and the next `ack` would confirm
 rows 1151 to 1200 that this device has never held. The column means "what I handed this device in
 its last response", so it is written as that and nothing else.
 
@@ -114,16 +119,15 @@ lost.
 
 ### 1.2 The honest limit of a client reported boolean
 
-Nothing on the server can tell a client that always sends `committed = true` from one that reports
-truthfully. A client that lied would lose pages exactly as a single position design does. That is a
-client side obligation, stated here and tested on the client in section 8, not an invariant the
-server enforces. It is the same class of contract as the registration ordering above.
+Nothing on the server can tell a client that echoes a `pageToken` before writing the page from one
+that echoes it after. A client that acked early would lose pages exactly as a single position design
+does. That is a client side obligation, stated here and tested on the client in section 8, not an
+invariant the server enforces. It is the same class of contract as the registration ordering above.
 
-Two client rules make the boolean sound, and both are stated as invariants in section 5.3:
-
-- At most one sync cycle in flight per device.
-- A confirmation is never retried on its own. A failure anywhere aborts the cycle, and the next one
-  opens with `committed = false`.
+It is the only such obligation. The token's rotation covers the rest by construction: a replayed
+request cannot confirm twice, and two cycles in flight cannot confirm each other's pages. Single
+flight is therefore worth having for other reasons, listed in 5.3, but the acknowledgement no longer
+depends on it.
 
 ## 2. Schema
 
@@ -134,7 +138,7 @@ CREATE TABLE IF NOT EXISTS sync_device (
   platform text NOT NULL,
   last_acked_revision bigint NOT NULL DEFAULT 0,
   last_served_revision bigint NOT NULL DEFAULT 0,
-  last_pull_id text,
+  last_page_token text,
   removed_at timestamptz,
   last_seen_at timestamptz NOT NULL,
   PRIMARY KEY (user_id, device_id)
@@ -167,8 +171,8 @@ String` with an `actual` per source set, mirroring `getPlatformSpecificSettings(
 Both revision columns start at `0` on insert, the same sentinel `pull` already treats as "nothing
 seen yet".
 
-`last_pull_id` holds the `pullId` of the most recent pull, and exists only to recognise a replayed
-request. It is written by `pull` and read by nothing else.
+`last_page_token` holds the token issued with the most recent pull response. It is rotated on every
+pull and compared against the incoming `ack`, and nothing else reads it.
 
 `removed_at` is what makes removal a soft delete. Section 4 covers why it cannot be a hard one.
 
@@ -387,28 +391,29 @@ watermark is legitimately frozen.
 - `suspend fun registerDevice(accessToken: String, deviceId: String, platform: String, afterReset:
   Boolean): SyncRegisterOutcome`, following the existing outcome mapping convention (`Ok`,
   `Unauthorized`, `RateLimited`, `Error`) plus a `ResyncRequired` case for the `410`.
-- `pull` stays `GET /v1/sync` on `RATE_LIMIT_SYNC_READ` and gains three query params, `device`,
-  `committed` and `pullId`, plus the same `ResyncRequired` case.
+- `pull` stays `GET /v1/sync` on `RATE_LIMIT_SYNC_READ` and gains two query params, `device` and an
+  optional `ack`, plus the same `ResyncRequired` case. `SyncPullResponse` gains `pageToken`.
 
-**Pull stays a GET, and the `pullId` is what makes that safe.** The whole argument in 1.2 rests on a
+**Pull stays a GET, and the rotating token is what makes that safe.** The argument in 1.2 rests on a
 confirmation never being executed twice. HTTP treats `GET` as safe and idempotent, so an intermediary
 is entitled to replay one after a lost response with the application none the wiser, and this server
-sits behind Cloudflare. A replayed `GET /v1/sync?committed=true` without further protection is
-precisely the over acknowledgement 1.1 rules out: it would confirm a page the client never received,
-lose that page, and authorize deleting its tombstones.
+sits behind Cloudflare. A replayed request carrying a bare "yes I committed" flag would confirm a
+page the client never received, lose that page, and authorize deleting its tombstones.
 
 `POST` was the alternative, since HTTP grants no such licence to replay one, and it was rejected
-because it makes pull look like a write to every caller when the client's view of it is a read. The
-`pullId` guard in 1.1 gets the same property without the verb change, and it is the better of the
-two anyway: it holds even against a client that retries deliberately, which the verb never would.
+because it makes pull look like a write to every caller when the client's view of it is a read.
+Making the confirmation self describing is better than either verb: a request that names the page it
+confirms is idempotent under any number of replays, deliberate or transparent, and it needs no rule
+about which methods may be retried.
 
-Worth being precise about the exposure this closes, because it is not currently reachable from the
-client. The engines in use are CIO, Darwin and JS, and `HttpRequestRetry` is installed nowhere, so
-nothing in the app replays a request today. The guard exists for intermediaries and for the day
-somebody installs a retry plugin without reading this section.
+Worth being precise about the exposure, because it is not currently reachable from the client. The
+engines in use are CIO, Darwin and JS, and `HttpRequestRetry` is installed nowhere, so nothing in
+the app replays a request today. The token exists for intermediaries and for the day somebody
+installs a retry plugin without reading this section.
 
-A `pullId` that is absent or not a canonical UUID is a `400`, so a client cannot opt out of the
-guard by omission.
+An `ack` that matches nothing is not an error. It is silently treated as no confirmation, which is
+the conservative direction and is exactly what a replay looks like. Only a malformed `device` is a
+`400`.
 
 `GET` also keeps pull on `RATE_LIMIT_SYNC_READ` without the argument having to be made twice: that
 tier is about request volume rather than about mutation, which is the same reasoning section 7
@@ -432,12 +437,12 @@ with `afterReset = true`, and the cycle ends there rather than continuing on fre
 The pull loop holds no persisted state and terminates on an empty page:
 
 ```kotlin
-var committed = false
+var ack: String? = null
 while (true) {
-  val page = pull(token, deviceId, committed, pullId = Uuid.random().toString()) ?: return outcome
+  val page = pull(token, deviceId, ack) ?: return outcome
   if (page.isEmpty()) return null
   applyPulledPage(page, treeStore)
-  committed = true
+  ack = page.pageToken
 }
 ```
 
@@ -447,12 +452,13 @@ heartbeat finds nothing new, that is still one request, since the first pull ret
 immediately. The extra round trip is only paid by cycles that actually moved rows.
 
 **One cycle in flight per device, as a stated invariant.** With a client cursor two concurrent cycles
-were merely wasteful, because a cursor is self describing. `committed` is relative to "what you last
-served me", so they are not: cycle A is served page 2 and moves `last_served`, then cycle B, which
-only ever received page 1, sends `committed = true` and confirms page 2 for a device that never saw
-it. This is reachable today, because `runNow()` cancels the timer and calls `launchCycle()`
-unconditionally, including from `RUNNING` (`SyncEngine.kt:126-135`), so `syncNow` or
-`onAppForeground` during a cycle produces exactly two.
+were merely wasteful, and with a rotating `pageToken` they still are: cycle B, holding a token cycle
+A has already rotated away from, confirms nothing rather than confirming a page it never saw. So this
+is no longer a correctness requirement. It is still worth fixing, because two concurrent cycles push
+the same outbox twice and can serve each other's pages into the same `TreeStore`. It is reachable
+today, since `runNow()` cancels the timer and calls `launchCycle()` unconditionally, including from
+`RUNNING` (`SyncEngine.kt:126-135`), so `syncNow` or `onAppForeground` during a cycle produces
+exactly two.
 
 The guard goes in `launchCycle` itself, not in `runNow`: if the state is already `RUNNING`, set
 `pendingRetriggerDuringRun` the way `notifyDirty` does and return, so the signal is honoured when the
@@ -592,14 +598,14 @@ this design depends on, not an addition to it.
 Closed by the two column position from section 1: a page is now confirmed when it is applied, not
 when it is served. An earlier draft accepted the opposite as a residual risk, where a device that
 received a page and died before committing it was recorded as having it, and could then find its
-tombstones purged. `committed` removes that case rather than accepting it.
+tombstones purged. The confirmation token removes that case rather than accepting it.
 
 Closed by section 4: a removed device that reconnects. The issue names this as accepted and
 recoverable, "nothing stops a removed device from reconnecting... treat as a recoverable nuisance".
 The soft delete plus the floor check turns it into a defined path. The device is told to resync, and
 a device that has wiped its local state cannot push a stale row by definition.
 
-Remaining, and accepted: 4.2's restored backup, and 1.2's client that reports `committed` untruthfully.
+Remaining, and accepted: 4.2's restored backup, and 1.2's client that acks a page before writing it.
 Both need the client to attest to what it holds, which is the versioning knowledge this design keeps
 off it.
 
@@ -654,33 +660,37 @@ Server, against `SyncStore` directly:
 
 The two position columns, which is where every value the watermark reads comes from:
 
-- A pull with `committed = false` advances `last_served_revision` to the highest revision it carried
-  and leaves `last_acked_revision` untouched.
-- The next pull with `committed = true` raises `last_acked_revision` to that value. A user whose
+- A pull with no `ack` advances `last_served_revision` to the highest revision it carried and
+  leaves `last_acked_revision` untouched.
+- The next pull, carrying that response's `pageToken` as `ack`, raises `last_acked_revision` to that
+  value. A user whose
   whole dataset fits one page therefore advances past `0` on the second request of its first cycle.
   This is the case a ceiling derived acknowledgement got wrong, so it is the one test that must not
   be skipped.
 - **The lost response case**, which is the reason there are two columns at all: after a page is
-  served, a pull carrying `committed = false` re serves everything above `last_acked_revision` and
-  leaves `last_acked_revision` exactly where it was. The device loses nothing and confirms nothing.
+  served, a pull carrying no `ack` re serves everything above `last_acked_revision` and leaves
+  `last_acked_revision` exactly where it was. The device loses nothing and confirms nothing.
 - **The lowered ceiling case**, which is why `last_served_revision` is assigned rather than raised:
   serve a page whose ceiling comes from a table that filled, add rows to a table that had been
   partial so that it now fills below that ceiling, re serve, and assert `last_served_revision` has
-  come *down* to the new ceiling. A following `committed = true` must then confirm only the lower
-  value. This is the one case where a `GREATEST` would silently over confirm.
+  come *down* to the new ceiling. The following `ack` must then confirm only the lower value. This
+  is the one case where a `GREATEST` would silently over confirm.
 - A truncated page advances `last_served_revision` to that page's ceiling and no further.
-- An empty page leaves `last_served_revision` at `last_acked_revision`, and a `committed = true`
-  carried by that same empty request still confirms the previous page.
+- An empty page leaves `last_served_revision` at `last_acked_revision`, and an `ack` carried by
+  that same empty request still confirms the previous page. The empty response still rotates
+  `last_page_token`.
 - `last_acked_revision` never rewinds across any of the above.
 - Neither `push` nor the register call writes either column.
 - A pull or a push naming a `device` with no `sync_device` row under the calling user is a `400` and
   writes nothing, as is one naming no device at all. This inverts an earlier draft, where such a
   pull was served and simply went unacknowledged.
-- **The replayed pull**, which is the whole reason `pullId` exists: repeating a pull verbatim, same
-  `pullId` and `committed = true`, confirms nothing the second time, re serves the same range, and
-  leaves `last_acked_revision` exactly where the first call put it. Repeating it with a fresh
-  `pullId` does confirm, which is the case the guard must not swallow.
-- A pull with a missing or malformed `pullId` is a `400` and writes nothing.
+- **The replayed pull**, which is what the rotating token exists for: repeating a pull verbatim,
+  same `ack`, confirms nothing the second time, re serves the same range, and leaves
+  `last_acked_revision` exactly where the first call put it.
+- An `ack` matching nothing, an `ack` from two pages ago, and an absent `ack` all confirm nothing and
+  are not errors. An `ack` equal to the current `last_page_token` is the only value that confirms.
+- Two interleaved pulls, simulating two cycles in flight: the second one's stale token confirms
+  nothing, so `last_acked_revision` never runs ahead of what either call was served.
 
 The reset path, with the boundaries CLAUDE.md requires on the floor predicate:
 
@@ -719,11 +729,13 @@ Client:
 
 - The cycle ordering: `runSyncCycle` never calls push before registration succeeds, tested on the
   cycle function with a fake `SyncApiClient` whose `registerDevice` fails.
-- The pull loop sends `committed = false` on its first request of a cycle and `true` afterwards,
-  terminates on an empty page, and a cycle that fails part way through starts the next one at
-  `false` again. This is the client half of the lost response case above.
+- The pull loop sends no `ack` on its first request of a cycle and the previous response's
+  `pageToken` afterwards, sends it only after `applyPulledPage` returns, terminates on an empty page,
+  and a cycle that fails part way through starts the next one with no `ack`. This is the client half
+  of the lost response case above.
 - One cycle in flight: `syncNow`, `onAppForeground` and an expiring timer during a `RUNNING` cycle
-  each set the pending retrigger rather than launching a second cycle.
+  each set the pending retrigger rather than launching a second cycle. This is a duplicate work fix,
+  not an acknowledgement fix, since the token already covers that.
 - `SyncApiClient` maps a `410` carrying `ApiErrorCode.RESYNC_REQUIRED` to `ResyncRequired` on each
   of `registerDevice`, `push` and `pull`, and maps a `410` without that code to `Error`. A new
   outcome case needs a propagation test through every call that can produce it.
@@ -794,9 +806,10 @@ holding such a row in the first place, so it is tested as its own precondition, 
 - **The acknowledgement is what a device confirmed committing, not what it was served.** Section
   1.1: two columns and one client boolean, which is Kafka's at least once discipline rather than its
   at most once. `pull` is the only writer of either column.
-- **`pull` keeps its `GET` and gains a `pullId`.** Section 5.3: a `GET` carrying a confirmation may
+- **`pull` keeps its `GET` and gains an `ack`.** Section 5.3: a `GET` carrying a confirmation may
   be replayed by an intermediary, which is exactly the over acknowledgement the design rules out, so
-  the confirmation is made idempotent by a per request UUID rather than by changing the verb.
+  the confirmation names the page it confirms rather than the verb changing. The token is issued by
+  the server on every page and echoed back, so the client invents nothing.
 - **`pull` becomes transactional and takes the user lock.** Section 7: without a consistent
   snapshot, no acknowledgement derived from a page is sound.
 - **`push` does gain a `device` field after all**, on `SyncPushRequest` rather than as a query
