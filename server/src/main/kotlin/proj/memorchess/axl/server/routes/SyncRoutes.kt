@@ -2,7 +2,9 @@ package proj.memorchess.axl.server.routes
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -11,13 +13,19 @@ import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
+import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
+import proj.memorchess.axl.core.sync.SyncDeviceStatusResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_READ
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_WRITE
 import proj.memorchess.axl.server.TooLargeException
 import proj.memorchess.axl.server.auth.SYNC_AUTH
 import proj.memorchess.axl.server.auth.callerId
+import proj.memorchess.axl.server.sync.RegisterOutcome
+import proj.memorchess.axl.server.sync.ResyncRequiredException
 import proj.memorchess.axl.server.sync.SyncStore
 
 /**
@@ -43,6 +51,13 @@ internal const val MAX_PUSH_ROWS: Int = 2_000
 internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
   authenticate(SYNC_AUTH) {
     rateLimit(RATE_LIMIT_SYNC_READ) {
+      get("/v1/me/devices/{deviceId}/status") {
+        val synced =
+          store.deviceStatus(call.callerId, call.deviceId())
+            ?: throw NotFoundException("no such device")
+        call.respond(SyncDeviceStatusResponse(synced))
+      }
+
       get("/v1/sync") {
         call.respond(store.pull(call.callerId, device(), ack(), limit(), clock()))
       }
@@ -68,12 +83,44 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
         call.respond(store.push(call.callerId, request.device, request, clock()))
       }
 
+      put("/v1/me/devices/{deviceId}") {
+        val deviceId = call.deviceId()
+        val request = call.receive<SyncDeviceRegisterRequest>()
+        when (
+          store.registerDevice(
+            call.callerId,
+            deviceId,
+            request.platform,
+            request.afterReset,
+            clock(),
+          )
+        ) {
+          RegisterOutcome.Ok -> call.respond(HttpStatusCode.NoContent)
+          RegisterOutcome.ResyncRequired -> throw ResyncRequiredException(deviceId)
+        }
+      }
+
       delete("/v1/me") {
         store.deleteUser(call.callerId)
         call.respond(HttpStatusCode.NoContent)
       }
     }
   }
+}
+
+/**
+ * The device this call is about, validated as a canonical UUID.
+ *
+ * The validation is the point of the constraint, not the storage: an invented value would create a
+ * `sync_device` row that never pulls, holding that user's watermark down with no way to tell it
+ * from a real install.
+ */
+private fun ApplicationCall.deviceId(): String {
+  val raw = parameters["deviceId"].orEmpty()
+  if (Uuid.parseOrNull(raw) == null) {
+    throw BadRequestException("deviceId must be a canonical UUID, was '$raw'")
+  }
+  return raw
 }
 
 /**

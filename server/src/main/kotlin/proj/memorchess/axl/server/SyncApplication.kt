@@ -11,6 +11,7 @@ import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
 import io.ktor.server.auth.principal
 import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
@@ -188,6 +189,12 @@ private fun Application.installErrorMapping() {
       call.respond(
         HttpStatusCode.BadRequest,
         ApiError(ApiErrorCode.BAD_REQUEST, cause.message ?: "malformed request"),
+      )
+    }
+    exception<NotFoundException> { call, cause ->
+      call.respond(
+        HttpStatusCode.NotFound,
+        ApiError(ApiErrorCode.NOT_FOUND, cause.message ?: "no such resource"),
       )
     }
     exception<UnknownDeviceException> { call, cause ->
