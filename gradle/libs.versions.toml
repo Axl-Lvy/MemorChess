@@ -39,6 +39,7 @@ postgresql = "42.7.13"
 hikari = "7.1.0"
 testcontainers = "1.21.4"
 awssdk = "2.54.12"
+krontab = "2.7.2"
 ktor = "3.5.2"
 material-icons = "1.7.3"
 material3-adaptive = "1.2.0"
@@ -131,6 +132,7 @@ slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4jApi" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4jApi" }
 
 # --- Networking ---
+krontab = { module = "dev.inmo:krontab", version.ref = "krontab" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
