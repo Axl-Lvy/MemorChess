@@ -1,6 +1,6 @@
 # Sync tombstone GC Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan one task at a time. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Reclaim per user sync tombstones once every registered device has confirmed committing them, so a deleted row stops counting against the per user storage quota forever.
 
@@ -16,7 +16,7 @@
 - **Testing:** Kotest assertions, no mocking, AAA pattern. Test through the public API. Never add `public` or `internal` members solely for testing, with the single exception of the `ForTest` helpers the spec names in section 4.
 - **Edge cases:** arithmetic and comparisons on external data must be tested at `0`, the lowest non zero value, both sides of every boundary, and a large value. A new sealed subclass needs a propagation test through every consumer in the same PR.
 - **Server tests need Docker.** `systemProperty("api.version", "1.40")` is already set in `server/build.gradle.kts`.
-- **Database migrations:** the app is not in production. Change the schema freely, no migrations. Never re-enable Room schema export.
+- **Database migrations:** the app is not in production. Change the schema freely, no migrations. Never enable Room schema export again.
 - **Visibility:** work down the ladder, `private` then `internal` then `public`. `internal` does not cross Gradle module boundaries, so anything `:shared` exposes to `:composeApp` must be `public` there.
 - **KDoc** on all public declarations. One or two lines, symmetric with neighbours, never restating the signature.
 - **Commits:** Conventional Commits, `feat(module): ...`. Commit after every task.
@@ -35,22 +35,22 @@
 ## File Structure
 
 **Created:**
-- `shared/src/commonMain/kotlin/proj/memorchess/axl/core/sync/SyncDeviceEnvelopes.kt` — register and status wire types, `DevicePlatform` constants.
+- `shared/src/commonMain/kotlin/proj/memorchess/axl/core/sync/SyncDeviceEnvelopes.kt`: register and status wire types, `DevicePlatform` constants.
 - `shared/src/commonTest/kotlin/proj/memorchess/axl/core/sync/TestSyncDeviceEnvelopes.kt`
-- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/sync/CurrentPlatform.kt` — `internal expect fun currentPlatform(): String` plus four `actual` files.
-- `server/src/main/kotlin/proj/memorchess/axl/server/SchedulingModule.kt` — the krontab schedule, nothing else.
-- `server/src/test/kotlin/proj/memorchess/axl/server/sync/TestSyncStoreDevices.kt` — registration, reinstatement, the floor boundary.
-- `server/src/test/kotlin/proj/memorchess/axl/server/sync/TestSyncStorePosition.kt` — the two position columns and the ack token.
-- `server/src/test/kotlin/proj/memorchess/axl/server/sync/TestSyncStoreGc.kt` — the watermark, the purge predicate, the floor.
+- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/sync/CurrentPlatform.kt`: `internal expect fun currentPlatform(): String` plus four `actual` files.
+- `server/src/main/kotlin/proj/memorchess/axl/server/SchedulingModule.kt`: the krontab schedule, nothing else.
+- `server/src/test/kotlin/proj/memorchess/axl/server/sync/TestSyncStoreDevices.kt`: registration, reinstatement, the floor boundary.
+- `server/src/test/kotlin/proj/memorchess/axl/server/sync/TestSyncStorePosition.kt`: the two position columns and the ack token.
+- `server/src/test/kotlin/proj/memorchess/axl/server/sync/TestSyncStoreGc.kt`: the watermark, the purge predicate, the floor.
 - `server/src/test/kotlin/proj/memorchess/axl/server/routes/TestDeviceRoutes.kt`
 
 **Modified:**
-- `shared/src/commonMain/kotlin/proj/memorchess/axl/core/sync/SyncEnvelopes.kt` — `pageToken` on the pull response, `device` on the push request.
-- `shared/src/commonMain/kotlin/proj/memorchess/axl/core/sync/ApiError.kt` — `RESYNC_REQUIRED`.
-- `server/src/main/resources/schema.sql` — `sync_device`, `sync_gc_floor`.
-- `server/src/main/kotlin/proj/memorchess/axl/server/sync/SyncStore.kt` — the bulk of the work.
-- `server/src/main/kotlin/proj/memorchess/axl/server/routes/SyncRoutes.kt` — pull params, push body, two device routes.
-- `server/src/main/kotlin/proj/memorchess/axl/server/SyncApplication.kt` — nothing structural, `schedulingModule` is called from `main()`.
+- `shared/src/commonMain/kotlin/proj/memorchess/axl/core/sync/SyncEnvelopes.kt`: `pageToken` on the pull response, `device` on the push request.
+- `shared/src/commonMain/kotlin/proj/memorchess/axl/core/sync/ApiError.kt`: `RESYNC_REQUIRED`.
+- `server/src/main/resources/schema.sql`: `sync_device`, `sync_gc_floor`.
+- `server/src/main/kotlin/proj/memorchess/axl/server/sync/SyncStore.kt`: the bulk of the work.
+- `server/src/main/kotlin/proj/memorchess/axl/server/routes/SyncRoutes.kt`: pull params, push body, two device routes.
+- `server/src/main/kotlin/proj/memorchess/axl/server/SyncApplication.kt`: nothing structural, `schedulingModule` is called from `main()`.
 - `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/sync/SyncApiClient.kt`
 - `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/sync/SyncEngine.kt`
 - `composeApp/src/commonMain/kotlin/proj/memorchess/axl/Koin.kt`
