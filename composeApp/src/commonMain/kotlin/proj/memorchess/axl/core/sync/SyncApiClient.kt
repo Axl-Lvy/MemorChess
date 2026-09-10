@@ -7,6 +7,7 @@ import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
@@ -30,19 +31,69 @@ class SyncApiClient(
   private val baseUrl: String = DEFAULT_BASE_URL,
 ) {
 
-  /** Pulls rows changed since [since] (`null` for the first page), capped at [limit]. */
-  suspend fun pull(accessToken: String, since: Long?, limit: Int): SyncPullOutcome {
+  /**
+   * Registers [deviceId], which gates both push and pull.
+   *
+   * @param afterReset Reports that this device has wiped its synced local state, which is the only
+   *   thing that lets one below the server's collection floor start over.
+   */
+  suspend fun registerDevice(
+    accessToken: String,
+    deviceId: String,
+    platform: String,
+    afterReset: Boolean,
+  ): SyncRegisterOutcome {
+    return try {
+      val response: HttpResponse =
+        httpClient.put("$baseUrl/me/devices/$deviceId") {
+          bearerAuth(accessToken)
+          contentType(ContentType.Application.Json)
+          setBody(SyncDeviceRegisterRequest(platform, afterReset))
+        }
+      when {
+        response.status.isSuccess() -> SyncRegisterOutcome.Ok
+        response.status == HttpStatusCode.Unauthorized -> SyncRegisterOutcome.Unauthorized
+        response.status == HttpStatusCode.TooManyRequests -> SyncRegisterOutcome.RateLimited
+        response.status == HttpStatusCode.Gone && response.namesResyncRequired() ->
+          SyncRegisterOutcome.ResyncRequired
+        else -> {
+          LOGGER.w { "Register failed with ${response.status}" }
+          SyncRegisterOutcome.Error("HTTP ${response.status.value}")
+        }
+      }
+    } catch (e: Exception) {
+      LOGGER.w(e) { "Register threw" }
+      SyncRegisterOutcome.Error(e.message ?: "Register failed")
+    }
+  }
+
+  /**
+   * Pulls the next page for [deviceId], capped at [limit].
+   *
+   * @param ack Token of the page this device has just written locally, or `null` when it has
+   *   committed none since its last failure. The server keeps the position, so this is the whole of
+   *   the caller's contribution to it.
+   */
+  suspend fun pull(
+    accessToken: String,
+    deviceId: String,
+    ack: String?,
+    limit: Int,
+  ): SyncPullOutcome {
     return try {
       val response: HttpResponse =
         httpClient.get("$baseUrl/sync") {
           bearerAuth(accessToken)
-          if (since != null) parameter("since", since)
+          parameter("device", deviceId)
+          if (ack != null) parameter("ack", ack)
           parameter("limit", limit)
         }
       when {
         response.status.isSuccess() -> SyncPullOutcome.Ok(response.body())
         response.status == HttpStatusCode.Unauthorized -> SyncPullOutcome.Unauthorized
         response.status == HttpStatusCode.TooManyRequests -> SyncPullOutcome.RateLimited
+        response.status == HttpStatusCode.Gone && response.namesResyncRequired() ->
+          SyncPullOutcome.ResyncRequired
         else -> {
           LOGGER.w { "Pull failed with ${response.status}" }
           SyncPullOutcome.Error("HTTP ${response.status.value}")
@@ -70,6 +121,8 @@ class SyncApiClient(
         response.status == HttpStatusCode.TooManyRequests -> SyncPushOutcome.RateLimited
         response.status == HttpStatusCode.Forbidden && response.namesQuotaExceeded() ->
           SyncPushOutcome.QuotaExceeded
+        response.status == HttpStatusCode.Gone && response.namesResyncRequired() ->
+          SyncPushOutcome.ResyncRequired
         else -> {
           LOGGER.w { "Push failed with ${response.status}" }
           SyncPushOutcome.Error("HTTP ${response.status.value}")
@@ -97,6 +150,33 @@ class SyncApiClient(
 private suspend fun HttpResponse.namesQuotaExceeded(): Boolean =
   runCatching { body<ApiError>() }.getOrNull()?.code == ApiErrorCode.QUOTA_EXCEEDED
 
+/**
+ * Whether this 410 response's body names [ApiErrorCode.RESYNC_REQUIRED].
+ *
+ * Same reasoning as [namesQuotaExceeded]: a client branches on [ApiError.code], never on status
+ * alone, and a body that fails to decode is treated as not naming it.
+ */
+private suspend fun HttpResponse.namesResyncRequired(): Boolean =
+  runCatching { body<ApiError>() }.getOrNull()?.code == ApiErrorCode.RESYNC_REQUIRED
+
+/** Outcome of [SyncApiClient.registerDevice]. */
+sealed class SyncRegisterOutcome {
+  data object Ok : SyncRegisterOutcome()
+
+  data object Unauthorized : SyncRegisterOutcome()
+
+  /** The caller exceeded its request budget. Transient: the caller's own backoff will clear it. */
+  data object RateLimited : SyncRegisterOutcome()
+
+  /**
+   * This device was removed and has fallen below what the server already collected. It must wipe
+   * its synced local state and register again reporting the wipe.
+   */
+  data object ResyncRequired : SyncRegisterOutcome()
+
+  data class Error(val message: String) : SyncRegisterOutcome()
+}
+
 /** Outcome of [SyncApiClient.pull]. */
 sealed class SyncPullOutcome {
   data class Ok(val response: SyncPullResponse) : SyncPullOutcome()
@@ -109,6 +189,9 @@ sealed class SyncPullOutcome {
 
   /** The caller exceeded its request budget. Transient: the caller's own backoff will clear it. */
   data object RateLimited : SyncPullOutcome()
+
+  /** See [SyncRegisterOutcome.ResyncRequired]. */
+  data object ResyncRequired : SyncPullOutcome()
 
   data class Error(val message: String) : SyncPullOutcome()
 }
@@ -131,6 +214,9 @@ sealed class SyncPushOutcome {
 
   /** The caller exceeded its request budget. Transient: the caller's own backoff will clear it. */
   data object RateLimited : SyncPushOutcome()
+
+  /** See [SyncRegisterOutcome.ResyncRequired]. */
+  data object ResyncRequired : SyncPushOutcome()
 
   data class Error(val message: String) : SyncPushOutcome()
 }

@@ -54,7 +54,6 @@ import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.core.sync.SYNC_BASE_URL
 import proj.memorchess.axl.core.sync.SyncApiClient
-import proj.memorchess.axl.core.sync.SyncCursorStore
 import proj.memorchess.axl.core.sync.SyncEngine
 import proj.memorchess.axl.core.sync.SyncJobStore
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
@@ -178,7 +177,6 @@ fun initKoinModules(): Array<Module> {
 
   val syncModule = module {
     single { SyncJobStore(get()) }
-    single { SyncCursorStore(get()) }
     single { SyncApiClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1") }
     single<CoroutineScope>(named(SYNC_ENGINE_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -190,7 +188,7 @@ fun initKoinModules(): Array<Module> {
         treeStore = get(),
         apiClient = get(),
         jobStore = get(),
-        cursorStore = get(),
+        deviceIdentity = get(),
         scope = get(named(SYNC_ENGINE_SCOPE)),
       )
     }

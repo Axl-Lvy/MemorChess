@@ -61,6 +61,13 @@ internal sealed class CycleOutcome {
    * instead of backing off.
    */
   data object QuotaExceeded : CycleOutcome()
+
+  /**
+   * The server refused this device until it wipes its synced local state. Internal to the cycle:
+   * [DefaultSyncEngine] never sees it, because the cycle performs the wipe itself and reports
+   * [Transient] so the next attempt starts clean.
+   */
+  data object ResyncRequired : CycleOutcome()
 }
 
 /**
@@ -182,6 +189,9 @@ internal class DefaultSyncEngine(
       CycleOutcome.PausedNoAuth -> setState(SyncJobState(SyncJobStatus.PAUSED_NO_AUTH, null, 0))
       CycleOutcome.QuotaExceeded ->
         setState(SyncJobState(SyncJobStatus.PAUSED_QUOTA_EXCEEDED, null, 0))
+      // Never reaches here: runSyncCycle performs the wipe itself and reports Transient. Handled
+      // rather than merged into Transient so the compiler flags a future path that does escape.
+      CycleOutcome.ResyncRequired -> onCycleFinished(CycleOutcome.Transient)
     }
   }
 
@@ -217,11 +227,11 @@ fun SyncEngine(
   treeStore: TreeStore,
   apiClient: SyncApiClient,
   jobStore: SyncJobStore,
-  cursorStore: SyncCursorStore,
+  deviceIdentity: DeviceIdentity,
   scope: CoroutineScope,
 ): SyncEngine =
   DefaultSyncEngine(jobStore, scope) {
-    runSyncCycle(authProvider, database, treeStore, apiClient, cursorStore)
+    runSyncCycle(authProvider, database, treeStore, apiClient, deviceIdentity)
   }
 
 /** Largest batch pushed in one request, matching `:server`'s own `MAX_PUSH_ROWS` cap. */
@@ -235,7 +245,7 @@ internal suspend fun runSyncCycle(
   database: DatabaseQueryManager,
   treeStore: TreeStore,
   apiClient: SyncApiClient,
-  cursorStore: SyncCursorStore,
+  deviceIdentity: DeviceIdentity,
 ): CycleOutcome {
   val token =
     when (val result = authProvider.accessToken()) {
@@ -245,13 +255,75 @@ internal suspend fun runSyncCycle(
       TokenResult.Failed.Transient -> return CycleOutcome.Transient
     }
 
-  pushOutbox(token, database, apiClient)?.let {
-    return it
+  val deviceId = deviceIdentity.originDevice
+  var resyncRequired =
+    registerDevice(token, deviceId, apiClient)?.let {
+      if (it != CycleOutcome.ResyncRequired) return it
+      true
+    } ?: false
+
+  if (!resyncRequired) {
+    pushOutbox(token, database, apiClient)?.let {
+      if (it != CycleOutcome.ResyncRequired) return it
+      resyncRequired = true
+    }
   }
-  pullAll(token, treeStore, apiClient, cursorStore)?.let {
-    return it
+
+  if (!resyncRequired) {
+    pullAll(token, treeStore, apiClient, deviceId)?.let {
+      if (it != CycleOutcome.ResyncRequired) return it
+      resyncRequired = true
+    }
+  }
+
+  if (resyncRequired) {
+    return resync(token, deviceId, database, treeStore, apiClient)
   }
   return CycleOutcome.Success
+}
+
+/**
+ * Registers this device, which gates both push and pull.
+ *
+ * `null` on success, a [CycleOutcome] to stop the cycle otherwise.
+ */
+private suspend fun registerDevice(
+  token: String,
+  deviceId: String,
+  apiClient: SyncApiClient,
+): CycleOutcome? =
+  when (val outcome = apiClient.registerDevice(token, deviceId, currentPlatform(), false)) {
+    SyncRegisterOutcome.Ok -> null
+    SyncRegisterOutcome.Unauthorized -> CycleOutcome.Transient
+    SyncRegisterOutcome.RateLimited -> CycleOutcome.Transient
+    SyncRegisterOutcome.ResyncRequired -> CycleOutcome.ResyncRequired
+    is SyncRegisterOutcome.Error -> {
+      LOGGER.w { "Register failed: ${outcome.message}" }
+      CycleOutcome.Transient
+    }
+  }
+
+/**
+ * Throws away everything this device holds from sync and starts it over at nothing seen.
+ *
+ * The wipe is reported to the server rather than assumed by it: a device that died between the
+ * refusal and the wipe would otherwise pull the whole dataset on top of stale rows, and a local row
+ * whose tombstone is already gone would survive that merge and could be pushed back.
+ */
+private suspend fun resync(
+  token: String,
+  deviceId: String,
+  database: DatabaseQueryManager,
+  treeStore: TreeStore,
+  apiClient: SyncApiClient,
+): CycleOutcome {
+  LOGGER.w { "Server asked this device to resync from scratch" }
+  treeStore.eraseAll()
+  database.clearDirty(database.getOutbox())
+  return when (apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset = true)) {
+    SyncRegisterOutcome.Ok -> CycleOutcome.Transient
+    else -> CycleOutcome.Transient
+  }
 }
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
@@ -273,6 +345,7 @@ private suspend fun pushOutbox(
       SyncPushOutcome.Unauthorized -> return CycleOutcome.Transient
       SyncPushOutcome.TooLarge -> return CycleOutcome.Transient
       SyncPushOutcome.RateLimited -> return CycleOutcome.Transient
+      SyncPushOutcome.ResyncRequired -> return CycleOutcome.ResyncRequired
       SyncPushOutcome.QuotaExceeded -> {
         LOGGER.w { "Push refused: per user quota exceeded" }
         return CycleOutcome.QuotaExceeded
@@ -355,20 +428,24 @@ private suspend fun pullAll(
   token: String,
   treeStore: TreeStore,
   apiClient: SyncApiClient,
-  cursorStore: SyncCursorStore,
+  deviceId: String,
 ): CycleOutcome? {
-  var cursor = cursorStore.read()
+  // The token of the page this device has written, sent back so the server may confirm it. Null on
+  // the first request of a cycle, because nothing has been committed in it yet.
+  var ack: String? = null
   while (true) {
-    when (val outcome = apiClient.pull(token, cursor, PULL_LIMIT)) {
+    when (val outcome = apiClient.pull(token, deviceId, ack, PULL_LIMIT)) {
       is SyncPullOutcome.Ok -> {
         val page = outcome.response
+        // The request that comes back empty is the one confirming the last page carrying rows,
+        // which is why the loop cannot stop on the page that carried them.
+        if (page.isEmpty()) return null
         applyPulledPage(page, treeStore)
-        cursor = page.nextCursor
-        cursorStore.write(cursor)
-        if (cursor == null) return null
+        ack = page.pageToken
       }
       SyncPullOutcome.Unauthorized -> return CycleOutcome.Transient
       SyncPullOutcome.RateLimited -> return CycleOutcome.Transient
+      SyncPullOutcome.ResyncRequired -> return CycleOutcome.ResyncRequired
       is SyncPullOutcome.Error -> {
         LOGGER.w { "Pull failed: ${outcome.message}" }
         return CycleOutcome.Transient
@@ -376,5 +453,13 @@ private suspend fun pullAll(
     }
   }
 }
+
+/** Whether this page carried no rows at all, which is what terminates the pull loop. */
+private fun SyncPullResponse.isEmpty(): Boolean =
+  nodes.isEmpty() &&
+    edges.isEmpty() &&
+    settings.isEmpty() &&
+    repertoires.isEmpty() &&
+    tags.isEmpty()
 
 private val LOGGER = Logger.withTag("SyncEngine")
