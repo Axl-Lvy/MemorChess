@@ -418,9 +418,105 @@ internal class SyncStore(
     serverNow: Instant,
   ): RegisterOutcome =
     inTransaction { connection ->
-      connection.upsertDevice(userId, deviceId, platform, serverNow)
+      val existing = connection.readDevice(userId, deviceId)
+      when {
+        // First, and unconditionally: a 204 confirming a reset can be lost in transit, and the
+        // client then retries against a row that is already reinstated. Ignoring the flag there
+        // would leave a device that has just wiped its database sitting at its old acknowledgement,
+        // silently missing everything below it.
+        afterReset -> connection.reinstateAndZero(userId, deviceId, platform, serverNow)
+        existing == null || existing.removedAt == null ->
+          connection.upsertDevice(userId, deviceId, platform, serverNow)
+        existing.lastAcked >= connection.gcFloor(userId) ->
+          connection.reinstate(userId, deviceId, platform, serverNow)
+        else -> return@inTransaction RegisterOutcome.ResyncRequired
+      }
       RegisterOutcome.Ok
     }
+
+  /** Clears the removal and starts the device over at nothing seen. */
+  private fun Connection.reinstateAndZero(
+    userId: String,
+    deviceId: String,
+    platform: String,
+    serverNow: Instant,
+  ) {
+    upsertDevice(userId, deviceId, platform, serverNow)
+    prepareStatement(
+        "UPDATE sync_device SET removed_at = NULL, last_acked_revision = 0, " +
+          "last_served_revision = 0, last_page_token = NULL " +
+          "WHERE user_id = ? AND device_id = ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setString(2, deviceId)
+        statement.executeUpdate()
+      }
+  }
+
+  /** Clears the removal, keeping the position, for a device that is missing nothing. */
+  private fun Connection.reinstate(
+    userId: String,
+    deviceId: String,
+    platform: String,
+    serverNow: Instant,
+  ) {
+    upsertDevice(userId, deviceId, platform, serverNow)
+    prepareStatement("UPDATE sync_device SET removed_at = NULL WHERE user_id = ? AND device_id = ?")
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setString(2, deviceId)
+        statement.executeUpdate()
+      }
+  }
+
+  /**
+   * The highest revision below which a tombstone may already be gone for [userId].
+   *
+   * `0` when this user has never been collected, which makes "no floor at all" fall out of the same
+   * comparison rather than needing a branch of its own.
+   */
+  private fun Connection.gcFloor(userId: String): Long =
+    prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use { statement ->
+      statement.setString(1, userId)
+      statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else 0L }
+    }
+
+  private fun Connection.readDevice(userId: String, deviceId: String): DeviceRow? =
+    readDevices(userId).firstOrNull { it.deviceId == deviceId }
+
+  /** Marks a device removed, so the watermark stops waiting on it. Test only until the follow up. */
+  internal suspend fun removeDeviceForTest(userId: String, deviceId: String, at: Instant) {
+    inTransaction { connection ->
+      connection
+        .prepareStatement(
+          "UPDATE sync_device SET removed_at = ? WHERE user_id = ? AND device_id = ?"
+        )
+        .use { statement ->
+          statement.setTimestamp(1, at.toTimestamp())
+          statement.setString(2, userId)
+          statement.setString(3, deviceId)
+          statement.executeUpdate()
+        }
+    }
+  }
+
+  /** Forces a user's garbage collection floor. Test only. */
+  internal suspend fun setGcFloorForTest(userId: String, floor: Long) {
+    inTransaction { connection -> connection.setGcFloor(userId, floor) }
+  }
+
+  private fun Connection.setGcFloor(userId: String, floor: Long) {
+    prepareStatement(
+        "INSERT INTO sync_gc_floor (user_id, floor_revision) VALUES (?, ?) " +
+          "ON CONFLICT (user_id) DO UPDATE SET floor_revision = EXCLUDED.floor_revision"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, floor)
+        statement.executeUpdate()
+      }
+  }
 
   /** Inserts the row, or refreshes the platform and last seen time of the one already there. */
   private fun Connection.upsertDevice(
