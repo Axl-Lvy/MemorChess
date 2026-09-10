@@ -48,4 +48,10 @@ object ApiErrorCode {
 
   /** The caller (or its IP, when unauthenticated) exceeded its request budget. */
   const val RATE_LIMITED: String = "rate_limited"
+
+  /**
+   * The calling device was removed and has fallen below what garbage collection already purged. It
+   * must wipe its synced local state and register again reporting the wipe.
+   */
+  const val RESYNC_REQUIRED: String = "resync_required"
 }
