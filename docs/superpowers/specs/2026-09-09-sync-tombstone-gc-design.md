@@ -172,7 +172,16 @@ Both revision columns start at `0` on insert, the same sentinel `pull` already t
 seen yet".
 
 `last_page_token` holds the token issued with the most recent pull response. It is rotated on every
-pull and compared against the incoming `ack`, and nothing else reads it.
+pull and compared against the incoming `ack`, and nothing else reads it. One column rather than a
+history, because the acknowledgement rides on the next pull rather than arriving on a route of its
+own, so the server never has more than one token outstanding per device.
+
+It has to be a column and not a cache, which is worth stating because holding it in memory would
+look like a free optimisation. A restart between a page and its acknowledgement would lose the
+token, the next `ack` would match nothing, the confirmation would be skipped in silence and that
+device's watermark would sit still until a later cycle. A second instance would not see it at all.
+It costs nothing where it is, since it is written in the same row update that already writes
+`last_served_revision`.
 
 `removed_at` is what makes removal a soft delete. Section 4 covers why it cannot be a hard one.
 
