@@ -102,8 +102,12 @@ internal class DefaultSyncEngine(
       }
     jobStore.write(recovered)
     _status.value = recovered.status
-    if (recovered.status == SyncJobStatus.SCHEDULED) {
-      scheduleTimer(recovered.nextAttemptAt ?: now())
+    when (recovered.status) {
+      SyncJobStatus.SCHEDULED -> scheduleTimer(recovered.nextAttemptAt ?: now())
+      // An app relaunched into IDLE with a clean outbox would otherwise run no cycle at all, and a
+      // device that never pulls holds its user's garbage collection watermark down forever.
+      SyncJobStatus.IDLE -> armHeartbeat()
+      else -> Unit
     }
   }
 
@@ -154,6 +158,13 @@ internal class DefaultSyncEngine(
   }
 
   private fun launchCycle() {
+    // The single place a cycle starts, which is why the guard lives here rather than in runNow:
+    // scheduleTimer calls this straight after its delay with no suspension point in between, so a
+    // cancel landing after that delay returns would not stop it.
+    if (_status.value == SyncJobStatus.RUNNING) {
+      pendingRetriggerDuringRun = true
+      return
+    }
     setState(SyncJobState(SyncJobStatus.RUNNING, null, attempt = jobStore.read().attempt))
     scope.launch {
       pendingRetriggerDuringRun = false
@@ -177,6 +188,7 @@ internal class DefaultSyncEngine(
         } else {
           burstStartedAt = null
           setState(SyncJobState.IDLE)
+          armHeartbeat()
         }
       }
       CycleOutcome.Transient -> {
@@ -193,6 +205,22 @@ internal class DefaultSyncEngine(
       // rather than merged into Transient so the compiler flags a future path that does escape.
       CycleOutcome.ResyncRequired -> onCycleFinished(CycleOutcome.Transient)
     }
+  }
+
+  /**
+   * Schedules the next heartbeat cycle.
+   *
+   * Only ever fires out of `IDLE`. `BACKING_OFF` keeps its own timer, and the two paused states
+   * have none by design: a device parked in either one is legitimately frozen and only `syncNow` or
+   * `onAppForeground` leaves them.
+   */
+  private fun armHeartbeat() {
+    timerJob?.cancel()
+    timerJob =
+      scope.launch {
+        delay(HEARTBEAT)
+        if (_status.value == SyncJobStatus.IDLE) launchCycle()
+      }
   }
 
   private fun setState(state: SyncJobState) {
@@ -233,6 +261,14 @@ fun SyncEngine(
   DefaultSyncEngine(jobStore, scope) {
     runSyncCycle(authProvider, database, treeStore, apiClient, deviceIdentity)
   }
+
+/**
+ * How often an otherwise idle app runs a cycle.
+ *
+ * Its only constraint is staying comfortably shorter than the interval between the server's
+ * collection runs, since it sets the floor on how stale a watermark can be when collection reads it.
+ */
+internal val HEARTBEAT = 30.minutes
 
 /** Largest batch pushed in one request, matching `:server`'s own `MAX_PUSH_ROWS` cap. */
 internal const val MAX_PUSH_ROWS: Int = 2_000

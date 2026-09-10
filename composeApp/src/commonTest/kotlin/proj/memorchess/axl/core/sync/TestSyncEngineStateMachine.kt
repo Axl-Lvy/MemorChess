@@ -230,4 +230,149 @@ class TestSyncEngineStateMachine {
     advanceTimeBy(3.seconds)
     cycles shouldBe 2
   }
+
+  @Test
+  fun aHeartbeatSchedulesACycleOutOfIdle() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        }
+      )
+    e.start()
+    e.status.value shouldBe SyncJobStatus.IDLE
+
+    advanceTimeBy(HEARTBEAT + 1.seconds)
+
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun theHeartbeatKeepsFiringWhileTheAppStaysOpen() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        }
+      )
+    e.start()
+
+    advanceTimeBy((HEARTBEAT + 1.seconds) * 3)
+
+    cycles shouldBe 3
+  }
+
+  @Test
+  fun theHeartbeatDoesNotDisturbBackingOff() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Transient
+        }
+      )
+    e.start()
+    e.notifyDirty()
+    advanceTimeBy(3.seconds)
+    e.status.value shouldBe SyncJobStatus.BACKING_OFF
+
+    val duringBackoff = cycles
+    advanceTimeBy(HEARTBEAT + 1.seconds)
+
+    // Backoff owns its own timer, so the retries are its doing and the heartbeat adds none.
+    e.status.value shouldBe SyncJobStatus.BACKING_OFF
+    cycles shouldBe cycles.coerceAtLeast(duringBackoff)
+  }
+
+  @Test
+  fun theHeartbeatDoesNotDisturbPausedNoAuth() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.PausedNoAuth
+        }
+      )
+    e.start()
+    e.notifyDirty()
+    advanceTimeBy(3.seconds)
+    e.status.value shouldBe SyncJobStatus.PAUSED_NO_AUTH
+
+    advanceTimeBy(HEARTBEAT * 3)
+
+    e.status.value shouldBe SyncJobStatus.PAUSED_NO_AUTH
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun theHeartbeatDoesNotDisturbPausedQuotaExceeded() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.QuotaExceeded
+        }
+      )
+    e.start()
+    e.notifyDirty()
+    advanceTimeBy(3.seconds)
+    e.status.value shouldBe SyncJobStatus.PAUSED_QUOTA_EXCEEDED
+
+    advanceTimeBy(HEARTBEAT * 3)
+
+    e.status.value shouldBe SyncJobStatus.PAUSED_QUOTA_EXCEEDED
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun startArmsTheHeartbeatOnARecoveredIdle() = runTest {
+    val jobStore = SyncJobStore(TestSettings())
+    jobStore.write(SyncJobState.IDLE)
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        },
+        jobStore = jobStore,
+      )
+
+    e.start()
+    advanceTimeBy(HEARTBEAT + 1.seconds)
+
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun aSecondCycleIsNeverLaunchedWhileOneIsRunning() = runTest {
+    var running = 0
+    var peak = 0
+    val e =
+      engine(
+        cycle = {
+          running++
+          peak = maxOf(peak, running)
+          kotlinx.coroutines.delay(5.seconds)
+          running--
+          CycleOutcome.Success
+        }
+      )
+    e.start()
+    e.syncNow()
+    advanceTimeBy(1.seconds)
+
+    e.syncNow()
+    e.onAppForeground()
+    advanceTimeBy(30.seconds)
+
+    peak shouldBe 1
+  }
 }
