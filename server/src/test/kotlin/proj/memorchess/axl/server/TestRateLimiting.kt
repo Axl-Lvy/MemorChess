@@ -16,9 +16,9 @@ import java.net.URI
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
-import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.server.auth.TEST_AUDIENCE
 import proj.memorchess.axl.server.auth.TEST_ISSUER

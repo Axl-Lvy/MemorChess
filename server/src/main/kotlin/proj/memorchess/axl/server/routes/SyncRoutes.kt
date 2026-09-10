@@ -1,8 +1,8 @@
 package proj.memorchess.axl.server.routes
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.auth.authenticate
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.plugins.ratelimit.rateLimit
@@ -58,9 +58,7 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
         call.respond(SyncDeviceStatusResponse(synced))
       }
 
-      get("/v1/sync") {
-        call.respond(store.pull(call.callerId, device(), ack(), limit(), clock()))
-      }
+      get("/v1/sync") { call.respond(store.pull(call.callerId, device(), ack(), limit(), clock())) }
     }
 
     rateLimit(RATE_LIMIT_SYNC_WRITE) {

@@ -46,7 +46,8 @@ class TestSyncApiClient {
   fun unauthorizedPullReturnsUnauthorized() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
 
-    client(engine).pull("tok", DEVICE, ack = null, limit = 500) shouldBe SyncPullOutcome.Unauthorized
+    client(engine).pull("tok", DEVICE, ack = null, limit = 500) shouldBe
+      SyncPullOutcome.Unauthorized
   }
 
   @Test
@@ -179,9 +180,9 @@ class TestSyncApiClient {
       )
     }
 
-    client(engine).pull("tok", DEVICE, ack = null, limit = 10).shouldBeInstanceOf<
-      SyncPullOutcome.Error
-    >()
+    client(engine)
+      .pull("tok", DEVICE, ack = null, limit = 10)
+      .shouldBeInstanceOf<SyncPullOutcome.Error>()
   }
 
   @Test

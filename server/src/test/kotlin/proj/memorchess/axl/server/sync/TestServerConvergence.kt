@@ -113,8 +113,7 @@ internal class TestServerConvergence {
       val user = PostgresTestDb.newUserId()
       val a = TestDevice("device-a")
       val b = TestDevice("device-b")
-      val pairs =
-        listOf(a to transportFor(user, "device-a"), b to transportFor(user, "device-b"))
+      val pairs = listOf(a to transportFor(user, "device-a"), b to transportFor(user, "device-b"))
       var clock = 1L
 
       repeat(20) {

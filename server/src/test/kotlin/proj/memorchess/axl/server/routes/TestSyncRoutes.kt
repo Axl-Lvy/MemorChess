@@ -20,8 +20,8 @@ import java.net.URI
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
-import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.ApiError
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
@@ -212,8 +212,7 @@ class TestSyncRoutes {
 
   @Test
   fun `refuses a pull that names no device`() = withServer { client, token ->
-    val response =
-      client.get("/v1/sync") { header(HttpHeaders.Authorization, "Bearer $token") }
+    val response = client.get("/v1/sync") { header(HttpHeaders.Authorization, "Bearer $token") }
 
     response.status shouldBe HttpStatusCode.BadRequest
     SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"

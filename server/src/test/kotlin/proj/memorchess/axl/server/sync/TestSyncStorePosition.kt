@@ -25,6 +25,7 @@ internal class TestSyncStorePosition {
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
     return user
   }
+
   private val now = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun setting(key: String, value: String) =
@@ -163,9 +164,7 @@ internal class TestSyncStorePosition {
     store.removeDeviceForTest(user, DEVICE, now)
     store.setGcFloorForTest(user, 100)
 
-    shouldThrow<ResyncRequiredException> {
-      store.pull(user, DEVICE, ack = null, limit = 100, now)
-    }
+    shouldThrow<ResyncRequiredException> { store.pull(user, DEVICE, ack = null, limit = 100, now) }
   }
 
   @Test

@@ -23,6 +23,7 @@ internal class TestSyncStorePull {
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
   }
+
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun setting(key: String, value: String, seq: Long = 1) =
@@ -71,12 +72,8 @@ internal class TestSyncStorePull {
 
   @Test
   fun aNonPositiveLimitIsRejected() = runTest {
-    shouldThrow<IllegalArgumentException> {
-      store.pull(newUser(), DEVICE, null, 0, serverNow)
-    }
-    shouldThrow<IllegalArgumentException> {
-      store.pull(newUser(), DEVICE, null, -1, serverNow)
-    }
+    shouldThrow<IllegalArgumentException> { store.pull(newUser(), DEVICE, null, 0, serverNow) }
+    shouldThrow<IllegalArgumentException> { store.pull(newUser(), DEVICE, null, -1, serverNow) }
   }
 
   @Test
@@ -201,8 +198,18 @@ internal class TestSyncStorePull {
     pushSettings(user, setting("a", "1"))
     pushSettings(user, setting("b", "2"))
     pushSettings(user, setting("c", "3"))
-    store.push(user, DEVICE, SyncPushRequest(listOf(node(fen("n1"))), emptyList(), emptyList()), serverNow)
-    store.push(user, DEVICE, SyncPushRequest(listOf(node(fen("n2"))), emptyList(), emptyList()), serverNow)
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(listOf(node(fen("n1"))), emptyList(), emptyList()),
+      serverNow,
+    )
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(listOf(node(fen("n2"))), emptyList(), emptyList()),
+      serverNow,
+    )
 
     // With limit 2 the settings page fills and its ceiling is the second setting's revision, which
     // is BELOW both node revisions. The nodes must therefore be withheld entirely, or the caller

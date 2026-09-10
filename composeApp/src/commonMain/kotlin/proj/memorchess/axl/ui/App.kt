@@ -6,10 +6,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.compose.rememberNavController
 import kotlin.time.Duration
 import org.koin.compose.KoinApplication

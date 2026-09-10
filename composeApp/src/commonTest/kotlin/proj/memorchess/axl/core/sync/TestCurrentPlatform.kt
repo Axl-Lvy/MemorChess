@@ -2,7 +2,6 @@ package proj.memorchess.axl.core.sync
 
 import io.kotest.matchers.collections.shouldBeIn
 import kotlin.test.Test
-import proj.memorchess.axl.core.sync.DevicePlatform
 
 class TestCurrentPlatform {
 

@@ -28,6 +28,7 @@ internal class TestSyncStorePush {
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
   }
+
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun setting(
@@ -178,7 +179,12 @@ internal class TestSyncStorePush {
   fun aRowExactlyAtTheSkewToleranceIsAccepted() = runTest {
     val user = newUser()
     store
-      .push(user, DEVICE, request(setting("theme", "dark", serverNow + SYNC_SKEW_TOLERANCE)), serverNow)
+      .push(
+        user,
+        DEVICE,
+        request(setting("theme", "dark", serverNow + SYNC_SKEW_TOLERANCE)),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
   }
@@ -220,7 +226,12 @@ internal class TestSyncStorePush {
   fun anEpochZeroTimestampIsAnOrdinaryWrite() = runTest {
     val user = newUser()
     store
-      .push(user, DEVICE, request(setting("theme", "dark", Instant.fromEpochMilliseconds(0))), serverNow)
+      .push(
+        user,
+        DEVICE,
+        request(setting("theme", "dark", Instant.fromEpochMilliseconds(0))),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
     store.readSettingForTest(user, "theme")?.value shouldBe "dark"

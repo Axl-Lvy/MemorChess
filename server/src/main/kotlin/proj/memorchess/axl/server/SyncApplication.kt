@@ -37,8 +37,8 @@ import proj.memorchess.axl.server.routes.syncRoutes
 import proj.memorchess.axl.server.routes.versionRoute
 import proj.memorchess.axl.server.sync.QuotaExceededException
 import proj.memorchess.axl.server.sync.ResyncRequiredException
-import proj.memorchess.axl.server.sync.UnknownDeviceException
 import proj.memorchess.axl.server.sync.SyncStore
+import proj.memorchess.axl.server.sync.UnknownDeviceException
 
 /**
  * Largest request body accepted, checked against the declared length so nothing oversized is ever

@@ -25,6 +25,7 @@ internal class TestSyncStoreDeleteUser {
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
   }
+
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
@@ -142,8 +143,7 @@ internal class TestSyncStoreDeleteUser {
     idAfter shouldBe idBefore
   }
 
-  @Test
-  fun deletingAUserWithNoRowsIsANoOp() = runTest { store.deleteUser(newUser()) }
+  @Test fun deletingAUserWithNoRowsIsANoOp() = runTest { store.deleteUser(newUser()) }
 
   @Test
   fun deletingOneUserDoesNotTouchAnother() = runTest {

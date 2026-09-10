@@ -85,9 +85,7 @@ class TestDeviceRoutes {
     }
 
   private suspend fun HttpClient.status(token: String, deviceId: String = DEVICE): HttpResponse =
-    get("/v1/me/devices/$deviceId/status") {
-      header(HttpHeaders.Authorization, "Bearer $token")
-    }
+    get("/v1/me/devices/$deviceId/status") { header(HttpHeaders.Authorization, "Bearer $token") }
 
   @Test
   fun `a first registration answers 204`() = withServer { client, token, user ->
@@ -145,38 +143,38 @@ class TestDeviceRoutes {
     }
 
   @Test
-  fun `status answers not synced for a device that is behind`() = withServer { client, token, user
-    ->
-    client.register(token)
-    store.push(
-      user,
-      DEVICE,
-      SyncPushRequest(
-        emptyList(),
-        emptyList(),
-        listOf(
-          SettingSyncRow(
-            key = "theme",
-            value = "dark",
-            isDeleted = false,
-            updatedAt = serverNow,
-            originDevice = DEVICE,
-            deviceSeq = 1,
-          )
+  fun `status answers not synced for a device that is behind`() =
+    withServer { client, token, user ->
+      client.register(token)
+      store.push(
+        user,
+        DEVICE,
+        SyncPushRequest(
+          emptyList(),
+          emptyList(),
+          listOf(
+            SettingSyncRow(
+              key = "theme",
+              value = "dark",
+              isDeleted = false,
+              updatedAt = serverNow,
+              originDevice = DEVICE,
+              deviceSeq = 1,
+            )
+          ),
         ),
-      ),
-      serverNow,
-    )
+        serverNow,
+      )
 
-    SYNC_JSON.decodeFromString<SyncDeviceStatusResponse>(client.status(token).bodyAsText())
-      .synced shouldBe false
-  }
+      SYNC_JSON.decodeFromString<SyncDeviceStatusResponse>(client.status(token).bodyAsText())
+        .synced shouldBe false
+    }
 
   @Test
-  fun `status answers 404 for a device this caller does not own`() = withServer { client, token, _
-    ->
-    client.status(token).status shouldBe HttpStatusCode.NotFound
-  }
+  fun `status answers 404 for a device this caller does not own`() =
+    withServer { client, token, _ ->
+      client.status(token).status shouldBe HttpStatusCode.NotFound
+    }
 
   @Test
   fun `status refuses a malformed device id`() = withServer { client, token, _ ->
@@ -185,10 +183,11 @@ class TestDeviceRoutes {
 
   @Test
   fun `both device routes require a token`() = withServer { client, _, _ ->
-    client.put("/v1/me/devices/$DEVICE") {
-      contentType(ContentType.Application.Json)
-      setBody(SYNC_JSON.encodeToString(SyncDeviceRegisterRequest(DevicePlatform.JVM)))
-    }
+    client
+      .put("/v1/me/devices/$DEVICE") {
+        contentType(ContentType.Application.Json)
+        setBody(SYNC_JSON.encodeToString(SyncDeviceRegisterRequest(DevicePlatform.JVM)))
+      }
       .status shouldBe HttpStatusCode.Unauthorized
 
     client.get("/v1/me/devices/$DEVICE/status").status shouldBe HttpStatusCode.Unauthorized

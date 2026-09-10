@@ -250,7 +250,8 @@ internal class SyncStore(
    *
    * The position is a revision and **never** a timestamp. Using `updated_at` instead looks
    * equivalent and silently loses rows forever: a device with a slow clock writes a row stamped
-   * earlier than a position another device has already passed, and that row is never returned again.
+   * earlier than a position another device has already passed, and that row is never returned
+   * again.
    *
    * Each resource is queried separately with its own limit, so a table that filled its page may
    * still be holding rows. [SyncPullResponse.nextCursor] is therefore the **lowest** such ceiling
@@ -505,23 +506,22 @@ internal class SyncStore(
     platform: String,
     afterReset: Boolean,
     serverNow: Instant,
-  ): RegisterOutcome =
-    inTransaction { connection ->
-      val existing = connection.readDevice(userId, deviceId)
-      when {
-        // First, and unconditionally: a 204 confirming a reset can be lost in transit, and the
-        // client then retries against a row that is already reinstated. Ignoring the flag there
-        // would leave a device that has just wiped its database sitting at its old acknowledgement,
-        // silently missing everything below it.
-        afterReset -> connection.reinstateAndZero(userId, deviceId, platform, serverNow)
-        existing == null || existing.removedAt == null ->
-          connection.upsertDevice(userId, deviceId, platform, serverNow)
-        existing.lastAcked >= connection.gcFloor(userId) ->
-          connection.reinstate(userId, deviceId, platform, serverNow)
-        else -> return@inTransaction RegisterOutcome.ResyncRequired
-      }
-      RegisterOutcome.Ok
+  ): RegisterOutcome = inTransaction { connection ->
+    val existing = connection.readDevice(userId, deviceId)
+    when {
+      // First, and unconditionally: a 204 confirming a reset can be lost in transit, and the
+      // client then retries against a row that is already reinstated. Ignoring the flag there
+      // would leave a device that has just wiped its database sitting at its old acknowledgement,
+      // silently missing everything below it.
+      afterReset -> connection.reinstateAndZero(userId, deviceId, platform, serverNow)
+      existing == null || existing.removedAt == null ->
+        connection.upsertDevice(userId, deviceId, platform, serverNow)
+      existing.lastAcked >= connection.gcFloor(userId) ->
+        connection.reinstate(userId, deviceId, platform, serverNow)
+      else -> return@inTransaction RegisterOutcome.ResyncRequired
     }
+    RegisterOutcome.Ok
+  }
 
   /** Clears the removal and starts the device over at nothing seen. */
   private fun Connection.reinstateAndZero(
@@ -566,7 +566,8 @@ internal class SyncStore(
    * comparison rather than needing a branch of its own.
    */
   private fun Connection.gcFloor(userId: String): Long =
-    prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use { statement ->
+    prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use { statement
+      ->
       statement.setString(1, userId)
       statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else 0L }
     }
@@ -574,7 +575,9 @@ internal class SyncStore(
   private fun Connection.readDevice(userId: String, deviceId: String): DeviceRow? =
     readDevices(userId).firstOrNull { it.deviceId == deviceId }
 
-  /** Marks a device removed, so the watermark stops waiting on it. Test only until the follow up. */
+  /**
+   * Marks a device removed, so the watermark stops waiting on it. Test only until the follow up.
+   */
   internal suspend fun removeDeviceForTest(userId: String, deviceId: String, at: Instant) {
     inTransaction { connection ->
       connection
@@ -666,7 +669,9 @@ internal class SyncStore(
     }
   }
 
-  /** Forces a device's position, so the floor boundaries are reachable without paging. Test only. */
+  /**
+   * Forces a device's position, so the floor boundaries are reachable without paging. Test only.
+   */
   internal suspend fun setPositionForTest(
     userId: String,
     deviceId: String,
@@ -691,7 +696,9 @@ internal class SyncStore(
 
   /** Every device row [userId] owns, removed ones included. Test only. */
   internal suspend fun listDevicesForTest(userId: String): List<DeviceRow> =
-    inTransaction { connection -> connection.readDevices(userId) }
+    inTransaction { connection ->
+      connection.readDevices(userId)
+    }
 
   private fun Connection.readDevices(userId: String): List<DeviceRow> =
     prepareStatement(
@@ -751,14 +758,13 @@ internal class SyncStore(
   }
 
   /** Every user with at least one device row, which is the per user gate on collection. */
-  private suspend fun usersWithDevices(): List<String> =
-    inTransaction { connection ->
-      connection.prepareStatement("SELECT DISTINCT user_id FROM sync_device").use { statement ->
-        statement.executeQuery().use { rows ->
-          buildList { while (rows.next()) add(rows.getString(1)) }
-        }
+  private suspend fun usersWithDevices(): List<String> = inTransaction { connection ->
+    connection.prepareStatement("SELECT DISTINCT user_id FROM sync_device").use { statement ->
+      statement.executeQuery().use { rows ->
+        buildList { while (rows.next()) add(rows.getString(1)) }
       }
     }
+  }
 
   /**
    * The lowest acknowledgement across [userId]'s devices that are still registered, or `null` when
@@ -767,32 +773,30 @@ internal class SyncStore(
    * Removed devices are excluded, which is the whole point of removal: one lost install would
    * otherwise hold this user's watermark down forever.
    */
-  private suspend fun watermarkOf(userId: String): Long? =
-    inTransaction { connection ->
-      connection
-        .prepareStatement(
-          "SELECT min(last_acked_revision) FROM sync_device " +
-            "WHERE user_id = ? AND removed_at IS NULL"
-        )
-        .use { statement ->
-          statement.setString(1, userId)
-          statement.executeQuery().use { rows ->
-            rows.next()
-            val value = rows.getLong(1)
-            if (rows.wasNull()) null else value
-          }
+  private suspend fun watermarkOf(userId: String): Long? = inTransaction { connection ->
+    connection
+      .prepareStatement(
+        "SELECT min(last_acked_revision) FROM sync_device " +
+          "WHERE user_id = ? AND removed_at IS NULL"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.executeQuery().use { rows ->
+          rows.next()
+          val value = rows.getLong(1)
+          if (rows.wasNull()) null else value
         }
-    }
+      }
+  }
 
   /** The user's collection floor, or `null` when they have never been collected. Test only. */
-  internal suspend fun gcFloorForTest(userId: String): Long? =
-    inTransaction { connection ->
-      connection.prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use {
-        statement ->
-        statement.setString(1, userId)
-        statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
-      }
+  internal suspend fun gcFloorForTest(userId: String): Long? = inTransaction { connection ->
+    connection.prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use {
+      statement ->
+      statement.setString(1, userId)
+      statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
     }
+  }
 
   /**
    * Removes every row belonging to [userId].

@@ -86,7 +86,6 @@ internal class TestSyncStoreQuota {
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
-
   /** A fresh user with one registered device, which pushing now requires. */
   private suspend fun newUser(store: SyncStore): String {
     val user = PostgresTestDb.newUserId()
@@ -130,7 +129,12 @@ internal class TestSyncStoreQuota {
     )
 
     store
-      .push(user, DEVICE, SyncPushRequest(listOf(node(key, seq = 2)), emptyList(), emptyList()), serverNow)
+      .push(
+        user,
+        DEVICE,
+        SyncPushRequest(listOf(node(key, seq = 2)), emptyList(), emptyList()),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
   }
@@ -258,7 +262,12 @@ internal class TestSyncStoreQuota {
     val user = newUser(store)
 
     store
-      .push(user, DEVICE, SyncPushRequest(emptyList(), emptyList(), listOf(setting("theme"))), serverNow)
+      .push(
+        user,
+        DEVICE,
+        SyncPushRequest(emptyList(), emptyList(), listOf(setting("theme"))),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
   }

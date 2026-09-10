@@ -213,7 +213,11 @@ internal class TestSyncStoreGc {
     capped.push(
       user,
       DEVICE_A,
-      SyncPushRequest(listOf(doomed.copy(isDeleted = true, deviceSeq = 2)), emptyList(), emptyList()),
+      SyncPushRequest(
+        listOf(doomed.copy(isDeleted = true, deviceSeq = 2)),
+        emptyList(),
+        emptyList(),
+      ),
       now,
     )
     var ack: String? = null
@@ -224,7 +228,12 @@ internal class TestSyncStoreGc {
     }
     capped.pull(user, DEVICE_A, ack, 500, now)
     shouldThrow<QuotaExceededException> {
-      capped.push(user, DEVICE_A, SyncPushRequest(listOf(node("wanted")), emptyList(), emptyList()), now)
+      capped.push(
+        user,
+        DEVICE_A,
+        SyncPushRequest(listOf(node("wanted")), emptyList(), emptyList()),
+        now,
+      )
     }
 
     capped.collectTombstones()

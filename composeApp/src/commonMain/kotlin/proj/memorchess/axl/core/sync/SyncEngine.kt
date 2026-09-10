@@ -216,11 +216,10 @@ internal class DefaultSyncEngine(
    */
   private fun armHeartbeat() {
     timerJob?.cancel()
-    timerJob =
-      scope.launch {
-        delay(HEARTBEAT)
-        if (_status.value == SyncJobStatus.IDLE) launchCycle()
-      }
+    timerJob = scope.launch {
+      delay(HEARTBEAT)
+      if (_status.value == SyncJobStatus.IDLE) launchCycle()
+    }
   }
 
   private fun setState(state: SyncJobState) {
@@ -266,7 +265,8 @@ fun SyncEngine(
  * How often an otherwise idle app runs a cycle.
  *
  * Its only constraint is staying comfortably shorter than the interval between the server's
- * collection runs, since it sets the floor on how stale a watermark can be when collection reads it.
+ * collection runs, since it sets the floor on how stale a watermark can be when collection reads
+ * it.
  */
 internal val HEARTBEAT = 30.minutes
 
