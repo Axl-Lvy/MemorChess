@@ -183,6 +183,30 @@ internal class TestSyncStoreDevices {
   }
 
   @Test
+  fun aDeviceStaysSyncedAfterCollectionLowersTheUsersMaximum() = runTest {
+    // The >= boundary, which equality would get wrong. The user's newest row is a tombstone every
+    // device has committed, so collecting it drops the maximum below every acknowledgement.
+    val user = userWithOneSetting()
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(
+        emptyList(),
+        emptyList(),
+        listOf(setting("a", "1", seq = 2).copy(isDeleted = true)),
+      ),
+      now,
+    )
+    val page = store.pull(user, DEVICE, ack = null, limit = 100, now)
+    store.pull(user, DEVICE, ack = page.pageToken, limit = 100, now)
+    store.deviceStatus(user, DEVICE) shouldBe true
+
+    store.collectTombstones()
+
+    store.deviceStatus(user, DEVICE) shouldBe true
+  }
+
+  @Test
   fun anUnknownOrRemovedDeviceHasNoStatus() = runTest {
     val user = PostgresTestDb.newUserId()
 

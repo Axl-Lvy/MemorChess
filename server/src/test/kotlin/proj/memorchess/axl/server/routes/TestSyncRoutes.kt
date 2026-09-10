@@ -302,8 +302,9 @@ class TestSyncRoutes {
     val deleted = client.delete("/v1/me") { header(HttpHeaders.Authorization, "Bearer $token") }
 
     deleted.status shouldBe HttpStatusCode.NoContent
-    SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token).bodyAsText())
-      .settings shouldHaveSize 0
+    // Deletion clears the device rows too, so the caller is a stranger until it registers again,
+    // which is exactly what its next sync cycle does.
+    client.pull(token).status shouldBe HttpStatusCode.BadRequest
   }
 
   @Test

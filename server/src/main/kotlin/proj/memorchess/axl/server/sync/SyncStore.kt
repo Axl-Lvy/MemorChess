@@ -719,6 +719,82 @@ internal class SyncStore(
       }
 
   /**
+   * Deletes every tombstone every registered device has confirmed committing, per user.
+   *
+   * One transaction per user, never one spanning the loop: a single transaction over every user
+   * would hold every user's advisory lock at once and block all pushes for as long as this ran.
+   *
+   * Idempotent, so two instances firing on the same schedule are safe. The second takes the same
+   * per user lock and finds nothing left to delete.
+   */
+  internal suspend fun collectTombstones() {
+    for (userId in usersWithDevices()) {
+      val watermark = watermarkOf(userId) ?: continue
+      // Either some device has committed nothing yet, or there is genuinely nothing to reclaim.
+      if (watermark == 0L) continue
+      inTransaction { connection ->
+        connection.acquireUserLock(userId)
+        for (table in PER_USER_TABLES) {
+          connection
+            .prepareStatement(
+              "DELETE FROM $table WHERE user_id = ? AND is_deleted AND revision <= ?"
+            )
+            .use { statement ->
+              statement.setString(1, userId)
+              statement.setLong(2, watermark)
+              statement.executeUpdate()
+            }
+        }
+        connection.setGcFloor(userId, watermark)
+      }
+    }
+  }
+
+  /** Every user with at least one device row, which is the per user gate on collection. */
+  private suspend fun usersWithDevices(): List<String> =
+    inTransaction { connection ->
+      connection.prepareStatement("SELECT DISTINCT user_id FROM sync_device").use { statement ->
+        statement.executeQuery().use { rows ->
+          buildList { while (rows.next()) add(rows.getString(1)) }
+        }
+      }
+    }
+
+  /**
+   * The lowest acknowledgement across [userId]'s devices that are still registered, or `null` when
+   * every one of them has been removed.
+   *
+   * Removed devices are excluded, which is the whole point of removal: one lost install would
+   * otherwise hold this user's watermark down forever.
+   */
+  private suspend fun watermarkOf(userId: String): Long? =
+    inTransaction { connection ->
+      connection
+        .prepareStatement(
+          "SELECT min(last_acked_revision) FROM sync_device " +
+            "WHERE user_id = ? AND removed_at IS NULL"
+        )
+        .use { statement ->
+          statement.setString(1, userId)
+          statement.executeQuery().use { rows ->
+            rows.next()
+            val value = rows.getLong(1)
+            if (rows.wasNull()) null else value
+          }
+        }
+    }
+
+  /** The user's collection floor, or `null` when they have never been collected. Test only. */
+  internal suspend fun gcFloorForTest(userId: String): Long? =
+    inTransaction { connection ->
+      connection.prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use {
+        statement ->
+        statement.setString(1, userId)
+        statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
+      }
+    }
+
+  /**
    * Removes every row belonging to [userId].
    *
    * Only the three per user tables. The shared `position` and `move_edge` rows stay, because they
@@ -729,7 +805,7 @@ internal class SyncStore(
    */
   internal suspend fun deleteUser(userId: String) {
     inTransaction { connection ->
-      for (table in PER_USER_TABLES) {
+      for (table in PER_USER_TABLES + "sync_device" + "sync_gc_floor") {
         connection.prepareStatement("DELETE FROM $table WHERE user_id = ?").use { statement ->
           statement.setString(1, userId)
           statement.executeUpdate()
