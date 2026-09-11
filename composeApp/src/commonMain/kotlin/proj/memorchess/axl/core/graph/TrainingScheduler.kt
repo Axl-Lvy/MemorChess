@@ -41,8 +41,8 @@ import proj.memorchess.axl.core.streak.StreakTracker
  * gets a fresh budget for that day by design, matching Anki's study-ahead behavior.
  *
  * The caps are suppliers rather than flat values so a settings change takes effect immediately on
- * the long lived singleton; defaults are unlimited so that direct construction stays usable without
- * any configuration wiring.
+ * the long lived singleton. Both are required: a caller that wants no cap must say so explicitly by
+ * supplying `{ Int.MAX_VALUE }`, rather than getting that behavior by omission.
  *
  * [streakTracker] is optional and defaults to absent, so direct construction still works without
  * any streak wiring; when present, [grade] feeds it and [streakDays]/[cardsCompletedToday] expose
@@ -53,8 +53,8 @@ class TrainingScheduler(
   private val treeStore: TreeStore,
   private val algorithm: SchedulingAlgorithm,
   private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
-  private val maxNewMovesPerDay: () -> Int = { Int.MAX_VALUE },
-  private val maxTotalMovesPerDay: () -> Int = { Int.MAX_VALUE },
+  private val maxNewMovesPerDay: () -> Int,
+  private val maxTotalMovesPerDay: () -> Int,
   private val streakTracker: StreakTracker? = null,
 ) {
 

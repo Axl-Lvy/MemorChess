@@ -91,7 +91,13 @@ class TestToday : TestWithKoin() {
   }
 
   private fun schedulerOver(database: InMemoryDatabaseQueryManager) =
-    TrainingScheduler(database, testTreeStore(database), Fsrs6SchedulingAlgorithm())
+    TrainingScheduler(
+      database,
+      testTreeStore(database),
+      Fsrs6SchedulingAlgorithm(),
+      maxNewMovesPerDay = { Int.MAX_VALUE },
+      maxTotalMovesPerDay = { Int.MAX_VALUE },
+    )
 
   private fun ComposeUiTest.setToday(
     streakTracker: StreakTracker,

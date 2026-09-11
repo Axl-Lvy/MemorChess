@@ -71,6 +71,8 @@ class TestTrainingScheduler {
         treeStore = store,
         algorithm = Fsrs6SchedulingAlgorithm(),
         timeZone = timeZone,
+        maxNewMovesPerDay = { Int.MAX_VALUE },
+        maxTotalMovesPerDay = { Int.MAX_VALUE },
         streakTracker = streakTracker,
       )
     return Triple(store, scheduler, streakTracker)
@@ -340,6 +342,8 @@ class TestTrainingScheduler {
         store,
         Fsrs6SchedulingAlgorithm(),
         TimeZone.currentSystemDefault(),
+        maxNewMovesPerDay = { Int.MAX_VALUE },
+        maxTotalMovesPerDay = { Int.MAX_VALUE },
       )
     val now = DateUtil.now()
     store.updateCardState(startPos, CardStateFactory.new(now + 5.days))
@@ -426,6 +430,46 @@ class TestTrainingScheduler {
     store.updateCardState(posC, reviewedTodayCard())
     assertEquals(0, scheduler.pendingCount())
     assertNull(scheduler.nextDue())
+  }
+
+  @Test
+  fun totalLimitOneServesExactlyOneCard() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 1)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(1, scheduler.pendingCount())
+  }
+
+  @Test
+  fun totalLimitExactlyAtBoundaryServesAllCards() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 2)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(2, scheduler.pendingCount())
+  }
+
+  @Test
+  fun totalLimitOneAboveBoundaryServesAllCards() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 3)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(2, scheduler.pendingCount())
+  }
+
+  @Test
+  fun largeTotalLimitServesEverything() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 1_000_000)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(2, scheduler.pendingCount())
   }
 
   @Test
