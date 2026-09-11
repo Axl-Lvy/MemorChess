@@ -20,7 +20,6 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.OutboxEntry
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.graph.TreeStore
 
 /**
  * Drives the sync push+pull cycle: debounces local writes into one attempt, retries a transient
@@ -262,14 +261,14 @@ private fun Double.pow(exp: Int): Double {
 fun SyncEngine(
   authProvider: AuthProvider,
   database: DatabaseQueryManager,
-  treeStore: TreeStore,
+  applier: SyncApplier,
   apiClient: SyncApiClient,
   jobStore: SyncJobStore,
   deviceIdentity: DeviceIdentity,
   scope: CoroutineScope,
 ): SyncEngine =
   DefaultSyncEngine(jobStore, scope) {
-    runSyncCycle(authProvider, database, treeStore, apiClient, deviceIdentity)
+    runSyncCycle(authProvider, database, applier, apiClient, deviceIdentity)
   }
 
 /**
@@ -290,7 +289,7 @@ internal const val PULL_LIMIT: Int = 500
 internal suspend fun runSyncCycle(
   authProvider: AuthProvider,
   database: DatabaseQueryManager,
-  treeStore: TreeStore,
+  applier: SyncApplier,
   apiClient: SyncApiClient,
   deviceIdentity: DeviceIdentity,
 ): CycleOutcome {
@@ -317,14 +316,14 @@ internal suspend fun runSyncCycle(
   }
 
   if (!resyncRequired) {
-    pullAll(token, treeStore, apiClient, deviceId)?.let {
+    pullAll(token, applier, apiClient, deviceId)?.let {
       if (it != CycleOutcome.ResyncRequired) return it
       resyncRequired = true
     }
   }
 
   if (resyncRequired) {
-    return resync(token, deviceId, database, treeStore, apiClient)
+    return resync(token, deviceId, database, applier, apiClient)
   }
   return CycleOutcome.Success
 }
@@ -361,11 +360,11 @@ private suspend fun resync(
   token: String,
   deviceId: String,
   database: DatabaseQueryManager,
-  treeStore: TreeStore,
+  applier: SyncApplier,
   apiClient: SyncApiClient,
 ): CycleOutcome {
   LOGGER.w { "Server asked this device to resync from scratch" }
-  treeStore.eraseAll()
+  applier.eraseAll()
   database.clearDirty(database.getOutbox())
   val reported = apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset = true)
   if (reported != SyncRegisterOutcome.Ok) {
@@ -468,18 +467,18 @@ private suspend fun localMove(
     ?.values
     ?.firstOrNull { it.destination == destination }
 
-/** Applies every row of one pulled [page] to [treeStore]. */
-private suspend fun applyPulledPage(page: SyncPullResponse, treeStore: TreeStore) {
-  for (node in page.nodes) treeStore.applySyncedNode(node)
-  for (edge in page.edges) treeStore.applySyncedMove(edge)
-  for (repertoire in page.repertoires) treeStore.applySyncedRepertoire(repertoire)
-  for (tag in page.tags) treeStore.applySyncedTag(tag)
+/** Applies every row of one pulled [page] through [applier]. */
+private suspend fun applyPulledPage(page: SyncPullResponse, applier: SyncApplier) {
+  for (node in page.nodes) applier.applyNode(node)
+  for (edge in page.edges) applier.applyMove(edge)
+  for (repertoire in page.repertoires) applier.applyRepertoire(repertoire)
+  for (tag in page.tags) applier.applyTag(tag)
 }
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pullAll(
   token: String,
-  treeStore: TreeStore,
+  applier: SyncApplier,
   apiClient: SyncApiClient,
   deviceId: String,
 ): CycleOutcome? {
@@ -493,7 +492,7 @@ private suspend fun pullAll(
         // The request that comes back empty is the one confirming the last page carrying rows,
         // which is why the loop cannot stop on the page that carried them.
         if (page.isEmpty()) return null
-        applyPulledPage(page, treeStore)
+        applyPulledPage(page, applier)
         ack = page.pageToken
       }
       SyncPullOutcome.Unauthorized -> return CycleOutcome.Transient

@@ -4,6 +4,7 @@ import kotlin.test.*
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -11,11 +12,12 @@ import proj.memorchess.axl.test_util.TestWithKoin
 class TestLinesExplorer : TestWithKoin() {
   private lateinit var interactionsManager: LinesExplorer
   private val treeStore: TreeStore by inject()
+  private val tagStore: RepertoireTagStore by inject()
   private val database: DatabaseQueryManager by inject()
 
   private suspend fun initialize() {
     treeStore.eraseAll()
-    interactionsManager = LinesExplorer(treeStore = treeStore)
+    interactionsManager = LinesExplorer(treeStore = treeStore, tagStore = tagStore)
   }
 
   override suspend fun setUp() {
@@ -187,7 +189,7 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.save()
     val customPosition = interactionsManager.engine.toPositionKey()
 
-    val explorerFromCustom = LinesExplorer(customPosition, treeStore)
+    val explorerFromCustom = LinesExplorer(customPosition, treeStore, tagStore)
     assertEquals(customPosition, explorerFromCustom.engine.toPositionKey())
   }
 
@@ -198,7 +200,7 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.save()
     val customPosition = interactionsManager.engine.toPositionKey()
 
-    val explorerFromCustom = LinesExplorer(customPosition, treeStore)
+    val explorerFromCustom = LinesExplorer(customPosition, treeStore, tagStore)
     assertEquals(customPosition, explorerFromCustom.engine.toPositionKey())
     explorerFromCustom.back()
     interactionsManager.back()
@@ -247,13 +249,14 @@ class TestLinesExplorer : TestWithKoin() {
   @Test
   fun aScopedSessionTagsAGenuinelyNewMoveWithItsScope() = test {
     val origin = PositionKey.START_POSITION
-    val explorer = LinesExplorer(treeStore = treeStore, repertoireScope = "italian-game")
+    val explorer =
+      LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
     explorer.playMove("e4")
 
     val destination = explorer.engine.toPositionKey()
-    assertEquals(setOf("italian-game"), treeStore.tagsFor(origin, destination))
+    assertEquals(setOf("italian-game"), tagStore.tagsFor(origin, destination))
   }
 
   @Test
@@ -262,12 +265,13 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.playMove("e4")
     interactionsManager.save() // persists the edge, unscoped
     val destination = interactionsManager.engine.toPositionKey()
-    val explorer = LinesExplorer(treeStore = treeStore, repertoireScope = "italian-game")
+    val explorer =
+      LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
     explorer.playMove("e4") // replays the already-existing edge
 
-    assertEquals(emptySet(), treeStore.tagsFor(origin, destination))
+    assertEquals(emptySet(), tagStore.tagsFor(origin, destination))
   }
 
   @Test
@@ -276,8 +280,9 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.playMove("e4")
     interactionsManager.save()
     val destination = interactionsManager.engine.toPositionKey()
-    treeStore.tagEdge(origin, destination, "ruy-lopez")
-    val explorer = LinesExplorer(treeStore = treeStore, repertoireScope = "italian-game")
+    tagStore.tag(origin, destination, "ruy-lopez")
+    val explorer =
+      LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
     assertEquals(emptyList(), explorer.getNextMoves())
@@ -343,7 +348,7 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.playMove("e4")
     interactionsManager.save()
     val destination = interactionsManager.engine.toPositionKey()
-    treeStore.tagEdge(origin, destination, "ruy-lopez")
+    tagStore.tag(origin, destination, "ruy-lopez")
     interactionsManager.back() // save() left navigation at the destination; getNextMoves() below
     // must read the origin's own outgoing moves.
 

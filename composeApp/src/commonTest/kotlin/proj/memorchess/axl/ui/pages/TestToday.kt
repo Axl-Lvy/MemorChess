@@ -25,8 +25,8 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainingScheduler
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
@@ -34,6 +34,7 @@ import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.components.today.WeekStrip
 import proj.memorchess.axl.ui.pages.navigation.Route
@@ -94,6 +95,7 @@ class TestToday : TestWithKoin() {
     TrainingScheduler(
       database,
       testTreeStore(database),
+      testRepertoireTagStore(database),
       Fsrs6SchedulingAlgorithm(),
       maxNewMovesPerDay = { Int.MAX_VALUE },
       maxTotalMovesPerDay = { Int.MAX_VALUE },
@@ -102,11 +104,11 @@ class TestToday : TestWithKoin() {
   private fun ComposeUiTest.setToday(
     streakTracker: StreakTracker,
     scheduler: TrainingScheduler,
-    treeStore: TreeStore,
+    tagStore: RepertoireTagStore,
   ) {
     setContent {
       InitializeApp {
-        Today(streakTracker = streakTracker, scheduler = scheduler, treeStore = treeStore)
+        Today(streakTracker = streakTracker, scheduler = scheduler, tagStore = tagStore)
       }
     }
   }
@@ -117,7 +119,7 @@ class TestToday : TestWithKoin() {
   fun zeroDayStreakRendersTheBadge() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(0)
-    setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
+    setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
     waitUntilAtLeastOneExists(hasTestTag("today_streak_badge"))
     onNodeWithTag("today_streak_badge").assertIsDisplayed()
@@ -131,7 +133,7 @@ class TestToday : TestWithKoin() {
   fun everyWeekStripCellRenders() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(0)
-    setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
+    setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
     waitUntilAtLeastOneExists(hasTestTag("today_week_strip"))
     (1..7).forEach { isoIndex -> onNodeWithTag("today_week_cell_$isoIndex").assertExists() }
@@ -151,7 +153,7 @@ class TestToday : TestWithKoin() {
     val scheduler = schedulerOver(database)
     scheduler.pendingCount() shouldBe 0
 
-    setToday(streakTracker, scheduler, testTreeStore(database))
+    setToday(streakTracker, scheduler, testRepertoireTagStore(database))
 
     waitUntilAtLeastOneExists(hasTestTag("today_goal_ring"))
     onNodeWithTag("today_goal_ring").assertRangeInfoEquals(ProgressBarRangeInfo(1f, 0f..1f))
@@ -169,7 +171,7 @@ class TestToday : TestWithKoin() {
   fun zeroDoneAndZeroDueDropsTheTargetHalfOfTheLabelAndReportsAnEmptyRing() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(0)
-    setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
+    setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
     waitUntilAtLeastOneExists(hasTestTag("today_goal_ring"))
     onNodeWithTag("today_goal_ring").assertRangeInfoEquals(ProgressBarRangeInfo(0f, 0f..1f))
@@ -183,8 +185,11 @@ class TestToday : TestWithKoin() {
   fun noRepertoiresInstalledRendersTheEmptyPickUpCard() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(0)
-    val treeStore = testTreeStore(TestDatabases.empty())
-    setToday(StreakTracker(store), schedulerOver(database), treeStore)
+    setToday(
+      StreakTracker(store),
+      schedulerOver(database),
+      testRepertoireTagStore(TestDatabases.empty()),
+    )
 
     waitUntilAtLeastOneExists(hasTestTag("today_pickup_empty"))
     onNodeWithTag("today_pickup_card").assertDoesNotExist()
@@ -195,16 +200,17 @@ class TestToday : TestWithKoin() {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(0)
     val treeStore = testTreeStore(database)
-    treeStore.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val tagStore = testRepertoireTagStore(database)
+    tagStore.register("italian-game", "Italian Game", RepertoireColor.WHITE)
     val destination = PositionKey("posA b K")
     treeStore.addMove(PositionKey.START_POSITION, "e4", destination, isGood = true, fromDepth = 0)
-    treeStore.tagEdge(PositionKey.START_POSITION, destination, "italian-game")
+    tagStore.tag(PositionKey.START_POSITION, destination, "italian-game")
     treeStore.updateCardState(
       PositionKey.START_POSITION,
       CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = DateUtil.now()),
     )
 
-    setToday(StreakTracker(store), schedulerOver(database), treeStore)
+    setToday(StreakTracker(store), schedulerOver(database), tagStore)
 
     waitUntilAtLeastOneExists(hasTestTag("today_pickup_card"))
     onNodeWithTag("today_pickup_empty").assertDoesNotExist()
@@ -218,7 +224,7 @@ class TestToday : TestWithKoin() {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(1)
     schedulerOver(database).pendingCount() shouldBe 1
-    setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
+    setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
     waitUntilAtLeastOneExists(hasTestTag("today_cta"))
     onNodeWithTag("today_cta_pending_count_1", useUnmergedTree = true).assertIsDisplayed()
@@ -229,7 +235,7 @@ class TestToday : TestWithKoin() {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(2)
     schedulerOver(database).pendingCount() shouldBe 2
-    setToday(StreakTracker(store), schedulerOver(database), testTreeStore(database))
+    setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
     waitUntilAtLeastOneExists(hasTestTag("today_cta"))
     onNodeWithTag("today_cta_pending_count_2", useUnmergedTree = true).assertIsDisplayed()
@@ -343,7 +349,7 @@ class TestToday : TestWithKoin() {
     setToday(
       StreakTracker(NeverReturningDailyActivityStore()),
       schedulerOver(database),
-      testTreeStore(database),
+      testRepertoireTagStore(database),
     )
 
     onNodeWithTag("today_streak_badge").assertDoesNotExist()

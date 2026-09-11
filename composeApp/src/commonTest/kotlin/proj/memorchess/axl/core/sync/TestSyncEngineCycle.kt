@@ -27,7 +27,9 @@ import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
-import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.test_util.testRepertoireTagStore
+import proj.memorchess.axl.test_util.testSyncApplier
+import proj.memorchess.axl.test_util.testTreeStore
 
 /** Minimal fake: always returns the same [TokenResult]. */
 private class FakeAuthProvider(private val result: TokenResult) : AuthProvider {
@@ -65,7 +67,10 @@ class TestSyncEngineCycle {
   }
 
   private fun treeStore(database: InMemoryDatabaseQueryManager = InMemoryDatabaseQueryManager()) =
-    TreeStore(database, CoroutineScope(Dispatchers.Unconfined), DeviceIdentity.ephemeral())
+    testTreeStore(database, CoroutineScope(Dispatchers.Unconfined))
+
+  private fun syncApplier(database: InMemoryDatabaseQueryManager) =
+    testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined))
 
   @Test
   fun emptyCycleSucceedsAndLeavesCursorUntouched() = runTest {
@@ -75,7 +80,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         authProvider = FakeAuthProvider(TokenResult.Ok("tok")),
         database = database,
-        treeStore = treeStore(database),
+        applier = syncApplier(database),
         apiClient =
           SyncApiClient(jsonClient(emptyPullEngine()), baseUrl = "https://issuer.example/v1"),
         deviceIdentity = DeviceIdentity.ephemeral(),
@@ -97,7 +102,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         authProvider = FakeAuthProvider(TokenResult.Failed.Transient),
         database = database,
-        treeStore = treeStore(database),
+        applier = syncApplier(database),
         apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         deviceIdentity = DeviceIdentity.ephemeral(),
       )
@@ -115,7 +120,7 @@ class TestSyncEngineCycle {
     runSyncCycle(
       FakeAuthProvider(TokenResult.Failed.Terminal),
       database,
-      treeStore(database),
+      syncApplier(database),
       apiClient,
       DeviceIdentity.ephemeral(),
     ) shouldBe CycleOutcome.PausedNoAuth
@@ -123,7 +128,7 @@ class TestSyncEngineCycle {
     runSyncCycle(
       FakeAuthProvider(TokenResult.SignedOut),
       database,
-      treeStore(database),
+      syncApplier(database),
       apiClient,
       DeviceIdentity.ephemeral(),
     ) shouldBe CycleOutcome.PausedNoAuth
@@ -150,7 +155,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -188,7 +193,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -217,7 +222,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -234,7 +239,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        treeStore(database),
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -263,7 +268,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        treeStore(database),
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -277,11 +282,12 @@ class TestSyncEngineCycle {
   fun pushCycleIncludesADirtyRepertoireAndADirtyTagInTheRequest() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val store = treeStore(database)
-    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val tagStore = testRepertoireTagStore(database, CoroutineScope(Dispatchers.Unconfined))
+    tagStore.register("italian-game", "Italian Game", RepertoireColor.WHITE)
     val origin = PositionKey.START_POSITION
     val destination = PositionKey("posA b K")
     store.addMove(from = origin, move = "e4", to = destination, isGood = true, fromDepth = 0)
-    store.tagEdge(origin, destination, "italian-game")
+    tagStore.tag(origin, destination, "italian-game")
     var pushBody: String? = null
     val engine = MockEngine { request ->
       if (request.method.value == "PUT") {
@@ -298,7 +304,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -337,7 +343,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         identity,
       )
@@ -363,7 +369,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        treeStore(database),
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -394,7 +400,7 @@ class TestSyncEngineCycle {
     runSyncCycle(
       FakeAuthProvider(TokenResult.Ok("tok")),
       database,
-      treeStore(database),
+      syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
       DeviceIdentity.ephemeral(),
     )
@@ -438,7 +444,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
       )
@@ -481,7 +487,7 @@ class TestSyncEngineCycle {
     runSyncCycle(
       FakeAuthProvider(TokenResult.Ok("tok")),
       database,
-      store,
+      syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
       DeviceIdentity.ephemeral(),
     )
@@ -522,7 +528,7 @@ class TestSyncEngineCycle {
     runSyncCycle(
       FakeAuthProvider(TokenResult.Ok("tok")),
       database,
-      store,
+      syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
       DeviceIdentity.ephemeral(),
     )

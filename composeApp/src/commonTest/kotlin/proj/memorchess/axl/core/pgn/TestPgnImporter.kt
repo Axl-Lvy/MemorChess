@@ -14,13 +14,15 @@ import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.drainAllNodes
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 class TestPgnImporter {
 
   private val database = TestDatabases.empty()
   private val store = testTreeStore(database)
-  private val importer = PgnImporter(store)
+  private val tagStore = testRepertoireTagStore(database)
+  private val importer = PgnImporter(store, tagStore)
 
   private fun keyAfter(vararg moves: String): PositionKey {
     val engine = GameEngine()
@@ -307,13 +309,13 @@ class TestPgnImporter {
     importer.import(games, perspective = null, repertoireId = "italian-game")
 
     // Assert
-    assertEquals(setOf("ruy-lopez", "italian-game"), store.tagsFor(startKey, afterE4Key))
+    assertEquals(setOf("ruy-lopez", "italian-game"), tagStore.tagsFor(startKey, afterE4Key))
   }
 
   @Test
   fun importRejectsExtendingARepertoireWhoseRegisteredColorConflicts() = runTest {
     // Arrange
-    store.registerRepertoire("scandinavian-black", "Scandinavian", RepertoireColor.BLACK)
+    tagStore.register("scandinavian-black", "Scandinavian", RepertoireColor.BLACK)
     val games = PgnParser.parse("1. e4 d5 *")
 
     // Act & Assert

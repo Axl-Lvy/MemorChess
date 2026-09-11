@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.NavigationHistory
 import proj.memorchess.axl.core.graph.NodeState
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 
 /**
@@ -37,14 +38,11 @@ import proj.memorchess.axl.core.graph.TreeStore
 open class LinesExplorer(
   position: PositionKey? = null,
   protected val treeStore: TreeStore,
+  protected val tagStore: RepertoireTagStore,
   private val repertoireScope: String? = null,
 ) : InteractionsManager(if (position == null) GameEngine() else GameEngine(position)) {
 
   private val startPosition = position ?: PositionKey.START_POSITION
-
-  init {
-    treeStore.ensurePosition(startPosition, 0)
-  }
 
   protected val navigation = NavigationHistory(startPosition)
 
@@ -52,10 +50,16 @@ open class LinesExplorer(
     protected set
 
   /**
-   * Computes the initial [state] of the starting position. Called once from the page's loading
-   * phase because the computation suspends (it resolves the node through the bounded cache).
+   * Seeds the starting position into the cache and computes the initial [state] from it. Called
+   * once from the page's loading phase because both halves suspend (they go through the bounded
+   * cache, under its lock).
+   *
+   * The seed lives here rather than in an `init` block: the store's cache is shared across screens,
+   * so by construction time a load of the starting position may already be in flight, and an
+   * unguarded write would let that load's finalization drop the seeded node again.
    */
   suspend fun initState() {
+    treeStore.ensurePosition(startPosition, 0)
     state = treeStore.computeState(startPosition, arrivedFrom = null)
   }
 
@@ -100,7 +104,7 @@ open class LinesExplorer(
     val classified = node.outgoing.values.filter { it.isGood != null }
     val scoped =
       repertoireScope?.let { scope ->
-        classified.filter { scope in treeStore.tagsFor(it.from, it.to) }
+        classified.filter { scope in tagStore.tagsFor(it.from, it.to) }
       } ?: classified
     return scoped.map { it.move }.sorted()
   }
@@ -115,7 +119,7 @@ open class LinesExplorer(
   /** Resets the explorer to the initial chess position. */
   suspend fun reset() {
     val resetPosition = PositionKey.START_POSITION
-    treeStore.ensurePositionGuarded(resetPosition, 0)
+    treeStore.ensurePosition(resetPosition, 0)
     navigation.reset(resetPosition)
     state = treeStore.computeState(resetPosition, arrivedFrom = null)
     super.reset(resetPosition)
@@ -135,7 +139,7 @@ open class LinesExplorer(
         fromDepth = originDepth,
       )
     if (repertoireScope != null && existingEdge == null) {
-      treeStore.tagEdge(origin, destination, repertoireScope)
+      tagStore.tag(origin, destination, repertoireScope)
     }
     navigation.push(edge, destination)
     state = treeStore.computeState(navigation.current, navigation.arrivedVia?.from)

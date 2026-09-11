@@ -30,7 +30,7 @@ import proj.memorchess.axl.ui.components.popup.KineticDialog
  * picker defaults to [sourceColor] but stays editable, since the copy can be re-tagged for a
  * different side than the source repertoire. The new repertoire copies every one of the source's
  * tagged edges regardless of the side chosen here (see
- * [proj.memorchess.axl.core.graph.TreeStore.forkRepertoire]).
+ * [proj.memorchess.axl.core.graph.RepertoireTagStore.fork]).
  *
  * Fields reset to [sourceName]/[sourceColor]'s defaults every time [visible] turns true.
  */

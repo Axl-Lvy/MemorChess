@@ -141,6 +141,7 @@ import proj.memorchess.axl.core.data.repertoire.RepertoirePublishViewModel
 import proj.memorchess.axl.core.data.repertoire.placeholderRepertoireMastery
 import proj.memorchess.axl.core.data.repertoire.slugify
 import proj.memorchess.axl.core.engine.Player
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImporter
 import proj.memorchess.axl.core.pgn.RepertoirePgnExporter
@@ -179,26 +180,27 @@ fun RepertoireLibrary(
   client: RepertoireCatalogClient = koinInject(),
   installedStore: InstalledRepertoireStore = koinInject(),
   treeStore: TreeStore = koinInject(),
+  tagStore: RepertoireTagStore = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   val viewModel =
-    remember(catalog, client, installedStore, treeStore, coroutineScope) {
+    remember(catalog, client, installedStore, treeStore, tagStore, coroutineScope) {
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
         fetchPgn = client::fetchPgn,
         importGames = { descriptor, games, onProgress ->
-          treeStore.registerRepertoire(descriptor.id, descriptor.name, descriptor.color)
+          tagStore.register(descriptor.id, descriptor.name, descriptor.color)
           // The importer reads the persisted graph on demand through the bounded cache.
-          PgnImporter(treeStore)
+          PgnImporter(treeStore, tagStore)
             .import(games, descriptor.color.toPlayer(), descriptor.id, onProgress)
         },
         previewGames = { color, games ->
           // The overlap is read against the persisted graph on demand through the bounded cache.
-          PgnImporter(treeStore).preview(games, color.toPlayer())
+          PgnImporter(treeStore, tagStore).preview(games, color.toPlayer())
         },
         reportInstall = client::reportInstall,
         installedStore = installedStore,
-        loadMyRepertoires = treeStore::repertoires,
+        loadMyRepertoires = tagStore::repertoires,
         scope = coroutineScope,
       )
     }
@@ -430,9 +432,12 @@ private fun MyRepertoireRow(
 @Composable
 private fun CreateRepertoireAction(onRepertoireListChanged: () -> Unit) {
   val treeStore: TreeStore = koinInject()
+  val tagStore: RepertoireTagStore = koinInject()
   val coroutineScope = rememberCoroutineScope()
   val viewModel =
-    remember(treeStore, coroutineScope) { repertoireCreationViewModel(treeStore, coroutineScope) }
+    remember(treeStore, tagStore, coroutineScope) {
+      repertoireCreationViewModel(treeStore, tagStore, coroutineScope)
+    }
   val state by viewModel.state.collectAsState()
   var showDialog by remember { mutableStateOf(false) }
   val presentation = creationDialogPresentation(state)
@@ -479,10 +484,11 @@ private fun ForkRepertoireAction(
   onRepertoireListChanged: () -> Unit,
 ) {
   val treeStore: TreeStore = koinInject()
+  val tagStore: RepertoireTagStore = koinInject()
   val coroutineScope = rememberCoroutineScope()
   val viewModel =
-    remember(sourceId, treeStore, coroutineScope) {
-      repertoireCreationViewModel(treeStore, coroutineScope)
+    remember(sourceId, treeStore, tagStore, coroutineScope) {
+      repertoireCreationViewModel(treeStore, tagStore, coroutineScope)
     }
   val state by viewModel.state.collectAsState()
   var showDialog by remember { mutableStateOf(false) }
@@ -520,18 +526,23 @@ private fun ForkRepertoireAction(
 }
 
 /**
- * Builds a [RepertoireCreationViewModel] wired to [treeStore]: [TreeStore.repertoires] for the
- * existing-id check, [TreeStore.registerRepertoire] and [TreeStore.forkRepertoire] directly, and a
- * [PgnImporter] for pasted-PGN imports (mirroring [RepertoireLibrary]'s own `importGames` wiring).
+ * Builds a [RepertoireCreationViewModel] wired to [tagStore]: [RepertoireTagStore.repertoires] for
+ * the existing-id check, [RepertoireTagStore.register] and [RepertoireTagStore.fork] directly, and
+ * a [PgnImporter] for pasted-PGN imports (mirroring [RepertoireLibrary]'s own `importGames`
+ * wiring).
  */
-private fun repertoireCreationViewModel(treeStore: TreeStore, scope: CoroutineScope) =
+private fun repertoireCreationViewModel(
+  treeStore: TreeStore,
+  tagStore: RepertoireTagStore,
+  scope: CoroutineScope,
+) =
   RepertoireCreationViewModel(
-    existingIds = { treeStore.repertoires().map { it.id }.toSet() },
-    registerRepertoire = treeStore::registerRepertoire,
+    existingIds = { tagStore.repertoires().map { it.id }.toSet() },
+    registerRepertoire = tagStore::register,
     importGames = { repertoireId, color, games ->
-      PgnImporter(treeStore).import(games, color?.toPlayer(), repertoireId)
+      PgnImporter(treeStore, tagStore).import(games, color?.toPlayer(), repertoireId)
     },
-    forkRepertoire = treeStore::forkRepertoire,
+    forkRepertoire = tagStore::fork,
     scope = scope,
   )
 

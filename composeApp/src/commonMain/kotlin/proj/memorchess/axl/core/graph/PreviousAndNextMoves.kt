@@ -6,8 +6,8 @@ import proj.memorchess.axl.core.data.DataMove
  * Persistence DTO carrying the previous and next moves of a single position.
  *
  * This type lives at the [proj.memorchess.axl.core.data.DatabaseQueryManager] seam only. The
- * runtime graph uses [Node] and [Edge] instead. [TreeStore] is responsible for converting between
- * the two representations.
+ * runtime graph uses [Node] and [Edge] instead. [NodeCache] converts a loaded row into a [Node],
+ * and [TreeStore] converts the other way when it persists one.
  *
  * @property previousMoves Map of incoming moves, keyed by move string.
  * @property nextMoves Map of outgoing moves, keyed by move string.

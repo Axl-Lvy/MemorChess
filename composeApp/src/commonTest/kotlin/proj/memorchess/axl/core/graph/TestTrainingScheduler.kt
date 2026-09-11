@@ -30,6 +30,7 @@ import proj.memorchess.axl.core.scheduling.ReviewGrade
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 class TestTrainingScheduler {
@@ -43,20 +44,32 @@ class TestTrainingScheduler {
     maxNew: Int = Int.MAX_VALUE,
     maxTotal: Int = Int.MAX_VALUE,
     timeZone: TimeZone = TimeZone.currentSystemDefault(),
-  ): Pair<TreeStore, TrainingScheduler> {
+  ): SchedulerFixture {
     val database = TestDatabases.empty()
     val store = testTreeStore(database)
+    val tagStore = testRepertoireTagStore(database)
     val scheduler =
       TrainingScheduler(
         database,
         store,
+        tagStore,
         Fsrs6SchedulingAlgorithm(),
         timeZone,
         { maxNew },
         { maxTotal },
       )
-    return store to scheduler
+    return SchedulerFixture(store, scheduler, tagStore)
   }
+
+  /**
+   * What [newScheduler] hands back. A data class rather than a `Pair` so a case that tags edges can
+   * destructure the tag store as a third component while the others keep taking only two.
+   */
+  private data class SchedulerFixture(
+    val store: TreeStore,
+    val scheduler: TrainingScheduler,
+    val tagStore: RepertoireTagStore,
+  )
 
   /** Same as [newScheduler], with a real [StreakTracker] over an isolated in memory store. */
   private fun newSchedulerWithStreak(
@@ -69,6 +82,7 @@ class TestTrainingScheduler {
       TrainingScheduler(
         database = database,
         treeStore = store,
+        tagStore = testRepertoireTagStore(database),
         algorithm = Fsrs6SchedulingAlgorithm(),
         timeZone = timeZone,
         maxNewMovesPerDay = { Int.MAX_VALUE },
@@ -340,6 +354,7 @@ class TestTrainingScheduler {
       TrainingScheduler(
         database,
         store,
+        testRepertoireTagStore(database),
         Fsrs6SchedulingAlgorithm(),
         TimeZone.currentSystemDefault(),
         maxNewMovesPerDay = { Int.MAX_VALUE },
@@ -684,7 +699,7 @@ class TestTrainingScheduler {
 
   @Test
   fun nextAfterOnlyOffersADestinationTaggedWithTheActiveScope() = runTest {
-    val (store, scheduler) = newScheduler()
+    val (store, scheduler, tagStore) = newScheduler()
     val destinationA = PositionKey("posA b K")
     val destinationB = PositionKey("posB b K")
     val leafA = PositionKey("posLeafA w K")
@@ -695,14 +710,14 @@ class TestTrainingScheduler {
     // nextAfterReturnsNullWhenNoReachableChildIsEligible above.
     store.addMove(destinationA, "e5", leafA, isGood = true, fromDepth = 1)
     store.addMove(destinationB, "d5", leafB, isGood = true, fromDepth = 1)
-    store.tagEdge(startPos, destinationA, "italian-game")
-    store.tagEdge(startPos, destinationB, "queens-gambit")
+    tagStore.tag(startPos, destinationA, "italian-game")
+    tagStore.tag(startPos, destinationB, "queens-gambit")
     // destinationA/destinationB must each be trainable within the scope too (their own outgoing
     // edge tagged the same way), not merely reached by a tagged edge: see the design's
     // NodeRepertoireTrainable
     // note on findEligibleAmong's own scope check.
-    store.tagEdge(destinationA, leafA, "italian-game")
-    store.tagEdge(destinationB, leafB, "queens-gambit")
+    tagStore.tag(destinationA, leafA, "italian-game")
+    tagStore.tag(destinationB, leafB, "queens-gambit")
 
     val next = scheduler.nextAfter(startPos, repertoireId = "italian-game")
 
@@ -711,20 +726,20 @@ class TestTrainingScheduler {
 
   @Test
   fun pendingCountScopedToARepertoireCountsOnlyItsOwnTrainableCards() = runTest {
-    val (store, scheduler) = newScheduler()
+    val (store, scheduler, tagStore) = newScheduler()
     val destinationA = PositionKey("posA b K")
     val destinationB = PositionKey("posB b K")
     store.addMove(startPos, "e4", destinationA, isGood = true, fromDepth = 0)
     store.addMove(startPos, "d4", destinationB, isGood = true, fromDepth = 0)
-    store.tagEdge(startPos, destinationA, "italian-game")
-    store.tagEdge(startPos, destinationB, "queens-gambit")
+    tagStore.tag(startPos, destinationA, "italian-game")
+    tagStore.tag(startPos, destinationB, "queens-gambit")
 
     assertEquals(1, scheduler.pendingCount(repertoireId = "italian-game"))
   }
 
   @Test
   fun dueCountScopedToARepertoireCountsOnlyItsOwnTrainableCards() = runTest {
-    val (store, scheduler) = newScheduler()
+    val (store, scheduler, tagStore) = newScheduler()
     val italianA = PositionKey("italianA b K")
     val italianLeaf = PositionKey("italianLeaf w K")
     val gambitA = PositionKey("gambitA b K")
@@ -735,8 +750,8 @@ class TestTrainingScheduler {
     store.addMove(gambitA, "d5", gambitLeaf, isGood = true, fromDepth = 1)
     // Only italianA's own outgoing edge is tagged, so only italianA (not startPos, which reaches
     // it through an untagged edge) is trainable within "italian-game".
-    store.tagEdge(italianA, italianLeaf, "italian-game")
-    store.tagEdge(gambitA, gambitLeaf, "queens-gambit")
+    tagStore.tag(italianA, italianLeaf, "italian-game")
+    tagStore.tag(gambitA, gambitLeaf, "queens-gambit")
 
     assertEquals(1, scheduler.dueCount(repertoireId = "italian-game"))
     assertEquals(1, scheduler.dueCount(repertoireId = "queens-gambit"))
@@ -744,7 +759,7 @@ class TestTrainingScheduler {
 
   @Test
   fun dueCountWithNoRepertoireReproducesTodaysUnscopedBehaviorExactly() = runTest {
-    val (store, scheduler) = newScheduler()
+    val (store, scheduler, tagStore) = newScheduler()
     val italianA = PositionKey("italianA b K")
     val italianLeaf = PositionKey("italianLeaf w K")
     val gambitA = PositionKey("gambitA b K")
@@ -753,8 +768,8 @@ class TestTrainingScheduler {
     store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
     store.addMove(startPos, "d4", gambitA, isGood = true, fromDepth = 0)
     store.addMove(gambitA, "d5", gambitLeaf, isGood = true, fromDepth = 1)
-    store.tagEdge(italianA, italianLeaf, "italian-game")
-    store.tagEdge(gambitA, gambitLeaf, "queens-gambit")
+    tagStore.tag(italianA, italianLeaf, "italian-game")
+    tagStore.tag(gambitA, gambitLeaf, "queens-gambit")
 
     // No repertoireId: every trainable due card counts, tagged or not (startPos itself carries no
     // tag of its own), exactly like before repertoire scoping existed.
@@ -763,12 +778,12 @@ class TestTrainingScheduler {
 
   @Test
   fun dueCountExcludesInSessionCardsWhetherOrNotScoped() = runTest {
-    val (store, scheduler) = newScheduler()
+    val (store, scheduler, tagStore) = newScheduler()
     val italianA = PositionKey("italianA b K")
     val italianLeaf = PositionKey("italianLeaf w K")
     store.addMove(startPos, "e4", italianA, isGood = true, fromDepth = 0)
     store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
-    store.tagEdge(italianA, italianLeaf, "italian-game")
+    tagStore.tag(italianA, italianLeaf, "italian-game")
     // italianA is mid learning (in-session) and ready, not a due review or due new card.
     store.updateCardState(italianA, learningCard(DateUtil.now() - 1.minutes))
 

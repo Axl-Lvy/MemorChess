@@ -2,7 +2,7 @@ package proj.memorchess.axl.core.data.repertoire
 
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
-import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 
 /**
  * A repertoire's "N of M positions solid" mastery snapshot, shaped the way the Today page's
@@ -32,10 +32,10 @@ internal fun placeholderRepertoireMastery(): RepertoireMastery =
  * The most recently trained repertoire's mastery snapshot, or `null` when no registered repertoire
  * has any trainable position yet. Ties in recency break on repertoire name, ascending.
  */
-internal suspend fun mostRecentRepertoireMastery(treeStore: TreeStore): RepertoireMastery? {
-  val repertoires = treeStore.repertoires()
+internal suspend fun mostRecentRepertoireMastery(tagStore: RepertoireTagStore): RepertoireMastery? {
+  val repertoires = tagStore.repertoires()
   if (repertoires.isEmpty()) return null
-  val snapshots = treeStore.repertoireMasterySnapshots()
+  val snapshots = tagStore.masterySnapshots()
   val (repertoire, snapshot) =
     repertoires
       .mapNotNull { repertoire -> snapshots[repertoire.id]?.let { repertoire to it } }

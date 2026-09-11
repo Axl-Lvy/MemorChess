@@ -38,8 +38,8 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.repertoire.RepertoireMastery
 import proj.memorchess.axl.core.data.repertoire.mostRecentRepertoireMastery
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainingScheduler
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
@@ -91,13 +91,13 @@ private sealed interface PickUpCardState {
  *
  * @param streakTracker Source of the streak, today's completed count, and this week's activity.
  * @param scheduler Source of the still-due count (the goal target) and the pending count (the CTA).
- * @param treeStore Source of the most recently trained repertoire's mastery snapshot.
+ * @param tagStore Source of the most recently trained repertoire's mastery snapshot.
  */
 @Composable
 fun Today(
   streakTracker: StreakTracker = koinInject(),
   scheduler: TrainingScheduler = koinInject(),
-  treeStore: TreeStore = koinInject(),
+  tagStore: RepertoireTagStore = koinInject(),
 ) {
   val navigator = LocalNavigator.current
 
@@ -115,8 +115,8 @@ fun Today(
         )
     }
   val pickUpState by
-    produceState<PickUpCardState>(PickUpCardState.Loading, treeStore) {
-      value = PickUpCardState.Ready(mostRecentRepertoireMastery(treeStore))
+    produceState<PickUpCardState>(PickUpCardState.Loading, tagStore) {
+      value = PickUpCardState.Ready(mostRecentRepertoireMastery(tagStore))
     }
 
   val currentStats = stats ?: return

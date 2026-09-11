@@ -53,6 +53,7 @@ import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.data.study.LichessStudyResult
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.GraphSerializer
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
@@ -168,7 +169,7 @@ private fun FileButtonsRow(
 @Composable
 internal fun LichessStudyImportField(
   studyImporter: LichessStudyImporter,
-  treeStore: TreeStore = koinInject(),
+  tagStore: RepertoireTagStore = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   var input by remember { mutableStateOf("") }
@@ -179,7 +180,7 @@ internal fun LichessStudyImportField(
   var selectedRepertoireId by remember { mutableStateOf<String?>(null) }
   var newRepertoireName by remember { mutableStateOf("") }
 
-  LaunchedEffect(Unit) { repertoires = treeStore.repertoires() }
+  LaunchedEffect(Unit) { repertoires = tagStore.repertoires() }
 
   Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
     RepertoirePicker(
@@ -208,7 +209,7 @@ internal fun LichessStudyImportField(
               when (selectedRepertoireId) {
                 NEW_REPERTOIRE_SENTINEL -> {
                   val id = newRepertoireName.trim().lowercase().replace(' ', '-')
-                  treeStore.registerRepertoire(id, newRepertoireName.trim(), color = null)
+                  tagStore.register(id, newRepertoireName.trim(), color = null)
                   id
                 }
                 else -> selectedRepertoireId

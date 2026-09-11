@@ -7,6 +7,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.Node
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.ReviewGrade
@@ -30,13 +31,14 @@ class SingleMoveTrainer(
 
   private val trainingScheduler: TrainingScheduler by inject()
   private val treeStore: TreeStore by inject()
+  private val tagStore: RepertoireTagStore by inject()
 
   private var isCorrect: Boolean = true
 
   override suspend fun afterPlayMove(move: String) {
     val matchingEdge = node.outgoing.values.firstOrNull { it.move == move }
     suspend fun edgeInScope(edge: Edge) =
-      repertoireScope == null || repertoireScope in treeStore.tagsFor(edge.from, edge.to)
+      repertoireScope == null || repertoireScope in tagStore.tagsFor(edge.from, edge.to)
     val inScope = repertoireScope == null || (matchingEdge != null && edgeInScope(matchingEdge))
     isCorrect = matchingEdge != null && matchingEdge.isGood == true && inScope
 

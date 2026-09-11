@@ -45,6 +45,11 @@ import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
 import proj.memorchess.axl.core.data.study.LichessStudyClient
 import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.graph.NodeCache
+import proj.memorchess.axl.core.graph.NodeLoader
+import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireTagStore
+import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.RepertoirePgnExporter
@@ -54,16 +59,17 @@ import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.core.sync.SYNC_BASE_URL
 import proj.memorchess.axl.core.sync.SyncApiClient
+import proj.memorchess.axl.core.sync.SyncApplier
 import proj.memorchess.axl.core.sync.SyncEngine
 import proj.memorchess.axl.core.sync.SyncJobStore
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
 /**
- * Koin qualifier for the process lived background scope on which [TreeStore] runs neighbour
- * prefetch. A [SupervisorJob] on [Dispatchers.Default] so a failed prefetch never cancels siblings
- * and never blocks the UI; it lives as long as the process wide [TreeStore] single, so no teardown
- * is needed.
+ * Koin qualifier for the process lived background scope [NodeCache] loads on and [Prefetcher] warms
+ * on. A [SupervisorJob] on [Dispatchers.Default] so a failed load never cancels siblings and never
+ * blocks the UI. It lives as long as those two process wide singles, so no teardown is needed. The
+ * name stays `prefetch` because prefetch still dominates its traffic.
  */
 const val PREFETCH_SCOPE: String = "prefetch"
 
@@ -121,14 +127,28 @@ fun initKoinModules(): Array<Module> {
     single<CoroutineScope>(named(PREFETCH_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
+    single<NodeLoader> {
+      val database: DatabaseQueryManager = get()
+      NodeLoader { database.getPosition(it) }
+    }
+    single { NodeCache(get(), get(named(PREFETCH_SCOPE))) }
+    single { Prefetcher(get(), get(named(PREFETCH_SCOPE))) }
+    single { TrainableProjection(get(), get()) }
+    single {
+      RepertoireTagStore(get(), get(), get(), notifyDirty = { get<SyncEngine>().notifyDirty() })
+    }
     single {
       // get<SyncEngine>() is resolved lazily, inside this lambda, only when a write actually
-      // happens — never during TreeStore's own construction — which is what breaks what would
-      // otherwise be a TreeStore <-> SyncEngine construction cycle (SyncEngine depends on
-      // TreeStore normally, to apply a pull).
+      // happens. There is no construction cycle left to break: SyncEngine depends on SyncApplier,
+      // which reaches only NodeCache, TrainableProjection and the database, so nothing reaches back
+      // to TreeStore or RepertoireTagStore. The laziness stays because SyncEngine is still the
+      // right thing to notify and keeping it off both units' construction paths costs nothing.
       TreeStore(
         get(),
-        get(named(PREFETCH_SCOPE)),
+        get(),
+        get(),
+        get(),
+        get(),
         get(),
         notifyDirty = { get<SyncEngine>().notifyDirty() },
       )
@@ -137,6 +157,7 @@ fun initKoinModules(): Array<Module> {
       TrainingScheduler(
         database = get(),
         treeStore = get(),
+        tagStore = get(),
         algorithm = get(),
         maxNewMovesPerDay = { MAX_NEW_MOVES_PER_DAY_SETTING.getValue() },
         maxTotalMovesPerDay = { MAX_TOTAL_MOVES_PER_DAY_SETTING.getValue() },
@@ -147,7 +168,7 @@ fun initKoinModules(): Array<Module> {
 
   val studyModule = module {
     single { LichessStudyClient(get()) }
-    single { LichessStudyImporter(get(), get()) }
+    single { LichessStudyImporter(get(), get(), get()) }
   }
 
   val authModule = module {
@@ -177,6 +198,7 @@ fun initKoinModules(): Array<Module> {
 
   val syncModule = module {
     single { SyncJobStore(get()) }
+    single { SyncApplier(get(), get(), get()) }
     single { SyncApiClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1") }
     single<CoroutineScope>(named(SYNC_ENGINE_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -185,7 +207,7 @@ fun initKoinModules(): Array<Module> {
       SyncEngine(
         authProvider = get(),
         database = get(),
-        treeStore = get(),
+        applier = get(),
         apiClient = get(),
         jobStore = get(),
         deviceIdentity = get(),
@@ -216,7 +238,7 @@ fun initKoinModules(): Array<Module> {
       RepertoirePublishClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1/repertoires")
     }
     single { PublishedRepertoireStore() }
-    single { RepertoirePgnExporter(get()) }
+    single { RepertoirePgnExporter(get(), get()) }
   }
 
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }

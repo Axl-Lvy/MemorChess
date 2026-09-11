@@ -31,6 +31,7 @@ import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.setKineticContent
 
@@ -94,6 +95,7 @@ internal class TestKineticDesktopRail {
     TrainingScheduler(
       database,
       testTreeStore(database),
+      testRepertoireTagStore(database),
       Fsrs6SchedulingAlgorithm(),
       maxNewMovesPerDay = { Int.MAX_VALUE },
       maxTotalMovesPerDay = { Int.MAX_VALUE },

@@ -8,12 +8,14 @@ import proj.memorchess.axl.core.graph.TrainingEntry
 /**
  * Low level persistence seam for the opening tree.
  *
- * Only [proj.memorchess.axl.core.graph.TreeStore] and the platform specific implementations are
- * expected to touch the node and move surface of this interface; the rest of the application talks
- * to [proj.memorchess.axl.core.graph.TreeStore]. The outbox surface ([markDirty], [getOutbox],
- * [clearDirty]) is the exception: [proj.memorchess.axl.core.config.ConfigItem] implementations call
- * [markDirty] directly to queue a setting's [DirtyKey.SettingKey], since a setting has no row of
- * its own for [proj.memorchess.axl.core.graph.TreeStore] to write through.
+ * Only the graph units ([proj.memorchess.axl.core.graph.TreeStore],
+ * [proj.memorchess.axl.core.sync.SyncApplier], [proj.memorchess.axl.core.graph.RepertoireTagStore],
+ * [proj.memorchess.axl.core.graph.TrainableProjection]) and the platform specific implementations
+ * are expected to touch the node and move surface of this interface; the rest of the application
+ * talks to [proj.memorchess.axl.core.graph.TreeStore]. The outbox surface ([markDirty],
+ * [getOutbox], [clearDirty]) is the exception: [proj.memorchess.axl.core.config.ConfigItem]
+ * implementations call [markDirty] directly to queue a setting's [DirtyKey.SettingKey], since a
+ * setting has no row of its own for [proj.memorchess.axl.core.graph.TreeStore] to write through.
  */
 interface DatabaseQueryManager {
 
@@ -233,7 +235,7 @@ interface DatabaseQueryManager {
   /**
    * Reads [positionKey] ignoring the soft-delete filter [getPosition] applies, so a caller can
    * compare it against a pulled sync row even when the local copy is a tombstone. Used only by
-   * [proj.memorchess.axl.core.graph.TreeStore]'s pull-apply path, never by application code.
+   * [proj.memorchess.axl.core.sync.SyncApplier], never by application code.
    */
   suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode?
 
@@ -261,7 +263,7 @@ interface DatabaseQueryManager {
   /**
    * [getRepertoire] ignoring the soft delete filter, so a caller can compare it against a pulled
    * sync row even when the local copy is a tombstone. Used only by
-   * [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
+   * [proj.memorchess.axl.core.sync.SyncApplier].
    */
   suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire?
 
@@ -283,7 +285,7 @@ interface DatabaseQueryManager {
   /**
    * [getTags] ignoring the soft delete filter for one `(origin, destination, repertoireId)` triple,
    * so a caller can compare it against a pulled sync row even when the local copy is a tombstone.
-   * Used only by [proj.memorchess.axl.core.graph.TreeStore]'s pull apply path.
+   * Used only by [proj.memorchess.axl.core.sync.SyncApplier].
    */
   suspend fun getTagIncludingDeleted(
     origin: PositionKey,
@@ -310,7 +312,7 @@ interface DatabaseQueryManager {
   /**
    * Replaces [positionKey]'s entire trainable membership row set with [repertoireIds], stamping
    * [lastReview] on every surviving row. The derived counterpart of [DataNode.hasGoodOutgoing],
-   * owned by [proj.memorchess.axl.core.graph.TreeStore] and recomputed the same way, never synced.
+   * owned by [proj.memorchess.axl.core.graph.TrainableProjection], never synced.
    */
   suspend fun replaceTrainableRepertoires(
     positionKey: PositionKey,

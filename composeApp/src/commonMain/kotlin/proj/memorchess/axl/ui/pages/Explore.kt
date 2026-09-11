@@ -28,6 +28,7 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.DESCENDANT_COUNT_CAP
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
@@ -50,6 +51,7 @@ fun Explore(
   position: PositionKey? = null,
   repertoireId: String? = null,
   treeStore: TreeStore = koinInject(),
+  tagStore: RepertoireTagStore = koinInject(),
   cachedExplorer: CachedExplorer = koinInject(),
 ) {
   Column(
@@ -61,7 +63,7 @@ fun Explore(
     var initialPosition by remember { mutableStateOf<PositionKey?>(null) }
     LoadingWidget({ initialPosition = extractInitialPosition(position, treeStore) }) {
       val linesExplorer =
-        remember(repertoireId) { LinesExplorer(initialPosition, treeStore, repertoireId) }
+        remember(repertoireId) { LinesExplorer(initialPosition, treeStore, tagStore, repertoireId) }
       LaunchedEffect(linesExplorer) { linesExplorer.initState() }
       val coroutineScope = rememberCoroutineScope()
       val explorerViewModel = rememberExplorerViewModel(linesExplorer, cachedExplorer)

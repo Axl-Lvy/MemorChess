@@ -37,6 +37,7 @@ import proj.memorchess.axl.core.scheduling.ReviewGrade
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.setKineticContent
@@ -119,6 +120,7 @@ internal class TestKineticSideBar {
     TrainingScheduler(
       database,
       testTreeStore(database),
+      testRepertoireTagStore(database),
       Fsrs6SchedulingAlgorithm(),
       maxNewMovesPerDay = { Int.MAX_VALUE },
       maxTotalMovesPerDay = { Int.MAX_VALUE },
@@ -293,6 +295,7 @@ internal class TestKineticSideBar {
       TrainingScheduler(
         database,
         testTreeStore(database),
+        testRepertoireTagStore(database),
         Fsrs6SchedulingAlgorithm(),
         maxNewMovesPerDay = { Int.MAX_VALUE },
         maxTotalMovesPerDay = { Int.MAX_VALUE },

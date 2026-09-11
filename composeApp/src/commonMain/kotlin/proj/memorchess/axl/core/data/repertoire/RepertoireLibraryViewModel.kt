@@ -51,7 +51,7 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *   that by design.
  * @param installedStore Records which repertoires are installed on this device.
  * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
- *   normally through [proj.memorchess.axl.core.graph.TreeStore.repertoires].
+ *   normally through [proj.memorchess.axl.core.graph.RepertoireTagStore.repertoires].
  * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).
  */
 class RepertoireLibraryViewModel(
