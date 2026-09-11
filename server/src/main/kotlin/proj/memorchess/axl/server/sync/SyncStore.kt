@@ -846,7 +846,7 @@ internal class SyncStore(
     withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
         val id = connection.resolvePositionIds(listOf(positionKey))[positionKey] ?: return@use null
-        connection.readNode(userId, positionKey, id)
+        connection.readNode(userId, positionKey, id, lockRow = false)
       }
     }
 
@@ -856,7 +856,7 @@ internal class SyncStore(
       dataSource.connection.use { connection ->
         val identity = EdgeIdentity(edge.origin, edge.destination, edge.move)
         val id = connection.resolveEdgeIds(listOf(identity))[identity] ?: return@use null
-        connection.readEdge(userId, identity, id)
+        connection.readEdge(userId, identity, id, lockRow = false)
       }
     }
 
@@ -913,7 +913,7 @@ internal class SyncStore(
     userId: String,
     positionKey: String,
     positionId: Long,
-    lockRow: Boolean = false,
+    lockRow: Boolean,
   ): NodeSyncRow? {
     val sql =
       "SELECT due_date, last_review, first_review, stability, difficulty, reps, lapses, phase, " +
@@ -980,7 +980,7 @@ internal class SyncStore(
     userId: String,
     identity: EdgeIdentity,
     edgeId: Long,
-    lockRow: Boolean = false,
+    lockRow: Boolean,
   ): EdgeSyncRow? {
     val sql =
       "SELECT is_good, is_deleted, updated_at, origin_device, device_seq FROM user_edge " +
@@ -1008,7 +1008,9 @@ internal class SyncStore(
 
   /** Reads one stored setting. Exposed so the push tests do not depend on `pull` being correct. */
   internal suspend fun readSettingForTest(userId: String, key: String): SettingSyncRow? =
-    withContext(ioDispatcher) { dataSource.connection.use { it.readSetting(userId, key) } }
+    withContext(ioDispatcher) {
+      dataSource.connection.use { it.readSetting(userId, key, lockRow = false) }
+    }
 
   /**
    * Writes one setting under last write wins, returning the revision assigned, or `null` when the
@@ -1049,7 +1051,7 @@ internal class SyncStore(
   private fun Connection.readSetting(
     userId: String,
     key: String,
-    lockRow: Boolean = false,
+    lockRow: Boolean,
   ): SettingSyncRow? {
     // FOR UPDATE matters: without the row lock two concurrent pushes for one key both read the old
     // row, both decide they win, and one silently overwrites the other's decision.
@@ -1079,7 +1081,9 @@ internal class SyncStore(
    * Reads one stored repertoire. Exposed so the push tests do not depend on `pull` being correct.
    */
   internal suspend fun readRepertoireForTest(userId: String, id: String): RepertoireSyncRow? =
-    withContext(ioDispatcher) { dataSource.connection.use { it.readRepertoire(userId, id) } }
+    withContext(ioDispatcher) {
+      dataSource.connection.use { it.readRepertoire(userId, id, lockRow = false) }
+    }
 
   /** See [applySetting]; the rule and the revision bump on a loss are identical. */
   private fun Connection.applyRepertoire(userId: String, incoming: RepertoireSyncRow): Long? {
@@ -1118,7 +1122,7 @@ internal class SyncStore(
   private fun Connection.readRepertoire(
     userId: String,
     id: String,
-    lockRow: Boolean = false,
+    lockRow: Boolean,
   ): RepertoireSyncRow? {
     val sql =
       "SELECT name, color, is_deleted, updated_at, origin_device, device_seq FROM user_repertoire " +
@@ -1186,7 +1190,14 @@ internal class SyncStore(
       dataSource.connection.use { connection ->
         val identity = EdgeIdentity(tag.origin, tag.destination, "")
         val edgeId = connection.resolveEdgeIds(listOf(identity))[identity] ?: return@use null
-        connection.readTag(userId, tag.origin, tag.destination, edgeId, tag.repertoireId)
+        connection.readTag(
+          userId,
+          tag.origin,
+          tag.destination,
+          edgeId,
+          tag.repertoireId,
+          lockRow = false,
+        )
       }
     }
 
@@ -1238,7 +1249,7 @@ internal class SyncStore(
     destination: String,
     edgeId: Long,
     repertoireId: String,
-    lockRow: Boolean = false,
+    lockRow: Boolean,
   ): EdgeRepertoireTagSyncRow? {
     val sql =
       "SELECT is_deleted, updated_at, origin_device, device_seq FROM user_edge_repertoire_tag " +
