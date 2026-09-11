@@ -55,6 +55,7 @@ import proj.memorchess.axl.core.sync.toRepertoireSyncRow
  * @param database The persistence backend.
  * @param cache Bounded cache every read and write of the graph goes through.
  * @param prefetcher Fires the one ply neighbour warm after a miss.
+ * @param trainable Per repertoire trainable projection, recomputed after every edge write.
  * @param deviceIdentity Stamped onto every persisted node and edge, and used to order this device's
  *   own writes against its earlier ones. See [DeviceIdentity].
  * @param notifyDirty Called after every local write that queues an outbox entry, so
@@ -65,6 +66,7 @@ class TreeStore(
   private val database: DatabaseQueryManager,
   private val cache: NodeCache,
   private val prefetcher: Prefetcher,
+  private val trainable: TrainableProjection,
   private val deviceIdentity: DeviceIdentity,
   private val notifyDirty: () -> Unit = {},
 ) {
@@ -179,7 +181,7 @@ class TreeStore(
       database.markDirty(DirtyKey.EdgeKey(from, to), edge.deviceSeq)
       // to's own trainable membership depends only on its outgoing edges, which this call did not
       // change, so only from needs recomputing.
-      recomputeTrainable(from)
+      trainable.recompute(from)
       notifyDirty()
     }
     return edge
@@ -233,7 +235,7 @@ class TreeStore(
       for ((edgeKey, seq) in dirtyEdges) database.markDirty(edgeKey, seq)
       // A freshly created destination has no outgoing edges yet, so recomputing it too is a
       // harmless no-op that resolves to an empty set.
-      for (origin in touched) recomputeTrainable(origin)
+      for (origin in touched) trainable.recompute(origin)
       notifyDirty()
     }
   }
@@ -255,7 +257,7 @@ class TreeStore(
     persistNode(positionKey)
     // The edge set does not change here, but NodeRepertoireTrainable.lastReview must still track
     // the position's latest review.
-    recomputeTrainable(positionKey)
+    trainable.recompute(positionKey)
     notifyDirty()
   }
 
@@ -283,7 +285,7 @@ class TreeStore(
     // the freshly recomputed set even though (for mode == SOFT) the row itself may still be
     // resolvable for one more tick.
     if (destination != null) tombstoneTags(from, destination)
-    recomputeTrainable(from)
+    trainable.recompute(from)
     notifyDirty()
   }
 
@@ -308,7 +310,7 @@ class TreeStore(
     // positionKey reflects a row that is already gone. A stale mark set before its own write would
     // have the retry read the same superseded row twice.
     database.deletePosition(positionKey, mode, deviceIdentity.originDevice, seq, DateUtil.now())
-    database.replaceTrainableRepertoires(positionKey, emptySet(), null)
+    trainable.clear(positionKey)
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {
         cache.removeEdge(positionKey, edge.move, edge.to)
@@ -323,7 +325,7 @@ class TreeStore(
     // reflects the deletion and cannot go stale.
     for (origin in survivingOrigins) {
       persistNode(origin)
-      recomputeTrainable(origin)
+      trainable.recompute(origin)
     }
     notifyDirty()
   }
@@ -422,25 +424,8 @@ class TreeStore(
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     )
-    recomputeTrainable(origin)
+    trainable.recompute(origin)
     notifyDirty()
-  }
-
-  /**
-   * Recomputes and persists [origin]'s entire `NodeRepertoireTrainable` row set: one row per
-   * repertoire with at least one live, good outgoing edge tagged with it, each stamped with
-   * [origin]'s current [proj.memorchess.axl.core.scheduling.CardState.lastReview]. Mirrors how
-   * [toDataNode] recomputes [DataNode.hasGoodOutgoing], but per repertoire. A no-op when [origin]
-   * cannot be resolved (it was itself just deleted).
-   */
-  private suspend fun recomputeTrainable(origin: PositionKey) {
-    val resolved = node(origin) ?: return
-    val repertoireIds = mutableSetOf<String>()
-    for (edge in resolved.outgoing.values) {
-      if (edge.isGood != true || edge.isDeleted) continue
-      repertoireIds += tagsFor(edge.from, edge.to)
-    }
-    database.replaceTrainableRepertoires(origin, repertoireIds, resolved.cardState.lastReview)
   }
 
   /** Tombstones every live tag on the edge from [origin] to [destination]. */
@@ -533,7 +518,7 @@ class TreeStore(
     val resolution = resolve(local?.toEdgeRepertoireTagSyncRow(), remote)
     if (resolution.source == ResolutionSource.REMOTE) {
       database.applyRemoteTag(remote.toDataEdgeRepertoireTag())
-      recomputeTrainable(originKey)
+      trainable.recompute(originKey)
     }
     return resolution.source
   }

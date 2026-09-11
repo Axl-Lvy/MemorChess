@@ -9,6 +9,7 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImporter
@@ -64,7 +65,13 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
       val database = InMemoryDatabaseQueryManager()
       val cache = NodeCache({ database.getPosition(it) }, scope)
       val treeStore =
-        TreeStore(database, cache, Prefetcher(cache, scope), DeviceIdentity.ephemeral())
+        TreeStore(
+          database,
+          cache,
+          Prefetcher(cache, scope),
+          TrainableProjection(database, cache),
+          DeviceIdentity.ephemeral(),
+        )
       PgnImporter(treeStore).import(games)
       return RepertoireExplorer(treeStore)
     }

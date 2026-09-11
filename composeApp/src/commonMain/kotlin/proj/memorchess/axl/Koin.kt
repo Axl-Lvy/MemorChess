@@ -48,6 +48,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.NodeLoader
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.RepertoirePgnExporter
@@ -131,12 +132,20 @@ fun initKoinModules(): Array<Module> {
     }
     single { NodeCache(get(), get(named(PREFETCH_SCOPE))) }
     single { Prefetcher(get(), get(named(PREFETCH_SCOPE))) }
+    single { TrainableProjection(get(), get()) }
     single {
       // get<SyncEngine>() is resolved lazily, inside this lambda, only when a write actually
       // happens — never during TreeStore's own construction — which is what breaks what would
       // otherwise be a TreeStore <-> SyncEngine construction cycle (SyncEngine depends on
       // TreeStore normally, to apply a pull).
-      TreeStore(get(), get(), get(), get(), notifyDirty = { get<SyncEngine>().notifyDirty() })
+      TreeStore(
+        get(),
+        get(),
+        get(),
+        get(),
+        get(),
+        notifyDirty = { get<SyncEngine>().notifyDirty() },
+      )
     }
     single {
       TrainingScheduler(

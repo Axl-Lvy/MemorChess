@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
@@ -30,5 +31,11 @@ fun testTreeStore(
   deviceIdentity: DeviceIdentity = DeviceIdentity.ephemeral(),
 ): TreeStore {
   val cache = testNodeCache(database, scope)
-  return TreeStore(database, cache, Prefetcher(cache, scope), deviceIdentity)
+  return TreeStore(
+    database,
+    cache,
+    Prefetcher(cache, scope),
+    TrainableProjection(database, cache),
+    deviceIdentity,
+  )
 }
