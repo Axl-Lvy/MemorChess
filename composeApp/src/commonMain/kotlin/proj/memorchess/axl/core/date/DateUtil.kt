@@ -34,8 +34,16 @@ object DateUtil {
    * @return Current [LocalDate] in system timezone
    */
   fun today(): LocalDate {
-    val todayIn = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    return todayIn
+    return today(TimeZone.currentSystemDefault())
+  }
+
+  /**
+   * Returns today's date in [timeZone].
+   *
+   * @return Current [LocalDate] in [timeZone]
+   */
+  fun today(timeZone: TimeZone): LocalDate {
+    return Clock.System.todayIn(timeZone)
   }
 
   /**

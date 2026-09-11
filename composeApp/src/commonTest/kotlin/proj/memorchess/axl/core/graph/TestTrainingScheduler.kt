@@ -545,6 +545,29 @@ class TestTrainingScheduler {
     assertEquals(1, scheduler.pendingCount(today))
   }
 
+  @Test
+  fun pendingCountDefaultsToTheSchedulersOwnZoneNotTheSystemZone() = runTest {
+    // 26 hours apart, so their current local dates can never coincide, and a system zone default
+    // could agree with the wrong window for at most one of the two. posC was already trained at
+    // the real "now", which always falls inside its own zone's current day by definition, so the
+    // cap holds under the fix. If the default day instead came from the system zone, the window
+    // handed to at least one of these schedulers would miss "now" entirely, posC would stop
+    // consuming the single slot, and pendingCount would surface the still new startPos card.
+    val zoneAhead = UtcOffset(hours = 14).asTimeZone()
+    val zoneBehind = UtcOffset(hours = -12).asTimeZone()
+    val (storeAhead, schedulerAhead) = newScheduler(maxTotal = 1, timeZone = zoneAhead)
+    val (storeBehind, schedulerBehind) = newScheduler(maxTotal = 1, timeZone = zoneBehind)
+    for (store in listOf(storeAhead, storeBehind)) {
+      store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+      store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+      store.addMove(from = posC, move = "Nf3", to = posB, isGood = true, fromDepth = 0)
+      store.updateCardState(posC, reviewedTodayCard())
+    }
+
+    assertEquals(0, schedulerAhead.pendingCount())
+    assertEquals(0, schedulerBehind.pendingCount())
+  }
+
   private fun reviewedTodayCard(): CardState {
     val now = DateUtil.now()
     return CardState(
