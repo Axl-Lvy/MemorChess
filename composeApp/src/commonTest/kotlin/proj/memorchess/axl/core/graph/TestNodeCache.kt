@@ -679,9 +679,7 @@ class TestNodeCache {
       )
 
     var resolved: Resolution? = null
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-      resolved = cache.resolve(to)
-    }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { resolved = cache.resolve(to) }
     cache.removeEdge(originA, "mA", to)
     gate.complete(Unit)
 
