@@ -46,7 +46,7 @@ class TestSyncEngineCycle {
     HttpClient(engine) { install(ContentNegotiation) { json(SYNC_JSON) } }
 
   private val emptyPullBody =
-    """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"nodes":[],"edges":[],"settings":[]}"""
+    """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"tok-1","nodes":[],"edges":[],"settings":[]}"""
   private val emptyPushBody = """{"serverTime":"2026-01-01T00:00:00Z","revision":1,"rejected":[]}"""
 
   private fun MockRequestHandleScope.jsonResponse(body: String) =
@@ -57,7 +57,11 @@ class TestSyncEngineCycle {
     )
 
   private fun emptyPullEngine() = MockEngine { request ->
-    if (request.method.value == "GET") jsonResponse(emptyPullBody) else jsonResponse(emptyPushBody)
+    when (request.method.value) {
+      "PUT" -> respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+      "GET" -> jsonResponse(emptyPullBody)
+      else -> jsonResponse(emptyPushBody)
+    }
   }
 
   private fun treeStore(database: InMemoryDatabaseQueryManager = InMemoryDatabaseQueryManager()) =
@@ -66,7 +70,6 @@ class TestSyncEngineCycle {
   @Test
   fun emptyCycleSucceedsAndLeavesCursorUntouched() = runTest {
     val database = InMemoryDatabaseQueryManager()
-    val cursorStore = SyncCursorStore(proj.memorchess.axl.test_util.TestSettings())
 
     val outcome =
       runSyncCycle(
@@ -75,11 +78,10 @@ class TestSyncEngineCycle {
         treeStore = treeStore(database),
         apiClient =
           SyncApiClient(jsonClient(emptyPullEngine()), baseUrl = "https://issuer.example/v1"),
-        cursorStore = cursorStore,
+        deviceIdentity = DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.Success
-    cursorStore.read() shouldBe null
   }
 
   @Test
@@ -97,7 +99,7 @@ class TestSyncEngineCycle {
         database = database,
         treeStore = treeStore(database),
         apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
-        cursorStore = SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+        deviceIdentity = DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.Transient
@@ -115,7 +117,7 @@ class TestSyncEngineCycle {
       database,
       treeStore(database),
       apiClient,
-      SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+      DeviceIdentity.ephemeral(),
     ) shouldBe CycleOutcome.PausedNoAuth
 
     runSyncCycle(
@@ -123,7 +125,7 @@ class TestSyncEngineCycle {
       database,
       treeStore(database),
       apiClient,
-      SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+      DeviceIdentity.ephemeral(),
     ) shouldBe CycleOutcome.PausedNoAuth
   }
 
@@ -150,7 +152,7 @@ class TestSyncEngineCycle {
         database,
         store,
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
-        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+        DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.Success
@@ -169,7 +171,9 @@ class TestSyncEngineCycle {
       fromDepth = 0,
     )
     val engine = MockEngine { request ->
-      if (request.method.value == "GET") {
+      if (request.method.value == "PUT") {
+        respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+      } else if (request.method.value == "GET") {
         jsonResponse(emptyPullBody)
       } else {
         respond(
@@ -186,7 +190,7 @@ class TestSyncEngineCycle {
         database,
         store,
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
-        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+        DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.QuotaExceeded
@@ -215,7 +219,7 @@ class TestSyncEngineCycle {
         database,
         store,
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
-        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+        DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.Transient
@@ -232,27 +236,28 @@ class TestSyncEngineCycle {
         database,
         treeStore(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
-        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+        DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.Transient
   }
 
   @Test
-  fun aMultiPagePullDrainsBothPagesAndPersistsTheFinalCursor() = runTest {
+  fun aMultiPagePullDrainsEveryPageAndStopsOnTheEmptyOne() = runTest {
     val database = InMemoryDatabaseQueryManager()
     var pullCalls = 0
     val firstPageBody =
-      """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":7,"nodes":[{"positionKey":"a","dueDate":"2026-01-01T00:00:00Z","lastReview":null,"firstReview":null,"stability":0.0,"difficulty":0.0,"reps":0,"lapses":0,"phase":"NEW","step":0,"isDeleted":false,"updatedAt":"2026-01-01T00:00:00Z","originDevice":"remote","deviceSeq":1}],"edges":[],"settings":[]}"""
+      """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":7,"pageToken":"tok-page-1","nodes":[{"positionKey":"a","dueDate":"2026-01-01T00:00:00Z","lastReview":null,"firstReview":null,"stability":0.0,"difficulty":0.0,"reps":0,"lapses":0,"phase":"NEW","step":0,"isDeleted":false,"updatedAt":"2026-01-01T00:00:00Z","originDevice":"remote","deviceSeq":1}],"edges":[],"settings":[]}"""
     val engine = MockEngine { request ->
-      if (request.method.value == "GET") {
-        pullCalls++
-        jsonResponse(if (pullCalls == 1) firstPageBody else emptyPullBody)
-      } else {
-        jsonResponse(emptyPushBody)
+      when (request.method.value) {
+        "PUT" -> respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        "GET" -> {
+          pullCalls++
+          jsonResponse(if (pullCalls == 1) firstPageBody else emptyPullBody)
+        }
+        else -> jsonResponse(emptyPushBody)
       }
     }
-    val cursorStore = SyncCursorStore(proj.memorchess.axl.test_util.TestSettings())
 
     val outcome =
       runSyncCycle(
@@ -260,12 +265,11 @@ class TestSyncEngineCycle {
         database,
         treeStore(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
-        cursorStore,
+        DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.Success
-    pullCalls shouldBe 2
-    cursorStore.read() shouldBe null // the final page's nextCursor was null
+    pullCalls shouldBe 2 // the second page came back empty, which confirmed the first
     database.getPosition(PositionKey("a")).shouldNotBeNull()
   }
 
@@ -280,7 +284,9 @@ class TestSyncEngineCycle {
     store.tagEdge(origin, destination, "italian-game")
     var pushBody: String? = null
     val engine = MockEngine { request ->
-      if (request.method.value == "GET") {
+      if (request.method.value == "PUT") {
+        respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+      } else if (request.method.value == "GET") {
         jsonResponse(emptyPullBody)
       } else {
         pushBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
@@ -294,12 +300,234 @@ class TestSyncEngineCycle {
         database,
         store,
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
-        SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
+        DeviceIdentity.ephemeral(),
       )
 
     outcome shouldBe CycleOutcome.Success
     val sentRequest = SYNC_JSON.decodeFromString<SyncPushRequest>(pushBody!!)
     sentRequest.repertoires.map { it.id } shouldBe listOf("italian-game")
     sentRequest.tags.map { it.repertoireId } shouldBe listOf("italian-game")
+  }
+
+  @Test
+  fun thePushedBodyNamesTheDeviceItCameFrom() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    val identity = DeviceIdentity.ephemeral()
+    var pushBody: String? = null
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        "GET" -> jsonResponse(emptyPullBody)
+        else -> {
+          pushBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+          jsonResponse(emptyPushBody)
+        }
+      }
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        store,
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        identity,
+      )
+
+    outcome shouldBe CycleOutcome.Success
+    SYNC_JSON.decodeFromString<SyncPushRequest>(pushBody!!).device shouldBe identity.originDevice
+  }
+
+  @Test
+  fun theCycleNeverPushesBeforeRegistrationSucceeds() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val methods = mutableListOf<String>()
+    val engine = MockEngine { request ->
+      methods += request.method.value
+      respond(
+        content = ByteReadChannel("""{"code":"internal","message":"nope"}"""),
+        status = HttpStatusCode.InternalServerError,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        treeStore(database),
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        DeviceIdentity.ephemeral(),
+      )
+
+    outcome shouldBe CycleOutcome.Transient
+    methods shouldBe listOf("PUT")
+  }
+
+  @Test
+  fun theFirstPullOfACycleSendsNoAckAndLaterOnesSendTheLastToken() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val acks = mutableListOf<String?>()
+    var pullCalls = 0
+    val firstPageBody =
+      """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":7,"pageToken":"tok-page-1","nodes":[{"positionKey":"a","dueDate":"2026-01-01T00:00:00Z","lastReview":null,"firstReview":null,"stability":0.0,"difficulty":0.0,"reps":0,"lapses":0,"phase":"NEW","step":0,"isDeleted":false,"updatedAt":"2026-01-01T00:00:00Z","originDevice":"remote","deviceSeq":1}],"edges":[],"settings":[]}"""
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        "GET" -> {
+          acks += request.url.parameters["ack"]
+          pullCalls++
+          jsonResponse(if (pullCalls == 1) firstPageBody else emptyPullBody)
+        }
+        else -> jsonResponse(emptyPushBody)
+      }
+    }
+
+    runSyncCycle(
+      FakeAuthProvider(TokenResult.Ok("tok")),
+      database,
+      treeStore(database),
+      SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+      DeviceIdentity.ephemeral(),
+    )
+
+    acks shouldBe listOf(null, "tok-page-1")
+  }
+
+  @Test
+  fun aResyncFromRegisterWipesTheSyncedRowsAndReportsTheWipe() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    database.getPosition(PositionKey("after-e4")).shouldNotBeNull()
+    val resetFlags = mutableListOf<Boolean>()
+    val engine = MockEngine { request ->
+      if (request.method.value == "PUT") {
+        val body = (request.body as io.ktor.http.content.TextContent).text
+        val reported = body.contains(""""afterReset":true""")
+        resetFlags += reported
+        if (reported) {
+          respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        } else {
+          respond(
+            content = ByteReadChannel("""{"code":"resync_required","message":"start over"}"""),
+            status = HttpStatusCode.Gone,
+            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+          )
+        }
+      } else {
+        jsonResponse(emptyPushBody)
+      }
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        store,
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        DeviceIdentity.ephemeral(),
+      )
+
+    outcome shouldBe CycleOutcome.Transient
+    resetFlags shouldBe listOf(false, true)
+    database.getPosition(PositionKey("after-e4")) shouldBe null
+    database.getOutbox() shouldBe emptyList()
+  }
+
+  @Test
+  fun aResyncFromPushWipesAndReportsTheWipeToo() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    val resetFlags = mutableListOf<Boolean>()
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> {
+          val body = (request.body as io.ktor.http.content.TextContent).text
+          resetFlags += body.contains(""""afterReset":true""")
+          respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        }
+        "GET" -> jsonResponse(emptyPullBody)
+        else ->
+          respond(
+            content = ByteReadChannel("""{"code":"resync_required","message":"start over"}"""),
+            status = HttpStatusCode.Gone,
+            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+          )
+      }
+    }
+
+    runSyncCycle(
+      FakeAuthProvider(TokenResult.Ok("tok")),
+      database,
+      store,
+      SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+      DeviceIdentity.ephemeral(),
+    )
+
+    resetFlags shouldBe listOf(false, true)
+    database.getPosition(PositionKey("after-e4")) shouldBe null
+  }
+
+  @Test
+  fun aResyncFromPullWipesAndReportsTheWipeToo() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    val resetFlags = mutableListOf<Boolean>()
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> {
+          val body = (request.body as io.ktor.http.content.TextContent).text
+          resetFlags += body.contains(""""afterReset":true""")
+          respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        }
+        "GET" ->
+          respond(
+            content = ByteReadChannel("""{"code":"resync_required","message":"start over"}"""),
+            status = HttpStatusCode.Gone,
+            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+          )
+        else -> jsonResponse(emptyPushBody)
+      }
+    }
+
+    runSyncCycle(
+      FakeAuthProvider(TokenResult.Ok("tok")),
+      database,
+      store,
+      SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+      DeviceIdentity.ephemeral(),
+    )
+
+    resetFlags shouldBe listOf(false, true)
+    database.getPosition(PositionKey("after-e4")) shouldBe null
   }
 }

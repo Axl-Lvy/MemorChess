@@ -3,10 +3,14 @@ package proj.memorchess.axl.server.sync
 import java.sql.Connection
 import java.sql.Timestamp
 import javax.sql.DataSource
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
@@ -85,6 +89,7 @@ internal class SyncStore(
    */
   internal suspend fun push(
     userId: String,
+    deviceId: String,
     request: SyncPushRequest,
     serverNow: Instant,
   ): SyncPushResponse {
@@ -102,6 +107,7 @@ internal class SyncStore(
       inTransaction { connection ->
         connection.applyBatch(
           userId,
+          deviceId,
           nodes.accepted,
           edges.accepted,
           settings.accepted,
@@ -134,9 +140,13 @@ internal class SyncStore(
    *   Checked before anything is resolved or written, under [acquireUserLock], so two concurrent
    *   pushes from the same user can never both slip past it. Tags are checked further down, once
    *   the ones naming an edge the server has never seen are known and excluded from the count.
+   * @throws UnknownDeviceException [deviceId] has no row under [userId].
+   * @throws ResyncRequiredException [deviceId] was removed and has fallen below the garbage
+   *   collection floor, so it may be holding rows whose tombstones are already gone.
    */
   private fun Connection.applyBatch(
     userId: String,
+    deviceId: String,
     nodes: List<NodeSyncRow>,
     edges: List<EdgeSyncRow>,
     settings: List<SettingSyncRow>,
@@ -144,6 +154,9 @@ internal class SyncStore(
     tags: List<EdgeRepertoireTagSyncRow>,
   ): Pair<Long, List<RejectedRow>> {
     acquireUserLock(userId)
+    // Under the same lock as everything else, so a device removed concurrently cannot slip a batch
+    // past the check.
+    requireSyncableDevice(userId, deviceId)
     checkNodeQuota(userId, nodes, maxNodesPerUser)
     checkEdgeQuota(userId, edges, maxEdgesPerUser)
     checkRepertoireQuota(userId, repertoires, maxRepertoiresPerUser)
@@ -235,59 +248,140 @@ internal class SyncStore(
     }
 
   /**
-   * One bounded page of rows the caller has not seen, ordered by the server assigned revision.
+   * One bounded page of rows [deviceId] has not been served, ordered by the server assigned
+   * revision.
    *
-   * The cursor is a revision and **never** a timestamp. Using `updated_at` instead looks equivalent
-   * and silently loses rows forever: a device with a slow clock writes a row stamped earlier than a
-   * cursor another device has already passed, and that row is never returned again.
+   * The position is a revision and **never** a timestamp. Using `updated_at` instead looks
+   * equivalent and silently loses rows forever: a device with a slow clock writes a row stamped
+   * earlier than a position another device has already passed, and that row is never returned
+   * again.
    *
    * Each resource is queried separately with its own limit, so a table that filled its page may
    * still be holding rows. [SyncPullResponse.nextCursor] is therefore the **lowest** such ceiling
-   * across the three, and rows above it are withheld until the next page. Advancing further could
+   * across the five, and rows above it are withheld until the next page. Advancing further could
    * skip a row in a table that had not caught up, and re-sending is free because applying a row is
-   * idempotent. A `null` cursor means every table returned a partial page and the caller is up to
-   * date.
+   * idempotent.
    *
+   * Runs in one transaction under [acquireUserLock], so the five queries see one snapshot. Without
+   * that, a push committing between two of them yields a page carrying an edge without the node
+   * from the same push, and confirming it would authorize purging a tombstone the page never
+   * carried.
+   *
+   * @param ack Token of the page the caller has just written locally, or `null` when it has
+   *   committed nothing since its last failure. A token that matches nothing confirms nothing,
+   *   which is what a replayed request looks like.
    * @param limit Maximum rows per resource; must be strictly positive.
    * @throws IllegalArgumentException when [limit] is not strictly positive.
+   * @throws UnknownDeviceException when [deviceId] has no row under [userId].
+   * @throws ResyncRequiredException when [deviceId] was removed and has fallen below the floor.
    */
   internal suspend fun pull(
     userId: String,
-    since: Long,
+    deviceId: String,
+    ack: String?,
     limit: Int,
     serverNow: Instant,
-  ): SyncPullResponse =
-    withContext(ioDispatcher) {
-      require(limit > 0) { "limit must be strictly positive, was $limit" }
+  ): SyncPullResponse {
+    require(limit > 0) { "limit must be strictly positive, was $limit" }
+    return inTransaction { connection ->
+      connection.acquireUserLock(userId)
+      val device = connection.requireSyncableDevice(userId, deviceId)
 
-      dataSource.connection.use { connection ->
-        val nodes = connection.pullNodes(userId, since, limit)
-        val edges = connection.pullEdges(userId, since, limit)
-        val settings = connection.pullSettings(userId, since, limit)
-        val repertoires = connection.pullRepertoires(userId, since, limit)
-        val tags = connection.pullTags(userId, since, limit)
+      // The token rotates on every response, so a replayed request holds one that no longer
+      // matches, confirms nothing and is simply re served.
+      val since =
+        if (ack != null && ack == device.lastPageToken) {
+          connection.setAcked(userId, deviceId, device.lastServed)
+          device.lastServed
+        } else {
+          device.lastAcked
+        }
 
-        // A page that came back full may be hiding more rows, so its last revision is a ceiling.
-        // A partial page is exhausted and imposes none.
-        val ceiling =
-          listOf(nodes, edges, settings, repertoires, tags)
-            .mapNotNull { page -> page.takeIf { it.size == limit }?.last()?.first }
-            .minOrNull()
+      val nodes = connection.pullNodes(userId, since, limit)
+      val edges = connection.pullEdges(userId, since, limit)
+      val settings = connection.pullSettings(userId, since, limit)
+      val repertoires = connection.pullRepertoires(userId, since, limit)
+      val tags = connection.pullTags(userId, since, limit)
 
-        fun <T> List<Pair<Long, T>>.upTo(bound: Long?) =
-          (if (bound == null) this else filter { it.first <= bound }).map { it.second }
+      // A page that came back full may be hiding more rows, so its last revision is a ceiling.
+      // A partial page is exhausted and imposes none.
+      val ceiling =
+        listOf(nodes, edges, settings, repertoires, tags)
+          .mapNotNull { page -> page.takeIf { it.size == limit }?.last()?.first }
+          .minOrNull()
 
-        SyncPullResponse(
-          serverTime = serverNow,
-          nextCursor = ceiling,
-          nodes = nodes.upTo(ceiling),
-          edges = edges.upTo(ceiling),
-          settings = settings.upTo(ceiling),
-          repertoires = repertoires.upTo(ceiling),
-          tags = tags.upTo(ceiling),
-        )
-      }
+      fun <T> List<Pair<Long, T>>.upTo(bound: Long?) =
+        (if (bound == null) this else filter { it.first <= bound }).map { it.second }
+
+      // A plain assignment. It states what this device was handed, which is what the column means.
+      // A maximum would behave identically, since the ceiling cannot fall while the acknowledgement
+      // is unchanged, but it would suggest a guarantee this column does not need.
+      val servedThrough =
+        listOf(nodes, edges, settings, repertoires, tags)
+          .flatMap { page -> page.map { it.first } }
+          .filter { ceiling == null || it <= ceiling }
+          .maxOrNull() ?: since
+      val pageToken = Uuid.random().toString()
+      connection.setServed(userId, deviceId, servedThrough, pageToken)
+
+      SyncPullResponse(
+        serverTime = serverNow,
+        nextCursor = ceiling,
+        pageToken = pageToken,
+        nodes = nodes.upTo(ceiling),
+        edges = edges.upTo(ceiling),
+        settings = settings.upTo(ceiling),
+        repertoires = repertoires.upTo(ceiling),
+        tags = tags.upTo(ceiling),
+      )
     }
+  }
+
+  /**
+   * The device's row, refusing a caller that may no longer sync.
+   *
+   * @throws UnknownDeviceException when there is no row: there is no position to serve from and no
+   *   floor to check against, and serving from `0` would hand a full dataset to a device the
+   *   watermark cannot see.
+   */
+  private fun Connection.requireSyncableDevice(userId: String, deviceId: String): DeviceRow {
+    val device = readDevice(userId, deviceId) ?: throw UnknownDeviceException(deviceId)
+    if (device.removedAt != null && device.lastAcked < gcFloor(userId)) {
+      throw ResyncRequiredException(deviceId)
+    }
+    return device
+  }
+
+  private fun Connection.setAcked(userId: String, deviceId: String, acked: Long) {
+    prepareStatement(
+        "UPDATE sync_device SET last_acked_revision = ? WHERE user_id = ? AND device_id = ?"
+      )
+      .use { statement ->
+        statement.setLong(1, acked)
+        statement.setString(2, userId)
+        statement.setString(3, deviceId)
+        statement.executeUpdate()
+      }
+  }
+
+  private fun Connection.setServed(
+    userId: String,
+    deviceId: String,
+    served: Long,
+    pageToken: String,
+  ) {
+    prepareStatement(
+        "UPDATE sync_device SET last_served_revision = ?, last_page_token = ? " +
+          "WHERE user_id = ? AND device_id = ?"
+      )
+      .use { statement ->
+        statement.setLong(1, served)
+        statement.setString(2, pageToken)
+        statement.setString(3, userId)
+        statement.setString(4, deviceId)
+        statement.executeUpdate()
+      }
+  }
 
   private fun Connection.pullNodes(
     userId: String,
@@ -402,6 +496,332 @@ internal class SyncStore(
       }
 
   /**
+   * Upserts one device, refreshing its last seen time and its reported platform.
+   *
+   * @param afterReset The caller reports having wiped its synced local state, which is the only
+   *   thing that lets a device below the garbage collection floor start over.
+   * @return [RegisterOutcome.ResyncRequired] when this device was removed and has fallen below that
+   *   floor, [RegisterOutcome.Ok] otherwise.
+   */
+  internal suspend fun registerDevice(
+    userId: String,
+    deviceId: String,
+    platform: DevicePlatform,
+    afterReset: Boolean,
+    serverNow: Instant,
+  ): RegisterOutcome = inTransaction { connection ->
+    // Under the same lock as collection, which reads this device's position and the floor this
+    // decision is made against. Without it a removed device can be reinstated keeping a position
+    // that a concurrently written floor is about to overtake, and it would then never be told to
+    // resync while its tombstones were purged underneath it.
+    connection.acquireUserLock(userId)
+    val existing = connection.readDevice(userId, deviceId)
+    when {
+      // First, and unconditionally: a 204 confirming a reset can be lost in transit, and the
+      // client then retries against a row that is already reinstated. Ignoring the flag there
+      // would leave a device that has just wiped its database sitting at its old acknowledgement,
+      // silently missing everything below it.
+      afterReset -> connection.reinstateAndZero(userId, deviceId, platform, serverNow)
+      existing == null || existing.removedAt == null ->
+        connection.upsertDevice(userId, deviceId, platform, serverNow)
+      existing.lastAcked >= connection.gcFloor(userId) ->
+        connection.reinstate(userId, deviceId, platform, serverNow)
+      else -> return@inTransaction RegisterOutcome.ResyncRequired
+    }
+    RegisterOutcome.Ok
+  }
+
+  /** Clears the removal and starts the device over at nothing seen. */
+  private fun Connection.reinstateAndZero(
+    userId: String,
+    deviceId: String,
+    platform: DevicePlatform,
+    serverNow: Instant,
+  ) {
+    upsertDevice(userId, deviceId, platform, serverNow)
+    prepareStatement(
+        "UPDATE sync_device SET removed_at = NULL, last_acked_revision = 0, " +
+          "last_served_revision = 0, last_page_token = NULL " +
+          "WHERE user_id = ? AND device_id = ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setString(2, deviceId)
+        statement.executeUpdate()
+      }
+  }
+
+  /** Clears the removal, keeping the position, for a device that is missing nothing. */
+  private fun Connection.reinstate(
+    userId: String,
+    deviceId: String,
+    platform: DevicePlatform,
+    serverNow: Instant,
+  ) {
+    upsertDevice(userId, deviceId, platform, serverNow)
+    prepareStatement("UPDATE sync_device SET removed_at = NULL WHERE user_id = ? AND device_id = ?")
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setString(2, deviceId)
+        statement.executeUpdate()
+      }
+  }
+
+  /**
+   * The highest revision below which a tombstone may already be gone for [userId].
+   *
+   * `0` when this user has never been collected, which makes "no floor at all" fall out of the same
+   * comparison rather than needing a branch of its own.
+   */
+  private fun Connection.gcFloor(userId: String): Long =
+    prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use { statement
+      ->
+      statement.setString(1, userId)
+      statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else 0L }
+    }
+
+  private fun Connection.readDevice(userId: String, deviceId: String): DeviceRow? =
+    readDevices(userId).firstOrNull { it.deviceId == deviceId }
+
+  /**
+   * Marks a device removed, so the watermark stops waiting on it. Test only until the follow up.
+   */
+  internal suspend fun removeDeviceForTest(userId: String, deviceId: String, at: Instant) {
+    inTransaction { connection ->
+      connection
+        .prepareStatement(
+          "UPDATE sync_device SET removed_at = ? WHERE user_id = ? AND device_id = ?"
+        )
+        .use { statement ->
+          statement.setTimestamp(1, at.toTimestamp())
+          statement.setString(2, userId)
+          statement.setString(3, deviceId)
+          statement.executeUpdate()
+        }
+    }
+  }
+
+  /** Forces a user's garbage collection floor. Test only. */
+  internal suspend fun setGcFloorForTest(userId: String, floor: Long) {
+    inTransaction { connection -> connection.setGcFloor(userId, floor) }
+  }
+
+  private fun Connection.setGcFloor(userId: String, floor: Long) {
+    prepareStatement(
+        "INSERT INTO sync_gc_floor (user_id, floor_revision) VALUES (?, ?) " +
+          "ON CONFLICT (user_id) DO UPDATE SET floor_revision = EXCLUDED.floor_revision"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setLong(2, floor)
+        statement.executeUpdate()
+      }
+  }
+
+  /** Inserts the row, or refreshes the platform and last seen time of the one already there. */
+  private fun Connection.upsertDevice(
+    userId: String,
+    deviceId: String,
+    platform: DevicePlatform,
+    serverNow: Instant,
+  ) {
+    prepareStatement(
+        "INSERT INTO sync_device (user_id, device_id, platform, last_seen_at) " +
+          "VALUES (?, ?, ?, ?) ON CONFLICT (user_id, device_id) DO UPDATE SET " +
+          "platform = EXCLUDED.platform, last_seen_at = EXCLUDED.last_seen_at"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setString(2, deviceId)
+        // The column is text, so the enum becomes its wire name here and nowhere else.
+        statement.setString(3, platform.wireName)
+        statement.setTimestamp(4, serverNow.toTimestamp())
+        statement.executeUpdate()
+      }
+  }
+
+  /**
+   * Whether [deviceId] has confirmed committing every row [userId] has, or `null` when there is no
+   * live row for it.
+   *
+   * The comparison is `>=` rather than equality because collection can lower the user's maximum:
+   * when the newest row is a tombstone every device has committed, collecting it drops that maximum
+   * below the very acknowledgements that authorized the delete, and equality would then report a
+   * fully caught up device as behind.
+   */
+  internal suspend fun deviceStatus(userId: String, deviceId: String): Boolean? =
+    inTransaction { connection ->
+      val device =
+        connection.readDevice(userId, deviceId)?.takeIf { it.removedAt == null }
+          ?: return@inTransaction null
+      device.lastAcked >= connection.highestRevision(userId)
+    }
+
+  /**
+   * The highest revision [userId] owns across [PER_USER_TABLES], or `0` when they own nothing.
+   *
+   * Per user, and never the `sync_revision` sequence itself: that counter is global, so comparing
+   * against it would report every device as behind forever.
+   */
+  private fun Connection.highestRevision(userId: String): Long {
+    val union =
+      PER_USER_TABLES.joinToString(" UNION ALL ") {
+        "SELECT max(revision) AS revision FROM $it WHERE user_id = ?"
+      }
+    return prepareStatement("SELECT COALESCE(max(revision), 0) FROM ($union) AS revisions").use {
+      statement ->
+      PER_USER_TABLES.forEachIndexed { index, _ -> statement.setString(index + 1, userId) }
+      statement.executeQuery().use { rows ->
+        rows.next()
+        rows.getLong(1)
+      }
+    }
+  }
+
+  /**
+   * Forces a device's position, so the floor boundaries are reachable without paging. Test only.
+   */
+  internal suspend fun setPositionForTest(
+    userId: String,
+    deviceId: String,
+    lastAcked: Long,
+    lastServed: Long,
+  ) {
+    inTransaction { connection ->
+      connection
+        .prepareStatement(
+          "UPDATE sync_device SET last_acked_revision = ?, last_served_revision = ? " +
+            "WHERE user_id = ? AND device_id = ?"
+        )
+        .use { statement ->
+          statement.setLong(1, lastAcked)
+          statement.setLong(2, lastServed)
+          statement.setString(3, userId)
+          statement.setString(4, deviceId)
+          statement.executeUpdate()
+        }
+    }
+  }
+
+  /** Every device row [userId] owns, removed ones included. Test only. */
+  internal suspend fun listDevicesForTest(userId: String): List<DeviceRow> =
+    inTransaction { connection ->
+      connection.readDevices(userId)
+    }
+
+  private fun Connection.readDevices(userId: String): List<DeviceRow> =
+    prepareStatement(
+        "SELECT device_id, platform, last_acked_revision, last_served_revision, " +
+          "last_page_token, removed_at FROM sync_device WHERE user_id = ? ORDER BY device_id"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.executeQuery().use { rows ->
+          buildList {
+            while (rows.next()) {
+              add(
+                DeviceRow(
+                  deviceId = rows.getString(1),
+                  platform =
+                    rows.getString(2).let(DevicePlatform::fromWire)
+                      ?: error("stored platform '${rows.getString(2)}' is not a known one"),
+                  lastAcked = rows.getLong(3),
+                  lastServed = rows.getLong(4),
+                  lastPageToken = rows.getString(5),
+                  removedAt = rows.getTimestamp(6)?.toInstant()?.toKotlinInstant(),
+                )
+              )
+            }
+          }
+        }
+      }
+
+  /**
+   * Deletes every tombstone every registered device has confirmed committing, per user.
+   *
+   * One transaction per user, never one spanning the loop: a single transaction over every user
+   * would hold every user's advisory lock at once and block all pushes for as long as this ran.
+   *
+   * Idempotent, so two instances firing on the same schedule are safe. The second takes the same
+   * per user lock and finds nothing left to delete.
+   */
+  internal suspend fun collectTombstones() {
+    for (userId in usersWithDevices()) {
+      try {
+        collectTombstonesOf(userId)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        // One user's failure must not cost every later user in this run its collection, and the
+        // scheduled job must survive to run again tomorrow.
+        logger.error("Tombstone collection failed for user '{}', continuing", userId, e)
+      }
+    }
+  }
+
+  /** Collects one user's tombstones, in a single transaction under their lock. */
+  private suspend fun collectTombstonesOf(userId: String) {
+    inTransaction { connection ->
+      connection.acquireUserLock(userId)
+      // Read under the lock that guards the delete below, never before it. A registration
+      // landing between an unlocked read and this block could reinstate a removed device at a
+      // position the floor written here is about to overtake.
+      val watermark = connection.watermarkOf(userId)
+      // Either some device has committed nothing yet, or there is genuinely nothing to reclaim.
+      if (watermark == null || watermark == 0L) return@inTransaction
+      for (table in PER_USER_TABLES) {
+        connection
+          .prepareStatement("DELETE FROM $table WHERE user_id = ? AND is_deleted AND revision <= ?")
+          .use { statement ->
+            statement.setString(1, userId)
+            statement.setLong(2, watermark)
+            statement.executeUpdate()
+          }
+      }
+      connection.setGcFloor(userId, watermark)
+    }
+  }
+
+  /** Every user with at least one device row, which is the per user gate on collection. */
+  private suspend fun usersWithDevices(): List<String> = inTransaction { connection ->
+    connection.prepareStatement("SELECT DISTINCT user_id FROM sync_device").use { statement ->
+      statement.executeQuery().use { rows ->
+        buildList { while (rows.next()) add(rows.getString(1)) }
+      }
+    }
+  }
+
+  /**
+   * The lowest acknowledgement across [userId]'s devices that are still registered, or `null` when
+   * every one of them has been removed.
+   *
+   * Removed devices are excluded, which is the whole point of removal: one lost install would
+   * otherwise hold this user's watermark down forever.
+   */
+  private fun Connection.watermarkOf(userId: String): Long? =
+    prepareStatement(
+        "SELECT min(last_acked_revision) FROM sync_device " +
+          "WHERE user_id = ? AND removed_at IS NULL"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.executeQuery().use { rows ->
+          rows.next()
+          val value = rows.getLong(1)
+          if (rows.wasNull()) null else value
+        }
+      }
+
+  /** The user's collection floor, or `null` when they have never been collected. Test only. */
+  internal suspend fun gcFloorForTest(userId: String): Long? = inTransaction { connection ->
+    connection.prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use {
+      statement ->
+      statement.setString(1, userId)
+      statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
+    }
+  }
+
+  /**
    * Removes every row belonging to [userId].
    *
    * Only the three per user tables. The shared `position` and `move_edge` rows stay, because they
@@ -412,7 +832,7 @@ internal class SyncStore(
    */
   internal suspend fun deleteUser(userId: String) {
     inTransaction { connection ->
-      for (table in PER_USER_TABLES) {
+      for (table in PER_USER_TABLES + "sync_device" + "sync_gc_floor") {
         connection.prepareStatement("DELETE FROM $table WHERE user_id = ?").use { statement ->
           statement.setString(1, userId)
           statement.executeUpdate()
@@ -1102,3 +1522,40 @@ private fun Instant.toTimestamp(): Timestamp =
 
 private fun java.time.Instant.toKotlinInstant(): Instant =
   Instant.fromEpochSeconds(epochSecond, nano.toLong())
+
+/** What [SyncStore.registerDevice] decided about a device that came back. */
+internal sealed class RegisterOutcome {
+
+  /** The device is registered and may sync. */
+  data object Ok : RegisterOutcome()
+
+  /** The device must wipe its synced local state and register again reporting the wipe. */
+  data object ResyncRequired : RegisterOutcome()
+}
+
+/**
+ * One `sync_device` row.
+ *
+ * @property lastAcked Highest revision this device confirmed writing locally.
+ * @property lastServed Highest revision the server handed it.
+ * @property lastPageToken Token issued with its most recent page, or `null` before its first pull.
+ * @property removedAt When it was removed, or `null` while it is registered.
+ */
+internal data class DeviceRow(
+  val deviceId: String,
+  val platform: DevicePlatform,
+  val lastAcked: Long,
+  val lastServed: Long,
+  val lastPageToken: String?,
+  val removedAt: Instant?,
+)
+
+private val logger = LoggerFactory.getLogger(SyncStore::class.java)
+
+/** A caller named a device the server has never been told about. */
+internal class UnknownDeviceException(deviceId: String) :
+  Exception("device '$deviceId' is not registered")
+
+/** A removed device came back below what garbage collection already purged. */
+internal class ResyncRequiredException(deviceId: String) :
+  Exception("device '$deviceId' must resync from scratch")

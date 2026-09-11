@@ -11,6 +11,7 @@ import io.ktor.server.application.install
 import io.ktor.server.application.pluginOrNull
 import io.ktor.server.auth.principal
 import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
@@ -35,7 +36,9 @@ import proj.memorchess.axl.server.auth.installJwtAuth
 import proj.memorchess.axl.server.routes.syncRoutes
 import proj.memorchess.axl.server.routes.versionRoute
 import proj.memorchess.axl.server.sync.QuotaExceededException
+import proj.memorchess.axl.server.sync.ResyncRequiredException
 import proj.memorchess.axl.server.sync.SyncStore
+import proj.memorchess.axl.server.sync.UnknownDeviceException
 
 /**
  * Largest request body accepted, checked against the declared length so nothing oversized is ever
@@ -186,6 +189,24 @@ private fun Application.installErrorMapping() {
       call.respond(
         HttpStatusCode.BadRequest,
         ApiError(ApiErrorCode.BAD_REQUEST, cause.message ?: "malformed request"),
+      )
+    }
+    exception<NotFoundException> { call, cause ->
+      call.respond(
+        HttpStatusCode.NotFound,
+        ApiError(ApiErrorCode.NOT_FOUND, cause.message ?: "no such resource"),
+      )
+    }
+    exception<UnknownDeviceException> { call, cause ->
+      call.respond(
+        HttpStatusCode.BadRequest,
+        ApiError(ApiErrorCode.BAD_REQUEST, cause.message ?: "unknown device"),
+      )
+    }
+    exception<ResyncRequiredException> { call, cause ->
+      call.respond(
+        HttpStatusCode.Gone,
+        ApiError(ApiErrorCode.RESYNC_REQUIRED, cause.message ?: "the caller must resync"),
       )
     }
     exception<SerializationException> { call, _ ->

@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
@@ -20,6 +21,14 @@ import proj.memorchess.axl.server.db.PostgresTestDb
 internal class TestSyncStorePush {
 
   private val store = SyncStore(PostgresTestDb.dataSource())
+
+  /** A fresh user with one registered device, which pushing now requires. */
+  private suspend fun newUser(): String {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    return user
+  }
+
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
   private fun setting(
@@ -40,7 +49,12 @@ internal class TestSyncStorePush {
     )
 
   private fun request(vararg settings: SettingSyncRow) =
-    SyncPushRequest(nodes = emptyList(), edges = emptyList(), settings = settings.toList())
+    SyncPushRequest(
+      nodes = emptyList(),
+      edges = emptyList(),
+      settings = settings.toList(),
+      device = DEVICE,
+    )
 
   private fun node(
     key: String,
@@ -89,45 +103,47 @@ internal class TestSyncStorePush {
 
   @Test
   fun anEmptyPushIsAccepted() = runTest {
-    val response = store.push(PostgresTestDb.newUserId(), request(), serverNow)
+    val response = store.push(newUser(), DEVICE, request(), serverNow)
     response.rejected.shouldBeEmpty()
     response.serverTime shouldBe serverNow
   }
 
   @Test
   fun aFirstWriteIsStoredAndGetsARevision() = runTest {
-    val user = PostgresTestDb.newUserId()
-    val response = store.push(user, request(setting("theme", "dark", serverNow)), serverNow)
+    val user = newUser()
+    val response = store.push(user, DEVICE, request(setting("theme", "dark", serverNow)), serverNow)
     response.rejected.shouldBeEmpty()
     (response.revision > 0) shouldBe true
   }
 
   @Test
   fun aNewerWriteFromTheSameDeviceReplacesTheOlderOne() = runTest {
-    val user = PostgresTestDb.newUserId()
-    store.push(user, request(setting("theme", "dark", serverNow, seq = 1)), serverNow)
-    store.push(user, request(setting("theme", "light", serverNow, seq = 2)), serverNow)
+    val user = newUser()
+    store.push(user, DEVICE, request(setting("theme", "dark", serverNow, seq = 1)), serverNow)
+    store.push(user, DEVICE, request(setting("theme", "light", serverNow, seq = 2)), serverNow)
     store.readSettingForTest(user, "theme")?.value shouldBe "light"
   }
 
   @Test
   fun anOlderWriteFromTheSameDeviceLosesOnSequence() = runTest {
-    val user = PostgresTestDb.newUserId()
-    store.push(user, request(setting("theme", "dark", serverNow, seq = 5)), serverNow)
-    store.push(user, request(setting("theme", "light", serverNow, seq = 2)), serverNow)
+    val user = newUser()
+    store.push(user, DEVICE, request(setting("theme", "dark", serverNow, seq = 5)), serverNow)
+    store.push(user, DEVICE, request(setting("theme", "light", serverNow, seq = 2)), serverNow)
     store.readSettingForTest(user, "theme")?.value shouldBe "dark"
   }
 
   @Test
   fun aLaterWriteFromAnotherDeviceWinsOnTime() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     store.push(
       user,
+      DEVICE,
       request(setting("theme", "dark", Instant.fromEpochMilliseconds(10))),
       serverNow,
     )
     store.push(
       user,
+      DEVICE,
       request(setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")),
       serverNow,
     )
@@ -136,16 +152,18 @@ internal class TestSyncStorePush {
 
   @Test
   fun aLosingPushStillAdvancesTheSurvivingRowsRevision() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val first =
       store.push(
         user,
+        DEVICE,
         request(setting("theme", "dark", Instant.fromEpochMilliseconds(20))),
         serverNow,
       )
     val second =
       store.push(
         user,
+        DEVICE,
         request(setting("theme", "light", Instant.fromEpochMilliseconds(10), device = "device-b")),
         serverNow,
       )
@@ -156,27 +174,33 @@ internal class TestSyncStorePush {
 
   @Test
   fun anIdenticalReplayDoesNotAdvanceTheRevision() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val row = setting("theme", "dark", serverNow)
-    store.push(user, request(row), serverNow)
-    store.push(user, request(row), serverNow).revision shouldBe 0L
+    store.push(user, DEVICE, request(row), serverNow)
+    store.push(user, DEVICE, request(row), serverNow).revision shouldBe 0L
   }
 
   @Test
   fun aRowExactlyAtTheSkewToleranceIsAccepted() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     store
-      .push(user, request(setting("theme", "dark", serverNow + SYNC_SKEW_TOLERANCE)), serverNow)
+      .push(
+        user,
+        DEVICE,
+        request(setting("theme", "dark", serverNow + SYNC_SKEW_TOLERANCE)),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
   }
 
   @Test
   fun aRowOneMillisecondBeyondTheToleranceIsRefusedAndNotStored() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val response =
       store.push(
         user,
+        DEVICE,
         request(setting("theme", "dark", serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds)),
         serverNow,
       )
@@ -188,10 +212,11 @@ internal class TestSyncStorePush {
 
   @Test
   fun aRefusedRowDoesNotBlockTheRestOfTheBatch() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val response =
       store.push(
         user,
+        DEVICE,
         request(
           setting("bad", "x", serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds),
           setting("good", "y", serverNow),
@@ -204,9 +229,14 @@ internal class TestSyncStorePush {
 
   @Test
   fun anEpochZeroTimestampIsAnOrdinaryWrite() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     store
-      .push(user, request(setting("theme", "dark", Instant.fromEpochMilliseconds(0))), serverNow)
+      .push(
+        user,
+        DEVICE,
+        request(setting("theme", "dark", Instant.fromEpochMilliseconds(0))),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
     store.readSettingForTest(user, "theme")?.value shouldBe "dark"
@@ -216,32 +246,44 @@ internal class TestSyncStorePush {
   fun aSubMillisecondTimestampSurvivesTheRoundTrip() = runTest {
     // Postgres timestamptz keeps microseconds. A millisecond conversion would move this value,
     // and a stored row must be byte identical to the row that was sent.
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val precise = Instant.fromEpochSeconds(1_000, 123_456_000)
-    store.push(user, request(setting("theme", "dark", precise)), serverNow)
+    store.push(user, DEVICE, request(setting("theme", "dark", precise)), serverNow)
     store.readSettingForTest(user, "theme")?.updatedAt shouldBe precise
   }
 
   @Test
   fun oneUsersRowsAreInvisibleToAnother() = runTest {
-    val first = PostgresTestDb.newUserId()
-    val second = PostgresTestDb.newUserId()
-    store.push(first, request(setting("theme", "dark", serverNow)), serverNow)
+    val first = newUser()
+    val second = newUser()
+    store.push(first, DEVICE, request(setting("theme", "dark", serverNow)), serverNow)
     store.readSettingForTest(second, "theme") shouldBe null
   }
 
   @Test
   fun aNewerNodeReplacesTheOlderOne() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val key = fen("node")
     store.push(
       user,
-      SyncPushRequest(listOf(node(key, 1, serverNow, seq = 1)), emptyList(), emptyList()),
+      DEVICE,
+      SyncPushRequest(
+        listOf(node(key, 1, serverNow, seq = 1)),
+        emptyList(),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
     store.push(
       user,
-      SyncPushRequest(listOf(node(key, 7, serverNow, seq = 2)), emptyList(), emptyList()),
+      DEVICE,
+      SyncPushRequest(
+        listOf(node(key, 7, serverNow, seq = 2)),
+        emptyList(),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
     store.readNodeForTest(user, key)?.reps shouldBe 7
@@ -249,25 +291,32 @@ internal class TestSyncStorePush {
 
   @Test
   fun aNodeCarriesItsFullFsrsStateThroughTheRoundTrip() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val key = fen("fsrs")
     val row =
       node(key, 3, serverNow).copy(lastReview = serverNow, firstReview = serverNow, lapses = 2)
-    store.push(user, SyncPushRequest(listOf(row), emptyList(), emptyList()), serverNow)
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(listOf(row), emptyList(), emptyList(), device = DEVICE),
+      serverNow,
+    )
     store.readNodeForTest(user, key) shouldBe row
   }
 
   @Test
   fun aNodeBeyondTheToleranceIsRefusedAndNotStored() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val key = fen("late-node")
     val response =
       store.push(
         user,
+        DEVICE,
         SyncPushRequest(
           listOf(node(key, 1, serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds)),
           emptyList(),
           emptyList(),
+          device = DEVICE,
         ),
         serverNow,
       )
@@ -279,14 +328,25 @@ internal class TestSyncStorePush {
 
   @Test
   fun aNewerEdgeReplacesTheOlderOne() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val origin = fen("o")
     val destination = fen("d")
     val first = edge(origin, destination, isGood = true, at = serverNow, seq = 1)
-    store.push(user, SyncPushRequest(emptyList(), listOf(first), emptyList()), serverNow)
     store.push(
       user,
-      SyncPushRequest(emptyList(), listOf(first.copy(isGood = false, deviceSeq = 2)), emptyList()),
+      DEVICE,
+      SyncPushRequest(emptyList(), listOf(first), emptyList(), device = DEVICE),
+      serverNow,
+    )
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(
+        emptyList(),
+        listOf(first.copy(isGood = false, deviceSeq = 2)),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
     store.readEdgeForTest(user, first)?.isGood shouldBe false
@@ -294,7 +354,7 @@ internal class TestSyncStorePush {
 
   @Test
   fun anEdgeBeyondTheToleranceIsRefusedAndNotStored() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val origin = fen("late-o")
     val destination = fen("late-d")
     val late =
@@ -305,7 +365,12 @@ internal class TestSyncStorePush {
         at = serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds,
       )
     val response =
-      store.push(user, SyncPushRequest(emptyList(), listOf(late), emptyList()), serverNow)
+      store.push(
+        user,
+        DEVICE,
+        SyncPushRequest(emptyList(), listOf(late), emptyList(), device = DEVICE),
+        serverNow,
+      )
     response.rejected shouldHaveSize 1
     response.rejected.single().kind shouldBe "edge"
     response.rejected.single().id shouldBe "$origin|$destination"
@@ -314,17 +379,19 @@ internal class TestSyncStorePush {
 
   @Test
   fun allThreeResourcesApplyInOnePush() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val key = fen("mixed-node")
     val origin = fen("mixed-o")
     val destination = fen("mixed-d")
     val theEdge = edge(origin, destination, isGood = true, at = serverNow)
     store.push(
       user,
+      DEVICE,
       SyncPushRequest(
         nodes = listOf(node(key, 1, serverNow)),
         edges = listOf(theEdge),
         settings = listOf(setting("theme", "dark", serverNow)),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -335,7 +402,7 @@ internal class TestSyncStorePush {
 
   @Test
   fun pushingARepertoireRoundTripsThroughPull() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val row =
       RepertoireSyncRow(
         id = "italian-game",
@@ -349,12 +416,14 @@ internal class TestSyncStorePush {
 
     store.push(
       user,
+      DEVICE,
       SyncPushRequest(
         nodes = emptyList(),
         edges = emptyList(),
         settings = emptyList(),
         repertoires = listOf(row),
         tags = emptyList(),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -365,7 +434,7 @@ internal class TestSyncStorePush {
 
   @Test
   fun pushingAnEdgeRepertoireTagRoundTripsThroughPull() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val origin = fen("tag-o")
     val destination = fen("tag-d")
     val theEdge = edge(origin, destination, isGood = true, at = serverNow)
@@ -382,12 +451,14 @@ internal class TestSyncStorePush {
 
     store.push(
       user,
+      DEVICE,
       SyncPushRequest(
         nodes = emptyList(),
         edges = listOf(theEdge),
         settings = emptyList(),
         repertoires = emptyList(),
         tags = listOf(tag),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -398,7 +469,7 @@ internal class TestSyncStorePush {
 
   @Test
   fun pushingATagForAnEdgeTheServerHasNeverSeenIsRefusedAndNotStored() = runTest {
-    val user = PostgresTestDb.newUserId()
+    val user = newUser()
     val origin = fen("orphan-o")
     val destination = fen("orphan-d")
     val tag =
@@ -415,12 +486,14 @@ internal class TestSyncStorePush {
     val response =
       store.push(
         user,
+        DEVICE,
         SyncPushRequest(
           nodes = emptyList(),
           edges = emptyList(),
           settings = emptyList(),
           repertoires = emptyList(),
           tags = listOf(tag),
+          device = DEVICE,
         ),
         serverNow,
       )
@@ -432,13 +505,18 @@ internal class TestSyncStorePush {
 
   @Test
   fun aTombstoneIsStoredLikeAnyOtherWrite() = runTest {
-    val user = PostgresTestDb.newUserId()
-    store.push(user, request(setting("theme", "dark", serverNow, seq = 1)), serverNow)
+    val user = newUser()
+    store.push(user, DEVICE, request(setting("theme", "dark", serverNow, seq = 1)), serverNow)
     store.push(
       user,
+      DEVICE,
       request(setting("theme", "dark", serverNow, seq = 2, deleted = true)),
       serverNow,
     )
     store.readSettingForTest(user, "theme")?.isDeleted shouldBe true
+  }
+
+  private companion object {
+    const val DEVICE = "77777777-7777-4777-8777-777777777777"
   }
 }

@@ -21,6 +21,7 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
@@ -58,6 +59,22 @@ class TestSyncRoutes {
       r2SecretAccessKey = "unused",
     )
 
+  /** Primes device rows for callers the harness did not create. Same pool, same rows. */
+  private val registrar = SyncStore(PostgresTestDb.dataSource())
+
+  /** A token for a fresh caller whose device is already registered. */
+  private suspend fun otherCaller(): String {
+    val subject = PostgresTestDb.newUserId()
+    registrar.registerDevice(
+      subject,
+      DEVICE,
+      DevicePlatform.JVM,
+      afterReset = false,
+      serverNow,
+    )
+    return key.token(subject = subject)
+  }
+
   /** Runs [block] against the real module, real store and real Postgres, as one caller. */
   private fun withServer(
     store: SyncStore = SyncStore(PostgresTestDb.dataSource()),
@@ -74,6 +91,9 @@ class TestSyncRoutes {
       )
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
+    // Registration gates pulling, and its own route arrives with the device endpoints. Until then
+    // the store is primed directly, which is what a real client does over HTTP.
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     block(client, key.token(subject = user))
   }
 
@@ -83,7 +103,7 @@ class TestSyncRoutes {
       value = value,
       isDeleted = false,
       updatedAt = at,
-      originDevice = "device-a",
+      originDevice = DEVICE,
       deviceSeq = 1,
     )
 
@@ -91,11 +111,15 @@ class TestSyncRoutes {
     post("/v1/sync") {
       header(HttpHeaders.Authorization, "Bearer $token")
       contentType(ContentType.Application.Json)
-      setBody(SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows.toList())))
+      setBody(
+        SYNC_JSON.encodeToString(
+          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DEVICE)
+        )
+      )
     }
 
   private suspend fun HttpClient.pull(token: String, query: String = "") =
-    get("/v1/sync$query") { header(HttpHeaders.Authorization, "Bearer $token") }
+    get("/v1/sync?device=$DEVICE&$query") { header(HttpHeaders.Authorization, "Bearer $token") }
 
   @Test
   fun `pushes a row and reads it back`() = withServer { client, token ->
@@ -152,16 +176,13 @@ class TestSyncRoutes {
   }
 
   @Test
-  fun `returns nothing above the caller's own cursor`() = withServer { client, token ->
-    val revision =
-      SYNC_JSON.decodeFromString<SyncPushResponse>(
-          client.push(token, setting("a", "1")).bodyAsText()
-        )
-        .revision
+  fun `returns nothing once the page is acknowledged`() = withServer { client, token ->
+    client.push(token, setting("a", "1"))
+    val first = SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token).bodyAsText())
 
     val page =
       SYNC_JSON.decodeFromString<SyncPullResponse>(
-        client.pull(token, "?since=$revision").bodyAsText()
+        client.pull(token, "ack=${first.pageToken}").bodyAsText()
       )
 
     page.settings shouldHaveSize 0
@@ -173,14 +194,13 @@ class TestSyncRoutes {
     for (index in 1..5) client.push(token, setting("key-$index", "$index"))
 
     val first =
-      SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token, "?limit=2").bodyAsText())
+      SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token, "limit=2").bodyAsText())
 
     first.settings shouldHaveSize 2
-    first.nextCursor shouldBe first.nextCursor!!
 
     val second =
       SYNC_JSON.decodeFromString<SyncPullResponse>(
-        client.pull(token, "?since=${first.nextCursor}&limit=2").bodyAsText()
+        client.pull(token, "ack=${first.pageToken}&limit=2").bodyAsText()
       )
 
     second.settings shouldHaveSize 2
@@ -190,30 +210,65 @@ class TestSyncRoutes {
   fun `clamps a limit above the cap instead of refusing it`() = withServer { client, token ->
     client.push(token, setting("a", "1"))
 
-    val response = client.pull(token, "?limit=${MAX_PULL_LIMIT * 10}")
+    val response = client.pull(token, "limit=${MAX_PULL_LIMIT * 10}")
 
     response.status shouldBe HttpStatusCode.OK
     SYNC_JSON.decodeFromString<SyncPullResponse>(response.bodyAsText()).settings shouldHaveSize 1
   }
 
   @Test
-  fun `refuses a since that is not a number`() = withServer { client, token ->
-    val response = client.pull(token, "?since=yesterday")
+  fun `refuses a push whose body omits the device entirely`() = withServer { client, token ->
+    val response =
+      client.post("/v1/sync") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        contentType(ContentType.Application.Json)
+        setBody("""{"nodes":[],"edges":[],"settings":[]}""")
+      }
 
     response.status shouldBe HttpStatusCode.BadRequest
     SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
   }
 
   @Test
-  fun `refuses a negative since`() = withServer { client, token ->
-    client.pull(token, "?since=-1").status shouldBe HttpStatusCode.BadRequest
+  fun `refuses a push that names an empty device`() = withServer { client, token ->
+    val response =
+      client.post("/v1/sync") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        contentType(ContentType.Application.Json)
+        setBody("""{"nodes":[],"edges":[],"settings":[],"device":""}""")
+      }
+
+    response.status shouldBe HttpStatusCode.BadRequest
+    SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
   }
 
   @Test
+  fun `refuses a pull that names no device`() = withServer { client, token ->
+    val response = client.get("/v1/sync") { header(HttpHeaders.Authorization, "Bearer $token") }
+
+    response.status shouldBe HttpStatusCode.BadRequest
+    SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+  }
+
+  @Test
+  fun `an unacknowledged token confirms nothing and re serves the page`() =
+    withServer { client, token ->
+      client.push(token, setting("a", "1"))
+      SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token).bodyAsText())
+
+      val retry =
+        SYNC_JSON.decodeFromString<SyncPullResponse>(
+          client.pull(token, "ack=not-a-token").bodyAsText()
+        )
+
+      retry.settings shouldHaveSize 1
+    }
+
+  @Test
   fun `refuses a limit that is not a positive number`() = withServer { client, token ->
-    client.pull(token, "?limit=0").status shouldBe HttpStatusCode.BadRequest
-    client.pull(token, "?limit=-5").status shouldBe HttpStatusCode.BadRequest
-    client.pull(token, "?limit=lots").status shouldBe HttpStatusCode.BadRequest
+    client.pull(token, "limit=0").status shouldBe HttpStatusCode.BadRequest
+    client.pull(token, "limit=-5").status shouldBe HttpStatusCode.BadRequest
+    client.pull(token, "limit=lots").status shouldBe HttpStatusCode.BadRequest
   }
 
   @Test
@@ -224,7 +279,9 @@ class TestSyncRoutes {
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows)))
+        setBody(
+          SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows, device = DEVICE))
+        )
       }
 
     response.status shouldBe HttpStatusCode.PayloadTooLarge
@@ -255,7 +312,7 @@ class TestSyncRoutes {
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings)))
+        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings, device = DEVICE)))
       }
 
     response.status shouldBe HttpStatusCode.PayloadTooLarge
@@ -264,7 +321,7 @@ class TestSyncRoutes {
   @Test
   fun `never lets one caller see another's rows`() = withServer { client, token ->
     client.push(token, setting("mine", "1"))
-    val other = key.token(subject = PostgresTestDb.newUserId())
+    val other = otherCaller()
 
     val page = SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(other).bodyAsText())
 
@@ -278,13 +335,14 @@ class TestSyncRoutes {
     val deleted = client.delete("/v1/me") { header(HttpHeaders.Authorization, "Bearer $token") }
 
     deleted.status shouldBe HttpStatusCode.NoContent
-    SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token).bodyAsText())
-      .settings shouldHaveSize 0
+    // Deletion clears the device rows too, so the caller is a stranger until it registers again,
+    // which is exactly what its next sync cycle does.
+    client.pull(token).status shouldBe HttpStatusCode.BadRequest
   }
 
   @Test
   fun `leaves other callers untouched when one account is deleted`() = withServer { client, token ->
-    val survivor = key.token(subject = PostgresTestDb.newUserId())
+    val survivor = otherCaller()
     client.push(token, setting("mine", "1"))
     client.push(survivor, setting("theirs", "2"))
 
@@ -333,6 +391,7 @@ class TestSyncRoutes {
                   ),
                 edges = emptyList(),
                 settings = emptyList(),
+                device = DEVICE,
               )
             )
           )
@@ -341,4 +400,8 @@ class TestSyncRoutes {
       response.status shouldBe HttpStatusCode.Forbidden
       SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "quota_exceeded"
     }
+
+  private companion object {
+    const val DEVICE = "55555555-5555-4555-8555-555555555555"
+  }
 }

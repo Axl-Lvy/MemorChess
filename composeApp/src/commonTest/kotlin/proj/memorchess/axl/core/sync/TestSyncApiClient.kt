@@ -29,14 +29,14 @@ class TestSyncApiClient {
       respond(
         content =
           ByteReadChannel(
-            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"nodes":[],"edges":[],"settings":[]}"""
+            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"tok-1","nodes":[],"edges":[],"settings":[]}"""
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),
       )
     }
 
-    val result = client(engine).pull("tok", since = null, limit = 500)
+    val result = client(engine).pull("tok", DEVICE, ack = null, limit = 500)
 
     result.shouldBeInstanceOf<SyncPullOutcome.Ok>()
     result.response.nextCursor shouldBe null
@@ -46,7 +46,8 @@ class TestSyncApiClient {
   fun unauthorizedPullReturnsUnauthorized() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
 
-    client(engine).pull("tok", since = null, limit = 500) shouldBe SyncPullOutcome.Unauthorized
+    client(engine).pull("tok", DEVICE, ack = null, limit = 500) shouldBe
+      SyncPullOutcome.Unauthorized
   }
 
   @Test
@@ -56,7 +57,7 @@ class TestSyncApiClient {
     }
 
     client(engine)
-      .pull("tok", since = null, limit = 500)
+      .pull("tok", DEVICE, ack = null, limit = 500)
       .shouldBeInstanceOf<SyncPullOutcome.Error>()
   }
 
@@ -64,7 +65,7 @@ class TestSyncApiClient {
   fun rateLimitedPullReturnsRateLimited() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
 
-    client(engine).pull("tok", since = null, limit = 500) shouldBe SyncPullOutcome.RateLimited
+    client(engine).pull("tok", DEVICE, ack = null, limit = 500) shouldBe SyncPullOutcome.RateLimited
   }
 
   @Test
@@ -82,7 +83,12 @@ class TestSyncApiClient {
       client(engine)
         .push(
           "tok",
-          SyncPushRequest(nodes = emptyList(), edges = emptyList(), settings = emptyList()),
+          SyncPushRequest(
+            nodes = emptyList(),
+            edges = emptyList(),
+            settings = emptyList(),
+            device = DEVICE,
+          ),
         )
 
     result.shouldBeInstanceOf<SyncPushOutcome.Ok>()
@@ -93,7 +99,8 @@ class TestSyncApiClient {
   fun tooLargePushReturnsTooLarge() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.PayloadTooLarge) }
 
-    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+    client(engine)
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
       SyncPushOutcome.TooLarge
   }
 
@@ -107,7 +114,8 @@ class TestSyncApiClient {
       )
     }
 
-    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+    client(engine)
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
       SyncPushOutcome.QuotaExceeded
   }
 
@@ -123,7 +131,7 @@ class TestSyncApiClient {
     }
 
     client(engine)
-      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList()))
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE))
       .shouldBeInstanceOf<SyncPushOutcome.Error>()
   }
 
@@ -131,7 +139,109 @@ class TestSyncApiClient {
   fun rateLimitedPushReturnsRateLimited() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
 
-    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+    client(engine)
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
       SyncPushOutcome.RateLimited
+  }
+
+  @Test
+  fun registerSendsThePlatformAndTheResetFlag() = runTest {
+    var body = ""
+    val engine = MockEngine { request ->
+      request.url.encodedPath shouldBe "/v1/me/devices/$DEVICE"
+      body = (request.body as io.ktor.http.content.TextContent).text
+      respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+    }
+
+    client(engine).registerDevice("tok", DEVICE, DevicePlatform.JVM, afterReset = true) shouldBe
+      SyncRegisterOutcome.Ok
+
+    body shouldBe """{"platform":"jvm","afterReset":true}"""
+  }
+
+  @Test
+  fun registerMapsAResyncRequiredGone() = runTest {
+    client(gone()).registerDevice("tok", DEVICE, DevicePlatform.JVM, afterReset = false) shouldBe
+      SyncRegisterOutcome.ResyncRequired
+  }
+
+  @Test
+  fun pullMapsAResyncRequiredGone() = runTest {
+    client(gone()).pull("tok", DEVICE, ack = null, limit = 10) shouldBe
+      SyncPullOutcome.ResyncRequired
+  }
+
+  @Test
+  fun pushMapsAResyncRequiredGone() = runTest {
+    client(gone())
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
+      SyncPushOutcome.ResyncRequired
+  }
+
+  @Test
+  fun aGoneWithoutThatCodeIsAnError() = runTest {
+    val engine = MockEngine {
+      respond(
+        content = ByteReadChannel("""{"code":"not_found","message":"nope"}"""),
+        status = HttpStatusCode.Gone,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    client(engine)
+      .pull("tok", DEVICE, ack = null, limit = 10)
+      .shouldBeInstanceOf<SyncPullOutcome.Error>()
+  }
+
+  @Test
+  fun pullSendsTheDeviceAndOmitsAckWhenItIsNull() = runTest {
+    var query = ""
+    val engine = MockEngine { request ->
+      query = request.url.parameters.entries().joinToString(",") { it.key }
+      respond(
+        content =
+          ByteReadChannel(
+            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"t","nodes":[],"edges":[],"settings":[]}"""
+          ),
+        status = HttpStatusCode.OK,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    client(engine).pull("tok", DEVICE, ack = null, limit = 10)
+
+    query shouldBe "device,limit"
+  }
+
+  @Test
+  fun pullSendsTheAckWhenThereIsOne() = runTest {
+    var ack: String? = null
+    val engine = MockEngine { request ->
+      ack = request.url.parameters["ack"]
+      respond(
+        content =
+          ByteReadChannel(
+            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"t","nodes":[],"edges":[],"settings":[]}"""
+          ),
+        status = HttpStatusCode.OK,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    client(engine).pull("tok", DEVICE, ack = "tok-1", limit = 10)
+
+    ack shouldBe "tok-1"
+  }
+
+  private fun gone() = MockEngine {
+    respond(
+      content = ByteReadChannel("""{"code":"resync_required","message":"start over"}"""),
+      status = HttpStatusCode.Gone,
+      headers = headersOf(HttpHeaders.ContentType, "application/json"),
+    )
+  }
+
+  private companion object {
+    const val DEVICE = "11111111-1111-4111-8111-111111111111"
   }
 }

@@ -1,8 +1,10 @@
 package proj.memorchess.axl.server.routes
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -11,13 +13,20 @@ import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
+import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
+import proj.memorchess.axl.core.sync.SyncDeviceStatusResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_READ
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_WRITE
 import proj.memorchess.axl.server.TooLargeException
 import proj.memorchess.axl.server.auth.SYNC_AUTH
 import proj.memorchess.axl.server.auth.callerId
+import proj.memorchess.axl.server.sync.RegisterOutcome
+import proj.memorchess.axl.server.sync.ResyncRequiredException
 import proj.memorchess.axl.server.sync.SyncStore
 
 /**
@@ -43,7 +52,14 @@ internal const val MAX_PUSH_ROWS: Int = 2_000
 internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
   authenticate(SYNC_AUTH) {
     rateLimit(RATE_LIMIT_SYNC_READ) {
-      get("/v1/sync") { call.respond(store.pull(call.callerId, since(), limit(), clock())) }
+      get("/v1/me/devices/{deviceId}/status") {
+        val synced =
+          store.deviceStatus(call.callerId, call.deviceId())
+            ?: throw NotFoundException("no such device")
+        call.respond(SyncDeviceStatusResponse(synced))
+      }
+
+      get("/v1/sync") { call.respond(store.pull(call.callerId, device(), ack(), limit(), clock())) }
     }
 
     rateLimit(RATE_LIMIT_SYNC_WRITE) {
@@ -60,7 +76,32 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
             "a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows"
           )
         }
-        call.respond(store.push(call.callerId, request, clock()))
+        if (request.device.isEmpty()) {
+          throw BadRequestException("device is required")
+        }
+        call.respond(store.push(call.callerId, request.device, request, clock()))
+      }
+
+      put("/v1/me/devices/{deviceId}") {
+        val deviceId = call.deviceId()
+        val request = call.receive<SyncDeviceRegisterRequest>()
+        // The wire field is a plain string so decoding never throws on a value this build has not
+        // heard of. It becomes the enum here, at the boundary, and everything inland is typed.
+        val platform =
+          DevicePlatform.fromWire(request.platform)
+            ?: throw BadRequestException("unknown platform '${request.platform}'")
+        when (
+          store.registerDevice(
+            call.callerId,
+            deviceId,
+            platform,
+            request.afterReset,
+            clock(),
+          )
+        ) {
+          RegisterOutcome.Ok -> call.respond(HttpStatusCode.NoContent)
+          RegisterOutcome.ResyncRequired -> throw ResyncRequiredException(deviceId)
+        }
       }
 
       delete("/v1/me") {
@@ -72,19 +113,31 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
 }
 
 /**
- * The caller's cursor.
+ * The device this call is about, validated as a canonical UUID.
  *
- * A malformed cursor is refused rather than defaulted, because silently reading from `0` or from
- * some other revision hands back a plausible page that skips or repeats rows.
+ * The validation is the point of the constraint, not the storage: an invented value would create a
+ * `sync_device` row that never pulls, holding that user's watermark down with no way to tell it
+ * from a real install.
  */
-private fun RoutingContext.since(): Long {
-  val raw = call.request.queryParameters["since"] ?: return 0L
-  val since = raw.toLongOrNull()
-  if (since == null || since < 0) {
-    throw BadRequestException("since must be a non negative integer, was '$raw'")
+private fun ApplicationCall.deviceId(): String {
+  val raw = parameters["deviceId"].orEmpty()
+  if (Uuid.parseOrNull(raw) == null) {
+    throw BadRequestException("deviceId must be a canonical UUID, was '$raw'")
   }
-  return since
+  return raw
 }
+
+/**
+ * The calling device.
+ *
+ * Required, because the server keeps that device's position and has nothing to serve from without
+ * it.
+ */
+private fun RoutingContext.device(): String =
+  call.request.queryParameters["device"] ?: throw BadRequestException("device is required")
+
+/** Token of the page the caller has just written locally, absent when it has committed none. */
+private fun RoutingContext.ack(): String? = call.request.queryParameters["ack"]
 
 /** The caller's requested page size, clamped to [MAX_PULL_LIMIT]. */
 private fun RoutingContext.limit(): Int {

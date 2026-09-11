@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.compose.rememberNavController
 import kotlin.time.Duration
 import org.koin.compose.KoinApplication
@@ -60,6 +61,13 @@ fun App(startRoute: Route = Route.TodayRoute, onNavHostReady: suspend (Navigator
   MINIMUM_LOADING_TIME_SETTING.setValue(Duration.ZERO)
   val syncEngine: SyncEngine = koinInject()
   LaunchedEffect(Unit) { syncEngine.start() }
+  // A backgrounded app acknowledges on return rather than waiting out a heartbeat, which is what
+  // keeps its user's tombstone collection watermark moving. One hook here covers every platform,
+  // since Compose Multiplatform drives this lifecycle on all four.
+  LifecycleResumeEffect(Unit) {
+    syncEngine.onAppForeground()
+    onPauseOrDispose {}
+  }
   val navController = rememberNavController()
   val navigator = remember(navController) { DelegateNavigator(navController) }
   CompositionLocalProvider(LocalNavigator provides navigator) {

@@ -29,6 +29,7 @@ application {
 dependencies {
   implementation(projects.shared)
   implementation(libs.kotlinx.coroutines.core)
+  implementation(libs.krontab)
   implementation(libs.postgresql)
   implementation(libs.hikari)
   implementation(libs.awssdk.s3)

@@ -7,6 +7,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 /**
@@ -23,13 +24,19 @@ internal class TestServerConvergence {
 
   private val serverNow = at(1_000_000)
 
+  /** Registers [deviceId] under [user] and returns the transport that reaches the store as it. */
+  private suspend fun transportFor(user: String, deviceId: String): StoreTransport {
+    store.registerDevice(user, deviceId, DevicePlatform.JVM, afterReset = false, serverNow)
+    return StoreTransport(store, user, deviceId)
+  }
+
   @Test
   fun twoDevicesConvergeOnASingleKey() = runTest {
     val user = PostgresTestDb.newUserId()
     val a = TestDevice("device-a")
     val b = TestDevice("device-b")
-    val toA = StoreTransport(store, user)
-    val toB = StoreTransport(store, user)
+    val toA = transportFor(user, "device-a")
+    val toB = transportFor(user, "device-b")
 
     a.edit("theme", "dark", at(10))
     b.edit("theme", "light", at(20))
@@ -47,7 +54,7 @@ internal class TestServerConvergence {
   fun aRefusedFutureRowLandsOnTheNextRound() = runTest {
     val user = PostgresTestDb.newUserId()
     val a = TestDevice("device-a")
-    val toA = StoreTransport(store, user)
+    val toA = transportFor(user, "device-a")
 
     a.edit("theme", "dark", at(40_000_000_000))
     a.sync(toA, serverNow)
@@ -62,8 +69,8 @@ internal class TestServerConvergence {
     val user = PostgresTestDb.newUserId()
     val a = TestDevice("device-a")
     val b = TestDevice("device-b")
-    val toA = StoreTransport(store, user)
-    val toB = StoreTransport(store, user)
+    val toA = transportFor(user, "device-a")
+    val toB = transportFor(user, "device-b")
 
     a.edit("sound", "on", at(40_000_000_000))
     a.sync(toA, serverNow)
@@ -83,8 +90,8 @@ internal class TestServerConvergence {
     val user = PostgresTestDb.newUserId()
     val a = TestDevice("device-a")
     val b = TestDevice("device-b")
-    val toA = StoreTransport(store, user)
-    val toB = StoreTransport(store, user)
+    val toA = transportFor(user, "device-a")
+    val toB = transportFor(user, "device-b")
 
     a.edit("theme", "dark", at(500))
     a.sync(toA, serverNow)
@@ -106,7 +113,7 @@ internal class TestServerConvergence {
       val user = PostgresTestDb.newUserId()
       val a = TestDevice("device-a")
       val b = TestDevice("device-b")
-      val pairs = listOf(a to StoreTransport(store, user), b to StoreTransport(store, user))
+      val pairs = listOf(a to transportFor(user, "device-a"), b to transportFor(user, "device-b"))
       var clock = 1L
 
       repeat(20) {
