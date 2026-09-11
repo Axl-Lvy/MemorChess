@@ -31,6 +31,7 @@ import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.setKineticContent
 
@@ -91,7 +92,12 @@ internal class TestKineticDesktopRail {
   }
 
   private fun schedulerOver(database: InMemoryDatabaseQueryManager) =
-    TrainingScheduler(database, testTreeStore(database), Fsrs6SchedulingAlgorithm())
+    TrainingScheduler(
+      database,
+      testTreeStore(database),
+      testRepertoireTagStore(database),
+      Fsrs6SchedulingAlgorithm(),
+    )
 
   private fun rowTag(item: NavigationBarItemContent) = "desktop_rail_${item.name}"
 

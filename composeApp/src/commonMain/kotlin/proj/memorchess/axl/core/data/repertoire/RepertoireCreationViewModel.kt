@@ -48,10 +48,10 @@ sealed interface CreationError {
  *
  * The collaborators are injected as suspending functions, mirroring `RepertoireLibraryViewModel`
  * and `RepertoirePublishViewModel`, so tests can substitute trivial fakes. Production wiring binds
- * [proj.memorchess.axl.core.graph.TreeStore.repertoires] (mapped to ids),
- * [TreeStore.registerRepertoire][proj.memorchess.axl.core.graph.TreeStore.registerRepertoire],
+ * [proj.memorchess.axl.core.graph.RepertoireTagStore.repertoires] (mapped to ids),
+ * [proj.memorchess.axl.core.graph.RepertoireTagStore.register],
  * [proj.memorchess.axl.core.pgn.PgnImporter.import], and
- * [TreeStore.forkRepertoire][proj.memorchess.axl.core.graph.TreeStore.forkRepertoire].
+ * [proj.memorchess.axl.core.graph.RepertoireTagStore.fork].
  *
  * @param scope Scope tied to the dialog's lifecycle (use `rememberCoroutineScope` in Compose).
  */

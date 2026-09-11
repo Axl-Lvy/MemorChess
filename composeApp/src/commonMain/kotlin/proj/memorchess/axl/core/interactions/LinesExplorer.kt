@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.NavigationHistory
 import proj.memorchess.axl.core.graph.NodeState
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 
 /**
@@ -37,6 +38,7 @@ import proj.memorchess.axl.core.graph.TreeStore
 open class LinesExplorer(
   position: PositionKey? = null,
   protected val treeStore: TreeStore,
+  protected val tagStore: RepertoireTagStore,
   private val repertoireScope: String? = null,
 ) : InteractionsManager(if (position == null) GameEngine() else GameEngine(position)) {
 
@@ -100,7 +102,7 @@ open class LinesExplorer(
     val classified = node.outgoing.values.filter { it.isGood != null }
     val scoped =
       repertoireScope?.let { scope ->
-        classified.filter { scope in treeStore.tagsFor(it.from, it.to) }
+        classified.filter { scope in tagStore.tagsFor(it.from, it.to) }
       } ?: classified
     return scoped.map { it.move }.sorted()
   }
@@ -135,7 +137,7 @@ open class LinesExplorer(
         fromDepth = originDepth,
       )
     if (repertoireScope != null && existingEdge == null) {
-      treeStore.tagEdge(origin, destination, repertoireScope)
+      tagStore.tag(origin, destination, repertoireScope)
     }
     navigation.push(edge, destination)
     state = treeStore.computeState(navigation.current, navigation.arrivedVia?.from)

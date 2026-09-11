@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.study
 
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImportException
 import proj.memorchess.axl.core.pgn.PgnImportSummary
@@ -18,9 +19,10 @@ import proj.memorchess.axl.core.pgn.PgnImporter
 class LichessStudyImporter(
   private val client: LichessStudyClient,
   private val treeStore: TreeStore,
+  private val tagStore: RepertoireTagStore,
 ) {
 
-  private val pgnImporter = PgnImporter(treeStore)
+  private val pgnImporter = PgnImporter(treeStore, tagStore)
 
   /**
    * Imports the study referenced by [input].

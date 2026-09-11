@@ -56,6 +56,7 @@ import proj.memorchess.axl.core.sync.toRepertoireSyncRow
  * @param cache Bounded cache every read and write of the graph goes through.
  * @param prefetcher Fires the one ply neighbour warm after a miss.
  * @param trainable Per repertoire trainable projection, recomputed after every edge write.
+ * @param tagStore Used by the delete paths to tombstone a removed edge's repertoire tags.
  * @param deviceIdentity Stamped onto every persisted node and edge, and used to order this device's
  *   own writes against its earlier ones. See [DeviceIdentity].
  * @param notifyDirty Called after every local write that queues an outbox entry, so
@@ -67,6 +68,7 @@ class TreeStore(
   private val cache: NodeCache,
   private val prefetcher: Prefetcher,
   private val trainable: TrainableProjection,
+  private val tagStore: RepertoireTagStore,
   private val deviceIdentity: DeviceIdentity,
   private val notifyDirty: () -> Unit = {},
 ) {
@@ -284,7 +286,7 @@ class TreeStore(
     // Tombstoning the tags before recomputing means the now deleted edge's tags are excluded from
     // the freshly recomputed set even though (for mode == SOFT) the row itself may still be
     // resolvable for one more tick.
-    if (destination != null) tombstoneTags(from, destination)
+    if (destination != null) tagStore.tombstoneTags(from, destination)
     trainable.recompute(from)
     notifyDirty()
   }
@@ -302,8 +304,8 @@ class TreeStore(
     val node = node(positionKey)
     val survivingOrigins = mutableSetOf<PositionKey>()
     if (node != null) {
-      for (edge in node.outgoing.values) tombstoneTags(positionKey, edge.to)
-      for (edge in node.incoming.values) tombstoneTags(edge.from, positionKey)
+      for (edge in node.outgoing.values) tagStore.tombstoneTags(positionKey, edge.to)
+      for (edge in node.incoming.values) tagStore.tombstoneTags(edge.from, positionKey)
     }
     val seq = deviceIdentity.nextDeviceSeq()
     // The durable write sits ahead of the cache patching below, so the invalidate that drops
@@ -334,115 +336,6 @@ class TreeStore(
   suspend fun eraseAll() {
     database.eraseAll()
     cache.clear()
-  }
-
-  /** Every registered repertoire. Read through of [DatabaseQueryManager.getRepertoires]. */
-  suspend fun repertoires(): List<DataRepertoire> = database.getRepertoires()
-
-  /**
-   * Mastery snapshot per registered repertoire. See
-   * [DatabaseQueryManager.getRepertoireMasterySnapshots]; bounded by [repertoires]' own id list.
-   */
-  suspend fun repertoireMasterySnapshots(): Map<String, RepertoireMasterySnapshot> =
-    database.getRepertoireMasterySnapshots(database.getRepertoires().map { it.id })
-
-  /**
-   * Registers [id] in the repertoire registry with [name] and [color], or overwrites an existing
-   * entry's name/color (a catalog reinstall re-registering under the same id). Queues its own
-   * outbox entry.
-   *
-   * @throws IllegalArgumentException if [id] is blank, or contains a comma (mirrors
-   *   [proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore]'s own separator rule).
-   */
-  suspend fun registerRepertoire(id: String, name: String, color: RepertoireColor?) {
-    require(id.isNotBlank()) { "Repertoire id must not be blank" }
-    require(',' !in id) { "Repertoire id must not contain ',': $id" }
-    database.insertRepertoire(
-      DataRepertoire(
-        id = id,
-        name = name,
-        color = color,
-        updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
-        deviceSeq = deviceIdentity.nextDeviceSeq(),
-      )
-    )
-    notifyDirty()
-  }
-
-  /**
-   * Registers [newId] as a new repertoire and tags it with every live edge currently tagged with
-   * [sourceId]. Nodes and moves are shared across repertoires, so this only duplicates the tag
-   * rows, never the underlying graph. [sourceId]'s own tags are left untouched, so the same edge
-   * ends up tagged with both repertoires.
-   *
-   * @throws IllegalArgumentException if [newId] is blank, or contains a comma (see
-   *   [registerRepertoire]).
-   */
-  suspend fun forkRepertoire(
-    sourceId: String,
-    newId: String,
-    newName: String,
-    color: RepertoireColor?,
-  ) {
-    registerRepertoire(newId, newName, color)
-    for (edge in edgesTaggedWith(sourceId)) {
-      tagEdge(edge.origin, edge.destination, newId)
-    }
-  }
-
-  /** Every repertoire the live edge from [origin] to [destination] is tagged with. */
-  suspend fun tagsFor(origin: PositionKey, destination: PositionKey): Set<String> =
-    database.getTags(origin, destination).map { it.repertoireId }.toSet()
-
-  /**
-   * Every live tagged edge of [repertoireId]. Read through of
-   * [DatabaseQueryManager.edgesTaggedWith].
-   */
-  suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
-    database.edgesTaggedWith(repertoireId)
-
-  /**
-   * Tags the edge from [origin] to [destination] with [repertoireId], adding to any existing tags
-   * on that edge rather than replacing them: an edge can belong to more than one repertoire (see
-   * the design's many to many section). Idempotent: tagging an edge that already carries this
-   * repertoire is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so
-   * a tag on a live good edge takes effect immediately. Queues its own outbox entry.
-   *
-   * Callers decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only
-   * for a genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for
-   * every edge an import describes, present or not.
-   */
-  suspend fun tagEdge(origin: PositionKey, destination: PositionKey, repertoireId: String) {
-    database.insertTag(
-      DataEdgeRepertoireTag(
-        origin = origin,
-        destination = destination,
-        repertoireId = repertoireId,
-        updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
-        deviceSeq = deviceIdentity.nextDeviceSeq(),
-      )
-    )
-    trainable.recompute(origin)
-    notifyDirty()
-  }
-
-  /** Tombstones every live tag on the edge from [origin] to [destination]. */
-  private suspend fun tombstoneTags(origin: PositionKey, destination: PositionKey) {
-    for (repertoireId in tagsFor(origin, destination)) {
-      database.insertTag(
-        DataEdgeRepertoireTag(
-          origin = origin,
-          destination = destination,
-          repertoireId = repertoireId,
-          isDeleted = true,
-          updatedAt = DateUtil.now(),
-          originDevice = deviceIdentity.originDevice,
-          deviceSeq = deviceIdentity.nextDeviceSeq(),
-        )
-      )
-    }
   }
 
   /**

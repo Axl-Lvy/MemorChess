@@ -6,6 +6,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.IllegalMoveException
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.MoveInsertion
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 
 /**
@@ -32,8 +33,12 @@ import proj.memorchess.axl.core.graph.TreeStore
  * does not have to preload anything.
  *
  * @property treeStore Mutation chokepoint of the opening graph that receives the imported moves.
+ * @property tagStore Registry and tags the imported moves are tagged through.
  */
-class PgnImporter(private val treeStore: TreeStore) {
+class PgnImporter(
+  private val treeStore: TreeStore,
+  private val tagStore: RepertoireTagStore,
+) {
 
   /**
    * Imports [games] into the opening graph.
@@ -70,7 +75,7 @@ class PgnImporter(private val treeStore: TreeStore) {
     val (alreadyPresent, movesToInsert) = plannedMoves.partition { isAlreadyPresent(it) }
     treeStore.addMoves(movesToInsert)
     if (repertoireId != null) {
-      for (move in plannedMoves) treeStore.tagEdge(move.from, move.to, repertoireId)
+      for (move in plannedMoves) tagStore.tag(move.from, move.to, repertoireId)
     }
     onProgress(1f)
     return PgnImportSummary(
@@ -88,7 +93,7 @@ class PgnImporter(private val treeStore: TreeStore) {
    * @throws PgnImportException on a conflict. Nothing is written in that case.
    */
   private suspend fun checkPerspectiveCompatible(repertoireId: String, perspective: Player?) {
-    val existing = treeStore.repertoires().firstOrNull { it.id == repertoireId } ?: return
+    val existing = tagStore.repertoires().firstOrNull { it.id == repertoireId } ?: return
     val existingColor = existing.color ?: return
     val incomingColor = perspective?.toRepertoireColor() ?: return
     if (existingColor != incomingColor) {

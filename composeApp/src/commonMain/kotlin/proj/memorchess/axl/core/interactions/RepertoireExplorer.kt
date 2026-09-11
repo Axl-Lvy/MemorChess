@@ -9,6 +9,7 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnGame
@@ -28,8 +29,9 @@ import proj.memorchess.axl.core.sync.DeviceIdentity
  * @constructor Wraps an already populated transient [treeStore]. Use [build] to create one from
  *   PGN.
  */
-class RepertoireExplorer private constructor(treeStore: TreeStore) :
-  LinesExplorer(position = null, treeStore = treeStore) {
+class RepertoireExplorer
+private constructor(treeStore: TreeStore, tagStore: RepertoireTagStore) :
+  LinesExplorer(position = null, treeStore = treeStore, tagStore = tagStore) {
 
   override suspend fun afterPlayMove(move: String) {
     val origin = navigation.current
@@ -63,17 +65,21 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
       // a load over a HashMap finishes in microseconds.
       val scope = CoroutineScope(coroutineContext + SupervisorJob())
       val database = InMemoryDatabaseQueryManager()
+      val deviceIdentity = DeviceIdentity.ephemeral()
       val cache = NodeCache({ database.getPosition(it) }, scope)
+      val trainable = TrainableProjection(database, cache)
+      val tagStore = RepertoireTagStore(database, deviceIdentity, trainable)
       val treeStore =
         TreeStore(
           database,
           cache,
           Prefetcher(cache, scope),
-          TrainableProjection(database, cache),
-          DeviceIdentity.ephemeral(),
+          trainable,
+          tagStore,
+          deviceIdentity,
         )
-      PgnImporter(treeStore).import(games)
-      return RepertoireExplorer(treeStore)
+      PgnImporter(treeStore, tagStore).import(games)
+      return RepertoireExplorer(treeStore, tagStore)
     }
   }
 }

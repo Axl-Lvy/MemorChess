@@ -8,6 +8,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testNodeCache
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 /** Unit tests for [TrainableProjection]'s recompute and clear. */
@@ -23,9 +24,10 @@ class TestTrainableProjection {
   /** A persisted graph whose single good edge is tagged with `italian-game`. */
   private suspend fun taggedGraph(database: DatabaseQueryManager) {
     val store = testTreeStore(database)
-    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val tagStore = testRepertoireTagStore(database)
+    tagStore.register("italian-game", "Italian Game", RepertoireColor.WHITE)
     store.addMove(from = start, move = "e4", to = destination, isGood = true, fromDepth = 0)
-    store.tagEdge(start, destination, "italian-game")
+    tagStore.tag(start, destination, "italian-game")
   }
 
   @Test

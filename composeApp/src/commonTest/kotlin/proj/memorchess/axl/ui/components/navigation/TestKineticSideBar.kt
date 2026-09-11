@@ -37,6 +37,7 @@ import proj.memorchess.axl.core.scheduling.ReviewGrade
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.setKineticContent
@@ -116,7 +117,12 @@ internal class TestKineticSideBar {
   }
 
   private fun schedulerOver(database: InMemoryDatabaseQueryManager) =
-    TrainingScheduler(database, testTreeStore(database), Fsrs6SchedulingAlgorithm())
+    TrainingScheduler(
+      database,
+      testTreeStore(database),
+      testRepertoireTagStore(database),
+      Fsrs6SchedulingAlgorithm(),
+    )
 
   private fun ComposeUiTest.setRail(
     streakTracker: StreakTracker,
@@ -287,6 +293,7 @@ internal class TestKineticSideBar {
       TrainingScheduler(
         database,
         testTreeStore(database),
+        testRepertoireTagStore(database),
         Fsrs6SchedulingAlgorithm(),
         streakTracker = streakTracker,
       )

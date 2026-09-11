@@ -24,6 +24,7 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.study.LichessStudyClient
 import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.waitUntilSuspending
@@ -36,6 +37,7 @@ import proj.memorchess.axl.ui.waitUntilSuspending
 class TestImportExportSection : TestWithKoin() {
 
   private val treeStore: TreeStore by inject()
+  private val tagStore: RepertoireTagStore by inject()
 
   private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
@@ -51,14 +53,14 @@ class TestImportExportSection : TestWithKoin() {
     val engine = MockEngine { _ -> respond(content = "1. e4 e5 *", status = HttpStatusCode.OK) }
     val client =
       HttpClient(engine) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
-    return LichessStudyImporter(LichessStudyClient(client), treeStore)
+    return LichessStudyImporter(LichessStudyClient(client), treeStore, tagStore)
   }
 
   @Test
   fun choosingAnExistingRepertoireTagsTheLichessImportWithIt() = runTestFromSetup {
-    treeStore.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    tagStore.register("italian-game", "Italian Game", RepertoireColor.WHITE)
     val studyImporter = fakeStudyImporter()
-    setContent { InitializeApp { LichessStudyImportField(studyImporter, treeStore) } }
+    setContent { InitializeApp { LichessStudyImportField(studyImporter, tagStore) } }
     waitForIdle()
 
     onNodeWithText("Italian Game").performClick()
@@ -72,7 +74,7 @@ class TestImportExportSection : TestWithKoin() {
     var tags: Set<String>? = null
     waitUntilSuspending {
       withContext(Dispatchers.Default) {}
-      tags = treeStore.tagsFor(PositionKey.START_POSITION, afterE4)
+      tags = tagStore.tagsFor(PositionKey.START_POSITION, afterE4)
       tags == setOf("italian-game")
     }
     tags shouldBe setOf("italian-game")

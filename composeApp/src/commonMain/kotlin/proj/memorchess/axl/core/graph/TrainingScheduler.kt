@@ -51,6 +51,7 @@ import proj.memorchess.axl.core.streak.StreakTracker
 class TrainingScheduler(
   private val database: DatabaseQueryManager,
   private val treeStore: TreeStore,
+  private val tagStore: RepertoireTagStore,
   private val algorithm: SchedulingAlgorithm,
   private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
   private val maxNewMovesPerDay: () -> Int = { Int.MAX_VALUE },
@@ -146,7 +147,7 @@ class TrainingScheduler(
         node.outgoing.values.map { it.to }
       } else {
         node.outgoing.values
-          .filter { repertoireId in treeStore.tagsFor(it.from, it.to) }
+          .filter { repertoireId in tagStore.tagsFor(it.from, it.to) }
           .map { it.to }
       }
     val (dayStart, dayEnd) = dayBounds(day)

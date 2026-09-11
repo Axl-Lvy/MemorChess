@@ -14,6 +14,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.SingleMoveTrainer
 import proj.memorchess.axl.core.scheduling.CardPhase
@@ -24,6 +25,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
   private lateinit var singleMoveTrainer: SingleMoveTrainer
   private val database: DatabaseQueryManager by inject()
   private val treeStore: TreeStore by inject()
+  private val tagStore: RepertoireTagStore by inject()
   private lateinit var testNode: DataNode
   private var lastPlayedSquare: BoardLocation? = null
   private var lastCorrectSquare: BoardLocation? = null
@@ -119,7 +121,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
   @Test
   fun aScopedTrainerRejectsACorrectMoveTaggedWithADifferentRepertoire() = test {
     val e4Position = GameEngine().apply { playSanMove("e4") }.toPositionKey()
-    treeStore.tagEdge(testNode.positionKey, e4Position, "ruy-lopez")
+    tagStore.tag(testNode.positionKey, e4Position, "ruy-lopez")
     var correctEdge: proj.memorchess.axl.core.graph.Edge? = null
     var correctSquare: BoardLocation? = null
     val node = treeStore.node(testNode.positionKey)

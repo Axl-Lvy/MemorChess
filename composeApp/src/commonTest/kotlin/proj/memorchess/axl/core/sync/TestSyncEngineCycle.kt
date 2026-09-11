@@ -28,6 +28,7 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 /** Minimal fake: always returns the same [TokenResult]. */
@@ -274,11 +275,12 @@ class TestSyncEngineCycle {
   fun pushCycleIncludesADirtyRepertoireAndADirtyTagInTheRequest() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val store = treeStore(database)
-    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
+    val tagStore = testRepertoireTagStore(database, CoroutineScope(Dispatchers.Unconfined))
+    tagStore.register("italian-game", "Italian Game", RepertoireColor.WHITE)
     val origin = PositionKey.START_POSITION
     val destination = PositionKey("posA b K")
     store.addMove(from = origin, move = "e4", to = destination, isGood = true, fromDepth = 0)
-    store.tagEdge(origin, destination, "italian-game")
+    tagStore.tag(origin, destination, "italian-game")
     var pushBody: String? = null
     val engine = MockEngine { request ->
       if (request.method.value == "GET") {

@@ -17,16 +17,18 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.drainAllNodes
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 class TestLichessStudyImporter {
 
   private val database = TestDatabases.empty()
   private val store = testTreeStore(database)
+  private val tagStore = testRepertoireTagStore(database)
 
   private fun importerRespondingPgn(pgn: String): LichessStudyImporter {
     val engine = MockEngine { respond(content = ByteReadChannel(pgn), status = HttpStatusCode.OK) }
-    return LichessStudyImporter(LichessStudyClient(HttpClient(engine)), store)
+    return LichessStudyImporter(LichessStudyClient(HttpClient(engine)), store, tagStore)
   }
 
   private fun keyAfter(vararg moves: String): PositionKey {
@@ -99,7 +101,7 @@ class TestLichessStudyImporter {
   fun missingStudyIsReportedAsFetchFailed() = runTest {
     // Arrange
     val engine = MockEngine { respond(content = "", status = HttpStatusCode.NotFound) }
-    val importer = LichessStudyImporter(LichessStudyClient(HttpClient(engine)), store)
+    val importer = LichessStudyImporter(LichessStudyClient(HttpClient(engine)), store, tagStore)
 
     // Act
     val result = importer.import("abcd1234")

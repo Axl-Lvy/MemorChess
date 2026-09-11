@@ -48,6 +48,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.NodeLoader
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
@@ -134,11 +135,15 @@ fun initKoinModules(): Array<Module> {
     single { Prefetcher(get(), get(named(PREFETCH_SCOPE))) }
     single { TrainableProjection(get(), get()) }
     single {
+      RepertoireTagStore(get(), get(), get(), notifyDirty = { get<SyncEngine>().notifyDirty() })
+    }
+    single {
       // get<SyncEngine>() is resolved lazily, inside this lambda, only when a write actually
       // happens — never during TreeStore's own construction — which is what breaks what would
       // otherwise be a TreeStore <-> SyncEngine construction cycle (SyncEngine depends on
       // TreeStore normally, to apply a pull).
       TreeStore(
+        get(),
         get(),
         get(),
         get(),
@@ -151,6 +156,7 @@ fun initKoinModules(): Array<Module> {
       TrainingScheduler(
         database = get(),
         treeStore = get(),
+        tagStore = get(),
         algorithm = get(),
         maxNewMovesPerDay = { MAX_NEW_MOVES_PER_DAY_SETTING.getValue() },
         maxTotalMovesPerDay = { MAX_TOTAL_MOVES_PER_DAY_SETTING.getValue() },
@@ -161,7 +167,7 @@ fun initKoinModules(): Array<Module> {
 
   val studyModule = module {
     single { LichessStudyClient(get()) }
-    single { LichessStudyImporter(get(), get()) }
+    single { LichessStudyImporter(get(), get(), get()) }
   }
 
   val authModule = module {
@@ -231,7 +237,7 @@ fun initKoinModules(): Array<Module> {
       RepertoirePublishClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1/repertoires")
     }
     single { PublishedRepertoireStore() }
-    single { RepertoirePgnExporter(get()) }
+    single { RepertoirePgnExporter(get(), get()) }
   }
 
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }

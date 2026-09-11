@@ -25,6 +25,7 @@ import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.CountingDatabaseQueryManager
 import proj.memorchess.axl.test_util.GatingDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestDatabases
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 /**
@@ -164,70 +165,15 @@ class TestTreeStore {
     )
   }
 
-  // --- Repertoire registry, edge tagging, and trainable projection maintenance ----------------
-
-  @Test
-  fun tagEdgeAddsToAnEdgesExistingTagsRatherThanReplacingThem() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
-
-    store.tagEdge(start, posA, "italian-game")
-    store.tagEdge(start, posA, "ruy-lopez")
-
-    assertEquals(setOf("italian-game", "ruy-lopez"), store.tagsFor(start, posA))
-  }
-
-  @Test
-  fun edgesTaggedWithReadsThroughToTheDatabase() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
-    store.tagEdge(start, posA, "italian-game")
-
-    val edges = store.edgesTaggedWith("italian-game")
-
-    assertEquals(listOf(TaggedEdge(start, posA, "e4")), edges)
-  }
-
-  @Test
-  fun taggingAGoodEdgeMakesItsOriginTrainableInThatRepertoire() = runTest {
-    val database = TestDatabases.empty()
-    val store = testTreeStore(database)
-    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
-
-    store.tagEdge(start, posA, "italian-game")
-
-    assertEquals(
-      1,
-      database
-        .getRepertoireMasterySnapshots(listOf("italian-game"))
-        .getValue("italian-game")
-        .totalCount,
-    )
-  }
-
-  @Test
-  fun taggingABadEdgeDoesNotMakeItsOriginTrainable() = runTest {
-    val database = TestDatabases.empty()
-    val store = testTreeStore(database)
-    store.addMove(from = start, move = "e4", to = posA, isGood = false, fromDepth = 0)
-
-    store.tagEdge(start, posA, "italian-game")
-
-    assertEquals(
-      0,
-      database
-        .getRepertoireMasterySnapshots(listOf("italian-game"))
-        .getValue("italian-game")
-        .totalCount,
-    )
-  }
+  // --- Trainable projection maintenance on the delete paths ---------------------------------
 
   @Test
   fun deletingTheLastTaggedGoodEdgeClearsTheOriginsTrainableMembership() = runTest {
     val database = TestDatabases.empty()
     val store = testTreeStore(database)
+    val tagStore = testRepertoireTagStore(database)
     store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
-    store.tagEdge(start, posA, "italian-game")
+    tagStore.tag(start, posA, "italian-game")
 
     store.deleteMove(start, "e4")
 
@@ -238,94 +184,6 @@ class TestTreeStore {
         .getValue("italian-game")
         .totalCount,
     )
-  }
-
-  @Test
-  fun registerRepertoireThenRepertoiresListsIt() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-
-    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
-
-    assertEquals(listOf("italian-game"), store.repertoires().map { it.id })
-  }
-
-  @Test
-  fun registerRepertoireRejectsABlankId() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-
-    assertFailsWith<IllegalArgumentException> { store.registerRepertoire("", "Blank", null) }
-  }
-
-  @Test
-  fun registerRepertoireRejectsAnIdContainingAComma() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-
-    assertFailsWith<IllegalArgumentException> {
-      store.registerRepertoire("italian,game", "Italian Game", null)
-    }
-  }
-
-  @Test
-  fun forkRepertoireRegistersTheNewRepertoire() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
-
-    store.forkRepertoire(
-      "italian-game",
-      "italian-game-copy",
-      "Italian Game copy",
-      RepertoireColor.WHITE,
-    )
-
-    assertEquals(
-      listOf("italian-game", "italian-game-copy"),
-      store.repertoires().map { it.id }.sorted(),
-    )
-  }
-
-  @Test
-  fun forkRepertoireCopiesTheSourcesTaggedEdgesToTheNewId() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
-    store.tagEdge(start, posA, "italian-game")
-
-    store.forkRepertoire(
-      "italian-game",
-      "italian-game-copy",
-      "Italian Game copy",
-      RepertoireColor.WHITE,
-    )
-
-    assertEquals(
-      listOf(TaggedEdge(start, posA, "e4")),
-      store.edgesTaggedWith("italian-game-copy"),
-    )
-  }
-
-  @Test
-  fun forkRepertoireLeavesTheSourcesOwnTagsUntouched() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
-    store.tagEdge(start, posA, "italian-game")
-
-    store.forkRepertoire(
-      "italian-game",
-      "italian-game-copy",
-      "Italian Game copy",
-      RepertoireColor.WHITE,
-    )
-
-    assertEquals(listOf(TaggedEdge(start, posA, "e4")), store.edgesTaggedWith("italian-game"))
-  }
-
-  @Test
-  fun forkRepertoireRejectsABlankNewId() = runTest {
-    val store = testTreeStore(TestDatabases.empty())
-    store.registerRepertoire("italian-game", "Italian Game", RepertoireColor.WHITE)
-
-    assertFailsWith<IllegalArgumentException> {
-      store.forkRepertoire("italian-game", "", "Copy", RepertoireColor.WHITE)
-    }
   }
 
   @Test

@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.sync.DeviceIdentity
@@ -31,11 +32,26 @@ fun testTreeStore(
   deviceIdentity: DeviceIdentity = DeviceIdentity.ephemeral(),
 ): TreeStore {
   val cache = testNodeCache(database, scope)
+  val trainable = TrainableProjection(database, cache)
   return TreeStore(
     database,
     cache,
     Prefetcher(cache, scope),
-    TrainableProjection(database, cache),
+    trainable,
+    RepertoireTagStore(database, deviceIdentity, trainable),
     deviceIdentity,
   )
 }
+
+/** Builds a [RepertoireTagStore] over [database], defaulting to a fresh ephemeral [DeviceIdentity]. */
+@OptIn(ExperimentalCoroutinesApi::class)
+fun testRepertoireTagStore(
+  database: DatabaseQueryManager,
+  scope: CoroutineScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher()),
+  deviceIdentity: DeviceIdentity = DeviceIdentity.ephemeral(),
+): RepertoireTagStore =
+  RepertoireTagStore(
+    database,
+    deviceIdentity,
+    TrainableProjection(database, testNodeCache(database, scope)),
+  )

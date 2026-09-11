@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.pgn
 
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 
 /** Outcome of [RepertoirePgnExporter.export]. */
@@ -36,12 +37,15 @@ sealed class RepertoireExportResult {
  * local graph. A repertoire's good or bad move classification does not survive the round trip (PGN
  * carries no such marker); `PgnImporter` re derives it on reinstall from the declared side.
  */
-class RepertoirePgnExporter(private val treeStore: TreeStore) {
+class RepertoirePgnExporter(
+  private val treeStore: TreeStore,
+  private val tagStore: RepertoireTagStore,
+) {
 
   /** Exports every line reachable from a tagged edge of [repertoireId]. See the class doc. */
   suspend fun export(repertoireId: String): RepertoireExportResult {
     val taggedEdges =
-      treeStore.edgesTaggedWith(repertoireId).map { it.origin to it.destination }.toSet()
+      tagStore.edgesTaggedWith(repertoireId).map { it.origin to it.destination }.toSet()
     if (taggedEdges.isEmpty()) return RepertoireExportResult.Empty
 
     val reachability = mutableMapOf<PositionKey, Boolean>()
