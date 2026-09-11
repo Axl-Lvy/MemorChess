@@ -55,8 +55,8 @@ internal class TooLargeException(message: String) : Exception(message)
 internal data class RateLimitTier(val limit: Int, val refillPeriod: Duration)
 
 /**
- * Every rate limit tier the server enforces, overridable so a test can use a tiny budget instead of
- * firing production sized traffic at itself.
+ * Every rate limit tier the server enforces. A test builds its own instance with a tiny budget
+ * instead of firing production sized traffic at itself.
  *
  * @property syncWrite Authenticated writes, keyed by caller: `/v1/sync` push, `/v1/me` deletion,
  *   publishing and removing a repertoire.
@@ -69,11 +69,20 @@ internal data class RateLimitTier(val limit: Int, val refillPeriod: Duration)
  *   see that function's KDoc for what breaks if that stops being true.
  */
 internal data class RateLimitTiers(
-  val syncWrite: RateLimitTier = RateLimitTier(60, 1.minutes),
-  val syncRead: RateLimitTier = RateLimitTier(300, 1.minutes),
-  val publicRead: RateLimitTier = RateLimitTier(300, 1.minutes),
-  val admin: RateLimitTier = RateLimitTier(30, 1.minutes),
+  val syncWrite: RateLimitTier,
+  val syncRead: RateLimitTier,
+  val publicRead: RateLimitTier,
+  val admin: RateLimitTier,
 )
+
+/** The budgets every production deployment enforces, named here so the numbers appear once. */
+internal val PRODUCTION_RATE_LIMITS =
+  RateLimitTiers(
+    syncWrite = RateLimitTier(60, 1.minutes),
+    syncRead = RateLimitTier(300, 1.minutes),
+    publicRead = RateLimitTier(300, 1.minutes),
+    admin = RateLimitTier(30, 1.minutes),
+  )
 
 internal val RATE_LIMIT_SYNC_WRITE = RateLimitName("sync-write")
 internal val RATE_LIMIT_SYNC_READ = RateLimitName("sync-read")
@@ -95,7 +104,7 @@ internal fun Application.syncModule(
   store: SyncStore,
   readiness: suspend () -> Boolean,
   clock: () -> Instant = Clock.System::now,
-  rateLimits: RateLimitTiers = RateLimitTiers(),
+  rateLimits: RateLimitTiers = PRODUCTION_RATE_LIMITS,
 ) {
   install(ContentNegotiation) { json(SYNC_JSON) }
   installErrorMapping()
@@ -126,7 +135,7 @@ internal fun Application.syncModule(
  * mount `repertoireModule` on its own (see its own tests), so neither module can assume the other
  * already registered these tiers.
  */
-internal fun Application.installRateLimiting(tiers: RateLimitTiers = RateLimitTiers()) {
+internal fun Application.installRateLimiting(tiers: RateLimitTiers = PRODUCTION_RATE_LIMITS) {
   if (pluginOrNull(RateLimit) != null) return
   install(RateLimit) {
     register(RATE_LIMIT_SYNC_WRITE) {

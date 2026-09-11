@@ -228,7 +228,7 @@ internal class TestKineticButton : TestWithKoin() {
    */
   @Test
   fun eraseAllDataButtonInDangerZoneFillsWithDestructive() = runButtonTest {
-    setKineticContent { DangerZoneSection() }
+    setKineticContent { DangerZoneSection(onReset = {}) }
     val midHeight = with(density) { 18.dp.roundToPx() }
     val pixel = onNodeWithTag("eraseAllDataButton").captureToImage().toPixelMap()[0, midHeight]
     pixel shouldBe KineticLightPalette.destructive
@@ -242,9 +242,27 @@ internal class TestKineticButton : TestWithKoin() {
    */
   @Test
   fun resetConfigButtonInDangerZoneStrokesWithDestructiveDim() = runButtonTest {
-    setKineticContent { DangerZoneSection() }
+    setKineticContent { DangerZoneSection(onReset = {}) }
     val midHeight = with(density) { 18.dp.roundToPx() }
     val pixel = onNodeWithTag("resetConfigButton").captureToImage().toPixelMap()[0, midHeight]
     pixel shouldBe KineticLightPalette.destructiveDim
+  }
+
+  /**
+   * The Danger Zone section must actually invoke [DangerZoneSection]'s `onReset` callback once the
+   * user confirms the reset action, not just style the button correctly. Confirming through the
+   * real [proj.memorchess.axl.ui.components.popup.ConfirmationDialog] flow, rather than only
+   * checking the button's style, is what would have caught a reset that resets settings but never
+   * signals the caller to reload.
+   */
+  @Test
+  fun resetConfigButtonInvokesOnResetAfterConfirmation() = runButtonTest {
+    var resetCount = 0
+    setKineticContent { DangerZoneSection(onReset = { resetCount++ }) }
+    onNodeWithTag("resetConfigButton").performClick()
+    onNodeWithTag("confirmDialogOkButton").performClick()
+    withClue("onReset should fire exactly once after confirming the reset") {
+      resetCount shouldBe 1
+    }
   }
 }
