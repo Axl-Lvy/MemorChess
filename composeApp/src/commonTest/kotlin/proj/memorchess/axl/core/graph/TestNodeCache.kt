@@ -661,4 +661,63 @@ class TestNodeCache {
     cache.peek(originA)?.outgoing?.keys shouldBe emptySet()
     cache.peek(to)?.incoming?.keys shouldBe emptySet()
   }
+
+  @Test
+  fun aRemovalOnlyMarkOverAnAbsentRowLeavesNothingResident() = runTest {
+    // A removal is not evidence the node exists, so reconciling one against an absent row must not
+    // synthesize a shell: an empty resident Node reads as NodeState.FIRST, not UNKNOWN.
+    val to = key(0)
+    val originA = key(1)
+    val gate = CompletableDeferred<Unit>()
+    val cache =
+      NodeCache(
+        {
+          gate.await()
+          null
+        },
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+      )
+
+    var resolved: Resolution? = null
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      resolved = cache.resolve(to)
+    }
+    cache.removeEdge(originA, "mA", to)
+    gate.complete(Unit)
+
+    assertNull(resolved?.node, "a removal must not conjure a node the database does not have")
+    assertNull(cache.peek(to))
+  }
+
+  @Test
+  fun aDeletedNodeDoesNotComeBackAsAShellThroughTheRetry() = runTest {
+    // The TreeStore.deleteNode shape: removeEdge per incident edge, then invalidate, with a load of
+    // the deleted key already in flight. The retry reads the tombstoned row as absent and carries
+    // only the removals, which must leave the key dropped rather than resident.
+    val to = key(0)
+    val originA = key(1)
+    val gate = CompletableDeferred<Unit>()
+    var calls = 0
+    val cache =
+      NodeCache(
+        {
+          calls++
+          if (calls == 1) {
+            gate.await()
+            row(to, incoming = listOf(move(originA, "mA", to)), depth = 1)
+          } else {
+            null
+          }
+        },
+        CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+      )
+
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { cache.resolve(to) }
+    cache.removeEdge(originA, "mA", to)
+    cache.invalidate(to)
+    gate.complete(Unit)
+
+    calls shouldBe 2
+    assertNull(cache.peek(to))
+  }
 }

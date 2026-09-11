@@ -250,7 +250,11 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
     var base =
       mark.replacement
         ?: loaded
-        ?: if (mark.edits.isNotEmpty() || mark.depth != null) {
+        // Synthesized only on positive evidence the node exists: an edge the mutator added, or a
+        // depth it asked for. Removals are not evidence, so a mark holding nothing but removals
+        // over an absent row leaves the key dropped instead of resident as an empty shell, which
+        // Node.computeState would read as the root.
+        ?: if (mark.edits.values.any { it != null } || mark.depth != null) {
           Node(positionKey = positionKey, depth = mark.depth ?: Int.MAX_VALUE)
         } else {
           null
