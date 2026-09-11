@@ -73,4 +73,84 @@ class TestNodeWithMovesMapping {
       roundTrip(card).phase shouldBe phase
     }
   }
+
+  private val defaultCard =
+    CardState(
+      dueDate = due,
+      lastReview = due,
+      firstReview = due,
+      stability = 1.0,
+      difficulty = 5.0,
+      reps = 1,
+      lapses = 0,
+      phase = CardPhase.NEW,
+      step = 0,
+    )
+
+  private fun move(isGood: Boolean, isDeleted: Boolean = false) =
+    DataMove(
+      origin = PositionKey("posA b K"),
+      destination = PositionKey("posB w K"),
+      move = "e4",
+      isGood = isGood,
+      isDeleted = isDeleted,
+    )
+
+  private fun hasGoodOutgoingAfterConversion(nextMoves: List<DataMove>): Boolean {
+    val dataNode =
+      DataNode(
+        PositionKey("posA b K"),
+        PreviousAndNextMoves(previousMoves = emptyList(), nextMoves = nextMoves),
+        defaultCard,
+      )
+    return NodeWithMoves.convertToEntity(dataNode).node.hasGoodOutgoing
+  }
+
+  /**
+   * This is the regression covered by an imported repertoire: [GraphSerializer] never sets
+   * [DataNode.hasGoodOutgoing], relying on its default of `false`, even though the imported node
+   * carries a real good outgoing move. The entity mapping must derive the flag from the moves it
+   * already holds instead of trusting the caller's value verbatim.
+   */
+  @Test
+  fun aGoodNonDeletedNextMoveMakesTheFlagTrueEvenWhenTheCallerOmittedIt() {
+    hasGoodOutgoingAfterConversion(listOf(move(isGood = true))) shouldBe true
+  }
+
+  @Test
+  fun noNextMovesMakesTheFlagFalse() {
+    hasGoodOutgoingAfterConversion(emptyList()) shouldBe false
+  }
+
+  @Test
+  fun aBadNextMoveAloneMakesTheFlagFalse() {
+    hasGoodOutgoingAfterConversion(listOf(move(isGood = false))) shouldBe false
+  }
+
+  @Test
+  fun aGoodButDeletedNextMoveMakesTheFlagFalse() {
+    hasGoodOutgoingAfterConversion(listOf(move(isGood = true, isDeleted = true))) shouldBe false
+  }
+
+  @Test
+  fun aMixOfDeletedGoodAndLiveGoodMovesMakesTheFlagTrue() {
+    hasGoodOutgoingAfterConversion(
+      listOf(move(isGood = true, isDeleted = true), move(isGood = false))
+    ) shouldBe false
+    hasGoodOutgoingAfterConversion(
+      listOf(move(isGood = true, isDeleted = true), move(isGood = true))
+    ) shouldBe true
+  }
+
+  @Test
+  fun aCallerSuppliedTrueFlagIsIgnoredWhenNoMoveSupportsIt() {
+    val dataNode =
+      DataNode(
+        PositionKey("posA b K"),
+        PreviousAndNextMoves(),
+        defaultCard,
+        hasGoodOutgoing = true,
+      )
+    NodeWithMoves.convertToEntity(dataNode).node.hasGoodOutgoing shouldBe false
+  }
 }

@@ -57,7 +57,10 @@ data class NodeWithMoves(
           phase = card.phase.name,
           step = card.step,
           depth = dataNode.depth,
-          hasGoodOutgoing = dataNode.hasGoodOutgoing,
+          hasGoodOutgoing =
+            dataNode.previousAndNextMoves.nextMoves.values.any {
+              it.isGood == true && !it.isDeleted
+            },
           createdAt = dataNode.createdAt,
           isDeleted = dataNode.isDeleted,
           updatedAt = dataNode.updatedAt,
