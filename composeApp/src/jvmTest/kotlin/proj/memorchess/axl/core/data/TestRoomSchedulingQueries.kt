@@ -168,7 +168,18 @@ class TestRoomSchedulingQueries {
     manager.insertNodes(
       DataNode(
         positionKey = PositionKey("depthOmitted"),
-        previousAndNextMoves = PreviousAndNextMoves(),
+        previousAndNextMoves =
+          PreviousAndNextMoves(
+            emptyList(),
+            listOf(
+              DataMove(
+                origin = PositionKey("depthOmitted"),
+                destination = PositionKey("depthOmitted-child"),
+                move = "e4",
+                isGood = true,
+              )
+            ),
+          ),
         cardState =
           CardState(
             dueDate = Instant.fromEpochSeconds(100),
