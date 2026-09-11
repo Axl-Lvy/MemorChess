@@ -33,6 +33,14 @@ object GraphSerializer {
   private const val NODE_FIELD_COUNT = 13
   private const val EDGE_FIELD_COUNT = 6
 
+  /** Placeholder identity for a [deserialize]d row before [TreeStore.importNodes] restamps it. */
+  private const val PLACEHOLDER_ORIGIN_DEVICE = ""
+
+  /**
+   * Placeholder write sequence for a [deserialize]d row before [TreeStore.importNodes] restamps it.
+   */
+  private const val PLACEHOLDER_DEVICE_SEQ = 0L
+
   /** Serializes nodes to a deterministic text string. Filters out deleted nodes and moves. */
   fun serialize(nodes: List<DataNode>): String {
     val liveNodes = nodes.filter { !it.isDeleted }
@@ -170,6 +178,11 @@ object GraphSerializer {
   /**
    * Deserializes text back to a list of [DataNode]s. Throws [IllegalArgumentException] on bad
    * input.
+   *
+   * The wire format carries no device identity, so every returned [DataNode] and [DataMove] holds
+   * the placeholder `originDevice`/`deviceSeq` ("" and 0L). Callers must persist the result through
+   * [TreeStore.importNodes] rather than [proj.memorchess.axl.core.data.DatabaseQueryManager]
+   * directly, so it is restamped with a real device identity before it reaches disk.
    */
   fun deserialize(text: String): List<DataNode> {
     val sections = text.split(SECTION_SEPARATOR)
@@ -201,6 +214,8 @@ object GraphSerializer {
         cardState = entry.cardState,
         depth = entry.depth,
         updatedAt = entry.updatedAt,
+        originDevice = PLACEHOLDER_ORIGIN_DEVICE,
+        deviceSeq = PLACEHOLDER_DEVICE_SEQ,
       )
     }
   }
@@ -302,6 +317,15 @@ object GraphSerializer {
     val createdAt: Instant,
   ) {
     fun toDataMove(): DataMove =
-      DataMove(origin, destination, move, isGood, createdAt = createdAt, updatedAt = updatedAt)
+      DataMove(
+        origin,
+        destination,
+        move,
+        isGood,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        originDevice = PLACEHOLDER_ORIGIN_DEVICE,
+        deviceSeq = PLACEHOLDER_DEVICE_SEQ,
+      )
   }
 }

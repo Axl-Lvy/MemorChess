@@ -21,8 +21,10 @@ val SYNC_JSON: Json = Json {
  *
  * @property serverTime The server's clock at the moment of the response, so a client can detect its
  *   own skew.
- * @property nextCursor Revision to pass as `since` on the next request, or `null` when this page is
- *   the last one. A `null` cursor terminates the paging loop.
+ * @property nextCursor Revision the server withheld rows above, or `null` when no table filled its
+ *   page. Diagnostic only: the caller's position is kept server side.
+ * @property pageToken Opaque token naming this page. The caller sends it back as `ack` on its next
+ *   pull once these rows are written locally, which is how the server learns the page landed.
  * @property nodes Changed positions.
  * @property edges Changed moves.
  * @property settings Changed settings.
@@ -33,6 +35,7 @@ val SYNC_JSON: Json = Json {
 data class SyncPullResponse(
   val serverTime: Instant,
   val nextCursor: Long?,
+  val pageToken: String,
   val nodes: List<NodeSyncRow>,
   val edges: List<EdgeSyncRow>,
   val settings: List<SettingSyncRow>,
@@ -48,6 +51,9 @@ data class SyncPullResponse(
  * @property settings Settings to write.
  * @property repertoires Repertoires to write.
  * @property tags Edge to repertoire tags to write.
+ * @property device The pushing device's origin id. Deliberately without a default, so that no call
+ *   site and no wire payload can omit it: a push that names no device is refused, and a defaulted
+ *   empty string would turn that refusal into a silent failure to sync at all.
  */
 @Serializable
 data class SyncPushRequest(
@@ -56,6 +62,7 @@ data class SyncPushRequest(
   val settings: List<SettingSyncRow>,
   val repertoires: List<RepertoireSyncRow> = emptyList(),
   val tags: List<EdgeRepertoireTagSyncRow> = emptyList(),
+  val device: String,
 )
 
 /**

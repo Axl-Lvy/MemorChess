@@ -237,7 +237,12 @@ private fun DataNode.toJsNodeEntity(): JsNodeEntity {
     phase = node.cardState.phase.name
     step = node.cardState.step
     depth = node.depth
-    hasGoodOutgoing = if (node.hasGoodOutgoing) 1 else 0
+    hasGoodOutgoing =
+      if (node.previousAndNextMoves.nextMoves.values.any { it.isGood == true && !it.isDeleted }) {
+        1
+      } else {
+        0
+      }
     createdAt = node.createdAt.epochSeconds.toDouble()
     isDeleted = node.isDeleted
     updatedAt = node.updatedAt.epochSeconds.toDouble()

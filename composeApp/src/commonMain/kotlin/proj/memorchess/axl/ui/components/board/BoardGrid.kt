@@ -83,7 +83,7 @@ fun BoardGrid(
     plusOneOffsetY.snapTo(0f)
     plusOneAlpha.snapTo(0f)
     if (
-      feedback.isCorrect &&
+      feedback.isCorrect == true &&
         feedback.playedSquare != null &&
         KineticMotion.shouldAnimateBoardFeedback()
     ) {
@@ -95,7 +95,8 @@ fun BoardGrid(
     }
     // else: reduced motion, a wrong answer, or no move played yet. Both animatables are already
     // snapped to rest above, and PlusOneFloater is not even composed unless
-    // feedback.isCorrect && feedback.playedSquare != null, so there is nothing further to do.
+    // feedback.isCorrect == true && feedback.playedSquare != null, so there is nothing further to
+    // do.
   }
 
   BoxWithConstraints(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
@@ -117,7 +118,11 @@ fun BoardGrid(
     DrawPieceGrid(state, animationDuration, tilePositions)
     BestMoveArrow(bestMoveArrow, state.inverted, Modifier.fillMaxSize())
     val playedSquare = feedback.playedSquare
-    if (feedback.isCorrect && playedSquare != null && KineticMotion.shouldAnimateBoardFeedback()) {
+    if (
+      feedback.isCorrect == true &&
+        playedSquare != null &&
+        KineticMotion.shouldAnimateBoardFeedback()
+    ) {
       PlusOneFloater(playedSquare, tileSize, state.inverted, plusOneOffsetY, plusOneAlpha)
     }
   }
@@ -196,8 +201,9 @@ private fun DrawTileGrid(
     },
   ) { index ->
     val location = state.getBoardLocationAt(index)
-    if (location == feedback.playedSquare) {
-      PlayedSquareOverlay(feedback.isCorrect, squareScale, wrongPulseAlpha, palette)
+    val isCorrect = feedback.isCorrect
+    if (location == feedback.playedSquare && isCorrect != null) {
+      PlayedSquareOverlay(isCorrect, squareScale, wrongPulseAlpha, palette)
     }
   }
 }
@@ -224,7 +230,7 @@ private suspend fun CoroutineScope.animateTileFeedback(
   outlineAlpha.snapTo(0f)
 
   val animate = KineticMotion.shouldAnimateBoardFeedback()
-  if (feedback.isCorrect && feedback.playedSquare != null) {
+  if (feedback.isCorrect == true && feedback.playedSquare != null) {
     if (animate) {
       launch {
         squareScale.animateTo(SQUARE_POP_SCALE, KineticMotion.Celebratory.correctAnswer())
@@ -238,7 +244,7 @@ private suspend fun CoroutineScope.animateTileFeedback(
     }
     // else: every animatable is already at rest above. That resting state (scale 1, alpha 0
     // everywhere) is the "instant, no celebration" end state the reduced-motion path asks for.
-  } else if (!feedback.isCorrect && feedback.playedSquare != null) {
+  } else if (feedback.isCorrect == false && feedback.playedSquare != null) {
     if (animate) {
       wrongPulseAlpha.animateTo(1f, KineticMotion.Routine.wrongAnswer())
       wrongPulseAlpha.animateTo(0f, KineticMotion.Routine.wrongAnswer())

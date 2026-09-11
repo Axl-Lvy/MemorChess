@@ -37,16 +37,18 @@ fun main() {
       secretAccessKey = config.r2SecretAccessKey,
     )
   val repertoireStore = RepertoireStore(dataSource, blobStore)
+  val syncStore = SyncStore(dataSource)
 
   embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
       syncModule(
         config = config,
         jwkProvider = jwksProvider(config.jwksUrl),
-        store = SyncStore(dataSource),
+        store = syncStore,
         readiness = { dataSource.isReachable() },
       )
       repertoireModule(store = repertoireStore)
       staticFrontendModule(config.staticDir)
+      schedulingModule(syncStore)
     }
     .start(wait = true)
 }

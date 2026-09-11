@@ -18,6 +18,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.server.auth.TEST_AUDIENCE
 import proj.memorchess.axl.server.auth.TEST_ISSUER
@@ -99,11 +100,23 @@ class TestRateLimiting {
 
   @Test
   fun `keeps the read budget independent from the write budget`() = withServer { client ->
-    val token = key.token(subject = PostgresTestDb.newUserId())
+    val subject = PostgresTestDb.newUserId()
+    val device = "66666666-6666-4666-8666-666666666666"
+    val token = key.token(subject = subject)
     repeat(tiers.syncWrite.limit + 1) { client.deleteMe(token) }
+    // Account deletion clears device rows, so registration comes after it here.
+    SyncStore(PostgresTestDb.dataSource())
+      .registerDevice(
+        subject,
+        device,
+        DevicePlatform.JVM,
+        afterReset = false,
+        Instant.fromEpochSeconds(1_700_000_000),
+      )
 
-    client.get("/v1/sync") { header(HttpHeaders.Authorization, "Bearer $token") }.status shouldBe
-      HttpStatusCode.OK
+    client
+      .get("/v1/sync?device=$device") { header(HttpHeaders.Authorization, "Bearer $token") }
+      .status shouldBe HttpStatusCode.OK
   }
 
   @Test

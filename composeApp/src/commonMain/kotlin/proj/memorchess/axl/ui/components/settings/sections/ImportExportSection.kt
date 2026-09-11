@@ -54,6 +54,7 @@ import proj.memorchess.axl.core.data.study.LichessStudyResult
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.GraphSerializer
 import proj.memorchess.axl.core.graph.RepertoireTagStore
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
@@ -79,20 +80,25 @@ private const val EXPORT_PAGE_SIZE = 256
 @Composable
 fun ImportExportSection(
   database: DatabaseQueryManager = koinInject(),
+  treeStore: TreeStore = koinInject(),
   studyImporter: LichessStudyImporter = koinInject(),
 ) {
   val dlg = remember { ConfirmationDialog() }
   dlg.DrawDialog()
 
   Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-    FileButtonsRow(database, dlg)
+    FileButtonsRow(database, treeStore, dlg)
     LichessStudyImportField(studyImporter)
   }
 }
 
 /** The Export and Import file buttons of the Import / Export section. */
 @Composable
-private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDialog) {
+private fun FileButtonsRow(
+  database: DatabaseQueryManager,
+  treeStore: TreeStore,
+  dlg: ConfirmationDialog,
+) {
   val coroutineScope = rememberCoroutineScope()
 
   // IntrinsicSize.Min lets fillMaxHeight() below match the taller of the two buttons — the one
@@ -130,9 +136,10 @@ private fun FileButtonsRow(database: DatabaseQueryManager, dlg: ConfirmationDial
             dlg.show(getString(Res.string.settings_import_confirm, file.name)) {
               coroutineScope.launch {
                 val nodes = GraphSerializer.deserialize(content)
-                // The inserted rows are authoritative on disk; the bounded cache resolves them on
-                // demand, so no eager reload is needed.
-                database.insertNodes(*nodes.toTypedArray())
+                // Routed through TreeStore, the graph's single mutation chokepoint, so the import
+                // is stamped with this device's identity instead of the wire format's placeholder
+                // one and its moves are queued for sync like any other write.
+                treeStore.importNodes(nodes)
               }
             }
           } catch (e: IllegalArgumentException) {

@@ -264,7 +264,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
       BoardTrainingFeedback(
         playedSquare = previousPlayedSquare.takeIf { state.isShowing },
         correctSquare = previousCorrectSquare.takeIf { state.isShowing && !state.isCorrect },
-        isCorrect = state.isCorrect,
+        isCorrect = state.isCorrect.takeIf { state.isShowing },
         attempt = totalAttempts,
       )
 

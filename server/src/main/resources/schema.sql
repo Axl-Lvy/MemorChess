@@ -136,3 +136,28 @@ CREATE TABLE IF NOT EXISTS repertoire_install_count (
   count bigint NOT NULL
 );
 CREATE INDEX IF NOT EXISTS repertoire_version_author ON repertoire_version (author_id, status);
+
+-- One row per device the server has ever been told about. The position columns are what tombstone
+-- GC reads: last_served_revision is what was handed over, last_acked_revision what the device
+-- confirmed writing, and only the second one is safe to collect against.
+--
+-- Removal sets removed_at rather than deleting the row, because a surviving acknowledgement is the
+-- only thing that tells a returning removed device apart from a brand new install.
+CREATE TABLE IF NOT EXISTS sync_device (
+  user_id text NOT NULL,
+  device_id text NOT NULL,
+  platform text NOT NULL,
+  last_acked_revision bigint NOT NULL DEFAULT 0,
+  last_served_revision bigint NOT NULL DEFAULT 0,
+  last_page_token text,
+  removed_at timestamptz,
+  last_seen_at timestamptz NOT NULL,
+  PRIMARY KEY (user_id, device_id)
+);
+
+-- The highest revision below which a tombstone may already be gone, per user. Only a device that
+-- was removed and has fallen below it needs to resync.
+CREATE TABLE IF NOT EXISTS sync_gc_floor (
+  user_id text PRIMARY KEY,
+  floor_revision bigint NOT NULL
+);

@@ -6,6 +6,7 @@ import io.kotest.matchers.string.shouldContain
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
@@ -85,13 +86,21 @@ internal class TestSyncStoreQuota {
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
+  /** A fresh user with one registered device, which pushing now requires. */
+  private suspend fun newUser(store: SyncStore): String {
+    val user = PostgresTestDb.newUserId()
+    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    return user
+  }
+
   @Test
   fun `refuses a push that would cross the node cap`() = runTest {
     val store = SyncStore(PostgresTestDb.dataSource(), maxNodesPerUser = 1)
-    val user = PostgresTestDb.newUserId()
+    val user = newUser(store)
     store.push(
       user,
-      SyncPushRequest(listOf(node(fen("a"))), emptyList(), emptyList()),
+      DEVICE,
+      SyncPushRequest(listOf(node(fen("a"))), emptyList(), emptyList(), device = DEVICE),
       serverNow,
     )
 
@@ -99,7 +108,8 @@ internal class TestSyncStoreQuota {
       shouldThrow<QuotaExceededException> {
         store.push(
           user,
-          SyncPushRequest(listOf(node(fen("b"))), emptyList(), emptyList()),
+          DEVICE,
+          SyncPushRequest(listOf(node(fen("b"))), emptyList(), emptyList(), device = DEVICE),
           serverNow,
         )
       }
@@ -109,16 +119,22 @@ internal class TestSyncStoreQuota {
   @Test
   fun `updating an already owned node at the cap is not refused`() = runTest {
     val store = SyncStore(PostgresTestDb.dataSource(), maxNodesPerUser = 1)
-    val user = PostgresTestDb.newUserId()
+    val user = newUser(store)
     val key = fen("owned")
     store.push(
       user,
-      SyncPushRequest(listOf(node(key, seq = 1)), emptyList(), emptyList()),
+      DEVICE,
+      SyncPushRequest(listOf(node(key, seq = 1)), emptyList(), emptyList(), device = DEVICE),
       serverNow,
     )
 
     store
-      .push(user, SyncPushRequest(listOf(node(key, seq = 2)), emptyList(), emptyList()), serverNow)
+      .push(
+        user,
+        DEVICE,
+        SyncPushRequest(listOf(node(key, seq = 2)), emptyList(), emptyList(), device = DEVICE),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
   }
@@ -126,17 +142,29 @@ internal class TestSyncStoreQuota {
   @Test
   fun `refuses a push that would cross the edge cap`() = runTest {
     val store = SyncStore(PostgresTestDb.dataSource(), maxEdgesPerUser = 1)
-    val user = PostgresTestDb.newUserId()
+    val user = newUser(store)
     store.push(
       user,
-      SyncPushRequest(emptyList(), listOf(edge(fen("o1"), fen("d1"))), emptyList()),
+      DEVICE,
+      SyncPushRequest(
+        emptyList(),
+        listOf(edge(fen("o1"), fen("d1"))),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
 
     shouldThrow<QuotaExceededException> {
       store.push(
         user,
-        SyncPushRequest(emptyList(), listOf(edge(fen("o2"), fen("d2"))), emptyList()),
+        DEVICE,
+        SyncPushRequest(
+          emptyList(),
+          listOf(edge(fen("o2"), fen("d2"))),
+          emptyList(),
+          device = DEVICE,
+        ),
         serverNow,
       )
     }
@@ -145,19 +173,31 @@ internal class TestSyncStoreQuota {
   @Test
   fun `updating an already owned edge at the cap is not refused`() = runTest {
     val store = SyncStore(PostgresTestDb.dataSource(), maxEdgesPerUser = 1)
-    val user = PostgresTestDb.newUserId()
+    val user = newUser(store)
     val origin = fen("o")
     val destination = fen("d")
     store.push(
       user,
-      SyncPushRequest(emptyList(), listOf(edge(origin, destination, seq = 1)), emptyList()),
+      DEVICE,
+      SyncPushRequest(
+        emptyList(),
+        listOf(edge(origin, destination, seq = 1)),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
 
     store
       .push(
         user,
-        SyncPushRequest(emptyList(), listOf(edge(origin, destination, seq = 2)), emptyList()),
+        DEVICE,
+        SyncPushRequest(
+          emptyList(),
+          listOf(edge(origin, destination, seq = 2)),
+          emptyList(),
+          device = DEVICE,
+        ),
         serverNow,
       )
       .rejected
@@ -167,14 +207,16 @@ internal class TestSyncStoreQuota {
   @Test
   fun `refuses a push that would cross the repertoire cap`() = runTest {
     val store = SyncStore(PostgresTestDb.dataSource(), maxRepertoiresPerUser = 1)
-    val user = PostgresTestDb.newUserId()
+    val user = newUser(store)
     store.push(
       user,
+      DEVICE,
       SyncPushRequest(
         emptyList(),
         emptyList(),
         emptyList(),
         repertoires = listOf(repertoire("italian-game")),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -182,11 +224,13 @@ internal class TestSyncStoreQuota {
     shouldThrow<QuotaExceededException> {
       store.push(
         user,
+        DEVICE,
         SyncPushRequest(
           emptyList(),
           emptyList(),
           emptyList(),
           repertoires = listOf(repertoire("french-defense")),
+          device = DEVICE,
         ),
         serverNow,
       )
@@ -196,16 +240,18 @@ internal class TestSyncStoreQuota {
   @Test
   fun `refuses a push that would cross the tag cap`() = runTest {
     val store = SyncStore(PostgresTestDb.dataSource(), maxTagsPerUser = 1)
-    val user = PostgresTestDb.newUserId()
+    val user = newUser(store)
     val firstEdge = edge(fen("to1"), fen("td1"))
     val secondEdge = edge(fen("to2"), fen("td2"))
     store.push(
       user,
+      DEVICE,
       SyncPushRequest(
         emptyList(),
         listOf(firstEdge, secondEdge),
         emptyList(),
         tags = listOf(tag(firstEdge.origin, firstEdge.destination, "italian-game")),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -213,11 +259,13 @@ internal class TestSyncStoreQuota {
     shouldThrow<QuotaExceededException> {
       store.push(
         user,
+        DEVICE,
         SyncPushRequest(
           emptyList(),
           emptyList(),
           emptyList(),
           tags = listOf(tag(secondEdge.origin, secondEdge.destination, "italian-game")),
+          device = DEVICE,
         ),
         serverNow,
       )
@@ -235,11 +283,20 @@ internal class TestSyncStoreQuota {
         maxRepertoiresPerUser = 0,
         maxTagsPerUser = 0,
       )
-    val user = PostgresTestDb.newUserId()
+    val user = newUser(store)
 
     store
-      .push(user, SyncPushRequest(emptyList(), emptyList(), listOf(setting("theme"))), serverNow)
+      .push(
+        user,
+        DEVICE,
+        SyncPushRequest(emptyList(), emptyList(), listOf(setting("theme")), device = DEVICE),
+        serverNow,
+      )
       .rejected
       .shouldBeEmpty()
+  }
+
+  private companion object {
+    const val DEVICE = "88888888-8888-4888-8888-888888888888"
   }
 }

@@ -41,8 +41,8 @@ import proj.memorchess.axl.core.streak.StreakTracker
  * gets a fresh budget for that day by design, matching Anki's study-ahead behavior.
  *
  * The caps are suppliers rather than flat values so a settings change takes effect immediately on
- * the long lived singleton; defaults are unlimited so that direct construction stays usable without
- * any configuration wiring.
+ * the long lived singleton. Both are required: a caller that wants no cap must say so explicitly by
+ * supplying `{ Int.MAX_VALUE }`, rather than getting that behavior by omission.
  *
  * [streakTracker] is optional and defaults to absent, so direct construction still works without
  * any streak wiring; when present, [grade] feeds it and [streakDays]/[cardsCompletedToday] expose
@@ -54,8 +54,8 @@ class TrainingScheduler(
   private val tagStore: RepertoireTagStore,
   private val algorithm: SchedulingAlgorithm,
   private val timeZone: TimeZone = TimeZone.currentSystemDefault(),
-  private val maxNewMovesPerDay: () -> Int = { Int.MAX_VALUE },
-  private val maxTotalMovesPerDay: () -> Int = { Int.MAX_VALUE },
+  private val maxNewMovesPerDay: () -> Int,
+  private val maxTotalMovesPerDay: () -> Int,
   private val streakTracker: StreakTracker? = null,
 ) {
 
@@ -85,7 +85,7 @@ class TrainingScheduler(
    *   unscoped behavior exactly.
    */
   suspend fun nextDue(
-    day: LocalDate = DateUtil.today(),
+    day: LocalDate = DateUtil.today(timeZone),
     repertoireId: String? = null,
   ): TrainingEntry? {
     val now = DateUtil.now()
@@ -138,7 +138,7 @@ class TrainingScheduler(
    */
   suspend fun nextAfter(
     position: PositionKey,
-    day: LocalDate = DateUtil.today(),
+    day: LocalDate = DateUtil.today(timeZone),
     repertoireId: String? = null,
   ): TrainingEntry? {
     val node = treeStore.node(position) ?: return null
@@ -170,7 +170,10 @@ class TrainingScheduler(
    *   repertoire through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null`
    *   reproduces today's unscoped behavior exactly.
    */
-  suspend fun pendingCount(day: LocalDate = DateUtil.today(), repertoireId: String? = null): Int {
+  suspend fun pendingCount(
+    day: LocalDate = DateUtil.today(timeZone),
+    repertoireId: String? = null,
+  ): Int {
     val (dayStart, dayEnd) = dayBounds(day)
     val globalCounts = database.getSchedulingCounts(dayStart, dayEnd)
     val scoped = repertoireId?.let { database.getScopedCounts(dayEnd, it) }
@@ -193,12 +196,26 @@ class TrainingScheduler(
    * [StreakTracker.cardsCompletedToday]), so folding [SchedulingCounts.inSession] back in here
    * would double count it against a caller that already adds that number in separately. Cards left
    * mid learning from a previous day and not yet touched today are excluded from the result too,
-   * since [SchedulingCounts] carries no way to tell the two cases apart.
+   * since [SchedulingCounts] carries no way to tell the two cases apart. This exclusion applies
+   * whether or not [repertoireId] narrows the result.
+   *
+   * @param repertoireId When not `null`, the due reviews/new tallies narrow to this repertoire
+   *   through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null` reproduces
+   *   today's unscoped behavior exactly.
    */
-  suspend fun dueCount(day: LocalDate = DateUtil.today()): Int {
+  suspend fun dueCount(
+    day: LocalDate = DateUtil.today(timeZone),
+    repertoireId: String? = null,
+  ): Int {
     val (dayStart, dayEnd) = dayBounds(day)
-    val c = database.getSchedulingCounts(dayStart, dayEnd)
-    val (reviewsServable, newServable) = servableCounts(c)
+    val globalCounts = database.getSchedulingCounts(dayStart, dayEnd)
+    val scoped = repertoireId?.let { database.getScopedCounts(dayEnd, it) }
+    val (reviewsServable, newServable) =
+      servableCounts(
+        globalCounts,
+        dueReviews = scoped?.dueReviews ?: globalCounts.dueReviews,
+        dueNew = scoped?.dueNew ?: globalCounts.dueNew,
+      )
     return reviewsServable + newServable
   }
 

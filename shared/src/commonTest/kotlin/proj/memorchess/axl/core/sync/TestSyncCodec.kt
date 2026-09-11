@@ -117,6 +117,7 @@ internal class TestSyncCodec {
       SyncPullResponse(
         serverTime = Instant.parse("2026-09-03T10:16:00Z"),
         nextCursor = 42L,
+        pageToken = "tok-42",
         nodes = listOf(node),
         edges = listOf(edge),
         settings = listOf(setting),
@@ -131,6 +132,7 @@ internal class TestSyncCodec {
       SyncPullResponse(
         serverTime = Instant.fromEpochMilliseconds(0),
         nextCursor = null,
+        pageToken = "tok-0",
         nodes = emptyList(),
         edges = emptyList(),
         settings = emptyList(),
@@ -142,7 +144,7 @@ internal class TestSyncCodec {
 
   @Test
   fun pushRequestAndResponseRoundTrip() {
-    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting))
+    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = "device-a")
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
 
     val response =
@@ -184,6 +186,7 @@ internal class TestSyncCodec {
         settings = emptyList(),
         repertoires = listOf(repertoire),
         tags = listOf(tag),
+        device = "device-a",
       )
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
   }

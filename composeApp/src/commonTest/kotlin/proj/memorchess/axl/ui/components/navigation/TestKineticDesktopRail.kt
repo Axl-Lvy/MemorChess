@@ -97,6 +97,8 @@ internal class TestKineticDesktopRail {
       testTreeStore(database),
       testRepertoireTagStore(database),
       Fsrs6SchedulingAlgorithm(),
+      maxNewMovesPerDay = { Int.MAX_VALUE },
+      maxTotalMovesPerDay = { Int.MAX_VALUE },
     )
 
   private fun rowTag(item: NavigationBarItemContent) = "desktop_rail_${item.name}"

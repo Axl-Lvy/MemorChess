@@ -103,6 +103,14 @@ class SyncApplier(
   }
 
   /**
+   * Hard wipes every position and move, both in the cache and on disk. Leaves the outbox untouched.
+   */
+  suspend fun eraseAll() {
+    database.eraseAll()
+    cache.clear()
+  }
+
+  /**
    * The local counterpart of a pulled edge, as an [EdgeSyncRow], or `null` when unknown locally.
    */
   private suspend fun localEdgeSyncRow(origin: PositionKey, move: String): EdgeSyncRow? =

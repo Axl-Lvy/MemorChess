@@ -85,6 +85,8 @@ class TestTrainingScheduler {
         tagStore = testRepertoireTagStore(database),
         algorithm = Fsrs6SchedulingAlgorithm(),
         timeZone = timeZone,
+        maxNewMovesPerDay = { Int.MAX_VALUE },
+        maxTotalMovesPerDay = { Int.MAX_VALUE },
         streakTracker = streakTracker,
       )
     return Triple(store, scheduler, streakTracker)
@@ -355,6 +357,8 @@ class TestTrainingScheduler {
         testRepertoireTagStore(database),
         Fsrs6SchedulingAlgorithm(),
         TimeZone.currentSystemDefault(),
+        maxNewMovesPerDay = { Int.MAX_VALUE },
+        maxTotalMovesPerDay = { Int.MAX_VALUE },
       )
     val now = DateUtil.now()
     store.updateCardState(startPos, CardStateFactory.new(now + 5.days))
@@ -441,6 +445,46 @@ class TestTrainingScheduler {
     store.updateCardState(posC, reviewedTodayCard())
     assertEquals(0, scheduler.pendingCount())
     assertNull(scheduler.nextDue())
+  }
+
+  @Test
+  fun totalLimitOneServesExactlyOneCard() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 1)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(1, scheduler.pendingCount())
+  }
+
+  @Test
+  fun totalLimitExactlyAtBoundaryServesAllCards() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 2)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(2, scheduler.pendingCount())
+  }
+
+  @Test
+  fun totalLimitOneAboveBoundaryServesAllCards() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 3)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(2, scheduler.pendingCount())
+  }
+
+  @Test
+  fun largeTotalLimitServesEverything() = runTest {
+    val (store, scheduler) = newScheduler(maxTotal = 1_000_000)
+    store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+    store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+    store.updateCardState(startPos, reviewCard(DateUtil.now() - 1.days))
+    store.updateCardState(posA, reviewCard(DateUtil.now() - 1.days))
+    assertEquals(2, scheduler.pendingCount())
   }
 
   @Test
@@ -560,6 +604,29 @@ class TestTrainingScheduler {
     assertEquals(1, scheduler.pendingCount(today))
   }
 
+  @Test
+  fun pendingCountDefaultsToTheSchedulersOwnZoneNotTheSystemZone() = runTest {
+    // 26 hours apart, so their current local dates can never coincide, and a system zone default
+    // could agree with the wrong window for at most one of the two. posC was already trained at
+    // the real "now", which always falls inside its own zone's current day by definition, so the
+    // cap holds under the fix. If the default day instead came from the system zone, the window
+    // handed to at least one of these schedulers would miss "now" entirely, posC would stop
+    // consuming the single slot, and pendingCount would surface the still new startPos card.
+    val zoneAhead = UtcOffset(hours = 14).asTimeZone()
+    val zoneBehind = UtcOffset(hours = -12).asTimeZone()
+    val (storeAhead, schedulerAhead) = newScheduler(maxTotal = 1, timeZone = zoneAhead)
+    val (storeBehind, schedulerBehind) = newScheduler(maxTotal = 1, timeZone = zoneBehind)
+    for (store in listOf(storeAhead, storeBehind)) {
+      store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
+      store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
+      store.addMove(from = posC, move = "Nf3", to = posB, isGood = true, fromDepth = 0)
+      store.updateCardState(posC, reviewedTodayCard())
+    }
+
+    assertEquals(0, schedulerAhead.pendingCount())
+    assertEquals(0, schedulerBehind.pendingCount())
+  }
+
   private fun reviewedTodayCard(): CardState {
     val now = DateUtil.now()
     return CardState(
@@ -668,5 +735,60 @@ class TestTrainingScheduler {
     tagStore.tag(startPos, destinationB, "queens-gambit")
 
     assertEquals(1, scheduler.pendingCount(repertoireId = "italian-game"))
+  }
+
+  @Test
+  fun dueCountScopedToARepertoireCountsOnlyItsOwnTrainableCards() = runTest {
+    val (store, scheduler, tagStore) = newScheduler()
+    val italianA = PositionKey("italianA b K")
+    val italianLeaf = PositionKey("italianLeaf w K")
+    val gambitA = PositionKey("gambitA b K")
+    val gambitLeaf = PositionKey("gambitLeaf w K")
+    store.addMove(startPos, "e4", italianA, isGood = true, fromDepth = 0)
+    store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
+    store.addMove(startPos, "d4", gambitA, isGood = true, fromDepth = 0)
+    store.addMove(gambitA, "d5", gambitLeaf, isGood = true, fromDepth = 1)
+    // Only italianA's own outgoing edge is tagged, so only italianA (not startPos, which reaches
+    // it through an untagged edge) is trainable within "italian-game".
+    tagStore.tag(italianA, italianLeaf, "italian-game")
+    tagStore.tag(gambitA, gambitLeaf, "queens-gambit")
+
+    assertEquals(1, scheduler.dueCount(repertoireId = "italian-game"))
+    assertEquals(1, scheduler.dueCount(repertoireId = "queens-gambit"))
+  }
+
+  @Test
+  fun dueCountWithNoRepertoireReproducesTodaysUnscopedBehaviorExactly() = runTest {
+    val (store, scheduler, tagStore) = newScheduler()
+    val italianA = PositionKey("italianA b K")
+    val italianLeaf = PositionKey("italianLeaf w K")
+    val gambitA = PositionKey("gambitA b K")
+    val gambitLeaf = PositionKey("gambitLeaf w K")
+    store.addMove(startPos, "e4", italianA, isGood = true, fromDepth = 0)
+    store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
+    store.addMove(startPos, "d4", gambitA, isGood = true, fromDepth = 0)
+    store.addMove(gambitA, "d5", gambitLeaf, isGood = true, fromDepth = 1)
+    tagStore.tag(italianA, italianLeaf, "italian-game")
+    tagStore.tag(gambitA, gambitLeaf, "queens-gambit")
+
+    // No repertoireId: every trainable due card counts, tagged or not (startPos itself carries no
+    // tag of its own), exactly like before repertoire scoping existed.
+    assertEquals(3, scheduler.dueCount())
+  }
+
+  @Test
+  fun dueCountExcludesInSessionCardsWhetherOrNotScoped() = runTest {
+    val (store, scheduler, tagStore) = newScheduler()
+    val italianA = PositionKey("italianA b K")
+    val italianLeaf = PositionKey("italianLeaf w K")
+    store.addMove(startPos, "e4", italianA, isGood = true, fromDepth = 0)
+    store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
+    tagStore.tag(italianA, italianLeaf, "italian-game")
+    // italianA is mid learning (in-session) and ready, not a due review or due new card.
+    store.updateCardState(italianA, learningCard(DateUtil.now() - 1.minutes))
+
+    // startPos remains a due new card, uncounted by any scope.
+    assertEquals(1, scheduler.dueCount())
+    assertEquals(0, scheduler.dueCount(repertoireId = "italian-game"))
   }
 }

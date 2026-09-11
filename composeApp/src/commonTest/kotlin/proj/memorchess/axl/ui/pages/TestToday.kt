@@ -97,6 +97,8 @@ class TestToday : TestWithKoin() {
       testTreeStore(database),
       testRepertoireTagStore(database),
       Fsrs6SchedulingAlgorithm(),
+      maxNewMovesPerDay = { Int.MAX_VALUE },
+      maxTotalMovesPerDay = { Int.MAX_VALUE },
     )
 
   private fun ComposeUiTest.setToday(
