@@ -139,6 +139,75 @@ class TestRoomSchedulingQueries {
   }
 
   @Test
+  fun nextDueNewCard_ordersZeroOneAndALargeDepthAscending_sentinelDepthSortsLast() = runTest {
+    insert(
+      "depth0",
+      CardPhase.NEW,
+      dueDate = Instant.fromEpochSeconds(100),
+      depth = 0,
+      createdAt = Instant.fromEpochSeconds(100),
+    )
+    insert(
+      "depth1",
+      CardPhase.NEW,
+      dueDate = Instant.fromEpochSeconds(100),
+      depth = 1,
+      createdAt = Instant.fromEpochSeconds(100),
+    )
+    insert(
+      "depthLarge",
+      CardPhase.NEW,
+      dueDate = Instant.fromEpochSeconds(100),
+      depth = 1_000_000,
+      createdAt = Instant.fromEpochSeconds(100),
+    )
+    // Built through the public DataNode constructor with depth omitted, so this exercises the
+    // real default rather than the insert() helper's own. Its createdAt is earlier than every
+    // other node here, so a passing test proves the sentinel wins on depth alone and is never
+    // rescued to the front by the createdAt tiebreak.
+    manager.insertNodes(
+      DataNode(
+        positionKey = PositionKey("depthOmitted"),
+        previousAndNextMoves =
+          PreviousAndNextMoves(
+            emptyList(),
+            listOf(
+              DataMove(
+                origin = PositionKey("depthOmitted"),
+                destination = PositionKey("depthOmitted-child"),
+                move = "e4",
+                isGood = true,
+              )
+            ),
+          ),
+        cardState =
+          CardState(
+            dueDate = Instant.fromEpochSeconds(100),
+            lastReview = null,
+            firstReview = null,
+            stability = 0.0,
+            difficulty = 0.0,
+            reps = 0,
+            lapses = 0,
+          ),
+        hasGoodOutgoing = true,
+        createdAt = Instant.fromEpochSeconds(50),
+      )
+    )
+
+    manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depth0")
+    manager.deletePosition(PositionKey("depth0"), proj.memorchess.axl.core.graph.DeleteMode.HARD)
+    manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depth1")
+    manager.deletePosition(PositionKey("depth1"), proj.memorchess.axl.core.graph.DeleteMode.HARD)
+    manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depthLarge")
+    manager.deletePosition(
+      PositionKey("depthLarge"),
+      proj.memorchess.axl.core.graph.DeleteMode.HARD,
+    )
+    manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depthOmitted")
+  }
+
+  @Test
   fun nextReadyLearningCard_includesDueEqualToNow() = runTest {
     insert("atNow", CardPhase.LEARNING, dueDate = now)
     manager.nextReadyLearningCard(now)?.positionKey shouldBe PositionKey("atNow")

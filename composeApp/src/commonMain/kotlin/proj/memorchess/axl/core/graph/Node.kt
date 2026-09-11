@@ -13,14 +13,15 @@ import proj.memorchess.axl.core.scheduling.CardStateFactory
  * @property positionKey Position represented by this node.
  * @property outgoing Edges leaving [positionKey], keyed by [Edge.move].
  * @property incoming Edges arriving at [positionKey], keyed by [Edge.move].
- * @property depth Shortest known distance from the root, in plies.
+ * @property depth Shortest known distance from the root, in plies. No default: a wrong value here
+ *   silently reorders the new card training queue instead of failing loudly.
  * @property cardState Spaced repetition state for this position.
  */
 data class Node(
   val positionKey: PositionKey,
   val outgoing: Map<String, Edge> = emptyMap(),
   val incoming: Map<String, Edge> = emptyMap(),
-  val depth: Int = Int.MAX_VALUE,
+  val depth: Int,
   val cardState: CardState = CardStateFactory.new(),
 ) {
 

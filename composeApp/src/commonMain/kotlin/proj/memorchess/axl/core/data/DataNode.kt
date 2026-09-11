@@ -13,7 +13,9 @@ import proj.memorchess.axl.core.scheduling.CardState
  * @property cardState Scheduling state used by the active
  *   [proj.memorchess.axl.core.scheduling.SchedulingAlgorithm]. Holds the next due date and any
  *   algorithm specific state such as FSRS stability and difficulty.
- * @property depth The minimum depth at which this position can be reached from the root.
+ * @property depth The minimum depth at which this position can be reached from the root. Defaults
+ *   to [Int.MAX_VALUE], since nextDueNewCard orders new cards by ascending depth and an unset value
+ *   must sort last rather than jump the queue.
  * @property hasGoodOutgoing Derived projection: `true` iff this node has at least one non deleted
  *   outgoing edge marked good. The persistence layer recomputes it from [previousAndNextMoves] on
  *   every write, so a caller-supplied value here is only a fallback for a node with no moves
@@ -33,7 +35,7 @@ data class DataNode(
   val positionKey: PositionKey,
   val previousAndNextMoves: PreviousAndNextMoves,
   val cardState: CardState,
-  val depth: Int = 0,
+  val depth: Int = Int.MAX_VALUE,
   val updatedAt: Instant = DateUtil.now(),
   val isDeleted: Boolean = false,
   val hasGoodOutgoing: Boolean = false,
