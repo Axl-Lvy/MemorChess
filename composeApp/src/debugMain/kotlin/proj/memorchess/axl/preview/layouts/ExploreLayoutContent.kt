@@ -70,6 +70,6 @@ internal val previewExploreLayoutContent =
     },
     board = {
       val treeStore: TreeStore = koinInject()
-      Board(inverted = false, interactionsManager = LinesExplorer(treeStore = treeStore))
+      Board(interactionsManager = LinesExplorer(treeStore = treeStore), inverted = false)
     },
   )
