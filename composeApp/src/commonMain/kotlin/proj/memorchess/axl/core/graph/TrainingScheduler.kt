@@ -202,7 +202,10 @@ class TrainingScheduler(
    *   through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null` reproduces
    *   today's unscoped behavior exactly.
    */
-  suspend fun dueCount(day: LocalDate = DateUtil.today(), repertoireId: String? = null): Int {
+  suspend fun dueCount(
+    day: LocalDate = DateUtil.today(timeZone),
+    repertoireId: String? = null,
+  ): Int {
     val (dayStart, dayEnd) = dayBounds(day)
     val globalCounts = database.getSchedulingCounts(dayStart, dayEnd)
     val scoped = repertoireId?.let { database.getScopedCounts(dayEnd, it) }
