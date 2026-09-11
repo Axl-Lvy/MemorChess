@@ -217,9 +217,8 @@ class TreeStore(
    * Persists a full graph produced by [GraphSerializer.deserialize], stamping this device's
    * identity and a fresh write sequence on every node and edge so an imported file can converge
    * with the same file imported on another device instead of colliding on the wire format's
-   * placeholder `""`/`0L` identity. Bypasses the in memory cache entirely, the same way the direct
-   * [DatabaseQueryManager.insertNodes] call this replaces did: a position already resident keeps
-   * its pre import state until it is next evicted or otherwise refreshed.
+   * placeholder `""`/`0L` identity. Every imported position is invalidated once its row is written,
+   * so a resident copy cannot keep serving the pre import edge set.
    *
    * Each edge appears twice in [nodes], once in its origin's [DataNode.previousAndNextMoves] and
    * once in its destination's. Exactly one write sequence is allocated per distinct edge and reused
@@ -261,6 +260,10 @@ class TreeStore(
     for (edge in edgeStamps.values) {
       database.markDirty(DirtyKey.EdgeKey(edge.origin, edge.destination), edge.deviceSeq)
     }
+    // Only the listed positions can have changed, since insertNodes merges into existing rows
+    // rather than replacing the graph, so an untouched working set survives the import. The
+    // invalidations follow the durable write, or a retry would read the same superseded row.
+    for (node in stampedNodes) cache.invalidate(node.positionKey)
     notifyDirty()
   }
 

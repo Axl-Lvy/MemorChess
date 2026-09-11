@@ -26,6 +26,7 @@ class TestTreeStoreImport {
 
   private val start = PositionKey.START_POSITION
   private val posA = PositionKey("posA b K")
+  private val posB = PositionKey("posB b K")
 
   /**
    * A two node graph connected by one edge, shaped exactly as [GraphSerializer.deserialize] emits
@@ -82,6 +83,21 @@ class TestTreeStoreImport {
     fromOrigin.deviceSeq shouldBeGreaterThan 0L
     fromDestination.deviceSeq shouldBe fromOrigin.deviceSeq
     fromDestination.originDevice shouldBe fromOrigin.originDevice
+  }
+
+  @Test
+  fun importNodesDropsTheStalePreImportEntriesTheCacheHeld() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    // Explored before the import, so start is resident carrying only its own edge.
+    store.addMove(start, "d4", posB, isGood = true, fromDepth = 0)
+    store.node(start)!!.outgoing.keys shouldBe setOf("d4")
+
+    store.importNodes(importedGraph(Instant.parse("2026-01-01T00:00:00Z")))
+
+    // insertNodes merges, so the database now holds both edges. Read back through the cache: with
+    // start left resident this served the pre import node and the imported "e4" stayed invisible.
+    store.node(start)!!.outgoing.keys shouldBe setOf("d4", "e4")
   }
 
   @Test
