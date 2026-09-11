@@ -2,6 +2,7 @@ package proj.memorchess.axl.core.graph
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -61,19 +62,28 @@ private data class RaceMark(
  * marks, clears and inserts in one critical section and [Mutex] is not reentrant.
  *
  * @param loader Point lookup used on a miss.
- * @param loadScope Scope **every** load runs on, foreground [resolve] misses included and not just
- *   background prefetch: a miss awaits a load dispatched here, so a cancelled scope fails every
- *   miss and a scope whose dispatcher is never run (an unadvanced test scheduler) hangs every miss.
- *   Hand a scope that stays live and scheduled for as long as the cache is read. The cache derives
- *   its own [SupervisorJob] child of it, so one failed load never cancels a sibling or the caller,
- *   while a transient cache still dies with whatever owns the scope it was built from. That derived
- *   supervisor is a permanent child, so a caller that joins the handed [Job] would wait forever:
- *   hand a [Job] nobody joins, such as a [SupervisorJob] or a lifecycle scope.
+ * @param loadScope Scope whose [Job] bounds a load's lifetime. Only the job is taken, never the
+ *   dispatcher: a load runs [Dispatchers.Unconfined] so a foreground [resolve] miss completes on
+ *   the caller's own continuation instead of waiting for this scope to be scheduled. Every load
+ *   runs here, misses included and not just background prefetch, so cancelling this scope fails
+ *   every miss, which is the intended way to tear a cache down. The cache derives its own
+ *   [SupervisorJob] child of the handed [Job], so one failed load never cancels a sibling or the
+ *   caller, while a transient cache still dies with whatever owns the scope it was built from. That
+ *   derived supervisor is a permanent child, so a caller that joins the handed [Job] would wait
+ *   forever: hand a [Job] nobody joins, such as a [SupervisorJob] or a lifecycle scope.
  */
 class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
 
+  // Unconfined last, so it overrides whatever dispatcher the handed scope carries. A load then
+  // runs on the thread that installed or resumed it and never waits on a dispatcher of its own,
+  // which a foreground resolve is blocked on. Under a Compose UI test on wasmJs nothing pumps
+  // Dispatchers.Default, and every miss hung forever when the load needed it.
   private val scope =
-    CoroutineScope(loadScope.coroutineContext + SupervisorJob(loadScope.coroutineContext[Job]))
+    CoroutineScope(
+      loadScope.coroutineContext +
+        SupervisorJob(loadScope.coroutineContext[Job]) +
+        Dispatchers.Unconfined
+    )
 
   private val tree = OpeningTree()
   private val mutex = Mutex()
