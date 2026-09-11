@@ -16,4 +16,12 @@ class TestDataNode {
     withDerived shouldBe base
     withDerived.hashCode() shouldBe base.hashCode()
   }
+
+  @Test
+  fun omittedDepthDefaultsToTheSentinelThatSortsLastInTheNewCardQueue() {
+    val node = DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+    // nextDueNewCard orders ascending by depth, so an unset value must be the largest possible
+    // depth rather than the smallest: 0 would jump every real position to the front of the queue.
+    node.depth shouldBe Int.MAX_VALUE
+  }
 }
