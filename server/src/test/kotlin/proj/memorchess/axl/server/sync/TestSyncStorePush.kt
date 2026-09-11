@@ -6,6 +6,9 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
@@ -16,6 +19,7 @@ import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.SYNC_SKEW_TOLERANCE
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.core.sync.resolve
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStorePush {
@@ -148,6 +152,34 @@ internal class TestSyncStorePush {
       serverNow,
     )
     store.readSettingForTest(user, "theme")?.value shouldBe "light"
+  }
+
+  @Test
+  fun concurrentPushesOfTwoVersionsOfTheSameSettingConvergeToTheResolvedWinner() = runTest {
+    // Both pushes read the stored row, resolve it against their own incoming row, then write the
+    // winner back. Run one after the other, that pipeline is trivially correct. Run the two truly
+    // in parallel and a read that is not locked can let both transactions see the same stale stored
+    // row, so each writes its own idea of the winner and whichever commits last overwrites the
+    // other, losing an update `resolve` would never have allowed. Launching both through
+    // `store.push` exercises the real pipeline, including the `readSetting(lockRow = true)` call
+    // inside `applySetting`, from two coroutines that genuinely run at the same time.
+    val user = newUser()
+    val fromDeviceA =
+      setting("theme", "dark", Instant.fromEpochMilliseconds(10), device = "device-a")
+    val fromDeviceB =
+      setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")
+    val expectedWinner = resolve(local = fromDeviceA, remote = fromDeviceB).row
+
+    coroutineScope {
+      val first =
+        async(Dispatchers.IO) { store.push(user, DEVICE, request(fromDeviceA), serverNow) }
+      val second =
+        async(Dispatchers.IO) { store.push(user, DEVICE, request(fromDeviceB), serverNow) }
+      first.await()
+      second.await()
+    }
+
+    store.readSettingForTest(user, "theme") shouldBe expectedWinner
   }
 
   @Test
