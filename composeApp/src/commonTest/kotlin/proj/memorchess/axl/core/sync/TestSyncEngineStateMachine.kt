@@ -6,6 +6,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
@@ -205,6 +206,94 @@ class TestSyncEngineStateMachine {
     advanceTimeBy(3.seconds)
 
     cycles shouldBe 1
+  }
+
+  @Test
+  fun anEarlyForegroundCycleIsNotRestartedByStart() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        }
+      )
+
+    // The lifecycle hook can reach the engine before start() does: a resume effect runs during
+    // composition, while start() is dispatched from a coroutine launched alongside it. The
+    // in flight cycle it begins is not a crashed one and must not be recovered over.
+    e.onAppForeground()
+    e.start()
+    advanceTimeBy(3.seconds)
+
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun startDoesNotRecoverOverACycleThatIsStillInFlight() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          delay(1.seconds)
+          CycleOutcome.Success
+        }
+      )
+
+    e.onAppForeground()
+    advanceTimeBy(100.milliseconds)
+    e.start()
+    advanceTimeBy(30.seconds)
+
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun aStoredBackingOffStateAtStartupStillRetries() = runTest {
+    val jobStore = SyncJobStore(TestSettings())
+    jobStore.write(
+      SyncJobState(
+        SyncJobStatus.BACKING_OFF,
+        nextAttemptAt = Instant.fromEpochMilliseconds(0),
+        attempt = 1,
+      )
+    )
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        },
+        jobStore = jobStore,
+      )
+
+    e.start()
+    advanceTimeBy(3.seconds)
+
+    cycles shouldBe 1
+  }
+
+  @Test
+  fun aDirtySignalLandingBeforeTheCycleBodyRunsIsNotDropped() = runTest {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        }
+      )
+    e.start()
+
+    // syncNow marks the engine RUNNING synchronously but the cycle body has not run yet, so this
+    // signal lands in the window where that body used to clear the retrigger flag.
+    e.syncNow()
+    e.notifyDirty()
+    advanceTimeBy(30.seconds)
+
+    cycles shouldBe 2
   }
 
   @Test

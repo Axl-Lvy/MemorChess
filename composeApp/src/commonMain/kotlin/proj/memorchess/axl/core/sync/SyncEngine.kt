@@ -91,6 +91,11 @@ internal class DefaultSyncEngine(
   private var pendingRetriggerDuringRun = false
 
   override fun start() {
+    // A foreground hook can begin a cycle before this runs, because a resume effect fires during
+    // composition while this call is dispatched. That cycle is in flight, not a crashed one, and
+    // recovering over it would leave a second cycle running beside it. A stored RUNNING from a
+    // previous process is still recovered below, since a fresh engine starts IDLE.
+    if (_status.value == SyncJobStatus.RUNNING) return
     val stored = jobStore.read()
     val recovered =
       if (stored.status == SyncJobStatus.RUNNING) {
@@ -103,7 +108,10 @@ internal class DefaultSyncEngine(
     jobStore.write(recovered)
     _status.value = recovered.status
     when (recovered.status) {
-      SyncJobStatus.SCHEDULED -> scheduleTimer(recovered.nextAttemptAt ?: now())
+      // BACKING_OFF too: its timer lived only in the dead process, and notifyDirty deliberately
+      // ignores dirt in that state, so without this the device would run no cycle at all.
+      SyncJobStatus.SCHEDULED,
+      SyncJobStatus.BACKING_OFF -> scheduleTimer(recovered.nextAttemptAt ?: now())
       // An app relaunched into IDLE with a clean outbox would otherwise run no cycle at all, and a
       // device that never pulls holds its user's garbage collection watermark down forever.
       SyncJobStatus.IDLE -> armHeartbeat()
@@ -166,8 +174,11 @@ internal class DefaultSyncEngine(
       return
     }
     setState(SyncJobState(SyncJobStatus.RUNNING, null, attempt = jobStore.read().attempt))
+    // Cleared here rather than inside the launched body: the engine is RUNNING from the line
+    // above, so a signal arriving before that body is dispatched sets the flag, and clearing it
+    // in there would drop it.
+    pendingRetriggerDuringRun = false
     scope.launch {
-      pendingRetriggerDuringRun = false
       val outcome =
         try {
           runCycle()
