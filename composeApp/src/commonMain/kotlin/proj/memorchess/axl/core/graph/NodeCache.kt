@@ -61,11 +61,14 @@ private data class RaceMark(
  * marks, clears and inserts in one critical section and [Mutex] is not reentrant.
  *
  * @param loader Point lookup used on a miss.
- * @param loadScope Scope loads run on. The cache derives its own [SupervisorJob] child of it, so
- *   one failed load never cancels a sibling or the caller, while a transient cache still dies with
- *   whatever owns the scope it was built from. Hand a scope whose [Job] nobody joins, such as a
- *   [SupervisorJob] or a lifecycle scope. The derived supervisor is a permanent child of it, so a
- *   caller that joins the handed [Job] would wait forever.
+ * @param loadScope Scope **every** load runs on, foreground [resolve] misses included and not just
+ *   background prefetch: a miss awaits a load dispatched here, so a cancelled scope fails every
+ *   miss and a scope whose dispatcher is never run (an unadvanced test scheduler) hangs every miss.
+ *   Hand a scope that stays live and scheduled for as long as the cache is read. The cache derives
+ *   its own [SupervisorJob] child of it, so one failed load never cancels a sibling or the caller,
+ *   while a transient cache still dies with whatever owns the scope it was built from. That derived
+ *   supervisor is a permanent child, so a caller that joins the handed [Job] would wait forever:
+ *   hand a [Job] nobody joins, such as a [SupervisorJob] or a lifecycle scope.
  */
 class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
 
