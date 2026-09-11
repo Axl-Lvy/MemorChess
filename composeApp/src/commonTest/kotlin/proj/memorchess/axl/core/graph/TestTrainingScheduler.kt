@@ -721,4 +721,59 @@ class TestTrainingScheduler {
 
     assertEquals(1, scheduler.pendingCount(repertoireId = "italian-game"))
   }
+
+  @Test
+  fun dueCountScopedToARepertoireCountsOnlyItsOwnTrainableCards() = runTest {
+    val (store, scheduler) = newScheduler()
+    val italianA = PositionKey("italianA b K")
+    val italianLeaf = PositionKey("italianLeaf w K")
+    val gambitA = PositionKey("gambitA b K")
+    val gambitLeaf = PositionKey("gambitLeaf w K")
+    store.addMove(startPos, "e4", italianA, isGood = true, fromDepth = 0)
+    store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
+    store.addMove(startPos, "d4", gambitA, isGood = true, fromDepth = 0)
+    store.addMove(gambitA, "d5", gambitLeaf, isGood = true, fromDepth = 1)
+    // Only italianA's own outgoing edge is tagged, so only italianA (not startPos, which reaches
+    // it through an untagged edge) is trainable within "italian-game".
+    store.tagEdge(italianA, italianLeaf, "italian-game")
+    store.tagEdge(gambitA, gambitLeaf, "queens-gambit")
+
+    assertEquals(1, scheduler.dueCount(repertoireId = "italian-game"))
+    assertEquals(1, scheduler.dueCount(repertoireId = "queens-gambit"))
+  }
+
+  @Test
+  fun dueCountWithNoRepertoireReproducesTodaysUnscopedBehaviorExactly() = runTest {
+    val (store, scheduler) = newScheduler()
+    val italianA = PositionKey("italianA b K")
+    val italianLeaf = PositionKey("italianLeaf w K")
+    val gambitA = PositionKey("gambitA b K")
+    val gambitLeaf = PositionKey("gambitLeaf w K")
+    store.addMove(startPos, "e4", italianA, isGood = true, fromDepth = 0)
+    store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
+    store.addMove(startPos, "d4", gambitA, isGood = true, fromDepth = 0)
+    store.addMove(gambitA, "d5", gambitLeaf, isGood = true, fromDepth = 1)
+    store.tagEdge(italianA, italianLeaf, "italian-game")
+    store.tagEdge(gambitA, gambitLeaf, "queens-gambit")
+
+    // No repertoireId: every trainable due card counts, tagged or not (startPos itself carries no
+    // tag of its own), exactly like before repertoire scoping existed.
+    assertEquals(3, scheduler.dueCount())
+  }
+
+  @Test
+  fun dueCountExcludesInSessionCardsWhetherOrNotScoped() = runTest {
+    val (store, scheduler) = newScheduler()
+    val italianA = PositionKey("italianA b K")
+    val italianLeaf = PositionKey("italianLeaf w K")
+    store.addMove(startPos, "e4", italianA, isGood = true, fromDepth = 0)
+    store.addMove(italianA, "e5", italianLeaf, isGood = true, fromDepth = 1)
+    store.tagEdge(italianA, italianLeaf, "italian-game")
+    // italianA is mid learning (in-session) and ready, not a due review or due new card.
+    store.updateCardState(italianA, learningCard(DateUtil.now() - 1.minutes))
+
+    // startPos remains a due new card, uncounted by any scope.
+    assertEquals(1, scheduler.dueCount())
+    assertEquals(0, scheduler.dueCount(repertoireId = "italian-game"))
+  }
 }

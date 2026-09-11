@@ -195,12 +195,26 @@ class TrainingScheduler(
    * [StreakTracker.cardsCompletedToday]), so folding [SchedulingCounts.inSession] back in here
    * would double count it against a caller that already adds that number in separately. Cards left
    * mid learning from a previous day and not yet touched today are excluded from the result too,
-   * since [SchedulingCounts] carries no way to tell the two cases apart.
+   * since [SchedulingCounts] carries no way to tell the two cases apart. This exclusion applies
+   * whether or not [repertoireId] narrows the result.
+   *
+   * @param repertoireId When not `null`, the due reviews/new tallies narrow to this repertoire
+   *   through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null` reproduces
+   *   today's unscoped behavior exactly.
    */
-  suspend fun dueCount(day: LocalDate = DateUtil.today()): Int {
+  suspend fun dueCount(
+    day: LocalDate = DateUtil.today(timeZone),
+    repertoireId: String? = null,
+  ): Int {
     val (dayStart, dayEnd) = dayBounds(day)
-    val c = database.getSchedulingCounts(dayStart, dayEnd)
-    val (reviewsServable, newServable) = servableCounts(c)
+    val globalCounts = database.getSchedulingCounts(dayStart, dayEnd)
+    val scoped = repertoireId?.let { database.getScopedCounts(dayEnd, it) }
+    val (reviewsServable, newServable) =
+      servableCounts(
+        globalCounts,
+        dueReviews = scoped?.dueReviews ?: globalCounts.dueReviews,
+        dueNew = scoped?.dueNew ?: globalCounts.dueNew,
+      )
     return reviewsServable + newServable
   }
 
