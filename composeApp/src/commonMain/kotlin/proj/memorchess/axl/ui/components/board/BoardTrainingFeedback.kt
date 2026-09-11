@@ -11,12 +11,14 @@ import proj.memorchess.axl.ui.components.training.BoardContainer
  *   of the session.
  * @property correctSquare The square the good move should have landed on, or `null` before the
  *   first move of the session. Only ever set on a wrong attempt.
- * @property isCorrect Whether the move that produced the current [attempt] was correct.
+ * @property isCorrect Whether the move that produced the current [attempt] was correct, or `null`
+ *   before any move of the session has been graded. Consumers must check for `null` explicitly
+ *   instead of relying on [playedSquare] or [attempt] to imply it.
  * @property attempt Monotonic counter of graded moves; a change drives every animation once.
  */
 data class BoardTrainingFeedback(
   val playedSquare: BoardLocation? = null,
   val correctSquare: BoardLocation? = null,
-  val isCorrect: Boolean = true,
+  val isCorrect: Boolean? = null,
   val attempt: Int = 0,
 )

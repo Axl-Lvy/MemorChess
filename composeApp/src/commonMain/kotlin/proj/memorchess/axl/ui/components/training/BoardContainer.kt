@@ -47,7 +47,7 @@ fun BoardContainer(
       Box(
         modifier =
           Modifier.size(side)
-            .registeredFlash(attempt = feedback.attempt, success = feedback.isCorrect),
+            .registeredFlash(attempt = feedback.attempt, success = feedback.isCorrect == true),
         contentAlignment = Alignment.Center,
       ) {
         KineticBoardShell(
