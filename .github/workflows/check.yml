@@ -532,13 +532,14 @@ jobs:
   check-status:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [detect, format-check, jvm-tests, compile-multiplat, compile-benchmark, android-tests, wasm-tests, ios-tests, publish-test-results, sonar-analysis]
+    needs: [detect, format-check, translations-check, jvm-tests, compile-multiplat, compile-benchmark, android-tests, wasm-tests, ios-tests, publish-test-results, sonar-analysis]
     if: always()
     steps:
       - name: Check job results
         env:
           TIER: ${{ needs.detect.outputs.tier }}
           FORMAT: ${{ needs.format-check.result }}
+          TRANSLATIONS: ${{ needs.translations-check.result }}
           JVM: ${{ needs.jvm-tests.result }}
           MULTIPLAT: ${{ needs.compile-multiplat.result }}
           BENCHCOMPILE: ${{ needs.compile-benchmark.result }}
@@ -551,6 +552,9 @@ jobs:
           fail() { echo "$1 failed (result=$2)"; exit 1; }
 
           echo "Resolved tier: $TIER"
+
+          # translations-check is not tier-gated, so it is verified even on noop.
+          [ "$TRANSLATIONS" = "success" ] || fail translations-check "$TRANSLATIONS"
 
           if [ "$TIER" = "noop" ]; then
             echo "No code changes detected, skipping checks"
