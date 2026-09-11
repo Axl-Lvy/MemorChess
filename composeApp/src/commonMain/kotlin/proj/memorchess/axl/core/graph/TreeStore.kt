@@ -31,13 +31,12 @@ import proj.memorchess.axl.core.sync.toNodeSyncRow
 import proj.memorchess.axl.core.sync.toRepertoireSyncRow
 
 /**
- * Single mutation chokepoint for the opening tree.
+ * Single chokepoint for local mutation of the opening tree. Remote writes land through
+ * [proj.memorchess.axl.core.sync.SyncApplier] instead.
  *
- * Persistence is authoritative. The in memory [OpeningTree] is a **bounded, demand paged** cache:
- * it holds only a working set, never the whole repertoire. [node] resolves a position through the
- * cache, falling back to a single [DatabaseQueryManager.getPosition] point lookup on a miss and
- * inserting the rebuilt node into the bounded LRU. On a successful miss it also fires a one ply
- * background prefetch of the node's neighbours so the next navigation step is a cache hit.
+ * Persistence is authoritative. [NodeCache] holds only a bounded working set, never the whole
+ * repertoire. [node] resolves a position through it, and on a miss also fires a one ply background
+ * prefetch of the node's neighbours so the next navigation step is a cache hit.
  *
  * Mutations write through: they patch the touched cache entries in place and persist, never
  * swapping the whole cache. Exploration moves that have not yet been classified (`isGood == null`)

@@ -8,8 +8,8 @@ import proj.memorchess.axl.core.data.PositionKey
  * The tree only knows about [Node] and [Edge]. It has no persistence, no scheduling and no I/O. It
  * is a **partial** view of the repertoire: under demand paging only a bounded working set of nodes
  * is resident at any moment. Code must never assume the whole graph is in memory; an absent key is
- * a cache miss that [TreeStore] resolves on demand from the database, not a proof the position does
- * not exist.
+ * a cache miss that [NodeCache] resolves on demand from the database, not a proof the position
+ * does not exist.
  *
  * ## Eviction
  *
@@ -26,10 +26,10 @@ import proj.memorchess.axl.core.data.PositionKey
  * ## Thread safety
  *
  * This class is **not** thread safe on its own. Background neighbour prefetch writes the cache
- * concurrently with main thread resolves, so [TreeStore] funnels every read and write through a
- * single mutex. Do not mutate the cache from outside [TreeStore].
+ * concurrently with main thread resolves, so [NodeCache] funnels every read and write through a
+ * single mutex. Do not mutate the cache from outside [NodeCache].
  *
- * All mutators are package internal. Production code only mutates the tree through [TreeStore].
+ * All mutators are package internal. Production code only mutates the tree through [NodeCache].
  */
 class OpeningTree {
 
@@ -40,16 +40,16 @@ class OpeningTree {
    *
    * A `null` result is a cache miss, not a proof of absence: under demand paging the position may
    * exist on disk but not be loaded. Pure read; does not update recency. Use [touch] (via
-   * [TreeStore]) to mark an entry most recently used.
+   * [NodeCache]) to mark an entry most recently used.
    */
   operator fun get(positionKey: PositionKey): Node? = positions[positionKey]
 
   /** Number of entries currently resident in the cache. Used by tests asserting eviction. */
   internal fun residentCount(): Int = positions.size
 
-  // --- Package internal mutators. Callers must route through TreeStore. ---
+  // --- Package internal mutators. Callers must route through NodeCache. ---
 
-  /** Empties the cache. Used only by [TreeStore.eraseAll]. */
+  /** Empties the cache. Used only by [NodeCache.clear]. */
   internal fun clear() {
     positions.clear()
   }
