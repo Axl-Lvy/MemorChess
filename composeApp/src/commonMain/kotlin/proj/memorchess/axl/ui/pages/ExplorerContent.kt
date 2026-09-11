@@ -245,8 +245,8 @@ fun ExplorerContent(
           modifier = boardModifier,
           board = { innerModifier ->
             Board(
-              inverted = inverted,
               interactionsManager = explorer,
+              inverted = inverted,
               bestMoveArrow = bestMoveArrow,
               modifier = innerModifier,
             )
