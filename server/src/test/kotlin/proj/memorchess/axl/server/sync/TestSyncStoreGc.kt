@@ -53,7 +53,12 @@ internal class TestSyncStoreGc {
   }
 
   private suspend fun push(user: String, device: String, vararg rows: SettingSyncRow) =
-    store.push(user, device, SyncPushRequest(emptyList(), emptyList(), rows.toList()), now)
+    store.push(
+      user,
+      device,
+      SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = device),
+      now,
+    )
 
   /** Pulls and confirms until [device] has committed everything, the way a real cycle does. */
   private suspend fun catchUp(user: String, device: String) {
@@ -207,7 +212,7 @@ internal class TestSyncStoreGc {
     capped.push(
       user,
       DEVICE_A,
-      SyncPushRequest(listOf(doomed), emptyList(), emptyList()),
+      SyncPushRequest(listOf(doomed), emptyList(), emptyList(), device = DEVICE_A),
       now,
     )
     capped.push(
@@ -217,6 +222,7 @@ internal class TestSyncStoreGc {
         listOf(doomed.copy(isDeleted = true, deviceSeq = 2)),
         emptyList(),
         emptyList(),
+        device = DEVICE_A,
       ),
       now,
     )
@@ -231,7 +237,7 @@ internal class TestSyncStoreGc {
       capped.push(
         user,
         DEVICE_A,
-        SyncPushRequest(listOf(node("wanted")), emptyList(), emptyList()),
+        SyncPushRequest(listOf(node("wanted")), emptyList(), emptyList(), device = DEVICE_A),
         now,
       )
     }
@@ -241,7 +247,7 @@ internal class TestSyncStoreGc {
     capped.push(
       user,
       DEVICE_A,
-      SyncPushRequest(listOf(node("wanted")), emptyList(), emptyList()),
+      SyncPushRequest(listOf(node("wanted")), emptyList(), emptyList(), device = DEVICE_A),
       now,
     )
   }

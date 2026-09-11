@@ -204,6 +204,7 @@ internal class TestSyncStoreDevices {
         emptyList(),
         emptyList(),
         listOf(setting("a", "1", seq = 2).copy(isDeleted = true)),
+        device = DEVICE,
       ),
       now,
     )
@@ -252,16 +253,21 @@ internal class TestSyncStoreDevices {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+      SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1")), device = DEVICE),
       now,
     )
     return user
   }
 
   private suspend fun highestRevision(user: String): Long =
-    store.push(user, DEVICE, SyncPushRequest(emptyList(), emptyList(), emptyList()), now).let {
-      store.listDevicesForTest(user).single().lastServed.coerceAtLeast(1)
-    }
+    store
+      .push(
+        user,
+        DEVICE,
+        SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE),
+        now,
+      )
+      .let { store.listDevicesForTest(user).single().lastServed.coerceAtLeast(1) }
 
   private companion object {
     const val DEVICE = "11111111-1111-4111-8111-111111111111"

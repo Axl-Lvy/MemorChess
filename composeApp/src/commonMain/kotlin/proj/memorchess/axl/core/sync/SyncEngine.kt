@@ -299,7 +299,7 @@ internal suspend fun runSyncCycle(
     } ?: false
 
   if (!resyncRequired) {
-    pushOutbox(token, database, apiClient)?.let {
+    pushOutbox(token, deviceId, database, apiClient)?.let {
       if (it != CycleOutcome.ResyncRequired) return it
       resyncRequired = true
     }
@@ -356,22 +356,26 @@ private suspend fun resync(
   LOGGER.w { "Server asked this device to resync from scratch" }
   treeStore.eraseAll()
   database.clearDirty(database.getOutbox())
-  return when (apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset = true)) {
-    SyncRegisterOutcome.Ok -> CycleOutcome.Transient
-    else -> CycleOutcome.Transient
+  val reported = apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset = true)
+  if (reported != SyncRegisterOutcome.Ok) {
+    LOGGER.w { "Reporting the wipe failed with $reported" }
   }
+  // Transient either way. The wipe is already done locally, and a cycle that could not report it
+  // is refused again next time and reports it then.
+  return CycleOutcome.Transient
 }
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pushOutbox(
   token: String,
+  deviceId: String,
   database: DatabaseQueryManager,
   apiClient: SyncApiClient,
 ): CycleOutcome? {
   val outbox = database.getOutbox()
   if (outbox.isEmpty()) return null
   for (batch in outbox.chunked(MAX_PUSH_ROWS)) {
-    val request = buildPushRequest(database, batch)
+    val request = buildPushRequest(deviceId, database, batch)
     when (val outcome = apiClient.push(token, request)) {
       is SyncPushOutcome.Ok -> {
         // Every pushed entry is cleared, rejected ones included: a RejectedRow is a permanent
@@ -401,6 +405,7 @@ private suspend fun pushOutbox(
  * disappeared from the outbox's own view of the world (nothing left to push).
  */
 private suspend fun buildPushRequest(
+  deviceId: String,
   database: DatabaseQueryManager,
   batch: List<OutboxEntry>,
 ): SyncPushRequest {
@@ -435,6 +440,7 @@ private suspend fun buildPushRequest(
     settings = emptyList(),
     repertoires = repertoires,
     tags = tags,
+    device = deviceId,
   )
 }
 

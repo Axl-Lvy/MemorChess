@@ -61,7 +61,12 @@ internal class TestSyncStorePosition {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
     if (rows.isNotEmpty()) {
-      store.push(user, DEVICE, SyncPushRequest(emptyList(), emptyList(), rows.toList()), now)
+      store.push(
+        user,
+        DEVICE,
+        SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DEVICE),
+        now,
+      )
     }
     return user
   }
@@ -173,7 +178,7 @@ internal class TestSyncStorePosition {
       store.push(
         PostgresTestDb.newUserId(),
         "never-registered",
-        SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+        SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1")), device = DEVICE),
         now,
       )
     }
@@ -191,7 +196,7 @@ internal class TestSyncStorePosition {
       store.push(
         user,
         DEVICE,
-        SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+        SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1")), device = DEVICE),
         now,
       )
     }
@@ -205,7 +210,7 @@ internal class TestSyncStorePosition {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1"))),
+      SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1")), device = DEVICE),
       now,
     )
 

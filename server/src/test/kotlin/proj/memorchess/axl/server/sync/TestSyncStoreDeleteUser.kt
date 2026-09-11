@@ -102,6 +102,7 @@ internal class TestSyncStoreDeleteUser {
               deviceSeq = 1,
             )
           ),
+        device = DEVICE,
       ),
       serverNow,
     )

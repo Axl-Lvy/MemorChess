@@ -217,6 +217,32 @@ class TestSyncRoutes {
   }
 
   @Test
+  fun `refuses a push whose body omits the device entirely`() = withServer { client, token ->
+    val response =
+      client.post("/v1/sync") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        contentType(ContentType.Application.Json)
+        setBody("""{"nodes":[],"edges":[],"settings":[]}""")
+      }
+
+    response.status shouldBe HttpStatusCode.BadRequest
+    SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+  }
+
+  @Test
+  fun `refuses a push that names an empty device`() = withServer { client, token ->
+    val response =
+      client.post("/v1/sync") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        contentType(ContentType.Application.Json)
+        setBody("""{"nodes":[],"edges":[],"settings":[],"device":""}""")
+      }
+
+    response.status shouldBe HttpStatusCode.BadRequest
+    SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+  }
+
+  @Test
   fun `refuses a pull that names no device`() = withServer { client, token ->
     val response = client.get("/v1/sync") { header(HttpHeaders.Authorization, "Bearer $token") }
 
@@ -253,7 +279,9 @@ class TestSyncRoutes {
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows)))
+        setBody(
+          SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows, device = DEVICE))
+        )
       }
 
     response.status shouldBe HttpStatusCode.PayloadTooLarge
@@ -284,7 +312,7 @@ class TestSyncRoutes {
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings)))
+        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings, device = DEVICE)))
       }
 
     response.status shouldBe HttpStatusCode.PayloadTooLarge

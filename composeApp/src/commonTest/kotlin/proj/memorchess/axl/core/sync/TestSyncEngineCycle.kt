@@ -310,6 +310,43 @@ class TestSyncEngineCycle {
   }
 
   @Test
+  fun thePushedBodyNamesTheDeviceItCameFrom() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    val identity = DeviceIdentity.ephemeral()
+    var pushBody: String? = null
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        "GET" -> jsonResponse(emptyPullBody)
+        else -> {
+          pushBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+          jsonResponse(emptyPushBody)
+        }
+      }
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        store,
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        identity,
+      )
+
+    outcome shouldBe CycleOutcome.Success
+    SYNC_JSON.decodeFromString<SyncPushRequest>(pushBody!!).device shouldBe identity.originDevice
+  }
+
+  @Test
   fun theCycleNeverPushesBeforeRegistrationSucceeds() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val methods = mutableListOf<String>()
@@ -410,6 +447,47 @@ class TestSyncEngineCycle {
     resetFlags shouldBe listOf(false, true)
     database.getPosition(PositionKey("after-e4")) shouldBe null
     database.getOutbox() shouldBe emptyList()
+  }
+
+  @Test
+  fun aResyncFromPushWipesAndReportsTheWipeToo() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    store.addMove(
+      from = PositionKey("start"),
+      move = "e4",
+      to = PositionKey("after-e4"),
+      isGood = true,
+      fromDepth = 0,
+    )
+    val resetFlags = mutableListOf<Boolean>()
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> {
+          val body = (request.body as io.ktor.http.content.TextContent).text
+          resetFlags += body.contains(""""afterReset":true""")
+          respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        }
+        "GET" -> jsonResponse(emptyPullBody)
+        else ->
+          respond(
+            content = ByteReadChannel("""{"code":"resync_required","message":"start over"}"""),
+            status = HttpStatusCode.Gone,
+            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+          )
+      }
+    }
+
+    runSyncCycle(
+      FakeAuthProvider(TokenResult.Ok("tok")),
+      database,
+      store,
+      SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+      DeviceIdentity.ephemeral(),
+    )
+
+    resetFlags shouldBe listOf(false, true)
+    database.getPosition(PositionKey("after-e4")) shouldBe null
   }
 
   @Test

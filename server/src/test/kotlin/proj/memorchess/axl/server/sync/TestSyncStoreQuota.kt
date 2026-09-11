@@ -100,7 +100,7 @@ internal class TestSyncStoreQuota {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(listOf(node(fen("a"))), emptyList(), emptyList()),
+      SyncPushRequest(listOf(node(fen("a"))), emptyList(), emptyList(), device = DEVICE),
       serverNow,
     )
 
@@ -109,7 +109,7 @@ internal class TestSyncStoreQuota {
         store.push(
           user,
           DEVICE,
-          SyncPushRequest(listOf(node(fen("b"))), emptyList(), emptyList()),
+          SyncPushRequest(listOf(node(fen("b"))), emptyList(), emptyList(), device = DEVICE),
           serverNow,
         )
       }
@@ -124,7 +124,7 @@ internal class TestSyncStoreQuota {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(listOf(node(key, seq = 1)), emptyList(), emptyList()),
+      SyncPushRequest(listOf(node(key, seq = 1)), emptyList(), emptyList(), device = DEVICE),
       serverNow,
     )
 
@@ -132,7 +132,7 @@ internal class TestSyncStoreQuota {
       .push(
         user,
         DEVICE,
-        SyncPushRequest(listOf(node(key, seq = 2)), emptyList(), emptyList()),
+        SyncPushRequest(listOf(node(key, seq = 2)), emptyList(), emptyList(), device = DEVICE),
         serverNow,
       )
       .rejected
@@ -146,7 +146,12 @@ internal class TestSyncStoreQuota {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(emptyList(), listOf(edge(fen("o1"), fen("d1"))), emptyList()),
+      SyncPushRequest(
+        emptyList(),
+        listOf(edge(fen("o1"), fen("d1"))),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
 
@@ -154,7 +159,12 @@ internal class TestSyncStoreQuota {
       store.push(
         user,
         DEVICE,
-        SyncPushRequest(emptyList(), listOf(edge(fen("o2"), fen("d2"))), emptyList()),
+        SyncPushRequest(
+          emptyList(),
+          listOf(edge(fen("o2"), fen("d2"))),
+          emptyList(),
+          device = DEVICE,
+        ),
         serverNow,
       )
     }
@@ -169,7 +179,12 @@ internal class TestSyncStoreQuota {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(emptyList(), listOf(edge(origin, destination, seq = 1)), emptyList()),
+      SyncPushRequest(
+        emptyList(),
+        listOf(edge(origin, destination, seq = 1)),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
 
@@ -177,7 +192,12 @@ internal class TestSyncStoreQuota {
       .push(
         user,
         DEVICE,
-        SyncPushRequest(emptyList(), listOf(edge(origin, destination, seq = 2)), emptyList()),
+        SyncPushRequest(
+          emptyList(),
+          listOf(edge(origin, destination, seq = 2)),
+          emptyList(),
+          device = DEVICE,
+        ),
         serverNow,
       )
       .rejected
@@ -196,6 +216,7 @@ internal class TestSyncStoreQuota {
         emptyList(),
         emptyList(),
         repertoires = listOf(repertoire("italian-game")),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -209,6 +230,7 @@ internal class TestSyncStoreQuota {
           emptyList(),
           emptyList(),
           repertoires = listOf(repertoire("french-defense")),
+          device = DEVICE,
         ),
         serverNow,
       )
@@ -229,6 +251,7 @@ internal class TestSyncStoreQuota {
         listOf(firstEdge, secondEdge),
         emptyList(),
         tags = listOf(tag(firstEdge.origin, firstEdge.destination, "italian-game")),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -242,6 +265,7 @@ internal class TestSyncStoreQuota {
           emptyList(),
           emptyList(),
           tags = listOf(tag(secondEdge.origin, secondEdge.destination, "italian-game")),
+          device = DEVICE,
         ),
         serverNow,
       )
@@ -265,7 +289,7 @@ internal class TestSyncStoreQuota {
       .push(
         user,
         DEVICE,
-        SyncPushRequest(emptyList(), emptyList(), listOf(setting("theme"))),
+        SyncPushRequest(emptyList(), emptyList(), listOf(setting("theme")), device = DEVICE),
         serverNow,
       )
       .rejected

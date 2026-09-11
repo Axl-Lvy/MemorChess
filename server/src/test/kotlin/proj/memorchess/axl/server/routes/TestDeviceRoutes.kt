@@ -177,6 +177,7 @@ class TestDeviceRoutes {
               deviceSeq = 1,
             )
           ),
+          device = DEVICE,
         ),
         serverNow,
       )

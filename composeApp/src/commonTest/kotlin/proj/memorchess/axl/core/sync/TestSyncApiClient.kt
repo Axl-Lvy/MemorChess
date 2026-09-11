@@ -83,7 +83,12 @@ class TestSyncApiClient {
       client(engine)
         .push(
           "tok",
-          SyncPushRequest(nodes = emptyList(), edges = emptyList(), settings = emptyList()),
+          SyncPushRequest(
+            nodes = emptyList(),
+            edges = emptyList(),
+            settings = emptyList(),
+            device = DEVICE,
+          ),
         )
 
     result.shouldBeInstanceOf<SyncPushOutcome.Ok>()
@@ -94,7 +99,8 @@ class TestSyncApiClient {
   fun tooLargePushReturnsTooLarge() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.PayloadTooLarge) }
 
-    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+    client(engine)
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
       SyncPushOutcome.TooLarge
   }
 
@@ -108,7 +114,8 @@ class TestSyncApiClient {
       )
     }
 
-    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+    client(engine)
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
       SyncPushOutcome.QuotaExceeded
   }
 
@@ -124,7 +131,7 @@ class TestSyncApiClient {
     }
 
     client(engine)
-      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList()))
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE))
       .shouldBeInstanceOf<SyncPushOutcome.Error>()
   }
 
@@ -132,7 +139,8 @@ class TestSyncApiClient {
   fun rateLimitedPushReturnsRateLimited() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
 
-    client(engine).push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList())) shouldBe
+    client(engine)
+      .push("tok", SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
       SyncPushOutcome.RateLimited
   }
 

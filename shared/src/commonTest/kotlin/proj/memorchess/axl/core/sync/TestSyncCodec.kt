@@ -144,7 +144,7 @@ internal class TestSyncCodec {
 
   @Test
   fun pushRequestAndResponseRoundTrip() {
-    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting))
+    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = "device-a")
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
 
     val response =
@@ -186,6 +186,7 @@ internal class TestSyncCodec {
         settings = emptyList(),
         repertoires = listOf(repertoire),
         tags = listOf(tag),
+        device = "device-a",
       )
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
   }

@@ -53,7 +53,11 @@ internal class TestDevice(private val deviceId: String) {
   /** Pushes the dirty rows, re-stamps whatever was refused for skew, then pulls and applies. */
   internal suspend fun sync(transport: SyncTransport, serverNow: Instant) {
     val outgoing = dirty.mapNotNull { rows[it] }
-    val response = transport.push(SyncPushRequest(emptyList(), emptyList(), outgoing), serverNow)
+    val response =
+      transport.push(
+        SyncPushRequest(emptyList(), emptyList(), outgoing, device = deviceId),
+        serverNow,
+      )
     dirty.clear()
     for (rejection in response.rejected) {
       if (rejection.code != RejectionCode.CLOCK_TOO_FAR_AHEAD) continue

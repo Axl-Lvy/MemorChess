@@ -57,7 +57,12 @@ internal class TestSyncStorePull {
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   private suspend fun pushSettings(user: String, vararg rows: SettingSyncRow) =
-    store.push(user, DEVICE, SyncPushRequest(emptyList(), emptyList(), rows.toList()), serverNow)
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DEVICE),
+      serverNow,
+    )
 
   /** A fresh user with one registered device, which pulling now requires. */
   private suspend fun registeredUser(): String {
@@ -183,7 +188,12 @@ internal class TestSyncStorePull {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(listOf(node(key)), emptyList(), listOf(setting("theme", "dark"))),
+      SyncPushRequest(
+        listOf(node(key)),
+        emptyList(),
+        listOf(setting("theme", "dark")),
+        device = DEVICE,
+      ),
       serverNow,
     )
     val page = pull(user)
@@ -201,13 +211,13 @@ internal class TestSyncStorePull {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(listOf(node(fen("n1"))), emptyList(), emptyList()),
+      SyncPushRequest(listOf(node(fen("n1"))), emptyList(), emptyList(), device = DEVICE),
       serverNow,
     )
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(listOf(node(fen("n2"))), emptyList(), emptyList()),
+      SyncPushRequest(listOf(node(fen("n2"))), emptyList(), emptyList(), device = DEVICE),
       serverNow,
     )
 

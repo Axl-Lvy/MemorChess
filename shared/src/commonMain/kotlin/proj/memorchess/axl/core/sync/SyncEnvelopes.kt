@@ -51,8 +51,9 @@ data class SyncPullResponse(
  * @property settings Settings to write.
  * @property repertoires Repertoires to write.
  * @property tags Edge to repertoire tags to write.
- * @property device The pushing device's origin id. A device the server has never been told about is
- *   refused, so an empty value can never be accepted.
+ * @property device The pushing device's origin id. Deliberately without a default, so that no call
+ *   site and no wire payload can omit it: a push that names no device is refused, and a defaulted
+ *   empty string would turn that refusal into a silent failure to sync at all.
  */
 @Serializable
 data class SyncPushRequest(
@@ -61,7 +62,7 @@ data class SyncPushRequest(
   val settings: List<SettingSyncRow>,
   val repertoires: List<RepertoireSyncRow> = emptyList(),
   val tags: List<EdgeRepertoireTagSyncRow> = emptyList(),
-  val device: String = "",
+  val device: String,
 )
 
 /**

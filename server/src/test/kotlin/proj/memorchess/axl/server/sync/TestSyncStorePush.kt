@@ -49,7 +49,12 @@ internal class TestSyncStorePush {
     )
 
   private fun request(vararg settings: SettingSyncRow) =
-    SyncPushRequest(nodes = emptyList(), edges = emptyList(), settings = settings.toList())
+    SyncPushRequest(
+      nodes = emptyList(),
+      edges = emptyList(),
+      settings = settings.toList(),
+      device = DEVICE,
+    )
 
   private fun node(
     key: String,
@@ -262,13 +267,23 @@ internal class TestSyncStorePush {
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(listOf(node(key, 1, serverNow, seq = 1)), emptyList(), emptyList()),
+      SyncPushRequest(
+        listOf(node(key, 1, serverNow, seq = 1)),
+        emptyList(),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(listOf(node(key, 7, serverNow, seq = 2)), emptyList(), emptyList()),
+      SyncPushRequest(
+        listOf(node(key, 7, serverNow, seq = 2)),
+        emptyList(),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
     store.readNodeForTest(user, key)?.reps shouldBe 7
@@ -280,7 +295,12 @@ internal class TestSyncStorePush {
     val key = fen("fsrs")
     val row =
       node(key, 3, serverNow).copy(lastReview = serverNow, firstReview = serverNow, lapses = 2)
-    store.push(user, DEVICE, SyncPushRequest(listOf(row), emptyList(), emptyList()), serverNow)
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(listOf(row), emptyList(), emptyList(), device = DEVICE),
+      serverNow,
+    )
     store.readNodeForTest(user, key) shouldBe row
   }
 
@@ -296,6 +316,7 @@ internal class TestSyncStorePush {
           listOf(node(key, 1, serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds)),
           emptyList(),
           emptyList(),
+          device = DEVICE,
         ),
         serverNow,
       )
@@ -311,11 +332,21 @@ internal class TestSyncStorePush {
     val origin = fen("o")
     val destination = fen("d")
     val first = edge(origin, destination, isGood = true, at = serverNow, seq = 1)
-    store.push(user, DEVICE, SyncPushRequest(emptyList(), listOf(first), emptyList()), serverNow)
     store.push(
       user,
       DEVICE,
-      SyncPushRequest(emptyList(), listOf(first.copy(isGood = false, deviceSeq = 2)), emptyList()),
+      SyncPushRequest(emptyList(), listOf(first), emptyList(), device = DEVICE),
+      serverNow,
+    )
+    store.push(
+      user,
+      DEVICE,
+      SyncPushRequest(
+        emptyList(),
+        listOf(first.copy(isGood = false, deviceSeq = 2)),
+        emptyList(),
+        device = DEVICE,
+      ),
       serverNow,
     )
     store.readEdgeForTest(user, first)?.isGood shouldBe false
@@ -334,7 +365,12 @@ internal class TestSyncStorePush {
         at = serverNow + SYNC_SKEW_TOLERANCE + 1.milliseconds,
       )
     val response =
-      store.push(user, DEVICE, SyncPushRequest(emptyList(), listOf(late), emptyList()), serverNow)
+      store.push(
+        user,
+        DEVICE,
+        SyncPushRequest(emptyList(), listOf(late), emptyList(), device = DEVICE),
+        serverNow,
+      )
     response.rejected shouldHaveSize 1
     response.rejected.single().kind shouldBe "edge"
     response.rejected.single().id shouldBe "$origin|$destination"
@@ -355,6 +391,7 @@ internal class TestSyncStorePush {
         nodes = listOf(node(key, 1, serverNow)),
         edges = listOf(theEdge),
         settings = listOf(setting("theme", "dark", serverNow)),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -386,6 +423,7 @@ internal class TestSyncStorePush {
         settings = emptyList(),
         repertoires = listOf(row),
         tags = emptyList(),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -420,6 +458,7 @@ internal class TestSyncStorePush {
         settings = emptyList(),
         repertoires = emptyList(),
         tags = listOf(tag),
+        device = DEVICE,
       ),
       serverNow,
     )
@@ -454,6 +493,7 @@ internal class TestSyncStorePush {
           settings = emptyList(),
           repertoires = emptyList(),
           tags = listOf(tag),
+          device = DEVICE,
         ),
         serverNow,
       )
