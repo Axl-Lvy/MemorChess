@@ -257,6 +257,57 @@ class TreeStore(
   }
 
   /**
+   * Persists a full graph produced by [GraphSerializer.deserialize], stamping this device's
+   * identity and a fresh write sequence on every node and edge so an imported file can converge
+   * with the same file imported on another device instead of colliding on the wire format's
+   * placeholder `""`/`0L` identity. Bypasses the in memory cache entirely, the same way the direct
+   * [DatabaseQueryManager.insertNodes] call this replaces did: a position already resident keeps
+   * its pre import state until it is next evicted or otherwise refreshed.
+   *
+   * Each edge appears twice in [nodes], once in its origin's [DataNode.previousAndNextMoves] and
+   * once in its destination's. Exactly one write sequence is allocated per distinct edge and reused
+   * for both copies, so the two never drift into different stamps for what is really one write.
+   * Every distinct edge is then marked dirty at its own stamp, since [DataMove] rows are not
+   * covered by the outbox entry [DatabaseQueryManager.insertNodes] queues for the node itself.
+   *
+   * Only [DataNode.originDevice] and [DataNode.deviceSeq] are restamped; [DataNode.updatedAt] and
+   * [DataMove.updatedAt] are kept as the file recorded them, so a restore still loses to a
+   * genuinely newer edit made anywhere in the meantime. Two devices importing the exact same file
+   * therefore still converge: [resolve] falls back to comparing [DataMove.originDevice] once the
+   * timestamps tie, and that comparison is commutative.
+   */
+  suspend fun importNodes(nodes: List<DataNode>) {
+    if (nodes.isEmpty()) return
+
+    val edgeStamps = mutableMapOf<EdgeIdentity, DataMove>()
+    fun stamp(move: DataMove): DataMove =
+      edgeStamps.getOrPut(EdgeIdentity(move.origin, move.destination, move.move)) {
+        move.copy(
+          originDevice = deviceIdentity.originDevice,
+          deviceSeq = deviceIdentity.nextDeviceSeq(),
+        )
+      }
+
+    val stampedNodes = nodes.map { importedNode ->
+      importedNode.copy(
+        previousAndNextMoves =
+          PreviousAndNextMoves(
+            previousMoves = importedNode.previousAndNextMoves.previousMoves.values.map(::stamp),
+            nextMoves = importedNode.previousAndNextMoves.nextMoves.values.map(::stamp),
+          ),
+        originDevice = deviceIdentity.originDevice,
+        deviceSeq = deviceIdentity.nextDeviceSeq(),
+      )
+    }
+
+    database.insertNodes(*stampedNodes.toTypedArray())
+    for (edge in edgeStamps.values) {
+      database.markDirty(DirtyKey.EdgeKey(edge.origin, edge.destination), edge.deviceSeq)
+    }
+    notifyDirty()
+  }
+
+  /**
    * Stores [cardState] on the node at [positionKey] and persists it.
    *
    * Resolves the node through [node]; logs a warning and skips the write when the position cannot
@@ -666,6 +717,13 @@ data class MoveInsertion(
   val to: PositionKey,
   val isGood: Boolean?,
   val fromDepth: Int,
+)
+
+/** Identity of one edge, regardless of which endpoint's move map it was read from. */
+private data class EdgeIdentity(
+  val origin: PositionKey,
+  val destination: PositionKey,
+  val move: String,
 )
 
 private fun DataMove.toEdge(): Edge =
