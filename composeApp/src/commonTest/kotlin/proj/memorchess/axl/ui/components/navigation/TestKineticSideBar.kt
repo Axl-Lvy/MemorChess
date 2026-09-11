@@ -116,7 +116,13 @@ internal class TestKineticSideBar {
   }
 
   private fun schedulerOver(database: InMemoryDatabaseQueryManager) =
-    TrainingScheduler(database, testTreeStore(database), Fsrs6SchedulingAlgorithm())
+    TrainingScheduler(
+      database,
+      testTreeStore(database),
+      Fsrs6SchedulingAlgorithm(),
+      maxNewMovesPerDay = { Int.MAX_VALUE },
+      maxTotalMovesPerDay = { Int.MAX_VALUE },
+    )
 
   private fun ComposeUiTest.setRail(
     streakTracker: StreakTracker,
@@ -288,6 +294,8 @@ internal class TestKineticSideBar {
         database,
         testTreeStore(database),
         Fsrs6SchedulingAlgorithm(),
+        maxNewMovesPerDay = { Int.MAX_VALUE },
+        maxTotalMovesPerDay = { Int.MAX_VALUE },
         streakTracker = streakTracker,
       )
     val entry = scheduler.nextDue()
