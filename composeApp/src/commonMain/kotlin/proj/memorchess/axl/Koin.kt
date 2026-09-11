@@ -45,6 +45,9 @@ import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
 import proj.memorchess.axl.core.data.study.LichessStudyClient
 import proj.memorchess.axl.core.data.study.LichessStudyImporter
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.graph.NodeCache
+import proj.memorchess.axl.core.graph.NodeLoader
+import proj.memorchess.axl.core.graph.Prefetcher
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.RepertoirePgnExporter
@@ -61,10 +64,10 @@ import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
 /**
- * Koin qualifier for the process lived background scope on which [TreeStore] runs neighbour
- * prefetch. A [SupervisorJob] on [Dispatchers.Default] so a failed prefetch never cancels siblings
- * and never blocks the UI; it lives as long as the process wide [TreeStore] single, so no teardown
- * is needed.
+ * Koin qualifier for the process lived background scope [NodeCache] loads on and [Prefetcher] warms
+ * on. A [SupervisorJob] on [Dispatchers.Default] so a failed load never cancels siblings and never
+ * blocks the UI. It lives as long as those two process wide singles, so no teardown is needed. The
+ * name stays `prefetch` because prefetch still dominates its traffic.
  */
 const val PREFETCH_SCOPE: String = "prefetch"
 
@@ -122,17 +125,18 @@ fun initKoinModules(): Array<Module> {
     single<CoroutineScope>(named(PREFETCH_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
+    single<NodeLoader> {
+      val database: DatabaseQueryManager = get()
+      NodeLoader { database.getPosition(it) }
+    }
+    single { NodeCache(get(), get(named(PREFETCH_SCOPE))) }
+    single { Prefetcher(get(), get(named(PREFETCH_SCOPE))) }
     single {
       // get<SyncEngine>() is resolved lazily, inside this lambda, only when a write actually
       // happens — never during TreeStore's own construction — which is what breaks what would
       // otherwise be a TreeStore <-> SyncEngine construction cycle (SyncEngine depends on
       // TreeStore normally, to apply a pull).
-      TreeStore(
-        get(),
-        get(named(PREFETCH_SCOPE)),
-        get(),
-        notifyDirty = { get<SyncEngine>().notifyDirty() },
-      )
+      TreeStore(get(), get(), get(), get(), notifyDirty = { get<SyncEngine>().notifyDirty() })
     }
     single {
       TrainingScheduler(

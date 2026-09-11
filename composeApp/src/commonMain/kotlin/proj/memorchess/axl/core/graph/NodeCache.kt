@@ -63,7 +63,9 @@ private data class RaceMark(
  * @param loader Point lookup used on a miss.
  * @param loadScope Scope loads run on. The cache derives its own [SupervisorJob] child of it, so one
  *   failed load never cancels a sibling or the caller, while a transient cache still dies with
- *   whatever owns the scope it was built from.
+ *   whatever owns the scope it was built from. Hand a scope whose [Job] nobody joins, such as a
+ *   [SupervisorJob] or a lifecycle scope. The derived supervisor is a permanent child of it, so a
+ *   caller that joins the handed [Job] would wait forever.
  */
 class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
 

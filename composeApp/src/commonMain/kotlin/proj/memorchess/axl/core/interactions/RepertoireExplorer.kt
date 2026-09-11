@@ -2,10 +2,13 @@ package proj.memorchess.axl.core.interactions
 
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.toast_not_in_repertoire
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.NodeCache
+import proj.memorchess.axl.core.graph.Prefetcher
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImporter
@@ -53,14 +56,15 @@ class RepertoireExplorer private constructor(treeStore: TreeStore) :
      *   illegal.
      */
     suspend fun build(games: List<PgnGame>): RepertoireExplorer {
-      // Scope tied to the caller's coroutine context so neighbour prefetch over this transient,
-      // InMemory backed store cannot outlive it.
+      // A parentless supervisor rather than the caller's Job. NodeCache attaches a permanent child
+      // supervisor to whatever Job it is handed, so tying it to the caller would leave that caller
+      // unable to complete. Nothing can leak here: the store is in memory, prefetch is one ply, and
+      // a load over a HashMap finishes in microseconds.
+      val scope = CoroutineScope(coroutineContext + SupervisorJob())
+      val database = InMemoryDatabaseQueryManager()
+      val cache = NodeCache({ database.getPosition(it) }, scope)
       val treeStore =
-        TreeStore(
-          InMemoryDatabaseQueryManager(),
-          CoroutineScope(coroutineContext),
-          DeviceIdentity.ephemeral(),
-        )
+        TreeStore(database, cache, Prefetcher(cache, scope), DeviceIdentity.ephemeral())
       PgnImporter(treeStore).import(games)
       return RepertoireExplorer(treeStore)
     }

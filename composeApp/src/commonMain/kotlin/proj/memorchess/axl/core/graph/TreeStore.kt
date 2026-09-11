@@ -1,10 +1,6 @@
 package proj.memorchess.axl.core.graph
 
 import co.touchlab.kermit.Logger
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import proj.memorchess.axl.core.data.DESCENDANT_COUNT_CAP
 import proj.memorchess.axl.core.data.DataEdgeRepertoireTag
 import proj.memorchess.axl.core.data.DataMove
@@ -49,17 +45,16 @@ import proj.memorchess.axl.core.sync.toRepertoireSyncRow
  *
  * ## Concurrency
  *
- * Background prefetch writes the cache from [Dispatchers.Default] while the UI resolves on the main
- * thread, so every cache read and write funnels through a single [Mutex]. All public suspend
- * methods and the private [warm] take it; the cache is never touched outside that lock.
+ * The facade holds no lock of its own. Every cache read and write goes through [NodeCache], which
+ * owns the mutex and dedupes concurrent loads of the same key, and every background warm goes
+ * through [Prefetcher]. A mutation's edits survive a load of the same key that is already in
+ * flight; see the contract on [NodeCache.resolve].
  *
  * Callers from the UI, interactions and scheduling layers all go through this class.
  *
  * @param database The persistence backend.
- * @param prefetchScope Background scope on which neighbour prefetch runs. A process lived
- *   [kotlinx.coroutines.SupervisorJob] scope on [kotlinx.coroutines.Dispatchers.Default] in
- *   production (a failed prefetch never cancels siblings and never blocks the UI). Tests pass a
- *   deterministic test scope.
+ * @param cache Bounded cache every read and write of the graph goes through.
+ * @param prefetcher Fires the one ply neighbour warm after a miss.
  * @param deviceIdentity Stamped onto every persisted node and edge, and used to order this device's
  *   own writes against its earlier ones. See [DeviceIdentity].
  * @param notifyDirty Called after every local write that queues an outbox entry, so
@@ -68,16 +63,11 @@ import proj.memorchess.axl.core.sync.toRepertoireSyncRow
  */
 class TreeStore(
   private val database: DatabaseQueryManager,
-  private val prefetchScope: CoroutineScope,
+  private val cache: NodeCache,
+  private val prefetcher: Prefetcher,
   private val deviceIdentity: DeviceIdentity,
   private val notifyDirty: () -> Unit = {},
 ) {
-
-  private val tree = OpeningTree()
-  private val mutex = Mutex()
-
-  /** Keys whose background prefetch is in flight, guarded by [mutex] to dedupe concurrent warms. */
-  private val inFlight = mutableSetOf<PositionKey>()
 
   /**
    * Resolves the node at [positionKey] through the bounded cache.
@@ -89,12 +79,8 @@ class TreeStore(
    * position is not persisted and is not a resident exploration only node.
    */
   suspend fun node(positionKey: PositionKey): Node? {
-    val cached = mutex.withLock { tree[positionKey]?.also { tree.touch(positionKey) } }
-    if (cached != null) return cached
-    val dataNode = database.getPosition(positionKey) ?: return null
-    val node = dataNode.toNode()
-    mutex.withLock { tree.put(node) }
-    prefetchNeighbors(node)
+    val (node, hit) = cache.resolve(positionKey)
+    if (!hit && node != null) prefetcher.warmNeighbors(node)
     return node
   }
 
@@ -124,25 +110,21 @@ class TreeStore(
    * Ensures [positionKey] exists in the cache at the given [depth]. No persistence side effect:
    * exploration of a fresh position should not write a row until the user saves something.
    *
-   * Synchronous and **not** mutex guarded, so it must only run before any navigation on this store
-   * has triggered background prefetch, where it cannot race the prefetch writer. The sole safe
-   * caller is a constructor seeding the starting position. Once navigation begins, use
-   * [ensurePositionGuarded], which takes the [mutex]; every other cache access goes through [node]
-   * under the same lock.
+   * Synchronous and **not** lock guarded, so it must only run before any navigation on this store
+   * has triggered a load, where it cannot race the loading writer. The sole safe caller is a
+   * constructor seeding the starting position. Once navigation begins, use [ensurePositionGuarded].
    */
   fun ensurePosition(positionKey: PositionKey, depth: Int) {
-    tree.ensure(positionKey, depth)
+    cache.ensureUnlocked(positionKey, depth)
   }
 
   /**
-   * Ensures [positionKey] exists in the cache at the given [depth], taking the [mutex] so it cannot
-   * race a concurrent background prefetch writing the same [OpeningTree]. No persistence side
-   * effect. This is the safe variant for any call site reachable after navigation has begun (for
-   * example a reset handler), where a [warm] coroutine from an earlier resolve may still be
-   * running.
+   * Ensures [positionKey] exists in the cache at the given [depth], under the cache's own lock so
+   * it cannot race a concurrent load. No persistence side effect. This is the safe variant for any
+   * call site reachable after navigation has begun, for example a reset handler.
    */
   suspend fun ensurePositionGuarded(positionKey: PositionKey, depth: Int) {
-    mutex.withLock { tree.ensure(positionKey, depth) }
+    cache.ensure(positionKey, depth)
   }
 
   /**
@@ -187,7 +169,7 @@ class TreeStore(
         originDevice = deviceIdentity.originDevice,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
-    mutex.withLock { tree.upsertEdge(edge, fromDepth) }
+    cache.upsertEdge(edge, fromDepth)
     if (isGood != null) {
       persistNode(from)
       persistNode(to)
@@ -236,14 +218,14 @@ class TreeStore(
           originDevice = deviceIdentity.originDevice,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
         )
-      mutex.withLock { tree.upsertEdge(edge, insertion.fromDepth) }
+      cache.upsertEdge(edge, insertion.fromDepth)
       if (insertion.isGood != null) {
         touched += insertion.from
         touched += insertion.to
         dirtyEdges += DirtyKey.EdgeKey(insertion.from, insertion.to) to edge.deviceSeq
       }
     }
-    val nodesToPersist = mutex.withLock { touched.mapNotNull { tree[it]?.toDataNode() } }
+    val nodesToPersist = touched.mapNotNull { cache.peek(it)?.toDataNode() }
     if (nodesToPersist.isNotEmpty()) {
       // insertNodes queues each node's own outbox entry transactionally; only the edges themselves
       // need marking here, same as addMove.
@@ -268,7 +250,7 @@ class TreeStore(
       LOGGER.w { "Skipping card state update for unknown position $positionKey" }
       return
     }
-    mutex.withLock { tree.put(existing.copy(cardState = cardState)) }
+    cache.put(existing.copy(cardState = cardState))
     // persistNode below queues the node's own outbox entry transactionally with the row write.
     persistNode(positionKey)
     // The edge set does not change here, but NodeRepertoireTrainable.lastReview must still track
@@ -290,7 +272,7 @@ class TreeStore(
     // follow up persistNode(from) below is a documented no-op on a cache miss, so without this,
     // an evicted from's hasGoodOutgoing would go stale and never get queued.
     val destination = node(from)?.outgoing?.get(move)?.to
-    mutex.withLock { tree.removeEdge(from, move) }
+    cache.removeEdge(from, move, destination)
     val seq = deviceIdentity.nextDeviceSeq()
     // deleteMove queues the edge's own outbox entry transactionally with the tombstone (SOFT only);
     // persistNode below queues the surviving from node's own entry transactionally with its
@@ -320,20 +302,23 @@ class TreeStore(
     if (node != null) {
       for (edge in node.outgoing.values) tombstoneTags(positionKey, edge.to)
       for (edge in node.incoming.values) tombstoneTags(edge.from, positionKey)
-      mutex.withLock {
-        for (edge in node.outgoing.values.toList()) {
-          tree.removeEdge(positionKey, edge.move)
-        }
-        for (edge in node.incoming.values.toList()) {
-          tree.removeEdge(edge.from, edge.move)
-          survivingOrigins += edge.from
-        }
-        tree.removeNode(positionKey)
-      }
     }
     val seq = deviceIdentity.nextDeviceSeq()
+    // The durable write sits ahead of the cache patching below, so the invalidate that drops
+    // positionKey reflects a row that is already gone. A stale mark set before its own write would
+    // have the retry read the same superseded row twice.
     database.deletePosition(positionKey, mode, deviceIdentity.originDevice, seq, DateUtil.now())
     database.replaceTrainableRepertoires(positionKey, emptySet(), null)
+    if (node != null) {
+      for (edge in node.outgoing.values.toList()) {
+        cache.removeEdge(positionKey, edge.move, edge.to)
+      }
+      for (edge in node.incoming.values.toList()) {
+        cache.removeEdge(edge.from, edge.move, positionKey)
+        survivingOrigins += edge.from
+      }
+      cache.invalidate(positionKey)
+    }
     // Re-persist the origins that lost an outgoing edge so their derived hasGoodOutgoing flag
     // reflects the deletion and cannot go stale.
     for (origin in survivingOrigins) {
@@ -346,7 +331,7 @@ class TreeStore(
   /** Hard wipes every position and move, both in the cache and on disk. */
   suspend fun eraseAll() {
     database.eraseAll()
-    mutex.withLock { tree.clear() }
+    cache.clear()
   }
 
   /** Every registered repertoire. Read through of [DatabaseQueryManager.getRepertoires]. */
@@ -494,7 +479,7 @@ class TreeStore(
           existingCreatedAt = local?.createdAt ?: remote.updatedAt,
         )
       database.applyRemoteNode(dataNode)
-      mutex.withLock { tree.removeNode(dataNode.positionKey) }
+      cache.invalidate(dataNode.positionKey)
     }
     return resolution.source
   }
@@ -515,10 +500,8 @@ class TreeStore(
     if (resolution.source == ResolutionSource.REMOTE) {
       database.applyRemoteMove(remote.toDataMove())
       refreshHasGoodOutgoingIfChanged(originKey)
-      mutex.withLock {
-        tree.removeNode(originKey)
-        tree.removeNode(destinationKey)
-      }
+      cache.invalidate(originKey)
+      cache.invalidate(destinationKey)
     }
     return resolution.source
   }
@@ -585,7 +568,7 @@ class TreeStore(
    * a surviving endpoint's derived [DataNode.hasGoodOutgoing] flag.
    */
   private suspend fun persistNode(positionKey: PositionKey) {
-    val node = mutex.withLock { tree[positionKey] } ?: return
+    val node = cache.peek(positionKey) ?: return
     database.insertNodes(node.toDataNode())
   }
 
@@ -615,37 +598,6 @@ class TreeStore(
       originDevice = deviceIdentity.originDevice,
       deviceSeq = deviceIdentity.nextDeviceSeq(),
     )
-
-  /**
-   * Launches a one ply, fire and forget warm of every distinct neighbour of [node]. Neighbours
-   * already resident or already in flight are skipped under [mutex]. Prefetch never recurses, so a
-   * miss fans out to immediate neighbours and stops, bounded by the branching factor.
-   */
-  private fun prefetchNeighbors(node: Node) {
-    val targets =
-      (node.outgoing.values.map { it.to } + node.incoming.values.map { it.from })
-        .distinct()
-        .filter { it != node.positionKey }
-    for (key in targets) {
-      prefetchScope.launch { warm(key) }
-    }
-  }
-
-  /**
-   * Loads [key] into the cache if it is neither resident nor already being fetched. Does not
-   * recurse into further prefetch (one ply only). The in flight guard and residency check are taken
-   * under [mutex] so two concurrent navigations cannot double fetch the same key.
-   */
-  private suspend fun warm(key: PositionKey) {
-    val shouldFetch = mutex.withLock { tree[key] == null && inFlight.add(key) }
-    if (!shouldFetch) return
-    try {
-      val dataNode = database.getPosition(key) ?: return
-      mutex.withLock { tree.put(dataNode.toNode()) }
-    } finally {
-      mutex.withLock { inFlight.remove(key) }
-    }
-  }
 }
 
 /**
@@ -668,19 +620,6 @@ data class MoveInsertion(
   val fromDepth: Int,
 )
 
-private fun DataMove.toEdge(): Edge =
-  Edge(
-    from = origin,
-    move = move,
-    to = destination,
-    isGood = isGood,
-    createdAt = createdAt,
-    updatedAt = updatedAt,
-    isDeleted = isDeleted,
-    originDevice = originDevice,
-    deviceSeq = deviceSeq,
-  )
-
 private fun Edge.toDataMove(): DataMove =
   DataMove(
     origin = from,
@@ -693,30 +632,5 @@ private fun Edge.toDataMove(): DataMove =
     originDevice = originDevice,
     deviceSeq = deviceSeq,
   )
-
-/**
- * Builds a fully edged [Node] from a persisted [DataNode], exactly as the eager load loop did: non
- * deleted incoming and outgoing moves become [Edge]s. A single point lookup returns both
- * directions, so this rebuilds one node completely.
- */
-private fun DataNode.toNode(): Node {
-  val outgoing = mutableMapOf<String, Edge>()
-  val incoming = mutableMapOf<String, Edge>()
-  for (move in previousAndNextMoves.nextMoves.values) {
-    if (move.isDeleted) continue
-    outgoing[move.move] = move.toEdge()
-  }
-  for (move in previousAndNextMoves.previousMoves.values) {
-    if (move.isDeleted) continue
-    incoming[move.move] = move.toEdge()
-  }
-  return Node(
-    positionKey = positionKey,
-    outgoing = outgoing,
-    incoming = incoming,
-    depth = depth,
-    cardState = cardState,
-  )
-}
 
 private val LOGGER = Logger.withTag("TreeStore")

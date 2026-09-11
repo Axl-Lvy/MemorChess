@@ -13,6 +13,7 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.sync.DeviceIdentity
+import proj.memorchess.axl.test_util.testTreeStore
 
 /**
  * Behavioural tests proving [TreeStore] marks the outbox dirty and stamps its [DeviceIdentity] on
@@ -25,7 +26,7 @@ class TestTreeStoreSync {
   private fun newStore(
     database: InMemoryDatabaseQueryManager,
     identity: DeviceIdentity = DeviceIdentity.ephemeral(),
-  ) = TreeStore(database, CoroutineScope(UnconfinedTestDispatcher()), identity)
+  ) = testTreeStore(database, CoroutineScope(UnconfinedTestDispatcher()), identity)
 
   @Test
   fun addMoveMarksBothEndpointsAndTheEdgeDirty() = runTest {

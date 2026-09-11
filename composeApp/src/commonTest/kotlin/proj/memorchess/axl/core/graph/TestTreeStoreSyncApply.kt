@@ -12,13 +12,14 @@ import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.ResolutionSource
+import proj.memorchess.axl.test_util.testTreeStore
 
 class TestTreeStoreSyncApply {
 
   private val now = Instant.parse("2026-01-01T00:00:00Z")
 
   private fun store(database: InMemoryDatabaseQueryManager = InMemoryDatabaseQueryManager()) =
-    TreeStore(database, CoroutineScope(Dispatchers.Unconfined), DeviceIdentity.ephemeral())
+    testTreeStore(database, CoroutineScope(Dispatchers.Unconfined))
 
   private fun row(
     key: String,

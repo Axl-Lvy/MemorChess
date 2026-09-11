@@ -2,21 +2,19 @@ package proj.memorchess.axl.core.pgn
 
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TreeStore
-import proj.memorchess.axl.core.sync.DeviceIdentity
+import proj.memorchess.axl.test_util.testTreeStore
 
 private val rootKey = GameEngine().toPositionKey()
 
 class TestRepertoirePgnExporter {
 
-  private fun store() =
-    TreeStore(InMemoryDatabaseQueryManager(), TestScope(), DeviceIdentity.ephemeral())
+  private fun store() = testTreeStore(InMemoryDatabaseQueryManager())
 
   private fun exporter(tree: TreeStore) = RepertoirePgnExporter(tree)
 

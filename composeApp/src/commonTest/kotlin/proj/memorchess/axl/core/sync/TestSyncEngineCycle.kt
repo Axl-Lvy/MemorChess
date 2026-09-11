@@ -28,6 +28,7 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.test_util.testTreeStore
 
 /** Minimal fake: always returns the same [TokenResult]. */
 private class FakeAuthProvider(private val result: TokenResult) : AuthProvider {
@@ -61,7 +62,7 @@ class TestSyncEngineCycle {
   }
 
   private fun treeStore(database: InMemoryDatabaseQueryManager = InMemoryDatabaseQueryManager()) =
-    TreeStore(database, CoroutineScope(Dispatchers.Unconfined), DeviceIdentity.ephemeral())
+    testTreeStore(database, CoroutineScope(Dispatchers.Unconfined))
 
   @Test
   fun emptyCycleSucceedsAndLeavesCursorUntouched() = runTest {

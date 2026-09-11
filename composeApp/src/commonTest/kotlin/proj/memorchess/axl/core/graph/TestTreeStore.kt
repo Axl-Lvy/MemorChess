@@ -5,16 +5,25 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.TaggedEdge
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardStateFactory
+import proj.memorchess.axl.test_util.CountingDatabaseQueryManager
+import proj.memorchess.axl.test_util.GatingDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
 
@@ -24,6 +33,7 @@ import proj.memorchess.axl.test_util.testTreeStore
  * by [TreeStore] on every write. Assertions read the persisted [DataNode] back through the public
  * [proj.memorchess.axl.core.data.DatabaseQueryManager.getPosition] API.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class TestTreeStore {
 
   private val start = PositionKey.START_POSITION
@@ -316,5 +326,77 @@ class TestTreeStore {
     assertFailsWith<IllegalArgumentException> {
       store.forkRepertoire("italian-game", "", "Copy", RepertoireColor.WHITE)
     }
+  }
+
+  @Test
+  fun aMoveAddedDuringANeighborWarmSurvivesTheWarm() = runTest {
+    // The warm of `to` is triggered from `child` rather than from `from`: resolving `from` would
+    // need from -> to to already exist and make the assertion vacuous.
+    val from = PositionKey("from w K")
+    val to = PositionKey("to b K")
+    val child = PositionKey("child w K")
+    val existing = DataMove(origin = to, destination = child, move = "e5", isGood = true)
+    val backing = InMemoryDatabaseQueryManager()
+    backing.insertNodes(
+      DataNode(to, PreviousAndNextMoves(emptyList(), listOf(existing)), CardStateFactory.new(), 1),
+      DataNode(
+        child,
+        PreviousAndNextMoves(listOf(existing), emptyList()),
+        CardStateFactory.new(),
+        2,
+      ),
+    )
+    val database = GatingDatabaseQueryManager(backing, to)
+    val scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
+    val store = testTreeStore(database, scope)
+
+    // Resolving child fans out a warm of `to`, which parks on the gate.
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.node(child) }
+    store.addMove(from = from, move = "e4", to = to, isGood = true, fromDepth = 0)
+    database.gate.complete(Unit)
+
+    // Cache side assertions: every backend merges move rows per key, so the disk state is identical
+    // with and without the mark and a persisted row assertion cannot fail.
+    val resolved = assertNotNull(store.node(to))
+    assertEquals(setOf("e4"), resolved.incoming.keys)
+    assertEquals(setOf("e5"), resolved.outgoing.keys)
+    assertEquals(NodeState.SAVED_GOOD, store.computeState(to, arrivedFrom = from))
+  }
+
+  @Test
+  fun aMissFansOutPrefetchAndAHitDoesNot() = runTest {
+    // Both values of Resolution.hit propagated through the facade.
+    val child = PositionKey("child b K")
+    val edge = DataMove(origin = start, destination = child, move = "e4", isGood = true)
+    val backing = InMemoryDatabaseQueryManager()
+    backing.insertNodes(
+      DataNode(start, PreviousAndNextMoves(emptyList(), listOf(edge)), CardStateFactory.new(), 0),
+      DataNode(child, PreviousAndNextMoves(listOf(edge), emptyList()), CardStateFactory.new(), 1),
+    )
+    val database = CountingDatabaseQueryManager(backing)
+    val store = testTreeStore(database, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+
+    // hit = false: the miss on start warms child.
+    store.node(start)
+    assertEquals(1, database.getPositionCalls[child])
+
+    // hit = true: the second resolve of start warms nothing and child resolves from cache.
+    store.node(start)
+    store.node(child)
+    assertEquals(1, database.getPositionCalls[child])
+  }
+
+  @Test
+  fun deleteNodeWritesTheDatabaseBeforeClearingTheCache() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
+
+    store.deleteNode(posA)
+
+    val persisted = database.getPositionIncludingDeleted(posA)
+    assertNotNull(persisted)
+    assertTrue(persisted.isDeleted, "the tombstone is durable")
+    assertNull(store.node(posA), "the cache no longer serves the deleted position")
   }
 }
