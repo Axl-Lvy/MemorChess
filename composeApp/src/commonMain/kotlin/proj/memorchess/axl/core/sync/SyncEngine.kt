@@ -20,7 +20,6 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.OutboxEntry
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.graph.TreeStore
 
 /**
  * Drives the sync push+pull cycle: debounces local writes into one attempt, retries a transient
@@ -214,14 +213,14 @@ private fun Double.pow(exp: Int): Double {
 fun SyncEngine(
   authProvider: AuthProvider,
   database: DatabaseQueryManager,
-  treeStore: TreeStore,
+  applier: SyncApplier,
   apiClient: SyncApiClient,
   jobStore: SyncJobStore,
   cursorStore: SyncCursorStore,
   scope: CoroutineScope,
 ): SyncEngine =
   DefaultSyncEngine(jobStore, scope) {
-    runSyncCycle(authProvider, database, treeStore, apiClient, cursorStore)
+    runSyncCycle(authProvider, database, applier, apiClient, cursorStore)
   }
 
 /** Largest batch pushed in one request, matching `:server`'s own `MAX_PUSH_ROWS` cap. */
@@ -233,7 +232,7 @@ internal const val PULL_LIMIT: Int = 500
 internal suspend fun runSyncCycle(
   authProvider: AuthProvider,
   database: DatabaseQueryManager,
-  treeStore: TreeStore,
+  applier: SyncApplier,
   apiClient: SyncApiClient,
   cursorStore: SyncCursorStore,
 ): CycleOutcome {
@@ -248,7 +247,7 @@ internal suspend fun runSyncCycle(
   pushOutbox(token, database, apiClient)?.let {
     return it
   }
-  pullAll(token, treeStore, apiClient, cursorStore)?.let {
+  pullAll(token, applier, apiClient, cursorStore)?.let {
     return it
   }
   return CycleOutcome.Success
@@ -342,18 +341,18 @@ private suspend fun localMove(
     ?.values
     ?.firstOrNull { it.destination == destination }
 
-/** Applies every row of one pulled [page] to [treeStore]. */
-private suspend fun applyPulledPage(page: SyncPullResponse, treeStore: TreeStore) {
-  for (node in page.nodes) treeStore.applySyncedNode(node)
-  for (edge in page.edges) treeStore.applySyncedMove(edge)
-  for (repertoire in page.repertoires) treeStore.applySyncedRepertoire(repertoire)
-  for (tag in page.tags) treeStore.applySyncedTag(tag)
+/** Applies every row of one pulled [page] through [applier]. */
+private suspend fun applyPulledPage(page: SyncPullResponse, applier: SyncApplier) {
+  for (node in page.nodes) applier.applyNode(node)
+  for (edge in page.edges) applier.applyMove(edge)
+  for (repertoire in page.repertoires) applier.applyRepertoire(repertoire)
+  for (tag in page.tags) applier.applyTag(tag)
 }
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pullAll(
   token: String,
-  treeStore: TreeStore,
+  applier: SyncApplier,
   apiClient: SyncApiClient,
   cursorStore: SyncCursorStore,
 ): CycleOutcome? {
@@ -362,7 +361,7 @@ private suspend fun pullAll(
     when (val outcome = apiClient.pull(token, cursor, PULL_LIMIT)) {
       is SyncPullOutcome.Ok -> {
         val page = outcome.response
-        applyPulledPage(page, treeStore)
+        applyPulledPage(page, applier)
         cursor = page.nextCursor
         cursorStore.write(cursor)
         if (cursor == null) return null

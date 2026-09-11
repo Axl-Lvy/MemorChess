@@ -61,7 +61,7 @@ import proj.memorchess.axl.core.sync.toRepertoireSyncRow
  *   own writes against its earlier ones. See [DeviceIdentity].
  * @param notifyDirty Called after every local write that queues an outbox entry, so
  *   [proj.memorchess.axl.core.sync.SyncEngine] can schedule a push. Never called from
- *   [applySyncedNode]/[applySyncedMove], whose writes are remote in origin.
+ *   [proj.memorchess.axl.core.sync.SyncApplier], whose writes are remote in origin.
  */
 class TreeStore(
   private val database: DatabaseQueryManager,
@@ -336,108 +336,6 @@ class TreeStore(
   suspend fun eraseAll() {
     database.eraseAll()
     cache.clear()
-  }
-
-  /**
-   * Applies a node pulled from `/v1/sync`, after resolving it against the local copy via
-   * [proj.memorchess.axl.core.sync.resolve]. Returns which side won. On [ResolutionSource.REMOTE]
-   * the row is written through [DatabaseQueryManager.applyRemoteNode] (no outbox entry, per its own
-   * doc) and the position is evicted from the in memory cache so the next [node] call reloads it.
-   * On [ResolutionSource.LOCAL] nothing is written.
-   */
-  suspend fun applySyncedNode(remote: NodeSyncRow): ResolutionSource {
-    val local = database.getPositionIncludingDeleted(PositionKey(remote.positionKey))
-    val resolution = resolve(local?.toNodeSyncRow(), remote)
-    if (resolution.source == ResolutionSource.REMOTE) {
-      val dataNode =
-        remote.toDataNode(
-          existingMoves = local?.previousAndNextMoves ?: PreviousAndNextMoves(),
-          existingDepth = local?.depth ?: 0,
-          existingHasGoodOutgoing = local?.hasGoodOutgoing ?: false,
-          existingCreatedAt = local?.createdAt ?: remote.updatedAt,
-        )
-      database.applyRemoteNode(dataNode)
-      cache.invalidate(dataNode.positionKey)
-    }
-    return resolution.source
-  }
-
-  /**
-   * Applies a move pulled from `/v1/sync`, after resolving it the same way [applySyncedNode] does.
-   * On [ResolutionSource.REMOTE] the move is written through
-   * [DatabaseQueryManager.applyRemoteMove], both endpoints' derived [DataNode.hasGoodOutgoing] is
-   * refreshed if the write changed it (mirrors the concern already documented on [deleteMove]: a
-   * good edge appearing or disappearing must not leave the flag stale), and both endpoints are
-   * evicted from the cache.
-   */
-  suspend fun applySyncedMove(remote: EdgeSyncRow): ResolutionSource {
-    val originKey = PositionKey(remote.origin)
-    val destinationKey = PositionKey(remote.destination)
-    val local = localEdgeSyncRow(originKey, remote.move)
-    val resolution = resolve(local, remote)
-    if (resolution.source == ResolutionSource.REMOTE) {
-      database.applyRemoteMove(remote.toDataMove())
-      refreshHasGoodOutgoingIfChanged(originKey)
-      cache.invalidate(originKey)
-      cache.invalidate(destinationKey)
-    }
-    return resolution.source
-  }
-
-  /**
-   * Applies a repertoire registry row pulled from `/v1/sync`, after resolving it against the local
-   * copy via [resolve]. No edge changes, so unlike [applySyncedTag] there is nothing to recompute
-   * in `NodeRepertoireTrainable`.
-   */
-  suspend fun applySyncedRepertoire(remote: RepertoireSyncRow): ResolutionSource {
-    val local = database.getRepertoireIncludingDeleted(remote.id)
-    val resolution = resolve(local?.toRepertoireSyncRow(), remote)
-    if (resolution.source == ResolutionSource.REMOTE) {
-      database.applyRemoteRepertoire(remote.toDataRepertoire())
-    }
-    return resolution.source
-  }
-
-  /**
-   * Applies an edge to repertoire tag pulled from `/v1/sync`, after resolving it the same way. On
-   * [ResolutionSource.REMOTE] the tag is written through [DatabaseQueryManager.applyRemoteTag] and
-   * the origin's `NodeRepertoireTrainable` row set is recomputed, mirroring how [applySyncedMove]
-   * refreshes [DataNode.hasGoodOutgoing].
-   */
-  suspend fun applySyncedTag(remote: EdgeRepertoireTagSyncRow): ResolutionSource {
-    val originKey = PositionKey(remote.origin)
-    val destinationKey = PositionKey(remote.destination)
-    val local = database.getTagIncludingDeleted(originKey, destinationKey, remote.repertoireId)
-    val resolution = resolve(local?.toEdgeRepertoireTagSyncRow(), remote)
-    if (resolution.source == ResolutionSource.REMOTE) {
-      database.applyRemoteTag(remote.toDataEdgeRepertoireTag())
-      trainable.recompute(originKey)
-    }
-    return resolution.source
-  }
-
-  /**
-   * The local counterpart of a pulled edge, as an [EdgeSyncRow], or `null` when unknown locally.
-   */
-  private suspend fun localEdgeSyncRow(origin: PositionKey, move: String): EdgeSyncRow? =
-    database
-      .getPositionIncludingDeleted(origin)
-      ?.previousAndNextMoves
-      ?.nextMoves
-      ?.get(move)
-      ?.toEdgeSyncRow()
-
-  /**
-   * Re-derives [origin]'s [DataNode.hasGoodOutgoing] from its own move maps and re-persists it,
-   * without an outbox entry, only when the value actually changed.
-   */
-  private suspend fun refreshHasGoodOutgoingIfChanged(origin: PositionKey) {
-    val node = database.getPositionIncludingDeleted(origin) ?: return
-    val recomputed =
-      node.previousAndNextMoves.nextMoves.values.any { it.isGood == true && !it.isDeleted }
-    if (recomputed != node.hasGoodOutgoing) {
-      database.applyRemoteNode(node.copy(hasGoodOutgoing = recomputed))
-    }
   }
 
   /**

@@ -29,6 +29,7 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.testRepertoireTagStore
+import proj.memorchess.axl.test_util.testSyncApplier
 import proj.memorchess.axl.test_util.testTreeStore
 
 /** Minimal fake: always returns the same [TokenResult]. */
@@ -65,6 +66,9 @@ class TestSyncEngineCycle {
   private fun treeStore(database: InMemoryDatabaseQueryManager = InMemoryDatabaseQueryManager()) =
     testTreeStore(database, CoroutineScope(Dispatchers.Unconfined))
 
+  private fun syncApplier(database: InMemoryDatabaseQueryManager) =
+    testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined))
+
   @Test
   fun emptyCycleSucceedsAndLeavesCursorUntouched() = runTest {
     val database = InMemoryDatabaseQueryManager()
@@ -74,7 +78,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         authProvider = FakeAuthProvider(TokenResult.Ok("tok")),
         database = database,
-        treeStore = treeStore(database),
+        applier = syncApplier(database),
         apiClient =
           SyncApiClient(jsonClient(emptyPullEngine()), baseUrl = "https://issuer.example/v1"),
         cursorStore = cursorStore,
@@ -97,7 +101,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         authProvider = FakeAuthProvider(TokenResult.Failed.Transient),
         database = database,
-        treeStore = treeStore(database),
+        applier = syncApplier(database),
         apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         cursorStore = SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
       )
@@ -115,7 +119,7 @@ class TestSyncEngineCycle {
     runSyncCycle(
       FakeAuthProvider(TokenResult.Failed.Terminal),
       database,
-      treeStore(database),
+      syncApplier(database),
       apiClient,
       SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
     ) shouldBe CycleOutcome.PausedNoAuth
@@ -123,7 +127,7 @@ class TestSyncEngineCycle {
     runSyncCycle(
       FakeAuthProvider(TokenResult.SignedOut),
       database,
-      treeStore(database),
+      syncApplier(database),
       apiClient,
       SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
     ) shouldBe CycleOutcome.PausedNoAuth
@@ -150,7 +154,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
       )
@@ -186,7 +190,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
       )
@@ -215,7 +219,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
       )
@@ -232,7 +236,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        treeStore(database),
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
       )
@@ -260,7 +264,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        treeStore(database),
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         cursorStore,
       )
@@ -295,7 +299,7 @@ class TestSyncEngineCycle {
       runSyncCycle(
         FakeAuthProvider(TokenResult.Ok("tok")),
         database,
-        store,
+        syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         SyncCursorStore(proj.memorchess.axl.test_util.TestSettings()),
       )

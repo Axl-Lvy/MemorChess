@@ -59,6 +59,7 @@ import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.core.sync.SYNC_BASE_URL
 import proj.memorchess.axl.core.sync.SyncApiClient
+import proj.memorchess.axl.core.sync.SyncApplier
 import proj.memorchess.axl.core.sync.SyncCursorStore
 import proj.memorchess.axl.core.sync.SyncEngine
 import proj.memorchess.axl.core.sync.SyncJobStore
@@ -139,9 +140,10 @@ fun initKoinModules(): Array<Module> {
     }
     single {
       // get<SyncEngine>() is resolved lazily, inside this lambda, only when a write actually
-      // happens — never during TreeStore's own construction — which is what breaks what would
-      // otherwise be a TreeStore <-> SyncEngine construction cycle (SyncEngine depends on
-      // TreeStore normally, to apply a pull).
+      // happens. There is no construction cycle left to break: SyncEngine depends on SyncApplier,
+      // which reaches only NodeCache, TrainableProjection and the database, so nothing reaches back
+      // to TreeStore or RepertoireTagStore. The laziness stays because SyncEngine is still the
+      // right thing to notify and keeping it off both units' construction paths costs nothing.
       TreeStore(
         get(),
         get(),
@@ -198,6 +200,7 @@ fun initKoinModules(): Array<Module> {
   val syncModule = module {
     single { SyncJobStore(get()) }
     single { SyncCursorStore(get()) }
+    single { SyncApplier(get(), get(), get()) }
     single { SyncApiClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1") }
     single<CoroutineScope>(named(SYNC_ENGINE_SCOPE)) {
       CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -206,7 +209,7 @@ fun initKoinModules(): Array<Module> {
       SyncEngine(
         authProvider = get(),
         database = get(),
-        treeStore = get(),
+        applier = get(),
         apiClient = get(),
         jobStore = get(),
         cursorStore = get(),

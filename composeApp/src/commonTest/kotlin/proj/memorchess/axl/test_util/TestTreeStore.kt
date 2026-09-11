@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.sync.DeviceIdentity
+import proj.memorchess.axl.core.sync.SyncApplier
 
 /**
  * Builds a [NodeCache] over [database] on [scope].
@@ -55,3 +56,13 @@ fun testRepertoireTagStore(
     deviceIdentity,
     TrainableProjection(database, testNodeCache(database, scope)),
   )
+
+/** Builds a [SyncApplier] over [database]. */
+@OptIn(ExperimentalCoroutinesApi::class)
+fun testSyncApplier(
+  database: DatabaseQueryManager,
+  scope: CoroutineScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher()),
+): SyncApplier {
+  val cache = testNodeCache(database, scope)
+  return SyncApplier(database, cache, TrainableProjection(database, cache))
+}
