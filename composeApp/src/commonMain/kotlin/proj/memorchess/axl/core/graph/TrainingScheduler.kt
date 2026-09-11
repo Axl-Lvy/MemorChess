@@ -84,7 +84,7 @@ class TrainingScheduler(
    *   unscoped behavior exactly.
    */
   suspend fun nextDue(
-    day: LocalDate = DateUtil.today(),
+    day: LocalDate = DateUtil.today(timeZone),
     repertoireId: String? = null,
   ): TrainingEntry? {
     val now = DateUtil.now()
@@ -137,7 +137,7 @@ class TrainingScheduler(
    */
   suspend fun nextAfter(
     position: PositionKey,
-    day: LocalDate = DateUtil.today(),
+    day: LocalDate = DateUtil.today(timeZone),
     repertoireId: String? = null,
   ): TrainingEntry? {
     val node = treeStore.node(position) ?: return null
@@ -169,7 +169,10 @@ class TrainingScheduler(
    *   repertoire through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null`
    *   reproduces today's unscoped behavior exactly.
    */
-  suspend fun pendingCount(day: LocalDate = DateUtil.today(), repertoireId: String? = null): Int {
+  suspend fun pendingCount(
+    day: LocalDate = DateUtil.today(timeZone),
+    repertoireId: String? = null,
+  ): Int {
     val (dayStart, dayEnd) = dayBounds(day)
     val globalCounts = database.getSchedulingCounts(dayStart, dayEnd)
     val scoped = repertoireId?.let { database.getScopedCounts(dayEnd, it) }
