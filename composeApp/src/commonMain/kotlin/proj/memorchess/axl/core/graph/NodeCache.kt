@@ -252,33 +252,32 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
    */
   private fun reconcile(positionKey: PositionKey, loaded: Node?, mark: RaceMark?): Node? {
     if (mark == null) return loaded
-    var base =
-      mark.replacement
-        ?: loaded
-        // Synthesized only on positive evidence the node exists: an edge the mutator added, or a
-        // depth it asked for. Removals are not evidence, so a mark holding nothing but removals
-        // over an absent row leaves the key dropped instead of resident as an empty shell, which
-        // Node.computeState would read as the root.
-        ?: if (mark.edits.values.any { it != null } || mark.depth != null) {
-          Node(positionKey = positionKey, depth = mark.depth ?: Int.MAX_VALUE)
-        } else {
-          null
-        }
-    if (base == null) return null
-    if (mark.edits.isNotEmpty()) {
-      val outgoing = base.outgoing.toMutableMap()
-      val incoming = base.incoming.toMutableMap()
-      for ((touched, edge) in mark.edits) {
-        val target = if (touched.direction == Direction.OUTGOING) outgoing else incoming
-        if (edge == null) target.remove(touched.move) else target[touched.move] = edge
-      }
-      base = base.copy(outgoing = outgoing, incoming = incoming)
-    }
+    var base = reconcileBase(positionKey, loaded, mark) ?: return null
+    if (mark.edits.isNotEmpty()) base = base.withEdits(mark.edits)
     val markedDepth = mark.depth
     // Never the mark's depth on its own: upsertEdge marks fromDepth and fromDepth + 1, which on a
     // deep exploration line can exceed the shortest path the loaded row already records.
     if (markedDepth != null && markedDepth < base.depth) base = base.copy(depth = markedDepth)
     return base
+  }
+
+  /**
+   * The node [mark]'s edits apply to: its replacement, else the row [loaded], else a fresh empty
+   * node. `null` when nothing shows the position exists.
+   *
+   * A fresh node needs positive evidence, an edit that adds an edge or a depth a mutator asked for.
+   * Removals are not evidence, so a mark holding nothing but removals over an absent row leaves the
+   * key dropped rather than resident as an empty shell, which [Node.computeState] would read as the
+   * root.
+   */
+  private fun reconcileBase(positionKey: PositionKey, loaded: Node?, mark: RaceMark): Node? {
+    mark.replacement?.let {
+      return it
+    }
+    if (loaded != null) return loaded
+    val exists = mark.edits.values.any { it != null } || mark.depth != null
+    return if (exists) Node(positionKey = positionKey, depth = mark.depth ?: Int.MAX_VALUE)
+    else null
   }
 
   /** The mark for [positionKey], creating it, or `null` when no load of that key is in flight. */
@@ -303,6 +302,17 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
     val mark = markUnlocked(positionKey) ?: return
     mark.depth = minOf(mark.depth ?: depth, depth)
   }
+}
+
+/** This node with [edits] applied to its edge maps, a `null` value removing that move. */
+private fun Node.withEdits(edits: Map<TouchedEdge, Edge?>): Node {
+  val outgoing = this.outgoing.toMutableMap()
+  val incoming = this.incoming.toMutableMap()
+  for ((touched, edge) in edits) {
+    val target = if (touched.direction == Direction.OUTGOING) outgoing else incoming
+    if (edge == null) target.remove(touched.move) else target[touched.move] = edge
+  }
+  return copy(outgoing = outgoing, incoming = incoming)
 }
 
 private fun DataMove.toEdge(): Edge =
