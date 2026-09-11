@@ -44,20 +44,22 @@ open class LinesExplorer(
 
   private val startPosition = position ?: PositionKey.START_POSITION
 
-  init {
-    treeStore.ensurePosition(startPosition, 0)
-  }
-
   protected val navigation = NavigationHistory(startPosition)
 
   var state by mutableStateOf(NodeState.UNKNOWN)
     protected set
 
   /**
-   * Computes the initial [state] of the starting position. Called once from the page's loading
-   * phase because the computation suspends (it resolves the node through the bounded cache).
+   * Seeds the starting position into the cache and computes the initial [state] from it. Called
+   * once from the page's loading phase because both halves suspend (they go through the bounded
+   * cache, under its lock).
+   *
+   * The seed lives here rather than in an `init` block: the store's cache is shared across screens,
+   * so by construction time a load of the starting position may already be in flight, and an
+   * unguarded write would let that load's finalization drop the seeded node again.
    */
   suspend fun initState() {
+    treeStore.ensurePosition(startPosition, 0)
     state = treeStore.computeState(startPosition, arrivedFrom = null)
   }
 
@@ -117,7 +119,7 @@ open class LinesExplorer(
   /** Resets the explorer to the initial chess position. */
   suspend fun reset() {
     val resetPosition = PositionKey.START_POSITION
-    treeStore.ensurePositionGuarded(resetPosition, 0)
+    treeStore.ensurePosition(resetPosition, 0)
     navigation.reset(resetPosition)
     state = treeStore.computeState(resetPosition, arrivedFrom = null)
     super.reset(resetPosition)

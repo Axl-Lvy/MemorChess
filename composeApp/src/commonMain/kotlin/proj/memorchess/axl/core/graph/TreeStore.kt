@@ -94,23 +94,11 @@ class TreeStore(
     database.countDescendants(key, cap)
 
   /**
-   * Ensures [positionKey] exists in the cache at the given [depth]. No persistence side effect:
-   * exploration of a fresh position should not write a row until the user saves something.
-   *
-   * Synchronous and **not** lock guarded, so it must only run before any navigation on this store
-   * has triggered a load, where it cannot race the loading writer. The sole safe caller is a
-   * constructor seeding the starting position. Once navigation begins, use [ensurePositionGuarded].
-   */
-  fun ensurePosition(positionKey: PositionKey, depth: Int) {
-    cache.ensureUnlocked(positionKey, depth)
-  }
-
-  /**
    * Ensures [positionKey] exists in the cache at the given [depth], under the cache's own lock so
-   * it cannot race a concurrent load. No persistence side effect. This is the safe variant for any
-   * call site reachable after navigation has begun, for example a reset handler.
+   * it cannot race a concurrent load. No persistence side effect: exploration of a fresh position
+   * should not write a row until the user saves something.
    */
-  suspend fun ensurePositionGuarded(positionKey: PositionKey, depth: Int) {
+  suspend fun ensurePosition(positionKey: PositionKey, depth: Int) {
     cache.ensure(positionKey, depth)
   }
 

@@ -138,14 +138,6 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
   }
 
   /**
-   * Unguarded [ensure], safe only before any load on this cache has been triggered. With no load in
-   * flight there is nothing to race and nothing to mark.
-   */
-  fun ensureUnlocked(positionKey: PositionKey, depth: Int) {
-    tree.ensure(positionKey, depth)
-  }
-
-  /**
    * Adds or replaces [edge], creating either endpoint at [fromDepth] / [fromDepth] + 1 if missing.
    */
   suspend fun upsertEdge(edge: Edge, fromDepth: Int) {
