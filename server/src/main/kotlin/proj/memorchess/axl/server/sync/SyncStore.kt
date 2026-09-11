@@ -3,11 +3,13 @@ package proj.memorchess.axl.server.sync
 import java.sql.Connection
 import java.sql.Timestamp
 import javax.sql.DataSource
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
@@ -508,6 +510,11 @@ internal class SyncStore(
     afterReset: Boolean,
     serverNow: Instant,
   ): RegisterOutcome = inTransaction { connection ->
+    // Under the same lock as collection, which reads this device's position and the floor this
+    // decision is made against. Without it a removed device can be reinstated keeping a position
+    // that a concurrently written floor is about to overtake, and it would then never be told to
+    // resync while its tombstones were purged underneath it.
+    connection.acquireUserLock(userId)
     val existing = connection.readDevice(userId, deviceId)
     when {
       // First, and unconditionally: a 204 confirming a reset can be lost in transit, and the
@@ -740,24 +747,38 @@ internal class SyncStore(
    */
   internal suspend fun collectTombstones() {
     for (userId in usersWithDevices()) {
-      val watermark = watermarkOf(userId) ?: continue
-      // Either some device has committed nothing yet, or there is genuinely nothing to reclaim.
-      if (watermark == 0L) continue
-      inTransaction { connection ->
-        connection.acquireUserLock(userId)
-        for (table in PER_USER_TABLES) {
-          connection
-            .prepareStatement(
-              "DELETE FROM $table WHERE user_id = ? AND is_deleted AND revision <= ?"
-            )
-            .use { statement ->
-              statement.setString(1, userId)
-              statement.setLong(2, watermark)
-              statement.executeUpdate()
-            }
-        }
-        connection.setGcFloor(userId, watermark)
+      try {
+        collectTombstonesOf(userId)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        // One user's failure must not cost every later user in this run its collection, and the
+        // scheduled job must survive to run again tomorrow.
+        logger.error("Tombstone collection failed for user '{}', continuing", userId, e)
       }
+    }
+  }
+
+  /** Collects one user's tombstones, in a single transaction under their lock. */
+  private suspend fun collectTombstonesOf(userId: String) {
+    inTransaction { connection ->
+      connection.acquireUserLock(userId)
+      // Read under the lock that guards the delete below, never before it. A registration
+      // landing between an unlocked read and this block could reinstate a removed device at a
+      // position the floor written here is about to overtake.
+      val watermark = connection.watermarkOf(userId)
+      // Either some device has committed nothing yet, or there is genuinely nothing to reclaim.
+      if (watermark == null || watermark == 0L) return@inTransaction
+      for (table in PER_USER_TABLES) {
+        connection
+          .prepareStatement("DELETE FROM $table WHERE user_id = ? AND is_deleted AND revision <= ?")
+          .use { statement ->
+            statement.setString(1, userId)
+            statement.setLong(2, watermark)
+            statement.executeUpdate()
+          }
+      }
+      connection.setGcFloor(userId, watermark)
     }
   }
 
@@ -777,9 +798,8 @@ internal class SyncStore(
    * Removed devices are excluded, which is the whole point of removal: one lost install would
    * otherwise hold this user's watermark down forever.
    */
-  private suspend fun watermarkOf(userId: String): Long? = inTransaction { connection ->
-    connection
-      .prepareStatement(
+  private fun Connection.watermarkOf(userId: String): Long? =
+    prepareStatement(
         "SELECT min(last_acked_revision) FROM sync_device " +
           "WHERE user_id = ? AND removed_at IS NULL"
       )
@@ -791,7 +811,6 @@ internal class SyncStore(
           if (rows.wasNull()) null else value
         }
       }
-  }
 
   /** The user's collection floor, or `null` when they have never been collected. Test only. */
   internal suspend fun gcFloorForTest(userId: String): Long? = inTransaction { connection ->
@@ -1530,6 +1549,8 @@ internal data class DeviceRow(
   val lastPageToken: String?,
   val removedAt: Instant?,
 )
+
+private val logger = LoggerFactory.getLogger(SyncStore::class.java)
 
 /** A caller named a device the server has never been told about. */
 internal class UnknownDeviceException(deviceId: String) :

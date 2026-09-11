@@ -3,8 +3,14 @@ package proj.memorchess.axl.server.sync
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
@@ -41,6 +47,30 @@ internal class TestSyncStoreDevices {
     device.platform shouldBe DevicePlatform.ANDROID
     device.lastAcked shouldBe 40L
     device.lastServed shouldBe 40L
+  }
+
+  @Test
+  fun registeringADeviceWaitsForTheUserLock() {
+    runBlocking {
+      val user = PostgresTestDb.newUserId()
+
+      PostgresTestDb.dataSource().connection.use { holder ->
+        holder.autoCommit = false
+        holder.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
+          statement.setString(1, "sync-user:$user")
+          statement.executeQuery().use { it.next() }
+        }
+        val registration =
+          async(Dispatchers.IO) {
+            store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
+          }
+
+        withTimeoutOrNull(2.seconds) { registration.await() } shouldBe null
+
+        holder.rollback()
+        withTimeout(10.seconds) { registration.await() } shouldBe RegisterOutcome.Ok
+      }
+    }
   }
 
   /** Registers, positions and removes a device, then registers it again. */
