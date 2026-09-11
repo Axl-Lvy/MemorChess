@@ -193,7 +193,9 @@ class TestNodeCache {
       )
 
     var resolved: Node? = null
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { resolved = cache.resolve(key(0)).node }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      resolved = cache.resolve(key(0)).node
+    }
     cache.invalidate(key(0))
     gate.complete(Unit)
 
@@ -221,7 +223,9 @@ class TestNodeCache {
       )
 
     var resolved: Node? = null
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { resolved = cache.resolve(to).node }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      resolved = cache.resolve(to).node
+    }
     cache.upsertEdge(edge(from, "e4", to), fromDepth = 2)
     gate.complete(Unit)
 
@@ -249,8 +253,12 @@ class TestNodeCache {
 
     var first: Node? = null
     var second: Node? = null
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { first = cache.resolve(key(0)).node }
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { second = cache.resolve(key(0)).node }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      first = cache.resolve(key(0)).node
+    }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      second = cache.resolve(key(0)).node
+    }
     gate.complete(Unit)
 
     calls shouldBe 1
@@ -292,7 +300,8 @@ class TestNodeCache {
         CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
       )
 
-    val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { cache.resolve(key(0)) }
+    val job =
+      backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { cache.resolve(key(0)) }
     job.cancel()
     gate.complete(Unit)
 
@@ -319,7 +328,9 @@ class TestNodeCache {
         CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
       )
 
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { runCatching { cache.resolve(key(0)) } }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      runCatching { cache.resolve(key(0)) }
+    }
     cache.invalidate(key(0))
     gate.complete(Unit)
 
@@ -342,7 +353,9 @@ class TestNodeCache {
       )
 
     var resolved: Node? = null
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { resolved = cache.resolve(key(0)).node }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      resolved = cache.resolve(key(0)).node
+    }
     cache.ensure(key(0), depth = 7)
     gate.complete(Unit)
 
@@ -367,7 +380,9 @@ class TestNodeCache {
       )
 
     var resolved: Node? = null
-    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { resolved = cache.resolve(key(0)).node }
+    backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+      resolved = cache.resolve(key(0)).node
+    }
     cache.ensure(key(0), depth = 4)
     gate.complete(Unit)
 
@@ -542,7 +557,8 @@ class TestNodeCache {
         CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
       )
 
-    val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { cache.resolve(key(0)) }
+    val job =
+      backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { cache.resolve(key(0)) }
     job.cancel()
     cache.invalidate(key(0))
     gate.complete(Unit)
@@ -553,7 +569,8 @@ class TestNodeCache {
 
   @Test
   fun clearDuringALoadLeavesTheKeyNotResident() = runTest {
-    // Spec test 11, second part: the eraseAll trace. The first attempt puts its pre erase candidate,
+    // Spec test 11, second part: the eraseAll trace. The first attempt puts its pre erase
+    // candidate,
     // the retry's null load removes it.
     val gate = CompletableDeferred<Unit>()
     var calls = 0
@@ -571,7 +588,8 @@ class TestNodeCache {
         CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
       )
 
-    val job = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { cache.resolve(key(0)) }
+    val job =
+      backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { cache.resolve(key(0)) }
     job.cancel()
     cache.clear()
     gate.complete(Unit)

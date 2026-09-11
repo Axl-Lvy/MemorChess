@@ -44,7 +44,9 @@ fun testTreeStore(
   )
 }
 
-/** Builds a [RepertoireTagStore] over [database], defaulting to a fresh ephemeral [DeviceIdentity]. */
+/**
+ * Builds a [RepertoireTagStore] over [database], defaulting to a fresh ephemeral [DeviceIdentity].
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 fun testRepertoireTagStore(
   database: DatabaseQueryManager,

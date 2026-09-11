@@ -527,8 +527,9 @@ private fun ForkRepertoireAction(
 
 /**
  * Builds a [RepertoireCreationViewModel] wired to [tagStore]: [RepertoireTagStore.repertoires] for
- * the existing-id check, [RepertoireTagStore.register] and [RepertoireTagStore.fork] directly, and a
- * [PgnImporter] for pasted-PGN imports (mirroring [RepertoireLibrary]'s own `importGames` wiring).
+ * the existing-id check, [RepertoireTagStore.register] and [RepertoireTagStore.fork] directly, and
+ * a [PgnImporter] for pasted-PGN imports (mirroring [RepertoireLibrary]'s own `importGames`
+ * wiring).
  */
 private fun repertoireCreationViewModel(
   treeStore: TreeStore,

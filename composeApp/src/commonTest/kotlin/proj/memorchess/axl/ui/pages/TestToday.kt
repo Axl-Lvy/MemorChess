@@ -25,8 +25,8 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainingScheduler
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
@@ -34,7 +34,6 @@ import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.TestWithKoin
-import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.components.today.WeekStrip
@@ -184,7 +183,11 @@ class TestToday : TestWithKoin() {
   fun noRepertoiresInstalledRendersTheEmptyPickUpCard() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
     val database = dbWithDueCards(0)
-    setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(TestDatabases.empty()))
+    setToday(
+      StreakTracker(store),
+      schedulerOver(database),
+      testRepertoireTagStore(TestDatabases.empty()),
+    )
 
     waitUntilAtLeastOneExists(hasTestTag("today_pickup_empty"))
     onNodeWithTag("today_pickup_card").assertDoesNotExist()

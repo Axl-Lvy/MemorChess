@@ -249,7 +249,8 @@ class TestLinesExplorer : TestWithKoin() {
   @Test
   fun aScopedSessionTagsAGenuinelyNewMoveWithItsScope() = test {
     val origin = PositionKey.START_POSITION
-    val explorer = LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
+    val explorer =
+      LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
     explorer.playMove("e4")
@@ -264,7 +265,8 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.playMove("e4")
     interactionsManager.save() // persists the edge, unscoped
     val destination = interactionsManager.engine.toPositionKey()
-    val explorer = LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
+    val explorer =
+      LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
     explorer.playMove("e4") // replays the already-existing edge
@@ -279,7 +281,8 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.save()
     val destination = interactionsManager.engine.toPositionKey()
     tagStore.tag(origin, destination, "ruy-lopez")
-    val explorer = LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
+    val explorer =
+      LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
     assertEquals(emptyList(), explorer.getNextMoves())

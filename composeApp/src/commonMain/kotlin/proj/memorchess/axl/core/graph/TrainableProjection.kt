@@ -20,9 +20,9 @@ class TrainableProjection(
 ) {
 
   /**
-   * Rewrites [origin]'s entire row set: one row per repertoire with at least one live, good outgoing
-   * edge tagged with it, each stamped with [origin]'s current card state review date. A no op when
-   * [origin] cannot be resolved.
+   * Rewrites [origin]'s entire row set: one row per repertoire with at least one live, good
+   * outgoing edge tagged with it, each stamped with [origin]'s current card state review date. A no
+   * op when [origin] cannot be resolved.
    */
   suspend fun recompute(origin: PositionKey) {
     val resolved = cache.resolve(origin).node ?: return

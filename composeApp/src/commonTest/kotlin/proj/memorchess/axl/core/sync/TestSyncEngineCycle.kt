@@ -27,7 +27,6 @@ import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testSyncApplier
 import proj.memorchess.axl.test_util.testTreeStore

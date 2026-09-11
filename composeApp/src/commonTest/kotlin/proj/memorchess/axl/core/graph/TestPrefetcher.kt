@@ -106,7 +106,8 @@ class TestPrefetcher {
         },
         scope,
       )
-    val node = Node(positionKey = self, outgoing = mapOf("e4" to edge(self, "e4", child)), depth = 0)
+    val node =
+      Node(positionKey = self, outgoing = mapOf("e4" to edge(self, "e4", child)), depth = 0)
 
     Prefetcher(cache, scope).warmNeighbors(node)
 

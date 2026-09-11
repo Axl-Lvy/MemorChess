@@ -8,8 +8,8 @@ import proj.memorchess.axl.core.data.PositionKey
  * The tree only knows about [Node] and [Edge]. It has no persistence, no scheduling and no I/O. It
  * is a **partial** view of the repertoire: under demand paging only a bounded working set of nodes
  * is resident at any moment. Code must never assume the whole graph is in memory; an absent key is
- * a cache miss that [NodeCache] resolves on demand from the database, not a proof the position
- * does not exist.
+ * a cache miss that [NodeCache] resolves on demand from the database, not a proof the position does
+ * not exist.
  *
  * ## Eviction
  *

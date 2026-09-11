@@ -7,8 +7,8 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.DeleteMode
-import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.graph.RepertoireTagStore
+import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 

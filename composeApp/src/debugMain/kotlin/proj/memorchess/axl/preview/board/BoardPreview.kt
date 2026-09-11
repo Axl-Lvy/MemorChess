@@ -10,7 +10,12 @@ import proj.memorchess.axl.ui.components.board.Board
 
 @HotPreview(density = 1.0f, widthDp = 4000, heightDp = 4000, captionBar = true)
 @Composable
-private fun BoardPreview(treeStore: TreeStore = koinInject(),
-  tagStore: RepertoireTagStore = koinInject(),) {
-  Board(inverted = false, interactionsManager = LinesExplorer(treeStore = treeStore, tagStore = tagStore))
+private fun BoardPreview(
+  treeStore: TreeStore = koinInject(),
+  tagStore: RepertoireTagStore = koinInject(),
+) {
+  Board(
+    inverted = false,
+    interactionsManager = LinesExplorer(treeStore = treeStore, tagStore = tagStore),
+  )
 }

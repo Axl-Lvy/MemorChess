@@ -7,8 +7,8 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.Node
-import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.RepertoireTagStore
+import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.ReviewGrade
 

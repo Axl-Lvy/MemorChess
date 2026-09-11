@@ -7,8 +7,8 @@ import kotlinx.coroutines.launch
  * Fire and forget one ply warm of a resolved node's neighbours, so the next navigation step is a
  * cache hit.
  *
- * Never recurses: a warm resolves through [NodeCache] directly and does not fan out again, so a miss
- * reaches the immediate neighbours and stops, bounded by the branching factor.
+ * Never recurses: a warm resolves through [NodeCache] directly and does not fan out again, so a
+ * miss reaches the immediate neighbours and stops, bounded by the branching factor.
  *
  * @param cache Cache the warms resolve through.
  * @param scope Background scope the warms are launched on.

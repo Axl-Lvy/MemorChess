@@ -2,7 +2,6 @@ package proj.memorchess.axl.core.graph
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -18,8 +17,6 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.data.TaggedEdge
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.CountingDatabaseQueryManager

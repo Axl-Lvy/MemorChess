@@ -29,8 +29,7 @@ import proj.memorchess.axl.core.sync.DeviceIdentity
  * @constructor Wraps an already populated transient [treeStore]. Use [build] to create one from
  *   PGN.
  */
-class RepertoireExplorer
-private constructor(treeStore: TreeStore, tagStore: RepertoireTagStore) :
+class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: RepertoireTagStore) :
   LinesExplorer(position = null, treeStore = treeStore, tagStore = tagStore) {
 
   override suspend fun afterPlayMove(move: String) {

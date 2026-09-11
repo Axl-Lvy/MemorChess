@@ -38,8 +38,8 @@ import org.koin.compose.koinInject
 import proj.memorchess.axl.core.data.repertoire.RepertoireMastery
 import proj.memorchess.axl.core.data.repertoire.mostRecentRepertoireMastery
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.RepertoireTagStore
+import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle

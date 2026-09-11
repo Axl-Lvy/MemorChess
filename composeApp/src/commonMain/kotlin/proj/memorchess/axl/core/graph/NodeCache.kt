@@ -56,13 +56,13 @@ private data class RaceMark(
  * Bounded LRU cache of [Node]s with single flight loading and race reconciliation.
  *
  * Owns the [OpeningTree], the mutex guarding it, the set of in flight load claims, and the marks
- * recording what a mutator changed under a load. Every public method takes the mutex; each is a thin
- * wrapper over a private body that assumes the lock is already held, because finalization marks,
- * clears and inserts in one critical section and [Mutex] is not reentrant.
+ * recording what a mutator changed under a load. Every public method takes the mutex; each is a
+ * thin wrapper over a private body that assumes the lock is already held, because finalization
+ * marks, clears and inserts in one critical section and [Mutex] is not reentrant.
  *
  * @param loader Point lookup used on a miss.
- * @param loadScope Scope loads run on. The cache derives its own [SupervisorJob] child of it, so one
- *   failed load never cancels a sibling or the caller, while a transient cache still dies with
+ * @param loadScope Scope loads run on. The cache derives its own [SupervisorJob] child of it, so
+ *   one failed load never cancels a sibling or the caller, while a transient cache still dies with
  *   whatever owns the scope it was built from. Hand a scope whose [Job] nobody joins, such as a
  *   [SupervisorJob] or a lifecycle scope. The derived supervisor is a permanent child of it, so a
  *   caller that joins the handed [Job] would wait forever.
@@ -81,29 +81,29 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
    * Resolves the node at [positionKey], loading it on a miss and deduping concurrent callers onto
    * one load.
    *
-   * A mutator's edits always survive a concurrent load, including across the one retry a superseding
-   * write forces, and the node returned is always the one left in the cache. After two invalidations
-   * inside a single load chain the caller can see a row one sync cycle behind. Nothing corrects that
-   * on its own: it survives until eviction, the next invalidation, or the next mutation of the key.
+   * A mutator's edits always survive a concurrent load, including across the one retry a
+   * superseding write forces, and the node returned is always the one left in the cache. After two
+   * invalidations inside a single load chain the caller can see a row one sync cycle behind.
+   * Nothing corrects that on its own: it survives until eviction, the next invalidation, or the
+   * next mutation of the key.
    */
   suspend fun resolve(positionKey: PositionKey): Resolution {
-    val claim =
-      mutex.withLock {
-        // The claim check comes before the residency check. A key that is resident with a claim in
-        // flight is a key whose cached row a mutator or a sync apply has just superseded, and the
-        // claim is the read that will replace it.
-        val existing = inFlight[positionKey]
-        if (existing != null) {
-          existing
-        } else {
-          val resident = tree[positionKey]
-          if (resident != null) {
-            tree.touch(positionKey)
-            return Resolution(resident, hit = true)
-          }
-          installClaimUnlocked(positionKey, attempt = 1, seed = null)
+    val claim = mutex.withLock {
+      // The claim check comes before the residency check. A key that is resident with a claim in
+      // flight is a key whose cached row a mutator or a sync apply has just superseded, and the
+      // claim is the read that will replace it.
+      val existing = inFlight[positionKey]
+      if (existing != null) {
+        existing
+      } else {
+        val resident = tree[positionKey]
+        if (resident != null) {
+          tree.touch(positionKey)
+          return Resolution(resident, hit = true)
         }
+        installClaimUnlocked(positionKey, attempt = 1, seed = null)
       }
+    }
     return Resolution(claim.await(), hit = false)
   }
 
@@ -242,8 +242,8 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
   }
 
   /**
-   * Folds [mark] into [loaded] to produce the node this load leaves resident, or `null` when the key
-   * must be dropped instead.
+   * Folds [mark] into [loaded] to produce the node this load leaves resident, or `null` when the
+   * key must be dropped instead.
    */
   private fun reconcile(positionKey: PositionKey, loaded: Node?, mark: RaceMark?): Node? {
     if (mark == null) return loaded

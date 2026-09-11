@@ -12,10 +12,10 @@ import proj.memorchess.axl.core.graph.TrainingEntry
  * [proj.memorchess.axl.core.sync.SyncApplier], [proj.memorchess.axl.core.graph.RepertoireTagStore],
  * [proj.memorchess.axl.core.graph.TrainableProjection]) and the platform specific implementations
  * are expected to touch the node and move surface of this interface; the rest of the application
- * talks to [proj.memorchess.axl.core.graph.TreeStore]. The outbox surface ([markDirty], [getOutbox],
- * [clearDirty]) is the exception: [proj.memorchess.axl.core.config.ConfigItem] implementations call
- * [markDirty] directly to queue a setting's [DirtyKey.SettingKey], since a setting has no row of
- * its own for [proj.memorchess.axl.core.graph.TreeStore] to write through.
+ * talks to [proj.memorchess.axl.core.graph.TreeStore]. The outbox surface ([markDirty],
+ * [getOutbox], [clearDirty]) is the exception: [proj.memorchess.axl.core.config.ConfigItem]
+ * implementations call [markDirty] directly to queue a setting's [DirtyKey.SettingKey], since a
+ * setting has no row of its own for [proj.memorchess.axl.core.graph.TreeStore] to write through.
  */
 interface DatabaseQueryManager {
 

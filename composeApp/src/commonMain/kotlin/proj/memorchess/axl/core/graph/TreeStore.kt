@@ -2,33 +2,17 @@ package proj.memorchess.axl.core.graph
 
 import co.touchlab.kermit.Logger
 import proj.memorchess.axl.core.data.DESCENDANT_COUNT_CAP
-import proj.memorchess.axl.core.data.DataEdgeRepertoireTag
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
-import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
-import proj.memorchess.axl.core.data.TaggedEdge
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.sync.DeviceIdentity
-import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
-import proj.memorchess.axl.core.sync.EdgeSyncRow
-import proj.memorchess.axl.core.sync.NodeSyncRow
-import proj.memorchess.axl.core.sync.RepertoireSyncRow
-import proj.memorchess.axl.core.sync.ResolutionSource
 import proj.memorchess.axl.core.sync.resolve
-import proj.memorchess.axl.core.sync.toDataEdgeRepertoireTag
 import proj.memorchess.axl.core.sync.toDataMove
 import proj.memorchess.axl.core.sync.toDataNode
-import proj.memorchess.axl.core.sync.toDataRepertoire
-import proj.memorchess.axl.core.sync.toEdgeRepertoireTagSyncRow
-import proj.memorchess.axl.core.sync.toEdgeSyncRow
-import proj.memorchess.axl.core.sync.toNodeSyncRow
-import proj.memorchess.axl.core.sync.toRepertoireSyncRow
 
 /**
  * Single chokepoint for local mutation of the opening tree. Remote writes land through

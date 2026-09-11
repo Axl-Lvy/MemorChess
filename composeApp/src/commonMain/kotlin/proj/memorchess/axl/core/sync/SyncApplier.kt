@@ -8,7 +8,8 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.graph.TrainableProjection
 
 /**
- * Applies rows pulled from `/v1/sync` to local storage, after resolving each against its local copy.
+ * Applies rows pulled from `/v1/sync` to local storage, after resolving each against its local
+ * copy.
  *
  * A remote win is written through the `applyRemote*` path, which queues no outbox entry, and the
  * touched positions are invalidated so the next resolve reads the applied row. The invalidation
@@ -86,8 +87,8 @@ class SyncApplier(
   /**
    * Applies an edge to repertoire tag pulled from `/v1/sync`, after resolving it the same way. On
    * [ResolutionSource.REMOTE] the tag is written through [DatabaseQueryManager.applyRemoteTag] and
-   * the origin's `NodeRepertoireTrainable` row set is recomputed, mirroring how [applyMove] refreshes
-   * [DataNode.hasGoodOutgoing].
+   * the origin's `NodeRepertoireTrainable` row set is recomputed, mirroring how [applyMove]
+   * refreshes [DataNode.hasGoodOutgoing].
    */
   suspend fun applyTag(remote: EdgeRepertoireTagSyncRow): ResolutionSource {
     val originKey = PositionKey(remote.origin)
@@ -101,7 +102,9 @@ class SyncApplier(
     return resolution.source
   }
 
-  /** The local counterpart of a pulled edge, as an [EdgeSyncRow], or `null` when unknown locally. */
+  /**
+   * The local counterpart of a pulled edge, as an [EdgeSyncRow], or `null` when unknown locally.
+   */
   private suspend fun localEdgeSyncRow(origin: PositionKey, move: String): EdgeSyncRow? =
     database
       .getPositionIncludingDeleted(origin)

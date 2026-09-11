@@ -65,9 +65,9 @@ class RepertoireTagStore(
 
   /**
    * Registers [newId] as a new repertoire and tags it with every live edge currently tagged with
-   * [sourceId]. Nodes and moves are shared across repertoires, so this only duplicates the tag rows,
-   * never the underlying graph. [sourceId]'s own tags are left untouched, so the same edge ends up
-   * tagged with both repertoires.
+   * [sourceId]. Nodes and moves are shared across repertoires, so this only duplicates the tag
+   * rows, never the underlying graph. [sourceId]'s own tags are left untouched, so the same edge
+   * ends up tagged with both repertoires.
    *
    * @throws IllegalArgumentException if [newId] is blank, or contains a comma (see [register]).
    */
@@ -90,11 +90,11 @@ class RepertoireTagStore(
     database.edgesTaggedWith(repertoireId)
 
   /**
-   * Tags the edge from [origin] to [destination] with [repertoireId], adding to any existing tags on
-   * that edge rather than replacing them: an edge can belong to more than one repertoire (see the
-   * design's many to many section). Idempotent: tagging an edge that already carries this repertoire
-   * is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so a tag on a
-   * live good edge takes effect immediately. Queues its own outbox entry.
+   * Tags the edge from [origin] to [destination] with [repertoireId], adding to any existing tags
+   * on that edge rather than replacing them: an edge can belong to more than one repertoire (see
+   * the design's many to many section). Idempotent: tagging an edge that already carries this
+   * repertoire is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so
+   * a tag on a live good edge takes effect immediately. Queues its own outbox entry.
    *
    * Callers decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only
    * for a genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for
