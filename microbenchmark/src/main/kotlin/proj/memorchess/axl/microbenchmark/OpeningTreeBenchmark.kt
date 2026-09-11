@@ -10,6 +10,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
+import proj.memorchess.axl.core.graph.NodeCache
+import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireTagStore
+import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
@@ -33,8 +37,11 @@ class OpeningTreeBenchmark {
 
   private var edges: List<OpeningLines.MoveEdge> = emptyList()
 
-  /** Background scope for neighbour prefetch; supervised so a failed warm cannot abort the run. */
-  private val prefetchScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+  /**
+   * Scope every cache load runs on, prefetch and the resolve behind a miss alike; supervised so one
+   * failed load cannot abort the run.
+   */
+  private val loadScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
   private var prebuiltStore: TreeStore = newStore()
 
@@ -74,8 +81,20 @@ class OpeningTreeBenchmark {
     }
   }
 
-  private fun newStore(): TreeStore =
-    TreeStore(InMemoryDatabaseQueryManager(), prefetchScope, DeviceIdentity.ephemeral())
+  private fun newStore(): TreeStore {
+    val database = InMemoryDatabaseQueryManager()
+    val deviceIdentity = DeviceIdentity.ephemeral()
+    val cache = NodeCache({ database.getPosition(it) }, loadScope)
+    val trainable = TrainableProjection(database, cache)
+    return TreeStore(
+      database,
+      cache,
+      Prefetcher(cache, loadScope),
+      trainable,
+      RepertoireTagStore(database, deviceIdentity, trainable),
+      deviceIdentity,
+    )
+  }
 
   private fun buildStore(): TreeStore {
     val store = newStore()
