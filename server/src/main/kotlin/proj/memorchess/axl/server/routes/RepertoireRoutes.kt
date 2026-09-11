@@ -23,6 +23,7 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.server.PRODUCTION_RATE_LIMITS
 import proj.memorchess.axl.server.RATE_LIMIT_ADMIN
 import proj.memorchess.axl.server.RATE_LIMIT_PUBLIC_READ
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_WRITE
@@ -81,7 +82,7 @@ private const val BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable"
 internal fun Application.repertoireModule(
   store: RepertoireStore,
   clock: () -> Instant = Clock.System::now,
-  rateLimits: RateLimitTiers = RateLimitTiers(),
+  rateLimits: RateLimitTiers = PRODUCTION_RATE_LIMITS,
 ) {
   installRateLimiting(rateLimits)
   routing { repertoireRoutes(store, clock) }

@@ -54,7 +54,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 fun DangerZoneSection(
   treeStore: TreeStore = koinInject(),
   streakTracker: StreakTracker = koinInject(),
-  onReset: () -> Unit = {},
+  onReset: () -> Unit,
 ) {
   val coroutineScope = rememberCoroutineScope()
   val dlg = remember { ConfirmationDialog() }
