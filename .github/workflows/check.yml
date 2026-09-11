@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
+      translations: ${{ steps.tier.outputs.translations }}
     steps:
       - uses: actions/checkout@v7
 
@@ -68,6 +69,11 @@ jobs:
               - 'Dockerfile'
               - '.dockerignore'
               - '.github/workflows/deploy.yml'
+            translations:
+              - 'composeApp/src/commonMain/composeResources/values/**'
+              - 'composeApp/src/commonMain/composeResources/values-*/**'
+              - '.github/scripts/check_translations.py'
+              - '.github/workflows/check.yml'
             platform:
               - 'androidApp/**'
               - 'composeApp/src/androidMain/**'
@@ -87,12 +93,23 @@ jobs:
           FORCE: ${{ steps.override.outputs.force }}
           CODE: ${{ steps.filter.outputs.code }}
           PLATFORM: ${{ steps.filter.outputs.platform }}
+          TRANSLATIONS: ${{ steps.filter.outputs.translations }}
         run: |
+          # A forced tier skips the paths filter, so derive the flag from the tier:
+          # a forced full run (schedule, "Force running tests") checks translations,
+          # a forced noop ([skip-tests]) opts out of them like every other check.
           if [ -n "$FORCE" ]; then
             echo "tier=$FORCE" >> "$GITHUB_OUTPUT"
+            if [ "$FORCE" = "noop" ]; then
+              echo "translations=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "translations=true" >> "$GITHUB_OUTPUT"
+            fi
             echo "tier (forced) = $FORCE"
             exit 0
           fi
+          echo "translations=$TRANSLATIONS" >> "$GITHUB_OUTPUT"
+          echo "translations = $TRANSLATIONS"
           if [ "$PLATFORM" = "true" ]; then
             echo "tier=full" >> "$GITHUB_OUTPUT"
             echo "tier = full"
@@ -122,10 +139,12 @@ jobs:
       - name: Run formatter check
         run: ./gradlew ktfmtCheck
 
-  # Verify every translation locale mirrors the base `values/` resources:
-  # same keys, in the same order, for every resource file. Cheap and
-  # dependency-free, so it runs unconditionally (not gated by the detect tier).
+  # Verify every translation locale mirrors the base `values/` resources: same keys,
+  # in the same order, for every resource file. Gated on the resource directories
+  # rather than on file names, because the checker globs every `*.xml` under `values/`.
   translations-check:
+    needs: [detect]
+    if: needs.detect.outputs.translations == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -532,13 +551,14 @@ jobs:
   check-status:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [detect, format-check, jvm-tests, compile-multiplat, compile-benchmark, android-tests, wasm-tests, ios-tests, publish-test-results, sonar-analysis]
+    needs: [detect, format-check, translations-check, jvm-tests, compile-multiplat, compile-benchmark, android-tests, wasm-tests, ios-tests, publish-test-results, sonar-analysis]
     if: always()
     steps:
       - name: Check job results
         env:
           TIER: ${{ needs.detect.outputs.tier }}
           FORMAT: ${{ needs.format-check.result }}
+          TRANSLATIONS: ${{ needs.translations-check.result }}
           JVM: ${{ needs.jvm-tests.result }}
           MULTIPLAT: ${{ needs.compile-multiplat.result }}
           BENCHCOMPILE: ${{ needs.compile-benchmark.result }}
@@ -551,6 +571,13 @@ jobs:
           fail() { echo "$1 failed (result=$2)"; exit 1; }
 
           echo "Resolved tier: $TIER"
+
+          # translations-check has its own path gate, independent of the tier, so it is
+          # verified before the noop exit and "skipped" counts as passing.
+          case "$TRANSLATIONS" in
+            success|skipped) ;;
+            *) fail translations-check "$TRANSLATIONS" ;;
+          esac
 
           if [ "$TIER" = "noop" ]; then
             echo "No code changes detected, skipping checks"
