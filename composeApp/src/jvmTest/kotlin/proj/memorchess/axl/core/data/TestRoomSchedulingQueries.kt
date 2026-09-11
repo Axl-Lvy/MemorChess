@@ -50,10 +50,25 @@ class TestRoomSchedulingQueries {
     firstReview: Instant? = null,
     isDeleted: Boolean = false,
   ) {
+    // The persistence layer derives hasGoodOutgoing from the node's own next moves, so a node that
+    // must be trainable needs a real good outgoing move rather than a hand set flag.
+    val nextMoves =
+      if (hasGoodOutgoing) {
+        listOf(
+          DataMove(
+            origin = PositionKey(keyName),
+            destination = PositionKey("$keyName-child"),
+            move = "e4",
+            isGood = true,
+          )
+        )
+      } else {
+        emptyList()
+      }
     manager.insertNodes(
       DataNode(
         positionKey = PositionKey(keyName),
-        previousAndNextMoves = PreviousAndNextMoves(),
+        previousAndNextMoves = PreviousAndNextMoves(emptyList(), nextMoves),
         cardState =
           CardState(
             dueDate = dueDate,
