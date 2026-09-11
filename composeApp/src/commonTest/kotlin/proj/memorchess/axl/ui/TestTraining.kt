@@ -85,6 +85,9 @@ class TestTraining : TestWithKoin() {
         positionKey = startPos,
         PreviousAndNextMoves(listOf(), listOf(e4Move)),
         cardState,
+        // The start position is the root, so its depth is 0. Stated explicitly because the new
+        // card queue orders by ascending depth and this fixture must sort ahead of deeper nodes.
+        depth = 0,
         hasGoodOutgoing = true,
       )
 
