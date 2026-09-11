@@ -27,6 +27,11 @@ The project roadmap can be found on [Notion](https://www.notion.so/MemorChess-20
   ```sh
   ./gradlew desktopTest :androidApp:connectedCheck
   ```
+- Tests that hit a live service are gated on an environment variable and report a passing no op
+  without it, so the suite never depends on a third party being reachable. Set
+  `LICHESS_API_TOKEN` to run the Lichess Opening Explorer test, and `MEMORCHESS_CATALOG_URL` (the
+  catalog root, e.g. `https://memorchess.axl-lvy.fr/v1/repertoires`) to run the repertoire catalog
+  test. The scheduled `catalog-canary` workflow is what sets the latter in CI.
 
 ## 🔐 Credentials
 

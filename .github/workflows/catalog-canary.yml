@@ -1,0 +1,43 @@
+name: Catalog canary
+
+# Checks that the published catalog manifest and every PGN file it lists still parse with the
+# Kotlin PGN parser. It is deliberately separate from check.yml. A production outage must not
+# turn a pull request, or master's nightly run and its test badge, red (issue #380).
+
+on:
+  schedule:
+    - cron: 0 6 * * *
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  catalog-canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Update local.properties
+        run: .github/scripts/update_properties.sh
+
+      # check.yml's jvm-tests job is the designated cache writer.
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+
+      # An environment variable is not a Gradle task input. Without --rerun the test task can be
+      # restored from the build cache and report a stale pass without ever reaching the network.
+      - name: Fetch and parse the live catalog
+        env:
+          MEMORCHESS_CATALOG_URL: https://memorchess.axl-lvy.fr/v1/repertoires
+        run: ./gradlew :composeApp:jvmTest --rerun --tests "*TestRepertoireCatalogIntegration*"
