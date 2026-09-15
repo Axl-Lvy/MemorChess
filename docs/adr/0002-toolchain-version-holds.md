@@ -6,9 +6,9 @@ Accepted, 2026-09-03. Enforced by `packageRules` in `renovate.json`.
 
 ## Context
 
-Four dependency lines are pinned below their latest release. They are
-recorded together because three of them are one constraint wearing
-different hats, and a fifth PR that "just bumps one" reopens the whole
+Five dependency lines are pinned below their latest release. They are
+recorded together because four of them are one constraint wearing
+different hats, and a sixth PR that "just bumps one" reopens the whole
 problem.
 
 **AGP below 9.1.** IntelliJ IDEA only syncs AGP versions its bundled
@@ -38,6 +38,14 @@ runs. The entry is discarded anyway — those tasks are not
 configuration-cache compatible — and 9.6.1 stores and discards it in
 about 25 seconds.
 
+**`io.github.vinceglb` (filekit) below 0.16.0.** A Compose Multiplatform
+hold, not an AGP one. `filekit-dialogs-compose` 0.16.0 depends directly
+on `org.jetbrains.compose.ui:ui` 1.12.0, so it drags the resolved
+Compose UI version past the 1.11.1 hold even though the catalog still
+pins `compose-multiplatform` to 1.11.1. `dependencyInsight` on
+`org.jetbrains.compose.ui:ui` confirmed it as the sole source of the
+1.12.0 resolution (PR #384).
+
 ## Decision
 
 Encode every hold as a renovate `packageRules` entry with an
@@ -47,10 +55,12 @@ Renovate then stops proposing the bad bump instead of proposing it
 every Monday and failing CI.
 
 The three AGP-derived holds lift together, and only once IDEA ships
-AGP 9.1 sync support. The Gradle wrapper hold lifts independently,
-once a Gradle release stops running the daemon out of heap on the
-Kotlin/Wasm configuration cache entry — or once those tasks become
-configuration-cache compatible.
+AGP 9.1 sync support. The filekit hold lifts whenever the Compose
+Multiplatform hold does, since it exists only to stop filekit from
+smuggling Compose UI past that pin. The Gradle wrapper hold lifts
+independently, once a Gradle release stops running the daemon out of
+heap on the Kotlin/Wasm configuration cache entry — or once those
+tasks become configuration-cache compatible.
 
 ## Consequences
 
@@ -72,3 +82,5 @@ configuration-cache compatible.
 - IDEA-390133: AGP 9.1 sync support in IntelliJ IDEA
 - PR #240: pin `androidx-lifecycle` below 2.11.0 to keep AGP on 9.0.x
 - Commit 62ca73c: hold Compose below 1.12.0, Gradle wrapper below 9.7.0
+- PR #384: hold filekit below 0.16.0 after it dragged Compose UI to
+  1.12.0 and broke android, iOS, and wasm CI

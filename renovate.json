@@ -102,6 +102,11 @@
       "description": "Gradle 9.7.x exhausts the daemon heap while storing the configuration cache entry for the Kotlin/Wasm browser tasks (KotlinWebpack, KotlinJsTest), so :composeApp:wasmJsBrowserDevelopmentRun and :composeApp:wasmJsTest die with \"Java heap space\" before any task runs. The entry is discarded anyway (those tasks are not configuration-cache compatible); 9.6.1 stores and discards it in ~25s.",
       "matchManagers": ["gradle-wrapper"],
       "allowedVersions": "<9.7.0"
+    },
+    {
+      "description": "filekit-dialogs-compose 0.16.0 depends directly on org.jetbrains.compose.ui:ui 1.12.0, which drags Compose UI past the hold above; pin below it until Compose Multiplatform can be bumped past 1.12.0",
+      "matchPackageNames": ["io.github.vinceglb:*"],
+      "allowedVersions": "<0.16.0"
     }
   ]
 }
