@@ -21,7 +21,9 @@ composeHotReload = "1.2.0"
 # composeRuntimeTracing and uiTestJunit4Android below are held for the same reason.
 compose-multiplatform = "1.11.1"
 compose-material3 = "1.9.0"
-filekit = "0.16.0"
+# Held below 0.16.0: filekit-dialogs-compose 0.16.0 depends directly on
+# org.jetbrains.compose.ui:ui 1.12.0, dragging Compose UI past the hold above.
+filekit = "0.15.0"
 hotpreview = "0.2.0"
 indexeddb = "0.12.0"
 kermit = "2.2.0"
