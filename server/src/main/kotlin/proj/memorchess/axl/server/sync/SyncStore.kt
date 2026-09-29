@@ -1,6 +1,8 @@
 package proj.memorchess.axl.server.sync
 
 import java.sql.Connection
+import java.sql.PreparedStatement
+import java.sql.ResultSet
 import java.sql.Timestamp
 import javax.sql.DataSource
 import kotlin.coroutines.cancellation.CancellationException
@@ -157,9 +159,9 @@ internal class SyncStore(
     // Under the same lock as everything else, so a device removed concurrently cannot slip a batch
     // past the check.
     requireSyncableDevice(userId, deviceId)
-    checkNodeQuota(userId, nodes, maxNodesPerUser)
-    checkEdgeQuota(userId, edges, maxEdgesPerUser)
-    checkRepertoireQuota(userId, repertoires, maxRepertoiresPerUser)
+    checkQuota(userId, NODE_QUOTA, nodes, maxNodesPerUser)
+    checkQuota(userId, EDGE_QUOTA, edges, maxEdgesPerUser)
+    checkQuota(userId, REPERTOIRE_QUOTA, repertoires, maxRepertoiresPerUser)
 
     val positionIds = resolvePositionIds(nodes.map { it.positionKey })
     val edgeIds =
@@ -176,22 +178,25 @@ internal class SyncStore(
     val allEdgeIds = edgeIds + lookedUpEdgeIds
     val (resolvableTags, orphanedTags) =
       tags.partition { (it.origin to it.destination) in allEdgeIds }
-    checkTagQuota(userId, resolvableTags, maxTagsPerUser)
+    checkQuota(userId, TAG_QUOTA, resolvableTags, maxTagsPerUser)
 
-    val revisions = buildList {
-      nodes
-        .sortedBy { it.positionKey }
-        .forEach { add(applyNode(userId, it, positionIds.getValue(it.positionKey))) }
-      edges
-        .sortedBy { it.edgeId() }
-        .forEach { add(applyEdge(userId, it, allEdgeIds.getValue(it.origin to it.destination))) }
-      settings.sortedBy { it.key }.forEach { add(applySetting(userId, it)) }
-      repertoires.sortedBy { it.id }.forEach { add(applyRepertoire(userId, it)) }
-      resolvableTags
-        .sortedBy { "${it.origin}|${it.destination}|${it.repertoireId}" }
-        .forEach { add(applyTag(userId, it, allEdgeIds.getValue(it.origin to it.destination))) }
-    }
-    val revision = revisions.filterNotNull().maxOrNull() ?: 0L
+    val revisions =
+      applyAll(userId, NODES, nodes.sortedBy { it.positionKey }) {
+        positionIds.getValue(it.positionKey)
+      } +
+        applyAll(userId, EDGES, edges.sortedBy { it.edgeId() }) {
+          allEdgeIds.getValue(it.origin to it.destination)
+        } +
+        applyAll(userId, SETTINGS, settings.sortedBy { it.key }) { it.key } +
+        applyAll(userId, REPERTOIRES, repertoires.sortedBy { it.id }) { it.id } +
+        applyAll(
+          userId,
+          TAGS,
+          resolvableTags.sortedBy { "${it.origin}|${it.destination}|${it.repertoireId}" },
+        ) {
+          allEdgeIds.getValue(it.origin to it.destination) to it.repertoireId
+        }
+    val revision = revisions.maxOrNull() ?: 0L
     return revision to
       orphanedTags.map {
         RejectedRow(
@@ -841,312 +846,6 @@ internal class SyncStore(
     }
   }
 
-  /** Reads one stored node. Exposed so the push tests do not depend on `pull` being correct. */
-  internal suspend fun readNodeForTest(userId: String, positionKey: String): NodeSyncRow? =
-    withContext(ioDispatcher) {
-      dataSource.connection.use { connection ->
-        val id = connection.resolvePositionIds(listOf(positionKey))[positionKey] ?: return@use null
-        connection.readNode(userId, positionKey, id, lockRow = false)
-      }
-    }
-
-  /** Reads one stored edge. Exposed so the push tests do not depend on `pull` being correct. */
-  internal suspend fun readEdgeForTest(userId: String, edge: EdgeSyncRow): EdgeSyncRow? =
-    withContext(ioDispatcher) {
-      dataSource.connection.use { connection ->
-        val identity = EdgeIdentity(edge.origin, edge.destination, edge.move)
-        val id = connection.resolveEdgeIds(listOf(identity))[identity] ?: return@use null
-        connection.readEdge(userId, identity, id, lockRow = false)
-      }
-    }
-
-  /** See [applySetting]; the rule and the revision bump on a loss are identical. */
-  private fun Connection.applyNode(
-    userId: String,
-    incoming: NodeSyncRow,
-    positionId: Long,
-  ): Long? {
-    val stored = readNode(userId, incoming.positionKey, positionId, lockRow = true)
-    val winner = resolve(local = stored, remote = incoming)
-    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return null
-
-    val revision = nextRevision()
-    val row = winner.row
-    prepareStatement(
-        "INSERT INTO user_node (user_id, position_id, due_date, last_review, first_review, " +
-          "stability, difficulty, reps, lapses, phase, step, is_deleted, deleted_at, updated_at, " +
-          "origin_device, device_seq, revision) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-          "ON CONFLICT (user_id, position_id) DO UPDATE SET due_date = EXCLUDED.due_date, " +
-          "last_review = EXCLUDED.last_review, first_review = EXCLUDED.first_review, " +
-          "stability = EXCLUDED.stability, difficulty = EXCLUDED.difficulty, " +
-          "reps = EXCLUDED.reps, lapses = EXCLUDED.lapses, phase = EXCLUDED.phase, " +
-          "step = EXCLUDED.step, is_deleted = EXCLUDED.is_deleted, " +
-          "deleted_at = EXCLUDED.deleted_at, updated_at = EXCLUDED.updated_at, " +
-          "origin_device = EXCLUDED.origin_device, device_seq = EXCLUDED.device_seq, " +
-          "revision = EXCLUDED.revision"
-      )
-      .use { statement ->
-        statement.setString(1, userId)
-        statement.setLong(2, positionId)
-        statement.setTimestamp(3, row.dueDate.toTimestamp())
-        statement.setTimestamp(4, row.lastReview?.toTimestamp())
-        statement.setTimestamp(5, row.firstReview?.toTimestamp())
-        statement.setDouble(6, row.stability)
-        statement.setDouble(7, row.difficulty)
-        statement.setInt(8, row.reps)
-        statement.setInt(9, row.lapses)
-        statement.setString(10, row.phase)
-        statement.setInt(11, row.step)
-        statement.setBoolean(12, row.isDeleted)
-        statement.setTimestamp(13, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
-        statement.setTimestamp(14, row.updatedAt.toTimestamp())
-        statement.setString(15, row.originDevice)
-        statement.setLong(16, row.deviceSeq)
-        statement.setLong(17, revision)
-        statement.executeUpdate()
-      }
-    return revision
-  }
-
-  private fun Connection.readNode(
-    userId: String,
-    positionKey: String,
-    positionId: Long,
-    lockRow: Boolean,
-  ): NodeSyncRow? {
-    val sql =
-      "SELECT due_date, last_review, first_review, stability, difficulty, reps, lapses, phase, " +
-        "step, is_deleted, updated_at, origin_device, device_seq FROM user_node " +
-        "WHERE user_id = ? AND position_id = ?" +
-        if (lockRow) FOR_UPDATE else ""
-    return prepareStatement(sql).use { statement ->
-      statement.setString(1, userId)
-      statement.setLong(2, positionId)
-      statement.executeQuery().use { rows ->
-        if (!rows.next()) null
-        else
-          NodeSyncRow(
-            positionKey = positionKey,
-            dueDate = rows.getTimestamp(1).toInstant().toKotlinInstant(),
-            lastReview = rows.getTimestamp(2)?.toInstant()?.toKotlinInstant(),
-            firstReview = rows.getTimestamp(3)?.toInstant()?.toKotlinInstant(),
-            stability = rows.getDouble(4),
-            difficulty = rows.getDouble(5),
-            reps = rows.getInt(6),
-            lapses = rows.getInt(7),
-            phase = rows.getString(8),
-            step = rows.getInt(9),
-            isDeleted = rows.getBoolean(10),
-            updatedAt = rows.getTimestamp(11).toInstant().toKotlinInstant(),
-            originDevice = rows.getString(12),
-            deviceSeq = rows.getLong(13),
-          )
-      }
-    }
-  }
-
-  /** See [applySetting]; the rule and the revision bump on a loss are identical. */
-  private fun Connection.applyEdge(userId: String, incoming: EdgeSyncRow, edgeId: Long): Long? {
-    val identity = EdgeIdentity(incoming.origin, incoming.destination, incoming.move)
-    val stored = readEdge(userId, identity, edgeId, lockRow = true)
-    val winner = resolve(local = stored, remote = incoming)
-    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return null
-
-    val revision = nextRevision()
-    val row = winner.row
-    prepareStatement(
-        "INSERT INTO user_edge (user_id, edge_id, is_good, is_deleted, deleted_at, updated_at, " +
-          "origin_device, device_seq, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-          "ON CONFLICT (user_id, edge_id) DO UPDATE SET is_good = EXCLUDED.is_good, " +
-          LAST_WRITE_WINS_UPDATE_SET
-      )
-      .use { statement ->
-        statement.setString(1, userId)
-        statement.setLong(2, edgeId)
-        statement.setBoolean(3, row.isGood)
-        statement.setBoolean(4, row.isDeleted)
-        statement.setTimestamp(5, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
-        statement.setTimestamp(6, row.updatedAt.toTimestamp())
-        statement.setString(7, row.originDevice)
-        statement.setLong(8, row.deviceSeq)
-        statement.setLong(9, revision)
-        statement.executeUpdate()
-      }
-    return revision
-  }
-
-  private fun Connection.readEdge(
-    userId: String,
-    identity: EdgeIdentity,
-    edgeId: Long,
-    lockRow: Boolean,
-  ): EdgeSyncRow? {
-    val sql =
-      "SELECT is_good, is_deleted, updated_at, origin_device, device_seq FROM user_edge " +
-        "WHERE user_id = ? AND edge_id = ?" +
-        if (lockRow) FOR_UPDATE else ""
-    return prepareStatement(sql).use { statement ->
-      statement.setString(1, userId)
-      statement.setLong(2, edgeId)
-      statement.executeQuery().use { rows ->
-        if (!rows.next()) null
-        else
-          EdgeSyncRow(
-            origin = identity.origin,
-            destination = identity.destination,
-            move = identity.move,
-            isGood = rows.getBoolean(1),
-            isDeleted = rows.getBoolean(2),
-            updatedAt = rows.getTimestamp(3).toInstant().toKotlinInstant(),
-            originDevice = rows.getString(4),
-            deviceSeq = rows.getLong(5),
-          )
-      }
-    }
-  }
-
-  /** Reads one stored setting. Exposed so the push tests do not depend on `pull` being correct. */
-  internal suspend fun readSettingForTest(userId: String, key: String): SettingSyncRow? =
-    withContext(ioDispatcher) {
-      dataSource.connection.use { it.readSetting(userId, key, lockRow = false) }
-    }
-
-  /**
-   * Writes one setting under last write wins, returning the revision assigned, or `null` when the
-   * incoming row was an identical replay and nothing needed announcing.
-   *
-   * When the incoming row **loses**, the surviving row's revision is advanced anyway. Without that,
-   * the survivor sits at a revision the pusher's cursor has already passed, so the pusher never
-   * receives it again and keeps a version everyone else rejected.
-   */
-  private fun Connection.applySetting(userId: String, incoming: SettingSyncRow): Long? {
-    val stored = readSetting(userId, incoming.key, lockRow = true)
-    val winner = resolve(local = stored, remote = incoming)
-    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return null
-
-    val revision = nextRevision()
-    val row = winner.row
-    prepareStatement(
-        "INSERT INTO user_setting (user_id, key, value, is_deleted, deleted_at, updated_at, " +
-          "origin_device, device_seq, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-          "ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value, " +
-          LAST_WRITE_WINS_UPDATE_SET
-      )
-      .use { statement ->
-        statement.setString(1, userId)
-        statement.setString(2, row.key)
-        statement.setString(3, row.value)
-        statement.setBoolean(4, row.isDeleted)
-        statement.setTimestamp(5, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
-        statement.setTimestamp(6, row.updatedAt.toTimestamp())
-        statement.setString(7, row.originDevice)
-        statement.setLong(8, row.deviceSeq)
-        statement.setLong(9, revision)
-        statement.executeUpdate()
-      }
-    return revision
-  }
-
-  private fun Connection.readSetting(
-    userId: String,
-    key: String,
-    lockRow: Boolean,
-  ): SettingSyncRow? {
-    // FOR UPDATE matters: without the row lock two concurrent pushes for one key both read the old
-    // row, both decide they win, and one silently overwrites the other's decision.
-    val sql =
-      "SELECT value, is_deleted, updated_at, origin_device, device_seq FROM user_setting " +
-        "WHERE user_id = ? AND key = ?" +
-        if (lockRow) FOR_UPDATE else ""
-    return prepareStatement(sql).use { statement ->
-      statement.setString(1, userId)
-      statement.setString(2, key)
-      statement.executeQuery().use { rows ->
-        if (!rows.next()) null
-        else
-          SettingSyncRow(
-            key = key,
-            value = rows.getString(1),
-            isDeleted = rows.getBoolean(2),
-            updatedAt = rows.getTimestamp(3).toInstant().toKotlinInstant(),
-            originDevice = rows.getString(4),
-            deviceSeq = rows.getLong(5),
-          )
-      }
-    }
-  }
-
-  /**
-   * Reads one stored repertoire. Exposed so the push tests do not depend on `pull` being correct.
-   */
-  internal suspend fun readRepertoireForTest(userId: String, id: String): RepertoireSyncRow? =
-    withContext(ioDispatcher) {
-      dataSource.connection.use { it.readRepertoire(userId, id, lockRow = false) }
-    }
-
-  /** See [applySetting]; the rule and the revision bump on a loss are identical. */
-  private fun Connection.applyRepertoire(userId: String, incoming: RepertoireSyncRow): Long? {
-    val stored = readRepertoire(userId, incoming.id, lockRow = true)
-    val winner = resolve(local = stored, remote = incoming)
-    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return null
-
-    val revision = nextRevision()
-    val row = winner.row
-    prepareStatement(
-        "INSERT INTO user_repertoire (user_id, repertoire_id, name, color, is_deleted, " +
-          "deleted_at, updated_at, origin_device, device_seq, revision) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-          "ON CONFLICT (user_id, repertoire_id) DO UPDATE SET name = EXCLUDED.name, " +
-          "color = EXCLUDED.color, is_deleted = EXCLUDED.is_deleted, " +
-          "deleted_at = EXCLUDED.deleted_at, updated_at = EXCLUDED.updated_at, " +
-          "origin_device = EXCLUDED.origin_device, device_seq = EXCLUDED.device_seq, " +
-          "revision = EXCLUDED.revision"
-      )
-      .use { statement ->
-        statement.setString(1, userId)
-        statement.setString(2, row.id)
-        statement.setString(3, row.name)
-        statement.setString(4, row.color)
-        statement.setBoolean(5, row.isDeleted)
-        statement.setTimestamp(6, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
-        statement.setTimestamp(7, row.updatedAt.toTimestamp())
-        statement.setString(8, row.originDevice)
-        statement.setLong(9, row.deviceSeq)
-        statement.setLong(10, revision)
-        statement.executeUpdate()
-      }
-    return revision
-  }
-
-  private fun Connection.readRepertoire(
-    userId: String,
-    id: String,
-    lockRow: Boolean,
-  ): RepertoireSyncRow? {
-    val sql =
-      "SELECT name, color, is_deleted, updated_at, origin_device, device_seq FROM user_repertoire " +
-        "WHERE user_id = ? AND repertoire_id = ?" +
-        if (lockRow) FOR_UPDATE else ""
-    return prepareStatement(sql).use { statement ->
-      statement.setString(1, userId)
-      statement.setString(2, id)
-      statement.executeQuery().use { rows ->
-        if (!rows.next()) null
-        else
-          RepertoireSyncRow(
-            id = id,
-            name = rows.getString(1),
-            color = rows.getString(2),
-            isDeleted = rows.getBoolean(3),
-            updatedAt = rows.getTimestamp(4).toInstant().toKotlinInstant(),
-            originDevice = rows.getString(5),
-            deviceSeq = rows.getLong(6),
-          )
-      }
-    }
-  }
-
   private fun Connection.pullRepertoires(
     userId: String,
     since: Long,
@@ -1180,100 +879,6 @@ internal class SyncStore(
           }
         }
       }
-
-  /** Reads one stored tag. Exposed so the push tests do not depend on `pull` being correct. */
-  internal suspend fun readTagForTest(
-    userId: String,
-    tag: EdgeRepertoireTagSyncRow,
-  ): EdgeRepertoireTagSyncRow? =
-    withContext(ioDispatcher) {
-      dataSource.connection.use { connection ->
-        val identity = EdgeIdentity(tag.origin, tag.destination, "")
-        val edgeId = connection.resolveEdgeIds(listOf(identity))[identity] ?: return@use null
-        connection.readTag(
-          userId,
-          tag.origin,
-          tag.destination,
-          edgeId,
-          tag.repertoireId,
-          lockRow = false,
-        )
-      }
-    }
-
-  /** See [applySetting]; the rule and the revision bump on a loss are identical. */
-  private fun Connection.applyTag(
-    userId: String,
-    incoming: EdgeRepertoireTagSyncRow,
-    edgeId: Long,
-  ): Long? {
-    val stored =
-      readTag(
-        userId,
-        incoming.origin,
-        incoming.destination,
-        edgeId,
-        incoming.repertoireId,
-        lockRow = true,
-      )
-    val winner = resolve(local = stored, remote = incoming)
-    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return null
-
-    val revision = nextRevision()
-    val row = winner.row
-    prepareStatement(
-        "INSERT INTO user_edge_repertoire_tag (user_id, edge_id, repertoire_id, is_deleted, " +
-          "deleted_at, updated_at, origin_device, device_seq, revision) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-          "ON CONFLICT (user_id, edge_id, repertoire_id) DO UPDATE SET " +
-          LAST_WRITE_WINS_UPDATE_SET
-      )
-      .use { statement ->
-        statement.setString(1, userId)
-        statement.setLong(2, edgeId)
-        statement.setString(3, row.repertoireId)
-        statement.setBoolean(4, row.isDeleted)
-        statement.setTimestamp(5, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
-        statement.setTimestamp(6, row.updatedAt.toTimestamp())
-        statement.setString(7, row.originDevice)
-        statement.setLong(8, row.deviceSeq)
-        statement.setLong(9, revision)
-        statement.executeUpdate()
-      }
-    return revision
-  }
-
-  private fun Connection.readTag(
-    userId: String,
-    origin: String,
-    destination: String,
-    edgeId: Long,
-    repertoireId: String,
-    lockRow: Boolean,
-  ): EdgeRepertoireTagSyncRow? {
-    val sql =
-      "SELECT is_deleted, updated_at, origin_device, device_seq FROM user_edge_repertoire_tag " +
-        "WHERE user_id = ? AND edge_id = ? AND repertoire_id = ?" +
-        if (lockRow) FOR_UPDATE else ""
-    return prepareStatement(sql).use { statement ->
-      statement.setString(1, userId)
-      statement.setLong(2, edgeId)
-      statement.setString(3, repertoireId)
-      statement.executeQuery().use { rows ->
-        if (!rows.next()) null
-        else
-          EdgeRepertoireTagSyncRow(
-            origin = origin,
-            destination = destination,
-            repertoireId = repertoireId,
-            isDeleted = rows.getBoolean(1),
-            updatedAt = rows.getTimestamp(2).toInstant().toKotlinInstant(),
-            originDevice = rows.getString(3),
-            deviceSeq = rows.getLong(4),
-          )
-      }
-    }
-  }
 
   private fun Connection.pullTags(
     userId: String,
@@ -1311,6 +916,76 @@ internal class SyncStore(
         }
       }
 
+  /**
+   * Writes [rows] in order under last write wins and returns the revisions assigned, skipping
+   * identical replays.
+   *
+   * A losing row still advances the survivor's revision, so the pusher is served the survivor
+   * again.
+   */
+  private fun <R : SyncRow, K> Connection.applyAll(
+    userId: String,
+    table: SyncTable<R, K>,
+    rows: List<R>,
+    keyOf: (R) -> K,
+  ): List<Long> = rows.mapNotNull { incoming ->
+    val key = keyOf(incoming)
+    val stored = readLocked(userId, table, key, incoming)
+    val winner = resolve(local = stored, remote = incoming)
+    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return@mapNotNull null
+    val revision = nextRevision()
+    upsert(userId, table, key, winner.row, revision)
+    revision
+  }
+
+  /** The row stored under [key], locked for the rest of the transaction, or `null` when absent. */
+  private fun <R : SyncRow, K> Connection.readLocked(
+    userId: String,
+    table: SyncTable<R, K>,
+    key: K,
+    incoming: R,
+  ): R? =
+    prepareStatement(table.selectSql).use { statement ->
+      statement.setString(1, userId)
+      table.bindKey(statement, 2, key)
+      statement.executeQuery().use { rows ->
+        if (!rows.next()) return@use null
+        val first = table.payloadColumns.size + 1
+        val version =
+          StoredVersion(
+            isDeleted = rows.getBoolean(first),
+            updatedAt = rows.getTimestamp(first + 1).toInstant().toKotlinInstant(),
+            originDevice = rows.getString(first + 2),
+            deviceSeq = rows.getLong(first + 3),
+          )
+        table.readPayload(rows, incoming, version)
+      }
+    }
+
+  /** Inserts [row] under [key], or overwrites the row already there, stamped with [revision]. */
+  private fun <R : SyncRow, K> Connection.upsert(
+    userId: String,
+    table: SyncTable<R, K>,
+    key: K,
+    row: R,
+    revision: Long,
+  ) {
+    prepareStatement(table.upsertSql).use { statement ->
+      statement.setString(1, userId)
+      table.bindKey(statement, 2, key)
+      val first = 2 + table.keyColumns.size
+      table.bindPayload(statement, first, row)
+      val tail = first + table.payloadColumns.size
+      statement.setBoolean(tail, row.isDeleted)
+      statement.setTimestamp(tail + 1, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
+      statement.setTimestamp(tail + 2, row.updatedAt.toTimestamp())
+      statement.setString(tail + 3, row.originDevice)
+      statement.setLong(tail + 4, row.deviceSeq)
+      statement.setLong(tail + 5, revision)
+      statement.executeUpdate()
+    }
+  }
+
   private fun Connection.nextRevision(): Long =
     prepareStatement("SELECT nextval('sync_revision')").use { statement ->
       statement.executeQuery().use { rows ->
@@ -1342,123 +1017,19 @@ internal class SyncStore(
       }
     }
 
-  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] nodes. */
-  private fun Connection.checkNodeQuota(
+  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] rows of [rule]. */
+  private fun <R, I> Connection.checkQuota(
     userId: String,
-    incoming: List<NodeSyncRow>,
+    rule: QuotaRule<R, I>,
+    incoming: List<R>,
     cap: Int,
   ) {
-    val keys = incoming.map { it.positionKey }.distinct()
-    if (keys.isEmpty()) return
-    val existingAmongIncoming =
-      prepareStatement(
-          "SELECT count(*) FROM user_node n JOIN position p ON p.id = n.position_id " +
-            "WHERE n.user_id = ? AND p.position_key = ANY (?)"
-        )
-        .use { statement ->
-          statement.setString(1, userId)
-          statement.setArray(2, createArrayOf("text", keys.toTypedArray()))
-          statement.executeQuery().use { rows ->
-            rows.next()
-            rows.getInt(1)
-          }
-        }
-    val projected = countUserRows("user_node", userId) + (keys.size - existingAmongIncoming)
-    if (projected > cap) {
-      throw QuotaExceededException("this push would use $projected of your $cap node quota")
-    }
-  }
-
-  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] edges. */
-  private fun Connection.checkEdgeQuota(
-    userId: String,
-    incoming: List<EdgeSyncRow>,
-    cap: Int,
-  ) {
-    val identities = incoming.map { it.origin to it.destination }.distinct()
+    val identities = incoming.map(rule.identity).distinct()
     if (identities.isEmpty()) return
-    var existingAmongIncoming = 0
-    prepareStatement(
-        "SELECT count(*) FROM user_edge ue " +
-          "JOIN move_edge e ON e.id = ue.edge_id " +
-          JOIN_EDGE_ENDPOINTS +
-          "WHERE ue.user_id = ? AND po.position_key = ? AND pd.position_key = ?"
-      )
-      .use { statement ->
-        for ((origin, destination) in identities) {
-          statement.setString(1, userId)
-          statement.setString(2, origin)
-          statement.setString(3, destination)
-          statement.executeQuery().use { rows ->
-            rows.next()
-            if (rows.getInt(1) > 0) existingAmongIncoming++
-          }
-        }
-      }
-    val projected = countUserRows("user_edge", userId) + (identities.size - existingAmongIncoming)
+    val existingAmongIncoming = rule.countStored(this, userId, identities)
+    val projected = countUserRows(rule.table, userId) + (identities.size - existingAmongIncoming)
     if (projected > cap) {
-      throw QuotaExceededException("this push would use $projected of your $cap edge quota")
-    }
-  }
-
-  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] repertoires. */
-  private fun Connection.checkRepertoireQuota(
-    userId: String,
-    incoming: List<RepertoireSyncRow>,
-    cap: Int,
-  ) {
-    val ids = incoming.map { it.id }.distinct()
-    if (ids.isEmpty()) return
-    val existingAmongIncoming =
-      prepareStatement(
-          "SELECT count(*) FROM user_repertoire WHERE user_id = ? AND repertoire_id = ANY (?)"
-        )
-        .use { statement ->
-          statement.setString(1, userId)
-          statement.setArray(2, createArrayOf("text", ids.toTypedArray()))
-          statement.executeQuery().use { rows ->
-            rows.next()
-            rows.getInt(1)
-          }
-        }
-    val projected = countUserRows("user_repertoire", userId) + (ids.size - existingAmongIncoming)
-    if (projected > cap) {
-      throw QuotaExceededException("this push would use $projected of your $cap repertoire quota")
-    }
-  }
-
-  /** @throws QuotaExceededException [incoming] would push [userId] past [cap] tags. */
-  private fun Connection.checkTagQuota(
-    userId: String,
-    incoming: List<EdgeRepertoireTagSyncRow>,
-    cap: Int,
-  ) {
-    val identities = incoming.map { Triple(it.origin, it.destination, it.repertoireId) }.distinct()
-    if (identities.isEmpty()) return
-    var existingAmongIncoming = 0
-    prepareStatement(
-        "SELECT count(*) FROM user_edge_repertoire_tag t " +
-          "JOIN move_edge e ON e.id = t.edge_id " +
-          JOIN_EDGE_ENDPOINTS +
-          "WHERE t.user_id = ? AND po.position_key = ? AND pd.position_key = ? " +
-          "AND t.repertoire_id = ?"
-      )
-      .use { statement ->
-        for ((origin, destination, repertoireId) in identities) {
-          statement.setString(1, userId)
-          statement.setString(2, origin)
-          statement.setString(3, destination)
-          statement.setString(4, repertoireId)
-          statement.executeQuery().use { rows ->
-            rows.next()
-            if (rows.getInt(1) > 0) existingAmongIncoming++
-          }
-        }
-      }
-    val projected =
-      countUserRows("user_edge_repertoire_tag", userId) + (identities.size - existingAmongIncoming)
-    if (projected > cap) {
-      throw QuotaExceededException("this push would use $projected of your $cap tag quota")
+      throw QuotaExceededException("this push would use $projected of your $cap ${rule.noun} quota")
     }
   }
 }
@@ -1481,11 +1052,317 @@ private const val FOR_UPDATE = " FOR UPDATE"
 private const val JOIN_EDGE_ENDPOINTS =
   "JOIN position po ON po.id = e.origin_id JOIN position pd ON pd.id = e.destination_id "
 
-/** The `ON CONFLICT ... DO UPDATE SET` tail shared by every last write wins upsert. */
-private const val LAST_WRITE_WINS_UPDATE_SET =
-  "is_deleted = EXCLUDED.is_deleted, deleted_at = EXCLUDED.deleted_at, " +
-    "updated_at = EXCLUDED.updated_at, origin_device = EXCLUDED.origin_device, " +
-    "device_seq = EXCLUDED.device_seq, revision = EXCLUDED.revision"
+/** Columns every last write wins table stores after its payload, in bind order. */
+private val VERSION_COLUMNS =
+  listOf("is_deleted", "deleted_at", "updated_at", "origin_device", "device_seq", "revision")
+
+/** Columns every last write wins table is read back from after its payload, in read order. */
+private val STORED_VERSION_COLUMNS =
+  listOf("is_deleted", "updated_at", "origin_device", "device_seq")
+
+/** The versioning half of a stored row, which every [SyncRow] type carries alike. */
+private class StoredVersion(
+  val isDeleted: Boolean,
+  val updatedAt: Instant,
+  val originDevice: String,
+  val deviceSeq: Long,
+)
+
+/**
+ * How one per user table stores rows of type [R] under last write wins.
+ *
+ * @param K What identifies a row within the table once shared `position` and `move_edge` ids are
+ *   resolved.
+ * @property keyColumns Columns that, beside `user_id`, identify one row, in [bindKey] order.
+ * @property payloadColumns Columns holding the row's own data, in [bindPayload] and [readPayload]
+ *   order.
+ * @property bindKey Binds a key to [keyColumns], starting at the given parameter index.
+ * @property bindPayload Binds a row's data to [payloadColumns], starting at the given parameter
+ *   index.
+ * @property readPayload Rebuilds the stored row from [payloadColumns], read from index `1`, taking
+ *   its identity from the incoming row it is being resolved against.
+ */
+private class SyncTable<R : SyncRow, K>(
+  val table: String,
+  val keyColumns: List<String>,
+  val payloadColumns: List<String>,
+  val bindKey: (PreparedStatement, Int, K) -> Unit,
+  val bindPayload: (PreparedStatement, Int, R) -> Unit,
+  val readPayload: (ResultSet, R, StoredVersion) -> R,
+) {
+
+  /** Selects one row by `user_id` and [keyColumns], locking it. */
+  val selectSql: String =
+    "SELECT ${(payloadColumns + STORED_VERSION_COLUMNS).joinToString()} FROM $table " +
+      "WHERE ${(listOf("user_id") + keyColumns).joinToString(" AND ") { "$it = ?" }}" +
+      FOR_UPDATE
+
+  /** Inserts one row, or overwrites every non key column of the row already there. */
+  val upsertSql: String =
+    (listOf("user_id") + keyColumns + payloadColumns + VERSION_COLUMNS).let { columns ->
+      "INSERT INTO $table (${columns.joinToString()}) " +
+        "VALUES (${columns.joinToString { "?" }}) " +
+        "ON CONFLICT (${(listOf("user_id") + keyColumns).joinToString()}) DO UPDATE SET " +
+        (payloadColumns + VERSION_COLUMNS).joinToString { "$it = EXCLUDED.$it" }
+    }
+}
+
+/** Binds one text key at the given index. */
+private val bindTextKey: (PreparedStatement, Int, String) -> Unit = { statement, index, key ->
+  statement.setString(index, key)
+}
+
+/** Binds one numeric id at the given index. */
+private val bindIdKey: (PreparedStatement, Int, Long) -> Unit = { statement, index, id ->
+  statement.setLong(index, id)
+}
+
+/** Nodes, keyed by their interned `position` id. */
+private val NODES =
+  SyncTable<NodeSyncRow, Long>(
+    table = "user_node",
+    keyColumns = listOf("position_id"),
+    payloadColumns =
+      listOf(
+        "due_date",
+        "last_review",
+        "first_review",
+        "stability",
+        "difficulty",
+        "reps",
+        "lapses",
+        "phase",
+        "step",
+      ),
+    bindKey = bindIdKey,
+    bindPayload = { statement, first, row ->
+      statement.setTimestamp(first, row.dueDate.toTimestamp())
+      statement.setTimestamp(first + 1, row.lastReview?.toTimestamp())
+      statement.setTimestamp(first + 2, row.firstReview?.toTimestamp())
+      statement.setDouble(first + 3, row.stability)
+      statement.setDouble(first + 4, row.difficulty)
+      statement.setInt(first + 5, row.reps)
+      statement.setInt(first + 6, row.lapses)
+      statement.setString(first + 7, row.phase)
+      statement.setInt(first + 8, row.step)
+    },
+    readPayload = { rows, incoming, version ->
+      NodeSyncRow(
+        positionKey = incoming.positionKey,
+        dueDate = rows.getTimestamp(1).toInstant().toKotlinInstant(),
+        lastReview = rows.getTimestamp(2)?.toInstant()?.toKotlinInstant(),
+        firstReview = rows.getTimestamp(3)?.toInstant()?.toKotlinInstant(),
+        stability = rows.getDouble(4),
+        difficulty = rows.getDouble(5),
+        reps = rows.getInt(6),
+        lapses = rows.getInt(7),
+        phase = rows.getString(8),
+        step = rows.getInt(9),
+        isDeleted = version.isDeleted,
+        updatedAt = version.updatedAt,
+        originDevice = version.originDevice,
+        deviceSeq = version.deviceSeq,
+      )
+    },
+  )
+
+/** Edges, keyed by their interned `move_edge` id. */
+private val EDGES =
+  SyncTable<EdgeSyncRow, Long>(
+    table = "user_edge",
+    keyColumns = listOf("edge_id"),
+    payloadColumns = listOf("is_good"),
+    bindKey = bindIdKey,
+    bindPayload = { statement, first, row -> statement.setBoolean(first, row.isGood) },
+    readPayload = { rows, incoming, version ->
+      EdgeSyncRow(
+        origin = incoming.origin,
+        destination = incoming.destination,
+        move = incoming.move,
+        isGood = rows.getBoolean(1),
+        isDeleted = version.isDeleted,
+        updatedAt = version.updatedAt,
+        originDevice = version.originDevice,
+        deviceSeq = version.deviceSeq,
+      )
+    },
+  )
+
+/** Settings, keyed by their own key. */
+private val SETTINGS =
+  SyncTable<SettingSyncRow, String>(
+    table = "user_setting",
+    keyColumns = listOf("key"),
+    payloadColumns = listOf("value"),
+    bindKey = bindTextKey,
+    bindPayload = { statement, first, row -> statement.setString(first, row.value) },
+    readPayload = { rows, incoming, version ->
+      SettingSyncRow(
+        key = incoming.key,
+        value = rows.getString(1),
+        isDeleted = version.isDeleted,
+        updatedAt = version.updatedAt,
+        originDevice = version.originDevice,
+        deviceSeq = version.deviceSeq,
+      )
+    },
+  )
+
+/** Local repertoires, keyed by their own id. */
+private val REPERTOIRES =
+  SyncTable<RepertoireSyncRow, String>(
+    table = "user_repertoire",
+    keyColumns = listOf("repertoire_id"),
+    payloadColumns = listOf("name", "color"),
+    bindKey = bindTextKey,
+    bindPayload = { statement, first, row ->
+      statement.setString(first, row.name)
+      statement.setString(first + 1, row.color)
+    },
+    readPayload = { rows, incoming, version ->
+      RepertoireSyncRow(
+        id = incoming.id,
+        name = rows.getString(1),
+        color = rows.getString(2),
+        isDeleted = version.isDeleted,
+        updatedAt = version.updatedAt,
+        originDevice = version.originDevice,
+        deviceSeq = version.deviceSeq,
+      )
+    },
+  )
+
+/** Edge to repertoire tags, keyed by the interned `move_edge` id and the repertoire id. */
+private val TAGS =
+  SyncTable<EdgeRepertoireTagSyncRow, Pair<Long, String>>(
+    table = "user_edge_repertoire_tag",
+    keyColumns = listOf("edge_id", "repertoire_id"),
+    payloadColumns = emptyList(),
+    bindKey = { statement, first, (edgeId, repertoireId) ->
+      statement.setLong(first, edgeId)
+      statement.setString(first + 1, repertoireId)
+    },
+    bindPayload = { _, _, _ -> },
+    readPayload = { _, incoming, version ->
+      EdgeRepertoireTagSyncRow(
+        origin = incoming.origin,
+        destination = incoming.destination,
+        repertoireId = incoming.repertoireId,
+        isDeleted = version.isDeleted,
+        updatedAt = version.updatedAt,
+        originDevice = version.originDevice,
+        deviceSeq = version.deviceSeq,
+      )
+    },
+  )
+
+/**
+ * One per user row cap, counted over the wire identities of the incoming rows.
+ *
+ * @property noun What the refusal message calls one row.
+ * @property identity What makes two incoming rows the same stored row.
+ * @property countStored How many of the given distinct identities [table] already holds for a user.
+ */
+private class QuotaRule<R, I>(
+  val noun: String,
+  val table: String,
+  val identity: (R) -> I,
+  val countStored: (Connection, String, List<I>) -> Int,
+)
+
+private val NODE_QUOTA =
+  QuotaRule<NodeSyncRow, String>(
+    noun = "node",
+    table = NODES.table,
+    identity = { it.positionKey },
+    countStored =
+      countStoredAmong(
+        "SELECT count(*) FROM user_node n JOIN position p ON p.id = n.position_id " +
+          "WHERE n.user_id = ? AND p.position_key = ANY (?)"
+      ),
+  )
+
+private val EDGE_QUOTA =
+  QuotaRule<EdgeSyncRow, Pair<String, String>>(
+    noun = "edge",
+    table = EDGES.table,
+    identity = { it.origin to it.destination },
+    countStored =
+      countStoredOneByOne(
+        "SELECT count(*) FROM user_edge ue " +
+          "JOIN move_edge e ON e.id = ue.edge_id " +
+          JOIN_EDGE_ENDPOINTS +
+          "WHERE ue.user_id = ? AND po.position_key = ? AND pd.position_key = ?"
+      ) { statement, (origin, destination) ->
+        statement.setString(2, origin)
+        statement.setString(3, destination)
+      },
+  )
+
+private val REPERTOIRE_QUOTA =
+  QuotaRule<RepertoireSyncRow, String>(
+    noun = "repertoire",
+    table = REPERTOIRES.table,
+    identity = { it.id },
+    countStored =
+      countStoredAmong(
+        "SELECT count(*) FROM user_repertoire WHERE user_id = ? AND repertoire_id = ANY (?)"
+      ),
+  )
+
+private val TAG_QUOTA =
+  QuotaRule<EdgeRepertoireTagSyncRow, Triple<String, String, String>>(
+    noun = "tag",
+    table = TAGS.table,
+    identity = { Triple(it.origin, it.destination, it.repertoireId) },
+    countStored =
+      countStoredOneByOne(
+        "SELECT count(*) FROM user_edge_repertoire_tag t " +
+          "JOIN move_edge e ON e.id = t.edge_id " +
+          JOIN_EDGE_ENDPOINTS +
+          "WHERE t.user_id = ? AND po.position_key = ? AND pd.position_key = ? " +
+          "AND t.repertoire_id = ?"
+      ) { statement, (origin, destination, repertoireId) ->
+        statement.setString(2, origin)
+        statement.setString(3, destination)
+        statement.setString(4, repertoireId)
+      },
+  )
+
+/** Counts in one query, [sql] taking the user id then the text keys as an array. */
+private fun countStoredAmong(sql: String): (Connection, String, List<String>) -> Int =
+  { connection, userId, keys ->
+    connection.prepareStatement(sql).use { statement ->
+      statement.setString(1, userId)
+      statement.setArray(2, connection.createArrayOf("text", keys.toTypedArray()))
+      statement.executeQuery().use { rows ->
+        rows.next()
+        rows.getInt(1)
+      }
+    }
+  }
+
+/**
+ * Counts with one query per identity, [sql] taking the user id then whatever [bindIdentity] binds
+ * from index `2`.
+ */
+private fun <I> countStoredOneByOne(
+  sql: String,
+  bindIdentity: (PreparedStatement, I) -> Unit,
+): (Connection, String, List<I>) -> Int = { connection, userId, identities ->
+  var present = 0
+  connection.prepareStatement(sql).use { statement ->
+    for (identity in identities) {
+      statement.setString(1, userId)
+      bindIdentity(statement, identity)
+      statement.executeQuery().use { rows ->
+        rows.next()
+        if (rows.getInt(1) > 0) present++
+      }
+    }
+  }
+  present
+}
 
 /** The tables holding per user rows. The shared `position` and `move_edge` are not among them. */
 private val PER_USER_TABLES =

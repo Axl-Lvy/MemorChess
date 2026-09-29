@@ -60,8 +60,9 @@ internal class TestServerConvergence {
     a.sync(toA, serverNow)
     a.sync(toA, serverNow)
 
-    store.readSettingForTest(user, "theme")?.value shouldBe "dark"
-    store.readSettingForTest(user, "theme")?.updatedAt shouldBe serverNow
+    val stored = transportFor(user, "observer").pull(null, 100, serverNow).settings.single()
+    stored.value shouldBe "dark"
+    stored.updatedAt shouldBe serverNow
   }
 
   @Test
