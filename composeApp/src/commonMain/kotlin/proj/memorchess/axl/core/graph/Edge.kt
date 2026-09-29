@@ -25,7 +25,7 @@ import proj.memorchess.axl.core.data.PositionKey
  *   [proj.memorchess.axl.core.data.DataNode.createdAt] stable so new card introduction order does
  *   not reshuffle just by browsing.
  * @property updatedAt Last time the edge was written. Stamped by [TreeStore].
- * @property isDeleted Tombstone flag used by [DeleteMode.SOFT].
+ * @property isDeleted Tombstone flag set when the edge is deleted.
  * @property originDevice Device that wrote this version. Stamped by [TreeStore] from its
  *   [proj.memorchess.axl.core.sync.DeviceIdentity].
  * @property deviceSeq That device's write counter at the time. See

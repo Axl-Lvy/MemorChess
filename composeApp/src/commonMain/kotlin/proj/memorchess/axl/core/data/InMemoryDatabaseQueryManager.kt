@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.scheduling.CardPhase
@@ -14,14 +13,14 @@ import proj.memorchess.axl.core.scheduling.CardPhase
  * opening graph from a downloaded PGN every time it opens. Nothing here touches Room or IndexedDB,
  * so it works identically on every target and leaves the user's real graph untouched.
  *
- * Behaviour mirrors the platform implementations closely enough for [TreeStore]: hard deletes
- * physically remove rows and any incident move, soft deletes flip the [DataNode.isDeleted] flag and
- * cascade the tombstone to every incident move, exactly like Room's `softDeleteNode` +
- * `softDeleteMoveFrom` + `softDeleteMoveTo` and IndexedDB's per-store writes. [insertNodes] merges
- * into each row's existing move maps rather than replacing them outright, so a tombstone written by
- * a delete call is never clobbered by a node persist that runs moments later without that edge in
- * its own cache derived payload (the same reason a Room `INSERT ... REPLACE` on the node row leaves
- * unrelated `MoveEntity` rows untouched, and an IndexedDB `put` only touches the row it names).
+ * Behaviour mirrors the platform implementations closely enough for [TreeStore]: deletes flip the
+ * [DataNode.isDeleted] flag and cascade the tombstone to every incident move, exactly like Room's
+ * `softDeleteNode` + `softDeleteMoveFrom` + `softDeleteMoveTo` and IndexedDB's per-store writes.
+ * [insertNodes] merges into each row's existing move maps rather than replacing them outright, so a
+ * tombstone written by a delete call is never clobbered by a node persist that runs moments later
+ * without that edge in its own cache derived payload (the same reason a Room `INSERT ... REPLACE`
+ * on the node row leaves unrelated `MoveEntity` rows untouched, and an IndexedDB `put` only touches
+ * the row it names).
  */
 class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
@@ -135,32 +134,12 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun deletePosition(
     position: PositionKey,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
   ) {
     val node = nodes[position] ?: return
-    when (mode) {
-      DeleteMode.HARD -> hardDelete(position)
-      DeleteMode.SOFT -> softDelete(position, node, originDevice, deviceSeq, updatedAt)
-    }
-  }
-
-  /** Physically removes [position] and drops any move that pointed to or came from it. */
-  private fun hardDelete(position: PositionKey) {
-    nodes.remove(position)
-    for ((key, other) in nodes.toMap()) {
-      val moves = other.previousAndNextMoves
-      val previousMoves = moves.previousMoves.values.filter { it.origin != position }
-      val nextMoves = moves.nextMoves.values.filter { it.destination != position }
-      if (
-        previousMoves.size != moves.previousMoves.size || nextMoves.size != moves.nextMoves.size
-      ) {
-        nodes[key] =
-          other.copy(previousAndNextMoves = PreviousAndNextMoves(previousMoves, nextMoves))
-      }
-    }
+    softDelete(position, node, originDevice, deviceSeq, updatedAt)
   }
 
   /**
@@ -264,33 +243,31 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun deleteMove(
     origin: PositionKey,
     move: String,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
   ) {
     val node = nodes[origin] ?: return
     val edge = node.previousAndNextMoves.nextMoves[move] ?: return
-    if (mode == DeleteMode.SOFT && edge.isDeleted) return
+    if (edge.isDeleted) return
     val destination = edge.destination
     nodes[origin] =
       node.copy(
         previousAndNextMoves =
-          node.previousAndNextMoves.withoutNext(move, mode, originDevice, deviceSeq, updatedAt)
+          node.previousAndNextMoves.withTombstonedNext(move, originDevice, deviceSeq, updatedAt)
       )
     val destinationNode = nodes[destination] ?: return
     nodes[destination] =
       destinationNode.copy(
         previousAndNextMoves =
-          destinationNode.previousAndNextMoves.withoutPrevious(
+          destinationNode.previousAndNextMoves.withTombstonedPrevious(
             move,
-            mode,
             originDevice,
             deviceSeq,
             updatedAt,
           )
       )
-    if (mode == DeleteMode.SOFT) mark(DirtyKey.EdgeKey(origin, destination), deviceSeq)
+    mark(DirtyKey.EdgeKey(origin, destination), deviceSeq)
   }
 
   override suspend fun eraseAll() {
@@ -474,45 +451,37 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   private fun isTrainableFor(positionKey: PositionKey, repertoireId: String?): Boolean =
     repertoireId == null || (positionKey to repertoireId) in trainable
 
-  private fun PreviousAndNextMoves.withoutNext(
+  private fun PreviousAndNextMoves.withTombstonedNext(
     move: String,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
   ): PreviousAndNextMoves =
     PreviousAndNextMoves(
       previousMoves.values,
-      removeOrFlag(nextMoves, move, mode, originDevice, deviceSeq, updatedAt),
+      tombstoneMatching(nextMoves, move, originDevice, deviceSeq, updatedAt),
     )
 
-  private fun PreviousAndNextMoves.withoutPrevious(
+  private fun PreviousAndNextMoves.withTombstonedPrevious(
     move: String,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
   ): PreviousAndNextMoves =
     PreviousAndNextMoves(
-      removeOrFlag(previousMoves, move, mode, originDevice, deviceSeq, updatedAt),
+      tombstoneMatching(previousMoves, move, originDevice, deviceSeq, updatedAt),
       nextMoves.values,
     )
 
-  private fun removeOrFlag(
+  private fun tombstoneMatching(
     moves: Map<String, DataMove>,
     move: String,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
   ): List<DataMove> =
-    moves.values.mapNotNull {
-      if (it.move != move) it
-      else
-        when (mode) {
-          DeleteMode.HARD -> null
-          DeleteMode.SOFT -> it.tombstone(originDevice, deviceSeq, updatedAt)
-        }
+    moves.values.map {
+      if (it.move != move) it else it.tombstone(originDevice, deviceSeq, updatedAt)
     }
 
   override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) = mark(key, deviceSeq)

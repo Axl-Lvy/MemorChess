@@ -112,10 +112,6 @@ interface NodeEntityDao {
     upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, destination, deviceSeq = deviceSeq)
   }
 
-  /** Hard deletes a move row. */
-  @Query("DELETE FROM MoveEntity WHERE origin = :origin AND move = :move")
-  suspend fun hardDeleteMove(origin: String, move: String)
-
   /**
    * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag and stamping the
    * sync fields.
@@ -133,10 +129,6 @@ interface NodeEntityDao {
     deviceSeq: Long,
   )
 
-  /** Hard deletes every move row leaving [origin]. */
-  @Query("DELETE FROM MoveEntity WHERE origin = :origin")
-  suspend fun hardDeleteMoveFrom(origin: String)
-
   /**
    * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag and
    * stamping the sync fields.
@@ -153,10 +145,6 @@ interface NodeEntityDao {
     originDevice: String,
     deviceSeq: Long,
   )
-
-  /** Hard deletes every move row arriving at [destination]. */
-  @Query("DELETE FROM MoveEntity WHERE destination = :destination")
-  suspend fun hardDeleteMoveTo(destination: String)
 
   @Transaction
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen AND isDeleted IS FALSE")
@@ -186,9 +174,6 @@ interface NodeEntityDao {
     originDevice: String,
     deviceSeq: Long,
   ): Int
-
-  /** Hard deletes a node row. */
-  @Query("DELETE FROM NodeEntity WHERE positionKey = :fen") suspend fun hardDeleteNode(fen: String)
 
   /** Live origins of every non deleted move arriving at [destination]. */
   @Query("SELECT origin FROM MoveEntity WHERE isDeleted = 0 AND destination = :destination")

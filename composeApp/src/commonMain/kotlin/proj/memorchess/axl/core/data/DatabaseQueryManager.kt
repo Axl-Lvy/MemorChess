@@ -2,7 +2,6 @@ package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 
 /**
@@ -44,36 +43,32 @@ interface DatabaseQueryManager {
   suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage
 
   /**
-   * Deletes a single position and any incident moves.
+   * Soft deletes a single position and any incident moves, leaving tombstones for sync.
    *
    * @param position Position to remove.
-   * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
-   * @param originDevice Device stamped on the tombstone when [mode] is [DeleteMode.SOFT].
+   * @param originDevice Device stamped on the tombstone.
    * @param deviceSeq That device's write counter, stamped alongside [originDevice].
    * @param updatedAt Moment the tombstone was written.
    */
   suspend fun deletePosition(
     position: PositionKey,
-    mode: DeleteMode = DeleteMode.SOFT,
     originDevice: String = "",
     deviceSeq: Long = 0L,
     updatedAt: Instant = DateUtil.now(),
   )
 
   /**
-   * Deletes a single move.
+   * Soft deletes a single move, leaving a tombstone for sync.
    *
    * @param origin Origin of the move.
    * @param move Move in standard algebraic notation.
-   * @param mode See [DeleteMode]. [DeleteMode.HARD] physically removes the row.
-   * @param originDevice Device stamped on the tombstone when [mode] is [DeleteMode.SOFT].
+   * @param originDevice Device stamped on the tombstone.
    * @param deviceSeq That device's write counter, stamped alongside [originDevice].
    * @param updatedAt Moment the tombstone was written.
    */
   suspend fun deleteMove(
     origin: PositionKey,
     move: String,
-    mode: DeleteMode = DeleteMode.SOFT,
     originDevice: String = "",
     deviceSeq: Long = 0L,
     updatedAt: Instant = DateUtil.now(),

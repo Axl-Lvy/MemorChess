@@ -12,7 +12,6 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
@@ -44,7 +43,6 @@ class TestRoomOutboxAndSoftDelete {
 
     manager.deletePosition(
       key,
-      DeleteMode.SOFT,
       originDevice = "device-a",
       deviceSeq = 7L,
       updatedAt = Instant.fromEpochSeconds(1_000),
@@ -58,7 +56,7 @@ class TestRoomOutboxAndSoftDelete {
     val key = PositionKey("k1")
     val node = DataNode(key, PreviousAndNextMoves(emptyList(), emptyList()), CardStateFactory.new())
     manager.insertNodes(node)
-    manager.deletePosition(key, DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+    manager.deletePosition(key, "device-a", 1L, Instant.fromEpochSeconds(1))
 
     manager.insertNodes(node)
 
@@ -219,7 +217,7 @@ class TestRoomOutboxAndSoftDelete {
     // specific to what deletePosition itself queues.
     manager.clearDirty(manager.getOutbox())
 
-    manager.deletePosition(origin, DeleteMode.SOFT, "device-a", 9L, Instant.fromEpochSeconds(1))
+    manager.deletePosition(origin, "device-a", 9L, Instant.fromEpochSeconds(1))
 
     manager.getOutbox() shouldContainExactlyInAnyOrder
       listOf(
@@ -245,7 +243,7 @@ class TestRoomOutboxAndSoftDelete {
     )
     manager.clearDirty(manager.getOutbox())
 
-    manager.deleteMove(origin, "e4", DeleteMode.SOFT, "device-a", 3L, Instant.fromEpochSeconds(1))
+    manager.deleteMove(origin, "e4", "device-a", 3L, Instant.fromEpochSeconds(1))
 
     manager.getOutbox() shouldBe listOf(OutboxEntry(DirtyKey.EdgeKey(origin, destination), 3L))
   }

@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.scheduling.CardPhase
@@ -540,7 +539,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun deletePosition(
     position: PositionKey,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
@@ -555,24 +553,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
           .getAll(Key(position.value.toJsString()))
           .toList()
       val incidentMoves = originMoves + destMoves
-      when (mode) {
-        DeleteMode.HARD -> hardDeletePosition(position, incidentMoves)
-        DeleteMode.SOFT ->
-          softDeletePosition(position, incidentMoves, originDevice, deviceSeq, updatedAt)
-      }
+      softDeletePosition(position, incidentMoves, originDevice, deviceSeq, updatedAt)
     }
-  }
-
-  /** Physically removes [position]'s row and every move incident to it. */
-  private suspend fun com.juul.indexeddb.WriteTransaction.hardDeletePosition(
-    position: PositionKey,
-    incidentMoves: List<JsMoveEntity>,
-  ) {
-    val movesStore = objectStore(MOVES_STORE)
-    for (move in incidentMoves) {
-      movesStore.delete(Key(move.origin.toJsString(), move.destination.toJsString()))
-    }
-    objectStore(NODES_STORE).delete(Key(position.value.toJsString()))
   }
 
   /**
@@ -616,7 +598,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun deleteMove(
     origin: PositionKey,
     move: String,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
@@ -627,21 +608,14 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       val moves: List<JsMoveEntity> =
         movesStore.index("origin").getAll(Key(origin.value.toJsString())).toList()
       for (m in moves) {
-        if (m.move != move) continue
-        when (mode) {
-          DeleteMode.HARD ->
-            movesStore.delete(Key(m.origin.toJsString(), m.destination.toJsString()))
-          DeleteMode.SOFT ->
-            if (!m.isDeleted) {
-              m.isDeleted = true
-              m.updatedAt = updatedAt.epochSeconds.toDouble()
-              m.originDevice = originDevice
-              m.deviceSeq = deviceSeq.toDouble()
-              movesStore.put(m)
-              // Queues the edge's own outbox entry in the same transaction as the row flip.
-              upsertOutboxEntry(DirtyKey.EdgeKey(origin, PositionKey(m.destination)), deviceSeq)
-            }
-        }
+        if (m.move != move || m.isDeleted) continue
+        m.isDeleted = true
+        m.updatedAt = updatedAt.epochSeconds.toDouble()
+        m.originDevice = originDevice
+        m.deviceSeq = deviceSeq.toDouble()
+        movesStore.put(m)
+        // Queues the edge's own outbox entry in the same transaction as the row flip.
+        upsertOutboxEntry(DirtyKey.EdgeKey(origin, PositionKey(m.destination)), deviceSeq)
       }
     }
   }

@@ -13,7 +13,6 @@ import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.SchedulingCounts
 import proj.memorchess.axl.core.data.ScopedSchedulingCounts
 import proj.memorchess.axl.core.data.TaggedEdge
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 
 /**
@@ -44,20 +43,18 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
 
   override suspend fun deletePosition(
     position: PositionKey,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
-  ) = delegate.deletePosition(position, mode, originDevice, deviceSeq, updatedAt)
+  ) = delegate.deletePosition(position, originDevice, deviceSeq, updatedAt)
 
   override suspend fun deleteMove(
     origin: PositionKey,
     move: String,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
-  ) = delegate.deleteMove(origin, move, mode, originDevice, deviceSeq, updatedAt)
+  ) = delegate.deleteMove(origin, move, originDevice, deviceSeq, updatedAt)
 
   override suspend fun eraseAll() = delegate.eraseAll()
 
