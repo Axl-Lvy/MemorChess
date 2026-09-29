@@ -3,13 +3,13 @@ package proj.memorchess.axl.core.data
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
@@ -17,8 +17,8 @@ import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.drainAllNodes
 
 /**
- * Direct branch coverage for [InMemoryDatabaseQueryManager]: insert/query, hard and soft deletes of
- * both positions and moves, incident-move stripping, erase, and the last-update aggregate.
+ * Direct branch coverage for [InMemoryDatabaseQueryManager]: insert/query, soft deletes of both
+ * positions and moves, incident-move tombstoning, erase, and the last-update aggregate.
  */
 class TestInMemoryDatabaseQueryManager {
 
@@ -65,32 +65,24 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   @Test
-  fun hardDeletingAPositionStripsItsIncidentMoves() = runTest {
+  fun softDeletingALeafKeepsUnrelatedMovesOfOtherNodesLive() = runTest {
     val database = seededLine()
-    database.deletePosition(key1, DeleteMode.HARD)
-    assertNull(database.getPosition(key1))
-    assertEquals(2, drainAllNodes(database).size)
-    // e4 pointed at key1, e5 came from key1: both are gone from the surviving neighbours.
-    assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.isEmpty())
-    assertTrue(database.getPosition(key2)!!.previousAndNextMoves.previousMoves.isEmpty())
-  }
-
-  @Test
-  fun hardDeletingALeafKeepsUnrelatedMovesOfOtherNodes() = runTest {
-    val database = seededLine()
-    database.deletePosition(key2, DeleteMode.HARD)
+    database.deletePosition(key2)
     assertNull(database.getPosition(key2))
     // key0 never referenced key2, so its e4 move (to key1) survives the cascade untouched.
-    assertEquals(setOf("e4"), database.getPosition(key0)!!.previousAndNextMoves.nextMoves.keys)
-    // key1 keeps its incoming e4 but loses its outgoing e5, which pointed at the removed key2.
-    assertEquals(setOf("e4"), database.getPosition(key1)!!.previousAndNextMoves.previousMoves.keys)
-    assertTrue(database.getPosition(key1)!!.previousAndNextMoves.nextMoves.isEmpty())
+    assertFalse(
+      database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted
+    )
+    // key1 keeps its incoming e4 live but its outgoing e5, which pointed at key2, is tombstoned.
+    val key1Moves = database.getPosition(key1)!!.previousAndNextMoves
+    assertFalse(key1Moves.previousMoves.getValue("e4").isDeleted)
+    assertTrue(key1Moves.nextMoves.getValue("e5").isDeleted)
   }
 
   @Test
   fun softDeletingAPositionHidesItFromReads() = runTest {
     val database = seededLine()
-    database.deletePosition(key1, DeleteMode.SOFT)
+    database.deletePosition(key1)
     // A soft deleted position is hidden from every read: the point lookup returns null and the
     // position drops out of the paged live read, leaving the two surviving rows.
     assertNull(database.getPosition(key1))
@@ -100,22 +92,14 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun deletingAMissingPositionIsANoOp() = runTest {
     val database = seededLine()
-    database.deletePosition(keyAfter("d4"), DeleteMode.HARD)
+    database.deletePosition(keyAfter("d4"))
     assertEquals(3, drainAllNodes(database).size)
-  }
-
-  @Test
-  fun hardDeletingAMoveRemovesItFromBothEnds() = runTest {
-    val database = seededLine()
-    database.deleteMove(key1, "e5", DeleteMode.HARD)
-    assertTrue(database.getPosition(key1)!!.previousAndNextMoves.nextMoves.isEmpty())
-    assertTrue(database.getPosition(key2)!!.previousAndNextMoves.previousMoves.isEmpty())
   }
 
   @Test
   fun softDeletingAMoveFlagsItOnBothEnds() = runTest {
     val database = seededLine()
-    database.deleteMove(key1, "e5", DeleteMode.SOFT)
+    database.deleteMove(key1, "e5")
     assertTrue(database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted)
     assertTrue(
       database.getPosition(key2)!!.previousAndNextMoves.previousMoves.getValue("e5").isDeleted
@@ -125,8 +109,8 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun deletingAMissingMoveIsANoOp() = runTest {
     val database = seededLine()
-    database.deleteMove(key0, "Qh5", DeleteMode.HARD)
-    database.deleteMove(keyAfter("d4"), "d5", DeleteMode.HARD)
+    database.deleteMove(key0, "Qh5")
+    database.deleteMove(keyAfter("d4"), "d5")
     assertEquals(setOf("e4"), database.getPosition(key0)!!.previousAndNextMoves.nextMoves.keys)
   }
 
@@ -135,13 +119,13 @@ class TestInMemoryDatabaseQueryManager {
     val database = InMemoryDatabaseQueryManager()
     // Only the origin exists; its e4 edge points at a key1 node that was never inserted.
     database.insertNodes(node(key0, previous = listOf(), next = listOf(moveE4)))
-    database.deleteMove(key0, "e4", DeleteMode.HARD)
-    assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.isEmpty())
+    database.deleteMove(key0, "e4")
+    assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted)
     assertNull(database.getPosition(key1))
   }
 
   @Test
-  fun hardDeletingOneOfSeveralMovesKeepsTheOthers() = runTest {
+  fun softDeletingOneOfSeveralMovesKeepsTheOthersLive() = runTest {
     val keyD4 = keyAfter("d4")
     val moveD4 = DataMove(key0, keyD4, "d4", isGood = true)
     val database = InMemoryDatabaseQueryManager()
@@ -150,10 +134,14 @@ class TestInMemoryDatabaseQueryManager {
       node(key1, previous = listOf(moveE4), next = listOf()),
       node(keyD4, previous = listOf(moveD4), next = listOf()),
     )
-    database.deleteMove(key0, "e4", DeleteMode.HARD)
-    // d4 is left in place; only the matching e4 is removed from the origin.
-    assertEquals(setOf("d4"), database.getPosition(key0)!!.previousAndNextMoves.nextMoves.keys)
-    assertTrue(database.getPosition(key1)!!.previousAndNextMoves.previousMoves.isEmpty())
+    database.deleteMove(key0, "e4")
+    // d4 stays live. Only the matching e4 is tombstoned, on both of its ends.
+    val originMoves = database.getPosition(key0)!!.previousAndNextMoves.nextMoves
+    assertFalse(originMoves.getValue("d4").isDeleted)
+    assertTrue(originMoves.getValue("e4").isDeleted)
+    assertTrue(
+      database.getPosition(key1)!!.previousAndNextMoves.previousMoves.getValue("e4").isDeleted
+    )
   }
 
   @Test
@@ -285,7 +273,7 @@ class TestInMemoryDatabaseQueryManager {
     // Shallowest wins regardless of createdAt.
     assertEquals(PositionKey("d0"), database.nextDueNewCard(dayEnd)?.positionKey)
     // Among the depth-1 ties, the earlier createdAt wins once d0 is removed.
-    database.deletePosition(PositionKey("d0"), DeleteMode.HARD)
+    database.deletePosition(PositionKey("d0"))
     assertEquals(PositionKey("d1early"), database.nextDueNewCard(dayEnd)?.positionKey)
   }
 
@@ -541,7 +529,7 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun getNodesPage_excludesSoftDeletedRows() = runTest {
     val database = seededLine()
-    database.deletePosition(key1, DeleteMode.SOFT)
+    database.deletePosition(key1)
     val keys = database.pageAllKeys(limit = 1)
     assertEquals(2, keys.size)
     assertTrue(key1 !in keys)
@@ -597,7 +585,7 @@ class TestInMemoryDatabaseQueryManager {
     // be strictly later than "now" to be provably the new maximum rather than coincidentally past
     // it.
     val stamp = proj.memorchess.axl.core.date.DateUtil.now() + kotlin.time.Duration.parse("P365D")
-    database.deletePosition(key1, DeleteMode.SOFT, "device-a", 5L, stamp)
+    database.deletePosition(key1, "device-a", 5L, stamp)
     assertEquals(stamp, database.getLastUpdate())
   }
 
@@ -605,7 +593,7 @@ class TestInMemoryDatabaseQueryManager {
   fun softDeletingAMoveStampsOriginDeviceAndDeviceSeqOnTheSurvivingEndpoint() = runTest {
     val database = seededLine()
     val stamp = Instant.fromEpochSeconds(999_999)
-    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 5L, stamp)
+    database.deleteMove(key1, "e5", "device-a", 5L, stamp)
     val tombstone = database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5")
     assertTrue(tombstone.isDeleted)
     assertEquals("device-a", tombstone.originDevice)
@@ -724,7 +712,7 @@ class TestInMemoryDatabaseQueryManager {
   fun softDeletingAPositionCascadesTheTombstoneToIncidentMovesOnBothEnds() = runTest {
     val database = seededLine()
     val stamp = Instant.fromEpochSeconds(1_234)
-    database.deletePosition(key1, DeleteMode.SOFT, "device-a", 5L, stamp)
+    database.deletePosition(key1, "device-a", 5L, stamp)
     // key1's own outgoing e5 and the surviving neighbours' copies of both incident edges are
     // tombstoned, exactly like Room's softDeleteNode + softDeleteMoveFrom + softDeleteMoveTo.
     assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted)
@@ -738,7 +726,7 @@ class TestInMemoryDatabaseQueryManager {
     // Regression coverage for the insertNodes clobber bug: a delete call writes a tombstone, then a
     // node persist derived from a cache that no longer has the edge must not erase it.
     val database = seededLine()
-    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+    database.deleteMove(key1, "e5", "device-a", 1L, Instant.fromEpochSeconds(1))
     // Simulate TreeStore.deleteMove's follow up persistNode(from): the cache no longer has the
     // removed edge, so the re-inserted node's nextMoves is empty.
     database.insertNodes(node(key1, previous = listOf(moveE4), next = listOf()))
@@ -749,7 +737,7 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun reAddingASoftDeletedMoveRevivesItAsLive() = runTest {
     val database = seededLine()
-    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+    database.deleteMove(key1, "e5", "device-a", 1L, Instant.fromEpochSeconds(1))
 
     database.insertNodes(
       node(key1, previous = listOf(moveE4), next = listOf(moveE5)),
@@ -804,7 +792,7 @@ class TestInMemoryDatabaseQueryManager {
     database.insertTag(
       DataEdgeRepertoireTag(key0, key1, repertoireId = "deleted-tag", isDeleted = true)
     )
-    database.deleteMove(key1, "e5", DeleteMode.SOFT, "device-a", 1L, Instant.fromEpochSeconds(1))
+    database.deleteMove(key1, "e5", "device-a", 1L, Instant.fromEpochSeconds(1))
     database.insertTag(DataEdgeRepertoireTag(key1, key2, repertoireId = "deleted-move"))
 
     assertEquals(emptyList(), database.edgesTaggedWith("deleted-tag"))
@@ -898,7 +886,7 @@ class TestInMemoryDatabaseQueryManager {
     )
     database.replaceTrainableRepertoires(position, setOf("italian-game"), reviewedAt)
 
-    database.deletePosition(position, DeleteMode.SOFT, "device-a", 1L, DateUtil.now())
+    database.deletePosition(position, "device-a", 1L, DateUtil.now())
 
     val snapshot =
       database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")

@@ -8,7 +8,6 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardStateFactory
@@ -97,7 +96,6 @@ class TestRoomRepertoireMastery {
 
     manager.deletePosition(
       position,
-      DeleteMode.SOFT,
       "device-a",
       1L,
       Instant.fromEpochSeconds(3_000),

@@ -296,21 +296,21 @@ class TreeStore(
    * to `false`. The edge and the surviving [from] node are each marked dirty by the
    * [DatabaseQueryManager] call that writes their row, in the same transaction as that write.
    */
-  suspend fun deleteMove(from: PositionKey, move: String, mode: DeleteMode = DeleteMode.SOFT) {
+  suspend fun deleteMove(from: PositionKey, move: String) {
     // Resolved through node() so from is resident even when it was evicted from the cache: the
     // follow up persistNode(from) below is a documented no-op on a cache miss, so without this,
     // an evicted from's hasGoodOutgoing would go stale and never get queued.
     val destination = node(from)?.outgoing?.get(move)?.to
     cache.removeEdge(from, move, destination)
     val seq = deviceIdentity.nextDeviceSeq()
-    // deleteMove queues the edge's own outbox entry transactionally with the tombstone (SOFT only);
+    // deleteMove queues the edge's own outbox entry transactionally with the tombstone;
     // persistNode below queues the surviving from node's own entry transactionally with its
     // re-derived hasGoodOutgoing.
-    database.deleteMove(from, move, mode, deviceIdentity.originDevice, seq, DateUtil.now())
+    database.deleteMove(from, move, deviceIdentity.originDevice, seq, DateUtil.now())
     persistNode(from)
     // Tombstoning the tags before recomputing means the now deleted edge's tags are excluded from
-    // the freshly recomputed set even though (for mode == SOFT) the row itself may still be
-    // resolvable for one more tick.
+    // the freshly recomputed set even though the row itself may still be resolvable for one more
+    // tick.
     if (destination != null) tagStore.tombstoneTags(from, destination)
     trainable.recompute(from)
     notifyDirty()
@@ -325,7 +325,7 @@ class TreeStore(
    * edge it tombstones, and every surviving origin re-persisted below are each marked dirty by the
    * [DatabaseQueryManager] call that writes their row, in the same transaction as that write.
    */
-  suspend fun deleteNode(positionKey: PositionKey, mode: DeleteMode = DeleteMode.SOFT) {
+  suspend fun deleteNode(positionKey: PositionKey) {
     val node = node(positionKey)
     val survivingOrigins = mutableSetOf<PositionKey>()
     if (node != null) {
@@ -336,7 +336,7 @@ class TreeStore(
     // The durable write sits ahead of the cache patching below, so the invalidate that drops
     // positionKey reflects a row that is already gone. A stale mark set before its own write would
     // have the retry read the same superseded row twice.
-    database.deletePosition(positionKey, mode, deviceIdentity.originDevice, seq, DateUtil.now())
+    database.deletePosition(positionKey, deviceIdentity.originDevice, seq, DateUtil.now())
     trainable.clear(positionKey)
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {

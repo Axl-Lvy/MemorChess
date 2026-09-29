@@ -134,7 +134,7 @@ class TestRoomSchedulingQueries {
       createdAt = Instant.fromEpochSeconds(900),
     )
     manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("d0")
-    manager.deletePosition(PositionKey("d0"), proj.memorchess.axl.core.graph.DeleteMode.HARD)
+    manager.deletePosition(PositionKey("d0"))
     manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("d1early")
   }
 
@@ -196,14 +196,11 @@ class TestRoomSchedulingQueries {
     )
 
     manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depth0")
-    manager.deletePosition(PositionKey("depth0"), proj.memorchess.axl.core.graph.DeleteMode.HARD)
+    manager.deletePosition(PositionKey("depth0"))
     manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depth1")
-    manager.deletePosition(PositionKey("depth1"), proj.memorchess.axl.core.graph.DeleteMode.HARD)
+    manager.deletePosition(PositionKey("depth1"))
     manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depthLarge")
-    manager.deletePosition(
-      PositionKey("depthLarge"),
-      proj.memorchess.axl.core.graph.DeleteMode.HARD,
-    )
+    manager.deletePosition(PositionKey("depthLarge"))
     manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depthOmitted")
   }
 
@@ -369,7 +366,7 @@ class TestRoomSchedulingQueries {
   @Test
   fun getNodesPage_excludesSoftDeletedRows() = runTest {
     seedPageable(3)
-    manager.deletePosition(PositionKey("page001"), proj.memorchess.axl.core.graph.DeleteMode.SOFT)
+    manager.deletePosition(PositionKey("page001"))
     val keys = pageAllKeys(limit = 1)
     keys.size shouldBe 2
     (PositionKey("page001") in keys) shouldBe false

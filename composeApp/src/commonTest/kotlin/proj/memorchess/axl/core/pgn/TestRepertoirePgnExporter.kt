@@ -6,7 +6,6 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.testRepertoireTagStore
@@ -155,7 +154,7 @@ class TestRepertoirePgnExporter {
     val afterE4C5 = after(rootKey, "e4", "c5")
     tree.addMove(afterE4, "c5", afterE4C5, isGood = true, fromDepth = 1)
     tagStore.tag(afterE4, afterE4C5, "italian-game")
-    tree.deleteMove(afterE4, "c5", DeleteMode.SOFT)
+    tree.deleteMove(afterE4, "c5")
 
     val result = exporter(fixture).export("italian-game") as RepertoireExportResult.Pgn
 

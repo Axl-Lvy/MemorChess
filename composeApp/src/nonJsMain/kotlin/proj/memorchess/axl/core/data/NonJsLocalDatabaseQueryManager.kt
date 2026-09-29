@@ -2,7 +2,6 @@ package proj.memorchess.axl.core.data
 
 import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
-import proj.memorchess.axl.core.graph.DeleteMode
 import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
@@ -42,37 +41,25 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
 
   override suspend fun deletePosition(
     position: PositionKey,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
   ) {
-    val dao = database.getNodeEntityDao()
-    when (mode) {
-      DeleteMode.HARD -> {
-        dao.hardDeleteMoveFrom(position.value)
-        dao.hardDeleteMoveTo(position.value)
-        dao.hardDeleteNode(position.value)
-      }
-      DeleteMode.SOFT ->
-        dao.softDeletePositionAndMarkDirty(position.value, updatedAt, originDevice, deviceSeq)
-    }
+    database
+      .getNodeEntityDao()
+      .softDeletePositionAndMarkDirty(position.value, updatedAt, originDevice, deviceSeq)
   }
 
   override suspend fun deleteMove(
     origin: PositionKey,
     move: String,
-    mode: DeleteMode,
     originDevice: String,
     deviceSeq: Long,
     updatedAt: Instant,
   ) {
-    val dao = database.getNodeEntityDao()
-    when (mode) {
-      DeleteMode.HARD -> dao.hardDeleteMove(origin.value, move)
-      DeleteMode.SOFT ->
-        dao.softDeleteMoveAndMarkDirty(origin.value, move, updatedAt, originDevice, deviceSeq)
-    }
+    database
+      .getNodeEntityDao()
+      .softDeleteMoveAndMarkDirty(origin.value, move, updatedAt, originDevice, deviceSeq)
   }
 
   override suspend fun eraseAll() {
