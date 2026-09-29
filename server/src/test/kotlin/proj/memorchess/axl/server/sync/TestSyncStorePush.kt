@@ -105,6 +105,20 @@ internal class TestSyncStorePush {
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
+  /** Everything [user] has stored, as [DEVICE] would be served it from scratch. */
+  private suspend fun stored(user: String) = store.pull(user, DEVICE, null, PULL_LIMIT, serverNow)
+
+  private suspend fun storedSetting(user: String, key: String) =
+    stored(user).settings.singleOrNull { it.key == key }
+
+  private suspend fun storedNode(user: String, key: String) =
+    stored(user).nodes.singleOrNull { it.positionKey == key }
+
+  private suspend fun storedEdge(user: String, edge: EdgeSyncRow) =
+    stored(user).edges.singleOrNull {
+      it.origin == edge.origin && it.destination == edge.destination
+    }
+
   @Test
   fun anEmptyPushIsAccepted() = runTest {
     val response = store.push(newUser(), DEVICE, request(), serverNow)
@@ -125,7 +139,7 @@ internal class TestSyncStorePush {
     val user = newUser()
     store.push(user, DEVICE, request(setting("theme", "dark", serverNow, seq = 1)), serverNow)
     store.push(user, DEVICE, request(setting("theme", "light", serverNow, seq = 2)), serverNow)
-    store.readSettingForTest(user, "theme")?.value shouldBe "light"
+    storedSetting(user, "theme")?.value shouldBe "light"
   }
 
   @Test
@@ -133,7 +147,7 @@ internal class TestSyncStorePush {
     val user = newUser()
     store.push(user, DEVICE, request(setting("theme", "dark", serverNow, seq = 5)), serverNow)
     store.push(user, DEVICE, request(setting("theme", "light", serverNow, seq = 2)), serverNow)
-    store.readSettingForTest(user, "theme")?.value shouldBe "dark"
+    storedSetting(user, "theme")?.value shouldBe "dark"
   }
 
   @Test
@@ -151,7 +165,7 @@ internal class TestSyncStorePush {
       request(setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")),
       serverNow,
     )
-    store.readSettingForTest(user, "theme")?.value shouldBe "light"
+    storedSetting(user, "theme")?.value shouldBe "light"
   }
 
   @Test
@@ -179,7 +193,7 @@ internal class TestSyncStorePush {
       second.await()
     }
 
-    store.readSettingForTest(user, "theme") shouldBe expectedWinner
+    storedSetting(user, "theme") shouldBe expectedWinner
   }
 
   @Test
@@ -201,7 +215,7 @@ internal class TestSyncStorePush {
       )
     // The pushed row lost, yet the revision must move, or the pusher never learns and diverges.
     (second.revision > first.revision) shouldBe true
-    store.readSettingForTest(user, "theme")?.value shouldBe "dark"
+    storedSetting(user, "theme")?.value shouldBe "dark"
   }
 
   @Test
@@ -239,7 +253,7 @@ internal class TestSyncStorePush {
     response.rejected shouldHaveSize 1
     response.rejected.single().code shouldBe RejectionCode.CLOCK_TOO_FAR_AHEAD
     response.rejected.single().id shouldBe "theme"
-    store.readSettingForTest(user, "theme") shouldBe null
+    storedSetting(user, "theme") shouldBe null
   }
 
   @Test
@@ -256,7 +270,7 @@ internal class TestSyncStorePush {
         serverNow,
       )
     response.rejected shouldHaveSize 1
-    store.readSettingForTest(user, "good")?.value shouldBe "y"
+    storedSetting(user, "good")?.value shouldBe "y"
   }
 
   @Test
@@ -271,7 +285,7 @@ internal class TestSyncStorePush {
       )
       .rejected
       .shouldBeEmpty()
-    store.readSettingForTest(user, "theme")?.value shouldBe "dark"
+    storedSetting(user, "theme")?.value shouldBe "dark"
   }
 
   @Test
@@ -281,7 +295,7 @@ internal class TestSyncStorePush {
     val user = newUser()
     val precise = Instant.fromEpochSeconds(1_000, 123_456_000)
     store.push(user, DEVICE, request(setting("theme", "dark", precise)), serverNow)
-    store.readSettingForTest(user, "theme")?.updatedAt shouldBe precise
+    storedSetting(user, "theme")?.updatedAt shouldBe precise
   }
 
   @Test
@@ -289,7 +303,7 @@ internal class TestSyncStorePush {
     val first = newUser()
     val second = newUser()
     store.push(first, DEVICE, request(setting("theme", "dark", serverNow)), serverNow)
-    store.readSettingForTest(second, "theme") shouldBe null
+    storedSetting(second, "theme") shouldBe null
   }
 
   @Test
@@ -318,7 +332,7 @@ internal class TestSyncStorePush {
       ),
       serverNow,
     )
-    store.readNodeForTest(user, key)?.reps shouldBe 7
+    storedNode(user, key)?.reps shouldBe 7
   }
 
   @Test
@@ -333,7 +347,7 @@ internal class TestSyncStorePush {
       SyncPushRequest(listOf(row), emptyList(), emptyList(), device = DEVICE),
       serverNow,
     )
-    store.readNodeForTest(user, key) shouldBe row
+    storedNode(user, key) shouldBe row
   }
 
   @Test
@@ -355,7 +369,7 @@ internal class TestSyncStorePush {
     response.rejected shouldHaveSize 1
     response.rejected.single().kind shouldBe "node"
     response.rejected.single().id shouldBe key
-    store.readNodeForTest(user, key) shouldBe null
+    storedNode(user, key) shouldBe null
   }
 
   @Test
@@ -381,7 +395,7 @@ internal class TestSyncStorePush {
       ),
       serverNow,
     )
-    store.readEdgeForTest(user, first)?.isGood shouldBe false
+    storedEdge(user, first)?.isGood shouldBe false
   }
 
   @Test
@@ -406,7 +420,7 @@ internal class TestSyncStorePush {
     response.rejected shouldHaveSize 1
     response.rejected.single().kind shouldBe "edge"
     response.rejected.single().id shouldBe "$origin|$destination"
-    store.readEdgeForTest(user, late) shouldBe null
+    storedEdge(user, late) shouldBe null
   }
 
   @Test
@@ -427,9 +441,9 @@ internal class TestSyncStorePush {
       ),
       serverNow,
     )
-    store.readNodeForTest(user, key)?.reps shouldBe 1
-    store.readEdgeForTest(user, theEdge)?.isGood shouldBe true
-    store.readSettingForTest(user, "theme")?.value shouldBe "dark"
+    storedNode(user, key)?.reps shouldBe 1
+    storedEdge(user, theEdge)?.isGood shouldBe true
+    storedSetting(user, "theme")?.value shouldBe "dark"
   }
 
   @Test
@@ -459,9 +473,9 @@ internal class TestSyncStorePush {
       ),
       serverNow,
     )
-    val stored = store.readRepertoireForTest(user, "italian-game")
+    val repertoires = stored(user).repertoires
 
-    stored shouldBe row
+    repertoires shouldBe listOf(row)
   }
 
   @Test
@@ -494,9 +508,9 @@ internal class TestSyncStorePush {
       ),
       serverNow,
     )
-    val stored = store.readTagForTest(user, tag)
+    val tags = stored(user).tags
 
-    stored shouldBe tag
+    tags shouldBe listOf(tag)
   }
 
   @Test
@@ -532,7 +546,7 @@ internal class TestSyncStorePush {
 
     response.rejected shouldHaveSize 1
     response.rejected.single().code shouldBe RejectionCode.EDGE_NOT_FOUND
-    store.readTagForTest(user, tag) shouldBe null
+    stored(user).tags.shouldBeEmpty()
   }
 
   @Test
@@ -545,10 +559,11 @@ internal class TestSyncStorePush {
       request(setting("theme", "dark", serverNow, seq = 2, deleted = true)),
       serverNow,
     )
-    store.readSettingForTest(user, "theme")?.isDeleted shouldBe true
+    storedSetting(user, "theme")?.isDeleted shouldBe true
   }
 
   private companion object {
     const val DEVICE = "77777777-7777-4777-8777-777777777777"
+    const val PULL_LIMIT = 500
   }
 }

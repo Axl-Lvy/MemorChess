@@ -73,6 +73,16 @@ internal class TestSyncStoreGc {
   private suspend fun settingsOf(user: String, device: String) =
     store.pull(user, device, null, 500, now).settings
 
+  /**
+   * The setting [user] still stores under [key], as a device registered from scratch sees it.
+   *
+   * Registers that device, which pins the watermark at `0`, so call it only after collection.
+   */
+  private suspend fun storedSetting(user: String, key: String): SettingSyncRow? {
+    register(user, OBSERVER)
+    return settingsOf(user, OBSERVER).singleOrNull { it.key == key }
+  }
+
   @Test
   fun aUserWithNoRegisteredDeviceIsNeverScanned() = runTest {
     val user = PostgresTestDb.newUserId()
@@ -113,7 +123,7 @@ internal class TestSyncStoreGc {
 
     store.collectTombstones()
 
-    store.readSettingForTest(user, "a") shouldBe null
+    storedSetting(user, "a") shouldBe null
   }
 
   @Test
@@ -127,7 +137,7 @@ internal class TestSyncStoreGc {
 
     store.collectTombstones()
 
-    store.readSettingForTest(user, "a") shouldBe null
+    storedSetting(user, "a") shouldBe null
   }
 
   @Test
@@ -141,8 +151,8 @@ internal class TestSyncStoreGc {
 
     store.collectTombstones()
 
-    store.readSettingForTest(user, "keep")?.value shouldBe "1"
-    store.readSettingForTest(user, "gone") shouldBe null
+    storedSetting(user, "keep")?.value shouldBe "1"
+    storedSetting(user, "gone") shouldBe null
   }
 
   @Test
@@ -157,7 +167,7 @@ internal class TestSyncStoreGc {
 
     store.collectTombstones()
 
-    store.readSettingForTest(user, "a")?.isDeleted shouldBe true
+    storedSetting(user, "a")?.isDeleted shouldBe true
   }
 
   @Test
@@ -173,7 +183,7 @@ internal class TestSyncStoreGc {
 
     store.collectTombstones()
 
-    store.readSettingForTest(theirs, "a")?.isDeleted shouldBe true
+    storedSetting(theirs, "a")?.isDeleted shouldBe true
   }
 
   @Test
@@ -269,5 +279,6 @@ internal class TestSyncStoreGc {
   private companion object {
     const val DEVICE_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
     const val DEVICE_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    const val OBSERVER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
   }
 }
