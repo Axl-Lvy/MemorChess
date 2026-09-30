@@ -73,6 +73,34 @@ class TestRepertoireCatalogE2e {
     }
 
   @Test
+  fun `a repertoire published through one server downloads through another`() =
+    runBlocking<Unit> {
+      val id = UUID.randomUUID().toString()
+      publishClient
+        .publish(
+          accessToken = server.tokenFor(server.newUserId()),
+          id = id,
+          title = "E2E shared state",
+          description = "Published on the first server",
+          side = "white",
+          pgn = PGN,
+        )
+        .shouldBeInstanceOf<PublishOutcome.Published>()
+      val otherCatalog = RepertoireCatalogClient(httpClient, "${otherServer.baseUrl}/v1/repertoires")
+
+      val listed =
+        otherCatalog
+          .fetchManifest()
+          .shouldBeInstanceOf<CatalogResult.Ok<RepertoireManifest>>()
+          .value
+          .repertoires
+          .single { it.id == id }
+      val result = otherCatalog.fetchPgn(listed.file)
+
+      result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+    }
+
+  @Test
   fun `a pgn that was never published is a 404`() =
     runBlocking<Unit> {
       val result = catalogClient.fetchPgn("pgn/${"0".repeat(64)}.pgn")
@@ -82,6 +110,9 @@ class TestRepertoireCatalogE2e {
 
   private companion object {
     val server = startE2eServer()
+
+    /** A second server in the same JVM, as a second end to end test class would start. */
+    val otherServer = startE2eServer()
 
     val httpClient =
       HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }

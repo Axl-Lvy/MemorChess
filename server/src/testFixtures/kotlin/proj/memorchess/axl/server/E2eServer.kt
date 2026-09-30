@@ -21,6 +21,12 @@ import proj.memorchess.axl.server.sync.SyncStore
  */
 private val UNLIMITED = RateLimitTier(limit = 1_000_000, refillPeriod = 1.minutes)
 
+/**
+ * Shared by every [E2eServer] of the JVM, like [PostgresTestDb], so a blob the database references
+ * is always downloadable from any of them.
+ */
+private val SHARED_BLOBS = InMemoryRepertoireBlobStore()
+
 private val E2E_CONFIG =
   ServerConfig(
     port = 0,
@@ -69,7 +75,7 @@ fun startE2eServer(): E2eServer {
           config = E2E_CONFIG,
           jwkProvider = TestJwkProvider(key),
           syncStore = SyncStore(dataSource),
-          repertoireStore = RepertoireStore(dataSource, InMemoryRepertoireBlobStore()),
+          repertoireStore = RepertoireStore(dataSource, SHARED_BLOBS),
           readiness = { true },
           rateLimits = RateLimitTiers(UNLIMITED, UNLIMITED, UNLIMITED, UNLIMITED),
         )
