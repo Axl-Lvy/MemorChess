@@ -15,6 +15,7 @@ MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openi
 ./gradlew jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"  # single test class
 ./gradlew :androidApp:connectedCheck                                        # Android instrumented tests
 ./gradlew :server:test                                                      # server tests (needs Docker)
+./gradlew :e2e:test                                                         # client/server end to end tests (needs Docker)
 ./gradlew ktfmtCheck                                                        # check formatting
 ./gradlew ktfmtFormat                                                       # auto-format (ktfmt, Google style)
 ```
@@ -23,12 +24,13 @@ Android/JVM/iOS macro- and micro-benchmarks live in `:macrobenchmark` and `:micr
 
 ## Architecture
 
-Six Gradle modules:
+Seven Gradle modules:
 
 - **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with `:server`: chess engine core, `PositionKey`, PGN parsing, sync wire types. `composeApp` depends on it with `api`, so its types stay visible to `androidApp` transitively.
 - **`composeApp`** — the KMP library holding all app code (`core/` logic, `ui/` Compose UI). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
 - **`server`** — JVM-only Ktor server (sync, JWKS-backed auth, REST routes). Configured entirely from the environment (`ServerConfig`); no vendor named in code.
 - **`androidApp`** — thin Android shell (`MainActivity`, manifest, instrumented tests). Has a `benchmark` build type for `:macrobenchmark`.
+- **`e2e`**: JVM tests that drive `composeApp`'s real HTTP clients against a real `:server` started by `startE2eServer()`, which lives in `:server`'s `testFixtures`. Needs Docker.
 
 Layer maps load automatically when you work in those directories:
 
