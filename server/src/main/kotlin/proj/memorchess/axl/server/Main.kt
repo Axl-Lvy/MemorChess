@@ -9,7 +9,6 @@ import proj.memorchess.axl.server.auth.jwksProvider
 import proj.memorchess.axl.server.db.applySchema
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.repertoire.S3RepertoireBlobStore
-import proj.memorchess.axl.server.routes.repertoireModule
 import proj.memorchess.axl.server.routes.staticFrontendModule
 import proj.memorchess.axl.server.sync.SyncStore
 
@@ -40,13 +39,13 @@ fun main() {
   val syncStore = SyncStore(dataSource)
 
   embeddedServer(Netty, port = config.port, host = "0.0.0.0") {
-      syncModule(
+      serverModules(
         config = config,
         jwkProvider = jwksProvider(config.jwksUrl),
-        store = syncStore,
+        syncStore = syncStore,
+        repertoireStore = repertoireStore,
         readiness = { dataSource.isReachable() },
       )
-      repertoireModule(store = repertoireStore)
       staticFrontendModule(config.staticDir)
       schedulingModule(syncStore)
     }
