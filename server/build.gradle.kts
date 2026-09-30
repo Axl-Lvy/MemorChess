@@ -6,6 +6,7 @@ plugins {
   alias(libs.plugins.ktfmt)
   alias(libs.plugins.kover)
   application
+  `java-test-fixtures`
 }
 
 kotlin {
@@ -47,9 +48,19 @@ dependencies {
   implementation(libs.kotlinx.serialization.json)
   runtimeOnly(libs.slf4j.simple)
 
+  // java-test-fixtures exposes only main's api dependencies to the fixtures, and everything above
+  // is implementation, so the fixtures declare what they compile against themselves.
+  testFixturesImplementation(projects.shared)
+  testFixturesImplementation(libs.kotlinx.coroutines.core)
+  testFixturesImplementation(libs.hikari)
+  testFixturesImplementation(libs.testcontainers.postgresql)
+  testFixturesImplementation(libs.ktor.server.core)
+  testFixturesImplementation(libs.ktor.server.netty)
+  // Brings com.auth0 java-jwt and jwks-rsa, which TestJwks signs and publishes keys with.
+  testFixturesImplementation(libs.ktor.server.auth.jwt)
+
   testImplementation(libs.kotlin.test)
   testImplementation(libs.kotest.assertions)
-  testImplementation(libs.testcontainers.postgresql)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.ktor.server.test.host)
   // The test HTTP client needs its own ContentNegotiation to decode responses; the server side
@@ -83,5 +94,9 @@ tasks.processResources {
 
 ktfmt { googleStyle() }
 
-// Match the engine composeApp and shared use, or Kover refuses to merge the reports.
-kover { useJacoco("0.8.14") }
+// Match the engine composeApp and shared use, or Kover refuses to merge the reports. Fixtures are
+// test code, but Kover only excludes the compilation named test by default.
+kover {
+  useJacoco("0.8.14")
+  currentProject { sources { excludedSourceSets.add("testFixtures") } }
+}
