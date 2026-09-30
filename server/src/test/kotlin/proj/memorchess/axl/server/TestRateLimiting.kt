@@ -27,7 +27,6 @@ import proj.memorchess.axl.server.auth.TestSigningKey
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.repertoire.InMemoryRepertoireBlobStore
 import proj.memorchess.axl.server.repertoire.RepertoireStore
-import proj.memorchess.axl.server.routes.repertoireModule
 import proj.memorchess.axl.server.sync.SyncStore
 
 /** Verifies the per key request budgets [installRateLimiting] enforces on every tier. */
@@ -60,16 +59,14 @@ class TestRateLimiting {
 
   private fun withServer(block: suspend (HttpClient) -> Unit) = testApplication {
     application {
-      syncModule(
+      serverModules(
         config = config,
         jwkProvider = TestJwkProvider(key),
-        store = SyncStore(PostgresTestDb.dataSource()),
+        syncStore = SyncStore(PostgresTestDb.dataSource()),
+        repertoireStore =
+          RepertoireStore(PostgresTestDb.dataSource(), InMemoryRepertoireBlobStore()),
         readiness = { true },
         clock = { Instant.fromEpochSeconds(1_700_000_000) },
-        rateLimits = tiers,
-      )
-      repertoireModule(
-        store = RepertoireStore(PostgresTestDb.dataSource(), InMemoryRepertoireBlobStore()),
         rateLimits = tiers,
       )
     }

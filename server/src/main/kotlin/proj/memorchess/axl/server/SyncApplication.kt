@@ -33,6 +33,8 @@ import proj.memorchess.axl.core.sync.ApiErrorCode
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.server.auth.Caller
 import proj.memorchess.axl.server.auth.installJwtAuth
+import proj.memorchess.axl.server.repertoire.RepertoireStore
+import proj.memorchess.axl.server.routes.repertoireModule
 import proj.memorchess.axl.server.routes.syncRoutes
 import proj.memorchess.axl.server.routes.versionRoute
 import proj.memorchess.axl.server.sync.QuotaExceededException
@@ -125,6 +127,25 @@ internal fun Application.syncModule(
     }
     syncRoutes(store, clock)
   }
+}
+
+/**
+ * Mounts every module a deployment answers requests with: sync, then the repertoire catalog.
+ *
+ * @param clock Source of server time, substituted in tests that pin the skew boundary.
+ * @param rateLimits The request budgets to enforce, substituted in tests that need to exhaust one.
+ */
+internal fun Application.serverModules(
+  config: ServerConfig,
+  jwkProvider: JwkProvider,
+  syncStore: SyncStore,
+  repertoireStore: RepertoireStore,
+  readiness: suspend () -> Boolean,
+  clock: () -> Instant,
+  rateLimits: RateLimitTiers,
+) {
+  syncModule(config, jwkProvider, syncStore, readiness, clock, rateLimits)
+  repertoireModule(repertoireStore, clock, rateLimits)
 }
 
 /**

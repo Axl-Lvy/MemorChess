@@ -49,3 +49,5 @@ include(":microbenchmark")
 include(":shared")
 
 include(":server")
+
+include(":e2e")
