@@ -26,50 +26,59 @@ class TestRepertoireCatalogE2e {
   private val catalogClient = RepertoireCatalogClient(httpClient, repertoiresUrl)
 
   @Test
-  fun `a published repertoire is listed in the manifest and its pgn downloads`() = runBlocking<Unit> {
-    val author = server.newUserId()
-    val id = UUID.randomUUID().toString()
+  fun `a published repertoire is listed in the manifest and its pgn downloads`() =
+    runBlocking<Unit> {
+      val author = server.newUserId()
+      val id = UUID.randomUUID().toString()
 
-    val published =
-      publishClient.publish(
-        accessToken = server.tokenFor(author),
-        id = id,
-        title = "E2E round trip",
-        description = "Published by TestRepertoireCatalogE2e",
-        side = "white",
-        pgn = PGN,
-      )
-    val manifest =
-      catalogClient.fetchManifest().shouldBeInstanceOf<CatalogResult.Ok<RepertoireManifest>>().value
-    val listed = manifest.repertoires.single { it.id == id }
-    val games =
-      catalogClient.fetchPgn(listed.file).shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>().value
+      val published =
+        publishClient.publish(
+          accessToken = server.tokenFor(author),
+          id = id,
+          title = "E2E round trip",
+          description = "Published by TestRepertoireCatalogE2e",
+          side = "white",
+          pgn = PGN,
+        )
+      val manifest =
+        catalogClient
+          .fetchManifest()
+          .shouldBeInstanceOf<CatalogResult.Ok<RepertoireManifest>>()
+          .value
+      val listed = manifest.repertoires.single { it.id == id }
+      val games =
+        catalogClient
+          .fetchPgn(listed.file)
+          .shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+          .value
 
-    published.shouldBeInstanceOf<PublishOutcome.Published>().descriptor.file shouldBe listed.file
-    games.single().moves.map { it.san } shouldBe listOf("e4")
-  }
-
-  @Test
-  fun `a publish without a valid token is refused as unauthorized`() = runBlocking<Unit> {
-    val outcome =
-      publishClient.publish(
-        accessToken = "not-a-jwt",
-        id = UUID.randomUUID().toString(),
-        title = "E2E unauthorized",
-        description = "Must never be stored",
-        side = "white",
-        pgn = PGN,
-      )
-
-    outcome shouldBe PublishOutcome.Unauthorized
-  }
+      published.shouldBeInstanceOf<PublishOutcome.Published>().descriptor.file shouldBe listed.file
+      games.single().moves.map { it.san } shouldBe listOf("e4")
+    }
 
   @Test
-  fun `a pgn that was never published is a 404`() = runBlocking<Unit> {
-    val result = catalogClient.fetchPgn("pgn/${"0".repeat(64)}.pgn")
+  fun `a publish without a valid token is refused as unauthorized`() =
+    runBlocking<Unit> {
+      val outcome =
+        publishClient.publish(
+          accessToken = "not-a-jwt",
+          id = UUID.randomUUID().toString(),
+          title = "E2E unauthorized",
+          description = "Must never be stored",
+          side = "white",
+          pgn = PGN,
+        )
 
-    result shouldBe CatalogResult.HttpError(404)
-  }
+      outcome shouldBe PublishOutcome.Unauthorized
+    }
+
+  @Test
+  fun `a pgn that was never published is a 404`() =
+    runBlocking<Unit> {
+      val result = catalogClient.fetchPgn("pgn/${"0".repeat(64)}.pgn")
+
+      result shouldBe CatalogResult.HttpError(404)
+    }
 
   private companion object {
     val server = startE2eServer()

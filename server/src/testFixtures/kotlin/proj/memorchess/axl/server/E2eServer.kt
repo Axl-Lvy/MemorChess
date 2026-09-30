@@ -16,7 +16,9 @@ import proj.memorchess.axl.server.repertoire.InMemoryRepertoireBlobStore
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.sync.SyncStore
 
-/** Every request of an end to end run comes from 127.0.0.1, so the IP keyed tiers must never trip. */
+/**
+ * Every request of an end to end run comes from 127.0.0.1, so the IP keyed tiers must never trip.
+ */
 private val UNLIMITED = RateLimitTier(limit = 1_000_000, refillPeriod = 1.minutes)
 
 private val E2E_CONFIG =
