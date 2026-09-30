@@ -13,7 +13,8 @@ import proj.memorchess.axl.core.pgn.PgnGame
 private const val CATALOG_URL_ENV = "MEMORCHESS_CATALOG_URL"
 
 /**
- * Live canary that downloads the real catalog of a deployed `:server` and parses every PGN it lists.
+ * Live canary that downloads the real catalog of a deployed `:server` and parses every PGN it
+ * lists.
  *
  * It runs only when [CATALOG_URL_ENV] is set, which the nightly `catalog-canary.yml` workflow does.
  * Otherwise JUnit reports it as skipped, so pull request CI never depends on a deployment being up.
