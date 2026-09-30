@@ -5,6 +5,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import java.net.URI
 import java.util.UUID
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.runBlocking
 import proj.memorchess.axl.server.auth.TEST_AUDIENCE
@@ -77,6 +78,7 @@ fun startE2eServer(): E2eServer {
           syncStore = SyncStore(dataSource),
           repertoireStore = RepertoireStore(dataSource, SHARED_BLOBS),
           readiness = { true },
+          clock = Clock.System::now,
           rateLimits = RateLimitTiers(UNLIMITED, UNLIMITED, UNLIMITED, UNLIMITED),
         )
       }

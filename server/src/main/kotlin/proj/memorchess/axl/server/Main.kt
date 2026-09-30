@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import javax.sql.DataSource
+import kotlin.time.Clock
 import proj.memorchess.axl.server.auth.jwksProvider
 import proj.memorchess.axl.server.db.applySchema
 import proj.memorchess.axl.server.repertoire.RepertoireStore
@@ -45,6 +46,8 @@ fun main() {
         syncStore = syncStore,
         repertoireStore = repertoireStore,
         readiness = { dataSource.isReachable() },
+        clock = Clock.System::now,
+        rateLimits = PRODUCTION_RATE_LIMITS,
       )
       staticFrontendModule(config.staticDir)
       schedulingModule(syncStore)

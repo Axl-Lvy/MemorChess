@@ -141,8 +141,8 @@ internal fun Application.serverModules(
   syncStore: SyncStore,
   repertoireStore: RepertoireStore,
   readiness: suspend () -> Boolean,
-  clock: () -> Instant = Clock.System::now,
-  rateLimits: RateLimitTiers = PRODUCTION_RATE_LIMITS,
+  clock: () -> Instant,
+  rateLimits: RateLimitTiers,
 ) {
   syncModule(config, jwkProvider, syncStore, readiness, clock, rateLimits)
   repertoireModule(repertoireStore, clock, rateLimits)
