@@ -86,7 +86,8 @@ class TestRepertoireCatalogE2e {
           pgn = PGN,
         )
         .shouldBeInstanceOf<PublishOutcome.Published>()
-      val otherCatalog = RepertoireCatalogClient(httpClient, "${otherServer.baseUrl}/v1/repertoires")
+      val otherCatalog =
+        RepertoireCatalogClient(httpClient, "${otherServer.baseUrl}/v1/repertoires")
 
       val listed =
         otherCatalog
