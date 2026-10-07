@@ -72,14 +72,26 @@ internal fun Connection.resolveEdgeIds(edges: Collection<EdgeIdentity>): Map<Edg
       statement.executeBatch()
     }
 
-  val ids = HashMap<EdgeIdentity, Long>(distinct.size)
-  prepareStatement("SELECT id FROM move_edge WHERE origin_id = ? AND destination_id = ?").use {
-    statement ->
-    for (edge in distinct) {
-      statement.setLong(1, positionIds.getValue(edge.origin))
-      statement.setLong(2, positionIds.getValue(edge.destination))
-      statement.executeQuery().use { rows -> if (rows.next()) ids[edge] = rows.getLong(1) }
+  val origins = distinct.map { positionIds.getValue(it.origin) }.toTypedArray()
+  val destinations = distinct.map { positionIds.getValue(it.destination) }.toTypedArray()
+  val byEndpoints = HashMap<Pair<Long, Long>, Long>(distinct.size)
+  prepareStatement(
+      "SELECT e.origin_id, e.destination_id, e.id FROM move_edge e " +
+        "JOIN unnest(?::bigint[], ?::bigint[]) AS k(o, d) " +
+        "ON e.origin_id = k.o AND e.destination_id = k.d"
+    )
+    .use { statement ->
+      statement.setArray(1, createArrayOf("bigint", origins))
+      statement.setArray(2, createArrayOf("bigint", destinations))
+      statement.executeQuery().use { rows ->
+        while (rows.next()) byEndpoints[rows.getLong(1) to rows.getLong(2)] = rows.getLong(3)
+      }
     }
+
+  val ids = HashMap<EdgeIdentity, Long>(distinct.size)
+  for (edge in distinct) {
+    val key = positionIds.getValue(edge.origin) to positionIds.getValue(edge.destination)
+    byEndpoints[key]?.let { ids[edge] = it }
   }
   return ids
 }

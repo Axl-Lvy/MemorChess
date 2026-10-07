@@ -219,17 +219,16 @@ internal class SyncStore(
     if (endpoints.isEmpty()) return emptyMap()
     val ids = HashMap<Pair<String, String>, Long>(endpoints.size)
     prepareStatement(
-        "SELECT e.id FROM move_edge e " +
+        "SELECT po.position_key, pd.position_key, e.id FROM move_edge e " +
           JOIN_EDGE_ENDPOINTS +
-          "WHERE po.position_key = ? AND pd.position_key = ?"
+          "JOIN unnest(?::text[], ?::text[]) AS k(o, d) " +
+          "ON po.position_key = k.o AND pd.position_key = k.d"
       )
       .use { statement ->
-        for ((origin, destination) in endpoints) {
-          statement.setString(1, origin)
-          statement.setString(2, destination)
-          statement.executeQuery().use { rows ->
-            if (rows.next()) ids[origin to destination] = rows.getLong(1)
-          }
+        statement.setArray(1, createArrayOf("text", endpoints.map { it.first }.toTypedArray()))
+        statement.setArray(2, createArrayOf("text", endpoints.map { it.second }.toTypedArray()))
+        statement.executeQuery().use { rows ->
+          while (rows.next()) ids[rows.getString(1) to rows.getString(2)] = rows.getLong(3)
         }
       }
     return ids
@@ -917,80 +916,111 @@ internal class SyncStore(
       }
 
   /**
-   * Writes [rows] in order under last write wins and returns the revisions assigned, skipping
-   * identical replays.
+   * Writes [rows] under last write wins and returns the revisions assigned, skipping identical
+   * replays.
    *
-   * A losing row still advances the survivor's revision, so the pusher is served the survivor
-   * again.
+   * Reads every stored counterpart in one locked query, resolves in memory, then writes the winners
+   * in one batch, so the number of round trips does not grow with [rows]. A row repeating an
+   * earlier key is resolved against that earlier winner. A losing row still advances the survivor's
+   * revision, so the pusher is served the survivor again.
    */
   private fun <R : SyncRow, K> Connection.applyAll(
     userId: String,
     table: SyncTable<R, K>,
     rows: List<R>,
     keyOf: (R) -> K,
-  ): List<Long> = rows.mapNotNull { incoming ->
-    val key = keyOf(incoming)
-    val stored = readLocked(userId, table, key, incoming)
-    val winner = resolve(local = stored, remote = incoming)
-    if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) return@mapNotNull null
-    val revision = nextRevision()
-    upsert(userId, table, key, winner.row, revision)
-    revision
+  ): List<Long> {
+    if (rows.isEmpty()) return emptyList()
+    val keyed = rows.map { keyOf(it) to it }
+    val current = readAllLocked(userId, table, keyed).toMutableMap()
+    val decided = ArrayList<Pair<K, R>>()
+    for ((key, incoming) in keyed) {
+      val winner = resolve(local = current[key], remote = incoming)
+      if (winner.source == ResolutionSource.LOCAL && winner.row == incoming) continue
+      current[key] = winner.row
+      decided += key to winner.row
+    }
+    if (decided.isEmpty()) return emptyList()
+    val revisions = nextRevisions(decided.size)
+    val lastPerKey = LinkedHashMap<K, Pair<R, Long>>()
+    decided.forEachIndexed { index, (key, row) -> lastPerKey[key] = row to revisions[index] }
+    upsertAll(userId, table, lastPerKey)
+    return revisions
   }
 
-  /** The row stored under [key], locked for the rest of the transaction, or `null` when absent. */
-  private fun <R : SyncRow, K> Connection.readLocked(
+  /**
+   * The stored rows of every key in [keyed], locked for the rest of the transaction, by key. A key
+   * with no stored row is absent.
+   */
+  private fun <R : SyncRow, K> Connection.readAllLocked(
     userId: String,
     table: SyncTable<R, K>,
-    key: K,
-    incoming: R,
-  ): R? =
+    keyed: List<Pair<K, R>>,
+  ): Map<K, R> {
+    val incomingByKey = HashMap<K, R>(keyed.size)
+    for ((key, row) in keyed) incomingByKey.putIfAbsent(key, row)
+    val keys = incomingByKey.keys.toList()
+    val stored = HashMap<K, R>(keys.size)
     prepareStatement(table.selectSql).use { statement ->
-      statement.setString(1, userId)
-      table.bindKey(statement, 2, key)
+      table.keyTypes.forEachIndexed { column, type ->
+        statement.setArray(
+          column + 1,
+          createArrayOf(type, keys.map { table.keyParts(it)[column] }.toTypedArray()),
+        )
+      }
+      statement.setString(table.keyTypes.size + 1, userId)
       statement.executeQuery().use { rows ->
-        if (!rows.next()) return@use null
-        val first = table.payloadColumns.size + 1
-        val version =
-          StoredVersion(
-            isDeleted = rows.getBoolean(first),
-            updatedAt = rows.getTimestamp(first + 1).toInstant().toKotlinInstant(),
-            originDevice = rows.getString(first + 2),
-            deviceSeq = rows.getLong(first + 3),
-          )
-        table.readPayload(rows, incoming, version)
+        val versionStart = table.payloadColumns.size + 1
+        val keyStart = versionStart + STORED_VERSION_COLUMNS.size
+        while (rows.next()) {
+          val key = table.readKey(rows, keyStart)
+          val version =
+            StoredVersion(
+              isDeleted = rows.getBoolean(versionStart),
+              updatedAt = rows.getTimestamp(versionStart + 1).toInstant().toKotlinInstant(),
+              originDevice = rows.getString(versionStart + 2),
+              deviceSeq = rows.getLong(versionStart + 3),
+            )
+          stored[key] = table.readPayload(rows, incomingByKey.getValue(key), version)
+        }
       }
     }
+    return stored
+  }
 
-  /** Inserts [row] under [key], or overwrites the row already there, stamped with [revision]. */
-  private fun <R : SyncRow, K> Connection.upsert(
+  /** Inserts or overwrites every row in [writes] under its key, each stamped with its revision. */
+  private fun <R : SyncRow, K> Connection.upsertAll(
     userId: String,
     table: SyncTable<R, K>,
-    key: K,
-    row: R,
-    revision: Long,
+    writes: Map<K, Pair<R, Long>>,
   ) {
     prepareStatement(table.upsertSql).use { statement ->
-      statement.setString(1, userId)
-      table.bindKey(statement, 2, key)
-      val first = 2 + table.keyColumns.size
-      table.bindPayload(statement, first, row)
-      val tail = first + table.payloadColumns.size
-      statement.setBoolean(tail, row.isDeleted)
-      statement.setTimestamp(tail + 1, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
-      statement.setTimestamp(tail + 2, row.updatedAt.toTimestamp())
-      statement.setString(tail + 3, row.originDevice)
-      statement.setLong(tail + 4, row.deviceSeq)
-      statement.setLong(tail + 5, revision)
-      statement.executeUpdate()
+      for ((key, versioned) in writes) {
+        val (row, revision) = versioned
+        statement.setString(1, userId)
+        table.keyParts(key).forEachIndexed { index, part -> statement.setObject(2 + index, part) }
+        val first = 2 + table.keyColumns.size
+        table.bindPayload(statement, first, row)
+        val tail = first + table.payloadColumns.size
+        statement.setBoolean(tail, row.isDeleted)
+        statement.setTimestamp(tail + 1, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
+        statement.setTimestamp(tail + 2, row.updatedAt.toTimestamp())
+        statement.setString(tail + 3, row.originDevice)
+        statement.setLong(tail + 4, row.deviceSeq)
+        statement.setLong(tail + 5, revision)
+        statement.addBatch()
+      }
+      statement.executeBatch()
     }
   }
 
-  private fun Connection.nextRevision(): Long =
-    prepareStatement("SELECT nextval('sync_revision')").use { statement ->
+  /** [count] fresh revisions, ascending. */
+  private fun Connection.nextRevisions(count: Int): List<Long> =
+    prepareStatement("SELECT nextval('sync_revision') FROM generate_series(1, ?)").use { statement
+      ->
+      statement.setInt(1, count)
       statement.executeQuery().use { rows ->
-        rows.next()
-        rows.getLong(1)
+        buildList { while (rows.next()) add(rows.getLong(1)) }.sorted()
       }
     }
 
@@ -1073,10 +1103,12 @@ private class StoredVersion(
  *
  * @param K What identifies a row within the table once shared `position` and `move_edge` ids are
  *   resolved.
- * @property keyColumns Columns that, beside `user_id`, identify one row, in [bindKey] order.
+ * @property keyColumns Columns that, beside `user_id`, identify one row, in [keyParts] order.
  * @property payloadColumns Columns holding the row's own data, in [bindPayload] and [readPayload]
  *   order.
- * @property bindKey Binds a key to [keyColumns], starting at the given parameter index.
+ * @property keyTypes The SQL type of each of [keyColumns], so a batch of keys binds as arrays.
+ * @property keyParts Splits a key into one value per [keyColumns] entry.
+ * @property readKey Rebuilds a key from [keyColumns], read from the given result set index.
  * @property bindPayload Binds a row's data to [payloadColumns], starting at the given parameter
  *   index.
  * @property readPayload Rebuilds the stored row from [payloadColumns], read from index `1`, taking
@@ -1086,16 +1118,25 @@ private class SyncTable<R : SyncRow, K>(
   val table: String,
   val keyColumns: List<String>,
   val payloadColumns: List<String>,
-  val bindKey: (PreparedStatement, Int, K) -> Unit,
+  val keyTypes: List<String>,
+  val keyParts: (K) -> List<Any>,
+  val readKey: (ResultSet, Int) -> K,
   val bindPayload: (PreparedStatement, Int, R) -> Unit,
   val readPayload: (ResultSet, R, StoredVersion) -> R,
 ) {
 
-  /** Selects one row by `user_id` and [keyColumns], locking it. */
+  /**
+   * Selects every row of one `user_id` whose key is among the given arrays, one per [keyColumns]
+   * entry, locking them. Reads payload, then version, then key columns.
+   */
   val selectSql: String =
-    "SELECT ${(payloadColumns + STORED_VERSION_COLUMNS).joinToString()} FROM $table " +
-      "WHERE ${(listOf("user_id") + keyColumns).joinToString(" AND ") { "$it = ?" }}" +
-      FOR_UPDATE
+    "SELECT ${(payloadColumns + STORED_VERSION_COLUMNS + keyColumns).joinToString { "t.$it" }} " +
+      "FROM $table t " +
+      "JOIN unnest(${keyTypes.joinToString { "?::$it[]" }}) AS k(${keyColumns.joinToString()}) " +
+      "ON ${keyColumns.joinToString(" AND ") { "t.$it = k.$it" }} " +
+      "WHERE t.user_id = ?" +
+      FOR_UPDATE +
+      " OF t"
 
   /** Inserts one row, or overwrites every non key column of the row already there. */
   val upsertSql: String =
@@ -1105,16 +1146,6 @@ private class SyncTable<R : SyncRow, K>(
         "ON CONFLICT (${(listOf("user_id") + keyColumns).joinToString()}) DO UPDATE SET " +
         (payloadColumns + VERSION_COLUMNS).joinToString { "$it = EXCLUDED.$it" }
     }
-}
-
-/** Binds one text key at the given index. */
-private val bindTextKey: (PreparedStatement, Int, String) -> Unit = { statement, index, key ->
-  statement.setString(index, key)
-}
-
-/** Binds one numeric id at the given index. */
-private val bindIdKey: (PreparedStatement, Int, Long) -> Unit = { statement, index, id ->
-  statement.setLong(index, id)
 }
 
 /** Nodes, keyed by their interned `position` id. */
@@ -1134,7 +1165,9 @@ private val NODES =
         "phase",
         "step",
       ),
-    bindKey = bindIdKey,
+    keyTypes = listOf("bigint"),
+    keyParts = { listOf(it) },
+    readKey = { rows, index -> rows.getLong(index) },
     bindPayload = { statement, first, row ->
       statement.setTimestamp(first, row.dueDate.toTimestamp())
       statement.setTimestamp(first + 1, row.lastReview?.toTimestamp())
@@ -1172,7 +1205,9 @@ private val EDGES =
     table = "user_edge",
     keyColumns = listOf("edge_id"),
     payloadColumns = listOf("is_good"),
-    bindKey = bindIdKey,
+    keyTypes = listOf("bigint"),
+    keyParts = { listOf(it) },
+    readKey = { rows, index -> rows.getLong(index) },
     bindPayload = { statement, first, row -> statement.setBoolean(first, row.isGood) },
     readPayload = { rows, incoming, version ->
       EdgeSyncRow(
@@ -1194,7 +1229,9 @@ private val SETTINGS =
     table = "user_setting",
     keyColumns = listOf("key"),
     payloadColumns = listOf("value"),
-    bindKey = bindTextKey,
+    keyTypes = listOf("text"),
+    keyParts = { listOf(it) },
+    readKey = { rows, index -> rows.getString(index) },
     bindPayload = { statement, first, row -> statement.setString(first, row.value) },
     readPayload = { rows, incoming, version ->
       SettingSyncRow(
@@ -1214,7 +1251,9 @@ private val REPERTOIRES =
     table = "user_repertoire",
     keyColumns = listOf("repertoire_id"),
     payloadColumns = listOf("name", "color"),
-    bindKey = bindTextKey,
+    keyTypes = listOf("text"),
+    keyParts = { listOf(it) },
+    readKey = { rows, index -> rows.getString(index) },
     bindPayload = { statement, first, row ->
       statement.setString(first, row.name)
       statement.setString(first + 1, row.color)
@@ -1238,10 +1277,9 @@ private val TAGS =
     table = "user_edge_repertoire_tag",
     keyColumns = listOf("edge_id", "repertoire_id"),
     payloadColumns = emptyList(),
-    bindKey = { statement, first, (edgeId, repertoireId) ->
-      statement.setLong(first, edgeId)
-      statement.setString(first + 1, repertoireId)
-    },
+    keyTypes = listOf("bigint", "text"),
+    keyParts = { (edgeId, repertoireId) -> listOf(edgeId, repertoireId) },
+    readKey = { rows, index -> rows.getLong(index) to rows.getString(index + 1) },
     bindPayload = { _, _, _ -> },
     readPayload = { _, incoming, version ->
       EdgeRepertoireTagSyncRow(
@@ -1288,14 +1326,15 @@ private val EDGE_QUOTA =
     table = EDGES.table,
     identity = { it.origin to it.destination },
     countStored =
-      countStoredOneByOne(
+      countStoredAmongTuples(
         "SELECT count(*) FROM user_edge ue " +
           "JOIN move_edge e ON e.id = ue.edge_id " +
           JOIN_EDGE_ENDPOINTS +
-          "WHERE ue.user_id = ? AND po.position_key = ? AND pd.position_key = ?"
-      ) { statement, (origin, destination) ->
-        statement.setString(2, origin)
-        statement.setString(3, destination)
+          "JOIN unnest(?::text[], ?::text[]) AS k(o, d) " +
+          "ON po.position_key = k.o AND pd.position_key = k.d " +
+          "WHERE ue.user_id = ?"
+      ) { (origin, destination) ->
+        listOf(origin, destination)
       },
   )
 
@@ -1316,16 +1355,15 @@ private val TAG_QUOTA =
     table = TAGS.table,
     identity = { Triple(it.origin, it.destination, it.repertoireId) },
     countStored =
-      countStoredOneByOne(
+      countStoredAmongTuples(
         "SELECT count(*) FROM user_edge_repertoire_tag t " +
           "JOIN move_edge e ON e.id = t.edge_id " +
           JOIN_EDGE_ENDPOINTS +
-          "WHERE t.user_id = ? AND po.position_key = ? AND pd.position_key = ? " +
-          "AND t.repertoire_id = ?"
-      ) { statement, (origin, destination, repertoireId) ->
-        statement.setString(2, origin)
-        statement.setString(3, destination)
-        statement.setString(4, repertoireId)
+          "JOIN unnest(?::text[], ?::text[], ?::text[]) AS k(o, d, r) " +
+          "ON po.position_key = k.o AND pd.position_key = k.d AND t.repertoire_id = k.r " +
+          "WHERE t.user_id = ?"
+      ) { (origin, destination, repertoireId) ->
+        listOf(origin, destination, repertoireId)
       },
   )
 
@@ -1343,25 +1381,29 @@ private fun countStoredAmong(sql: String): (Connection, String, List<String>) ->
   }
 
 /**
- * Counts with one query per identity, [sql] taking the user id then whatever [bindIdentity] binds
- * from index `2`.
+ * Counts in one query, [sql] taking one text array per entry of [partsOf], then the user id.
+ *
+ * Counts rows rather than identities, so it relies on the identities being distinct.
  */
-private fun <I> countStoredOneByOne(
+private fun <I> countStoredAmongTuples(
   sql: String,
-  bindIdentity: (PreparedStatement, I) -> Unit,
+  partsOf: (I) -> List<String>,
 ): (Connection, String, List<I>) -> Int = { connection, userId, identities ->
-  var present = 0
+  val parts = identities.map(partsOf)
   connection.prepareStatement(sql).use { statement ->
-    for (identity in identities) {
-      statement.setString(1, userId)
-      bindIdentity(statement, identity)
-      statement.executeQuery().use { rows ->
-        rows.next()
-        if (rows.getInt(1) > 0) present++
-      }
+    val width = parts.first().size
+    for (column in 0 until width) {
+      statement.setArray(
+        column + 1,
+        connection.createArrayOf("text", parts.map { it[column] }.toTypedArray()),
+      )
+    }
+    statement.setString(width + 1, userId)
+    statement.executeQuery().use { rows ->
+      rows.next()
+      rows.getInt(1)
     }
   }
-  present
 }
 
 /** The tables holding per user rows. The shared `position` and `move_edge` are not among them. */
