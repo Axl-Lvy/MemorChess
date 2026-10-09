@@ -192,6 +192,7 @@ class TestRepertoirePgnExporter {
 
     PgnParser.parse(result.text).single().moves.single().children.map { it.san } shouldBe
       listOf("e5")
+    // afterC5 is loaded anyway, by the one ply neighbour prefetch of afterE4; only below it counts.
     database.getPositionCalls[afterNf3] shouldBe null
     database.getPositionCalls[afterD6] shouldBe null
   }
