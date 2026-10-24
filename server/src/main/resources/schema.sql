@@ -161,3 +161,10 @@ CREATE TABLE IF NOT EXISTS sync_gc_floor (
   user_id text PRIMARY KEY,
   floor_revision bigint NOT NULL
 );
+
+-- When a user last erased their data. A push still carrying a row from before this moment is
+-- stale and must not resurrect what the erase removed.
+CREATE TABLE IF NOT EXISTS sync_erase_cutoff (
+  user_id text PRIMARY KEY,
+  erased_at timestamptz NOT NULL
+);

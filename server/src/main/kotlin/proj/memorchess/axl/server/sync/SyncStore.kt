@@ -828,15 +828,15 @@ internal class SyncStore(
   /**
    * Removes every row belonging to [userId].
    *
-   * Only the three per user tables. The shared `position` and `move_edge` rows stay, because they
-   * are append only and other users reference them.
+   * Only the per user tables. The shared `position` and `move_edge` rows stay, because they are
+   * append only and other users reference them.
    *
    * This is one half of account deletion. The identity itself lives with the auth provider and has
    * to be removed there too; performing only one half leaves a resurrectable account.
    */
   internal suspend fun deleteUser(userId: String) {
     inTransaction { connection ->
-      for (table in PER_USER_TABLES + "sync_device" + "sync_gc_floor") {
+      for (table in PER_USER_TABLES + "sync_device" + "sync_gc_floor" + "sync_erase_cutoff") {
         connection.prepareStatement("DELETE FROM $table WHERE user_id = ?").use { statement ->
           statement.setString(1, userId)
           statement.executeUpdate()
@@ -844,6 +844,80 @@ internal class SyncStore(
       }
     }
   }
+
+  /**
+   * Tombstones every live node, edge, repertoire and tag of [userId] and records the erase moment.
+   * Settings are left alone. Returns the highest revision assigned, or `0` when nothing was live.
+   *
+   * Each tombstone is stamped at least a millisecond after the row it replaces, so it beats that
+   * row on every device however far ahead its clock was.
+   *
+   * @throws UnknownDeviceException [deviceId] has no row under [userId].
+   * @throws ResyncRequiredException [deviceId] was removed and has fallen below the garbage
+   *   collection floor.
+   */
+  internal suspend fun erase(
+    userId: String,
+    deviceId: String,
+    deviceSeq: Long,
+    serverNow: Instant,
+  ): Long = inTransaction { connection ->
+    connection.acquireUserLock(userId)
+    connection.requireSyncableDevice(userId, deviceId)
+    val revisions =
+      ERASABLE_TABLES.flatMap {
+        connection.tombstoneAll(it, userId, deviceId, deviceSeq, serverNow)
+      }
+    connection.setEraseCutoff(userId, serverNow)
+    revisions.maxOrNull() ?: 0L
+  }
+
+  /** Tombstones every live row [userId] owns in [table], returning the revisions assigned. */
+  private fun Connection.tombstoneAll(
+    table: String,
+    userId: String,
+    deviceId: String,
+    deviceSeq: Long,
+    serverNow: Instant,
+  ): List<Long> =
+    prepareStatement(
+        "UPDATE $table SET is_deleted = true, " +
+          "updated_at = GREATEST(?, updated_at + interval '1 millisecond'), " +
+          "deleted_at = GREATEST(?, updated_at + interval '1 millisecond'), " +
+          "origin_device = ?, device_seq = ?, revision = nextval('sync_revision') " +
+          "WHERE user_id = ? AND NOT is_deleted RETURNING revision"
+      )
+      .use { statement ->
+        statement.setTimestamp(1, serverNow.toTimestamp())
+        statement.setTimestamp(2, serverNow.toTimestamp())
+        statement.setString(3, deviceId)
+        statement.setLong(4, deviceSeq)
+        statement.setString(5, userId)
+        statement.executeQuery().use { rows ->
+          buildList { while (rows.next()) add(rows.getLong(1)) }
+        }
+      }
+
+  private fun Connection.setEraseCutoff(userId: String, erasedAt: Instant) {
+    prepareStatement(
+        "INSERT INTO sync_erase_cutoff (user_id, erased_at) VALUES (?, ?) " +
+          "ON CONFLICT (user_id) DO UPDATE SET erased_at = EXCLUDED.erased_at"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.setTimestamp(2, erasedAt.toTimestamp())
+        statement.executeUpdate()
+      }
+  }
+
+  /** When [userId] last erased their data, or `null` when they never have. */
+  private fun Connection.eraseCutoffOf(userId: String): Instant? =
+    prepareStatement("SELECT erased_at FROM sync_erase_cutoff WHERE user_id = ?").use { statement ->
+      statement.setString(1, userId)
+      statement.executeQuery().use { rows ->
+        if (rows.next()) rows.getTimestamp(1).toInstant().toKotlinInstant() else null
+      }
+    }
 
   private fun Connection.pullRepertoires(
     userId: String,
@@ -1409,6 +1483,10 @@ private fun <I> countStoredAmongTuples(
 /** The tables holding per user rows. The shared `position` and `move_edge` are not among them. */
 private val PER_USER_TABLES =
   listOf("user_node", "user_edge", "user_setting", "user_repertoire", "user_edge_repertoire_tag")
+
+/** The per user tables an erase tombstones: everything but settings, which survive it. */
+private val ERASABLE_TABLES =
+  listOf("user_node", "user_edge", "user_repertoire", "user_edge_repertoire_tag")
 
 /** Screening outcome for one resource: what may be written, and what was refused. */
 private class Screened<T : SyncRow>(val accepted: List<T>, val refused: List<RejectedRow>)

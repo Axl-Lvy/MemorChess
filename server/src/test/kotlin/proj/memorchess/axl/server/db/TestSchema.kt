@@ -26,6 +26,7 @@ internal class TestSchema {
         "user_edge",
         "user_setting",
         "repertoire_version",
+        "sync_erase_cutoff",
       )
   }
 
