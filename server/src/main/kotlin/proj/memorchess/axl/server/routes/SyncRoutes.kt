@@ -47,7 +47,8 @@ private const val DEFAULT_PULL_LIMIT: Int = MAX_PULL_LIMIT
 internal const val MAX_PUSH_ROWS: Int = 2_000
 
 /**
- * Mounts the authenticated sync surface: `/v1/sync` in both directions and account deletion.
+ * Mounts the authenticated sync surface: `/v1/sync` in both directions, the erase, and account
+ * deletion.
  *
  * @param clock Source of server time, so the clock skew boundary is testable.
  */
@@ -106,15 +107,7 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
         }
       }
 
-      post("/v1/me/erase") {
-        val request = call.receive<SyncEraseRequest>()
-        val device = requireCanonicalUuid(request.device, "device")
-        if (request.deviceSeq < 1) {
-          throw BadRequestException("deviceSeq must be at least 1, was ${request.deviceSeq}")
-        }
-        val revision = store.erase(call.callerId, device, request.deviceSeq, clock())
-        call.respond(SyncEraseResponse(clock(), revision))
-      }
+      post("/v1/me/erase") { erase(store, clock()) }
 
       delete("/v1/me") {
         store.deleteUser(call.callerId)
@@ -122,6 +115,17 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
       }
     }
   }
+}
+
+/** Erases the caller's synced data as of [serverNow] and answers with the highest revision. */
+private suspend fun RoutingContext.erase(store: SyncStore, serverNow: Instant) {
+  val request = call.receive<SyncEraseRequest>()
+  val device = requireCanonicalUuid(request.device, "device")
+  if (request.deviceSeq < 1) {
+    throw BadRequestException("deviceSeq must be at least 1, was ${request.deviceSeq}")
+  }
+  val revision = store.erase(call.callerId, device, request.deviceSeq, serverNow)
+  call.respond(SyncEraseResponse(serverNow, revision))
 }
 
 /**
