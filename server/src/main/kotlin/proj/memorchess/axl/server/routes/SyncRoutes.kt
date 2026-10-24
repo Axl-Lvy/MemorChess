@@ -140,7 +140,8 @@ private fun ApplicationCall.deviceId(): String =
  */
 private fun requireCanonicalUuid(raw: String, field: String): String {
   val uuid =
-    Uuid.parseOrNull(raw) ?: throw BadRequestException("$field must be a canonical UUID, was '$raw'")
+    Uuid.parseOrNull(raw)
+      ?: throw BadRequestException("$field must be a canonical UUID, was '$raw'")
   if (uuid == Uuid.NIL) {
     throw BadRequestException("$field must not be the nil UUID, which is reserved")
   }

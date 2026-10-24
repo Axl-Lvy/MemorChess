@@ -509,8 +509,7 @@ class TestSyncEngineStateMachine {
     cyclesAfterErase(EraseOutcome.Erased) shouldBe 1
   }
 
-  @Test
-  fun aFailedEraseRunsNoCycle() = runTest { cyclesAfterErase(EraseOutcome.Failed) shouldBe 0 }
+  @Test fun aFailedEraseRunsNoCycle() = runTest { cyclesAfterErase(EraseOutcome.Failed) shouldBe 0 }
 
   @Test
   fun anEraseThatNeedsSignInRunsNoCycle() = runTest {

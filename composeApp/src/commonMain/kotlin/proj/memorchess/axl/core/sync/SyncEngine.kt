@@ -374,7 +374,9 @@ private suspend fun registerDevice(
   jobStore: SyncJobStore,
 ): CycleOutcome? {
   val afterReset = jobStore.resetPending
-  return when (val outcome = apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset)) {
+  return when (
+    val outcome = apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset)
+  ) {
     SyncRegisterOutcome.Ok -> {
       if (afterReset) jobStore.resetPending = false
       null

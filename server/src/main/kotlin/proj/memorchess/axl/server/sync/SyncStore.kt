@@ -77,8 +77,9 @@ internal class SyncStore(
    * A row is stored as sent, or refused, with one exception: after an erase, a node, edge,
    * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone from
    * [ERASE_ORIGIN] instead, unless the pushing device has already pulled the erase or the eraser
-   * wrote the row after erasing (see [EraseCutoff.cuts]). A row whose `updatedAt` is further ahead than the tolerance allows
-   * comes back in [SyncPushResponse.rejected] so the client can re-stamp and retry.
+   * wrote the row after erasing (see [EraseCutoff.cuts]). A row whose `updatedAt` is further ahead
+   * than the tolerance allows comes back in [SyncPushResponse.rejected] so the client can re-stamp
+   * and retry.
    *
    * The whole batch is one transaction, and rows are applied in key order so concurrent pushes take
    * locks in the same sequence.
@@ -1559,8 +1560,8 @@ private data class EraseCutoff(
   val eraseDeviceSeq: Long,
 ) {
   /**
-   * Whether [row], pushed by a device that has not pulled this erase, predates it. The eraser's
-   * own writes after the erase never do, whatever its clock says.
+   * Whether [row], pushed by a device that has not pulled this erase, predates it. The eraser's own
+   * writes after the erase never do, whatever its clock says.
    */
   fun cuts(row: SyncRow): Boolean =
     row.updatedAt < erasedAt && !(row.originDevice == erasedBy && row.deviceSeq > eraseDeviceSeq)

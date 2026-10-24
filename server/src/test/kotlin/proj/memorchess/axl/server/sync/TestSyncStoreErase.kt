@@ -213,7 +213,9 @@ internal class TestSyncStoreErase {
 
   /** Every erasable row [device] is served next, the seed node's tombstone left out. */
   private suspend fun freshRowsFor(user: String, device: String): List<SyncRow> =
-    catchUp(user, device).erasable.filterNot { it is NodeSyncRow && it.positionKey.endsWith("-seed") }
+    catchUp(user, device).erasable.filterNot {
+      it is NodeSyncRow && it.positionKey.endsWith("-seed")
+    }
 
   /** Asserts the pusher of [pushed] resolves every served row in favour of the server's. */
   private fun Caught.pusherConvergesOn(pushed: SyncPushRequest) {
