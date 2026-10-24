@@ -13,8 +13,8 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
-import kotlinx.coroutines.test.runTest
 import kotlin.time.Instant
+import kotlinx.coroutines.test.runTest
 
 class TestSyncApiClient {
 
@@ -302,9 +302,7 @@ class TestSyncApiClient {
       respond(content = "", status = HttpStatusCode.InternalServerError)
     }
 
-    client(engine)
-      .erase("tok", DEVICE, deviceSeq = 7L)
-      .shouldBeInstanceOf<SyncEraseOutcome.Error>()
+    client(engine).erase("tok", DEVICE, deviceSeq = 7L).shouldBeInstanceOf<SyncEraseOutcome.Error>()
   }
 
   @Test

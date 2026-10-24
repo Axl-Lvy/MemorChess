@@ -57,7 +57,10 @@ class TestSyncEraseE2e {
     var ack: String? = null
     repeat(MAX_PAGES) {
       val page =
-        client.pull(token, device, ack, PAGE_LIMIT).shouldBeInstanceOf<SyncPullOutcome.Ok>().response
+        client
+          .pull(token, device, ack, PAGE_LIMIT)
+          .shouldBeInstanceOf<SyncPullOutcome.Ok>()
+          .response
       if (
         page.nodes.isEmpty() &&
           page.edges.isEmpty() &&

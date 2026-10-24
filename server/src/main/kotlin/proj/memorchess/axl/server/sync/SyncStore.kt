@@ -75,10 +75,9 @@ internal class SyncStore(
    * Applies a batch under last write wins and reports whatever was refused.
    *
    * A row is stored as sent, or refused, with one exception: after an erase, a node, edge,
-   * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone from [ERASE_ORIGIN]
-   * instead. A
-   * row whose `updatedAt` is further ahead than the tolerance allows comes back in
-   * [SyncPushResponse.rejected] so the client can re-stamp and retry.
+   * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone from
+   * [ERASE_ORIGIN] instead. A row whose `updatedAt` is further ahead than the tolerance allows
+   * comes back in [SyncPushResponse.rejected] so the client can re-stamp and retry.
    *
    * The whole batch is one transaction, and rows are applied in key order so concurrent pushes take
    * locks in the same sequence.
@@ -872,10 +871,9 @@ internal class SyncStore(
   ): Long = inTransaction { connection ->
     connection.acquireUserLock(userId)
     connection.requireSyncableDevice(userId, deviceId)
-    val revisions =
-      ERASABLE_TABLES.flatMap {
-        connection.tombstoneAll(it, userId, deviceId, deviceSeq, serverNow)
-      }
+    val revisions = ERASABLE_TABLES.flatMap {
+      connection.tombstoneAll(it, userId, deviceId, deviceSeq, serverNow)
+    }
     connection.setEraseCutoff(userId, serverNow)
     revisions.maxOrNull() ?: 0L
   }

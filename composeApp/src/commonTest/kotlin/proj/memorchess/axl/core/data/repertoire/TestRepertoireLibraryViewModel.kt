@@ -203,9 +203,8 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     viewModel.forceRefresh()
 
     val loaded =
-      viewModel.catalogState.first {
-        it is LibraryCatalogState.Loaded && it.repertoires.size == 2
-      } as LibraryCatalogState.Loaded
+      viewModel.catalogState.first { it is LibraryCatalogState.Loaded && it.repertoires.size == 2 }
+        as LibraryCatalogState.Loaded
     loaded.repertoires shouldBe listOf(london, caroKann)
   }
 

@@ -46,7 +46,8 @@ interface SyncEngine {
 
   /**
    * Erases the user's synced data on the server then this device, or this device only when signed
-   * out. Never deletes locally when the server erase did not succeed; suspends past a running cycle.
+   * out. Never deletes locally when the server erase did not succeed; suspends past a running
+   * cycle.
    */
   suspend fun eraseEverywhere(): EraseOutcome
 }

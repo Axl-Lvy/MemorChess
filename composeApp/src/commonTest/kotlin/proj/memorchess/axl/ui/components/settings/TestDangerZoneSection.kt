@@ -156,8 +156,7 @@ class TestDangerZoneSection : TestWithKoin() {
   @Test
   fun aShownErrorDisappearsWhenTheNextEraseStarts() = runTestFromSetup {
     val secondAnswer = CompletableDeferred<EraseOutcome>()
-    val engine =
-      ScriptedSyncEngine({ EraseOutcome.Failed }, { secondAnswer.await() })
+    val engine = ScriptedSyncEngine({ EraseOutcome.Failed }, { secondAnswer.await() })
     showSection(engine, StreakTracker(InMemoryDailyActivityStore()))
     confirmErase()
     onNodeWithTag("erase_error").assertIsDisplayed()

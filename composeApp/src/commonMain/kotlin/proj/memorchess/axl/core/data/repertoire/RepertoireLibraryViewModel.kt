@@ -123,8 +123,8 @@ class RepertoireLibraryViewModel(
   }
 
   /**
-   * Refetches the catalog from the network regardless of the cache age, and reloads [myRepertoires].
-   * Ignored while a load is already in flight.
+   * Refetches the catalog from the network regardless of the cache age, and reloads
+   * [myRepertoires]. Ignored while a load is already in flight.
    */
   fun forceRefresh() {
     if (startLoad(reloadManifest)) {
