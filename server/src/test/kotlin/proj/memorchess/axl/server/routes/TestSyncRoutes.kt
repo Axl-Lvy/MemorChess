@@ -27,6 +27,8 @@ import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.core.sync.SettingSyncRow
+import proj.memorchess.axl.core.sync.SyncEraseRequest
+import proj.memorchess.axl.core.sync.SyncEraseResponse
 import proj.memorchess.axl.core.sync.SyncPullResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.SyncPushResponse
@@ -400,6 +402,100 @@ class TestSyncRoutes {
       response.status shouldBe HttpStatusCode.Forbidden
       SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "quota_exceeded"
     }
+
+  private fun node(positionKey: String) =
+    NodeSyncRow(
+      positionKey = positionKey,
+      dueDate = serverNow,
+      lastReview = null,
+      firstReview = null,
+      stability = 1.5,
+      difficulty = 5.0,
+      reps = 0,
+      lapses = 0,
+      phase = "REVIEW",
+      step = 0,
+      isDeleted = false,
+      updatedAt = serverNow,
+      originDevice = DEVICE,
+      deviceSeq = 1,
+    )
+
+  private suspend fun HttpClient.erase(token: String?, body: String) =
+    post("/v1/me/erase") {
+      if (token != null) header(HttpHeaders.Authorization, "Bearer $token")
+      contentType(ContentType.Application.Json)
+      setBody(body)
+    }
+
+  private fun eraseBody(device: String, deviceSeq: Long = 1) =
+    SYNC_JSON.encodeToString(SyncEraseRequest(device, deviceSeq))
+
+  @Test
+  fun `erase requires authentication`() = withServer { client, _ ->
+    client.erase(null, eraseBody(DEVICE)).status shouldBe HttpStatusCode.Unauthorized
+  }
+
+  @Test
+  fun `erase refuses an empty device`() = withServer { client, token ->
+    val response = client.erase(token, eraseBody(""))
+
+    response.status shouldBe HttpStatusCode.BadRequest
+    SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+  }
+
+  @Test
+  fun `erase refuses a device that is not a canonical UUID`() = withServer { client, token ->
+    val response = client.erase(token, eraseBody("not-a-uuid"))
+
+    response.status shouldBe HttpStatusCode.BadRequest
+    SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+  }
+
+  @Test
+  fun `erase returns the highest revision and tombstones what the caller held`() =
+    withServer { client, token ->
+      client.post("/v1/sync") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        contentType(ContentType.Application.Json)
+        setBody(
+          SYNC_JSON.encodeToString(
+            SyncPushRequest(listOf(node("fen-1")), emptyList(), emptyList(), device = DEVICE)
+          )
+        )
+      }
+
+      val response = client.erase(token, eraseBody(DEVICE))
+
+      response.status shouldBe HttpStatusCode.OK
+      val erased = SYNC_JSON.decodeFromString<SyncEraseResponse>(response.bodyAsText())
+      erased.serverTime shouldBe serverNow
+      (erased.revision > 0) shouldBe true
+      val page = SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token).bodyAsText())
+      page.nodes shouldHaveSize 1
+      page.nodes.single().positionKey shouldBe "fen-1"
+      page.nodes.single().isDeleted shouldBe true
+    }
+
+  @Test
+  fun `erase from an unknown device is mapped like a push`() = withServer { client, token ->
+    val stranger = "66666666-6666-4666-8666-666666666666"
+    val pushed =
+      client.post("/v1/sync") {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        contentType(ContentType.Application.Json)
+        setBody(
+          SYNC_JSON.encodeToString(
+            SyncPushRequest(emptyList(), emptyList(), emptyList(), device = stranger)
+          )
+        )
+      }
+
+    val erased = client.erase(token, eraseBody(stranger))
+
+    erased.status shouldBe pushed.status
+    erased.status shouldBe HttpStatusCode.BadRequest
+  }
 
   private companion object {
     const val DEVICE = "55555555-5555-4555-8555-555555555555"

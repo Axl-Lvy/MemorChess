@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.sync
 
+import kotlin.time.Instant
 import kotlinx.serialization.Serializable
 
 /**
@@ -21,6 +22,22 @@ data class SyncDeviceRegisterRequest(val platform: String, val afterReset: Boole
  *   revision.
  */
 @Serializable data class SyncDeviceStatusResponse(val synced: Boolean)
+
+/**
+ * Asks the server to erase everything its user has synced, on behalf of one device.
+ *
+ * @property device Canonical UUID of the calling device, which must be registered under the caller.
+ * @property deviceSeq The caller's own sequence number at the moment of the erase.
+ */
+@Serializable data class SyncEraseRequest(val device: String, val deviceSeq: Long)
+
+/**
+ * Outcome of an erase.
+ *
+ * @property serverTime The server's clock at the moment of the erase.
+ * @property revision Highest revision assigned by the erase, or `0` when nothing was live.
+ */
+@Serializable data class SyncEraseResponse(val serverTime: Instant, val revision: Long)
 
 /**
  * Platforms a device can report.

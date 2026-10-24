@@ -19,6 +19,8 @@ import kotlin.uuid.Uuid
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
 import proj.memorchess.axl.core.sync.SyncDeviceStatusResponse
+import proj.memorchess.axl.core.sync.SyncEraseRequest
+import proj.memorchess.axl.core.sync.SyncEraseResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_READ
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_WRITE
@@ -104,6 +106,13 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
         }
       }
 
+      post("/v1/me/erase") {
+        val request = call.receive<SyncEraseRequest>()
+        val device = requireCanonicalUuid(request.device, "device")
+        val revision = store.erase(call.callerId, device, request.deviceSeq, clock())
+        call.respond(SyncEraseResponse(clock(), revision))
+      }
+
       delete("/v1/me") {
         store.deleteUser(call.callerId)
         call.respond(HttpStatusCode.NoContent)
@@ -119,10 +128,13 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
  * `sync_device` row that never pulls, holding that user's watermark down with no way to tell it
  * from a real install.
  */
-private fun ApplicationCall.deviceId(): String {
-  val raw = parameters["deviceId"].orEmpty()
+private fun ApplicationCall.deviceId(): String =
+  requireCanonicalUuid(parameters["deviceId"].orEmpty(), "deviceId")
+
+/** [raw] when it is a canonical UUID, otherwise a `400` naming [field]. */
+private fun requireCanonicalUuid(raw: String, field: String): String {
   if (Uuid.parseOrNull(raw) == null) {
-    throw BadRequestException("deviceId must be a canonical UUID, was '$raw'")
+    throw BadRequestException("$field must be a canonical UUID, was '$raw'")
   }
   return raw
 }
