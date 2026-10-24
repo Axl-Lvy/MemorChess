@@ -328,10 +328,16 @@ internal suspend fun runSyncCycle(
       true
     } ?: false
 
+  var quotaExceeded = false
   if (!resyncRequired) {
     pushOutbox(token, deviceId, database, apiClient)?.let {
-      if (it != CycleOutcome.ResyncRequired) return it
-      resyncRequired = true
+      when (it) {
+        CycleOutcome.ResyncRequired -> resyncRequired = true
+        // Still pulls: a pull never raises quota use, and it acknowledges tombstones (an erase's
+        // among them) that garbage collection cannot purge, nor free quota, until every device has.
+        CycleOutcome.QuotaExceeded -> quotaExceeded = true
+        else -> return it
+      }
     }
   }
 
@@ -345,7 +351,7 @@ internal suspend fun runSyncCycle(
   if (resyncRequired) {
     return resync(token, deviceId, database, applier, apiClient)
   }
-  return CycleOutcome.Success
+  return if (quotaExceeded) CycleOutcome.QuotaExceeded else CycleOutcome.Success
 }
 
 /**

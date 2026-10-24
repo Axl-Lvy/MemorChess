@@ -203,6 +203,49 @@ class TestSyncEngineCycle {
   }
 
   @Test
+  fun quotaExceededPushStillPullsAndAppliesTheServedRows() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    treeStore(database)
+      .addMove(
+        from = PositionKey("start"),
+        move = "e4",
+        to = PositionKey("after-e4"),
+        isGood = true,
+        fromDepth = 0,
+      )
+    var pullCalls = 0
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        "GET" -> {
+          pullCalls++
+          jsonResponse(if (pullCalls == 1) REMOTE_NODE_PAGE_BODY else emptyPullBody)
+        }
+        else ->
+          respond(
+            content = ByteReadChannel("""{"code":"quota_exceeded","message":"too many nodes"}"""),
+            status = HttpStatusCode.Forbidden,
+            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+          )
+      }
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        syncApplier(database),
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        DeviceIdentity.ephemeral(),
+      )
+
+    outcome shouldBe CycleOutcome.QuotaExceeded
+    pullCalls shouldBe 2
+    database.getPosition(PositionKey("a")).shouldNotBeNull()
+    database.getOutbox().shouldNotBeEmpty()
+  }
+
+  @Test
   fun rateLimitedPushIsTreatedAsTransient() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val store = treeStore(database)
@@ -535,5 +578,10 @@ class TestSyncEngineCycle {
 
     resetFlags shouldBe listOf(false, true)
     database.getPosition(PositionKey("after-e4")) shouldBe null
+  }
+
+  private companion object {
+    const val REMOTE_NODE_PAGE_BODY =
+      """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":7,"pageToken":"tok-page-1","nodes":[{"positionKey":"a","dueDate":"2026-01-01T00:00:00Z","lastReview":null,"firstReview":null,"stability":0.0,"difficulty":0.0,"reps":0,"lapses":0,"phase":"NEW","step":0,"isDeleted":false,"updatedAt":"2026-01-01T00:00:00Z","originDevice":"remote","deviceSeq":1}],"edges":[],"settings":[]}"""
   }
 }
