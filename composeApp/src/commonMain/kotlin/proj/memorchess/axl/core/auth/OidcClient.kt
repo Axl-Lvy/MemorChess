@@ -40,12 +40,16 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
       "&resource=${audience.encode()}" +
       "&state=${state.encode()}"
 
-  /** Exchanges [code] (received from the redirect URI) for a token set via PKCE. */
+  /**
+   * Exchanges [code] (received from the redirect URI) for a token set via PKCE, with an access
+   * token scoped to [audience].
+   */
   suspend fun exchangeCode(
     clientId: String,
     redirectUri: String,
     code: String,
     codeVerifier: String,
+    audience: String = SYNC_AUDIENCE,
   ): OidcTokenExchangeResult =
     tokenRequest(
       Parameters.build {
@@ -54,20 +58,26 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
         append("redirect_uri", redirectUri)
         append("client_id", clientId)
         append("code_verifier", codeVerifier)
+        append("resource", audience)
       }
     )
 
   /**
-   * Exchanges a stored refresh token for a new token set. The issuer rotates refresh tokens for
-   * public clients: the caller must persist the returned [OidcTokenExchangeResult.Ok.refreshToken],
-   * not reuse [refreshToken].
+   * Exchanges a stored refresh token for a new token set scoped to [audience], like [exchangeCode].
+   * The issuer rotates refresh tokens for public clients: the caller must persist the returned
+   * [OidcTokenExchangeResult.Ok.refreshToken], not reuse [refreshToken].
    */
-  suspend fun refresh(clientId: String, refreshToken: String): OidcTokenExchangeResult =
+  suspend fun refresh(
+    clientId: String,
+    refreshToken: String,
+    audience: String = SYNC_AUDIENCE,
+  ): OidcTokenExchangeResult =
     tokenRequest(
       Parameters.build {
         append("grant_type", "refresh_token")
         append("refresh_token", refreshToken)
         append("client_id", clientId)
+        append("resource", audience)
       }
     )
 

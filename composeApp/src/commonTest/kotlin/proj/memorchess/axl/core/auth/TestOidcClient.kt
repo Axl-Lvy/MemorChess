@@ -6,6 +6,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -44,6 +45,40 @@ class TestOidcClient {
     url shouldContain "scope=openid%20offline_access%20profile"
     url shouldContain "resource=https%3A%2F%2Fapi.example"
     url shouldContain "state=s"
+  }
+
+  @Test
+  fun exchangeRequestsTheAudienceAsResource() = runTest {
+    var body = ""
+    val engine = MockEngine { request ->
+      body = request.body.toByteArray().decodeToString()
+      respond(content = "", status = HttpStatusCode.BadRequest)
+    }
+    val client = OidcClient(jsonClient(engine), issuer = "https://issuer.example")
+
+    client.exchangeCode(
+      "client-1",
+      "app.memorchess://oauth",
+      "code123",
+      "verifier",
+      audience = "https://api.example",
+    )
+
+    body shouldContain "resource=https%3A%2F%2Fapi.example"
+  }
+
+  @Test
+  fun refreshRequestsTheAudienceAsResource() = runTest {
+    var body = ""
+    val engine = MockEngine { request ->
+      body = request.body.toByteArray().decodeToString()
+      respond(content = "", status = HttpStatusCode.BadRequest)
+    }
+    val client = OidcClient(jsonClient(engine), issuer = "https://issuer.example")
+
+    client.refresh("client-1", "ref-abc", audience = "https://api.example")
+
+    body shouldContain "resource=https%3A%2F%2Fapi.example"
   }
 
   @Test
