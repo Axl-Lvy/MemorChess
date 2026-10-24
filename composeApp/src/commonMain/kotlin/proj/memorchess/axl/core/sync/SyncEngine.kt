@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.DataMove
@@ -41,6 +43,12 @@ interface SyncEngine {
 
   /** User requested an immediate sync; runs a cycle immediately. */
   fun syncNow()
+
+  /**
+   * Erases the user's synced data on the server then this device, or this device only when signed
+   * out. Never deletes locally when the server erase did not succeed; suspends past a running cycle.
+   */
+  suspend fun eraseEverywhere(): EraseOutcome
 }
 
 /**
@@ -73,12 +81,14 @@ internal sealed class CycleOutcome {
  * @param jobStore Persists state across restarts.
  * @param scope Coroutine scope the driving loop runs on.
  * @param now Clock, injectable for tests.
+ * @param runErase The erase behind [eraseEverywhere]; never runs concurrently with [runCycle].
  * @param runCycle The actual push+pull cycle; internal so only this module wires it.
  */
 internal class DefaultSyncEngine(
   private val jobStore: SyncJobStore,
   private val scope: CoroutineScope,
   private val now: () -> Instant = { Clock.System.now() },
+  private val runErase: suspend () -> EraseOutcome = { EraseOutcome.Failed },
   private val runCycle: suspend () -> CycleOutcome,
 ) : SyncEngine {
 
@@ -88,6 +98,9 @@ internal class DefaultSyncEngine(
   private var burstStartedAt: Instant? = null
   private var timerJob: Job? = null
   private var pendingRetriggerDuringRun = false
+
+  // Held by a running cycle and by an erase, so an erase never interleaves with a pull or a push.
+  private val cycleMutex = Mutex()
 
   override fun start() {
     // A foreground hook can begin a cycle before this runs, because a resume effect fires during
@@ -144,6 +157,8 @@ internal class DefaultSyncEngine(
 
   override fun syncNow() = runNow()
 
+  override suspend fun eraseEverywhere(): EraseOutcome = cycleMutex.withLock { runErase() }
+
   private fun runNow() {
     timerJob?.cancel()
     launchCycle()
@@ -180,7 +195,7 @@ internal class DefaultSyncEngine(
     scope.launch {
       val outcome =
         try {
-          runCycle()
+          cycleMutex.withLock { runCycle() }
         } catch (e: Exception) {
           LOGGER.w(e) { "Sync cycle threw" }
           CycleOutcome.Transient
@@ -267,7 +282,11 @@ fun SyncEngine(
   deviceIdentity: DeviceIdentity,
   scope: CoroutineScope,
 ): SyncEngine =
-  DefaultSyncEngine(jobStore, scope) {
+  DefaultSyncEngine(
+    jobStore,
+    scope,
+    runErase = { runErase(authProvider, applier, apiClient, deviceIdentity) },
+  ) {
     runSyncCycle(authProvider, database, applier, apiClient, deviceIdentity)
   }
 

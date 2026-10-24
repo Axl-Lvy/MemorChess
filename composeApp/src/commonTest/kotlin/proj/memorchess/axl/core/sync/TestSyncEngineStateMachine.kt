@@ -5,10 +5,13 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.test_util.TestSettings
 
@@ -18,6 +21,7 @@ class TestSyncEngineStateMachine {
   private fun TestScope.engine(
     cycle: suspend () -> CycleOutcome = { CycleOutcome.Success },
     jobStore: SyncJobStore = SyncJobStore(TestSettings()),
+    erase: suspend () -> EraseOutcome = { EraseOutcome.Erased },
   ) =
     DefaultSyncEngine(
       jobStore = jobStore,
@@ -25,6 +29,7 @@ class TestSyncEngineStateMachine {
       // indefinitely in production too), so its job must not be one runTest waits to complete.
       scope = backgroundScope,
       now = { Instant.fromEpochMilliseconds(testScheduler.currentTime) },
+      runErase = erase,
       runCycle = cycle,
     )
 
@@ -463,5 +468,36 @@ class TestSyncEngineStateMachine {
     advanceTimeBy(30.seconds)
 
     peak shouldBe 1
+  }
+
+  @Test
+  fun eraseWaitsForTheRunningCycle() = runTest {
+    val events = mutableListOf<String>()
+    val cycleGate = CompletableDeferred<Unit>()
+    val e =
+      engine(
+        cycle = {
+          events += "cycle started"
+          cycleGate.await()
+          events += "cycle finished"
+          CycleOutcome.Success
+        },
+        erase = {
+          events += "erase"
+          EraseOutcome.Erased
+        },
+      )
+    e.start()
+    e.syncNow()
+    runCurrent()
+
+    val erase = launch { e.eraseEverywhere() }
+    runCurrent()
+    events shouldBe listOf("cycle started")
+
+    cycleGate.complete(Unit)
+    erase.join()
+
+    events shouldBe listOf("cycle started", "cycle finished", "erase")
   }
 }
