@@ -155,6 +155,7 @@ class TestRepertoireView : TestWithKoin() {
     installStates: Map<String, RepertoireInstallState> = emptyMap(),
     onInstall: (RepertoireDescriptor) -> Unit = {},
     onRetry: () -> Unit = {},
+    onRefresh: () -> Unit = {},
     onView: (RepertoireDescriptor) -> Unit = {},
   ) {
     setContent {
@@ -169,6 +170,7 @@ class TestRepertoireView : TestWithKoin() {
               onInstall = onInstall,
               onPreviewRequest = {},
               onRetry = onRetry,
+              onRefresh = onRefresh,
               onView = onView,
             ),
         )
@@ -302,6 +304,17 @@ class TestRepertoireView : TestWithKoin() {
     )
     onNodeWithText("RETRY").performClick()
     assertTrue(retried)
+  }
+
+  @Test
+  fun refreshButtonTriggersOnRefresh() = runLibraryTest {
+    var refreshed = false
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(emptyList(), isStale = false),
+      onRefresh = { refreshed = true },
+    )
+    onNodeWithTag("library_refresh_button").performClick()
+    assertTrue(refreshed)
   }
 
   @Test

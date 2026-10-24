@@ -5,10 +5,13 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.test_util.TestSettings
 
@@ -18,6 +21,7 @@ class TestSyncEngineStateMachine {
   private fun TestScope.engine(
     cycle: suspend () -> CycleOutcome = { CycleOutcome.Success },
     jobStore: SyncJobStore = SyncJobStore(TestSettings()),
+    erase: suspend () -> EraseOutcome = { EraseOutcome.Erased },
   ) =
     DefaultSyncEngine(
       jobStore = jobStore,
@@ -25,6 +29,7 @@ class TestSyncEngineStateMachine {
       // indefinitely in production too), so its job must not be one runTest waits to complete.
       scope = backgroundScope,
       now = { Instant.fromEpochMilliseconds(testScheduler.currentTime) },
+      runErase = erase,
       runCycle = cycle,
     )
 
@@ -463,5 +468,70 @@ class TestSyncEngineStateMachine {
     advanceTimeBy(30.seconds)
 
     peak shouldBe 1
+  }
+
+  @Test
+  fun eraseWaitsForTheRunningCycle() = runTest {
+    val events = mutableListOf<String>()
+    val cycleGate = CompletableDeferred<Unit>()
+    val e =
+      engine(
+        cycle = {
+          events += "cycle started"
+          cycleGate.await()
+          events += "cycle finished"
+          CycleOutcome.Success
+        },
+        erase = {
+          events += "erase"
+          EraseOutcome.Erased
+        },
+      )
+    e.start()
+    e.syncNow()
+    runCurrent()
+
+    val erase = launch { e.eraseEverywhere() }
+    runCurrent()
+    events shouldBe listOf("cycle started")
+
+    cycleGate.complete(Unit)
+    erase.join()
+    runCurrent()
+
+    // The second cycle is the one a successful erase runs to pull its own tombstones.
+    events shouldBe
+      listOf("cycle started", "cycle finished", "erase", "cycle started", "cycle finished")
+  }
+
+  @Test
+  fun aSuccessfulEraseRunsACycleRightAfter() = runTest {
+    cyclesAfterErase(EraseOutcome.Erased) shouldBe 1
+  }
+
+  @Test fun aFailedEraseRunsNoCycle() = runTest { cyclesAfterErase(EraseOutcome.Failed) shouldBe 0 }
+
+  @Test
+  fun anEraseThatNeedsSignInRunsNoCycle() = runTest {
+    cyclesAfterErase(EraseOutcome.SignInRequired) shouldBe 0
+  }
+
+  /** How many cycles an idle engine runs within a second of an erase ending in [outcome]. */
+  private suspend fun TestScope.cyclesAfterErase(outcome: EraseOutcome): Int {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        },
+        erase = { outcome },
+      )
+    e.start()
+
+    e.eraseEverywhere() shouldBe outcome
+    advanceTimeBy(1.seconds)
+
+    return cycles
   }
 }

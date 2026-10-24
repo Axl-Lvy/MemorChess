@@ -77,7 +77,16 @@ class SyncJobStore(private val settings: Settings) {
     settings.putInt(KEY_ATTEMPT, state.attempt)
   }
 
+  /**
+   * Whether this device wiped its synced data while signed out and has not yet told the server, so
+   * the next registration reports it as reset and the device downloads everything again.
+   */
+  var resetPending: Boolean
+    get() = settings.getBoolean(KEY_RESET_PENDING, false)
+    set(value) = settings.putBoolean(KEY_RESET_PENDING, value)
+
   private companion object {
+    const val KEY_RESET_PENDING = "sync.job.reset_pending"
     const val KEY_STATUS = "sync.job.status"
     const val KEY_NEXT_ATTEMPT_AT = "sync.job.next_attempt_at"
     const val KEY_ATTEMPT = "sync.job.attempt"

@@ -55,6 +55,7 @@ import compose.icons.FeatherIcons
 import compose.icons.feathericons.Copy
 import compose.icons.feathericons.Eye
 import compose.icons.feathericons.Plus
+import compose.icons.feathericons.RefreshCw
 import kotlinx.coroutines.CoroutineScope
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.library_badge_in_training
@@ -103,6 +104,7 @@ import memorchess.composeapp.generated.resources.library_publish_error_removed
 import memorchess.composeapp.generated.resources.library_publish_error_server
 import memorchess.composeapp.generated.resources.library_publish_error_signed_out
 import memorchess.composeapp.generated.resources.library_publish_error_too_large
+import memorchess.composeapp.generated.resources.library_refresh
 import memorchess.composeapp.generated.resources.library_reinstall
 import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.library_stale_hint
@@ -187,6 +189,7 @@ fun RepertoireLibrary(
     remember(catalog, client, installedStore, treeStore, tagStore, coroutineScope) {
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
+        reloadManifest = catalog::refresh,
         fetchPgn = client::fetchPgn,
         importGames = { descriptor, games, onProgress ->
           tagStore.register(descriptor.id, descriptor.name, descriptor.color)
@@ -220,6 +223,7 @@ fun RepertoireLibrary(
         onInstall = viewModel::install,
         onPreviewRequest = viewModel::requestPreview,
         onRetry = viewModel::refresh,
+        onRefresh = viewModel::forceRefresh,
         onView = { descriptor -> navigator.navigateTo(Route.RepertoireViewRoute(descriptor.id)) },
         onExplore = { id -> navigator.navigateTo(Route.ExploreRoute(repertoireId = id)) },
         onTrain = { id -> navigator.navigateTo(Route.TrainingRoute(repertoireId = id)) },
@@ -243,6 +247,7 @@ private fun RepertoireColor.toPlayer(): Player =
  * @property onInstall Install (or reinstall) the given repertoire into the opening graph.
  * @property onPreviewRequest Request the move-overlap preview for the given repertoire.
  * @property onRetry Retry loading the catalog after a failure.
+ * @property onRefresh Refetch the catalog from the network now, ignoring any cached copy.
  * @property onView Open the read-only viewer for the given repertoire.
  * @property onExplore Open the Explore page scoped to the given registered repertoire.
  * @property onTrain Open the Training page scoped to the given registered repertoire.
@@ -253,6 +258,7 @@ internal data class RepertoireLibraryActions(
   val onInstall: (RepertoireDescriptor) -> Unit,
   val onPreviewRequest: (RepertoireDescriptor) -> Unit,
   val onRetry: () -> Unit,
+  val onRefresh: () -> Unit = {},
   val onView: (RepertoireDescriptor) -> Unit = {},
   val onExplore: (repertoireId: String) -> Unit = {},
   val onTrain: (repertoireId: String) -> Unit = {},
@@ -281,10 +287,26 @@ internal fun RepertoireLibraryContent(
   // through this holder to reflect the Loading -> Ready transition while the dialog stays open.
   val latestPreviewStates = rememberUpdatedState(previewStates)
   Column(modifier = modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    Text(
-      text = stringResource(Res.string.library_title),
-      style = typography.labelSm.copy(color = palette.actionText),
-    )
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Text(
+        text = stringResource(Res.string.library_title),
+        style = typography.labelSm.copy(color = palette.actionText),
+      )
+      KineticButton(
+        onClick = actions.onRefresh,
+        iconOnly = true,
+        modifier = Modifier.testTag("library_refresh_button"),
+      ) {
+        Icon(
+          imageVector = FeatherIcons.RefreshCw,
+          contentDescription = stringResource(Res.string.library_refresh),
+        )
+      }
+    }
     Text(
       text = stringResource(Res.string.library_subtitle),
       style = typography.bodySm.copy(color = palette.ink3),

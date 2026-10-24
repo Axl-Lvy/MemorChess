@@ -40,7 +40,21 @@ class CachedRepertoireCatalog(
     if (cached != null && DateUtil.now() - cached.fetchedAt <= ttl) {
       return CachedManifestResult.Fresh(cached.manifest)
     }
-    return when (val result = client.fetchManifest()) {
+    return fetchAndCache(cached, bypassCache = false)
+  }
+
+  /**
+   * Fetches the manifest from the network now, whatever the age of the cache and bypassing HTTP
+   * caches, so a repertoire published moments ago shows up. Falls back to the cached manifest as
+   * [CachedManifestResult.Stale] when the fetch fails.
+   */
+  suspend fun refresh(): CachedManifestResult = fetchAndCache(readCache(), bypassCache = true)
+
+  private suspend fun fetchAndCache(
+    cached: CachedManifestEntry?,
+    bypassCache: Boolean,
+  ): CachedManifestResult {
+    return when (val result = client.fetchManifest(bypassCache)) {
       is CatalogResult.Ok -> {
         writeCache(result.value)
         CachedManifestResult.Fresh(result.value)

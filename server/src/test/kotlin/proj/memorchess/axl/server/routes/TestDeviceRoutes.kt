@@ -105,6 +105,17 @@ class TestDeviceRoutes {
   }
 
   @Test
+  fun `the nil uuid reserved for erase tombstones is refused as a device id`() =
+    withServer { client, token, user ->
+      val response = client.register(token, deviceId = "00000000-0000-0000-0000-000000000000")
+
+      response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
+        ApiErrorCode.BAD_REQUEST
+      store.listDevicesForTest(user).isEmpty() shouldBe true
+    }
+
+  @Test
   fun `a platform this build has never heard of is refused`() = withServer { client, token, user ->
     val response =
       client.put("/v1/me/devices/$DEVICE") {

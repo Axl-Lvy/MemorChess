@@ -143,4 +143,33 @@ class TestCachedRepertoireCatalog : TestWithKoin() {
     result.shouldBeInstanceOf<CachedManifestResult.Fresh>()
     networkCalls shouldBe 1
   }
+
+  @Test
+  fun refreshFetchesEvenWhenTheCacheIsFresh() = test {
+    seedCache(
+      """{"schemaVersion": 1, "repertoires": []}""",
+      DateUtil.now(),
+    )
+    var networkCalls = 0
+    val catalog = CachedRepertoireCatalog(countingClient(onCall = { networkCalls++ }), ttl = 1.days)
+
+    val result = catalog.refresh()
+
+    result.shouldBeInstanceOf<CachedManifestResult.Fresh>()
+    result.manifest.repertoires.single().id shouldBe "london-system-white"
+    networkCalls shouldBe 1
+    REPERTOIRE_MANIFEST_CACHE_SETTING.getValue() shouldContain "london-system-white"
+  }
+
+  @Test
+  fun refreshFallsBackToTheCachedManifestAsStale() = test {
+    seedCache(manifestJson, DateUtil.now())
+    val catalog =
+      CachedRepertoireCatalog(countingClient(status = HttpStatusCode.ServiceUnavailable))
+
+    val result = catalog.refresh()
+
+    result.shouldBeInstanceOf<CachedManifestResult.Stale>()
+    result.manifest.repertoires.single().moveCount shouldBe 73
+  }
 }

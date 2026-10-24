@@ -33,6 +33,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * frame is still coalesced.
  *
  * @param loadManifest Returns the catalog manifest, normally through the persisted cache.
+ * @param reloadManifest Returns the catalog manifest fetched from the network now, used by
+ *   [forceRefresh]; production wiring binds [CachedRepertoireCatalog.refresh].
  * @param fetchPgn Downloads and parses the PGN file at the given catalog relative path, reporting
  *   download progress (`0f`..`1f`) through its second parameter as
  *   [RepertoireInstallState.Fetching] is updated. May never call it at all, see
@@ -56,6 +58,7 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  */
 class RepertoireLibraryViewModel(
   private val loadManifest: suspend () -> CachedManifestResult,
+  private val reloadManifest: suspend () -> CachedManifestResult = loadManifest,
   private val fetchPgn:
     suspend (file: String, onProgress: (Float) -> Unit) -> CatalogResult<List<PgnGame>>,
   private val importGames:
@@ -116,18 +119,34 @@ class RepertoireLibraryViewModel(
 
   /** Reloads the catalog manifest. Ignored while a load is already in flight. */
   fun refresh() {
+    startLoad(loadManifest)
+  }
+
+  /**
+   * Refetches the catalog from the network regardless of the cache age, and reloads
+   * [myRepertoires]. Ignored while a load is already in flight.
+   */
+  fun forceRefresh() {
+    if (startLoad(reloadManifest)) {
+      refreshMyRepertoires()
+    }
+  }
+
+  /** Returns `false` without doing anything when a load is already in flight. */
+  private fun startLoad(load: suspend () -> CachedManifestResult): Boolean {
     if (loadInFlight) {
-      return
+      return false
     }
     loadInFlight = true
     internalCatalogState.value = LibraryCatalogState.Loading
     scope.launch {
       try {
-        runLoad()
+        runLoad(load)
       } finally {
         loadInFlight = false
       }
     }
+    return true
   }
 
   /**
@@ -164,9 +183,9 @@ class RepertoireLibraryViewModel(
     scope.launch { runPreview(descriptor) }
   }
 
-  private suspend fun runLoad() {
+  private suspend fun runLoad(load: suspend () -> CachedManifestResult) {
     internalCatalogState.value =
-      when (val result = loadManifest()) {
+      when (val result = load()) {
         is CachedManifestResult.Fresh -> loaded(result.manifest, isStale = false)
         is CachedManifestResult.Stale -> loaded(result.manifest, isStale = true)
         is CachedManifestResult.NetworkError -> LibraryCatalogState.NetworkError(result.message)

@@ -161,3 +161,14 @@ CREATE TABLE IF NOT EXISTS sync_gc_floor (
   user_id text PRIMARY KEY,
   floor_revision bigint NOT NULL
 );
+
+-- A user's last erase. A row stamped before erased_at is stale and must not resurrect what the
+-- erase removed, unless its pusher has acked erased_revision (it pulled the erase) or erased_by
+-- wrote it after erasing (device_seq above erase_device_seq).
+CREATE TABLE IF NOT EXISTS sync_erase_cutoff (
+  user_id text PRIMARY KEY,
+  erased_at timestamptz NOT NULL,
+  erased_revision bigint NOT NULL,
+  erased_by text NOT NULL,
+  erase_device_seq bigint NOT NULL
+);

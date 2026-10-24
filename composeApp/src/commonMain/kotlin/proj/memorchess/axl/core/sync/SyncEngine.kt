@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.DataMove
@@ -41,6 +43,13 @@ interface SyncEngine {
 
   /** User requested an immediate sync; runs a cycle immediately. */
   fun syncNow()
+
+  /**
+   * Erases the user's synced data on the server then this device, or this device only when signed
+   * out, then runs a cycle when it succeeded. Never deletes locally when the server erase did not
+   * succeed; suspends past a running cycle.
+   */
+  suspend fun eraseEverywhere(): EraseOutcome
 }
 
 /**
@@ -73,12 +82,14 @@ internal sealed class CycleOutcome {
  * @param jobStore Persists state across restarts.
  * @param scope Coroutine scope the driving loop runs on.
  * @param now Clock, injectable for tests.
+ * @param runErase The erase behind [eraseEverywhere]; never runs concurrently with [runCycle].
  * @param runCycle The actual push+pull cycle; internal so only this module wires it.
  */
 internal class DefaultSyncEngine(
   private val jobStore: SyncJobStore,
   private val scope: CoroutineScope,
   private val now: () -> Instant = { Clock.System.now() },
+  private val runErase: suspend () -> EraseOutcome = { EraseOutcome.Failed },
   private val runCycle: suspend () -> CycleOutcome,
 ) : SyncEngine {
 
@@ -88,6 +99,9 @@ internal class DefaultSyncEngine(
   private var burstStartedAt: Instant? = null
   private var timerJob: Job? = null
   private var pendingRetriggerDuringRun = false
+
+  // Held by a running cycle and by an erase, so an erase never interleaves with a pull or a push.
+  private val cycleMutex = Mutex()
 
   override fun start() {
     // A foreground hook can begin a cycle before this runs, because a resume effect fires during
@@ -144,6 +158,14 @@ internal class DefaultSyncEngine(
 
   override fun syncNow() = runNow()
 
+  override suspend fun eraseEverywhere(): EraseOutcome {
+    val outcome = cycleMutex.withLock { runErase() }
+    // Pulls the erase's own tombstones right away: garbage collection purges them, and frees the
+    // quota they hold, only once every device has acknowledged them, this one included.
+    if (outcome == EraseOutcome.Erased) syncNow()
+    return outcome
+  }
+
   private fun runNow() {
     timerJob?.cancel()
     launchCycle()
@@ -180,7 +202,7 @@ internal class DefaultSyncEngine(
     scope.launch {
       val outcome =
         try {
-          runCycle()
+          cycleMutex.withLock { runCycle() }
         } catch (e: Exception) {
           LOGGER.w(e) { "Sync cycle threw" }
           CycleOutcome.Transient
@@ -267,8 +289,12 @@ fun SyncEngine(
   deviceIdentity: DeviceIdentity,
   scope: CoroutineScope,
 ): SyncEngine =
-  DefaultSyncEngine(jobStore, scope) {
-    runSyncCycle(authProvider, database, applier, apiClient, deviceIdentity)
+  DefaultSyncEngine(
+    jobStore,
+    scope,
+    runErase = { runErase(authProvider, applier, apiClient, deviceIdentity, jobStore) },
+  ) {
+    runSyncCycle(authProvider, database, applier, apiClient, deviceIdentity, jobStore)
   }
 
 /**
@@ -292,6 +318,7 @@ internal suspend fun runSyncCycle(
   applier: SyncApplier,
   apiClient: SyncApiClient,
   deviceIdentity: DeviceIdentity,
+  jobStore: SyncJobStore,
 ): CycleOutcome {
   val token =
     when (val result = authProvider.accessToken()) {
@@ -303,15 +330,21 @@ internal suspend fun runSyncCycle(
 
   val deviceId = deviceIdentity.originDevice
   var resyncRequired =
-    registerDevice(token, deviceId, apiClient)?.let {
+    registerDevice(token, deviceId, apiClient, jobStore)?.let {
       if (it != CycleOutcome.ResyncRequired) return it
       true
     } ?: false
 
+  var quotaExceeded = false
   if (!resyncRequired) {
     pushOutbox(token, deviceId, database, apiClient)?.let {
-      if (it != CycleOutcome.ResyncRequired) return it
-      resyncRequired = true
+      when (it) {
+        CycleOutcome.ResyncRequired -> resyncRequired = true
+        // Still pulls: a pull never raises quota use, and it acknowledges tombstones (an erase's
+        // among them) that garbage collection cannot purge, nor free quota, until every device has.
+        CycleOutcome.QuotaExceeded -> quotaExceeded = true
+        else -> return it
+      }
     }
   }
 
@@ -325,11 +358,12 @@ internal suspend fun runSyncCycle(
   if (resyncRequired) {
     return resync(token, deviceId, database, applier, apiClient)
   }
-  return CycleOutcome.Success
+  return if (quotaExceeded) CycleOutcome.QuotaExceeded else CycleOutcome.Success
 }
 
 /**
- * Registers this device, which gates both push and pull.
+ * Registers this device, which gates both push and pull, reporting it as reset when
+ * [SyncJobStore.resetPending] is set and clearing that once the server accepted it.
  *
  * `null` on success, a [CycleOutcome] to stop the cycle otherwise.
  */
@@ -337,9 +371,16 @@ private suspend fun registerDevice(
   token: String,
   deviceId: String,
   apiClient: SyncApiClient,
-): CycleOutcome? =
-  when (val outcome = apiClient.registerDevice(token, deviceId, currentPlatform(), false)) {
-    SyncRegisterOutcome.Ok -> null
+  jobStore: SyncJobStore,
+): CycleOutcome? {
+  val afterReset = jobStore.resetPending
+  return when (
+    val outcome = apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset)
+  ) {
+    SyncRegisterOutcome.Ok -> {
+      if (afterReset) jobStore.resetPending = false
+      null
+    }
     SyncRegisterOutcome.Unauthorized -> CycleOutcome.Transient
     SyncRegisterOutcome.RateLimited -> CycleOutcome.Transient
     SyncRegisterOutcome.ResyncRequired -> CycleOutcome.ResyncRequired
@@ -348,6 +389,7 @@ private suspend fun registerDevice(
       CycleOutcome.Transient
     }
   }
+}
 
 /**
  * Throws away everything this device holds from sync and starts it over at nothing seen.

@@ -7,11 +7,13 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
+import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 
 class TestSyncApiClient {
@@ -233,6 +235,83 @@ class TestSyncApiClient {
     ack shouldBe "tok-1"
   }
 
+  @Test
+  fun eraseSendsTheDeviceAndSeq() = runTest {
+    var method: HttpMethod? = null
+    var path = ""
+    var authorization: String? = null
+    var body = ""
+    val engine = MockEngine { request ->
+      method = request.method
+      path = request.url.encodedPath
+      authorization = request.headers[HttpHeaders.Authorization]
+      body = (request.body as io.ktor.http.content.TextContent).text
+      respond(
+        content = ByteReadChannel(ERASE_OK_BODY),
+        status = HttpStatusCode.OK,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    client(engine).erase("tok", DEVICE, deviceSeq = 7L)
+
+    method shouldBe HttpMethod.Post
+    path shouldBe "/v1/me/erase"
+    authorization shouldBe "Bearer tok"
+    SYNC_JSON.decodeFromString<SyncEraseRequest>(body) shouldBe SyncEraseRequest(DEVICE, 7L)
+  }
+
+  @Test
+  fun eraseOkDecodesTheResponse() = runTest {
+    val engine = MockEngine { _ ->
+      respond(
+        content = ByteReadChannel(ERASE_OK_BODY),
+        status = HttpStatusCode.OK,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    val result = client(engine).erase("tok", DEVICE, deviceSeq = 7L)
+
+    result shouldBe
+      SyncEraseOutcome.Ok(SyncEraseResponse(Instant.parse("2026-01-01T00:00:00Z"), revision = 9L))
+  }
+
+  @Test
+  fun erase401IsUnauthorized() = runTest {
+    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
+
+    client(engine).erase("tok", DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.Unauthorized
+  }
+
+  @Test
+  fun erase429IsRateLimited() = runTest {
+    val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+
+    client(engine).erase("tok", DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.RateLimited
+  }
+
+  @Test
+  fun erase410WithResyncBodyIsResyncRequired() = runTest {
+    client(gone()).erase("tok", DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.ResyncRequired
+  }
+
+  @Test
+  fun erase500IsError() = runTest {
+    val engine = MockEngine { _ ->
+      respond(content = "", status = HttpStatusCode.InternalServerError)
+    }
+
+    client(engine).erase("tok", DEVICE, deviceSeq = 7L).shouldBeInstanceOf<SyncEraseOutcome.Error>()
+  }
+
+  @Test
+  fun eraseThatThrowsIsError() = runTest {
+    val engine = MockEngine { _ -> throw IllegalStateException("boom") }
+
+    client(engine).erase("tok", DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.Error("boom")
+  }
+
   private fun gone() = MockEngine {
     respond(
       content = ByteReadChannel("""{"code":"resync_required","message":"start over"}"""),
@@ -243,5 +322,6 @@ class TestSyncApiClient {
 
   private companion object {
     const val DEVICE = "11111111-1111-4111-8111-111111111111"
+    const val ERASE_OK_BODY = """{"serverTime":"2026-01-01T00:00:00Z","revision":9}"""
   }
 }

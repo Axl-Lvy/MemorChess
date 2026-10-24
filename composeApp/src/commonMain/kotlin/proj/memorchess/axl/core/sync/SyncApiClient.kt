@@ -135,6 +135,37 @@ class SyncApiClient(
     }
   }
 
+  /**
+   * Erases every synced row of the caller on the server.
+   *
+   * @param deviceSeq The sequence number the erase is stamped with, from the same counter as the
+   *   pushed rows.
+   */
+  suspend fun erase(accessToken: String, deviceId: String, deviceSeq: Long): SyncEraseOutcome {
+    return try {
+      val response: HttpResponse =
+        httpClient.post("$baseUrl/me/erase") {
+          bearerAuth(accessToken)
+          contentType(ContentType.Application.Json)
+          setBody(SyncEraseRequest(deviceId, deviceSeq))
+        }
+      when {
+        response.status.isSuccess() -> SyncEraseOutcome.Ok(response.body())
+        response.status == HttpStatusCode.Unauthorized -> SyncEraseOutcome.Unauthorized
+        response.status == HttpStatusCode.TooManyRequests -> SyncEraseOutcome.RateLimited
+        response.status == HttpStatusCode.Gone && response.namesResyncRequired() ->
+          SyncEraseOutcome.ResyncRequired
+        else -> {
+          LOGGER.w { "Erase failed with ${response.status}" }
+          SyncEraseOutcome.Error("HTTP ${response.status.value}")
+        }
+      }
+    } catch (e: Exception) {
+      LOGGER.w(e) { "Erase threw" }
+      SyncEraseOutcome.Error(e.message ?: "Erase failed")
+    }
+  }
+
   companion object {
     /** Deliberately unresolvable; see the class doc. */
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1"
@@ -220,6 +251,21 @@ sealed class SyncPushOutcome {
   data object ResyncRequired : SyncPushOutcome()
 
   data class Error(val message: String) : SyncPushOutcome()
+}
+
+/** Outcome of [SyncApiClient.erase]. */
+sealed class SyncEraseOutcome {
+  data class Ok(val response: SyncEraseResponse) : SyncEraseOutcome()
+
+  data object Unauthorized : SyncEraseOutcome()
+
+  /** The caller exceeded its request budget. Transient: the caller's own backoff will clear it. */
+  data object RateLimited : SyncEraseOutcome()
+
+  /** See [SyncRegisterOutcome.ResyncRequired]. */
+  data object ResyncRequired : SyncEraseOutcome()
+
+  data class Error(val message: String) : SyncEraseOutcome()
 }
 
 private val LOGGER = Logger.withTag("SyncApiClient")

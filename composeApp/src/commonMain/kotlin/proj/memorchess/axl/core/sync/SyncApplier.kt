@@ -102,9 +102,7 @@ class SyncApplier(
     return resolution.source
   }
 
-  /**
-   * Hard wipes every position and move, both in the cache and on disk. Leaves the outbox untouched.
-   */
+  /** Hard wipes every synced row, in the cache and on disk, and the outbox with them. */
   suspend fun eraseAll() {
     database.eraseAll()
     cache.clear()

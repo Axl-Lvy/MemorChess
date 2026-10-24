@@ -19,6 +19,8 @@ import kotlin.uuid.Uuid
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
 import proj.memorchess.axl.core.sync.SyncDeviceStatusResponse
+import proj.memorchess.axl.core.sync.SyncEraseRequest
+import proj.memorchess.axl.core.sync.SyncEraseResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_READ
 import proj.memorchess.axl.server.RATE_LIMIT_SYNC_WRITE
@@ -45,7 +47,8 @@ private const val DEFAULT_PULL_LIMIT: Int = MAX_PULL_LIMIT
 internal const val MAX_PUSH_ROWS: Int = 2_000
 
 /**
- * Mounts the authenticated sync surface: `/v1/sync` in both directions and account deletion.
+ * Mounts the authenticated sync surface: `/v1/sync` in both directions, the erase, and account
+ * deletion.
  *
  * @param clock Source of server time, so the clock skew boundary is testable.
  */
@@ -104,12 +107,25 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
         }
       }
 
+      post("/v1/me/erase") { erase(store, clock()) }
+
       delete("/v1/me") {
         store.deleteUser(call.callerId)
         call.respond(HttpStatusCode.NoContent)
       }
     }
   }
+}
+
+/** Erases the caller's synced data as of [serverNow] and answers with the highest revision. */
+private suspend fun RoutingContext.erase(store: SyncStore, serverNow: Instant) {
+  val request = call.receive<SyncEraseRequest>()
+  val device = requireCanonicalUuid(request.device, "device")
+  if (request.deviceSeq < 1) {
+    throw BadRequestException("deviceSeq must be at least 1, was ${request.deviceSeq}")
+  }
+  val revision = store.erase(call.callerId, device, request.deviceSeq, serverNow)
+  call.respond(SyncEraseResponse(serverNow, revision))
 }
 
 /**
@@ -119,10 +135,19 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
  * `sync_device` row that never pulls, holding that user's watermark down with no way to tell it
  * from a real install.
  */
-private fun ApplicationCall.deviceId(): String {
-  val raw = parameters["deviceId"].orEmpty()
-  if (Uuid.parseOrNull(raw) == null) {
-    throw BadRequestException("deviceId must be a canonical UUID, was '$raw'")
+private fun ApplicationCall.deviceId(): String =
+  requireCanonicalUuid(parameters["deviceId"].orEmpty(), "deviceId")
+
+/**
+ * [raw] when it is a canonical UUID other than the nil one, otherwise a `400` naming [field]. The
+ * nil UUID is the origin the server stamps on erase tombstones, so no device may claim it.
+ */
+private fun requireCanonicalUuid(raw: String, field: String): String {
+  val uuid =
+    Uuid.parseOrNull(raw)
+      ?: throw BadRequestException("$field must be a canonical UUID, was '$raw'")
+  if (uuid == Uuid.NIL) {
+    throw BadRequestException("$field must not be the nil UUID, which is reserved")
   }
   return raw
 }
