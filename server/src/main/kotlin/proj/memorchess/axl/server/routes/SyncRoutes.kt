@@ -109,6 +109,9 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
       post("/v1/me/erase") {
         val request = call.receive<SyncEraseRequest>()
         val device = requireCanonicalUuid(request.device, "device")
+        if (request.deviceSeq < 1) {
+          throw BadRequestException("deviceSeq must be at least 1, was ${request.deviceSeq}")
+        }
         val revision = store.erase(call.callerId, device, request.deviceSeq, clock())
         call.respond(SyncEraseResponse(clock(), revision))
       }
@@ -131,10 +134,15 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
 private fun ApplicationCall.deviceId(): String =
   requireCanonicalUuid(parameters["deviceId"].orEmpty(), "deviceId")
 
-/** [raw] when it is a canonical UUID, otherwise a `400` naming [field]. */
+/**
+ * [raw] when it is a canonical UUID other than the nil one, otherwise a `400` naming [field]. The
+ * nil UUID is the origin the server stamps on erase tombstones, so no device may claim it.
+ */
 private fun requireCanonicalUuid(raw: String, field: String): String {
-  if (Uuid.parseOrNull(raw) == null) {
-    throw BadRequestException("$field must be a canonical UUID, was '$raw'")
+  val uuid =
+    Uuid.parseOrNull(raw) ?: throw BadRequestException("$field must be a canonical UUID, was '$raw'")
+  if (uuid == Uuid.NIL) {
+    throw BadRequestException("$field must not be the nil UUID, which is reserved")
   }
   return raw
 }

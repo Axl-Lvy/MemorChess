@@ -80,6 +80,7 @@ class TestSyncRoutes {
   /** Runs [block] against the real module, real store and real Postgres, as one caller. */
   private fun withServer(
     store: SyncStore = SyncStore(PostgresTestDb.dataSource()),
+    devices: List<String> = listOf(DEVICE),
     block: suspend (HttpClient, String) -> Unit,
   ) = testApplication {
     val user = PostgresTestDb.newUserId()
@@ -95,7 +96,9 @@ class TestSyncRoutes {
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
     // Registration gates pulling, and its own route arrives with the device endpoints. Until then
     // the store is primed directly, which is what a real client does over HTTP.
-    store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
+    for (device in devices) {
+      store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, serverNow)
+    }
     block(client, key.token(subject = user))
   }
 
@@ -453,6 +456,25 @@ class TestSyncRoutes {
   }
 
   @Test
+  fun `erase refuses a deviceSeq below one`() = withServer { client, token ->
+    for (deviceSeq in listOf(0L, -1L)) {
+      val response = client.erase(token, eraseBody(DEVICE, deviceSeq))
+
+      response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+    }
+  }
+
+  @Test
+  fun `erase refuses the nil UUID reserved for erase tombstones`() =
+    withServer(devices = listOf(DEVICE, NIL_UUID)) { client, token ->
+      val response = client.erase(token, eraseBody(NIL_UUID))
+
+      response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+    }
+
+  @Test
   fun `erase returns the highest revision and tombstones what the caller held`() =
     withServer { client, token ->
       client.post("/v1/sync") {
@@ -499,5 +521,6 @@ class TestSyncRoutes {
 
   private companion object {
     const val DEVICE = "55555555-5555-4555-8555-555555555555"
+    const val NIL_UUID = "00000000-0000-0000-0000-000000000000"
   }
 }
