@@ -86,8 +86,10 @@
   <string name="settings_reset_button">RÉINITIALISER</string>
   <string name="settings_reset_confirm">Voulez-vous vraiment réinitialiser tous les réglages ?</string>
   <string name="settings_erase_title">Effacer toutes les données</string>
-  <string name="settings_erase_description">Supprime chaque position et chaque historique d'entraînement. Action irréversible.</string>
+  <string name="settings_erase_description">Supprime chaque position et chaque historique d'entraînement, sur cet appareil et sur tous les appareils connectés à votre compte de synchronisation. Action irréversible.</string>
   <string name="settings_erase_button">EFFACER</string>
+  <string name="settings_erase_failed">Impossible d'effacer vos données. Rien n'a été supprimé. Vérifiez votre connexion et réessayez.</string>
+  <string name="settings_erase_sign_in_required">Votre session de synchronisation a expiré. Reconnectez-vous, puis effacez.</string>
   <string name="settings_erase_confirm">Voulez-vous vraiment effacer toutes les données ?</string>
 
   <!-- Lichess account -->

@@ -86,8 +86,10 @@
   <string name="settings_reset_button">RESET</string>
   <string name="settings_reset_confirm">Are you sure you want to reset all settings?</string>
   <string name="settings_erase_title">Erase all data</string>
-  <string name="settings_erase_description">Wipes every position and every training record. Cannot be undone.</string>
+  <string name="settings_erase_description">Wipes every position and every training record, on this device and on every device signed in to your sync account. Cannot be undone.</string>
   <string name="settings_erase_button">ERASE</string>
+  <string name="settings_erase_failed">Could not erase your data. Nothing was deleted. Check your connection and try again.</string>
+  <string name="settings_erase_sign_in_required">Your sync session expired. Sign in again, then erase.</string>
   <string name="settings_erase_confirm">Are you sure you want to erase all data?</string>
 
   <!-- Lichess account -->
