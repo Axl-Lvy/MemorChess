@@ -27,6 +27,7 @@ import proj.memorchess.axl.core.auth.Account
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.SignInResult
 import proj.memorchess.axl.core.auth.TokenResult
+import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
@@ -43,6 +44,12 @@ private class FixedTokenAuthProvider(private val result: TokenResult) : AuthProv
   override fun signOut() = error("not used")
 
   override suspend fun accessToken(): TokenResult = result
+}
+
+/** A database whose local wipe always fails. */
+private class EraseFailingDatabase(delegate: DatabaseQueryManager) :
+  DatabaseQueryManager by delegate {
+  override suspend fun eraseAll() = error("disk full")
 }
 
 class TestSyncErase {
@@ -208,9 +215,10 @@ class TestSyncErase {
   }
 
   @Test
-  fun aResyncRequiredRegisterIsRetriedAfterReset() = runTest {
+  fun aResyncRequiredRegisterFailsWithoutTouchingLocalData() = runTest {
     val database = InMemoryDatabaseQueryManager()
     seed(database)
+    val outboxBefore = database.getOutbox()
     val resetFlags = mutableListOf<Boolean>()
     var eraseRequests = 0
     val engine = MockEngine { request ->
@@ -218,25 +226,53 @@ class TestSyncErase {
         eraseRequests++
         jsonResponse(ERASE_OK_BODY)
       } else {
-        val reported = request.textBody().contains(""""afterReset":true""")
-        resetFlags += reported
-        if (reported) {
-          noContent()
-        } else {
-          jsonResponse(
-            """{"code":"resync_required","message":"start over"}""",
-            HttpStatusCode.Gone,
-          )
-        }
+        resetFlags += request.textBody().contains(""""afterReset":true""")
+        jsonResponse(RESYNC_REQUIRED_BODY, HttpStatusCode.Gone)
       }
     }
 
     val outcome = erase(database, TokenResult.Ok("tok"), engine)
 
+    outcome shouldBe EraseOutcome.Failed
+    resetFlags shouldBe listOf(false)
+    eraseRequests shouldBe 0
+    database.shouldBeIntact()
+    database.getOutbox() shouldBe outboxBefore
+  }
+
+  @Test
+  fun aResyncRequiredEraseDeletesNothing() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    seed(database)
+    val outboxBefore = database.getOutbox()
+    val engine = MockEngine { request ->
+      if (request.isErase()) jsonResponse(RESYNC_REQUIRED_BODY, HttpStatusCode.Gone)
+      else noContent()
+    }
+
+    val outcome = erase(database, TokenResult.Ok("tok"), engine)
+
+    outcome shouldBe EraseOutcome.Failed
+    database.shouldBeIntact()
+    database.getOutbox() shouldBe outboxBefore
+  }
+
+  @Test
+  fun aLocalWipeFailureAfterTheServerEraseStillReportsErased() = runTest {
+    val database = EraseFailingDatabase(InMemoryDatabaseQueryManager())
+    val engine = MockEngine { request ->
+      if (request.isErase()) jsonResponse(ERASE_OK_BODY) else noContent()
+    }
+
+    val outcome =
+      runErase(
+        authProvider = FixedTokenAuthProvider(TokenResult.Ok("tok")),
+        applier = testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined)),
+        apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        deviceIdentity = DeviceIdentity.ephemeral(),
+      )
+
     outcome shouldBe EraseOutcome.Erased
-    resetFlags shouldBe listOf(false, true)
-    eraseRequests shouldBe 1
-    database.shouldBeWiped()
   }
 
   @Test
@@ -267,5 +303,6 @@ class TestSyncErase {
 
   private companion object {
     const val ERASE_OK_BODY = """{"serverTime":"2026-01-01T00:00:00Z","revision":9}"""
+    const val RESYNC_REQUIRED_BODY = """{"code":"resync_required","message":"start over"}"""
   }
 }

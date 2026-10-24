@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.sync
 
 import co.touchlab.kermit.Logger
+import kotlin.coroutines.cancellation.CancellationException
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.TokenResult
 
@@ -38,36 +39,28 @@ internal suspend fun runErase(
     }
 
   val deviceId = deviceIdentity.originDevice
-  if (!registerForErase(token, deviceId, apiClient)) return EraseOutcome.Failed
-
-  return when (val outcome = apiClient.erase(token, deviceId, deviceIdentity.nextDeviceSeq())) {
-    is SyncEraseOutcome.Ok -> {
-      applier.eraseAll()
-      EraseOutcome.Erased
-    }
-    else -> {
-      LOGGER.w { "Erase refused: $outcome" }
-      EraseOutcome.Failed
-    }
+  // A device asked to resync is refused rather than reported as reset: the erase may still fail,
+  // and the server would then believe a device with live rows had wiped. The next cycle resyncs it.
+  val registered = apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset = false)
+  if (registered != SyncRegisterOutcome.Ok) {
+    LOGGER.w { "Register before erase failed: $registered" }
+    return EraseOutcome.Failed
   }
-}
 
-/**
- * Registers this device, which the server requires before an erase. A device asked to resync
- * reports a reset once, since the erase wipes it right after.
- */
-private suspend fun registerForErase(
-  token: String,
-  deviceId: String,
-  apiClient: SyncApiClient,
-): Boolean {
-  val platform = currentPlatform()
-  var outcome = apiClient.registerDevice(token, deviceId, platform, afterReset = false)
-  if (outcome == SyncRegisterOutcome.ResyncRequired) {
-    outcome = apiClient.registerDevice(token, deviceId, platform, afterReset = true)
+  val outcome = apiClient.erase(token, deviceId, deviceIdentity.nextDeviceSeq())
+  if (outcome !is SyncEraseOutcome.Ok) {
+    LOGGER.w { "Erase refused: $outcome" }
+    return EraseOutcome.Failed
   }
-  if (outcome != SyncRegisterOutcome.Ok) LOGGER.w { "Register before erase failed: $outcome" }
-  return outcome == SyncRegisterOutcome.Ok
+  try {
+    applier.eraseAll()
+  } catch (e: CancellationException) {
+    throw e
+  } catch (e: Exception) {
+    // The server erase is the truth: this device converges when it pulls its own tombstones.
+    LOGGER.w(e) { "Local wipe after the server erase failed" }
+  }
+  return EraseOutcome.Erased
 }
 
 private val LOGGER = Logger.withTag("SyncErase")
