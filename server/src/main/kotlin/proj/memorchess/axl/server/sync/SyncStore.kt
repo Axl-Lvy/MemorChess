@@ -74,7 +74,8 @@ internal class SyncStore(
   /**
    * Applies a batch under last write wins and reports whatever was refused.
    *
-   * A row is stored byte identical to the row that was sent, or refused; it is never rewritten. A
+   * A row is stored as sent, or refused, with one exception: after an erase, a node, edge,
+   * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone instead. A
    * row whose `updatedAt` is further ahead than the tolerance allows comes back in
    * [SyncPushResponse.rejected] so the client can re-stamp and retry.
    *
@@ -1510,7 +1511,6 @@ private fun <T : SyncRow> List<T>.screenClock(
   return Screened(acceptable, tooFarAhead.map(refusal))
 }
 
-/** Stable identifier for an edge in a rejection report, matching what the client can compute. */
 /**
  * Returns this row as a tombstone stamped [cutoff] when it was written before it, else unchanged.
  */
@@ -1527,6 +1527,7 @@ private fun <R : SyncRow> R.cutOffAt(cutoff: Instant): R {
     as R
 }
 
+/** Stable identifier for an edge in a rejection report, matching what the client can compute. */
 private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"
 
 /** The shared identity this edge interns to. */
