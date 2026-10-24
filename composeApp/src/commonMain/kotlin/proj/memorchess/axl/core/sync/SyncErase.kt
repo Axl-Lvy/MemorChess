@@ -19,19 +19,24 @@ sealed interface EraseOutcome {
 
 /**
  * Erases the user's synced data on the server, then on this device. Signed out, erases this device
- * only. Deletes nothing locally unless the server erase succeeded.
+ * only and leaves a reset pending in [jobStore] for the next sign in. Deletes nothing locally
+ * unless the server erase succeeded.
  */
 internal suspend fun runErase(
   authProvider: AuthProvider,
   applier: SyncApplier,
   apiClient: SyncApiClient,
   deviceIdentity: DeviceIdentity,
+  jobStore: SyncJobStore,
 ): EraseOutcome {
   val token =
     when (val result = authProvider.accessToken()) {
       is TokenResult.Ok -> result.accessToken
       TokenResult.SignedOut -> {
         applier.eraseAll()
+        // Only once the wipe is done: reporting a reset over rows still present would let them
+        // outlive tombstones the server has already collected.
+        jobStore.resetPending = true
         return EraseOutcome.Erased
       }
       TokenResult.Failed.Terminal -> return EraseOutcome.SignInRequired

@@ -31,6 +31,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.test_util.TestSettings
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testSyncApplier
 import proj.memorchess.axl.test_util.testTreeStore
@@ -97,12 +98,14 @@ class TestSyncErase {
     token: TokenResult,
     engine: MockEngine,
     identity: DeviceIdentity = DeviceIdentity.ephemeral(),
+    jobStore: SyncJobStore = SyncJobStore(TestSettings()),
   ): EraseOutcome =
     runErase(
       authProvider = FixedTokenAuthProvider(token),
       applier = testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined)),
       apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
       deviceIdentity = identity,
+      jobStore = jobStore,
     )
 
   private suspend fun InMemoryDatabaseQueryManager.shouldBeWiped() {
@@ -133,6 +136,31 @@ class TestSyncErase {
     outcome shouldBe EraseOutcome.Erased
     requests shouldBe 0
     database.shouldBeWiped()
+  }
+
+  @Test
+  fun aSignedOutEraseLeavesAResetPendingForTheNextSignIn() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    seed(database)
+    val jobStore = SyncJobStore(TestSettings())
+
+    erase(database, TokenResult.SignedOut, MockEngine { _ -> noContent() }, jobStore = jobStore)
+
+    jobStore.resetPending shouldBe true
+  }
+
+  @Test
+  fun aSignedInEraseLeavesNoResetPending() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    seed(database)
+    val jobStore = SyncJobStore(TestSettings())
+    val engine = MockEngine { request ->
+      if (request.isErase()) jsonResponse(ERASE_OK_BODY) else noContent()
+    }
+
+    erase(database, TokenResult.Ok("tok"), engine, jobStore = jobStore)
+
+    jobStore.resetPending shouldBe false
   }
 
   @Test
@@ -270,6 +298,7 @@ class TestSyncErase {
         applier = testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined)),
         apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         deviceIdentity = DeviceIdentity.ephemeral(),
+        jobStore = SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe EraseOutcome.Erased

@@ -27,6 +27,7 @@ import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.test_util.TestSettings
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testSyncApplier
 import proj.memorchess.axl.test_util.testTreeStore
@@ -84,6 +85,7 @@ class TestSyncEngineCycle {
         apiClient =
           SyncApiClient(jsonClient(emptyPullEngine()), baseUrl = "https://issuer.example/v1"),
         deviceIdentity = DeviceIdentity.ephemeral(),
+        jobStore = SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Success
@@ -105,6 +107,7 @@ class TestSyncEngineCycle {
         applier = syncApplier(database),
         apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         deviceIdentity = DeviceIdentity.ephemeral(),
+        jobStore = SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Transient
@@ -123,6 +126,7 @@ class TestSyncEngineCycle {
       syncApplier(database),
       apiClient,
       DeviceIdentity.ephemeral(),
+      SyncJobStore(TestSettings()),
     ) shouldBe CycleOutcome.PausedNoAuth
 
     runSyncCycle(
@@ -131,6 +135,7 @@ class TestSyncEngineCycle {
       syncApplier(database),
       apiClient,
       DeviceIdentity.ephemeral(),
+      SyncJobStore(TestSettings()),
     ) shouldBe CycleOutcome.PausedNoAuth
   }
 
@@ -158,6 +163,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Success
@@ -196,6 +202,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.QuotaExceeded
@@ -237,6 +244,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.QuotaExceeded
@@ -268,6 +276,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Transient
@@ -285,6 +294,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Transient
@@ -314,6 +324,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Success
@@ -350,6 +361,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Success
@@ -389,6 +401,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         identity,
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Success
@@ -415,6 +428,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Transient
@@ -446,9 +460,66 @@ class TestSyncEngineCycle {
       syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
       DeviceIdentity.ephemeral(),
+      SyncJobStore(TestSettings()),
     )
 
     acks shouldBe listOf(null, "tok-page-1")
+  }
+
+  @Test
+  fun aPendingResetIsReportedOnTheNextRegisterThenCleared() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val jobStore = SyncJobStore(TestSettings())
+    jobStore.resetPending = true
+    val resetFlags = mutableListOf<Boolean>()
+    val engine = MockEngine { request ->
+      when (request.method.value) {
+        "PUT" -> {
+          val body = (request.body as io.ktor.http.content.TextContent).text
+          resetFlags += body.contains(""""afterReset":true""")
+          respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+        }
+        "GET" -> jsonResponse(emptyPullBody)
+        else -> jsonResponse(emptyPushBody)
+      }
+    }
+    val apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1")
+    val identity = DeviceIdentity.ephemeral()
+    val auth = FakeAuthProvider(TokenResult.Ok("tok"))
+
+    runSyncCycle(auth, database, syncApplier(database), apiClient, identity, jobStore)
+    val pendingAfterFirst = jobStore.resetPending
+    runSyncCycle(auth, database, syncApplier(database), apiClient, identity, jobStore)
+
+    resetFlags shouldBe listOf(true, false)
+    pendingAfterFirst shouldBe false
+  }
+
+  @Test
+  fun aPendingResetSurvivesAFailedRegister() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val jobStore = SyncJobStore(TestSettings())
+    jobStore.resetPending = true
+    val engine = MockEngine { _ ->
+      respond(
+        content = ByteReadChannel("""{"code":"internal","message":"nope"}"""),
+        status = HttpStatusCode.InternalServerError,
+        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+      )
+    }
+
+    val outcome =
+      runSyncCycle(
+        FakeAuthProvider(TokenResult.Ok("tok")),
+        database,
+        syncApplier(database),
+        SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+        DeviceIdentity.ephemeral(),
+        jobStore,
+      )
+
+    outcome shouldBe CycleOutcome.Transient
+    jobStore.resetPending shouldBe true
   }
 
   @Test
@@ -490,6 +561,7 @@ class TestSyncEngineCycle {
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         DeviceIdentity.ephemeral(),
+        SyncJobStore(TestSettings()),
       )
 
     outcome shouldBe CycleOutcome.Transient
@@ -533,6 +605,7 @@ class TestSyncEngineCycle {
       syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
       DeviceIdentity.ephemeral(),
+      SyncJobStore(TestSettings()),
     )
 
     resetFlags shouldBe listOf(false, true)
@@ -574,6 +647,7 @@ class TestSyncEngineCycle {
       syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
       DeviceIdentity.ephemeral(),
+      SyncJobStore(TestSettings()),
     )
 
     resetFlags shouldBe listOf(false, true)

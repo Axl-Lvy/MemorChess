@@ -33,4 +33,29 @@ class TestSyncJobStore {
 
     store.read() shouldBe state
   }
+
+  @Test
+  fun aResetIsNotPendingOnAFreshStore() {
+    SyncJobStore(TestSettings()).resetPending shouldBe false
+  }
+
+  @Test
+  fun aPendingResetSurvivesAJobStateWrite() {
+    val store = SyncJobStore(TestSettings())
+
+    store.resetPending = true
+    store.write(SyncJobState.IDLE)
+
+    store.resetPending shouldBe true
+  }
+
+  @Test
+  fun aPendingResetCanBeCleared() {
+    val store = SyncJobStore(TestSettings())
+    store.resetPending = true
+
+    store.resetPending = false
+
+    store.resetPending shouldBe false
+  }
 }

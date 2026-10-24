@@ -292,9 +292,9 @@ fun SyncEngine(
   DefaultSyncEngine(
     jobStore,
     scope,
-    runErase = { runErase(authProvider, applier, apiClient, deviceIdentity) },
+    runErase = { runErase(authProvider, applier, apiClient, deviceIdentity, jobStore) },
   ) {
-    runSyncCycle(authProvider, database, applier, apiClient, deviceIdentity)
+    runSyncCycle(authProvider, database, applier, apiClient, deviceIdentity, jobStore)
   }
 
 /**
@@ -318,6 +318,7 @@ internal suspend fun runSyncCycle(
   applier: SyncApplier,
   apiClient: SyncApiClient,
   deviceIdentity: DeviceIdentity,
+  jobStore: SyncJobStore,
 ): CycleOutcome {
   val token =
     when (val result = authProvider.accessToken()) {
@@ -329,7 +330,7 @@ internal suspend fun runSyncCycle(
 
   val deviceId = deviceIdentity.originDevice
   var resyncRequired =
-    registerDevice(token, deviceId, apiClient)?.let {
+    registerDevice(token, deviceId, apiClient, jobStore)?.let {
       if (it != CycleOutcome.ResyncRequired) return it
       true
     } ?: false
@@ -361,7 +362,8 @@ internal suspend fun runSyncCycle(
 }
 
 /**
- * Registers this device, which gates both push and pull.
+ * Registers this device, which gates both push and pull, reporting it as reset when
+ * [SyncJobStore.resetPending] is set and clearing that once the server accepted it.
  *
  * `null` on success, a [CycleOutcome] to stop the cycle otherwise.
  */
@@ -369,9 +371,14 @@ private suspend fun registerDevice(
   token: String,
   deviceId: String,
   apiClient: SyncApiClient,
-): CycleOutcome? =
-  when (val outcome = apiClient.registerDevice(token, deviceId, currentPlatform(), false)) {
-    SyncRegisterOutcome.Ok -> null
+  jobStore: SyncJobStore,
+): CycleOutcome? {
+  val afterReset = jobStore.resetPending
+  return when (val outcome = apiClient.registerDevice(token, deviceId, currentPlatform(), afterReset)) {
+    SyncRegisterOutcome.Ok -> {
+      if (afterReset) jobStore.resetPending = false
+      null
+    }
     SyncRegisterOutcome.Unauthorized -> CycleOutcome.Transient
     SyncRegisterOutcome.RateLimited -> CycleOutcome.Transient
     SyncRegisterOutcome.ResyncRequired -> CycleOutcome.ResyncRequired
@@ -380,6 +387,7 @@ private suspend fun registerDevice(
       CycleOutcome.Transient
     }
   }
+}
 
 /**
  * Throws away everything this device holds from sync and starts it over at nothing seen.
