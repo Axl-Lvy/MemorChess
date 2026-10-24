@@ -7,6 +7,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
@@ -18,6 +19,7 @@ import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.ResolutionSource
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.core.sync.SyncPushResponse
 import proj.memorchess.axl.core.sync.SyncRow
 import proj.memorchess.axl.core.sync.resolve
 import proj.memorchess.axl.server.db.PostgresTestDb
@@ -91,46 +93,46 @@ internal class TestSyncStoreErase {
       deviceSeq = 1,
     )
 
-  private fun edge(origin: String, destination: String) =
+  private fun edge(origin: String, destination: String, updatedAt: Instant = now) =
     EdgeSyncRow(
       origin = origin,
       destination = destination,
       move = "e4",
       isGood = true,
       isDeleted = false,
-      updatedAt = now,
+      updatedAt = updatedAt,
       originDevice = OTHER,
       deviceSeq = 1,
     )
 
-  private fun setting() =
+  private fun setting(updatedAt: Instant = now) =
     SettingSyncRow(
       key = "theme",
       value = "dark",
       isDeleted = false,
-      updatedAt = now,
+      updatedAt = updatedAt,
       originDevice = OTHER,
       deviceSeq = 1,
     )
 
-  private fun repertoire() =
+  private fun repertoire(updatedAt: Instant = now) =
     RepertoireSyncRow(
       id = "italian-game",
       name = "Italian Game",
       color = "WHITE",
       isDeleted = false,
-      updatedAt = now,
+      updatedAt = updatedAt,
       originDevice = OTHER,
       deviceSeq = 1,
     )
 
-  private fun tag(origin: String, destination: String) =
+  private fun tag(origin: String, destination: String, updatedAt: Instant = now) =
     EdgeRepertoireTagSyncRow(
       origin = origin,
       destination = destination,
       repertoireId = "italian-game",
       isDeleted = false,
-      updatedAt = now,
+      updatedAt = updatedAt,
       originDevice = OTHER,
       deviceSeq = 1,
     )
@@ -153,6 +155,139 @@ internal class TestSyncStoreErase {
       )
     store.push(user, OTHER, request, now)
     return request
+  }
+
+  /** Pushes one node, edge, repertoire and tag from [OTHER], all stamped [updatedAt]. */
+  private suspend fun pushStamped(
+    user: String,
+    updatedAt: Instant,
+    serverNow: Instant = now,
+  ): SyncPushResponse {
+    val a = fen("a")
+    val b = fen("b")
+    return store.push(
+      user,
+      OTHER,
+      SyncPushRequest(
+        nodes = listOf(node(a, updatedAt)),
+        edges = listOf(edge(a, b, updatedAt)),
+        settings = emptyList(),
+        repertoires = listOf(repertoire(updatedAt)),
+        tags = listOf(tag(a, b, updatedAt)),
+        device = OTHER,
+      ),
+      serverNow,
+    )
+  }
+
+  private fun Caught.shouldAllBe(deleted: Boolean) {
+    erasable shouldHaveSize 4
+    erasable.forEach { it.isDeleted shouldBe deleted }
+  }
+
+  @Test
+  fun aNeverSeenRowStampedBeforeTheCutoffIsStoredAsATombstone() = runTest {
+    val user = newUser()
+    store.erase(user, ERASER, 42L, now)
+
+    val response = pushStamped(user, now - 1.minutes)
+
+    response.rejected.shouldBeEmpty()
+    val caught = catchUp(user, OTHER)
+    caught.shouldAllBe(true)
+    caught.erasable.forEach {
+      it.updatedAt shouldBe now
+      it.originDevice shouldBe OTHER
+    }
+  }
+
+  @Test
+  fun aRowStampedAfterTheCutoffStaysLive() = runTest {
+    val user = newUser()
+    store.erase(user, ERASER, 42L, now)
+
+    pushStamped(user, now + 1.seconds)
+
+    val caught = catchUp(user, OTHER)
+    caught.shouldAllBe(false)
+    caught.erasable.forEach { it.updatedAt shouldBe now + 1.seconds }
+  }
+
+  @Test
+  fun aRowStampedExactlyAtTheCutoffStaysLive() = runTest {
+    val user = newUser()
+    store.erase(user, ERASER, 42L, now)
+
+    pushStamped(user, now)
+
+    catchUp(user, OTHER).shouldAllBe(false)
+  }
+
+  @Test
+  fun aRowStampedJustBeforeTheCutoffIsStoredAsATombstone() = runTest {
+    val user = newUser()
+    store.erase(user, ERASER, 42L, now)
+
+    pushStamped(user, now - 1.milliseconds)
+
+    catchUp(user, OTHER).shouldAllBe(true)
+  }
+
+  @Test
+  fun aUserWhoNeverErasedIsUnaffected() = runTest {
+    val user = newUser()
+
+    pushStamped(user, now - 1000.hours)
+
+    catchUp(user, OTHER).shouldAllBe(false)
+  }
+
+  @Test
+  fun aSecondEraseMovesTheCutoff() = runTest {
+    val user = newUser()
+    val second = now + 10.minutes
+    store.erase(user, ERASER, 42L, now)
+    store.erase(user, ERASER, 43L, second)
+
+    pushStamped(user, now + 5.minutes, serverNow = second)
+
+    val caught = catchUp(user, OTHER)
+    caught.shouldAllBe(true)
+    caught.erasable.forEach { it.updatedAt shouldBe second }
+  }
+
+  @Test
+  fun settingsIgnoreTheCutoff() = runTest {
+    val user = newUser()
+    store.erase(user, ERASER, 42L, now)
+
+    store.push(
+      user,
+      OTHER,
+      SyncPushRequest(
+        nodes = emptyList(),
+        edges = emptyList(),
+        settings = listOf(setting(now - 1.minutes)),
+        device = OTHER,
+      ),
+      now,
+    )
+
+    val stored = catchUp(user, OTHER).settings.single()
+    stored.isDeleted shouldBe false
+    stored.updatedAt shouldBe now - 1.minutes
+  }
+
+  @Test
+  fun deletingAUserAlsoForgetsItsEraseCutoff() = runTest {
+    val user = newUser()
+    store.erase(user, ERASER, 42L, now)
+    store.deleteUser(user)
+    store.registerDevice(user, OTHER, DevicePlatform.JVM, afterReset = false, now)
+
+    pushStamped(user, now - 1.minutes)
+
+    catchUp(user, OTHER).shouldAllBe(false)
   }
 
   @Test

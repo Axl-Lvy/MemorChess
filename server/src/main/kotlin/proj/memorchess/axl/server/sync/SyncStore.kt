@@ -149,16 +149,22 @@ internal class SyncStore(
   private fun Connection.applyBatch(
     userId: String,
     deviceId: String,
-    nodes: List<NodeSyncRow>,
-    edges: List<EdgeSyncRow>,
+    sentNodes: List<NodeSyncRow>,
+    sentEdges: List<EdgeSyncRow>,
     settings: List<SettingSyncRow>,
-    repertoires: List<RepertoireSyncRow>,
-    tags: List<EdgeRepertoireTagSyncRow>,
+    sentRepertoires: List<RepertoireSyncRow>,
+    sentTags: List<EdgeRepertoireTagSyncRow>,
   ): Pair<Long, List<RejectedRow>> {
     acquireUserLock(userId)
     // Under the same lock as everything else, so a device removed concurrently cannot slip a batch
     // past the check.
     requireSyncableDevice(userId, deviceId)
+    val cutoff = eraseCutoffOf(userId)
+    val nodes = if (cutoff == null) sentNodes else sentNodes.map { it.cutOffAt(cutoff) }
+    val edges = if (cutoff == null) sentEdges else sentEdges.map { it.cutOffAt(cutoff) }
+    val repertoires =
+      if (cutoff == null) sentRepertoires else sentRepertoires.map { it.cutOffAt(cutoff) }
+    val tags = if (cutoff == null) sentTags else sentTags.map { it.cutOffAt(cutoff) }
     checkQuota(userId, NODE_QUOTA, nodes, maxNodesPerUser)
     checkQuota(userId, EDGE_QUOTA, edges, maxEdgesPerUser)
     checkQuota(userId, REPERTOIRE_QUOTA, repertoires, maxRepertoiresPerUser)
@@ -1505,6 +1511,22 @@ private fun <T : SyncRow> List<T>.screenClock(
 }
 
 /** Stable identifier for an edge in a rejection report, matching what the client can compute. */
+/**
+ * Returns this row as a tombstone stamped [cutoff] when it was written before it, else unchanged.
+ */
+@Suppress("UNCHECKED_CAST")
+private fun <R : SyncRow> R.cutOffAt(cutoff: Instant): R {
+  if (updatedAt >= cutoff) return this
+  return when (this) {
+    is NodeSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
+    is EdgeSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
+    is RepertoireSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
+    is EdgeRepertoireTagSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
+    else -> error("settings are never cut off by an erase")
+  }
+    as R
+}
+
 private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"
 
 /** The shared identity this edge interns to. */
