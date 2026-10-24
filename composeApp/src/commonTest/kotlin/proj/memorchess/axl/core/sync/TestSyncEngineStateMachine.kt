@@ -497,7 +497,42 @@ class TestSyncEngineStateMachine {
 
     cycleGate.complete(Unit)
     erase.join()
+    runCurrent()
 
-    events shouldBe listOf("cycle started", "cycle finished", "erase")
+    // The second cycle is the one a successful erase runs to pull its own tombstones.
+    events shouldBe
+      listOf("cycle started", "cycle finished", "erase", "cycle started", "cycle finished")
+  }
+
+  @Test
+  fun aSuccessfulEraseRunsACycleRightAfter() = runTest {
+    cyclesAfterErase(EraseOutcome.Erased) shouldBe 1
+  }
+
+  @Test
+  fun aFailedEraseRunsNoCycle() = runTest { cyclesAfterErase(EraseOutcome.Failed) shouldBe 0 }
+
+  @Test
+  fun anEraseThatNeedsSignInRunsNoCycle() = runTest {
+    cyclesAfterErase(EraseOutcome.SignInRequired) shouldBe 0
+  }
+
+  /** How many cycles an idle engine runs within a second of an erase ending in [outcome]. */
+  private suspend fun TestScope.cyclesAfterErase(outcome: EraseOutcome): Int {
+    var cycles = 0
+    val e =
+      engine(
+        cycle = {
+          cycles++
+          CycleOutcome.Success
+        },
+        erase = { outcome },
+      )
+    e.start()
+
+    e.eraseEverywhere() shouldBe outcome
+    advanceTimeBy(1.seconds)
+
+    return cycles
   }
 }

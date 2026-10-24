@@ -46,8 +46,8 @@ interface SyncEngine {
 
   /**
    * Erases the user's synced data on the server then this device, or this device only when signed
-   * out. Never deletes locally when the server erase did not succeed; suspends past a running
-   * cycle.
+   * out, then runs a cycle when it succeeded. Never deletes locally when the server erase did not
+   * succeed; suspends past a running cycle.
    */
   suspend fun eraseEverywhere(): EraseOutcome
 }
@@ -158,7 +158,13 @@ internal class DefaultSyncEngine(
 
   override fun syncNow() = runNow()
 
-  override suspend fun eraseEverywhere(): EraseOutcome = cycleMutex.withLock { runErase() }
+  override suspend fun eraseEverywhere(): EraseOutcome {
+    val outcome = cycleMutex.withLock { runErase() }
+    // Pulls the erase's own tombstones right away: garbage collection purges them, and frees the
+    // quota they hold, only once every device has acknowledged them, this one included.
+    if (outcome == EraseOutcome.Erased) syncNow()
+    return outcome
+  }
 
   private fun runNow() {
     timerJob?.cancel()
