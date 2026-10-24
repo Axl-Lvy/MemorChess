@@ -76,7 +76,7 @@ class OidcSignInController(
           return SignInResult.Failed(launchResult.error.toMessage())
         }
       }
-    val exchange = oidcClient.exchangeCode(clientId, redirectUri, code, pkce.verifier)
+    val exchange = oidcClient.exchangeCode(clientId, redirectUri, code, pkce.verifier, audience)
     return when (exchange) {
       is OidcTokenExchangeResult.Ok -> {
         persist(exchange)
@@ -112,7 +112,7 @@ class OidcSignInController(
             tokenStore.clear()
             return@withLock TokenResult.Failed.Terminal
           }
-      when (val exchange = oidcClient.refresh(clientId, refreshToken)) {
+      when (val exchange = oidcClient.refresh(clientId, refreshToken, audience)) {
         is OidcTokenExchangeResult.Ok -> {
           persist(exchange)
           TokenResult.Ok(exchange.accessToken)
