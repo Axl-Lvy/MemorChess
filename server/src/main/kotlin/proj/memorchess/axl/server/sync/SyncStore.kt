@@ -75,7 +75,8 @@ internal class SyncStore(
    * Applies a batch under last write wins and reports whatever was refused.
    *
    * A row is stored as sent, or refused, with one exception: after an erase, a node, edge,
-   * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone instead. A
+   * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone from [ERASE_ORIGIN]
+   * instead. A
    * row whose `updatedAt` is further ahead than the tolerance allows comes back in
    * [SyncPushResponse.rejected] so the client can re-stamp and retry.
    *
@@ -1511,21 +1512,28 @@ private fun <T : SyncRow> List<T>.screenClock(
   return Screened(acceptable, tooFarAhead.map(refusal))
 }
 
-/**
- * Returns this row as a tombstone stamped [cutoff] when it was written before it, else unchanged.
- */
-@Suppress("UNCHECKED_CAST")
-private fun <R : SyncRow> R.cutOffAt(cutoff: Instant): R {
-  if (updatedAt >= cutoff) return this
-  return when (this) {
-    is NodeSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
-    is EdgeSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
-    is RepertoireSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
-    is EdgeRepertoireTagSyncRow -> copy(isDeleted = true, updatedAt = cutoff)
-    else -> error("settings are never cut off by an erase")
-  }
-    as R
-}
+/** Origin stamped on rows tombstoned by an erase cutoff, so every device applies them as remote. */
+private const val ERASE_ORIGIN = "00000000-0000-0000-0000-000000000000"
+
+/** Returns this node as an erase tombstone stamped [cutoff] when written before it, else as is. */
+private fun NodeSyncRow.cutOffAt(cutoff: Instant) =
+  if (updatedAt >= cutoff) this
+  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+
+/** Returns this edge as an erase tombstone stamped [cutoff] when written before it, else as is. */
+private fun EdgeSyncRow.cutOffAt(cutoff: Instant) =
+  if (updatedAt >= cutoff) this
+  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+
+/** Returns this repertoire as an erase tombstone stamped [cutoff] when written before it. */
+private fun RepertoireSyncRow.cutOffAt(cutoff: Instant) =
+  if (updatedAt >= cutoff) this
+  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+
+/** Returns this tag as an erase tombstone stamped [cutoff] when written before it, else as is. */
+private fun EdgeRepertoireTagSyncRow.cutOffAt(cutoff: Instant) =
+  if (updatedAt >= cutoff) this
+  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
 
 /** Stable identifier for an edge in a rejection report, matching what the client can compute. */
 private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"

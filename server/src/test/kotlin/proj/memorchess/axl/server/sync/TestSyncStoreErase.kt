@@ -162,12 +162,10 @@ internal class TestSyncStoreErase {
     user: String,
     updatedAt: Instant,
     serverNow: Instant = now,
-  ): SyncPushResponse {
+  ): Pair<SyncPushRequest, SyncPushResponse> {
     val a = fen("a")
     val b = fen("b")
-    return store.push(
-      user,
-      OTHER,
+    val request =
       SyncPushRequest(
         nodes = listOf(node(a, updatedAt)),
         edges = listOf(edge(a, b, updatedAt)),
@@ -175,9 +173,17 @@ internal class TestSyncStoreErase {
         repertoires = listOf(repertoire(updatedAt)),
         tags = listOf(tag(a, b, updatedAt)),
         device = OTHER,
-      ),
-      serverNow,
-    )
+      )
+    return request to store.push(user, OTHER, request, serverNow)
+  }
+
+  /** Asserts the pusher of [pushed] resolves every served row in favour of the server's. */
+  private fun Caught.pusherConvergesOn(pushed: SyncPushRequest) {
+    resolve(pushed.nodes.single(), nodes.single()).source shouldBe ResolutionSource.REMOTE
+    resolve(pushed.edges.single(), edges.single()).source shouldBe ResolutionSource.REMOTE
+    resolve(pushed.repertoires.single(), repertoires.single()).source shouldBe
+      ResolutionSource.REMOTE
+    resolve(pushed.tags.single(), tags.single()).source shouldBe ResolutionSource.REMOTE
   }
 
   private fun Caught.shouldAllBe(deleted: Boolean) {
@@ -190,15 +196,17 @@ internal class TestSyncStoreErase {
     val user = newUser()
     store.erase(user, ERASER, 42L, now)
 
-    val response = pushStamped(user, now - 1.minutes)
+    val (pushed, response) = pushStamped(user, now - 1.minutes)
 
     response.rejected.shouldBeEmpty()
     val caught = catchUp(user, OTHER)
     caught.shouldAllBe(true)
     caught.erasable.forEach {
       it.updatedAt shouldBe now
-      it.originDevice shouldBe OTHER
+      it.originDevice shouldBe ERASE_ORIGIN
+      it.deviceSeq shouldBe 0L
     }
+    caught.pusherConvergesOn(pushed)
   }
 
   @Test
@@ -228,9 +236,11 @@ internal class TestSyncStoreErase {
     val user = newUser()
     store.erase(user, ERASER, 42L, now)
 
-    pushStamped(user, now - 1.milliseconds)
+    val (pushed, _) = pushStamped(user, now - 1.milliseconds)
 
-    catchUp(user, OTHER).shouldAllBe(true)
+    val caught = catchUp(user, OTHER)
+    caught.shouldAllBe(true)
+    caught.pusherConvergesOn(pushed)
   }
 
   @Test
@@ -249,11 +259,47 @@ internal class TestSyncStoreErase {
     store.erase(user, ERASER, 42L, now)
     store.erase(user, ERASER, 43L, second)
 
-    pushStamped(user, now + 5.minutes, serverNow = second)
+    val (pushed, _) = pushStamped(user, now + 5.minutes, serverNow = second)
 
     val caught = catchUp(user, OTHER)
     caught.shouldAllBe(true)
     caught.erasable.forEach { it.updatedAt shouldBe second }
+    caught.pusherConvergesOn(pushed)
+  }
+
+  @Test
+  fun anOfflineEditOfAKnownRowStampedBeforeTheCutoffConvergesOnTheTombstone() = runTest {
+    val user = newUser()
+    val first = node(fen("known"), now - 10.minutes)
+    store.push(
+      user,
+      OTHER,
+      SyncPushRequest(
+        nodes = listOf(first),
+        edges = emptyList(),
+        settings = emptyList(),
+        device = OTHER,
+      ),
+      now,
+    )
+    store.erase(user, ERASER, 42L, now)
+    val edited = first.copy(reps = 3, updatedAt = now - 5.minutes, deviceSeq = 2)
+
+    store.push(
+      user,
+      OTHER,
+      SyncPushRequest(
+        nodes = listOf(edited),
+        edges = emptyList(),
+        settings = emptyList(),
+        device = OTHER,
+      ),
+      now,
+    )
+
+    val served = catchUp(user, OTHER).nodes.single()
+    served.isDeleted shouldBe true
+    resolve(edited, served).source shouldBe ResolutionSource.REMOTE
   }
 
   @Test
@@ -454,6 +500,7 @@ internal class TestSyncStoreErase {
   private companion object {
     const val ERASER = "77777777-7777-4777-8777-777777777777"
     const val OTHER = "88888888-8888-4888-8888-888888888888"
+    const val ERASE_ORIGIN = "00000000-0000-0000-0000-000000000000"
     const val FRESH = "55555555-5555-4555-8555-555555555555"
     const val UNREGISTERED = "66666666-6666-4666-8666-666666666666"
   }
