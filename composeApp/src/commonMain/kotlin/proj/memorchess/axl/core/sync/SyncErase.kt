@@ -7,13 +7,19 @@ import proj.memorchess.axl.core.auth.TokenResult
 
 /** Outcome of [SyncEngine.eraseEverywhere]. */
 sealed interface EraseOutcome {
-  /** The user's synced data is gone: from the server and this device, or this device only. */
+  /**
+   * Erased on the server and this device follows, or erased on this device only when signed out.
+   * This device may lag until its next pull if its local wipe failed.
+   */
   data object Erased : EraseOutcome
 
   /** The session expired; nothing was deleted and the user must sign in again. */
   data object SignInRequired : EraseOutcome
 
-  /** The server could not be reached or refused the erase; nothing was deleted. */
+  /**
+   * The server could not be reached or refused the erase. Nothing was deleted on this device; the
+   * server may still have erased after a timeout.
+   */
   data object Failed : EraseOutcome
 }
 
