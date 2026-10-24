@@ -217,6 +217,7 @@
   <string name="library_error_network">Could not reach the catalog: %1$s</string>
   <string name="library_error_http">The catalog server answered with error %1$d.</string>
   <string name="library_error_malformed">The catalog could not be read: %1$s</string>
+  <string name="library_refresh">Refresh catalog</string>
   <string name="library_retry">RETRY</string>
   <string name="library_install">Install</string>
   <string name="library_reinstall">Reinstall</string>

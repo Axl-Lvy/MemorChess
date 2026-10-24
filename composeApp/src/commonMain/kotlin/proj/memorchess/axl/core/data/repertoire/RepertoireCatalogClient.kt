@@ -4,9 +4,11 @@ import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.onDownload
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
@@ -42,10 +44,13 @@ class RepertoireCatalogClient(
    *
    * A manifest whose `schemaVersion` differs from 1 is reported as
    * [CatalogResult.MalformedManifest]; see [RepertoireManifest] for the rationale.
+   *
+   * @param bypassCache Asks every HTTP cache on the way (the browser's included) to revalidate with
+   *   the server instead of answering from a cached copy.
    */
-  suspend fun fetchManifest(): CatalogResult<RepertoireManifest> {
+  suspend fun fetchManifest(bypassCache: Boolean = false): CatalogResult<RepertoireManifest> {
     val body =
-      when (val download = download(MANIFEST_FILE)) {
+      when (val download = download(MANIFEST_FILE, bypassCache = bypassCache)) {
         is Download.Body -> download.text
         is Download.Failure -> return download.result
       }
@@ -118,10 +123,17 @@ class RepertoireCatalogClient(
     }
   }
 
-  private suspend fun download(path: String, onProgress: (Float) -> Unit = {}): Download =
+  private suspend fun download(
+    path: String,
+    onProgress: (Float) -> Unit = {},
+    bypassCache: Boolean = false,
+  ): Download =
     try {
       val response: HttpResponse =
         httpClient.get("$baseUrl/$path") {
+          if (bypassCache) {
+            header(HttpHeaders.CacheControl, "no-cache")
+          }
           onDownload { bytesSentTotal, contentLength ->
             if (contentLength != null && contentLength > 0) {
               onProgress((bytesSentTotal.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f))

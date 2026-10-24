@@ -45,6 +45,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   private fun TestScope.buildViewModel(
     loadManifest: suspend () -> CachedManifestResult,
+    reloadManifest: suspend () -> CachedManifestResult = loadManifest,
     fetchPgn: suspend (String, (Float) -> Unit) -> CatalogResult<List<PgnGame>> = { _, _ ->
       CatalogResult.Ok(emptyList())
     },
@@ -62,6 +63,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   ) =
     RepertoireLibraryViewModel(
       loadManifest = loadManifest,
+      reloadManifest = reloadManifest,
       fetchPgn = fetchPgn,
       importGames = importGames,
       previewGames = previewGames,
@@ -187,6 +189,63 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val loaded = viewModel.myRepertoires.first { it.size == 2 }
 
     loaded.map { it.id } shouldBe listOf("italian-game", "italian-game-copy")
+  }
+
+  @Test
+  fun forceRefreshShowsANewlyPublishedRepertoire() = test {
+    val viewModel =
+      buildViewModel(
+        loadManifest = { CachedManifestResult.Fresh(manifest(london)) },
+        reloadManifest = { CachedManifestResult.Fresh(manifest(london, caroKann)) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.forceRefresh()
+
+    val loaded =
+      viewModel.catalogState.first {
+        it is LibraryCatalogState.Loaded && it.repertoires.size == 2
+      } as LibraryCatalogState.Loaded
+    loaded.repertoires shouldBe listOf(london, caroKann)
+  }
+
+  @Test
+  fun forceRefreshAlsoReloadsMyRepertoires() = test {
+    var currentIds = listOf("italian-game")
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest()) },
+        loadMyRepertoires = {
+          currentIds.map { DataRepertoire(id = it, name = it, color = RepertoireColor.WHITE) }
+        },
+      )
+    viewModel.myRepertoires.first { it.isNotEmpty() }
+    currentIds = listOf("italian-game", "italian-game-copy")
+
+    viewModel.forceRefresh()
+    val loaded = viewModel.myRepertoires.first { it.size == 2 }
+
+    loaded.map { it.id } shouldBe listOf("italian-game", "italian-game-copy")
+  }
+
+  @Test
+  fun forceRefreshIsIgnoredWhileALoadIsInFlight() = test {
+    val gate = CompletableDeferred<Unit>()
+    var loadCalls = 0
+    val viewModel =
+      buildViewModel({
+        loadCalls++
+        gate.await()
+        CachedManifestResult.Fresh(manifest(london))
+      })
+    testScheduler.advanceUntilIdle()
+
+    viewModel.forceRefresh()
+    viewModel.forceRefresh()
+    gate.complete(Unit)
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    loadCalls shouldBe 1
   }
 
   @Test

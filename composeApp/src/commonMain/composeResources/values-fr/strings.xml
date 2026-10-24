@@ -217,6 +217,7 @@
   <string name="library_error_network">Impossible de joindre le catalogue : %1$s</string>
   <string name="library_error_http">Le serveur du catalogue a répondu avec l'erreur %1$d.</string>
   <string name="library_error_malformed">Le catalogue n'a pas pu être lu : %1$s</string>
+  <string name="library_refresh">Actualiser le catalogue</string>
   <string name="library_retry">RÉESSAYER</string>
   <string name="library_install">Installer</string>
   <string name="library_reinstall">Réinstaller</string>

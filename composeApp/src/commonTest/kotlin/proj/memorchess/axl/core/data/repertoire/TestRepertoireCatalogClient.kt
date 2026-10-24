@@ -6,6 +6,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
@@ -281,6 +282,34 @@ class TestRepertoireCatalogClient {
 
     // Nothing to divide by: guarded rather than reporting a NaN or infinite fraction.
     reported shouldBe emptyList()
+  }
+
+  @Test
+  fun bypassingTheCacheSendsNoCache() = runTest {
+    var cacheControl: String? = null
+    val engine = MockEngine { request ->
+      cacheControl = request.headers[HttpHeaders.CacheControl]
+      respond(content = manifestJson, status = HttpStatusCode.OK)
+    }
+    val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
+
+    client.fetchManifest(bypassCache = true)
+
+    cacheControl shouldBe "no-cache"
+  }
+
+  @Test
+  fun aNormalFetchSendsNoCacheControl() = runTest {
+    var cacheControl: String? = "unset"
+    val engine = MockEngine { request ->
+      cacheControl = request.headers[HttpHeaders.CacheControl]
+      respond(content = manifestJson, status = HttpStatusCode.OK)
+    }
+    val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
+
+    client.fetchManifest()
+
+    cacheControl shouldBe null
   }
 
   @Test
