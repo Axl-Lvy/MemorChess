@@ -76,7 +76,8 @@ internal class SyncStore(
    *
    * A row is stored as sent, or refused, with one exception: after an erase, a node, edge,
    * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone from
-   * [ERASE_ORIGIN] instead. A row whose `updatedAt` is further ahead than the tolerance allows
+   * [ERASE_ORIGIN] instead, unless the pushing device has already pulled the erase or the eraser
+   * wrote the row after erasing (see [EraseCutoff.cuts]). A row whose `updatedAt` is further ahead than the tolerance allows
    * comes back in [SyncPushResponse.rejected] so the client can re-stamp and retry.
    *
    * The whole batch is one transaction, and rows are applied in key order so concurrent pushes take
@@ -159,8 +160,9 @@ internal class SyncStore(
     acquireUserLock(userId)
     // Under the same lock as everything else, so a device removed concurrently cannot slip a batch
     // past the check.
-    requireSyncableDevice(userId, deviceId)
-    val cutoff = eraseCutoffOf(userId)
+    val device = requireSyncableDevice(userId, deviceId)
+    // A device that has pulled the erase's tombstones writes after it whatever its clock says.
+    val cutoff = eraseCutoffOf(userId)?.takeIf { device.lastAcked < it.erasedRevision }
     val nodes = if (cutoff == null) sentNodes else sentNodes.map { it.cutOffAt(cutoff) }
     val edges = if (cutoff == null) sentEdges else sentEdges.map { it.cutOffAt(cutoff) }
     val repertoires =
@@ -874,9 +876,26 @@ internal class SyncStore(
     val revisions = ERASABLE_TABLES.flatMap {
       connection.tombstoneAll(it, userId, deviceId, deviceSeq, serverNow)
     }
-    connection.setEraseCutoff(userId, serverNow)
+    // With nothing live there is no tombstone to pull; a user owning nothing at all gets a fresh
+    // revision, so no device counts as having pulled an erase it has not.
+    val erasedRevision =
+      revisions.maxOrNull()
+        ?: connection.highestRevision(userId).takeIf { it > 0 }
+        ?: connection.nextRevision()
+    connection.setEraseCutoff(
+      userId,
+      EraseCutoff(serverNow, erasedRevision, erasedBy = deviceId, eraseDeviceSeq = deviceSeq),
+    )
     revisions.maxOrNull() ?: 0L
   }
+
+  private fun Connection.nextRevision(): Long =
+    prepareStatement("SELECT nextval('sync_revision')").use { statement ->
+      statement.executeQuery().use { rows ->
+        rows.next()
+        rows.getLong(1)
+      }
+    }
 
   /** Tombstones every live row [userId] owns in [table], returning the revisions assigned. */
   private fun Connection.tombstoneAll(
@@ -904,26 +923,42 @@ internal class SyncStore(
         }
       }
 
-  private fun Connection.setEraseCutoff(userId: String, erasedAt: Instant) {
+  private fun Connection.setEraseCutoff(userId: String, cutoff: EraseCutoff) {
     prepareStatement(
-        "INSERT INTO sync_erase_cutoff (user_id, erased_at) VALUES (?, ?) " +
-          "ON CONFLICT (user_id) DO UPDATE SET erased_at = EXCLUDED.erased_at"
+        "INSERT INTO sync_erase_cutoff " +
+          "(user_id, erased_at, erased_revision, erased_by, erase_device_seq) " +
+          "VALUES (?, ?, ?, ?, ?) ON CONFLICT (user_id) DO UPDATE SET " +
+          "erased_at = EXCLUDED.erased_at, erased_revision = EXCLUDED.erased_revision, " +
+          "erased_by = EXCLUDED.erased_by, erase_device_seq = EXCLUDED.erase_device_seq"
       )
       .use { statement ->
         statement.setString(1, userId)
-        statement.setTimestamp(2, erasedAt.toTimestamp())
+        statement.setTimestamp(2, cutoff.erasedAt.toTimestamp())
+        statement.setLong(3, cutoff.erasedRevision)
+        statement.setString(4, cutoff.erasedBy)
+        statement.setLong(5, cutoff.eraseDeviceSeq)
         statement.executeUpdate()
       }
   }
 
-  /** When [userId] last erased their data, or `null` when they never have. */
-  private fun Connection.eraseCutoffOf(userId: String): Instant? =
-    prepareStatement("SELECT erased_at FROM sync_erase_cutoff WHERE user_id = ?").use { statement ->
-      statement.setString(1, userId)
-      statement.executeQuery().use { rows ->
-        if (rows.next()) rows.getTimestamp(1).toInstant().toKotlinInstant() else null
+  /** [userId]'s last erase, or `null` when they never erased. */
+  private fun Connection.eraseCutoffOf(userId: String): EraseCutoff? =
+    prepareStatement(
+        "SELECT erased_at, erased_revision, erased_by, erase_device_seq " +
+          "FROM sync_erase_cutoff WHERE user_id = ?"
+      )
+      .use { statement ->
+        statement.setString(1, userId)
+        statement.executeQuery().use { rows ->
+          if (!rows.next()) return@use null
+          EraseCutoff(
+            erasedAt = rows.getTimestamp(1).toInstant().toKotlinInstant(),
+            erasedRevision = rows.getLong(2),
+            erasedBy = rows.getString(3),
+            eraseDeviceSeq = rows.getLong(4),
+          )
+        }
       }
-    }
 
   private fun Connection.pullRepertoires(
     userId: String,
@@ -1513,25 +1548,47 @@ private fun <T : SyncRow> List<T>.screenClock(
 /** Origin stamped on rows tombstoned by an erase cutoff, so every device applies them as remote. */
 private const val ERASE_ORIGIN = "00000000-0000-0000-0000-000000000000"
 
-/** Returns this node as an erase tombstone stamped [cutoff] when written before it, else as is. */
-private fun NodeSyncRow.cutOffAt(cutoff: Instant) =
-  if (updatedAt >= cutoff) this
-  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+/**
+ * A user's last erase: when it happened, the highest revision it assigned, and the device and
+ * `deviceSeq` that issued it.
+ */
+private data class EraseCutoff(
+  val erasedAt: Instant,
+  val erasedRevision: Long,
+  val erasedBy: String,
+  val eraseDeviceSeq: Long,
+) {
+  /**
+   * Whether [row], pushed by a device that has not pulled this erase, predates it. The eraser's
+   * own writes after the erase never do, whatever its clock says.
+   */
+  fun cuts(row: SyncRow): Boolean =
+    row.updatedAt < erasedAt && !(row.originDevice == erasedBy && row.deviceSeq > eraseDeviceSeq)
+}
 
-/** Returns this edge as an erase tombstone stamped [cutoff] when written before it, else as is. */
-private fun EdgeSyncRow.cutOffAt(cutoff: Instant) =
-  if (updatedAt >= cutoff) this
-  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+/** Returns this node as an erase tombstone when [cutoff] cuts it, else as is. */
+private fun NodeSyncRow.cutOffAt(cutoff: EraseCutoff) =
+  if (!cutoff.cuts(this)) this
+  else
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
 
-/** Returns this repertoire as an erase tombstone stamped [cutoff] when written before it. */
-private fun RepertoireSyncRow.cutOffAt(cutoff: Instant) =
-  if (updatedAt >= cutoff) this
-  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+/** Returns this edge as an erase tombstone when [cutoff] cuts it, else as is. */
+private fun EdgeSyncRow.cutOffAt(cutoff: EraseCutoff) =
+  if (!cutoff.cuts(this)) this
+  else
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
 
-/** Returns this tag as an erase tombstone stamped [cutoff] when written before it, else as is. */
-private fun EdgeRepertoireTagSyncRow.cutOffAt(cutoff: Instant) =
-  if (updatedAt >= cutoff) this
-  else copy(isDeleted = true, updatedAt = cutoff, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+/** Returns this repertoire as an erase tombstone when [cutoff] cuts it, else as is. */
+private fun RepertoireSyncRow.cutOffAt(cutoff: EraseCutoff) =
+  if (!cutoff.cuts(this)) this
+  else
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+
+/** Returns this tag as an erase tombstone when [cutoff] cuts it, else as is. */
+private fun EdgeRepertoireTagSyncRow.cutOffAt(cutoff: EraseCutoff) =
+  if (!cutoff.cuts(this)) this
+  else
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
 
 /** Stable identifier for an edge in a rejection report, matching what the client can compute. */
 private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"

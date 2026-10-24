@@ -75,7 +75,12 @@ internal class TestSyncStoreErase {
     return user
   }
 
-  private fun node(key: String, updatedAt: Instant = now) =
+  private fun node(
+    key: String,
+    updatedAt: Instant = now,
+    origin: String = OTHER,
+    deviceSeq: Long = 1,
+  ) =
     NodeSyncRow(
       positionKey = key,
       dueDate = now,
@@ -89,11 +94,17 @@ internal class TestSyncStoreErase {
       step = 0,
       isDeleted = false,
       updatedAt = updatedAt,
-      originDevice = OTHER,
-      deviceSeq = 1,
+      originDevice = origin,
+      deviceSeq = deviceSeq,
     )
 
-  private fun edge(origin: String, destination: String, updatedAt: Instant = now) =
+  private fun edge(
+    origin: String,
+    destination: String,
+    updatedAt: Instant = now,
+    device: String = OTHER,
+    deviceSeq: Long = 1,
+  ) =
     EdgeSyncRow(
       origin = origin,
       destination = destination,
@@ -101,8 +112,8 @@ internal class TestSyncStoreErase {
       isGood = true,
       isDeleted = false,
       updatedAt = updatedAt,
-      originDevice = OTHER,
-      deviceSeq = 1,
+      originDevice = device,
+      deviceSeq = deviceSeq,
     )
 
   private fun setting(updatedAt: Instant = now) =
@@ -115,26 +126,32 @@ internal class TestSyncStoreErase {
       deviceSeq = 1,
     )
 
-  private fun repertoire(updatedAt: Instant = now) =
+  private fun repertoire(updatedAt: Instant = now, origin: String = OTHER, deviceSeq: Long = 1) =
     RepertoireSyncRow(
       id = "italian-game",
       name = "Italian Game",
       color = "WHITE",
       isDeleted = false,
       updatedAt = updatedAt,
-      originDevice = OTHER,
-      deviceSeq = 1,
+      originDevice = origin,
+      deviceSeq = deviceSeq,
     )
 
-  private fun tag(origin: String, destination: String, updatedAt: Instant = now) =
+  private fun tag(
+    origin: String,
+    destination: String,
+    updatedAt: Instant = now,
+    device: String = OTHER,
+    deviceSeq: Long = 1,
+  ) =
     EdgeRepertoireTagSyncRow(
       origin = origin,
       destination = destination,
       repertoireId = "italian-game",
       isDeleted = false,
       updatedAt = updatedAt,
-      originDevice = OTHER,
-      deviceSeq = 1,
+      originDevice = device,
+      deviceSeq = deviceSeq,
     )
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
@@ -157,25 +174,46 @@ internal class TestSyncStoreErase {
     return request
   }
 
-  /** Pushes one node, edge, repertoire and tag from [OTHER], all stamped [updatedAt]. */
+  /** Pushes one node, edge, repertoire and tag from [device], all stamped [updatedAt]. */
   private suspend fun pushStamped(
     user: String,
     updatedAt: Instant,
     serverNow: Instant = now,
+    device: String = OTHER,
+    deviceSeq: Long = 1,
   ): Pair<SyncPushRequest, SyncPushResponse> {
     val a = fen("a")
     val b = fen("b")
     val request =
       SyncPushRequest(
-        nodes = listOf(node(a, updatedAt)),
-        edges = listOf(edge(a, b, updatedAt)),
+        nodes = listOf(node(a, updatedAt, device, deviceSeq)),
+        edges = listOf(edge(a, b, updatedAt, device, deviceSeq)),
         settings = emptyList(),
-        repertoires = listOf(repertoire(updatedAt)),
-        tags = listOf(tag(a, b, updatedAt)),
-        device = OTHER,
+        repertoires = listOf(repertoire(updatedAt, device, deviceSeq)),
+        tags = listOf(tag(a, b, updatedAt, device, deviceSeq)),
+        device = device,
       )
-    return request to store.push(user, OTHER, request, serverNow)
+    return request to store.push(user, device, request, serverNow)
   }
+
+  /** Pushes one live node from [OTHER], so an erase has something to tombstone. */
+  private suspend fun seedOneNode(user: String) {
+    store.push(
+      user,
+      OTHER,
+      SyncPushRequest(
+        nodes = listOf(node(fen("seed"))),
+        edges = emptyList(),
+        settings = emptyList(),
+        device = OTHER,
+      ),
+      now,
+    )
+  }
+
+  /** Every erasable row [device] is served next, the seed node's tombstone left out. */
+  private suspend fun freshRowsFor(user: String, device: String): List<SyncRow> =
+    catchUp(user, device).erasable.filterNot { it is NodeSyncRow && it.positionKey.endsWith("-seed") }
 
   /** Asserts the pusher of [pushed] resolves every served row in favour of the server's. */
   private fun Caught.pusherConvergesOn(pushed: SyncPushRequest) {
@@ -241,6 +279,58 @@ internal class TestSyncStoreErase {
     val caught = catchUp(user, OTHER)
     caught.shouldAllBe(true)
     caught.pusherConvergesOn(pushed)
+  }
+
+  @Test
+  fun aDeviceThatPulledPastTheEraseKeepsARowFromItsSlowClock() = runTest {
+    val user = newUser()
+    seedOneNode(user)
+    store.erase(user, ERASER, 42L, now)
+    catchUp(user, OTHER)
+
+    pushStamped(user, now - 1.minutes)
+
+    catchUp(user, OTHER).shouldAllBe(false)
+  }
+
+  @Test
+  fun aDeviceThatPulledOnlyBeforeTheEraseStillHasItsOldRowsCut() = runTest {
+    val user = newUser()
+    seedOneNode(user)
+    catchUp(user, OTHER)
+    store.erase(user, ERASER, 42L, now)
+
+    pushStamped(user, now - 1.minutes)
+
+    val fresh = freshRowsFor(user, OTHER)
+    fresh shouldHaveSize 4
+    fresh.forEach { it.isDeleted shouldBe true }
+  }
+
+  @Test
+  fun theErasersOwnLaterWriteFromASlowClockStaysLive() = runTest {
+    val user = newUser()
+    seedOneNode(user)
+    store.erase(user, ERASER, 42L, now)
+
+    pushStamped(user, now - 1.minutes, device = ERASER, deviceSeq = 43L)
+
+    val fresh = freshRowsFor(user, OTHER)
+    fresh shouldHaveSize 4
+    fresh.forEach { it.isDeleted shouldBe false }
+  }
+
+  @Test
+  fun theErasersWriteFromBeforeTheEraseIsCut() = runTest {
+    val user = newUser()
+    seedOneNode(user)
+    store.erase(user, ERASER, 42L, now)
+
+    pushStamped(user, now - 1.minutes, device = ERASER, deviceSeq = 42L)
+
+    val fresh = freshRowsFor(user, OTHER)
+    fresh shouldHaveSize 4
+    fresh.forEach { it.isDeleted shouldBe true }
   }
 
   @Test
