@@ -15,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.settings_erase_button
 import memorchess.composeapp.generated.resources.settings_erase_confirm
@@ -104,12 +106,16 @@ fun DangerZoneSection(
       buttonTestTag = "eraseAllDataButton",
       onClick = {
         dlg.show(eraseConfirm) {
+          eraseOutcome = null
           coroutineScope.launch {
-            val outcome = syncEngine.eraseEverywhere()
-            if (outcome == EraseOutcome.Erased) {
-              streakTracker.eraseAll()
-            }
-            eraseOutcome = outcome
+            // Not cancellable: leaving the page mid erase must not strand a server erase that
+            // already succeeded with the local wipe and the streak still in place.
+            eraseOutcome =
+              withContext(NonCancellable) {
+                syncEngine.eraseEverywhere().also {
+                  if (it == EraseOutcome.Erased) streakTracker.eraseAll()
+                }
+              }
           }
         }
       },

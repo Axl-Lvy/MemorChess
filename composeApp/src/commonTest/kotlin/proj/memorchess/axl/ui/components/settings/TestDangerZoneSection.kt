@@ -1,5 +1,8 @@
 package proj.memorchess.axl.ui.components.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -9,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import memorchess.composeapp.generated.resources.Res
@@ -26,7 +30,11 @@ import proj.memorchess.axl.ui.components.settings.sections.DangerZoneSection
 @OptIn(ExperimentalTestApi::class)
 class TestDangerZoneSection : TestWithKoin() {
 
-  private class ScriptedSyncEngine(private val outcome: EraseOutcome) : SyncEngine {
+  private class ScriptedSyncEngine(vararg erases: suspend () -> EraseOutcome) : SyncEngine {
+    constructor(outcome: EraseOutcome) : this({ outcome })
+
+    private val remaining = ArrayDeque(erases.toList())
+
     var eraseCalls = 0
       private set
 
@@ -42,7 +50,7 @@ class TestDangerZoneSection : TestWithKoin() {
 
     override suspend fun eraseEverywhere(): EraseOutcome {
       eraseCalls++
-      return outcome
+      return remaining.removeFirst()()
     }
   }
 
@@ -55,19 +63,27 @@ class TestDangerZoneSection : TestWithKoin() {
     }
   }
 
-  private fun ComposeUiTest.eraseWith(
-    outcome: EraseOutcome,
-    streakTracker: StreakTracker = StreakTracker(InMemoryDailyActivityStore()),
-  ): ScriptedSyncEngine {
-    val engine = ScriptedSyncEngine(outcome)
+  private fun ComposeUiTest.confirmErase() {
+    onNodeWithTag("eraseAllDataButton").performClick()
+    onNodeWithTag("confirmDialogOkButton").performClick()
+    waitForIdle()
+  }
+
+  private fun ComposeUiTest.showSection(engine: SyncEngine, streakTracker: StreakTracker) {
     setContent {
       InitializeApp {
         DangerZoneSection(syncEngine = engine, streakTracker = streakTracker, onReset = {})
       }
     }
-    onNodeWithTag("eraseAllDataButton").performClick()
-    onNodeWithTag("confirmDialogOkButton").performClick()
-    waitForIdle()
+  }
+
+  private fun ComposeUiTest.eraseWith(
+    outcome: EraseOutcome,
+    streakTracker: StreakTracker = StreakTracker(InMemoryDailyActivityStore()),
+  ): ScriptedSyncEngine {
+    val engine = ScriptedSyncEngine(outcome)
+    showSection(engine, streakTracker)
+    confirmErase()
     return engine
   }
 
@@ -110,6 +126,59 @@ class TestDangerZoneSection : TestWithKoin() {
     eraseWith(EraseOutcome.Erased, streakTracker)
 
     streakTracker.cardsCompletedToday() shouldBe 0
+    onNodeWithTag("erase_error").assertDoesNotExist()
+  }
+
+  @Test
+  fun leavingThePageMidEraseStillWipesTheStreakOnceTheEraseSucceeds() = runTestFromSetup {
+    val streakTracker = StreakTracker(InMemoryDailyActivityStore())
+    streakTracker.recordReview()
+    val serverAnswer = CompletableDeferred<EraseOutcome>()
+    val engine = ScriptedSyncEngine({ serverAnswer.await() })
+    var sectionShown by mutableStateOf(true)
+    setContent {
+      InitializeApp {
+        if (sectionShown) {
+          DangerZoneSection(syncEngine = engine, streakTracker = streakTracker, onReset = {})
+        }
+      }
+    }
+    confirmErase()
+
+    sectionShown = false
+    waitForIdle()
+    serverAnswer.complete(EraseOutcome.Erased)
+    waitForIdle()
+
+    streakTracker.cardsCompletedToday() shouldBe 0
+  }
+
+  @Test
+  fun aShownErrorDisappearsWhenTheNextEraseStarts() = runTestFromSetup {
+    val secondAnswer = CompletableDeferred<EraseOutcome>()
+    val engine =
+      ScriptedSyncEngine({ EraseOutcome.Failed }, { secondAnswer.await() })
+    showSection(engine, StreakTracker(InMemoryDailyActivityStore()))
+    confirmErase()
+    onNodeWithTag("erase_error").assertIsDisplayed()
+
+    confirmErase()
+
+    onNodeWithTag("erase_error").assertDoesNotExist()
+    secondAnswer.complete(EraseOutcome.Failed)
+    waitForIdle()
+    onNodeWithTag("erase_error").assertIsDisplayed()
+  }
+
+  @Test
+  fun aShownErrorDisappearsWhenTheNextEraseSucceeds() = runTestFromSetup {
+    val engine = ScriptedSyncEngine({ EraseOutcome.SignInRequired }, { EraseOutcome.Erased })
+    showSection(engine, StreakTracker(InMemoryDailyActivityStore()))
+    confirmErase()
+    onNodeWithTag("erase_error").assertIsDisplayed()
+
+    confirmErase()
+
     onNodeWithTag("erase_error").assertDoesNotExist()
   }
 }
