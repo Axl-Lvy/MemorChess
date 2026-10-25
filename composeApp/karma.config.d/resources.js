@@ -2,8 +2,6 @@
 // by JetBrains in compose-multiplatform's own resources library (components/resources/library/
 // karma.config.d/wasm/config.js). Without this the resource requests issued by the test bundle
 // have nothing to resolve against and every stringResource/painterResource stays unloaded.
-// test_setup.js (from src/wasmJsTest/resources) additionally switches the resource reader to a
-// blocking XMLHttpRequest so reads complete inside the test framework's synchronous waits.
 
 const path = require("path");
 
@@ -23,7 +21,6 @@ config.files = [
     {pattern: path.resolve(basePath, "kotlin", "**/*.txt"), included: false, served: true, watched: false},
     {pattern: path.resolve(basePath, "kotlin", "**/*.json"), included: false, served: true, watched: false},
     {pattern: path.resolve(basePath, "kotlin", "**/*.xml"), included: false, served: true, watched: false},
-    path.resolve(basePath, "kotlin", "test_setup.js"),
 ].concat(config.files);
 
 function KarmaWebpackOutputFramework(config) {

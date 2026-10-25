@@ -18,7 +18,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
-import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import androidx.compose.ui.text.TextLayoutResult
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
@@ -41,6 +40,7 @@ import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.setKineticContent
+import proj.memorchess.axl.ui.waitUntilNodeExists
 
 /** Per-row test tag, mirroring the shape of the caller-supplied production tags. */
 private fun rowTag(item: NavigationBarItemContent) = "rail_${item.name}"
@@ -126,7 +126,7 @@ internal class TestKineticSideBar {
       maxTotalMovesPerDay = { Int.MAX_VALUE },
     )
 
-  private fun ComposeUiTest.setRail(
+  private suspend fun ComposeUiTest.setRail(
     streakTracker: StreakTracker,
     scheduler: TrainingScheduler,
     currentRoute: String = NavigationBarItemContent.Training.destination.getLabel(),
@@ -192,7 +192,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(store), schedulerOver(dbWithDueCards(0)))
 
-    waitUntilAtLeastOneExists(hasText("0"))
+    waitUntilNodeExists(hasText("0"))
     onNodeWithText("0").assertIsDisplayed()
   }
 
@@ -203,7 +203,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(store), schedulerOver(dbWithDueCards(0)))
 
-    waitUntilAtLeastOneExists(hasText("1"))
+    waitUntilNodeExists(hasText("1"))
     onNodeWithText("1").assertIsDisplayed()
   }
 
@@ -214,7 +214,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(store), schedulerOver(dbWithDueCards(0)))
 
-    waitUntilAtLeastOneExists(hasText("99999"))
+    waitUntilNodeExists(hasText("99999"))
     onNodeWithText("99999").assertIsDisplayed()
     assertLaidOutOnOneLine("99999")
   }
@@ -230,7 +230,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(store), schedulerOver(database))
 
-    waitUntilAtLeastOneExists(hasText("0"))
+    waitUntilNodeExists(hasText("0"))
     onNode(hasText("0/", substring = true)).assertDoesNotExist()
   }
 
@@ -243,7 +243,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(store), schedulerOver(database))
 
-    waitUntilAtLeastOneExists(hasText("1/1", substring = true))
+    waitUntilNodeExists(hasText("1/1", substring = true))
   }
 
   @Test
@@ -255,7 +255,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(store), schedulerOver(database))
 
-    waitUntilAtLeastOneExists(hasText("0/1", substring = true))
+    waitUntilNodeExists(hasText("0/1", substring = true))
   }
 
   @Test
@@ -269,7 +269,7 @@ internal class TestKineticSideBar {
 
     // The headline number must never wrap; the secondary line is allowed to, and does at a
     // six-digit target. Nothing is clipped either way — the rail scrolls.
-    waitUntilAtLeastOneExists(hasText("99999/100000", substring = true))
+    waitUntilNodeExists(hasText("99999/100000", substring = true))
     assertLaidOutOnOneLine("99999")
   }
 
@@ -277,7 +277,7 @@ internal class TestKineticSideBar {
   fun loadingRendersNoDigits() = runComposeUiTest {
     setRail(StreakTracker(NeverReturningDailyActivityStore()), schedulerOver(dbWithDueCards(3)))
 
-    waitUntilAtLeastOneExists(hasTestTag(rowTag(NavigationBarItemContent.Training)))
+    waitUntilNodeExists(hasTestTag(rowTag(NavigationBarItemContent.Training)))
     // Nothing in the rail carries a digit until the snapshot resolves — not even a placeholder "0".
     digitTexts(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)).shouldBeEmpty()
   }
@@ -307,7 +307,7 @@ internal class TestKineticSideBar {
 
     setRail(streakTracker, scheduler)
 
-    waitUntilAtLeastOneExists(hasText("1/1", substring = true))
+    waitUntilNodeExists(hasText("1/1", substring = true))
     onNode(hasText("1/2", substring = true)).assertDoesNotExist()
   }
 
@@ -388,7 +388,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(InMemoryDailyActivityStore()), schedulerOver(database))
 
-    waitUntilAtLeastOneExists(hasText("0"))
+    waitUntilNodeExists(hasText("0"))
     rowDigitTexts(rowTag(NavigationBarItemContent.Training)).shouldBeEmpty()
   }
 
@@ -399,9 +399,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(InMemoryDailyActivityStore()), schedulerOver(database))
 
-    waitUntilAtLeastOneExists(
-      hasTestTag(rowTag(NavigationBarItemContent.Training)) and hasText("1")
-    )
+    waitUntilNodeExists(hasTestTag(rowTag(NavigationBarItemContent.Training)) and hasText("1"))
     rowDigitTexts(rowTag(NavigationBarItemContent.Training)) shouldBe listOf("1")
   }
 
@@ -412,9 +410,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(InMemoryDailyActivityStore()), schedulerOver(database))
 
-    waitUntilAtLeastOneExists(
-      hasTestTag(rowTag(NavigationBarItemContent.Training)) and hasText("3")
-    )
+    waitUntilNodeExists(hasTestTag(rowTag(NavigationBarItemContent.Training)) and hasText("3"))
     rowDigitTexts(rowTag(NavigationBarItemContent.Training)) shouldBe listOf("3")
     rowDigitTexts(rowTag(NavigationBarItemContent.Settings)).shouldBeEmpty()
   }

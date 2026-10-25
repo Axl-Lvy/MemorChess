@@ -17,6 +17,7 @@ import proj.memorchess.axl.ui.assertPieceMoved
 import proj.memorchess.axl.ui.clickOnSave
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
+import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.waitUntilSuspending
 
 @OptIn(ExperimentalTestApi::class)
@@ -30,7 +31,7 @@ class TestSaveButton : TestWithKoin() {
     koinSetUp()
     try {
       database.eraseAll()
-      setContent { InitializeApp { Explore() } }
+      setTestContent { InitializeApp { Explore() } }
       playMove("h2", "h3")
       assertPieceMoved("h2", "h3", ChessPiece(PieceKind.PAWN, Player.WHITE))
       block()

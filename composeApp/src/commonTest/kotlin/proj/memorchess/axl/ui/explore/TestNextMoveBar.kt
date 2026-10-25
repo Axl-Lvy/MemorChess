@@ -19,6 +19,7 @@ import proj.memorchess.axl.ui.clickOnReset
 import proj.memorchess.axl.ui.clickOnSave
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
+import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.waitUntilSuspending
 
 @OptIn(ExperimentalTestApi::class)
@@ -28,14 +29,14 @@ class TestNextMoveBar : TestWithKoin() {
 
   private suspend fun ComposeUiTest.setUp() {
     database.eraseAll()
-    setContent { InitializeApp { Explore() } }
+    setTestContent { InitializeApp { Explore() } }
     playMove("e2", "e4")
     assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
     clickOnSave()
     waitUntilSuspending { drainAllNodes(database).size == 2 }
   }
 
-  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) = runComposeUiTest {
+  private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
       setUp()

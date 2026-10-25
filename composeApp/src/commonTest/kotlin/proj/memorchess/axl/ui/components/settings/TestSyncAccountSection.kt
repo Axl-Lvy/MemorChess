@@ -10,6 +10,7 @@ import kotlin.test.Test
 import proj.memorchess.axl.core.auth.Account
 import proj.memorchess.axl.core.sync.SyncJobStatus
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.setTestContent
 
 @OptIn(ExperimentalTestApi::class)
 class TestSyncAccountSection : TestWithKoin() {
@@ -25,7 +26,7 @@ class TestSyncAccountSection : TestWithKoin() {
 
   @Test
   fun signedOutShowsSignInButtonAndNoError() = runTestFromSetup {
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = null,
@@ -43,7 +44,7 @@ class TestSyncAccountSection : TestWithKoin() {
 
   @Test
   fun signedInShowsSignOutButtonAndAccountName() = runTestFromSetup {
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = Account(sub = "user-1", name = "Alice"),
@@ -62,7 +63,7 @@ class TestSyncAccountSection : TestWithKoin() {
 
   @Test
   fun signedInWithNoDisplayNameFallsBackToSub() = runTestFromSetup {
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = Account(sub = "user-1", name = null),
@@ -80,7 +81,7 @@ class TestSyncAccountSection : TestWithKoin() {
 
   @Test
   fun pendingDisablesSignInButton() = runTestFromSetup {
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = null,
@@ -98,7 +99,7 @@ class TestSyncAccountSection : TestWithKoin() {
 
   @Test
   fun errorIsShownWhenPresent() = runTestFromSetup {
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = null,
@@ -117,7 +118,7 @@ class TestSyncAccountSection : TestWithKoin() {
   @Test
   fun clickingSignInInvokesCallback() = runTestFromSetup {
     var clicked = false
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = null,
@@ -138,7 +139,7 @@ class TestSyncAccountSection : TestWithKoin() {
   @Test
   fun clickingSignOutInvokesCallback() = runTestFromSetup {
     var clicked = false
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = Account(sub = "user-1", name = "Alice"),
@@ -159,7 +160,7 @@ class TestSyncAccountSection : TestWithKoin() {
   // Propagation tests through every SyncJobStatus value, per project convention for a new state
   // reaching an existing consumer.
   private fun statusRendersLine(status: SyncJobStatus) = runTestFromSetup {
-    setContent {
+    setTestContent {
       InitializeApp {
         SyncAccountSectionContent(
           account = null,

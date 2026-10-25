@@ -23,7 +23,7 @@ private const val RAIL_TAG = "progress_rail"
 @OptIn(ExperimentalTestApi::class)
 class TestKineticProgressRail {
 
-  private fun ComposeUiTest.assertClampsTo(input: Float, expected: Float) {
+  private suspend fun ComposeUiTest.assertClampsTo(input: Float, expected: Float) {
     setKineticContent {
       KineticProgressRail(progress = input, modifier = Modifier.testTag(RAIL_TAG))
     }

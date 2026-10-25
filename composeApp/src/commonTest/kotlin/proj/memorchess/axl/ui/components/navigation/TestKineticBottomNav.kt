@@ -21,6 +21,7 @@ import kotlin.test.Test
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.navigation.Route
+import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.theme.KineticDarkPalette
 import proj.memorchess.axl.ui.theme.KineticLightPalette
 
@@ -53,11 +54,11 @@ internal class TestKineticBottomNav : TestWithKoin() {
     }
   }
 
-  private fun ComposeUiTest.setBar(
+  private suspend fun ComposeUiTest.setBar(
     currentRoute: String,
     selected: MutableList<NavigationBarItemContent>,
   ) {
-    setContent {
+    setTestContent {
       InitializeApp {
         KineticBottomNav(
           items = items,
@@ -101,7 +102,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
   @Test
   fun activeCellFollowsCurrentRoute() = runTestFromSetup {
     val route = mutableStateOf(NavigationBarItemContent.Training.destination.getLabel())
-    setContent {
+    setTestContent {
       InitializeApp {
         KineticBottomNav(
           items = items,
@@ -114,7 +115,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
 
     route.value = Route.SettingsRoute.getLabel()
-    waitForIdle()
+    awaitIdle()
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Settings)).assertIsSelected()
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsNotSelected()
@@ -127,7 +128,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
     // only pins that selection still tracks the route when reduce motion is on.
     REDUCE_MOTION_SETTING.setValue(true)
     val route = mutableStateOf(Route.ExploreRoute.DEFAULT.getLabel())
-    setContent {
+    setTestContent {
       InitializeApp {
         KineticBottomNav(
           items = items,
@@ -139,7 +140,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
     }
 
     route.value = Route.TrainingRoute.DEFAULT.getLabel()
-    waitForIdle()
+    awaitIdle()
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
     onNodeWithTag(tagOf(NavigationBarItemContent.Explore)).assertIsNotSelected()
@@ -152,7 +153,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
     // item's own route through the same bar and assert exactly it is selected — the state that
     // drives kineticNavCellStyle's pill, per `selected = active` in KineticBottomNav.
     val route = mutableStateOf(items.first().destination.getLabel())
-    setContent {
+    setTestContent {
       InitializeApp {
         KineticBottomNav(
           items = items,
@@ -165,7 +166,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
     items.forEach { active ->
       route.value = active.destination.getLabel()
-      waitForIdle()
+      awaitIdle()
 
       onNodeWithTag(tagOf(active)).assertIsSelected()
       items.filter { it != active }.forEach { onNodeWithTag(tagOf(it)).assertIsNotSelected() }

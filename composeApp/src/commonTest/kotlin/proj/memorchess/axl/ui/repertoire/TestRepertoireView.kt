@@ -50,6 +50,7 @@ import proj.memorchess.axl.ui.pages.RepertoireLibraryActions
 import proj.memorchess.axl.ui.pages.RepertoireLibraryContent
 import proj.memorchess.axl.ui.pages.RepertoireView
 import proj.memorchess.axl.ui.playMove
+import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.waitUntilBoardAppears
 import proj.memorchess.axl.ui.waitUntilNodeExists
 
@@ -130,7 +131,7 @@ class TestRepertoireView : TestWithKoin() {
     try {
       val (catalog, client) = mockCatalog(pgn)
       seedTreeStore(treeStore)
-      setContent { InitializeApp { RepertoireView("test-rep", catalog, client) } }
+      setTestContent { InitializeApp { RepertoireView("test-rep", catalog, client) } }
       // Wait for the async PGN load to render the board before asserting (issue #228).
       waitUntilBoardAppears()
       block()
@@ -150,7 +151,7 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   /** Renders [RepertoireLibraryContent] with the given state, recording actions by default. */
-  private fun ComposeUiTest.setLibraryContent(
+  private suspend fun ComposeUiTest.setLibraryContent(
     catalogState: LibraryCatalogState,
     installStates: Map<String, RepertoireInstallState> = emptyMap(),
     onInstall: (RepertoireDescriptor) -> Unit = {},
@@ -158,7 +159,7 @@ class TestRepertoireView : TestWithKoin() {
     onRefresh: () -> Unit = {},
     onView: (RepertoireDescriptor) -> Unit = {},
   ) {
-    setContent {
+    setTestContent {
       InitializeApp {
         RepertoireLibraryContent(
           catalogState = catalogState,
@@ -260,7 +261,7 @@ class TestRepertoireView : TestWithKoin() {
     koinSetUp()
     try {
       var viewed: RepertoireDescriptor? = null
-      setContent {
+      setTestContent {
         InitializeApp {
           RepertoireLibraryContent(
             catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
@@ -621,7 +622,7 @@ class TestRepertoireView : TestWithKoin() {
     try {
       mainClock.autoAdvance = false
       var installStates by mutableStateOf<Map<String, RepertoireInstallState>>(emptyMap())
-      setContent {
+      setTestContent {
         InitializeApp {
           RepertoireLibraryContent(
             catalogState =
@@ -699,7 +700,7 @@ class TestRepertoireView : TestWithKoin() {
         mutableStateOf<Map<String, RepertoireInstallState>>(
           mapOf(secondDescriptor.id to RepertoireInstallState.Importing(1f))
         )
-      setContent {
+      setTestContent {
         InitializeApp {
           RepertoireLibraryContent(
             catalogState =

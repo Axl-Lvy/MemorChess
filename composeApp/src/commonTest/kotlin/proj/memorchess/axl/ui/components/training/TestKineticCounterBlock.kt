@@ -27,7 +27,7 @@ import proj.memorchess.axl.ui.theme.KineticMotion
 @OptIn(ExperimentalTestApi::class)
 class TestKineticCounterBlock : TestWithKoin() {
 
-  private fun ComposeUiTest.assertRenders(value: Int, expected: String) {
+  private suspend fun ComposeUiTest.assertRenders(value: Int, expected: String) {
     setKineticContent {
       KineticCounterBlock(label = "success", value = value, tone = KineticCounterTone.Success)
     }
@@ -45,7 +45,7 @@ class TestKineticCounterBlock : TestWithKoin() {
 
   @Test fun minIntRenders() = runComposeUiTest { assertRenders(Int.MIN_VALUE, "-2147483648") }
 
-  private fun ComposeUiTest.assertToneRenders(tone: KineticCounterTone) {
+  private suspend fun ComposeUiTest.assertToneRenders(tone: KineticCounterTone) {
     setKineticContent { KineticCounterBlock(label = "left", value = 42, tone = tone) }
     onNodeWithText("LEFT").assertIsDisplayed()
     onNodeWithText("42").assertIsDisplayed()

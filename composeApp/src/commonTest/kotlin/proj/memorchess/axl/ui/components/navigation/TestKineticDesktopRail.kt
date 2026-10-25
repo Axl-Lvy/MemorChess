@@ -15,7 +15,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
-import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.kotest.matchers.collections.shouldBeEmpty
 import kotlin.test.Test
 import kotlinx.coroutines.awaitCancellation
@@ -34,6 +33,7 @@ import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.setKineticContent
+import proj.memorchess.axl.ui.waitUntilNodeExists
 
 /**
  * Pins [KineticDesktopRail]'s loading/loaded contract and its week-strip wiring.
@@ -103,7 +103,7 @@ internal class TestKineticDesktopRail {
 
   private fun rowTag(item: NavigationBarItemContent) = "desktop_rail_${item.name}"
 
-  private fun ComposeUiTest.setDesktopRail(
+  private suspend fun ComposeUiTest.setDesktopRail(
     streakTracker: StreakTracker,
     scheduler: TrainingScheduler,
     currentRoute: String = NavigationBarItemContent.Training.destination.getLabel(),
@@ -134,9 +134,9 @@ internal class TestKineticDesktopRail {
 
     setDesktopRail(StreakTracker(store), schedulerOver(dbWithDueCards(0)))
 
-    waitUntilAtLeastOneExists(hasText("3"))
+    waitUntilNodeExists(hasText("3"))
     onNodeWithText("3").assertIsDisplayed()
-    waitUntilAtLeastOneExists(hasTestTag("rail_week_strip"))
+    waitUntilNodeExists(hasTestTag("rail_week_strip"))
     (1..7).forEach { isoIndex -> onNodeWithTag("rail_week_cell_$isoIndex").assertIsDisplayed() }
   }
 
@@ -147,7 +147,7 @@ internal class TestKineticDesktopRail {
       schedulerOver(dbWithDueCards(0)),
     )
 
-    waitUntilAtLeastOneExists(hasTestTag(rowTag(NavigationBarItemContent.Training)))
+    waitUntilNodeExists(hasTestTag(rowTag(NavigationBarItemContent.Training)))
     digitTexts(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)).shouldBeEmpty()
     onNodeWithTag("rail_week_strip").assertDoesNotExist()
   }

@@ -26,6 +26,7 @@ import proj.memorchess.axl.core.sync.SyncJobStatus
 import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.components.settings.sections.DangerZoneSection
+import proj.memorchess.axl.ui.setTestContent
 
 @OptIn(ExperimentalTestApi::class)
 class TestDangerZoneSection : TestWithKoin() {
@@ -63,21 +64,21 @@ class TestDangerZoneSection : TestWithKoin() {
     }
   }
 
-  private fun ComposeUiTest.confirmErase() {
+  private suspend fun ComposeUiTest.confirmErase() {
     onNodeWithTag("eraseAllDataButton").performClick()
     onNodeWithTag("confirmDialogOkButton").performClick()
-    waitForIdle()
+    awaitIdle()
   }
 
-  private fun ComposeUiTest.showSection(engine: SyncEngine, streakTracker: StreakTracker) {
-    setContent {
+  private suspend fun ComposeUiTest.showSection(engine: SyncEngine, streakTracker: StreakTracker) {
+    setTestContent {
       InitializeApp {
         DangerZoneSection(syncEngine = engine, streakTracker = streakTracker, onReset = {})
       }
     }
   }
 
-  private fun ComposeUiTest.eraseWith(
+  private suspend fun ComposeUiTest.eraseWith(
     outcome: EraseOutcome,
     streakTracker: StreakTracker = StreakTracker(InMemoryDailyActivityStore()),
   ): ScriptedSyncEngine {
@@ -136,7 +137,7 @@ class TestDangerZoneSection : TestWithKoin() {
     val serverAnswer = CompletableDeferred<EraseOutcome>()
     val engine = ScriptedSyncEngine({ serverAnswer.await() })
     var sectionShown by mutableStateOf(true)
-    setContent {
+    setTestContent {
       InitializeApp {
         if (sectionShown) {
           DangerZoneSection(syncEngine = engine, streakTracker = streakTracker, onReset = {})
@@ -146,9 +147,9 @@ class TestDangerZoneSection : TestWithKoin() {
     confirmErase()
 
     sectionShown = false
-    waitForIdle()
+    awaitIdle()
     serverAnswer.complete(EraseOutcome.Erased)
-    waitForIdle()
+    awaitIdle()
 
     streakTracker.cardsCompletedToday() shouldBe 0
   }
@@ -165,7 +166,7 @@ class TestDangerZoneSection : TestWithKoin() {
 
     onNodeWithTag("erase_error").assertDoesNotExist()
     secondAnswer.complete(EraseOutcome.Failed)
-    waitForIdle()
+    awaitIdle()
     onNodeWithTag("erase_error").assertIsDisplayed()
   }
 

@@ -22,7 +22,7 @@ private const val RING_TAG = "goal_ring"
 @OptIn(ExperimentalTestApi::class)
 class TestGoalRing {
 
-  private fun ComposeUiTest.assertClampsTo(input: Float, expected: Float) {
+  private suspend fun ComposeUiTest.assertClampsTo(input: Float, expected: Float) {
     setKineticContent { GoalRing(progress = input, modifier = Modifier.testTag(RING_TAG)) }
     onNodeWithTag(RING_TAG).assertRangeInfoEquals(ProgressBarRangeInfo(expected, 0f..1f))
   }
