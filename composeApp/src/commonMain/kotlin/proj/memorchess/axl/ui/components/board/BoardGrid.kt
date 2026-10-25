@@ -143,7 +143,7 @@ fun BoardGrid(
  * @param state The board state containing tile information and selection.
  * @param scope Coroutine scope for handling tile click events asynchronously.
  * @param feedback Training feedback for the current attempt; drives the played-square scale pop /
- *   pink pulse, the correct-answer ring, and the wrong-answer square outline.
+ *   pink pulse, the correct-answer ring, the wrong-answer square outline, and the hint outline.
  */
 @Composable
 private fun DrawTileGrid(
@@ -257,8 +257,8 @@ private suspend fun CoroutineScope.animateTileFeedback(
 }
 
 /**
- * Paints every tile's opaque background, then every overlay (selection border, correct-answer ring,
- * wrong-answer outline) in a second pass.
+ * Paints every tile's opaque background, then every overlay (hint outline, selection border,
+ * correct-answer ring, wrong-answer outline) in a second pass.
  *
  * Two passes on purpose: a tile's background must be down before any overlay is drawn, or a later
  * tile in draw order (to the right / below) paints its background over an earlier tile's overlay.
@@ -293,6 +293,16 @@ private fun DrawScope.drawTilesAndOverlays(
     val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
     val isSelected =
       selected != null && selected.first == location.row && selected.second == location.col
+    // Before the selection border, which shares its inset, so tapping a hinted square still
+    // shows the selection.
+    if (location in feedback.hintSquares) {
+      drawRect(
+        color = palette.action,
+        topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
+        size = Size(tileSize - borderWidth, tileSize - borderWidth),
+        style = Stroke(borderWidth),
+      )
+    }
     if (isSelected) {
       // Inset by half the stroke so the border stays inside the tile, matching the previous
       // Modifier.border rendering.

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
+import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -199,6 +200,49 @@ class TestTraining : TestWithKoin() {
       assertNodeWithTextExists("Days in advance: 1")
       assertNodeWithTextDoesNotExists("Days in advance: 2")
     }
+
+  @Test
+  fun testHintGradesTheCardAgainOnce() = runTestFromSetup {
+    assertNodeWithTextExists("HINT").performClick()
+    waitUntilSuspending { storedStartCard().reps == 1 }
+
+    playMove("e2", "e4")
+
+    assertNodeWithTextExists(BRAVO_TEXT)
+    storedStartCard().reps shouldBe 1
+  }
+
+  @Test
+  fun testRevealGradesTheCardAgainOnce() = runTestFromSetup {
+    assertNodeWithTextExists("REVEAL").performClick()
+    waitUntilSuspending { storedStartCard().reps == 1 }
+
+    playMove("e2", "e4")
+
+    assertNodeWithTextExists(BRAVO_TEXT)
+    storedStartCard().reps shouldBe 1
+  }
+
+  /**
+   * An assisted card counts as forgotten, so it collapses the days-in-advance window like a fail.
+   */
+  @Test
+  fun testResetDayOnAssistedSuccess() =
+    runTestFromSetup(matureReviewCardDueInTwoDays()) {
+      assertNodeWithTextExists("INCREMENT A DAY").performClick()
+      assertNodeWithTextExists("INCREMENT A DAY").performClick()
+      assertNodeWithTextDoesNotExists(BRAVO_TEXT)
+      assertNodeWithTextExists("REVEAL").performClick()
+      waitUntilSuspending { storedStartCard().reps == 6 }
+
+      playMove("e2", "e4")
+
+      assertNodeWithTextExists(BRAVO_TEXT)
+      assertNodeWithTextExists("Days in advance: 1")
+    }
+
+  private suspend fun storedStartCard(): CardState =
+    drainAllNodes(database).single { it.positionKey == PositionKey.START_POSITION }.cardState
 
   @Test
   fun testShowNextMove() = runComposeUiTest {

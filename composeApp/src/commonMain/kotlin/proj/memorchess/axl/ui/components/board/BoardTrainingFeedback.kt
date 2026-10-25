@@ -15,10 +15,12 @@ import proj.memorchess.axl.ui.components.training.BoardContainer
  *   before any move of the session has been graded. Consumers must check for `null` explicitly
  *   instead of relying on [playedSquare] or [attempt] to imply it.
  * @property attempt Monotonic counter of graded moves; a change drives every animation once.
+ * @property hintSquares Squares outlined by a hint or reveal until the next move is played.
  */
 data class BoardTrainingFeedback(
   val playedSquare: BoardLocation? = null,
   val correctSquare: BoardLocation? = null,
   val isCorrect: Boolean? = null,
   val attempt: Int = 0,
+  val hintSquares: Set<BoardLocation> = emptySet(),
 )

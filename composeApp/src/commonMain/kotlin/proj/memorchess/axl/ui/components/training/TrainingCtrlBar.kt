@@ -48,7 +48,6 @@ private val FEEDBACK_RAISE = 12.dp
  *   showing `"BLACK TO MOVE"` or `"WHITE TO MOVE"` in 10sp uppercase text, derived from
  *   [playerTurn].
  * - **HINT** and **REVEAL** — default + primary [KineticButton]s wired to [onHint] / [onReveal].
- *   These are stubs for v1; the actual hint/reveal logic is out of scope of this visual port.
  *
  * The whole bar sits on a 20.dp-radius `panel` background with a 1.5.dp `line` border. Padding is
  * 10.dp vertical / 12.dp horizontal so the bar feels tighter than the rest of the page. While
@@ -56,8 +55,8 @@ private val FEEDBACK_RAISE = 12.dp
  *
  * @param playerTurn The side whose turn it is; controls the turn pill text.
  * @param onSkip Invoked when the user taps SKIP.
- * @param onHint Invoked when the user taps HINT (stub in v1).
- * @param onReveal Invoked when the user taps REVEAL (stub in v1).
+ * @param onHint Invoked when the user taps HINT.
+ * @param onReveal Invoked when the user taps REVEAL.
  * @param feedbackActive Whether a wrong answer is currently being shown; raises the whole bar.
  * @param modifier Modifier applied to the outer container.
  */

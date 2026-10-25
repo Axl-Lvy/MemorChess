@@ -113,6 +113,20 @@ class GameEngine private constructor(private val game: ChessGame) {
     return san
   }
 
+  /**
+   * Returns the square the piece moved by [san] starts from, without playing it.
+   *
+   * @throws IllegalMoveException if [san] is not a legal move in the current position.
+   */
+  fun originSquare(san: String): BoardLocation {
+    val target = san.stripCheckMarkers()
+    val move =
+      game.getLegalMoves().firstOrNull {
+        SanUtils.moveToSan(it, game.getBoard(), game.getGameState()).stripCheckMarkers() == target
+      } ?: throw IllegalMoveException("Illegal SAN move: $san")
+    return BoardLocation(row = move.from.rank.value - 1, col = move.from.file.value - 'a')
+  }
+
   /** Returns `true` if a move from [from] to [to] would be a pawn promotion. */
   fun isPromotionMove(from: Pair<Int, Int>, to: Pair<Int, Int>): Boolean {
     val fromSquare = toSquare(from)
