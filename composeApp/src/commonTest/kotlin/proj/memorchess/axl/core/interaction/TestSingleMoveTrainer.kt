@@ -1,5 +1,8 @@
 package proj.memorchess.axl.core.interaction
 
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -29,6 +32,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
   private lateinit var testNode: DataNode
   private var lastPlayedSquare: BoardLocation? = null
   private var lastCorrectSquare: BoardLocation? = null
+  private var lastEdge: proj.memorchess.axl.core.graph.Edge? = null
 
   override suspend fun setUp() {
     database.eraseAll()
@@ -71,7 +75,8 @@ class TestSingleMoveTrainer : TestWithKoin() {
     val node = treeStore.node(testNode.positionKey)
     checkNotNull(node)
     singleMoveTrainer =
-      SingleMoveTrainer(node) { _, played, correct ->
+      SingleMoveTrainer(node) { edge, played, correct ->
+        lastEdge = edge
         lastPlayedSquare = played
         lastCorrectSquare = correct
       }
@@ -138,6 +143,103 @@ class TestSingleMoveTrainer : TestWithKoin() {
     assertEquals(null, correctEdge) // rejected: correct chess move, wrong repertoire
     assertNull(correctSquare) // no edge is tagged for "italian-game", so nothing to outline
   }
+
+  @Test
+  fun hintReturnsTheExpectedMoveOriginSquareAndGradesAgain() = test {
+    singleMoveTrainer.hint() shouldBe BoardLocation(1, 4) // e2
+
+    val card = storedCard()
+    card.reps shouldBe testNode.cardState.reps + 1
+    card.lapses shouldBe testNode.cardState.lapses + 1
+  }
+
+  @Test
+  fun revealReturnsTheExpectedMoveOriginAndDestinationAndGradesAgain() = test {
+    singleMoveTrainer.reveal() shouldBe Pair(BoardLocation(1, 4), BoardLocation(3, 4)) // e2-e4
+
+    val card = storedCard()
+    card.reps shouldBe testNode.cardState.reps + 1
+    card.lapses shouldBe testNode.cardState.lapses + 1
+  }
+
+  @Test
+  fun aCorrectMoveAfterAHintIsAcceptedButNotGradedAgain() = test {
+    singleMoveTrainer.hint()
+
+    clickOnTile("e2")
+    clickOnTile("e4")
+
+    lastEdge.shouldNotBeNull().move shouldBe "e4"
+    val card = storedCard()
+    card.reps shouldBe testNode.cardState.reps + 1
+    card.lapses shouldBe testNode.cardState.lapses + 1
+  }
+
+  @Test
+  fun aWrongMoveAfterARevealIsNotGradedAgain() = test {
+    singleMoveTrainer.reveal()
+
+    clickOnTile("d2")
+    clickOnTile("d4")
+
+    lastEdge.shouldBeNull()
+    storedCard().reps shouldBe testNode.cardState.reps + 1
+  }
+
+  @Test
+  fun aHintThenARevealGradesTheCardOnce() = test {
+    singleMoveTrainer.hint()
+    singleMoveTrainer.reveal().shouldNotBeNull()
+
+    storedCard().reps shouldBe testNode.cardState.reps + 1
+  }
+
+  @Test
+  fun aHintAfterTheMoveWasPlayedReturnsNothingAndDoesNotGrade() = test {
+    clickOnTile("e2")
+    clickOnTile("e4")
+    val afterMove = storedCard()
+
+    singleMoveTrainer.hint().shouldBeNull()
+    singleMoveTrainer.reveal().shouldBeNull()
+
+    storedCard() shouldBe afterMove
+  }
+
+  @Test
+  fun aScopedTrainerWithNoInScopeGoodMoveHintsNothingAndDoesNotGrade() = test {
+    val node = treeStore.node(testNode.positionKey)
+    checkNotNull(node)
+    val scopedTrainer = SingleMoveTrainer(node, repertoireScope = "italian-game") { _, _, _ -> }
+
+    scopedTrainer.hint().shouldBeNull()
+    scopedTrainer.reveal().shouldBeNull()
+
+    storedCard() shouldBe testNode.cardState
+  }
+
+  @Test
+  fun swappingTheNodeClearsTheAssistedState() = test {
+    val e4Position = GameEngine().apply { playSanMove("e4") }.toPositionKey()
+    val e5Position = GameEngine().apply { playSanMove("e4"); playSanMove("e5") }.toPositionKey()
+    val e4Node =
+      DataNode(
+        positionKey = e4Position,
+        PreviousAndNextMoves(listOf(), listOf(DataMove(e4Position, e5Position, "e5", isGood = true))),
+        testNode.cardState,
+      )
+    database.insertNodes(e4Node)
+    singleMoveTrainer.hint()
+    singleMoveTrainer.updateNode(checkNotNull(treeStore.node(e4Position)))
+
+    singleMoveTrainer.hint() shouldBe BoardLocation(6, 4) // e7
+
+    val card = checkNotNull(database.getPosition(e4Position)).cardState
+    card.reps shouldBe testNode.cardState.reps + 1
+  }
+
+  private suspend fun storedCard(): CardState =
+    checkNotNull(database.getPosition(testNode.positionKey)).cardState
 
   private suspend fun tileClick(trainer: SingleMoveTrainer, tile: String) {
     val col = tile[0] - 'a'
