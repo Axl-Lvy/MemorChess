@@ -11,6 +11,7 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.isBoardReversed
+import proj.memorchess.axl.ui.setTestContent
 
 @OptIn(ExperimentalTestApi::class)
 class TestBoard : TestWithKoin() {
@@ -18,19 +19,20 @@ class TestBoard : TestWithKoin() {
   private val treeStore: TreeStore by inject()
   private val tagStore: RepertoireTagStore by inject()
 
-  private fun runBoard(inverted: Boolean, block: ComposeUiTest.() -> Unit) = runComposeUiTest {
-    koinSetUp()
-    try {
-      val explorer = LinesExplorer(treeStore = treeStore, tagStore = tagStore)
-      // Positional arguments: on the old signature (inverted defaulted, listed first) this is a
-      // type mismatch and the test source set fails to compile. On the fixed signature
-      // (interactionsManager first, inverted required second) it compiles.
-      setContent { InitializeApp { Board(explorer, inverted) } }
-      block()
-    } finally {
-      koinTearDown()
+  private fun runBoard(inverted: Boolean, block: suspend ComposeUiTest.() -> Unit) =
+    runComposeUiTest {
+      koinSetUp()
+      try {
+        val explorer = LinesExplorer(treeStore = treeStore, tagStore = tagStore)
+        // Positional arguments: on the old signature (inverted defaulted, listed first) this is a
+        // type mismatch and the test source set fails to compile. On the fixed signature
+        // (interactionsManager first, inverted required second) it compiles.
+        setTestContent { InitializeApp { Board(explorer, inverted) } }
+        block()
+      } finally {
+        koinTearDown()
+      }
     }
-  }
 
   @Test
   fun boardRendersUprightWhenNotInverted() =

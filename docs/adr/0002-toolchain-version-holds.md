@@ -4,6 +4,17 @@
 
 Accepted, 2026-09-03. Enforced by `packageRules` in `renovate.json`.
 
+Partially superseded, 2026-10-25: IntelliJ IDEA is no longer the
+development environment, so the AGP cap and the three holds derived
+from it (lifecycle, Compose Multiplatform with `androidx.compose`, and
+filekit) are lifted. The project moves to AGP 9.4, `compileSdk` and
+`targetSdk` 37, and Compose Multiplatform 1.12. The sections below are
+kept as the record of why those holds existed.
+
+The Gradle wrapper hold still stands: Gradle 9.8.2 was re-checked on
+2026-10-25 and still exhausts the daemon heap on the same
+configuration cache entry.
+
 ## Context
 
 Five dependency lines are pinned below their latest release. They are

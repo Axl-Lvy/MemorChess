@@ -37,7 +37,7 @@ Layer maps load automatically when you work in those directories:
 - `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/CLAUDE.md`
 - `composeApp/src/commonMain/kotlin/proj/memorchess/axl/ui/CLAUDE.md`
 
-The toolchain is held below AGP 9.1 and the Gradle wrapper below 9.7.0. Read `docs/adr/0002-toolchain-version-holds.md` before touching either pin.
+The Gradle wrapper is held below 9.7.0. Read `docs/adr/0002-toolchain-version-holds.md` before touching that pin.
 
 ## Key Conventions
 

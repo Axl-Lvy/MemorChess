@@ -15,8 +15,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlin.test.Test
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionKey
@@ -27,6 +25,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.waitUntilSuspending
 
 /**
@@ -60,20 +59,19 @@ class TestImportExportSection : TestWithKoin() {
   fun choosingAnExistingRepertoireTagsTheLichessImportWithIt() = runTestFromSetup {
     tagStore.register("italian-game", "Italian Game", RepertoireColor.WHITE)
     val studyImporter = fakeStudyImporter()
-    setContent { InitializeApp { LichessStudyImportField(studyImporter, tagStore) } }
-    waitForIdle()
+    setTestContent { InitializeApp { LichessStudyImportField(studyImporter, tagStore) } }
+    awaitIdle()
 
     onNodeWithText("Italian Game").performClick()
     onNodeWithTag("lichessStudyInput").performTextInput("aaaaaaaa")
     onNodeWithTag("lichessStudyImportButton").performClick()
 
-    // The MockEngine response dispatches on Dispatchers.Default, which the compose test clock
-    // never yields to on its own, so the import's completion is polled instead of trusted to a
-    // single waitForIdle() (see waitUntilBoardAppears's kdoc for the same starvation on wasmJs).
+    // The MockEngine response dispatches on Dispatchers.Default, so the import's completion is
+    // polled by waitUntilSuspending, which yields to it between polls, instead of trusted to a
+    // single awaitIdle().
     val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
     var tags: Set<String>? = null
     waitUntilSuspending {
-      withContext(Dispatchers.Default) {}
       tags = tagStore.tagsFor(PositionKey.START_POSITION, afterE4)
       tags == setOf("italian-game")
     }

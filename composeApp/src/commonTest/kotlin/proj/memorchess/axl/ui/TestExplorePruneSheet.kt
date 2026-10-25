@@ -10,7 +10,6 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
-import androidx.compose.ui.test.waitUntilDoesNotExist
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -22,7 +21,6 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
-import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.util.hasClickLabel
@@ -35,7 +33,7 @@ class TestExplorePruneSheet : TestWithKoin() {
   private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
-      setContent { InitializeApp { Explore() } }
+      setTestContent { InitializeApp { Explore() } }
       block()
     } finally {
       koinTearDown()
@@ -77,7 +75,7 @@ class TestExplorePruneSheet : TestWithKoin() {
     )
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTagExists("pruneConfirmSheetCancelButton").performClick()
-    waitUntilDoesNotExist(hasTestTag("pruneConfirmSheet"), TEST_TIMEOUT.inWholeMilliseconds)
+    waitUntilNodeDoesNotExist(hasTestTag("pruneConfirmSheet"))
     assertNotNull(database.getPosition(PositionKey.START_POSITION))
   }
 
@@ -113,7 +111,7 @@ class TestExplorePruneSheet : TestWithKoin() {
     assertNodeWithTagExists("pruneConfirmSheet")
     // Top-left corner of the full-screen scrim: always clear of the bottom-anchored panel.
     waitUntilNodeExists(hasClickLabel("Close")).performTouchInput { click(Offset(1f, 1f)) }
-    waitUntilDoesNotExist(hasTestTag("pruneConfirmSheet"), TEST_TIMEOUT.inWholeMilliseconds)
+    waitUntilNodeDoesNotExist(hasTestTag("pruneConfirmSheet"))
     assertNotNull(database.getPosition(PositionKey.START_POSITION))
   }
 
@@ -124,7 +122,7 @@ class TestExplorePruneSheet : TestWithKoin() {
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTextExists("Are you sure you want to delete 0 positions?")
     assertNodeWithTagExists("pruneConfirmSheetOkButton").assertIsEnabled().performClick()
-    waitUntilDoesNotExist(hasTestTag("pruneConfirmSheet"), TEST_TIMEOUT.inWholeMilliseconds)
+    waitUntilNodeDoesNotExist(hasTestTag("pruneConfirmSheet"))
     assertNull(database.getPosition(PositionKey.START_POSITION))
   }
 

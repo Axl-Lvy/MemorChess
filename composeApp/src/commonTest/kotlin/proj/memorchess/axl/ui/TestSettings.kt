@@ -17,7 +17,6 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.streak.StreakTracker
-import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.drainAllNodes
 import proj.memorchess.axl.ui.pages.SETTINGS_SECTION_LIST_TAG
@@ -32,7 +31,7 @@ class TestSettings : TestWithKoin() {
   private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
-      setContent { InitializeApp { Settings() } }
+      setTestContent { InitializeApp { Settings() } }
       block()
     } finally {
       koinTearDown()
@@ -115,7 +114,7 @@ class TestSettings : TestWithKoin() {
     assertNodeWithTagExists("confirmDialogOkButton").performClick()
 
     // Verify the values were reset to defaults
-    waitUntil(timeoutMillis = TEST_TIMEOUT.inWholeMilliseconds) {
+    waitUntilSuspending {
       TRAINING_MOVE_DELAY_SETTING.defaultValue == TRAINING_MOVE_DELAY_SETTING.getValue()
     }
     assertEquals(

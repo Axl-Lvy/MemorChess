@@ -13,11 +13,11 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.waitUntilAtLeastOneExists
-import androidx.compose.ui.test.waitUntilDoesNotExist
+import androidx.compose.ui.test.printToString
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration
 import kotlin.time.TimeSource
@@ -25,11 +25,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.test_util.BOARD_LOAD_TIMEOUT
+import proj.memorchess.axl.test_util.ProvideTestResourceReader
 import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.test_util.getNextMoveDescription
 import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.theme.KineticTheme
 import proj.memorchess.axl.ui.util.hasClickLabel
+
+// CONTENT
+
+/**
+ * Sets the test content and suspends until it has settled, resources included. Use it instead of
+ * [ComposeUiTest.setContent], whose content may still be loading when it returns on wasmJs.
+ *
+ * @param content The composable under test.
+ */
+suspend fun ComposeUiTest.setTestContent(content: @Composable () -> Unit) {
+  setContent { ProvideTestResourceReader(content) }
+  var previousTree: String? = null
+  pumpUntil(TEST_TIMEOUT, "Content settled") {
+    val tree = onAllNodes(isRoot(), useUnmergedTree = true).printToString()
+    (tree == previousTree).also { previousTree = tree }
+  }
+}
 
 // THEME
 
@@ -45,8 +63,8 @@ import proj.memorchess.axl.ui.util.hasClickLabel
  *
  * @param content The composable under test.
  */
-fun ComposeUiTest.setKineticContent(content: @Composable () -> Unit) {
-  setContent { KineticTheme(darkTheme = false) { content() } }
+suspend fun ComposeUiTest.setKineticContent(content: @Composable () -> Unit) {
+  setTestContent { KineticTheme(darkTheme = false) { content() } }
 }
 
 // BOARD
@@ -56,7 +74,7 @@ fun ComposeUiTest.setKineticContent(content: @Composable () -> Unit) {
  *
  * @param tileName The algebraic notation of the tile (e.g., "e4", "h8")
  */
-fun ComposeUiTest.clickOnTile(tileName: String) {
+suspend fun ComposeUiTest.clickOnTile(tileName: String) {
   waitUntilTileAppears(tileName).performClick()
 }
 
@@ -66,36 +84,36 @@ fun ComposeUiTest.clickOnTile(tileName: String) {
  * @param fromTile The algebraic notation of the source tile (e.g., "e2")
  * @param toTile The algebraic notation of the destination tile (e.g., "e4")
  */
-fun ComposeUiTest.playMove(fromTile: String, toTile: String) {
+suspend fun ComposeUiTest.playMove(fromTile: String, toTile: String) {
   clickOnTile(fromTile)
   clickOnTile(toTile)
 }
 
-fun ComposeUiTest.promoteTo(pieceName: String) {
+suspend fun ComposeUiTest.promoteTo(pieceName: String) {
   waitUntilNodeExists(hasClickLabel("Promote to ${pieceName.lowercase()}")).performClick()
 }
 
 /** Clicks the button to reverse/flip the chess board orientation. */
-fun ComposeUiTest.clickOnReverse() {
+suspend fun ComposeUiTest.clickOnReverse() {
   waitUntilNodeExists(hasContentDescription("Reverse")).assertExists().performClick()
 }
 
 /** Clicks the back button to undo the last move. */
-fun ComposeUiTest.clickOnBack() {
+suspend fun ComposeUiTest.clickOnBack() {
   waitUntilNodeExists(hasContentDescription("Back")).assertExists().performClick()
-  waitForIdle()
+  awaitIdle()
 }
 
 /** Clicks the forward button to redo a previously undone move. */
-fun ComposeUiTest.clickOnNext() {
+suspend fun ComposeUiTest.clickOnNext() {
   waitUntilNodeExists(hasContentDescription("Forward")).assertExists().performClick()
-  waitForIdle()
+  awaitIdle()
 }
 
 /** Clicks the reset button to return the board to its initial state. */
-fun ComposeUiTest.clickOnReset() {
+suspend fun ComposeUiTest.clickOnReset() {
   waitUntilNodeExists(hasContentDescription("Reset")).assertExists().performClick()
-  waitForIdle()
+  awaitIdle()
 }
 
 /**
@@ -103,7 +121,7 @@ fun ComposeUiTest.clickOnReset() {
  *
  * @param tileName The algebraic notation of the tile to check (e.g., "e4")
  */
-fun ComposeUiTest.assertTileIsEmpty(tileName: String) {
+suspend fun ComposeUiTest.assertTileIsEmpty(tileName: String) {
   waitUntilTileAppears(tileName).assert(hasContentDescription("Piece", substring = true).not())
 }
 
@@ -114,7 +132,7 @@ fun ComposeUiTest.assertTileIsEmpty(tileName: String) {
  * @param piece The chess piece that should be on the tile
  * @param timeOut The maximum time to wait for the tile to appear
  */
-fun ComposeUiTest.assertTileContainsPiece(
+suspend fun ComposeUiTest.assertTileContainsPiece(
   tileName: String,
   piece: ChessPiece,
   timeOut: Duration = TEST_TIMEOUT,
@@ -130,7 +148,7 @@ fun ComposeUiTest.assertTileContainsPiece(
  * @param toTile The algebraic notation of the destination tile (e.g., "e4")
  * @param piece The chess piece that should have moved
  */
-fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, piece: ChessPiece) {
+suspend fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, piece: ChessPiece) {
   waitUntilTileAppears(fromTile)
   assertTileIsEmpty(fromTile)
   waitUntilTileAppears(toTile)
@@ -143,13 +161,13 @@ fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, piece: Ches
  * @param move The algebraic notation of the move (e.g., "e4")
  * @return The SemanticsNodeInteraction representing the move suggestion
  */
-fun ComposeUiTest.assertNextMoveExist(move: String): SemanticsNodeInteraction {
+suspend fun ComposeUiTest.assertNextMoveExist(move: String): SemanticsNodeInteraction {
   waitUntilNodeExists(hasTestTag(getNextMoveDescription(move)))
   return onNodeWithTag(getNextMoveDescription(move)).assertExists()
 }
 
 /** Checks if the board is reversed or not. */
-fun ComposeUiTest.isBoardReversed(): Boolean {
+suspend fun ComposeUiTest.isBoardReversed(): Boolean {
   val a1y = waitUntilTileAppears("a1").fetchSemanticsNode().positionOnScreen.y
   val a8y = waitUntilTileAppears("a8").fetchSemanticsNode().positionOnScreen.y
   return a1y < a8y
@@ -159,29 +177,14 @@ fun ComposeUiTest.isBoardReversed(): Boolean {
  * Suspends until the board of an asynchronously loading page (e.g. the repertoire viewer, which
  * fetches a PGN in a `LaunchedEffect`) has rendered.
  *
- * The `withContext(Dispatchers.Default) {}` hop is load-bearing: Ktor runs the `MockEngine` request
- * on [Dispatchers.Default], which `runComposeUiTest`'s virtual-time dispatcher never yields to, so
- * without it the HTTP continuation starves and the board never appears.
- *
  * @param timeOut The maximum time to wait for the board to render.
  */
 suspend fun ComposeUiTest.waitUntilBoardAppears(timeOut: Duration = BOARD_LOAD_TIMEOUT) {
-  val matcher = hasClickLabel(getTileDescription("a1"))
-  val mark = TimeSource.Monotonic.markNow()
-  while (onAllNodes(matcher).fetchSemanticsNodes().isEmpty()) {
-    if (mark.elapsedNow() > timeOut) {
-      throw AssertionError("Board still not rendered after $timeOut")
-    }
-    withContext(Dispatchers.Default) {}
-    awaitIdle()
-  }
+  waitUntilNodeExists(hasClickLabel(getTileDescription("a1")), timeOut)
 }
 
-private fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeInteraction {
-  val matcher = hasClickLabel(getTileDescription(tileName))
-  waitUntilAtLeastOneExists(matcher, TEST_TIMEOUT.inWholeMilliseconds)
-  return onNode(matcher).assertExists()
-}
+private suspend fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeInteraction =
+  waitUntilNodeExists(hasClickLabel(getTileDescription(tileName)))
 
 // GENERAL
 
@@ -192,7 +195,7 @@ private fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeI
  * @return The SemanticsNodeInteraction representing the found element
  * @throws AssertionError if no element with the specified tag exists
  */
-fun ComposeUiTest.assertNodeWithTagExists(tag: String): SemanticsNodeInteraction {
+suspend fun ComposeUiTest.assertNodeWithTagExists(tag: String): SemanticsNodeInteraction {
   return waitUntilNodeExists(hasTestTag(tag)).assertExists()
 }
 
@@ -213,7 +216,7 @@ fun ComposeUiTest.assertNodeWithTagDoesNotExists(tag: String) {
  * @return The SemanticsNodeInteraction representing the found element
  * @throws AssertionError if no element with the specified text exists
  */
-fun ComposeUiTest.assertNodeWithTextExists(text: String): SemanticsNodeInteraction {
+suspend fun ComposeUiTest.assertNodeWithTextExists(text: String): SemanticsNodeInteraction {
   return waitUntilNodeExists(hasText(text)).assertExists()
 }
 
@@ -223,8 +226,8 @@ fun ComposeUiTest.assertNodeWithTextExists(text: String): SemanticsNodeInteracti
  * @param text The text that should not be present in the UI
  * @throws AssertionError if an element with the specified text exists
  */
-fun ComposeUiTest.assertNodeWithTextDoesNotExists(text: String) {
-  waitUntilDoesNotExist(hasText(text), TEST_TIMEOUT.inWholeMilliseconds)
+suspend fun ComposeUiTest.assertNodeWithTextDoesNotExists(text: String) {
+  waitUntilNodeDoesNotExist(hasText(text))
 }
 
 /**
@@ -232,7 +235,7 @@ fun ComposeUiTest.assertNodeWithTextDoesNotExists(text: String) {
  *
  * @param sliderTestTag The tag of the slider to slide
  */
-fun ComposeUiTest.slideToRight(sliderTestTag: String) {
+suspend fun ComposeUiTest.slideToRight(sliderTestTag: String) {
   slide(sliderTestTag, 0.80f)
 }
 
@@ -241,11 +244,11 @@ fun ComposeUiTest.slideToRight(sliderTestTag: String) {
  *
  * @param sliderTestTag The tag of the slider to slide
  */
-fun ComposeUiTest.slideToLeft(sliderTestTag: String) {
+suspend fun ComposeUiTest.slideToLeft(sliderTestTag: String) {
   slide(sliderTestTag, 0.10f)
 }
 
-private fun ComposeUiTest.slide(sliderTestTag: String, widthFactor: Float) {
+private suspend fun ComposeUiTest.slide(sliderTestTag: String, widthFactor: Float) {
   val node = assertNodeWithTagExists(sliderTestTag)
   val width = node.fetchSemanticsNode().size.width
   LOGGER.e { "$width" }
@@ -268,13 +271,7 @@ suspend fun ComposeUiTest.waitUntilSuspending(
   timeOut: Duration = TEST_TIMEOUT,
   condition: suspend () -> Boolean,
 ) {
-  val mark = TimeSource.Monotonic.markNow()
-  while (!condition()) {
-    if (mark.elapsedNow() > timeOut) {
-      throw AssertionError("Condition still not satisfied after $timeOut")
-    }
-    waitForIdle()
-  }
+  pumpUntil(timeOut, "Condition", condition)
 }
 
 /**
@@ -284,18 +281,81 @@ suspend fun ComposeUiTest.waitUntilSuspending(
  * @param timeOut The maximum time to wait for the element to appear
  * @return The SemanticsNodeInteraction representing the found element
  */
-fun ComposeUiTest.waitUntilNodeExists(
+suspend fun ComposeUiTest.waitUntilNodeExists(
   matcher: SemanticsMatcher,
   timeOut: Duration = TEST_TIMEOUT,
 ): SemanticsNodeInteraction {
-  waitUntilAtLeastOneExists(matcher, timeOut.inWholeMilliseconds)
+  pumpUntil(timeOut, "Node matching ${matcher.description} exists") {
+    onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+  }
   return onNode(matcher).assertExists()
+}
+
+/**
+ * Waits until no UI element matches the specified matcher.
+ *
+ * @param matcher The matcher used to identify the UI element
+ * @param timeOut The maximum time to wait for the element to disappear
+ */
+suspend fun ComposeUiTest.waitUntilNodeDoesNotExist(
+  matcher: SemanticsMatcher,
+  timeOut: Duration = TEST_TIMEOUT,
+) {
+  pumpUntil(timeOut, "No node matching ${matcher.description}") {
+    onAllNodes(matcher).fetchSemanticsNodes().isEmpty()
+  }
+}
+
+/**
+ * Advances the clock one frame at a time until a UI element matches [matcher], for tests that hold
+ * [androidx.compose.ui.test.MainTestClock.autoAdvance] off yet need content that loads
+ * asynchronously, such as a string resource on wasmJs.
+ *
+ * @param matcher The matcher used to identify the UI element
+ * @param maxFrames The maximum number of frames to advance
+ * @return The SemanticsNodeInteraction representing the found element
+ */
+suspend fun ComposeUiTest.advanceFramesUntilNodeExists(
+  matcher: SemanticsMatcher,
+  maxFrames: Int = 10,
+): SemanticsNodeInteraction {
+  repeat(maxFrames) {
+    if (onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()) return onNode(matcher)
+    mainClock.advanceTimeByFrame()
+    withContext(Dispatchers.Default) {}
+  }
+  return onNode(matcher).assertExists()
+}
+
+/**
+ * Pumps frames until [condition] holds.
+ *
+ * [ComposeUiTest.waitUntil] blocks, which on wasmJs starves both the Compose render loop and the
+ * browser event loop (resource `fetch`, IndexedDB, Ktor's `MockEngine`), so the UI never updates
+ * inside it. Each iteration here advances one frame, lets the event loop run, then awaits idleness.
+ *
+ * @throws AssertionError if [condition] still does not hold after [timeOut]
+ */
+private suspend fun ComposeUiTest.pumpUntil(
+  timeOut: Duration,
+  description: String,
+  condition: suspend () -> Boolean,
+) {
+  val mark = TimeSource.Monotonic.markNow()
+  while (!condition()) {
+    if (mark.elapsedNow() > timeOut) {
+      throw AssertionError("$description: still not satisfied after $timeOut")
+    }
+    if (mainClock.autoAdvance) mainClock.advanceTimeByFrame()
+    withContext(Dispatchers.Default) {}
+    awaitIdle()
+  }
 }
 
 // DATABASE
 
 /** Clicks the "Save Good" button to mark the current position as a good move. */
-fun ComposeUiTest.clickOnSave() {
+suspend fun ComposeUiTest.clickOnSave() {
   waitUntilNodeExists(hasContentDescription("Save", ignoreCase = true))
     .assertExists()
     .performClick()

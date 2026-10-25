@@ -26,7 +26,7 @@ internal class TestMainLayout {
 
   @Composable private fun tagged(tag: String) = Box(Modifier.testTag(tag)) { Text(tag) }
 
-  private fun ComposeUiTest.setLayout(widthDp: Int, heightDp: Int) {
+  private suspend fun ComposeUiTest.setLayout(widthDp: Int, heightDp: Int) {
     setKineticContent {
       MainLayout(
         windowSizeClass = windowSizeClass(widthDp, heightDp),

@@ -18,14 +18,15 @@ import proj.memorchess.axl.ui.clickOnReverse
 import proj.memorchess.axl.ui.isBoardReversed
 import proj.memorchess.axl.ui.pages.Explore
 import proj.memorchess.axl.ui.playMove
+import proj.memorchess.axl.ui.setTestContent
 
 @OptIn(ExperimentalTestApi::class)
 class TestControlBar : TestWithKoin() {
 
-  private fun runTestFromSetup(block: ComposeUiTest.() -> Unit) = runComposeUiTest {
+  private fun runTestFromSetup(block: suspend ComposeUiTest.() -> Unit) = runComposeUiTest {
     koinSetUp()
     try {
-      setContent { InitializeApp { Explore() } }
+      setTestContent { InitializeApp { Explore() } }
       playMove("e2", "e4")
       assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
       block()
@@ -52,7 +53,7 @@ class TestControlBar : TestWithKoin() {
     assertPieceMoved("e2", "e4", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }
 
-  private fun ComposeUiTest.playThenBack() {
+  private suspend fun ComposeUiTest.playThenBack() {
     clickOnBack()
     assertPieceMoved("e4", "e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
   }

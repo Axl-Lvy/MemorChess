@@ -14,7 +14,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
-import androidx.compose.ui.test.waitUntilAtLeastOneExists
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlinx.coroutines.awaitCancellation
@@ -38,6 +37,8 @@ import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 import proj.memorchess.axl.ui.components.today.WeekStrip
 import proj.memorchess.axl.ui.pages.navigation.Route
+import proj.memorchess.axl.ui.setTestContent
+import proj.memorchess.axl.ui.waitUntilNodeExists
 
 /**
  * A [DailyActivityStore] whose reads never complete, so `produceState` stays unresolved. Used to
@@ -101,12 +102,12 @@ class TestToday : TestWithKoin() {
       maxTotalMovesPerDay = { Int.MAX_VALUE },
     )
 
-  private fun ComposeUiTest.setToday(
+  private suspend fun ComposeUiTest.setToday(
     streakTracker: StreakTracker,
     scheduler: TrainingScheduler,
     tagStore: RepertoireTagStore,
   ) {
-    setContent {
+    setTestContent {
       InitializeApp {
         Today(streakTracker = streakTracker, scheduler = scheduler, tagStore = tagStore)
       }
@@ -121,9 +122,9 @@ class TestToday : TestWithKoin() {
     val database = dbWithDueCards(0)
     setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
-    waitUntilAtLeastOneExists(hasTestTag("today_streak_badge"))
+    waitUntilNodeExists(hasTestTag("today_streak_badge"))
     onNodeWithTag("today_streak_badge").assertIsDisplayed()
-    waitUntilAtLeastOneExists(hasText("0"))
+    waitUntilNodeExists(hasText("0"))
     onNodeWithText("0").assertIsDisplayed()
   }
 
@@ -135,7 +136,7 @@ class TestToday : TestWithKoin() {
     val database = dbWithDueCards(0)
     setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
-    waitUntilAtLeastOneExists(hasTestTag("today_week_strip"))
+    waitUntilNodeExists(hasTestTag("today_week_strip"))
     (1..7).forEach { isoIndex -> onNodeWithTag("today_week_cell_$isoIndex").assertExists() }
   }
 
@@ -155,7 +156,7 @@ class TestToday : TestWithKoin() {
 
     setToday(streakTracker, scheduler, testRepertoireTagStore(database))
 
-    waitUntilAtLeastOneExists(hasTestTag("today_goal_ring"))
+    waitUntilNodeExists(hasTestTag("today_goal_ring"))
     onNodeWithTag("today_goal_ring").assertRangeInfoEquals(ProgressBarRangeInfo(1f, 0f..1f))
     onNodeWithTag("today_cta").assertIsDisplayed()
     // KineticButton merges its subtree's semantics, so the count tag on the label inside it is
@@ -173,7 +174,7 @@ class TestToday : TestWithKoin() {
     val database = dbWithDueCards(0)
     setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
-    waitUntilAtLeastOneExists(hasTestTag("today_goal_ring"))
+    waitUntilNodeExists(hasTestTag("today_goal_ring"))
     onNodeWithTag("today_goal_ring").assertRangeInfoEquals(ProgressBarRangeInfo(0f, 0f..1f))
     onNodeWithTag("today_goal_label_done").assertIsDisplayed()
     onNodeWithTag("today_goal_label_progress").assertDoesNotExist()
@@ -191,7 +192,7 @@ class TestToday : TestWithKoin() {
       testRepertoireTagStore(TestDatabases.empty()),
     )
 
-    waitUntilAtLeastOneExists(hasTestTag("today_pickup_empty"))
+    waitUntilNodeExists(hasTestTag("today_pickup_empty"))
     onNodeWithTag("today_pickup_card").assertDoesNotExist()
   }
 
@@ -212,7 +213,7 @@ class TestToday : TestWithKoin() {
 
     setToday(StreakTracker(store), schedulerOver(database), tagStore)
 
-    waitUntilAtLeastOneExists(hasTestTag("today_pickup_card"))
+    waitUntilNodeExists(hasTestTag("today_pickup_card"))
     onNodeWithTag("today_pickup_empty").assertDoesNotExist()
     onNode(hasText("Italian Game")).assertIsDisplayed()
   }
@@ -226,7 +227,7 @@ class TestToday : TestWithKoin() {
     schedulerOver(database).pendingCount() shouldBe 1
     setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
-    waitUntilAtLeastOneExists(hasTestTag("today_cta"))
+    waitUntilNodeExists(hasTestTag("today_cta"))
     onNodeWithTag("today_cta_pending_count_1", useUnmergedTree = true).assertIsDisplayed()
   }
 
@@ -237,7 +238,7 @@ class TestToday : TestWithKoin() {
     schedulerOver(database).pendingCount() shouldBe 2
     setToday(StreakTracker(store), schedulerOver(database), testRepertoireTagStore(database))
 
-    waitUntilAtLeastOneExists(hasTestTag("today_cta"))
+    waitUntilNodeExists(hasTestTag("today_cta"))
     onNodeWithTag("today_cta_pending_count_2", useUnmergedTree = true).assertIsDisplayed()
   }
 
@@ -246,12 +247,12 @@ class TestToday : TestWithKoin() {
   // than calling the page-private classifyWeekCell, and reads the classification back off each
   // cell's semantics state description instead of its (locale dependent) background colour.
 
-  private fun ComposeUiTest.setWeekStrip(
+  private suspend fun ComposeUiTest.setWeekStrip(
     week: List<Boolean>,
     todayIsoIndex: Int,
     tagPrefix: String = "today_week",
   ) {
-    setContent {
+    setTestContent {
       InitializeApp { WeekStrip(week = week, todayIsoIndex = todayIsoIndex, tagPrefix = tagPrefix) }
     }
   }

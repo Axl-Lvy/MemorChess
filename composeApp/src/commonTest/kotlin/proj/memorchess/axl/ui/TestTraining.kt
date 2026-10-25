@@ -3,6 +3,8 @@ package proj.memorchess.axl.ui
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
@@ -47,7 +49,7 @@ class TestTraining : TestWithKoin() {
     disableShortTermScheduler()
     try {
       resetDatabase(cardState ?: dueNowFromLastWeek())
-      setContent { InitializeApp { Training() } }
+      setTestContent { InitializeApp { Training() } }
       block()
     } finally {
       koinTearDown()
@@ -226,7 +228,7 @@ class TestTraining : TestWithKoin() {
         )
       resetDatabase()
       database.insertNodes(testNode)
-      setContent { InitializeApp { Training() } }
+      setTestContent { InitializeApp { Training() } }
 
       try {
         assertTileContainsPiece("e4", ChessPiece(PieceKind.PAWN, Player.WHITE), Duration.ZERO)
@@ -266,7 +268,7 @@ class TestTraining : TestWithKoin() {
         )
       database.eraseAll()
       database.insertNodes(node)
-      setContent { InitializeApp { Training() } }
+      setTestContent { InitializeApp { Training() } }
       assertNodeWithTextDoesNotExists(BRAVO_TEXT)
       playMove("h7", "h8")
       promoteTo("queen")
@@ -303,7 +305,7 @@ class TestTraining : TestWithKoin() {
     disableShortTermScheduler()
     try {
       resetDatabase()
-      setContent { InitializeApp { Training() } }
+      setTestContent { InitializeApp { Training() } }
       assertNodeWithTextDoesNotExists(BRAVO_TEXT)
 
       clickOnTile("e2")
@@ -323,7 +325,7 @@ class TestTraining : TestWithKoin() {
     disableShortTermScheduler()
     try {
       resetDatabase()
-      setContent { InitializeApp { Training() } }
+      setTestContent { InitializeApp { Training() } }
       assertNodeWithTextDoesNotExists(BRAVO_TEXT)
 
       clickOnTile("e2")
@@ -344,14 +346,16 @@ class TestTraining : TestWithKoin() {
     disableShortTermScheduler()
     try {
       resetDatabase()
-      setContent { InitializeApp { Training() } }
+      setTestContent { InitializeApp { Training() } }
       assertNodeWithTextDoesNotExists(BRAVO_TEXT)
 
       clickOnTile("e2")
       mainClock.autoAdvance = false
       clickSettledTile("e4")
-      mainClock.advanceTimeByFrame()
-      val floaterBounds = assertNodeWithTagExists("training-plus-one").getBoundsInRoot()
+      // Measured bounds need the "+1" text, a string resource that loads asynchronously on wasmJs.
+      val floaterBounds =
+        advanceFramesUntilNodeExists(hasTestTag("training-plus-one") and hasText("+1"))
+          .getBoundsInRoot()
       val tileBounds = onNode(hasClickLabel(getTileDescription("e4"))).getBoundsInRoot()
       floaterBounds.left shouldBeGreaterThanOrEqualTo tileBounds.left
       floaterBounds.right shouldBeLessThanOrEqualTo tileBounds.right
@@ -370,7 +374,7 @@ class TestTraining : TestWithKoin() {
     try {
       REDUCE_MOTION_SETTING.setValue(true)
       resetDatabase()
-      setContent { InitializeApp { Training() } }
+      setTestContent { InitializeApp { Training() } }
       assertNodeWithTextDoesNotExists(BRAVO_TEXT)
 
       clickOnTile("e2")
