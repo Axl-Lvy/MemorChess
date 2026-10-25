@@ -4,16 +4,20 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import proj.memorchess.axl.core.config.INSTALLED_REPERTOIRES_SETTING
 import proj.memorchess.axl.core.data.DataRepertoire
+import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportException
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestWithKoin
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   override suspend fun setUp() {
@@ -60,6 +64,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     reportInstall: suspend (String) -> Unit = {},
     store: InstalledRepertoireStore = InstalledRepertoireStore(),
     loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
+    loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot> = { emptyMap() },
   ) =
     RepertoireLibraryViewModel(
       loadManifest = loadManifest,
@@ -70,6 +75,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       reportInstall = reportInstall,
       installedStore = store,
       loadMyRepertoires = loadMyRepertoires,
+      loadMasterySnapshots = loadMasterySnapshots,
       scope = backgroundScope,
     )
 
@@ -189,6 +195,80 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val loaded = viewModel.myRepertoires.first { it.size == 2 }
 
     loaded.map { it.id } shouldBe listOf("italian-game", "italian-game-copy")
+  }
+
+  @Test
+  fun masterySnapshotsArePopulatedFromTheInjectedLoaderOnConstruction() = test {
+    val snapshot = RepertoireMasterySnapshot(solidCount = 2, totalCount = 7, lastReview = null)
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest()) },
+        loadMasterySnapshots = { mapOf(london.id to snapshot) },
+      )
+
+    val loaded = viewModel.masterySnapshots.first { it.isNotEmpty() }
+
+    loaded shouldBe mapOf(london.id to snapshot)
+  }
+
+  @Test
+  fun masterySnapshotsAreReloadedAfterASuccessfulInstall() = test {
+    var current = emptyMap<String, RepertoireMasterySnapshot>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        loadMasterySnapshots = { current },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+    advanceUntilIdle()
+    val snapshot = RepertoireMasterySnapshot(solidCount = 0, totalCount = 12, lastReview = null)
+    current = mapOf(london.id to snapshot)
+
+    viewModel.install(london)
+    val loaded = viewModel.masterySnapshots.first { it.isNotEmpty() }
+
+    loaded shouldBe mapOf(london.id to snapshot)
+  }
+
+  @Test
+  fun masterySnapshotsAreNotReloadedAfterAFailedInstall() = test {
+    var loads = 0
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchPgn = { _, _ -> CatalogResult.NetworkError("offline") },
+        loadMasterySnapshots = {
+          loads++
+          emptyMap()
+        },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+    advanceUntilIdle()
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Failed }
+    advanceUntilIdle()
+
+    loads shouldBe 1
+  }
+
+  @Test
+  fun forceRefreshAlsoReloadsMasterySnapshots() = test {
+    var current = emptyMap<String, RepertoireMasterySnapshot>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest()) },
+        loadMasterySnapshots = { current },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+    advanceUntilIdle()
+    val snapshot = RepertoireMasterySnapshot(solidCount = 3, totalCount = 3, lastReview = null)
+    current = mapOf(london.id to snapshot)
+
+    viewModel.forceRefresh()
+    val loaded = viewModel.masterySnapshots.first { it.isNotEmpty() }
+
+    loaded shouldBe mapOf(london.id to snapshot)
   }
 
   @Test

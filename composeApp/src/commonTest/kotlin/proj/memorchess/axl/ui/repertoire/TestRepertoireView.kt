@@ -28,6 +28,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstallError
 import proj.memorchess.axl.core.data.repertoire.LibraryCatalogState
@@ -36,12 +37,12 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireInstallState
 import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
-import proj.memorchess.axl.core.data.repertoire.placeholderRepertoireMastery
 import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.assertTileContainsPiece
@@ -53,6 +54,7 @@ import proj.memorchess.axl.ui.playMove
 import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.waitUntilBoardAppears
 import proj.memorchess.axl.ui.waitUntilNodeExists
+import proj.memorchess.axl.ui.waitUntilSuspending
 
 @OptIn(ExperimentalTestApi::class)
 class TestRepertoireView : TestWithKoin() {
@@ -154,7 +156,10 @@ class TestRepertoireView : TestWithKoin() {
   private suspend fun ComposeUiTest.setLibraryContent(
     catalogState: LibraryCatalogState,
     installStates: Map<String, RepertoireInstallState> = emptyMap(),
+    previewStates: Map<String, RepertoirePreviewState> = emptyMap(),
+    masterySnapshots: Map<String, RepertoireMasterySnapshot> = emptyMap(),
     onInstall: (RepertoireDescriptor) -> Unit = {},
+    onPreviewRequest: (RepertoireDescriptor) -> Unit = {},
     onRetry: () -> Unit = {},
     onRefresh: () -> Unit = {},
     onView: (RepertoireDescriptor) -> Unit = {},
@@ -164,12 +169,13 @@ class TestRepertoireView : TestWithKoin() {
         RepertoireLibraryContent(
           catalogState = catalogState,
           installStates = installStates,
-          previewStates = emptyMap<String, RepertoirePreviewState>(),
+          previewStates = previewStates,
           myRepertoires = emptyList(),
+          masterySnapshots = masterySnapshots,
           actions =
             RepertoireLibraryActions(
               onInstall = onInstall,
-              onPreviewRequest = {},
+              onPreviewRequest = onPreviewRequest,
               onRetry = onRetry,
               onRefresh = onRefresh,
               onView = onView,
@@ -450,14 +456,54 @@ class TestRepertoireView : TestWithKoin() {
               summary = PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2)
             )
         ),
+      masterySnapshots = mapOf(secondDescriptor.id to snapshot(solid = 3, total = 10)),
     )
     onNodeWithText("Moves added: 5 · Already present: 2").assertExists()
     onNode(hasText("IN TRAINING").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
       .assertExists()
     onNodeWithTag(progressTag(secondDescriptor))
-      .assertRangeInfoEquals(
-        ProgressBarRangeInfo(placeholderRepertoireMastery().solidPercent / 100f, 0f..1f)
-      )
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
+  }
+
+  @Test
+  fun installedMasteryBarIsHiddenWithoutASnapshot() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun installedMasteryBarIsHiddenWhenNoPositionIsTrainable() = runLibraryTest {
+    assertInstalledMasteryBar(solid = 0, total = 0, expected = null)
+  }
+
+  @Test
+  fun installedMasteryBarIsEmptyWhenNothingIsSolid() = runLibraryTest {
+    assertInstalledMasteryBar(solid = 0, total = 1, expected = 0f)
+  }
+
+  @Test
+  fun installedMasteryBarIsFullAtOneOfOne() = runLibraryTest {
+    assertInstalledMasteryBar(solid = 1, total = 1, expected = 1f)
+  }
+
+  @Test
+  fun installedMasteryBarShowsTheLowestNonZeroFraction() = runLibraryTest {
+    assertInstalledMasteryBar(solid = 1, total = 200, expected = 0.005f)
+  }
+
+  @Test
+  fun installedMasteryBarIsJustBelowFullAtOneShortOfTotal() = runLibraryTest {
+    assertInstalledMasteryBar(solid = 199, total = 200, expected = 0.995f)
+  }
+
+  @Test
+  fun installedMasteryBarHandlesALargeRepertoire() = runLibraryTest {
+    assertInstalledMasteryBar(solid = 46_000, total = 92_000, expected = 0.5f)
   }
 
   @Test
@@ -597,15 +643,125 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
-  fun heroProgressBarShowsPlaceholderMasteryFraction() = runLibraryTest {
+  fun heroRequestsTheOverlapPreviewOfItsPick() = runLibraryTest {
+    val requested = mutableListOf<RepertoireDescriptor>()
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      onPreviewRequest = { requested += it },
+    )
+    waitUntilSuspending { requested.isNotEmpty() }
+    assertEquals(listOf(descriptor), requested)
+  }
+
+  @Test
+  fun heroShowsTheReadyOverlap() = runLibraryTest {
+    setHeroPreview(
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 10, movesInCommon = 3))
+    )
+    onNodeWithTag("library_hero_progress_bar")
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
+    onNode(hasText("3 of 10 already yours").and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+  }
+
+  @Test
+  fun heroShowsAnEmptyBarWhenNothingIsInCommon() = runLibraryTest {
+    setHeroPreview(
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 1, movesInCommon = 0))
+    )
+    onNodeWithTag("library_hero_progress_bar")
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0f, 0f..1f))
+    onNodeWithText("0 of 1 already yours").assertExists()
+  }
+
+  @Test
+  fun heroShowsAFullBarWhenEverythingIsInCommon() = runLibraryTest {
+    setHeroPreview(
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 1, movesInCommon = 1))
+    )
+    onNodeWithTag("library_hero_progress_bar")
+      .assertRangeInfoEquals(ProgressBarRangeInfo(1f, 0f..1f))
+    onNodeWithText("1 of 1 already yours").assertExists()
+  }
+
+  @Test
+  fun heroShowsALargeOverlap() = runLibraryTest {
+    setHeroPreview(
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 20_000, movesInCommon = 5_000))
+    )
+    onNodeWithTag("library_hero_progress_bar")
+      .assertRangeInfoEquals(ProgressBarRangeInfo(0.25f, 0f..1f))
+    onNodeWithText("5000 of 20000 already yours").assertExists()
+  }
+
+  @Test
+  fun heroHidesTheOverlapForAnEmptyRepertoire() = runLibraryTest {
+    setHeroPreview(
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 0, movesInCommon = 0))
+    )
+    onNodeWithTag("library_hero_card").assertExists()
+    onNodeWithTag("library_hero_progress_bar").assertDoesNotExist()
+    onNodeWithText("already yours", substring = true).assertDoesNotExist()
+  }
+
+  @Test
+  fun heroHidesTheOverlapWhileItLoads() = runLibraryTest {
+    setHeroPreview(RepertoirePreviewState.Loading)
+    onNodeWithTag("library_hero_card").assertExists()
+    onNodeWithTag("library_hero_progress_bar").assertDoesNotExist()
+  }
+
+  @Test
+  fun heroHidesTheOverlapWhenItFailed() = runLibraryTest {
+    setHeroPreview(RepertoirePreviewState.Failed(InstallError.Network("offline")))
+    onNodeWithTag("library_hero_card").assertExists()
+    onNodeWithTag("library_hero_progress_bar").assertDoesNotExist()
+  }
+
+  @Test
+  fun heroHidesTheOverlapBeforeAnyPreviewIsPublished() = runLibraryTest {
     setLibraryContent(
       catalogState =
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
     )
-    onNodeWithTag("library_hero_progress_bar")
-      .assertRangeInfoEquals(
-        ProgressBarRangeInfo(placeholderRepertoireMastery().solidPercent / 100f, 0f..1f)
-      )
+    onNodeWithTag("library_hero_card").assertExists()
+    onNodeWithTag("library_hero_progress_bar").assertDoesNotExist()
+  }
+
+  /** Renders the two entry catalog (hero = [descriptor]) with [state] as the hero's preview. */
+  private suspend fun ComposeUiTest.setHeroPreview(state: RepertoirePreviewState) =
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      previewStates = mapOf(descriptor.id to state),
+    )
+
+  private fun snapshot(solid: Int, total: Int) =
+    RepertoireMasterySnapshot(solidCount = solid, totalCount = total, lastReview = null)
+
+  /**
+   * Renders [secondDescriptor] installed with a [solid] of [total] snapshot and asserts its bar
+   * reads [expected], or is absent when [expected] is `null`.
+   */
+  private suspend fun ComposeUiTest.assertInstalledMasteryBar(
+    solid: Int,
+    total: Int,
+    expected: Float?,
+  ) {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+      masterySnapshots = mapOf(secondDescriptor.id to snapshot(solid, total)),
+    )
+    if (expected == null) {
+      onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+    } else {
+      onNodeWithTag(progressTag(secondDescriptor))
+        .assertRangeInfoEquals(ProgressBarRangeInfo(expected, 0f..1f))
+    }
   }
 
   // ---------------------------------------------------------------------------------------------

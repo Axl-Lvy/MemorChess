@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.data.DataRepertoire
+import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
@@ -54,6 +55,9 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * @param installedStore Records which repertoires are installed on this device.
  * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
  *   normally through [proj.memorchess.axl.core.graph.RepertoireTagStore.repertoires].
+ * @param loadMasterySnapshots Returns the mastery snapshot of every registered repertoire, keyed by
+ *   repertoire id, normally through
+ *   [proj.memorchess.axl.core.graph.RepertoireTagStore.masterySnapshots].
  * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).
  */
 class RepertoireLibraryViewModel(
@@ -72,6 +76,7 @@ class RepertoireLibraryViewModel(
   private val reportInstall: suspend (id: String) -> Unit,
   private val installedStore: InstalledRepertoireStore,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
+  private val loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot>,
   private val scope: CoroutineScope,
 ) {
 
@@ -82,6 +87,8 @@ class RepertoireLibraryViewModel(
   private val internalPreviewStates =
     MutableStateFlow<Map<String, RepertoirePreviewState>>(emptyMap())
   private val internalMyRepertoires = MutableStateFlow<List<DataRepertoire>>(emptyList())
+  private val internalMasterySnapshots =
+    MutableStateFlow<Map<String, RepertoireMasterySnapshot>>(emptyMap())
   private var loadInFlight = false
 
   /** Current state of the catalog list. */
@@ -104,17 +111,26 @@ class RepertoireLibraryViewModel(
   /** The user's own registered repertoires, for the "My Repertoires" list. */
   val myRepertoires: StateFlow<List<DataRepertoire>> = internalMyRepertoires.asStateFlow()
 
+  /** Mastery snapshot of every registered repertoire, keyed by repertoire id. */
+  val masterySnapshots: StateFlow<Map<String, RepertoireMasterySnapshot>> =
+    internalMasterySnapshots.asStateFlow()
+
   init {
     refresh()
     refreshMyRepertoires()
   }
 
   /**
-   * Reloads [myRepertoires] from [loadMyRepertoires]. Called on construction, and again after a
+   * Reloads [myRepertoires] and [masterySnapshots]. Called on construction, and again after a
    * create or fork completes so the new repertoire shows up without leaving the page.
    */
   fun refreshMyRepertoires() {
     scope.launch { internalMyRepertoires.value = loadMyRepertoires() }
+    refreshMasterySnapshots()
+  }
+
+  private fun refreshMasterySnapshots() {
+    scope.launch { internalMasterySnapshots.value = loadMasterySnapshots() }
   }
 
   /** Reloads the catalog manifest. Ignored while a load is already in flight. */
@@ -247,6 +263,7 @@ class RepertoireLibraryViewModel(
     // suspends on a network round trip, and the bar must never sit at 100% under "Importing…"
     // waiting on that when the install itself is already done.
     setInstallState(descriptor.id, RepertoireInstallState.Installed(summary))
+    refreshMasterySnapshots()
     if (isFirstInstall) {
       reportInstall(descriptor.id)
     }
