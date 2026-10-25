@@ -1,29 +1,20 @@
 [versions]
-# IntelliJ IDEA up to 2026.2 supports AGP only up to the 9.0.x line; do not bump
-# further until the bundled Android plugin catches up (IDEA-390133 tracks AGP 9.1).
-# androidx-lifecycle is also pinned below 2.11.0 for the same reason: 2.11.0 forces
-# AGP 9.1.0 and compileSdk 37 via its AAR metadata.
-agp = "9.0.1"
-android-compileSdk = "36"
+agp = "9.4.1"
+android-compileSdk = "37"
 android-minSdk = "26"
 android-targetSdk = "36"
 androidx-activityCompose = "1.13.0"
 androidx-benchmark = "1.5.0"
 androidx-browser = "1.10.0"
-androidx-lifecycle = "2.10.0"
+androidx-lifecycle = "2.11.0"
 androidx-room = "2.8.5"
 androidx-test-ext-junit = "1.3.0"
 androidx-uiautomator = "2.4.0"
 chess-core = "1.0.2"
 composeHotReload = "1.2.0"
-# Held below 1.12.0: Compose Multiplatform 1.12.0 resolves to androidx.compose 1.12.0,
-# whose AAR metadata requires AGP 9.1.0 and compileSdk 37 (see the AGP note above).
-# composeRuntimeTracing and uiTestJunit4Android below are held for the same reason.
-compose-multiplatform = "1.11.1"
+compose-multiplatform = "1.12.2"
 compose-material3 = "1.9.0"
-# Held below 0.16.0: filekit-dialogs-compose 0.16.0 depends directly on
-# org.jetbrains.compose.ui:ui 1.12.0, dragging Compose UI past the hold above.
-filekit = "0.15.0"
+filekit = "0.16.0"
 hotpreview = "0.2.0"
 indexeddb = "0.12.0"
 kermit = "2.2.0"
@@ -48,7 +39,7 @@ material3-adaptive = "1.2.0"
 material3Android = "1.4.0"
 # Must track the androidx.compose.runtime version that the Compose Multiplatform release
 # above resolves to on Android, otherwise composition tracing produces no sections
-composeRuntimeTracing = "1.11.4"
+composeRuntimeTracing = "1.12.1"
 # Must track the androidx.tracing:tracing-perfetto version that compose-runtime-tracing
 # pulls in, otherwise the Perfetto SDK rejects the benchmark native library with a
 # checksum error
@@ -59,7 +50,7 @@ slf4jApi = "2.0.20"
 sonar = "7.5.0.8588"
 sqlite = "2.7.1"
 stockfish-multiplatform = "0.1.0"
-uiTestJunit4Android = "1.11.4"
+uiTestJunit4Android = "1.12.1"
 espresso = "3.7.0"
 xfeather_z = "1.1.1"
 
