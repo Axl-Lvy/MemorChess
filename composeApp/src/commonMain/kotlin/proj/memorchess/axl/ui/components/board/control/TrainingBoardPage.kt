@@ -83,6 +83,10 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
   private val localReloader = BasicReloader()
   private val trainerReloader = BasicReloader()
   private var chosenNode by mutableStateOf<Node?>(null)
+  // Squares outlined by HINT / REVEAL for the current card. Using either grades the card AGAIN, so
+  // the move that follows counts as a fail even when it is correct.
+  private var hintSquares by mutableStateOf(emptySet<BoardLocation>())
+  private var assisted = false
 
   // Session counters — live for the lifetime of this `TrainingBoard` instance (i.e. the lifetime
   // of the page). When the user leaves Training and comes back, the page is recreated and these
@@ -102,7 +106,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
     // continue the existing "auto-advance on correct" behavior.
     LaunchedEffect(state) {
       if (state.isShowing) {
-        if (state.isCorrect) {
+        if (state.isCorrect && !assisted) {
           successCount += 1
         } else {
           failCount += 1
@@ -127,6 +131,11 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
     }
   }
 
+  private fun showHint(squares: Set<BoardLocation>) {
+    hintSquares = hintSquares + squares
+    assisted = true
+  }
+
   /**
    * Selects the next card to train and updates [chosenNode]. Suspends because it queries the
    * bounded scheduling surface. Called for the initial selection during the loading phase and after
@@ -134,6 +143,8 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
    */
   suspend fun choseNextNode() {
     state = state.toPlayableState()
+    hintSquares = emptySet()
+    assisted = false
     localReloader.reload()
     trainerReloader.reload()
     val day = dayOffset(daysInAdvance)
@@ -266,6 +277,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
         correctSquare = previousCorrectSquare.takeIf { state.isShowing && !state.isCorrect },
         isCorrect = state.isCorrect.takeIf { state.isShowing },
         attempt = totalAttempts,
+        hintSquares = if (state.isShowing) emptySet() else hintSquares,
       )
 
     BoxWithConstraints {
@@ -300,8 +312,16 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
             TrainingCtrlBar(
               playerTurn = playerTurn,
               onSkip = { scope.launch { choseNextNode() } },
-              onHint = {}, // stub for v1
-              onReveal = {}, // stub for v1
+              onHint = {
+                if (!state.isShowing) {
+                  scope.launch { trainer.hint()?.let { showHint(setOf(it)) } }
+                }
+              },
+              onReveal = {
+                if (!state.isShowing) {
+                  scope.launch { trainer.reveal()?.let { (from, to) -> showHint(setOf(from, to)) } }
+                }
+              },
               feedbackActive = state == TrainingBoardState.SHOW_WRONG_MOVE,
               modifier = mod,
             )

@@ -143,7 +143,7 @@ fun BoardGrid(
  * @param state The board state containing tile information and selection.
  * @param scope Coroutine scope for handling tile click events asynchronously.
  * @param feedback Training feedback for the current attempt; drives the played-square scale pop /
- *   pink pulse, the correct-answer ring, and the wrong-answer square outline.
+ *   pink pulse, the correct-answer ring, the wrong-answer square outline, and the hint outline.
  */
 @Composable
 private fun DrawTileGrid(
@@ -257,8 +257,8 @@ private suspend fun CoroutineScope.animateTileFeedback(
 }
 
 /**
- * Paints every tile's opaque background, then every overlay (selection border, correct-answer ring,
- * wrong-answer outline) in a second pass.
+ * Paints every tile's opaque background, then every overlay (selection border, hint outline,
+ * correct-answer ring, wrong-answer outline) in a second pass.
  *
  * Two passes on purpose: a tile's background must be down before any overlay is drawn, or a later
  * tile in draw order (to the right / below) paints its background over an earlier tile's overlay.
@@ -298,6 +298,14 @@ private fun DrawScope.drawTilesAndOverlays(
       // Modifier.border rendering.
       drawRect(
         color = colors.selectedBorderColor,
+        topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
+        size = Size(tileSize - borderWidth, tileSize - borderWidth),
+        style = Stroke(borderWidth),
+      )
+    }
+    if (location in feedback.hintSquares) {
+      drawRect(
+        color = palette.action,
         topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
         size = Size(tileSize - borderWidth, tileSize - borderWidth),
         style = Stroke(borderWidth),

@@ -170,6 +170,44 @@ class TestBoardTrainingFeedback : TestWithKoin() {
     }
   }
 
+  // Hint squares: a static outline painted by DrawTileGrid and carried through BoardContainer.
+
+  @Test
+  fun defaultFeedbackHasNoHintSquares() {
+    BoardTrainingFeedback().hintSquares shouldBe emptySet()
+  }
+
+  @Test
+  fun boardGridComposesWithAHintedOrigin() = runComposeUiTest {
+    setKineticContent {
+      BoardGrid(
+        state = testBoardGridState(),
+        feedback = BoardTrainingFeedback(hintSquares = setOf(E2)),
+      )
+    }
+  }
+
+  @Test
+  fun boardGridComposesWithARevealedMove() = runComposeUiTest {
+    setKineticContent {
+      BoardGrid(
+        state = testBoardGridState(),
+        feedback = BoardTrainingFeedback(hintSquares = setOf(E2, E4)),
+      )
+    }
+  }
+
+  @Test
+  fun boardContainerComposesWithARevealedMove() = runComposeUiTest {
+    setKineticContent {
+      BoardContainer(
+        inverted = true,
+        trainer = TestInteractionsManager(),
+        feedback = BoardTrainingFeedback(hintSquares = setOf(E2, E4)),
+      )
+    }
+  }
+
   private fun testBoardGridState() =
     BoardGridState(inverted = false, interactionsManager = TestInteractionsManager())
 
