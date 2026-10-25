@@ -32,22 +32,24 @@ class TestGameEngine {
 
   @Test
   fun originSquareOfACaptureIsTheCapturingPieceSquare() {
-    val engine = GameEngine().apply {
-      playSanMove("e4")
-      playSanMove("d5")
-    }
+    val engine =
+      GameEngine().apply {
+        playSanMove("e4")
+        playSanMove("d5")
+      }
 
     engine.originSquare("exd5") shouldBe BoardLocation(3, 4)
   }
 
   @Test
   fun originSquareOfADisambiguatedMoveIsTheNamedPieceSquare() {
-    val engine = GameEngine().apply {
-      playSanMove("d4")
-      playSanMove("d5")
-      playSanMove("Nf3")
-      playSanMove("Nf6")
-    }
+    val engine =
+      GameEngine().apply {
+        playSanMove("d4")
+        playSanMove("d5")
+        playSanMove("Nf3")
+        playSanMove("Nf6")
+      }
 
     engine.originSquare("Nbd2") shouldBe BoardLocation(0, 1)
     engine.originSquare("Nfd2") shouldBe BoardLocation(2, 5)

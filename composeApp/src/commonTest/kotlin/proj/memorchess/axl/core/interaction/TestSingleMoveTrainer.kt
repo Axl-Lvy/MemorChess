@@ -221,11 +221,20 @@ class TestSingleMoveTrainer : TestWithKoin() {
   @Test
   fun swappingTheNodeClearsTheAssistedState() = test {
     val e4Position = GameEngine().apply { playSanMove("e4") }.toPositionKey()
-    val e5Position = GameEngine().apply { playSanMove("e4"); playSanMove("e5") }.toPositionKey()
+    val e5Position =
+      GameEngine()
+        .apply {
+          playSanMove("e4")
+          playSanMove("e5")
+        }
+        .toPositionKey()
     val e4Node =
       DataNode(
         positionKey = e4Position,
-        PreviousAndNextMoves(listOf(), listOf(DataMove(e4Position, e5Position, "e5", isGood = true))),
+        PreviousAndNextMoves(
+          listOf(),
+          listOf(DataMove(e4Position, e5Position, "e5", isGood = true)),
+        ),
         testNode.cardState,
       )
     database.insertNodes(e4Node)
