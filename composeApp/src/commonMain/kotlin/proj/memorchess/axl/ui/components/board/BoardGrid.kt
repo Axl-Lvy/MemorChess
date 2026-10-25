@@ -257,7 +257,7 @@ private suspend fun CoroutineScope.animateTileFeedback(
 }
 
 /**
- * Paints every tile's opaque background, then every overlay (selection border, hint outline,
+ * Paints every tile's opaque background, then every overlay (hint outline, selection border,
  * correct-answer ring, wrong-answer outline) in a second pass.
  *
  * Two passes on purpose: a tile's background must be down before any overlay is drawn, or a later
@@ -293,19 +293,21 @@ private fun DrawScope.drawTilesAndOverlays(
     val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
     val isSelected =
       selected != null && selected.first == location.row && selected.second == location.col
-    if (isSelected) {
-      // Inset by half the stroke so the border stays inside the tile, matching the previous
-      // Modifier.border rendering.
+    // Before the selection border, which shares its inset, so tapping a hinted square still
+    // shows the selection.
+    if (location in feedback.hintSquares) {
       drawRect(
-        color = colors.selectedBorderColor,
+        color = palette.action,
         topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
         size = Size(tileSize - borderWidth, tileSize - borderWidth),
         style = Stroke(borderWidth),
       )
     }
-    if (location in feedback.hintSquares) {
+    if (isSelected) {
+      // Inset by half the stroke so the border stays inside the tile, matching the previous
+      // Modifier.border rendering.
       drawRect(
-        color = palette.action,
+        color = colors.selectedBorderColor,
         topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
         size = Size(tileSize - borderWidth, tileSize - borderWidth),
         style = Stroke(borderWidth),

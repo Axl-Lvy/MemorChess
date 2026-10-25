@@ -79,6 +79,7 @@ class SingleMoveTrainer(
   private suspend fun assist(): Pair<BoardLocation, BoardLocation>? {
     if (answered) return null
     val edge = expectedEdge() ?: return null
+    if (answered) return null // a move landed while the scope lookup suspended
     val start = GameEngine(node.positionKey)
     val squares =
       Pair(

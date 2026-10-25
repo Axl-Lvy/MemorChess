@@ -142,7 +142,8 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
    * every move or skip.
    */
   suspend fun choseNextNode() {
-    state = state.toPlayableState()
+    // An assisted card was graded AGAIN, so it collapses the days-in-advance window like a fail.
+    state = if (assisted) TrainingBoardState.FROM_WRONG_MOVE else state.toPlayableState()
     hintSquares = emptySet()
     assisted = false
     localReloader.reload()
