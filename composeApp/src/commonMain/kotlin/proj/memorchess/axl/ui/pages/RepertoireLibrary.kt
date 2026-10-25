@@ -122,6 +122,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.data.DataRepertoire
+import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.CreationError
 import proj.memorchess.axl.core.data.repertoire.CreationState
@@ -140,7 +141,6 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireLibraryViewModel
 import proj.memorchess.axl.core.data.repertoire.RepertoirePreviewState
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishViewModel
-import proj.memorchess.axl.core.data.repertoire.placeholderRepertoireMastery
 import proj.memorchess.axl.core.data.repertoire.slugify
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.RepertoireTagStore
@@ -204,6 +204,7 @@ fun RepertoireLibrary(
         reportInstall = client::reportInstall,
         installedStore = installedStore,
         loadMyRepertoires = tagStore::repertoires,
+        loadMasterySnapshots = tagStore::masterySnapshots,
         scope = coroutineScope,
       )
     }
@@ -212,11 +213,13 @@ fun RepertoireLibrary(
   val navigator = LocalNavigator.current
   val previewStates by viewModel.previewStates.collectAsState()
   val myRepertoires by viewModel.myRepertoires.collectAsState()
+  val masterySnapshots by viewModel.masterySnapshots.collectAsState()
   RepertoireLibraryContent(
     catalogState = catalogState,
     installStates = installStates,
     previewStates = previewStates,
     myRepertoires = myRepertoires,
+    masterySnapshots = masterySnapshots,
     installedIds = installedStore.installedIds(),
     actions =
       RepertoireLibraryActions(
@@ -276,6 +279,7 @@ internal fun RepertoireLibraryContent(
   previewStates: Map<String, RepertoirePreviewState>,
   myRepertoires: List<DataRepertoire>,
   actions: RepertoireLibraryActions,
+  masterySnapshots: Map<String, RepertoireMasterySnapshot> = emptyMap(),
   installedIds: Set<String> = emptySet(),
   modifier: Modifier = Modifier,
 ) {
@@ -349,6 +353,9 @@ internal fun RepertoireLibraryContent(
         CatalogList(
           state = catalogState,
           installStates = installStates,
+          previewStates = previewStates,
+          masterySnapshots = masterySnapshots,
+          onPreviewRequest = actions.onPreviewRequest,
           onInstallRequest = { descriptor ->
             actions.onPreviewRequest(descriptor)
             previewDialog.show(confirm = { actions.onInstall(descriptor) }) {
@@ -723,12 +730,16 @@ private fun CatalogError(message: String, onRetry: () -> Unit) {
  * Loaded catalog body: a stale data hint when the list comes from an expired cache, an empty
  * message when the catalog lists nothing, and otherwise a hero pick, the color filter chips and one
  * card per (filtered) repertoire — or a "nothing matches" message when the filter excludes
- * everything.
+ * everything. Requests the hero's overlap preview through [onPreviewRequest] whenever the pick
+ * changes.
  */
 @Composable
 private fun CatalogList(
   state: LibraryCatalogState.Loaded,
   installStates: Map<String, RepertoireInstallState>,
+  previewStates: Map<String, RepertoirePreviewState>,
+  masterySnapshots: Map<String, RepertoireMasterySnapshot>,
+  onPreviewRequest: (RepertoireDescriptor) -> Unit,
   onInstallRequest: (RepertoireDescriptor) -> Unit,
   onView: (RepertoireDescriptor) -> Unit,
 ) {
@@ -757,8 +768,13 @@ private fun CatalogList(
         remember(state.repertoires, installStates) {
           pickHeroRepertoire(state.repertoires, installStates)
         }
+      LaunchedEffect(hero) { hero?.let(onPreviewRequest) }
       if (hero != null) {
-        HeroPackCard(descriptor = hero, onInstallRequest = { onInstallRequest(hero) })
+        HeroPackCard(
+          descriptor = hero,
+          previewState = previewStates[hero.id],
+          onInstallRequest = { onInstallRequest(hero) },
+        )
       }
       FilterChipRow(
         repertoires = state.repertoires,
@@ -779,6 +795,7 @@ private fun CatalogList(
             RepertoireCard(
               descriptor = descriptor,
               installState = installStates[descriptor.id] ?: RepertoireInstallState.NotInstalled,
+              mastery = masterySnapshots[descriptor.id],
               onInstallRequest = { onInstallRequest(descriptor) },
               onView = { onView(descriptor) },
             )
@@ -997,10 +1014,9 @@ private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme 
 
 /**
  * Hero "picked for you" pack card at the top of the library. [descriptor] is chosen by
- * [pickHeroRepertoire]'s real most-downloaded signal (#309). Its progress readout still uses
- * [placeholderRepertoireMastery] (#292's stub), so the numerator and denominator shown here are not
- * guaranteed to relate to [descriptor]'s own `moveCount` — a placeholder pending #292, not a
- * computed fact about this specific repertoire.
+ * [pickHeroRepertoire]'s most-downloaded signal. Its progress row shows how many of the
+ * repertoire's moves the user already has, read from [previewState], and is hidden until that
+ * overlap is ready or when the repertoire has no move.
  *
  * Does NOT look at [descriptor]'s own [RepertoireInstallState] itself: the badge and CTA render the
  * same whether or not this exact repertoire happens to be installed. That never matters in practice
@@ -1009,11 +1025,16 @@ private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme 
  * stays free of install-state branching by construction rather than needing its own.
  */
 @Composable
-private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () -> Unit) {
+private fun HeroPackCard(
+  descriptor: RepertoireDescriptor,
+  previewState: RepertoirePreviewState?,
+  onInstallRequest: () -> Unit,
+) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val shape = MaterialTheme.shapes.medium
-  val mastery = placeholderRepertoireMastery() // PLACEHOLDER — see this composable's own KDoc.
+  val overlap =
+    (previewState as? RepertoirePreviewState.Ready)?.preview?.takeIf { it.totalMoves > 0 }
   val accent = kineticAccentLimeColor(palette)
   val theme = heroCardTheme(palette, shape)
   Column(
@@ -1075,21 +1096,27 @@ private fun HeroPackCard(descriptor: RepertoireDescriptor, onInstallRequest: () 
         )
       }
     }
-    Row(
-      horizontalArrangement = Arrangement.spacedBy(10.dp),
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      LibraryProgressBar(
-        fraction = { mastery.solidPercent / 100f },
-        trackColor = theme.progressTrackColor,
-        fillColor = accent,
-        testTag = "library_hero_progress_bar",
-        modifier = Modifier.weight(1f),
-      )
-      Text(
-        stringResource(Res.string.library_hero_progress, mastery.solidCount, mastery.totalCount),
-        style = typography.labelSm.copy(fontSize = 10.5.sp, color = theme.progressLabelColor),
-      )
+    if (overlap != null) {
+      Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        LibraryProgressBar(
+          fraction = { overlap.movesInCommon.toFloat() / overlap.totalMoves },
+          trackColor = theme.progressTrackColor,
+          fillColor = accent,
+          testTag = "library_hero_progress_bar",
+          modifier = Modifier.weight(1f),
+        )
+        Text(
+          stringResource(
+            Res.string.library_hero_progress,
+            overlap.movesInCommon,
+            overlap.totalMoves,
+          ),
+          style = typography.labelSm.copy(fontSize = 10.5.sp, color = theme.progressLabelColor),
+        )
+      }
     }
     KineticButton(
       onClick = onInstallRequest,
@@ -1204,12 +1231,14 @@ private fun labelResFor(filter: LibraryColorFilter): StringResource =
 
 /**
  * One catalog entry: icon tile, name, color tag, NEW/IN TRAINING badge, description, move count,
- * and the install action or its progress and outcome.
+ * and the install action or its progress and outcome. [mastery] is the repertoire's registered
+ * mastery snapshot, or `null` when it has none.
  */
 @Composable
 private fun RepertoireCard(
   descriptor: RepertoireDescriptor,
   installState: RepertoireInstallState,
+  mastery: RepertoireMasterySnapshot?,
   onInstallRequest: () -> Unit,
   onView: () -> Unit,
 ) {
@@ -1284,6 +1313,7 @@ private fun RepertoireCard(
     InstallStatusRow(
       descriptor = descriptor,
       installState = installState,
+      mastery = mastery,
       onInstallRequest = onInstallRequest,
     )
   }
@@ -1314,9 +1344,9 @@ private fun ColorTag(color: RepertoireColor) {
 /**
  * Bottom row of a card. Walks every [RepertoireInstallState]: the install button when nothing has
  * happened yet, the determinate install-progress bar ([installProgressFraction]) plus a status line
- * while fetching or importing, the placeholder mastery progress bar plus the import summary once
- * installed in this session (no summary when restored from persistence), and the failure message
- * plus a retry button after a failed attempt.
+ * while fetching or importing, the [mastery] bar (solid over trainable positions, hidden when
+ * nothing is trainable yet) plus the import summary once installed in this session (no summary when
+ * restored from persistence), and the failure message plus a retry button after a failed attempt.
  *
  * The install-progress bar is one [Animatable] hoisted for the whole row, not per branch, so a new
  * [installProgressFraction] target — whether from the next real progress tick or the Fetching ->
@@ -1330,6 +1360,7 @@ private fun ColorTag(color: RepertoireColor) {
 private fun InstallStatusRow(
   descriptor: RepertoireDescriptor,
   installState: RepertoireInstallState,
+  mastery: RepertoireMasterySnapshot?,
   onInstallRequest: () -> Unit,
 ) {
   val palette = LocalKineticPalette.current
@@ -1371,14 +1402,14 @@ private fun InstallStatusRow(
       }
     is RepertoireInstallState.Installed ->
       Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        // PLACEHOLDER mastery bar (#292's stub), shown only once installed — see CatalogList's
-        // scope-narrowing note: an un-installed card shows no fabricated progress at all.
-        LibraryProgressBar(
-          fraction = { placeholderRepertoireMastery().solidPercent / 100f },
-          trackColor = palette.panel3,
-          fillColor = palette.progress,
-          testTag = "library_progress:${descriptor.id}",
-        )
+        if (mastery != null && mastery.totalCount > 0) {
+          LibraryProgressBar(
+            fraction = { mastery.solidCount.toFloat() / mastery.totalCount },
+            trackColor = palette.panel3,
+            fillColor = palette.progress,
+            testTag = "library_progress:${descriptor.id}",
+          )
+        }
         val summary = installState.summary
         if (summary != null) {
           Text(
