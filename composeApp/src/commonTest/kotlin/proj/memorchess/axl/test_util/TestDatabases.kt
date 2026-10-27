@@ -42,7 +42,7 @@ object TestDatabases {
     for ((depth, move) in moves.withIndex()) {
       val currentPosition = engine.toPositionKey()
       engine.playSanMove(move)
-      val dataMove = DataMove(currentPosition, engine.toPositionKey(), move, true)
+      val dataMove = DataMove(currentPosition, engine.toPositionKey(), move, true, ownIsGood = true)
       val node =
         DataNode(
           currentPosition,
