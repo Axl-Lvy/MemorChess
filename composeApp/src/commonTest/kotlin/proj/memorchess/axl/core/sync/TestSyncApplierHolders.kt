@@ -255,4 +255,18 @@ class TestSyncApplierHolders {
 
     database.getPosition(PositionKey.START_POSITION) shouldNotBe null
   }
+
+  @Test
+  fun aPulledNodeTombstoneKeepsAPositionAManualHoldStillReaches() = runTest {
+    val (database, applier) = withBothNodes()
+    applier.applyMove(edge(isGood = true))
+    applier.applyTag(tag("a", isGood = true))
+    applier.applyTag(tag("a", isGood = true, deleted = true, seq = 2L))
+
+    applier.applyNode(node(destination, deleted = true, seq = 2L))
+
+    database.getPosition(PositionKey(destination)) shouldNotBe null
+    database.getPosition(PositionKey(destination))!!.cardState.reps shouldBe 0
+    database.move()!!.isDeleted shouldBe false
+  }
 }

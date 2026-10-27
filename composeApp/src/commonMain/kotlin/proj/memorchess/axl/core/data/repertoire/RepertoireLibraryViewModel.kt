@@ -28,10 +28,10 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * [RepertoireCatalogClient.reportInstall].
  *
  * Reentrancy: [refresh] is ignored while a load is in flight, [install] is ignored only while a
- * fetch or import for the same repertoire is in flight (an installed repertoire may be
- * reinstalled), and [requestPreview] is ignored while a preview for the same repertoire is loading.
- * The guards flip state synchronously before any coroutine is launched, so a double tap on the same
- * frame is still coalesced.
+ * fetch or import, or an uninstall, for the same repertoire is in flight (an installed repertoire
+ * may be reinstalled), and [requestPreview] is ignored while a preview for the same repertoire is
+ * loading. The guards flip state synchronously before any coroutine is launched, so a double tap on
+ * the same frame is still coalesced.
  *
  * @param loadManifest Returns the catalog manifest, normally through the persisted cache.
  * @param reloadManifest Returns the catalog manifest fetched from the network now, used by
@@ -194,6 +194,7 @@ class RepertoireLibraryViewModel(
    * previously failed install may be retried.
    */
   fun install(descriptor: RepertoireDescriptor) {
+    if (descriptor.id in uninstallsInFlight) return
     when (internalInstallStates.value[descriptor.id]) {
       is RepertoireInstallState.Fetching,
       is RepertoireInstallState.Importing -> return
@@ -220,34 +221,40 @@ class RepertoireLibraryViewModel(
     scope.launch { runPreview(descriptor) }
   }
 
-  /** Computes how many moves uninstalling [descriptor] would delete and publishes it. */
-  fun requestUninstallPreview(descriptor: RepertoireDescriptor) {
-    internalUninstallPreviews.value -= descriptor.id
-    scope.launch {
-      internalUninstallPreviews.value += descriptor.id to previewUninstall(descriptor.id)
-    }
+  /** Computes how many moves uninstalling the installed repertoire [id] would delete. */
+  fun requestUninstallPreview(id: String) {
+    internalUninstallPreviews.value -= id
+    scope.launch { internalUninstallPreviews.value += id to previewUninstall(id) }
   }
 
   /**
-   * Uninstalls [descriptor], then marks it not installed. Ignored unless it is installed and no
-   * uninstall of it is running; a failed uninstall leaves it installed.
+   * Uninstalls the installed repertoire [id], listed in the catalog or not, then marks it not
+   * installed. Ignored while an install or an uninstall of it is running; a failed uninstall leaves
+   * it installed.
    */
-  fun uninstall(descriptor: RepertoireDescriptor) {
-    if (internalInstallStates.value[descriptor.id] !is RepertoireInstallState.Installed) return
-    if (!uninstallsInFlight.add(descriptor.id)) return
+  fun uninstall(id: String) {
+    when (internalInstallStates.value[id]) {
+      is RepertoireInstallState.Fetching,
+      is RepertoireInstallState.Importing -> return
+      is RepertoireInstallState.Installed,
+      is RepertoireInstallState.Failed,
+      is RepertoireInstallState.NotInstalled,
+      null -> Unit
+    }
+    if (!uninstallsInFlight.add(id)) return
     scope.launch {
       try {
-        uninstallRepertoire(descriptor.id)
-        setInstallState(descriptor.id, RepertoireInstallState.NotInstalled)
-        internalPreviewStates.value -= descriptor.id
-        internalUninstallPreviews.value -= descriptor.id
+        uninstallRepertoire(id)
+        setInstallState(id, RepertoireInstallState.NotInstalled)
+        internalPreviewStates.value -= id
+        internalUninstallPreviews.value -= id
         refreshMyRepertoires()
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
-        LOGGER.w(e) { "Uninstall of repertoire ${descriptor.id} failed" }
+        LOGGER.w(e) { "Uninstall of repertoire $id failed" }
       } finally {
-        uninstallsInFlight -= descriptor.id
+        uninstallsInFlight -= id
       }
     }
   }

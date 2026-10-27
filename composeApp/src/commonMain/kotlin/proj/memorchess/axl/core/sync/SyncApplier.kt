@@ -60,6 +60,13 @@ class SyncApplier(
       for (tag in database.getTagsTouching(dataNode.positionKey)) {
         if (tag.isGood != null) recomputeHolders(tag.origin, tag.destination, tag.move)
       }
+      // A tombstone does not delete a position a live move still reaches: its holders revive it.
+      if (remote.isDeleted && local != null) {
+        val moves = local.previousAndNextMoves
+        for (move in moves.previousMoves.values + moves.nextMoves.values) {
+          if (!move.isDeleted) recomputeHolders(move.origin, move.destination, move.move)
+        }
+      }
     }
     return resolution.source
   }

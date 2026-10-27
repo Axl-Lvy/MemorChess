@@ -282,8 +282,8 @@ internal data class RepertoireLibraryActions(
   val onExplore: (repertoireId: String) -> Unit = {},
   val onTrain: (repertoireId: String) -> Unit = {},
   val onRepertoireListChanged: () -> Unit = {},
-  val onUninstallRequest: (RepertoireDescriptor) -> Unit = {},
-  val onUninstall: (RepertoireDescriptor) -> Unit = {},
+  val onUninstallRequest: (repertoireId: String) -> Unit = {},
+  val onUninstall: (repertoireId: String) -> Unit = {},
 )
 
 /**
@@ -309,6 +309,12 @@ internal fun RepertoireLibraryContent(
   val uninstallDialog = remember { ConfirmationDialog(okText = Res.string.library_uninstall) }
   uninstallDialog.DrawDialog()
   val latestUninstallPreviews = rememberUpdatedState(uninstallPreviews)
+  val onUninstallRequest = { id: String, name: String ->
+    actions.onUninstallRequest(id)
+    uninstallDialog.show(confirm = { actions.onUninstall(id) }) {
+      UninstallDialogContent(name, latestUninstallPreviews.value[id])
+    }
+  }
   // The dialog keeps the content lambda from the moment it was shown, so read the latest preview
   // through this holder to reflect the Loading -> Ready transition while the dialog stays open.
   val latestPreviewStates = rememberUpdatedState(previewStates)
@@ -343,6 +349,7 @@ internal fun RepertoireLibraryContent(
       onExplore = actions.onExplore,
       onTrain = actions.onTrain,
       onRepertoireListChanged = actions.onRepertoireListChanged,
+      onUninstallRequest = onUninstallRequest,
     )
     when (catalogState) {
       is LibraryCatalogState.Loading ->
@@ -384,12 +391,7 @@ internal fun RepertoireLibraryContent(
               PreviewDialogContent(descriptor, latestPreviewStates.value[descriptor.id])
             }
           },
-          onUninstallRequest = { descriptor ->
-            actions.onUninstallRequest(descriptor)
-            uninstallDialog.show(confirm = { actions.onUninstall(descriptor) }) {
-              UninstallDialogContent(descriptor, latestUninstallPreviews.value[descriptor.id])
-            }
-          },
+          onUninstallRequest = { descriptor -> onUninstallRequest(descriptor.id, descriptor.name) },
           onView = actions.onView,
         )
     }
@@ -409,6 +411,7 @@ private fun MyRepertoiresSection(
   onExplore: (repertoireId: String) -> Unit,
   onTrain: (repertoireId: String) -> Unit,
   onRepertoireListChanged: () -> Unit,
+  onUninstallRequest: (repertoireId: String, name: String) -> Unit,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -433,17 +436,21 @@ private fun MyRepertoiresSection(
         // offered a publish action: the former is not the user's own content, and the latter has
         // no single declared side for RepertoirePublishClient.publish's side field.
         canPublish = repertoire.id !in installedIds && repertoire.color != null,
+        canUninstall = repertoire.id in installedIds,
         onExplore = onExplore,
         onTrain = onTrain,
         onRepertoireListChanged = onRepertoireListChanged,
+        onUninstallRequest = { onUninstallRequest(repertoire.id, repertoire.name) },
       )
     }
   }
 }
 
 /**
- * One row of [MyRepertoiresSection]: the repertoire's name, its Explore/Train/Fork buttons, and,
- * for a self authored single sided repertoire ([canPublish]), its Publish/Update/Unpublish action.
+ * One row of [MyRepertoiresSection]: the repertoire's name, its Explore/Train/Fork buttons, for a
+ * self authored single sided repertoire ([canPublish]) its Publish/Update/Unpublish action, and for
+ * an installed one ([canUninstall]) its Uninstall action, available even once the catalog no longer
+ * lists it.
  */
 @Composable
 private fun MyRepertoireRow(
@@ -451,9 +458,11 @@ private fun MyRepertoireRow(
   id: String,
   color: RepertoireColor?,
   canPublish: Boolean,
+  canUninstall: Boolean,
   onExplore: (repertoireId: String) -> Unit,
   onTrain: (repertoireId: String) -> Unit,
   onRepertoireListChanged: () -> Unit,
+  onUninstallRequest: () -> Unit,
 ) {
   Row(
     modifier = Modifier.fillMaxWidth().testTag("$TEST_TAG_MY_REPERTOIRE_ROW:$id"),
@@ -476,6 +485,15 @@ private fun MyRepertoireRow(
       )
       if (canPublish) {
         PublishAction(localId = id, name = name, color = color!!)
+      }
+      if (canUninstall) {
+        KineticButton(
+          onClick = onUninstallRequest,
+          style = KineticButtonStyle.DangerOutline,
+          modifier = Modifier.testTag("$TEST_TAG_MY_REPERTOIRE_ROW:$id:uninstall"),
+        ) {
+          KineticButtonLabel(stringResource(Res.string.library_uninstall))
+        }
       }
     }
   }
@@ -1561,15 +1579,15 @@ private fun PreviewDialogContent(
 }
 
 /**
- * Body of the uninstall confirmation: the repertoire's name and how many moves the uninstall
+ * Body of the uninstall confirmation: the repertoire's [name] and how many moves the uninstall
  * deletes, or a checking hint while [movesToDelete] is `null`.
  */
 @Composable
-private fun UninstallDialogContent(descriptor: RepertoireDescriptor, movesToDelete: Int?) {
+private fun UninstallDialogContent(name: String, movesToDelete: Int?) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-    Text(text = descriptor.name, style = typography.display.copy(color = palette.ink))
+    Text(text = name, style = typography.display.copy(color = palette.ink))
     if (movesToDelete == null) {
       InstallProgressLine(stringResource(Res.string.library_preview_checking))
     } else {

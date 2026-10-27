@@ -274,10 +274,16 @@ class TreeStore(
       .size
   }
 
-  /** The live tagged edges of [repertoireId] that [edges] no longer contains. */
+  /**
+   * The edges [repertoireId] holds that [edges] no longer contains. Membership tags the user added
+   * by saving while scoped to the repertoire are not holds, so they stay.
+   */
   private suspend fun droppedBy(repertoireId: String, edges: List<TaggedEdge>): List<TaggedEdge> {
     val kept = edges.map { it.origin to it.destination }.toSet()
-    return tagStore.edgesTaggedWith(repertoireId).filter { (it.origin to it.destination) !in kept }
+    return tagStore.edgesTaggedWith(repertoireId).filter {
+      (it.origin to it.destination) !in kept &&
+        tagStore.markings(it.origin, it.destination)[repertoireId] != null
+    }
   }
 
   /**
@@ -345,9 +351,9 @@ class TreeStore(
     require(tagStore.repertoire(repertoireId)?.installedVersion != null) {
       "$repertoireId is not an installed repertoire"
     }
-    val edges = tagStore.edgesTaggedWith(repertoireId)
+    // The registry row goes last, so an interrupted uninstall stays installed and can be retried.
+    releaseHolds(repertoireId, tagStore.edgesTaggedWith(repertoireId))
     tagStore.unregister(repertoireId)
-    releaseHolds(repertoireId, edges)
   }
 
   /**

@@ -926,12 +926,57 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   }
 
   @Test
+  fun installIsIgnoredWhileAnUninstallIsInFlight() = test {
+    val gate = CompletableDeferred<Unit>()
+    var fetches = 0
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchMoves = { _, _ ->
+          fetches++
+          CatalogResult.Ok(emptyList())
+        },
+        store = store,
+        uninstallRepertoire = {
+          gate.await()
+          store.rows.remove(it)
+        },
+      )
+    viewModel.loadedState()
+    viewModel.uninstall(london.id)
+
+    viewModel.install(london)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
+
+    fetches shouldBe 0
+  }
+
+  @Test
+  fun anInstalledRepertoireMissingFromTheCatalogCanBeUninstalled() = test {
+    val done = CompletableDeferred<String>()
+    val store = FakeRegistry().apply { markInstalled(caroKann.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        uninstallRepertoire = { done.complete(it) },
+      )
+    viewModel.loadedState()
+
+    viewModel.uninstall(caroKann.id)
+
+    done.await() shouldBe caroKann.id
+  }
+
+  @Test
   fun uninstallMarksTheRepertoireNotInstalled() = test {
     val store = FakeRegistry().apply { markInstalled(london.id) }
     val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(london)) }, store = store)
     viewModel.loadedState()
 
-    viewModel.uninstall(london)
+    viewModel.uninstall(london.id)
     viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
 
     store.rows[london.id] shouldBe null
@@ -953,7 +998,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     viewModel.loadedState()
     viewModel.install(london)
 
-    viewModel.uninstall(london)
+    viewModel.uninstall(london.id)
     gate.complete(Unit)
     viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
 
@@ -976,8 +1021,8 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       )
     viewModel.loadedState()
 
-    viewModel.uninstall(london)
-    viewModel.uninstall(london)
+    viewModel.uninstall(london.id)
+    viewModel.uninstall(london.id)
     gate.complete(Unit)
     viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
 
@@ -999,7 +1044,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       )
     viewModel.loadedState()
 
-    viewModel.uninstall(london)
+    viewModel.uninstall(london.id)
     attempted.await()
 
     viewModel.installStates.value[london.id].shouldBeInstanceOf<RepertoireInstallState.Installed>()
@@ -1016,7 +1061,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       )
     viewModel.loadedState()
 
-    viewModel.requestUninstallPreview(london)
+    viewModel.requestUninstallPreview(london.id)
 
     viewModel.uninstallPreviews.first { london.id in it }[london.id] shouldBe 3
   }
@@ -1062,7 +1107,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     viewModel.loadedState()
     viewModel.install(london)
     viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
-    viewModel.uninstall(london)
+    viewModel.uninstall(london.id)
     viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
 
     viewModel.install(london)

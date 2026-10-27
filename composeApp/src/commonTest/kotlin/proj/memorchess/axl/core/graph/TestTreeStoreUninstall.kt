@@ -278,4 +278,33 @@ class TestTreeStoreUninstall {
     database.isLive(e4) shouldBe true
     database.isLive(e5) shouldBe true
   }
+
+  @Test
+  fun aReinstallKeepsTheUsersOwnMovesTaggedWithTheRepertoire() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    val tagStore = testRepertoireTagStore(database)
+    installed(database, store, "x", e4.installed(true, 0))
+    store.addMove(posB, "e5", posC, isGood = true, fromDepth = 1)
+    tagStore.tag(posB, posC, "x")
+
+    store.install("x", listOf(e4.installed(true, 0)))
+
+    tagStore.tagsFor(posB, posC) shouldBe setOf("x")
+  }
+
+  @Test
+  fun uninstallTombstonesTheRegistryRowAfterReleasingTheHolds() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    installed(database, store, "x", e4.installed(true, 0), e5.installed(true, 1))
+    database.clearDirty(database.getOutbox())
+
+    store.uninstall("x")
+
+    val outbox = database.getOutbox()
+    val registrySeq = outbox.single { it.key == DirtyKey.RepertoireKey("x") }.deviceSeq
+    val lastTagSeq = outbox.filter { it.key is DirtyKey.TagKey }.maxOf { it.deviceSeq }
+    (registrySeq > lastTagSeq) shouldBe true
+  }
 }
