@@ -73,6 +73,32 @@ class TestPgnImporter {
   }
 
   @Test
+  fun overDisambiguatedMoveIsStoredAsTheMoveTheBoardPlays() = runTest {
+    // Arrange
+    val games = PgnParser.parse("1. Ngf3 *")
+
+    // Act
+    val summary = importer.import(games)
+
+    // Assert
+    assertEquals(PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0), summary)
+    val startNode = assertNotNull(database.getPosition(PositionKey.START_POSITION))
+    assertEquals(setOf("Nf3"), startNode.previousAndNextMoves.nextMoves.keys)
+  }
+
+  @Test
+  fun overDisambiguatedMoveMatchesTheSameMoveAlreadyPresent() = runTest {
+    // Arrange
+    importer.import(PgnParser.parse("1. Nf3 *"))
+
+    // Act
+    val summary = importer.import(PgnParser.parse("1. Ngf3 *"))
+
+    // Assert
+    assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 1), summary)
+  }
+
+  @Test
   fun illegalMoveAbortsWithoutWriting() = runTest {
     // Arrange
     val games = PgnParser.parse("1. e4 e5 2. Ke3 *")

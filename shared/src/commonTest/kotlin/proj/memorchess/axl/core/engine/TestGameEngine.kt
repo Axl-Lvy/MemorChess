@@ -26,6 +26,48 @@ class TestGameEngine {
   }
 
   @Test
+  fun playSanMoveReturnsTheMinimalSanOfAnOverDisambiguatedMove() {
+    GameEngine().playSanMove("Ngf3") shouldBe "Nf3"
+    GameEngine().playSanMove("Ng1f3") shouldBe "Nf3"
+  }
+
+  @Test
+  fun playSanMoveKeepsTheDisambiguationTheMoveNeeds() {
+    val engine =
+      GameEngine().apply {
+        playSanMove("d4")
+        playSanMove("d5")
+        playSanMove("Nf3")
+        playSanMove("Nf6")
+      }
+
+    engine.playSanMove("Nbd2") shouldBe "Nbd2"
+  }
+
+  @Test
+  fun playSanMoveDropsTheDisambiguationOfAPinnedRival() {
+    // The c3 knight is pinned by Bb4, so only the g1 knight can reach e2.
+    val engine =
+      GameEngine().apply {
+        listOf("e4", "e6", "d4", "d5", "Nc3", "Bb4").forEach { playSanMove(it) }
+      }
+
+    engine.playSanMove("Nge2") shouldBe "Ne2"
+  }
+
+  @Test
+  fun playSanMoveStripsCheckMarkers() {
+    val engine = GameEngine().apply { listOf("e4", "f5").forEach { playSanMove(it) } }
+
+    engine.playSanMove("Qh5+") shouldBe "Qh5"
+  }
+
+  @Test
+  fun originSquareOfAnOverDisambiguatedMoveIsThePieceSquare() {
+    GameEngine().originSquare("Ngf3") shouldBe BoardLocation(0, 6)
+  }
+
+  @Test
   fun originSquareOfAPlainMoveIsThePawnSquare() {
     GameEngine().originSquare("e4") shouldBe BoardLocation(1, 4)
   }

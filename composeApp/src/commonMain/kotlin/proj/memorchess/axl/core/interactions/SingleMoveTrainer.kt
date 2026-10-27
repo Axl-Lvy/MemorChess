@@ -41,9 +41,14 @@ class SingleMoveTrainer(
 
   override suspend fun afterPlayMove(move: String) {
     answered = true
-    val matchingEdge = node.outgoing.values.firstOrNull { it.move == move }
-    val inScope = repertoireScope == null || (matchingEdge != null && isInScope(matchingEdge))
-    isCorrect = matchingEdge != null && matchingEdge.isGood == true && inScope
+    // Matched by resulting position, not SAN text: an edge imported as "Ngf3" before imports were
+    // normalized must still accept the "Nf3" the board plays.
+    val playedPosition = engine.toPositionKey()
+    val matchingEdge =
+      node.outgoing.values.firstOrNull {
+        it.to == playedPosition && it.isGood == true && isInScope(it)
+      }
+    isCorrect = matchingEdge != null
 
     val moverWasWhite = engine.playerTurn == Player.BLACK // engine already advanced past this move
     val playedSquare = BoardUtils.destinationSquare(move, moverWasWhite)

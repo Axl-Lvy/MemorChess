@@ -98,16 +98,17 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
    *   than applied.
    */
   suspend fun playMove(move: String) {
-    try {
-      engine.playSanMove(move)
-    } catch (e: IllegalMoveException) {
-      LOGGER.w(e) { "Rejected illegal move: $move" }
-      toastRenderer.info(Res.string.toast_illegal_move)
-      return
-    }
-    // An external source (e.g. the Lichess opening explorer) may include the "+"/"#" markers that
-    // every other move stored through this app has stripped; keep the same edge either way.
-    afterPlayMove(move.trimEnd('+', '#'))
+    // An external source (e.g. the Lichess opening explorer) may spell the move with "+"/"#"
+    // markers or extra disambiguation; the engine's spelling keeps the same edge either way.
+    val san =
+      try {
+        engine.playSanMove(move)
+      } catch (e: IllegalMoveException) {
+        LOGGER.w(e) { "Rejected illegal move: $move" }
+        toastRenderer.info(Res.string.toast_illegal_move)
+        return
+      }
+    afterPlayMove(san)
   }
 
   /**

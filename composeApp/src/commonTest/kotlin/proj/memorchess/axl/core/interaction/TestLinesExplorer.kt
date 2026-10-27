@@ -319,6 +319,15 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
+  fun playMoveStoresAnOverDisambiguatedMoveAsTheBoardSpellsIt() = test {
+    val start = interactionsManager.engine.toPositionKey()
+
+    interactionsManager.playMove("Ngf3")
+
+    assertEquals(setOf("Nf3"), treeStore.node(start)?.outgoing?.keys)
+  }
+
+  @Test
   fun playedMovesTracksTheOrderedPathFromRootToCurrent() = test {
     assertEquals(emptyList(), interactionsManager.playedMoves())
     assertEquals(0, interactionsManager.depth)

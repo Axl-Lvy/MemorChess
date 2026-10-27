@@ -172,20 +172,22 @@ class PgnImporter(
     val engine = GameEngine(fromKey)
     // Whose move this is, captured before playing it flips the side to move.
     val mover = engine.playerTurn
-    try {
-      engine.playSanMove(moveNode.san)
-    } catch (e: IllegalMoveException) {
-      throw illegalMove(moveNode.san, depth, gameIndex, e)
-    } catch (e: IllegalArgumentException) {
-      // The underlying chess library reports some illegal SAN moves this way.
-      throw illegalMove(moveNode.san, depth, gameIndex, e)
-    }
+    // Stored as the board spells it, so a PGN's over-disambiguated "Ngf3" matches a played "Nf3".
+    val san =
+      try {
+        engine.playSanMove(moveNode.san)
+      } catch (e: IllegalMoveException) {
+        throw illegalMove(moveNode.san, depth, gameIndex, e)
+      } catch (e: IllegalArgumentException) {
+        // The underlying chess library reports some illegal SAN moves this way.
+        throw illegalMove(moveNode.san, depth, gameIndex, e)
+      }
     val toKey = engine.toPositionKey()
-    if (seenMoves.add(fromKey to moveNode.san)) {
+    if (seenMoves.add(fromKey to san)) {
       plannedMoves +=
         MoveInsertion(
           from = fromKey,
-          move = moveNode.san,
+          move = san,
           to = toKey,
           isGood = perspective == null || mover == perspective,
           fromDepth = depth,
