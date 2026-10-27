@@ -8,10 +8,12 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.config.PUBLISHED_REPERTOIRES_SETTING
-import proj.memorchess.axl.core.pgn.RepertoireExportResult
+import proj.memorchess.axl.core.graph.RepertoireExportResult
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestRepertoirePublishViewModel : TestWithKoin() {
+
+  private val e4 = RepertoireMove(from = "start", move = "e4", to = "after-e4", isGood = true)
 
   override suspend fun setUp() {
     PUBLISHED_REPERTOIRES_SETTING.reset()
@@ -30,10 +32,11 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
   private fun viewModel(
     scope: TestScope,
     export: suspend (String) -> RepertoireExportResult = {
-      RepertoireExportResult.Pgn("1. e4", 1, 1)
+      RepertoireExportResult.Moves(listOf(e4), maxPlyDepth = 0)
     },
     accessToken: suspend () -> TokenResult = { TokenResult.Ok("token") },
-    publish: suspend (String, String, String, String, String, String) -> PublishOutcome =
+    publish:
+      suspend (String, String, String, String, String, List<RepertoireMove>) -> PublishOutcome =
       { _, _, _, _, _, _ ->
         PublishOutcome.Published(descriptor)
       },
@@ -123,7 +126,10 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
       viewModel(
         this,
         export = {
-          RepertoireExportResult.Pgn("1. e4", RepertoirePublishLimits.MAX_REPERTOIRE_MOVES + 1, 1)
+          RepertoireExportResult.Moves(
+            List(RepertoirePublishLimits.MAX_REPERTOIRE_MOVES + 1) { e4 },
+            maxPlyDepth = 0,
+          )
         },
         publish = { _, _, _, _, _, _ ->
           networkCalled = true
@@ -173,15 +179,17 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
   }
 
   @Test
-  fun publishFailsLocallyWhenThePayloadIsOverTheByteCap() = test {
-    var networkCalled = false
-    val oversized = "x".repeat(RepertoirePublishLimits.MAX_REPERTOIRE_PAYLOAD_BYTES + 1)
+  fun publishSendsExactlyTheMoveCapAndDepthCapWithTheExportedMoves() = test {
+    val atCap = List(RepertoirePublishLimits.MAX_REPERTOIRE_MOVES) { e4 }
+    var sent: List<RepertoireMove>? = null
     val vm =
       viewModel(
         this,
-        export = { RepertoireExportResult.Pgn(oversized, 1, 1) },
-        publish = { _, _, _, _, _, _ ->
-          networkCalled = true
+        export = {
+          RepertoireExportResult.Moves(atCap, maxPlyDepth = RepertoirePublishLimits.MAX_PLY_DEPTH)
+        },
+        publish = { _, _, _, _, _, moves ->
+          sent = moves
           PublishOutcome.Published(descriptor)
         },
       )
@@ -189,9 +197,8 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
     vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = "white")
     advanceUntilIdle()
 
-    (vm.state.value as PublishState.Failed).error should
-      beInstanceOf<PublishError.PayloadTooLarge>()
-    networkCalled shouldBe false
+    vm.state.value shouldBe PublishState.Published("my-italian-game")
+    sent shouldBe atCap
   }
 
   @Test
@@ -201,7 +208,10 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
       viewModel(
         this,
         export = {
-          RepertoireExportResult.Pgn("1. e4", 1, RepertoirePublishLimits.MAX_PLY_DEPTH + 1)
+          RepertoireExportResult.Moves(
+            listOf(e4),
+            maxPlyDepth = RepertoirePublishLimits.MAX_PLY_DEPTH + 1,
+          )
         },
         publish = { _, _, _, _, _, _ ->
           networkCalled = true

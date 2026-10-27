@@ -7,13 +7,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.auth.TokenResult
-import proj.memorchess.axl.core.pgn.RepertoireExportResult
+import proj.memorchess.axl.core.graph.RepertoireExportResult
 
 /**
  * Drives one repertoire's publish lifecycle: publish, update (republish under the same slug), and
  * unpublish. Mirrors `RepertoireLibraryViewModel`'s shape: the collaborators are injected as
  * suspending functions so tests can substitute trivial fakes, production wiring binds
- * [RepertoirePgnExporter.export], [proj.memorchess.axl.core.auth.AuthProvider.accessToken],
+ * [proj.memorchess.axl.core.graph.RepertoireMoveExporter.export],
+ * [proj.memorchess.axl.core.auth.AuthProvider.accessToken],
  * [RepertoirePublishClient.publish] and [RepertoirePublishClient.remove].
  *
  * @param localId The repertoire's local id (`DataRepertoire.id`), distinct from its public slug.
@@ -30,7 +31,7 @@ class RepertoirePublishViewModel(
       title: String,
       description: String,
       side: String,
-      pgn: String,
+      moves: List<RepertoireMove>,
     ) -> PublishOutcome,
   private val remove: suspend (accessToken: String, slug: String) -> RemoveOutcome,
   private val publishedStore: PublishedRepertoireStore,
@@ -62,7 +63,7 @@ class RepertoirePublishViewModel(
   private suspend fun runPublish(slug: String, title: String, description: String, side: String) {
     val token = resolveToken() ?: return
     val export = exportRepertoire(localId)
-    if (export !is RepertoireExportResult.Pgn) {
+    if (export !is RepertoireExportResult.Moves) {
       internalState.value = PublishState.Failed(PublishError.NothingToPublish)
       return
     }
@@ -71,7 +72,7 @@ class RepertoirePublishViewModel(
       internalState.value = PublishState.Failed(capProblem)
       return
     }
-    when (val outcome = publish(token, slug, title, description, side, export.text)) {
+    when (val outcome = publish(token, slug, title, description, side, export.moves)) {
       is PublishOutcome.Published -> {
         publishedStore.recordPublished(localId, slug)
         internalState.value = PublishState.Published(slug)
@@ -107,21 +108,13 @@ class RepertoirePublishViewModel(
 
   /**
    * Checks [export] against the shared [RepertoirePublishLimits] before it ever reaches the
-   * network: a plain comparison of the payload's byte size, distinct move count, and deepest line,
-   * never a second parse and walk (the exporter already computed all three). Returns `null` when
-   * every cap is satisfied.
+   * network. Returns `null` when every cap is satisfied.
    */
-  private fun exportCapProblem(export: RepertoireExportResult.Pgn): PublishError? {
-    val payloadBytes = export.text.encodeToByteArray().size
-    return when {
-      payloadBytes > RepertoirePublishLimits.MAX_REPERTOIRE_PAYLOAD_BYTES ->
+  private fun exportCapProblem(export: RepertoireExportResult.Moves): PublishError? =
+    when {
+      export.moves.size > RepertoirePublishLimits.MAX_REPERTOIRE_MOVES ->
         PublishError.PayloadTooLarge(
-          "the payload is $payloadBytes bytes, the cap is" +
-            " ${RepertoirePublishLimits.MAX_REPERTOIRE_PAYLOAD_BYTES}"
-        )
-      export.moveCount > RepertoirePublishLimits.MAX_REPERTOIRE_MOVES ->
-        PublishError.PayloadTooLarge(
-          "this repertoire has ${export.moveCount} moves, the cap is" +
+          "this repertoire has ${export.moves.size} moves, the cap is" +
             " ${RepertoirePublishLimits.MAX_REPERTOIRE_MOVES}"
         )
       export.maxPlyDepth > RepertoirePublishLimits.MAX_PLY_DEPTH ->
@@ -130,7 +123,6 @@ class RepertoirePublishViewModel(
         )
       else -> null
     }
-  }
 
   /** Resolves a usable access token, or fails [internalState] and returns `null`. */
   private suspend fun resolveToken(): String? =

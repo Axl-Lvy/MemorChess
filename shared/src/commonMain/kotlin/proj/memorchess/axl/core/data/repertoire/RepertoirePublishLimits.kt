@@ -7,9 +7,6 @@ package proj.memorchess.axl.core.data.repertoire
  */
 object RepertoirePublishLimits {
 
-  /** Largest payload accepted for one repertoire version, checked before parsing. */
-  const val MAX_REPERTOIRE_PAYLOAD_BYTES: Int = 512 * 1024
-
   /** Largest number of distinct `(position, move)` edges accepted in one repertoire. */
   const val MAX_REPERTOIRE_MOVES: Int = 5_000
 
