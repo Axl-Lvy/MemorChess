@@ -62,6 +62,9 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * @param loadMasterySnapshots Returns the mastery snapshot of every registered repertoire, keyed by
  *   repertoire id, normally through
  *   [proj.memorchess.axl.core.graph.RepertoireTagStore.masterySnapshots].
+ * @param previewUninstall Returns how many moves uninstalling the given repertoire id would delete.
+ * @param uninstallRepertoire Uninstalls the given repertoire id, deleting the moves nothing else
+ *   holds.
  * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).
  */
 class RepertoireLibraryViewModel(
@@ -85,6 +88,8 @@ class RepertoireLibraryViewModel(
   private val registerInstall: suspend (descriptor: RepertoireDescriptor) -> Unit,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot>,
+  private val previewUninstall: suspend (id: String) -> Int,
+  private val uninstallRepertoire: suspend (id: String) -> Unit,
   private val scope: CoroutineScope,
 ) {
 
@@ -97,6 +102,8 @@ class RepertoireLibraryViewModel(
   private val internalMyRepertoires = MutableStateFlow<List<DataRepertoire>>(emptyList())
   private val internalMasterySnapshots =
     MutableStateFlow<Map<String, RepertoireMasterySnapshot>>(emptyMap())
+  private val internalUninstallPreviews = MutableStateFlow<Map<String, Int>>(emptyMap())
+  private val uninstallsInFlight = mutableSetOf<String>()
   private var loadInFlight = false
 
   /** Current state of the catalog list. */
@@ -115,6 +122,12 @@ class RepertoireLibraryViewModel(
    */
   val previewStates: StateFlow<Map<String, RepertoirePreviewState>> =
     internalPreviewStates.asStateFlow()
+
+  /**
+   * How many moves uninstalling each repertoire would delete, keyed by [RepertoireDescriptor.id]. A
+   * missing key means the count has not been computed yet.
+   */
+  val uninstallPreviews: StateFlow<Map<String, Int>> = internalUninstallPreviews.asStateFlow()
 
   /** The user's own registered repertoires, for the "My Repertoires" list. */
   val myRepertoires: StateFlow<List<DataRepertoire>> = internalMyRepertoires.asStateFlow()
@@ -208,6 +221,38 @@ class RepertoireLibraryViewModel(
     scope.launch { runPreview(descriptor) }
   }
 
+  /** Computes how many moves uninstalling [descriptor] would delete and publishes it. */
+  fun requestUninstallPreview(descriptor: RepertoireDescriptor) {
+    internalUninstallPreviews.value -= descriptor.id
+    scope.launch {
+      internalUninstallPreviews.value += descriptor.id to previewUninstall(descriptor.id)
+    }
+  }
+
+  /**
+   * Uninstalls [descriptor], then marks it not installed. Ignored unless it is installed and no
+   * uninstall of it is running; a failed uninstall leaves it installed.
+   */
+  fun uninstall(descriptor: RepertoireDescriptor) {
+    if (internalInstallStates.value[descriptor.id] !is RepertoireInstallState.Installed) return
+    if (!uninstallsInFlight.add(descriptor.id)) return
+    scope.launch {
+      try {
+        uninstallRepertoire(descriptor.id)
+        setInstallState(descriptor.id, RepertoireInstallState.NotInstalled)
+        internalPreviewStates.value -= descriptor.id
+        internalUninstallPreviews.value -= descriptor.id
+        refreshMyRepertoires()
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        LOGGER.w(e) { "Uninstall of repertoire ${descriptor.id} failed" }
+      } finally {
+        uninstallsInFlight -= descriptor.id
+      }
+    }
+  }
+
   private suspend fun runLoad(load: suspend () -> CachedManifestResult) {
     internalCatalogState.value =
       when (val result = load()) {
@@ -236,9 +281,15 @@ class RepertoireLibraryViewModel(
         descriptor.id to
           when {
             prior != null && prior !is RepertoireInstallState.NotInstalled -> prior
-            loadRepertoire(descriptor.id)?.installedVersion != null ->
-              RepertoireInstallState.Installed(summary = null)
-            else -> RepertoireInstallState.NotInstalled
+            else ->
+              when (val version = loadRepertoire(descriptor.id)?.installedVersion) {
+                null -> RepertoireInstallState.NotInstalled
+                else ->
+                  RepertoireInstallState.Installed(
+                    summary = null,
+                    isOutdated = version < descriptor.version,
+                  )
+              }
           }
       }
     return LibraryCatalogState.Loaded(manifest.repertoires, isStale)
@@ -387,9 +438,11 @@ sealed class RepertoireInstallState {
 
   /**
    * The repertoire is installed. [summary] is available when the install happened in this session
-   * and `null` when the installed flag was restored from persistence.
+   * and `null` when the installed flag was restored from persistence. [isOutdated] is `true` when
+   * the catalog lists a newer version than the installed one.
    */
-  data class Installed(val summary: PgnImportSummary?) : RepertoireInstallState()
+  data class Installed(val summary: PgnImportSummary?, val isOutdated: Boolean = false) :
+    RepertoireInstallState()
 
   /** The last install attempt failed with [error]. The install may be retried. */
   data class Failed(val error: InstallError) : RepertoireInstallState()

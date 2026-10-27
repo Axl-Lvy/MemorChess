@@ -213,6 +213,8 @@ fun RepertoireLibrary(
         },
         loadMyRepertoires = tagStore::repertoires,
         loadMasterySnapshots = tagStore::masterySnapshots,
+        previewUninstall = treeStore::previewUninstall,
+        uninstallRepertoire = treeStore::uninstall,
         scope = coroutineScope,
       )
     }
