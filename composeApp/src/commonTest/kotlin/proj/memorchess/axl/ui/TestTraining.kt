@@ -165,7 +165,7 @@ class TestTraining : TestWithKoin() {
     playMove("e2", "e3")
     assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
     // The FAIL counter counted the card once, not once per wrong move.
-    onAllNodesWithText("1").fetchSemanticsNodes().isNotEmpty() shouldBe true
+    waitUntilSuspending { onAllNodesWithText("1").fetchSemanticsNodes().isNotEmpty() }
     assertNodeWithTextDoesNotExists("2")
     playMove("e2", "e4")
 
