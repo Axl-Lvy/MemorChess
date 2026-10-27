@@ -25,7 +25,7 @@ import memorchess.composeapp.generated.resources.library_error_http
 import memorchess.composeapp.generated.resources.library_error_malformed
 import memorchess.composeapp.generated.resources.library_error_network
 import memorchess.composeapp.generated.resources.library_install_error_import
-import memorchess.composeapp.generated.resources.library_install_error_malformed_pgn
+import memorchess.composeapp.generated.resources.library_install_error_malformed_repertoire
 import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.repertoire_view_not_found
 import memorchess.composeapp.generated.resources.repertoire_view_read_only
@@ -162,8 +162,8 @@ private fun RepertoireViewError.resolveMessage(): String =
     is RepertoireViewError.Http -> stringResource(Res.string.library_error_http, status)
     is RepertoireViewError.MalformedManifest ->
       stringResource(Res.string.library_error_malformed, message)
-    is RepertoireViewError.MalformedPgn ->
-      stringResource(Res.string.library_install_error_malformed_pgn, message)
+    is RepertoireViewError.MalformedRepertoire ->
+      stringResource(Res.string.library_install_error_malformed_repertoire, message)
     is RepertoireViewError.Import ->
       stringResource(Res.string.library_install_error_import, message)
     is RepertoireViewError.NotFound -> stringResource(Res.string.repertoire_view_not_found, id)
@@ -193,22 +193,22 @@ private suspend fun loadRepertoire(
     manifest.repertoires.find { it.id == repertoireId }
       ?: return RepertoireViewState.Error(RepertoireViewError.NotFound(repertoireId))
 
-  val games =
-    when (val result = client.fetchPgn(descriptor.file)) {
+  val moves =
+    when (val result = client.fetchMoves(descriptor.id, descriptor.version)) {
       is CatalogResult.Ok -> result.value
       is CatalogResult.NetworkError ->
         return RepertoireViewState.Error(RepertoireViewError.Network(result.message))
       is CatalogResult.HttpError ->
         return RepertoireViewState.Error(RepertoireViewError.Http(result.status))
-      is CatalogResult.MalformedPgn ->
-        return RepertoireViewState.Error(RepertoireViewError.MalformedPgn(result.message))
-      // A PGN fetch never reports MalformedManifest; mapped defensively for exhaustiveness.
+      is CatalogResult.MalformedRepertoire ->
+        return RepertoireViewState.Error(RepertoireViewError.MalformedRepertoire(result.message))
+      // A moves fetch never reports MalformedManifest; mapped defensively for exhaustiveness.
       is CatalogResult.MalformedManifest ->
-        return RepertoireViewState.Error(RepertoireViewError.MalformedPgn(result.message))
+        return RepertoireViewState.Error(RepertoireViewError.MalformedRepertoire(result.message))
     }
 
   return try {
-    RepertoireViewState.Ready(RepertoireExplorer.build(games), descriptor)
+    RepertoireViewState.Ready(RepertoireExplorer.build(moves), descriptor)
   } catch (e: PgnImportException) {
     RepertoireViewState.Error(RepertoireViewError.Import(e.message ?: "Import failed"))
   }
@@ -217,13 +217,13 @@ private suspend fun loadRepertoire(
 /** Loading lifecycle of the repertoire viewer. */
 private sealed interface RepertoireViewState {
 
-  /** The descriptor and PGN are being fetched. */
+  /** The descriptor and moves are being fetched. */
   data object Loading : RepertoireViewState
 
   /** Loading failed; [error] describes how. */
   data class Error(val error: RepertoireViewError) : RepertoireViewState
 
-  /** The PGN is loaded and [explorer] is ready to navigate [descriptor]. */
+  /** The moves are loaded and [explorer] is ready to navigate [descriptor]. */
   data class Ready(val explorer: RepertoireExplorer, val descriptor: RepertoireDescriptor) :
     RepertoireViewState
 }
@@ -231,7 +231,7 @@ private sealed interface RepertoireViewState {
 /** Reason a repertoire could not be opened. */
 private sealed interface RepertoireViewError {
 
-  /** Manifest or PGN download failed before an HTTP status was obtained. */
+  /** Manifest or moves download failed before an HTTP status was obtained. */
   data class Network(val message: String) : RepertoireViewError
 
   /** A download answered with a non success HTTP [status]. */
@@ -240,10 +240,10 @@ private sealed interface RepertoireViewError {
   /** The manifest is invalid. */
   data class MalformedManifest(val message: String) : RepertoireViewError
 
-  /** The PGN does not parse or contains no moves. */
-  data class MalformedPgn(val message: String) : RepertoireViewError
+  /** The moves do not decode or there are none. */
+  data class MalformedRepertoire(val message: String) : RepertoireViewError
 
-  /** The PGN parsed but contains an illegal move and could not be replayed. */
+  /** The moves decoded but hold a malformed or disconnected position and could not be loaded. */
   data class Import(val message: String) : RepertoireViewError
 
   /** No repertoire with [id] exists in the manifest. */

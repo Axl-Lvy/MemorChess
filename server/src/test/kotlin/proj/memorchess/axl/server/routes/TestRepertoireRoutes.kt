@@ -2,7 +2,6 @@ package proj.memorchess.axl.server.routes
 
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.string.shouldContain as stringShouldContain
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.delete
@@ -23,9 +22,12 @@ import java.net.URI
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.runBlocking
+import proj.memorchess.axl.core.data.repertoire.PublishRepertoireRequest
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
+import proj.memorchess.axl.core.data.repertoire.RepertoireMove
+import proj.memorchess.axl.core.data.repertoire.RepertoireMoveList
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 import proj.memorchess.axl.core.sync.SYNC_JSON
@@ -36,14 +38,12 @@ import proj.memorchess.axl.server.auth.TestJwkProvider
 import proj.memorchess.axl.server.auth.TestSigningKey
 import proj.memorchess.axl.server.auth.installJwtAuth
 import proj.memorchess.axl.server.db.PostgresTestDb
-import proj.memorchess.axl.server.repertoire.InMemoryRepertoireBlobStore
 import proj.memorchess.axl.server.repertoire.PublishOutcome
-import proj.memorchess.axl.server.repertoire.PublishRepertoireRequest
 import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireRow
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
-import proj.memorchess.axl.server.repertoire.RepertoireValidation
+import proj.memorchess.axl.server.repertoire.line
 
 class TestRepertoireRoutes {
 
@@ -60,16 +60,11 @@ class TestRepertoireRoutes {
       jwtIssuer = TEST_ISSUER,
       jwtAudience = TEST_AUDIENCE,
       jwksUrl = URI("https://issuer.test/jwks.json"),
-      r2Endpoint = URI("https://r2.test/"),
-      r2Bucket = "unused",
-      r2AccessKeyId = "unused",
-      r2SecretAccessKey = "unused",
     )
 
   private fun newId(): String = java.util.UUID.randomUUID().toString()
 
-  private fun pgn(move: String = "e4") =
-    "[Event \"${java.util.UUID.randomUUID()}\"]\n[Result \"*\"]\n\n1. $move *"
+  private fun moves(vararg sans: String = arrayOf("e4")): List<RepertoireMove> = line(*sans)
 
   // Fresh per test method (a new instance is created for every @Test), so the per author quota
   // counted against the shared table never accumulates across tests the way a literal "author-1"
@@ -88,21 +83,20 @@ class TestRepertoireRoutes {
     block(createClient { install(ContentNegotiation) { json(SYNC_JSON) } })
   }
 
-  private fun newStore() =
-    RepertoireStore(PostgresTestDb.dataSource(), InMemoryRepertoireBlobStore())
+  private fun newStore() = RepertoireStore(PostgresTestDb.dataSource())
 
   @Test
-  fun `manifest json lists only published repertoires with schemaVersion 1`() {
+  fun `manifest json lists only published repertoires with schemaVersion 2`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/manifest.json")
 
       response.status shouldBe HttpStatusCode.OK
       val manifest = SYNC_JSON.decodeFromString<RepertoireManifest>(response.bodyAsText())
-      manifest.schemaVersion shouldBe 1
+      manifest.schemaVersion shouldBe 2
       manifest.repertoires.map { it.id } shouldContain id
     }
   }
@@ -111,7 +105,7 @@ class TestRepertoireRoutes {
   fun `manifest json reports zero downloadCount for a repertoire with no recorded installs`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/manifest.json")
@@ -125,7 +119,7 @@ class TestRepertoireRoutes {
   fun `install route increments downloadCount and reports it back in the manifest`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val first = client.post("/v1/repertoires/$id/installs")
@@ -145,7 +139,7 @@ class TestRepertoireRoutes {
   fun `install route requires no authentication`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       // No Authorization header at all, unlike the authenticated publish/delete routes below.
@@ -176,9 +170,9 @@ class TestRepertoireRoutes {
     val unlisted = newId()
     val removed = newId()
     runBlocking {
-      store.publish(author1, unlisted, "T", "D", "white", pgn(), now)
+      store.publish(author1, unlisted, "T", "D", "white", moves(), now)
       store.setStatus(unlisted, "unlisted")
-      store.publish(author1, removed, "T", "D", "white", pgn(), now)
+      store.publish(author1, removed, "T", "D", "white", moves(), now)
       store.remove(author1, removed)
     }
 
@@ -193,46 +187,47 @@ class TestRepertoireRoutes {
   }
 
   @Test
-  fun `pgn route serves the stored bytes for a known hash`() {
+  fun `moves route serves the version's move list`() {
     val store = newStore()
     val id = newId()
     val published =
-      runBlocking { store.publish(author1, id, "T", "D", "white", pgn("e4"), now) }
+      runBlocking { store.publish(author1, id, "T", "D", "white", moves("e4", "e5"), now) }
         as PublishOutcome.Published
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/${published.row.file()}")
 
       response.status shouldBe HttpStatusCode.OK
-      response.bodyAsText() stringShouldContain "e4"
+      SYNC_JSON.decodeFromString<RepertoireMoveList>(response.bodyAsText()).moves shouldBe
+        moves("e4", "e5")
     }
   }
 
   @Test
-  fun `pgn route answers 404 for an unknown hash`() {
-    app(newStore()) { client ->
-      client.get("/v1/repertoires/pgn/does-not-exist.pgn").status shouldBe HttpStatusCode.NotFound
-    }
-  }
-
-  @Test
-  fun `pgn route answers 404 for a stored blob no live row references`() {
-    val blobs = InMemoryRepertoireBlobStore()
-    val orphanHash = "a".repeat(64)
-    runBlocking { blobs.put(orphanHash, "orphan".encodeToByteArray()) }
-    val store = RepertoireStore(PostgresTestDb.dataSource(), blobs)
+  fun `moves route answers 404 for an unknown version`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
-      client.get("/v1/repertoires/pgn/$orphanHash.pgn").status shouldBe HttpStatusCode.NotFound
+      client.get("/v1/repertoires/$id/versions/2/moves").status shouldBe HttpStatusCode.NotFound
     }
   }
 
   @Test
-  fun `pgn route answers 404 for a removed repertoire's hash, revoking access to the bytes`() {
+  fun `moves route answers 400 for a non numeric version`() {
+    app(newStore()) { client ->
+      client.get("/v1/repertoires/${newId()}/versions/latest/moves").status shouldBe
+        HttpStatusCode.BadRequest
+    }
+  }
+
+  @Test
+  fun `moves route answers 404 for a removed repertoire`() {
     val store = newStore()
     val id = newId()
     val published =
-      runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+      runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
         as PublishOutcome.Published
 
     app(store) { client ->
@@ -247,17 +242,36 @@ class TestRepertoireRoutes {
   }
 
   @Test
-  fun `pgn route sets a far future immutable cache header`() {
+  fun `moves route sets a far future immutable cache header`() {
     val store = newStore()
     val id = newId()
     val published =
-      runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+      runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
         as PublishOutcome.Published
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/${published.row.file()}")
 
       response.headers[HttpHeaders.CacheControl] shouldBe "public, max-age=31536000, immutable"
+    }
+  }
+
+  @Test
+  fun `manifest lists the latest version`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking {
+      store.publish(author1, id, "T", "D", "white", moves("e4"), now)
+      store.publish(author1, id, "T", "D", "white", moves("d4"), now)
+    }
+
+    app(store) { client ->
+      val manifest =
+        SYNC_JSON.decodeFromString<RepertoireManifest>(
+          client.get("/v1/repertoires/manifest.json").bodyAsText()
+        )
+
+      manifest.repertoires.single { it.id == id }.version shouldBe 2
     }
   }
 
@@ -275,7 +289,7 @@ class TestRepertoireRoutes {
     val store = newStore()
     val prefix = newId()
     val ids = listOf("$prefix-1", "$prefix-2", "$prefix-3")
-    runBlocking { ids.forEach { store.publish(author1, it, "T", "D", "white", pgn(), now) } }
+    runBlocking { ids.forEach { store.publish(author1, it, "T", "D", "white", moves(), now) } }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires?cursor=$prefix&limit=2")
@@ -302,7 +316,7 @@ class TestRepertoireRoutes {
   fun `get by id returns the repertoire metadata`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "Title", "Desc", "black", pgn(), now) }
+    runBlocking { store.publish(author1, id, "Title", "Desc", "black", moves(), now) }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/$id")
@@ -319,7 +333,7 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     runBlocking {
-      store.publish(author1, id, "T", "D", "white", pgn(), now)
+      store.publish(author1, id, "T", "D", "white", moves(), now)
       store.remove(author1, id)
     }
 
@@ -339,7 +353,7 @@ class TestRepertoireRoutes {
   fun `anonymous responses are byte identical with and without a bearer token present`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val withoutToken = client.get("/v1/repertoires/$id").bodyAsText()
@@ -357,7 +371,7 @@ class TestRepertoireRoutes {
     title: String = "T",
     description: String = "D",
     side: String = "white",
-    pgn: String = pgn(),
+    moves: List<RepertoireMove> = moves(),
   ) =
     SYNC_JSON.encodeToString(
       PublishRepertoireRequest(
@@ -365,7 +379,7 @@ class TestRepertoireRoutes {
         title = title,
         description = description,
         side = side,
-        pgn = pgn,
+        moves = moves,
       )
     )
 
@@ -439,7 +453,7 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     runBlocking {
-      store.publish(author1, id, "T", "D", "white", pgn(), now)
+      store.publish(author1, id, "T", "D", "white", moves(), now)
       store.setStatus(id, "removed")
     }
 
@@ -457,57 +471,52 @@ class TestRepertoireRoutes {
   }
 
   @Test
-  fun `post rejects an unparseable pgn with invalid_pgn`() {
+  fun `post rejects an empty move list with invalid_repertoire`() {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
           header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
           contentType(ContentType.Application.Json)
-          setBody(publishBody(newId(), pgn = "1. e4 (1... e5"))
+          setBody(publishBody(newId(), moves = emptyList()))
         }
 
       response.status shouldBe HttpStatusCode.BadRequest
       SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
-        ApiErrorCode.INVALID_PGN
+        ApiErrorCode.INVALID_REPERTOIRE
     }
   }
 
   @Test
-  fun `post rejects an illegal move with invalid_pgn`() {
-    val illegal = "[Event \"T\"]\n[Result \"*\"]\n\n1. e4 e5 2. Ke2 Ke7 3. Qh5 Qh4 4. Bxb5 *"
+  fun `post rejects an illegal move with invalid_repertoire`() {
+    val illegal = moves("e4").map { it.copy(move = "e5") }
 
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
           header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
           contentType(ContentType.Application.Json)
-          setBody(publishBody(newId(), pgn = illegal))
+          setBody(publishBody(newId(), moves = illegal))
         }
 
       response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
+        ApiErrorCode.INVALID_REPERTOIRE
     }
   }
 
   @Test
-  fun `post maps an unexpected validation failure to 500 internal, not 400 invalid_pgn`() {
-    val store =
-      RepertoireStore(
-        dataSource = PostgresTestDb.dataSource(),
-        blobs = InMemoryRepertoireBlobStore(),
-        validate = { _, _, _ -> RepertoireValidation.Failed("boom") },
-      )
+  fun `post rejects a non parseable position key with invalid_repertoire, not a server error`() {
+    val garbage = moves("e4").map { it.copy(from = "not a fen") }
 
-    app(store) { client ->
+    app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
           header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
           contentType(ContentType.Application.Json)
-          setBody(publishBody(newId()))
+          setBody(publishBody(newId(), moves = garbage))
         }
 
-      response.status shouldBe HttpStatusCode.InternalServerError
-      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
-        ApiErrorCode.INTERNAL
+      response.status shouldBe HttpStatusCode.BadRequest
     }
   }
 
@@ -542,7 +551,7 @@ class TestRepertoireRoutes {
   fun `delete removes a repertoire the caller authored`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val response =
@@ -558,7 +567,7 @@ class TestRepertoireRoutes {
   fun `delete by a non author is forbidden`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val response =
@@ -593,7 +602,7 @@ class TestRepertoireRoutes {
   fun `admin status change succeeds`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val response =
@@ -611,7 +620,7 @@ class TestRepertoireRoutes {
   fun `admin status change without a bearer token is unauthorized`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       val response =
@@ -642,7 +651,7 @@ class TestRepertoireRoutes {
   fun `removing via admin status makes the repertoire disappear from the public list`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", pgn(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
@@ -656,4 +665,4 @@ class TestRepertoireRoutes {
   }
 }
 
-private fun RepertoireRow.file(): String = "pgn/$payloadSha256.pgn"
+private fun RepertoireRow.file(): String = "$id/versions/$version/moves"

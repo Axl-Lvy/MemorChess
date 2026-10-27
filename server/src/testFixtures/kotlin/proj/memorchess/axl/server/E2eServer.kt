@@ -13,7 +13,6 @@ import proj.memorchess.axl.server.auth.TEST_ISSUER
 import proj.memorchess.axl.server.auth.TestJwkProvider
 import proj.memorchess.axl.server.auth.TestSigningKey
 import proj.memorchess.axl.server.db.PostgresTestDb
-import proj.memorchess.axl.server.repertoire.InMemoryRepertoireBlobStore
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.sync.SyncStore
 
@@ -21,12 +20,6 @@ import proj.memorchess.axl.server.sync.SyncStore
  * Every request of an end to end run comes from 127.0.0.1, so the IP keyed tiers must never trip.
  */
 private val UNLIMITED = RateLimitTier(limit = 1_000_000, refillPeriod = 1.minutes)
-
-/**
- * Shared by every [E2eServer] of the JVM, like [PostgresTestDb], so a blob the database references
- * is always downloadable from any of them.
- */
-private val SHARED_BLOBS = InMemoryRepertoireBlobStore()
 
 private val E2E_CONFIG =
   ServerConfig(
@@ -37,10 +30,6 @@ private val E2E_CONFIG =
     jwtIssuer = TEST_ISSUER,
     jwtAudience = TEST_AUDIENCE,
     jwksUrl = URI("https://issuer.test/jwks.json"),
-    r2Endpoint = URI("https://r2.test/"),
-    r2Bucket = "unused",
-    r2AccessKeyId = "unused",
-    r2SecretAccessKey = "unused",
   )
 
 /** A real `:server` on a random local port, backed by the shared test Postgres. */
@@ -76,7 +65,7 @@ fun startE2eServer(): E2eServer {
           config = E2E_CONFIG,
           jwkProvider = TestJwkProvider(key),
           syncStore = SyncStore(dataSource),
-          repertoireStore = RepertoireStore(dataSource, SHARED_BLOBS),
+          repertoireStore = RepertoireStore(dataSource),
           readiness = { true },
           clock = Clock.System::now,
           rateLimits = RateLimitTiers(UNLIMITED, UNLIMITED, UNLIMITED, UNLIMITED),

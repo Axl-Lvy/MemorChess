@@ -11,7 +11,6 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 
@@ -37,14 +36,14 @@ class RepertoirePublishClient(
     title: String,
     description: String,
     side: String,
-    pgn: String,
+    moves: List<RepertoireMove>,
   ): PublishOutcome =
     try {
       val response: HttpResponse =
         httpClient.post(baseUrl) {
           bearerAuth(accessToken)
           contentType(ContentType.Application.Json)
-          setBody(PublishRequestBody(id, title, description, side, pgn))
+          setBody(PublishRepertoireRequest(id, title, description, side, moves))
         }
       when {
         response.status == HttpStatusCode.Created -> PublishOutcome.Published(response.body())
@@ -95,15 +94,6 @@ class RepertoirePublishClient(
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1/repertoires"
   }
 }
-
-@Serializable
-private data class PublishRequestBody(
-  val id: String,
-  val title: String,
-  val description: String,
-  val side: String,
-  val pgn: String,
-)
 
 /**
  * Whether this response's body names [code], defaulting to `false` on a body that fails to decode.

@@ -15,15 +15,13 @@ internal class TestRepertoireWire {
       title = "London System",
       description = "Solid.",
       side = "white",
-      payloadSha256 = "a".repeat(64),
-      payloadBytes = 42,
       moveCount = 73,
       status = "published",
       publishedAt = Instant.fromEpochSeconds(1_700_000_000),
     )
 
   @Test
-  fun `toDescriptor maps the side, file path and every plain field`() {
+  fun `toDescriptor maps the side, version and every plain field`() {
     val descriptor = row.toDescriptor(downloadCount = 5)
 
     descriptor.id shouldBe "london-system-white"
@@ -31,7 +29,7 @@ internal class TestRepertoireWire {
     descriptor.color shouldBe RepertoireColor.WHITE
     descriptor.description shouldBe "Solid."
     descriptor.moveCount shouldBe 73
-    descriptor.file shouldBe "pgn/${"a".repeat(64)}.pgn"
+    descriptor.version shouldBe 1
   }
 
   @Test

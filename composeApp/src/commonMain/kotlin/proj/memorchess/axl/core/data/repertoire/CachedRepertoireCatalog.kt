@@ -65,12 +65,12 @@ class CachedRepertoireCatalog(
       is CatalogResult.HttpError ->
         cached?.let { CachedManifestResult.Stale(it.manifest) }
           ?: CachedManifestResult.HttpError(result.status)
-      // MalformedPgn never occurs for manifest fetches; included for exhaustiveness.
+      // MalformedRepertoire never occurs for manifest fetches; included for exhaustiveness.
       is CatalogResult.MalformedManifest,
-      is CatalogResult.MalformedPgn -> {
+      is CatalogResult.MalformedRepertoire -> {
         val message =
           if (result is CatalogResult.MalformedManifest) result.message
-          else (result as CatalogResult.MalformedPgn).message
+          else (result as CatalogResult.MalformedRepertoire).message
         cached?.let { CachedManifestResult.Stale(it.manifest) }
           ?: CachedManifestResult.MalformedManifest(message)
       }

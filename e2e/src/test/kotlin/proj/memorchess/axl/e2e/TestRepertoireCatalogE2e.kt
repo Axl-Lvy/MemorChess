@@ -14,8 +14,9 @@ import proj.memorchess.axl.core.data.repertoire.CatalogResult
 import proj.memorchess.axl.core.data.repertoire.PublishOutcome
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
+import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
-import proj.memorchess.axl.core.pgn.PgnGame
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.server.startE2eServer
 
 /** Drives composeApp's catalog and publish clients against a real local `:server`. */
@@ -26,7 +27,7 @@ class TestRepertoireCatalogE2e {
   private val catalogClient = RepertoireCatalogClient(httpClient, repertoiresUrl)
 
   @Test
-  fun `a published repertoire is listed in the manifest and its pgn downloads`() =
+  fun `a published repertoire is listed in the manifest and its moves download`() =
     runBlocking<Unit> {
       val author = server.newUserId()
       val id = UUID.randomUUID().toString()
@@ -38,7 +39,7 @@ class TestRepertoireCatalogE2e {
           title = "E2E round trip",
           description = "Published by TestRepertoireCatalogE2e",
           side = "white",
-          pgn = PGN,
+          moves = MOVES,
         )
       val manifest =
         catalogClient
@@ -46,14 +47,15 @@ class TestRepertoireCatalogE2e {
           .shouldBeInstanceOf<CatalogResult.Ok<RepertoireManifest>>()
           .value
       val listed = manifest.repertoires.single { it.id == id }
-      val games =
+      val moves =
         catalogClient
-          .fetchPgn(listed.file)
-          .shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+          .fetchMoves(listed.id, listed.version)
+          .shouldBeInstanceOf<CatalogResult.Ok<List<RepertoireMove>>>()
           .value
 
-      published.shouldBeInstanceOf<PublishOutcome.Published>().descriptor.file shouldBe listed.file
-      games.single().moves.map { it.san } shouldBe listOf("e4")
+      published.shouldBeInstanceOf<PublishOutcome.Published>().descriptor.version shouldBe 1
+      listed.version shouldBe 1
+      moves shouldBe MOVES
     }
 
   @Test
@@ -66,7 +68,7 @@ class TestRepertoireCatalogE2e {
           title = "E2E unauthorized",
           description = "Must never be stored",
           side = "white",
-          pgn = PGN,
+          moves = MOVES,
         )
 
       outcome shouldBe PublishOutcome.Unauthorized
@@ -83,7 +85,7 @@ class TestRepertoireCatalogE2e {
           title = "E2E shared state",
           description = "Published on the first server",
           side = "white",
-          pgn = PGN,
+          moves = MOVES,
         )
         .shouldBeInstanceOf<PublishOutcome.Published>()
       val otherCatalog =
@@ -96,15 +98,27 @@ class TestRepertoireCatalogE2e {
           .value
           .repertoires
           .single { it.id == id }
-      val result = otherCatalog.fetchPgn(listed.file)
+      val result = otherCatalog.fetchMoves(listed.id, listed.version)
 
-      result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+      result shouldBe CatalogResult.Ok(MOVES)
     }
 
   @Test
-  fun `a pgn that was never published is a 404`() =
+  fun `a version that was never published is a 404`() =
     runBlocking<Unit> {
-      val result = catalogClient.fetchPgn("pgn/${"0".repeat(64)}.pgn")
+      val id = UUID.randomUUID().toString()
+      publishClient
+        .publish(
+          accessToken = server.tokenFor(server.newUserId()),
+          id = id,
+          title = "E2E missing version",
+          description = "Only version 1 exists",
+          side = "white",
+          moves = MOVES,
+        )
+        .shouldBeInstanceOf<PublishOutcome.Published>()
+
+      val result = catalogClient.fetchMoves(id, 99)
 
       result shouldBe CatalogResult.HttpError(404)
     }
@@ -118,6 +132,11 @@ class TestRepertoireCatalogE2e {
     val httpClient =
       HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
 
-    const val PGN = "[Event \"e2e\"]\n[Result \"*\"]\n\n1. e4 *"
+    val MOVES: List<RepertoireMove> =
+      GameEngine().let { engine ->
+        val from = engine.toPositionKey().value
+        engine.playSanMove("e4")
+        listOf(RepertoireMove(from, "e4", engine.toPositionKey().value, isGood = true))
+      }
   }
 }

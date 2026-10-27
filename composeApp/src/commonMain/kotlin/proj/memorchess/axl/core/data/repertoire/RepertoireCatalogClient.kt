@@ -12,22 +12,19 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
-import proj.memorchess.axl.core.pgn.PgnGame
-import proj.memorchess.axl.core.pgn.PgnParseException
-import proj.memorchess.axl.core.pgn.PgnParser
 
 /**
  * HTTP client for the remote repertoire catalog.
  *
- * Served by `:server` at [DEFAULT_BASE_URL] (`manifest.json`, `pgn/<hash>.pgn`); the catalog is
- * populated by users publishing their own repertoires (see `RepertoirePublishClient`), not by any
- * static file source.
+ * Served by `:server` at [DEFAULT_BASE_URL] (`manifest.json`, `<id>/versions/<version>/moves`); the
+ * catalog is populated by users publishing their own repertoires (see `RepertoirePublishClient`),
+ * not by any static file source.
  *
  * Responses are read as plain text, then decoded here: the manifest with kotlinx.serialization
- * (unknown fields tolerated) and PGN files with [PgnParser]. Every failure is mapped to a typed
- * [CatalogResult] so callers never have to inspect Ktor exceptions — except [reportInstall], a fire
- * and forget write with no result to map, since a caller's own install outcome must never depend on
- * this telemetry succeeding.
+ * (unknown fields tolerated) and move lists, both with kotlinx.serialization. Every failure is
+ * mapped to a typed [CatalogResult] so callers never have to inspect Ktor exceptions — except
+ * [reportInstall], a fire and forget write with no result to map, since a caller's own install
+ * outcome must never depend on this telemetry succeeding.
  *
  * @param httpClient The Ktor client used for requests.
  * @param baseUrl Root URL of the catalog, without a trailing slash. Injectable for tests.
@@ -42,7 +39,7 @@ class RepertoireCatalogClient(
   /**
    * Fetches and validates `manifest.json` from the catalog root.
    *
-   * A manifest whose `schemaVersion` differs from 1 is reported as
+   * A manifest whose `schemaVersion` differs from 2 is reported as
    * [CatalogResult.MalformedManifest]; see [RepertoireManifest] for the rationale.
    *
    * @param bypassCache Asks every HTTP cache on the way (the browser's included) to revalidate with
@@ -71,37 +68,38 @@ class RepertoireCatalogClient(
   }
 
   /**
-   * Fetches the PGN file at [file] (a path relative to the catalog root, as listed in
-   * [RepertoireDescriptor.file]) and validates it with [PgnParser].
+   * Fetches the moves of version [version] of the repertoire [id].
    *
-   * A document that does not parse, or that contains no playable move at all, is reported as
-   * [CatalogResult.MalformedPgn].
+   * A body that does not decode, or that holds no move at all, is reported as
+   * [CatalogResult.MalformedRepertoire].
    *
    * @param onProgress Reports the fraction of the response body downloaded so far, from the
    *   underlying Ktor client's byte counter. Never called at all when the server's response carries
    *   no `Content-Length` (there is then nothing to divide by), so a caller must not assume it
    *   fires even once.
    */
-  suspend fun fetchPgn(
-    file: String,
+  suspend fun fetchMoves(
+    id: String,
+    version: Int,
     onProgress: (Float) -> Unit = {},
-  ): CatalogResult<List<PgnGame>> {
+  ): CatalogResult<List<RepertoireMove>> {
+    val path = "$id/versions/$version/moves"
     val body =
-      when (val download = download(file, onProgress)) {
+      when (val download = download(path, onProgress)) {
         is Download.Body -> download.text
         is Download.Failure -> return download.result
       }
-    val games =
+    val moves =
       try {
-        PgnParser.parse(body)
-      } catch (e: PgnParseException) {
-        LOGGER.w(e) { "Catalog PGN $file does not parse" }
-        return CatalogResult.MalformedPgn(e.message ?: "Invalid PGN")
+        json.decodeFromString<RepertoireMoveList>(body).moves
+      } catch (e: IllegalArgumentException) {
+        LOGGER.w(e) { "Catalog moves $path do not decode" }
+        return CatalogResult.MalformedRepertoire(e.message ?: "Invalid move list")
       }
-    if (games.all { it.moves.isEmpty() }) {
-      return CatalogResult.MalformedPgn("PGN file $file contains no moves")
+    if (moves.isEmpty()) {
+      return CatalogResult.MalformedRepertoire("Repertoire $path contains no moves")
     }
-    return CatalogResult.Ok(games)
+    return CatalogResult.Ok(moves)
   }
 
   /**
@@ -166,7 +164,7 @@ class RepertoireCatalogClient(
     /** Deliberately unresolvable; see the class doc. */
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1/repertoires"
     const val MANIFEST_FILE = "manifest.json"
-    const val SUPPORTED_SCHEMA_VERSION = 1
+    const val SUPPORTED_SCHEMA_VERSION = 2
   }
 }
 

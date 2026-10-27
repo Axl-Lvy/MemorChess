@@ -12,4 +12,4 @@ Platform-agnostic logic for the board, the opening graph, and spaced repetition.
 - **`config/`** — settings never go through `DatabaseQueryManager` for their value, but share the same outbox as nodes/edges (`DirtyKey.SettingKey`).
 - **`sync/`** — `DeviceIdentity` is the per-install id plus the monotonic `deviceSeq` every synced row is stamped with. No `SyncEngine` here yet.
 - **`auth/`** — Lichess OAuth over PKCE.
-- **`pgn/`** — PGN import pipeline, layered on `graph/`. `PgnParser`, `PgnGame`, `PgnParseException` also live in `:shared`, because the server validates uploaded PGN with the same parser the client validates a download with.
+- **`pgn/`** — PGN import pipeline, layered on `graph/`, for user facing imports (pasted PGN, Lichess studies). `PgnParser`, `PgnGame`, `PgnParseException` live in `:shared`. Published repertoires never travel as PGN: `graph/RepertoireMoveExporter` and `graph/RepertoireMoveImporter` exchange `RepertoireMove` lists with `:server`.

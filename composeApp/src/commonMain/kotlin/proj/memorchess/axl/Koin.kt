@@ -48,11 +48,11 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.NodeLoader
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireMoveExporter
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TrainingScheduler
 import proj.memorchess.axl.core.graph.TreeStore
-import proj.memorchess.axl.core.pgn.RepertoirePgnExporter
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 import proj.memorchess.axl.core.streak.StreakTracker
@@ -238,7 +238,7 @@ fun initKoinModules(): Array<Module> {
       RepertoirePublishClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1/repertoires")
     }
     single { PublishedRepertoireStore() }
-    single { RepertoirePgnExporter(get(), get()) }
+    single { RepertoireMoveExporter(get(), get()) }
   }
 
   val otherModule = module { single<ToastRenderer> { getPlatformSpecificToastRenderer() } }

@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
-import proj.memorchess.axl.core.pgn.PgnGame
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 
@@ -23,9 +22,10 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *
  * The catalog and install collaborators are injected as suspending functions rather than concrete
  * classes so tests can substitute trivial fakes. Production wiring binds them to
- * [CachedRepertoireCatalog.getManifest], [RepertoireCatalogClient.fetchPgn],
- * [proj.memorchess.axl.core.pgn.PgnImporter.import],
- * [proj.memorchess.axl.core.pgn.PgnImporter.preview] and [RepertoireCatalogClient.reportInstall].
+ * [CachedRepertoireCatalog.getManifest], [RepertoireCatalogClient.fetchMoves],
+ * [proj.memorchess.axl.core.graph.RepertoireMoveImporter.import],
+ * [proj.memorchess.axl.core.graph.RepertoireMoveImporter.preview] and
+ * [RepertoireCatalogClient.reportInstall].
  *
  * Reentrancy: [refresh] is ignored while a load is in flight, [install] is ignored only while a
  * fetch or import for the same repertoire is in flight (an installed repertoire may be
@@ -36,18 +36,18 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * @param loadManifest Returns the catalog manifest, normally through the persisted cache.
  * @param reloadManifest Returns the catalog manifest fetched from the network now, used by
  *   [forceRefresh]; production wiring binds [CachedRepertoireCatalog.refresh].
- * @param fetchPgn Downloads and parses the PGN file at the given catalog relative path, reporting
+ * @param fetchMoves Downloads the moves of the given repertoire's listed version, reporting
  *   download progress (`0f`..`1f`) through its second parameter as
  *   [RepertoireInstallState.Fetching] is updated. May never call it at all, see
- *   [RepertoireCatalogClient.fetchPgn]'s own KDoc.
- * @param importGames Merges parsed games into the opening graph for the repertoire named by
+ *   [RepertoireCatalogClient.fetchMoves]'s own KDoc.
+ * @param importMoves Merges the downloaded moves into the opening graph for the repertoire named by
  *   `descriptor`, tagging every move with `descriptor.id` and registering it in the repertoire
  *   registry on first install (see the wiring in `RepertoireLibrary.kt`), and reports the summary.
  *   Any exception it throws is surfaced as [InstallError.ImportFailed] and the repertoire is not
  *   marked installed. Reports import progress (`0f`..`1f`) through its third parameter as
  *   [RepertoireInstallState.Importing] is updated.
- * @param previewGames Computes, without writing anything, how much of the repertoire the user
- *   already has from the repertoire's [RepertoireColor] perspective.
+ * @param previewMoves Computes, without writing anything, how much of the repertoire the user
+ *   already has.
  * @param reportInstall Reports one completed first install of the given repertoire id, feeding the
  *   catalog's anonymous popularity counter (see [RepertoireDescriptor.downloadCount]'s KDoc). Must
  *   never throw; production wiring binds [RepertoireCatalogClient.reportInstall], which satisfies
@@ -63,16 +63,18 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
 class RepertoireLibraryViewModel(
   private val loadManifest: suspend () -> CachedManifestResult,
   private val reloadManifest: suspend () -> CachedManifestResult = loadManifest,
-  private val fetchPgn:
-    suspend (file: String, onProgress: (Float) -> Unit) -> CatalogResult<List<PgnGame>>,
-  private val importGames:
+  private val fetchMoves:
     suspend (
       descriptor: RepertoireDescriptor,
-      games: List<PgnGame>,
+      onProgress: (Float) -> Unit,
+    ) -> CatalogResult<List<RepertoireMove>>,
+  private val importMoves:
+    suspend (
+      descriptor: RepertoireDescriptor,
+      moves: List<RepertoireMove>,
       onProgress: (Float) -> Unit,
     ) -> PgnImportSummary,
-  private val previewGames:
-    suspend (color: RepertoireColor, games: List<PgnGame>) -> PgnImportPreview,
+  private val previewMoves: suspend (moves: List<RepertoireMove>) -> PgnImportPreview,
   private val reportInstall: suspend (id: String) -> Unit,
   private val installedStore: InstalledRepertoireStore,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
@@ -233,8 +235,8 @@ class RepertoireLibraryViewModel(
   }
 
   private suspend fun runInstall(descriptor: RepertoireDescriptor) {
-    val games =
-      fetchGames(
+    val moves =
+      fetchRepertoire(
         descriptor,
         onProgress = { setInstallState(descriptor.id, RepertoireInstallState.Fetching(it)) },
       ) {
@@ -247,7 +249,7 @@ class RepertoireLibraryViewModel(
     val summary =
       try {
         val importSummary =
-          importGames(descriptor, games) {
+          importMoves(descriptor, moves) {
             setInstallState(descriptor.id, RepertoireInstallState.Importing(it))
           }
         installedStore.markInstalled(descriptor.id)
@@ -270,12 +272,13 @@ class RepertoireLibraryViewModel(
   }
 
   private suspend fun runPreview(descriptor: RepertoireDescriptor) {
-    val games =
-      fetchGames(descriptor) { setPreviewState(descriptor.id, RepertoirePreviewState.Failed(it)) }
-        ?: return
+    val moves =
+      fetchRepertoire(descriptor) {
+        setPreviewState(descriptor.id, RepertoirePreviewState.Failed(it))
+      } ?: return
     val preview =
       try {
-        previewGames(descriptor.color, games)
+        previewMoves(moves)
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
@@ -290,26 +293,26 @@ class RepertoireLibraryViewModel(
   }
 
   /**
-   * Downloads and parses the PGN of [descriptor], shared by install and preview. On a non success
-   * fetch it reports the matching [InstallError] through [onError] and returns `null`; otherwise it
-   * returns the parsed games. A PGN fetch never reports [CatalogResult.MalformedManifest], but it
-   * is mapped defensively for exhaustiveness.
+   * Downloads the moves of [descriptor], shared by install and preview. On a non success fetch it
+   * reports the matching [InstallError] through [onError] and returns `null`; otherwise it returns
+   * the moves. A moves fetch never reports [CatalogResult.MalformedManifest], but it is mapped
+   * defensively for exhaustiveness.
    *
-   * @param onProgress Forwarded to [fetchPgn]. Defaults to a no-op: [runPreview] has no progress
+   * @param onProgress Forwarded to [fetchMoves]. Defaults to a no-op: [runPreview] has no progress
    *   bar to drive, only [runInstall] passes one.
    */
-  private suspend fun fetchGames(
+  private suspend fun fetchRepertoire(
     descriptor: RepertoireDescriptor,
     onProgress: (Float) -> Unit = {},
     onError: (InstallError) -> Unit,
-  ): List<PgnGame>? {
+  ): List<RepertoireMove>? {
     val error =
-      when (val result = fetchPgn(descriptor.file, onProgress)) {
+      when (val result = fetchMoves(descriptor, onProgress)) {
         is CatalogResult.Ok -> return result.value
         is CatalogResult.NetworkError -> InstallError.Network(result.message)
         is CatalogResult.HttpError -> InstallError.Http(result.status)
-        is CatalogResult.MalformedPgn -> InstallError.MalformedPgn(result.message)
-        is CatalogResult.MalformedManifest -> InstallError.MalformedPgn(result.message)
+        is CatalogResult.MalformedRepertoire -> InstallError.MalformedRepertoire(result.message)
+        is CatalogResult.MalformedManifest -> InstallError.MalformedRepertoire(result.message)
       }
     onError(error)
     return null
@@ -394,16 +397,16 @@ sealed class RepertoirePreviewState {
 /** Reason an install attempt failed. */
 sealed class InstallError {
 
-  /** The PGN download failed before an HTTP status was obtained. */
+  /** The download failed before an HTTP status was obtained. */
   data class Network(val message: String) : InstallError()
 
-  /** The server answered the PGN download with a non success HTTP [status]. */
+  /** The server answered the download with a non success HTTP [status]. */
   data class Http(val status: Int) : InstallError()
 
-  /** The PGN file was downloaded but does not parse or contains no moves. */
-  data class MalformedPgn(val message: String) : InstallError()
+  /** The repertoire was downloaded but does not decode or contains no moves. */
+  data class MalformedRepertoire(val message: String) : InstallError()
 
-  /** The PGN parsed but could not be merged into the opening graph. Nothing was written. */
+  /** The repertoire decoded but could not be merged into the opening graph. Nothing was written. */
   data class ImportFailed(val message: String) : InstallError()
 }
 

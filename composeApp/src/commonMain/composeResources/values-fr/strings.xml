@@ -231,7 +231,7 @@
   <string name="library_install_summary">Coups ajoutés : %1$d · Déjà présents : %2$d</string>
   <string name="library_install_error_network">Échec du téléchargement : %1$s</string>
   <string name="library_install_error_http">Échec du téléchargement avec l'erreur HTTP %1$d.</string>
-  <string name="library_install_error_malformed_pgn">Ce fichier de répertoire n'a pas pu être lu : %1$s</string>
+  <string name="library_install_error_malformed_repertoire">Ce répertoire n'a pas pu être lu : %1$s</string>
   <string name="library_install_error_import">Échec de l'import : %1$s</string>
   <string name="library_preview_checking">Vérification de votre répertoire…</string>
   <string name="library_preview_in_common">%1$d coups sur %2$d sont déjà dans votre répertoire.</string>

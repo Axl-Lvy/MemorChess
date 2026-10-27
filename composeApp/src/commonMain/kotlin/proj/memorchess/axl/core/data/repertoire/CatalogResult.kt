@@ -15,6 +15,6 @@ sealed class CatalogResult<out T> {
   /** The manifest was downloaded but its JSON is invalid or its schema version is unsupported. */
   data class MalformedManifest(val message: String) : CatalogResult<Nothing>()
 
-  /** The PGN file was downloaded but does not parse or contains no moves. */
-  data class MalformedPgn(val message: String) : CatalogResult<Nothing>()
+  /** The repertoire was downloaded but does not decode or contains no moves. */
+  data class MalformedRepertoire(val message: String) : CatalogResult<Nothing>()
 }

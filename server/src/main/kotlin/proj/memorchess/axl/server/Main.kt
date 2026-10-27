@@ -9,7 +9,6 @@ import kotlin.time.Clock
 import proj.memorchess.axl.server.auth.jwksProvider
 import proj.memorchess.axl.server.db.applySchema
 import proj.memorchess.axl.server.repertoire.RepertoireStore
-import proj.memorchess.axl.server.repertoire.S3RepertoireBlobStore
 import proj.memorchess.axl.server.routes.staticFrontendModule
 import proj.memorchess.axl.server.sync.SyncStore
 
@@ -29,14 +28,7 @@ fun main() {
   val dataSource = config.pool()
   applySchema(dataSource)
 
-  val blobStore =
-    S3RepertoireBlobStore(
-      endpoint = config.r2Endpoint,
-      bucket = config.r2Bucket,
-      accessKeyId = config.r2AccessKeyId,
-      secretAccessKey = config.r2SecretAccessKey,
-    )
-  val repertoireStore = RepertoireStore(dataSource, blobStore)
+  val repertoireStore = RepertoireStore(dataSource)
   val syncStore = SyncStore(dataSource)
 
   embeddedServer(Netty, port = config.port, host = "0.0.0.0") {

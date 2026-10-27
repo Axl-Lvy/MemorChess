@@ -6,9 +6,8 @@ import kotlin.test.assertTrue
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.interactions.RepertoireExplorer
-import proj.memorchess.axl.core.pgn.PgnGame
-import proj.memorchess.axl.core.pgn.PgnParser
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.repertoireMovesOf
 
 /**
  * Exercises the read-only repertoire navigator: only PGN moves are playable, off-book moves are
@@ -16,10 +15,8 @@ import proj.memorchess.axl.test_util.TestWithKoin
  */
 class TestRepertoireExplorer : TestWithKoin() {
 
-  private suspend fun explorerOf(vararg pgns: String): RepertoireExplorer {
-    val games: List<PgnGame> = pgns.flatMap { PgnParser.parse(it) }
-    return RepertoireExplorer.build(games)
-  }
+  private suspend fun explorerOf(vararg pgns: String): RepertoireExplorer =
+    RepertoireExplorer.build(repertoireMovesOf(*pgns))
 
   private fun keyAfter(vararg moves: String): PositionKey {
     val engine = GameEngine()

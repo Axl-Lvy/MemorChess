@@ -45,6 +45,7 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.test_util.TestWithKoin
+import proj.memorchess.axl.test_util.repertoireMovesJsonOf
 import proj.memorchess.axl.ui.assertTileContainsPiece
 import proj.memorchess.axl.ui.assertTileIsEmpty
 import proj.memorchess.axl.ui.pages.RepertoireLibraryActions
@@ -69,7 +70,7 @@ class TestRepertoireView : TestWithKoin() {
       color = RepertoireColor.WHITE,
       description = "A tiny repertoire.",
       moveCount = 3,
-      file = "pgn/test.pgn",
+      version = 1,
     )
 
   /**
@@ -82,7 +83,7 @@ class TestRepertoireView : TestWithKoin() {
       color = RepertoireColor.WHITE,
       description = "Another tiny repertoire.",
       moveCount = 5,
-      file = "pgn/test2.pgn",
+      version = 1,
     )
 
   /** A BLACK fixture, used to exercise the color filter chips against a mixed catalog. */
@@ -93,7 +94,7 @@ class TestRepertoireView : TestWithKoin() {
       color = RepertoireColor.BLACK,
       description = "A black repertoire.",
       moveCount = 4,
-      file = "pgn/testblack.pgn",
+      version = 1,
     )
 
   private fun cardTag(d: RepertoireDescriptor) = "library_repertoire_card:${d.id}"
@@ -104,19 +105,20 @@ class TestRepertoireView : TestWithKoin() {
   private fun ComposeUiTest.currentProgress(tag: String): Float =
     onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].current
 
-  /** Catalog + client backed by a [MockEngine] serving a one line manifest and PGN. */
+  /** Catalog + client backed by a [MockEngine] serving a one line manifest and its moves. */
   private fun mockCatalog(
     pgn: String = "1. e4 e5 2. Nf3 *"
   ): Pair<CachedRepertoireCatalog, RepertoireCatalogClient> {
     val manifest =
-      """{"schemaVersion":1,"repertoires":[{"id":"test-rep","name":"Test Repertoire",""" +
+      """{"schemaVersion":2,"repertoires":[{"id":"test-rep","name":"Test Repertoire",""" +
         """"color":"white","description":"A tiny repertoire.","moveCount":3,""" +
-        """"file":"pgn/test.pgn"}]}"""
+        """"version":1}]}"""
     val engine = MockEngine { request ->
       val path = request.url.encodedPath
       when {
         path.endsWith("manifest.json") -> respond(manifest, HttpStatusCode.OK)
-        path.endsWith("test.pgn") -> respond(pgn, HttpStatusCode.OK)
+        path.endsWith("test-rep/versions/1/moves") ->
+          respond(repertoireMovesJsonOf(pgn), HttpStatusCode.OK)
         else -> respond("", HttpStatusCode.NotFound)
       }
     }
@@ -550,16 +552,17 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
-  fun failedMalformedPgnShowsErrorAndInstallRetry() = runLibraryTest {
+  fun failedMalformedRepertoireShowsErrorAndInstallRetry() = runLibraryTest {
     setLibraryContent(
       catalogState =
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
       installStates =
         mapOf(
-          secondDescriptor.id to RepertoireInstallState.Failed(InstallError.MalformedPgn("bad pgn"))
+          secondDescriptor.id to
+            RepertoireInstallState.Failed(InstallError.MalformedRepertoire("bad pgn"))
         ),
     )
-    onNodeWithText("This repertoire file could not be read: bad pgn").assertExists()
+    onNodeWithText("This repertoire could not be read: bad pgn").assertExists()
     onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
       .assertExists()
     onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()

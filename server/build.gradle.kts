@@ -33,7 +33,6 @@ dependencies {
   implementation(libs.krontab)
   implementation(libs.postgresql)
   implementation(libs.hikari)
-  implementation(libs.awssdk.s3)
   implementation(libs.slf4j.api)
   implementation(libs.ktor.server.core)
   implementation(libs.ktor.server.netty)

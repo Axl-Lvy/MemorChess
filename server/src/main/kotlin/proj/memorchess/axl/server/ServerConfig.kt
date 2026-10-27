@@ -18,10 +18,6 @@ private val HTTP_SCHEMES = setOf("http", "https")
  * @property jwtIssuer Expected `iss` claim, compared exactly.
  * @property jwtAudience Expected `aud` claim, compared exactly.
  * @property jwksUrl Where the issuer publishes its signing keys.
- * @property r2Endpoint The S3 compatible endpoint holding repertoire payload blobs.
- * @property r2Bucket Bucket name at [r2Endpoint].
- * @property r2AccessKeyId Access key id for [r2Bucket].
- * @property r2SecretAccessKey Secret access key for [r2Bucket].
  * @property staticDir Directory holding the compiled wasmJs frontend bundle, served at "/". Null
  *   disables frontend serving (local `:server:run`, tests), since only the Docker image ships a
  *   bundle to serve.
@@ -34,10 +30,6 @@ internal data class ServerConfig(
   val jwtIssuer: String,
   val jwtAudience: String,
   val jwksUrl: URI,
-  val r2Endpoint: URI,
-  val r2Bucket: String,
-  val r2AccessKeyId: String,
-  val r2SecretAccessKey: String,
   val staticDir: File? = null,
 )
 
@@ -56,10 +48,6 @@ internal fun serverConfigFromEnv(getenv: (String) -> String? = System::getenv): 
     jwtIssuer = getenv.required("SYNC_JWT_ISSUER"),
     jwtAudience = getenv.required("SYNC_JWT_AUDIENCE"),
     jwksUrl = getenv.absoluteHttpUrl("SYNC_JWKS_URL"),
-    r2Endpoint = getenv.absoluteHttpUrl("SYNC_R2_ENDPOINT"),
-    r2Bucket = getenv.required("SYNC_R2_BUCKET"),
-    r2AccessKeyId = getenv.required("SYNC_R2_ACCESS_KEY_ID"),
-    r2SecretAccessKey = getenv.required("SYNC_R2_SECRET_ACCESS_KEY"),
     staticDir = getenv.optionalDir("SYNC_STATIC_DIR"),
   )
 

@@ -20,6 +20,26 @@ import proj.memorchess.axl.core.sync.SYNC_JSON
 
 class TestRepertoirePublishClient {
 
+  private val moves =
+    listOf(RepertoireMove(from = "start", move = "e4", to = "after-e4", isGood = true))
+
+  @Test
+  fun publishSendsTheMovesInTheRequestBody() = runTest {
+    var sent: String? = null
+    val engine = MockEngine { request ->
+      sent = (request.body as io.ktor.http.content.TextContent).text
+      respond(content = "", status = HttpStatusCode.BadRequest)
+    }
+    val httpClient = HttpClient(engine) { install(ContentNegotiation) { json(SYNC_JSON) } }
+    val client =
+      RepertoirePublishClient(httpClient, baseUrl = "https://test.invalid/v1/repertoires")
+
+    client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
+
+    SYNC_JSON.decodeFromString<PublishRepertoireRequest>(sent!!) shouldBe
+      PublishRepertoireRequest("italian-game", "Italian Game", "d", "white", moves)
+  }
+
   private fun clientAnswering(status: HttpStatusCode, body: String): RepertoirePublishClient {
     val engine = MockEngine { _ ->
       respond(
@@ -47,11 +67,11 @@ class TestRepertoirePublishClient {
         color = RepertoireColor.WHITE,
         description = "d",
         moveCount = 2,
-        file = "pgn/abc.pgn",
+        version = 1,
       )
     val client = clientAnswering(HttpStatusCode.Created, SYNC_JSON.encodeToString(descriptor))
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.Published(descriptor)
   }
@@ -64,7 +84,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.REMOVED, "removed")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.RemovedOnServer
   }
@@ -77,7 +97,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.FORBIDDEN, "not yours")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.Forbidden
   }
@@ -86,7 +106,7 @@ class TestRepertoirePublishClient {
   fun publishMapsUnauthorized() = runTest {
     val client = clientAnswering(HttpStatusCode.Unauthorized, "")
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.Unauthorized
   }
@@ -95,7 +115,7 @@ class TestRepertoirePublishClient {
   fun publishMapsRateLimited() = runTest {
     val client = clientAnswering(HttpStatusCode.TooManyRequests, "")
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.RateLimited
   }
@@ -108,7 +128,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.TOO_LARGE, "too big")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.PayloadTooLarge("too big")
   }
@@ -118,10 +138,10 @@ class TestRepertoirePublishClient {
     val client =
       clientAnswering(
         HttpStatusCode.BadRequest,
-        SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INVALID_PGN, "bad pgn")),
+        SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INVALID_REPERTOIRE, "bad pgn")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.InvalidPayload("bad pgn")
   }
@@ -134,7 +154,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.QUOTA_EXCEEDED, "too many")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.QuotaExceeded("too many")
   }
@@ -147,7 +167,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INTERNAL, "server exploded")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.Failed("server exploded")
   }
@@ -156,7 +176,7 @@ class TestRepertoirePublishClient {
   fun publishFallsBackToAGenericMessageWhenTheBodyDoesNotDecodeAsApiError() = runTest {
     val client = clientAnswering(HttpStatusCode.InternalServerError, "not json")
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome shouldBe PublishOutcome.Failed("HTTP 500")
   }
@@ -165,7 +185,7 @@ class TestRepertoirePublishClient {
   fun publishCatchesAThrownExceptionAsFailed() = runTest {
     val client = throwingClient()
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")
+    val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 
     outcome should beInstanceOf<PublishOutcome.Failed>()
   }

@@ -26,10 +26,10 @@ class TestCachedRepertoireCatalog : TestWithKoin() {
   private val manifestJson =
     """
     {
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "repertoires": [
         {"id": "london-system-white", "name": "London System", "color": "white",
-         "description": "Solid.", "moveCount": 73, "file": "pgn/london-system-white.pgn"}
+         "description": "Solid.", "moveCount": 73, "version": 1}
       ]
     }
     """
@@ -147,7 +147,7 @@ class TestCachedRepertoireCatalog : TestWithKoin() {
   @Test
   fun refreshFetchesEvenWhenTheCacheIsFresh() = test {
     seedCache(
-      """{"schemaVersion": 1, "repertoires": []}""",
+      """{"schemaVersion": 2, "repertoires": []}""",
       DateUtil.now(),
     )
     var networkCalls = 0

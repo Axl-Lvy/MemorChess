@@ -1,6 +1,5 @@
 package proj.memorchess.axl.server.routes
 
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -10,7 +9,6 @@ import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.delete
@@ -19,7 +17,9 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import kotlin.time.Clock
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.repertoire.PublishRepertoireRequest
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
+import proj.memorchess.axl.core.data.repertoire.RepertoireMoveList
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
@@ -32,7 +32,6 @@ import proj.memorchess.axl.server.auth.SYNC_AUTH
 import proj.memorchess.axl.server.auth.callerId
 import proj.memorchess.axl.server.installRateLimiting
 import proj.memorchess.axl.server.repertoire.PublishOutcome
-import proj.memorchess.axl.server.repertoire.PublishRepertoireRequest
 import proj.memorchess.axl.server.repertoire.RemoveOutcome
 import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
@@ -47,7 +46,7 @@ internal const val MAX_CATALOG_LIMIT: Int = 100
 private const val DEFAULT_CATALOG_LIMIT: Int = 50
 
 /** `schemaVersion` published in `manifest.json`. See spec 6.1: bumped only on a breaking change. */
-private const val MANIFEST_SCHEMA_VERSION: Int = 1
+private const val MANIFEST_SCHEMA_VERSION: Int = 2
 
 /**
  * Short TTL for the anonymous, unpersonalized catalog responses, so Cloudflare's edge can cache
@@ -55,8 +54,8 @@ private const val MANIFEST_SCHEMA_VERSION: Int = 1
  */
 private const val CATALOG_CACHE_CONTROL = "public, max-age=60"
 
-/** Far future, immutable: a PGN blob's content never changes once published (spec 6.2). */
-private const val BLOB_CACHE_CONTROL = "public, max-age=31536000, immutable"
+/** Far future, immutable: a published version's moves never change once published. */
+private const val MOVES_CACHE_CONTROL = "public, max-age=31536000, immutable"
 
 /**
  * Mounts the published repertoire catalog: the anonymous, cacheable reads that migrate the existing
@@ -91,9 +90,9 @@ internal fun Application.repertoireModule(
 private fun Route.repertoireRoutes(store: RepertoireStore, clock: () -> Instant) {
   rateLimit(RATE_LIMIT_PUBLIC_READ) {
     get("/v1/repertoires/manifest.json") { getManifest(store) }
-    get("/v1/repertoires/pgn/{sha256}.pgn") { getPayload(store) }
     get("/v1/repertoires") { getCatalogPage(store) }
     get("/v1/repertoires/{id}") { getById(store) }
+    get("/v1/repertoires/{id}/versions/{version}/moves") { getMoves(store) }
     post("/v1/repertoires/{id}/installs") { recordInstall(store) }
   }
 
@@ -126,14 +125,18 @@ private suspend fun RoutingContext.recordInstall(store: RepertoireStore) {
   call.respond(HttpStatusCode.NoContent)
 }
 
-private suspend fun RoutingContext.getPayload(store: RepertoireStore) {
-  val sha256 = call.parameters["sha256"] ?: throw BadRequestException("missing payload hash")
-  val bytes = store.readPayload(sha256)
-  if (bytes == null) {
-    call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such payload"))
+private suspend fun RoutingContext.getMoves(store: RepertoireStore) {
+  val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
+  val rawVersion = call.parameters["version"]
+  val version =
+    rawVersion?.toIntOrNull()
+      ?: throw BadRequestException("version must be an integer, was '$rawVersion'")
+  val moves = store.moves(id, version)
+  if (moves == null) {
+    call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such version"))
   } else {
-    call.cacheControl(BLOB_CACHE_CONTROL)
-    call.respondBytes(bytes, ContentType.Text.Plain)
+    call.cacheControl(MOVES_CACHE_CONTROL)
+    call.respond(RepertoireMoveList(moves))
   }
 }
 
@@ -173,7 +176,7 @@ private suspend fun RoutingContext.publish(store: RepertoireStore, clock: () -> 
       title = request.title,
       description = request.description,
       side = request.side,
-      pgn = request.pgn,
+      moves = request.moves,
       now = clock(),
     )
   respondToPublishOutcome(outcome)
@@ -183,7 +186,10 @@ private suspend fun RoutingContext.respondToPublishOutcome(outcome: PublishOutco
   when (outcome) {
     is PublishOutcome.Published -> call.respond(HttpStatusCode.Created, outcome.row.toDescriptor())
     is PublishOutcome.InvalidPayload ->
-      call.respond(HttpStatusCode.BadRequest, ApiError(ApiErrorCode.INVALID_PGN, outcome.reason))
+      call.respond(
+        HttpStatusCode.BadRequest,
+        ApiError(ApiErrorCode.INVALID_REPERTOIRE, outcome.reason),
+      )
     is PublishOutcome.PayloadTooLarge ->
       call.respond(HttpStatusCode.PayloadTooLarge, ApiError(ApiErrorCode.TOO_LARGE, outcome.reason))
     PublishOutcome.Forbidden ->
@@ -201,11 +207,6 @@ private suspend fun RoutingContext.respondToPublishOutcome(outcome: PublishOutco
       )
     is PublishOutcome.QuotaExceeded ->
       call.respond(HttpStatusCode.Forbidden, ApiError(ApiErrorCode.QUOTA_EXCEEDED, outcome.reason))
-    is PublishOutcome.Failed ->
-      call.respond(
-        HttpStatusCode.InternalServerError,
-        ApiError(ApiErrorCode.INTERNAL, "the server failed to validate the payload"),
-      )
   }
 }
 

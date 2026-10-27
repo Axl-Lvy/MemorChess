@@ -7,9 +7,6 @@ package proj.memorchess.axl.core.data.repertoire
  */
 object RepertoirePublishLimits {
 
-  /** Largest payload accepted for one repertoire version, checked before parsing. */
-  const val MAX_REPERTOIRE_PAYLOAD_BYTES: Int = 512 * 1024
-
   /** Largest number of distinct `(position, move)` edges accepted in one repertoire. */
   const val MAX_REPERTOIRE_MOVES: Int = 5_000
 
@@ -26,10 +23,8 @@ object RepertoirePublishLimits {
   const val MAX_DESCRIPTION_LENGTH: Int = 2_000
 
   /**
-   * Deepest line accepted, in plies from the starting position. A real opening repertoire never
-   * needs more than a few dozen plies down any single line. This bounds pathological input (for
-   * example a short sequence of legal moves repeated many times) that could otherwise overflow a
-   * parser's call stack before [MAX_REPERTOIRE_MOVES] is ever reached.
+   * Deepest position accepted, in plies along the shortest path from the starting position. A real
+   * opening repertoire never needs more than a few dozen plies down any line.
    */
   const val MAX_PLY_DEPTH: Int = 200
 

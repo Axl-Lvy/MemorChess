@@ -7,14 +7,13 @@ import io.ktor.client.HttpClient
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import org.junit.Assume.assumeTrue
-import proj.memorchess.axl.core.pgn.PgnGame
 
 /** Environment variable holding the root URL of the catalog to check, without a trailing slash. */
 private const val CATALOG_URL_ENV = "MEMORCHESS_CATALOG_URL"
 
 /**
- * Live canary that downloads the real catalog of a deployed `:server` and parses every PGN it
- * lists.
+ * Live canary that downloads the real catalog of a deployed `:server` and the moves of every
+ * repertoire it lists.
  *
  * It runs only when [CATALOG_URL_ENV] is set, which the nightly `catalog-canary.yml` workflow does.
  * Otherwise JUnit reports it as skipped, so pull request CI never depends on a deployment being up.
@@ -23,9 +22,9 @@ private const val CATALOG_URL_ENV = "MEMORCHESS_CATALOG_URL"
  */
 class TestRepertoireCatalogIntegration {
 
-  /** Downloads the live manifest and validates every listed PGN file with the PGN parser. */
+  /** Downloads the live manifest and the moves of every listed repertoire. */
   @Test
-  fun fetchRealManifestAndParseEveryListedPgn() {
+  fun fetchRealManifestAndEveryListedRepertoire() {
     val baseUrl = System.getenv(CATALOG_URL_ENV)?.trim().orEmpty()
     assumeTrue("$CATALOG_URL_ENV not set, skipping the live catalog canary", baseUrl.isNotEmpty())
 
@@ -39,16 +38,14 @@ class TestRepertoireCatalogIntegration {
           manifestResult.shouldBeInstanceOf<CatalogResult.Ok<RepertoireManifest>>().value
         }
       for (descriptor in manifest.repertoires) {
-        val pgnResult = client.fetchPgn(descriptor.file)
-        val games =
+        val movesResult = client.fetchMoves(descriptor.id, descriptor.version)
+        val moves =
           withClue(
-            "Downloading or parsing ${descriptor.file} (${descriptor.id}) failed: $pgnResult"
+            "Downloading ${descriptor.id} version ${descriptor.version} failed: $movesResult"
           ) {
-            pgnResult.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>().value
+            movesResult.shouldBeInstanceOf<CatalogResult.Ok<List<RepertoireMove>>>().value
           }
-        withClue("Repertoire ${descriptor.id} parsed to a document without moves") {
-          games.flatMap { it.moves }.shouldNotBeEmpty()
-        }
+        withClue("Repertoire ${descriptor.id} has no moves") { moves.shouldNotBeEmpty() }
       }
     }
   }

@@ -6,12 +6,12 @@ import kotlinx.serialization.Serializable
 /**
  * Catalog manifest served by `:server` at `/v1/repertoires/manifest.json`.
  *
- * Decoded with `ignoreUnknownKeys` so future additive fields are tolerated. Only [schemaVersion] 1
+ * Decoded with `ignoreUnknownKeys` so future additive fields are tolerated. Only [schemaVersion] 2
  * is accepted; any other value is treated as malformed because a version bump may change field
  * semantics, and failing loudly (with the stale cache fallback) is safer than a best effort parse
  * of an unknown layout.
  *
- * @property schemaVersion Version of the manifest layout. The client accepts version 1 only.
+ * @property schemaVersion Version of the manifest layout. The client accepts version 2 only.
  * @property repertoires The repertoires available for download, in catalog order.
  */
 @Serializable
@@ -24,9 +24,8 @@ data class RepertoireManifest(val schemaVersion: Int, val repertoires: List<Repe
  * @property name Human readable name shown in the library.
  * @property color Side the repertoire is built for.
  * @property description Short marketing style description of the repertoire.
- * @property moveCount Number of moves in the PGN, informational only. May be zero.
- * @property file Path of the PGN file relative to the catalog base URL, such as
- *   `pgn/london-system-white.pgn`.
+ * @property moveCount Number of moves in the repertoire, informational only. May be zero.
+ * @property version Latest published version, which names the moves to download.
  * @property downloadCount Number of times this repertoire has been installed, across every user.
  *   Defaults to `0` so a manifest from before this field existed (or a stale cached one) still
  *   decodes. An anonymous, unauthenticated counter: spammable, treated as a popularity hint rather
@@ -39,7 +38,7 @@ data class RepertoireDescriptor(
   val color: RepertoireColor,
   val description: String,
   val moveCount: Int,
-  val file: String,
+  val version: Int,
   val downloadCount: Int = 0,
 )
 

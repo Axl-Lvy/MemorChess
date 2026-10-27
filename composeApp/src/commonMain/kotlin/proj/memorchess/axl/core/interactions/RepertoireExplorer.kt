@@ -6,14 +6,14 @@ import kotlinx.coroutines.SupervisorJob
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.toast_not_in_repertoire
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
+import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireMoveImporter
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
-import proj.memorchess.axl.core.pgn.PgnGame
-import proj.memorchess.axl.core.pgn.PgnImporter
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**
@@ -50,14 +50,14 @@ class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: Rep
 
   companion object {
     /**
-     * Builds an explorer over the lines of [games], replayed into a fresh in memory graph.
+     * Builds an explorer over [moves], written into a fresh in memory graph.
      *
-     * @param games Parsed repertoire games, normally from
-     *   [proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient.fetchPgn].
-     * @throws proj.memorchess.axl.core.pgn.PgnImportException if any move of any variation is
-     *   illegal.
+     * @param moves A published repertoire's moves, normally from
+     *   [proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient.fetchMoves].
+     * @throws proj.memorchess.axl.core.pgn.PgnImportException if a position is malformed or a move
+     *   is not connected to the starting position.
      */
-    suspend fun build(games: List<PgnGame>): RepertoireExplorer {
+    suspend fun build(moves: List<RepertoireMove>): RepertoireExplorer {
       // A parentless supervisor rather than the caller's Job. NodeCache attaches a permanent child
       // supervisor to whatever Job it is handed, so tying it to the caller would leave that caller
       // unable to complete. Nothing can leak here: the store is in memory, prefetch is one ply, and
@@ -77,7 +77,7 @@ class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: Rep
           tagStore,
           deviceIdentity,
         )
-      PgnImporter(treeStore, tagStore).import(games)
+      RepertoireMoveImporter(treeStore, tagStore).import(moves, repertoireId = null)
       return RepertoireExplorer(treeStore, tagStore)
     }
   }
