@@ -67,15 +67,13 @@ flowchart LR
     Lichess["Lichess\nopening explorer API"]
     Oidc["OIDC provider\n(Logto)"]
     Server["Sync server (Ktor)\n/v1/sync, /v1/me, /v1/repertoire"]
-    Postgres[("Postgres\nsync rows, last write wins")]
-    R2[("S3 compatible storage\nrepertoire PGN blobs")]
+    Postgres[("Postgres\nsync rows, published repertoires")]
 
     Client -- "explore moves" --> Lichess
     Client -- "sign in, get a JWT" --> Oidc
     Client -- "JWT authenticated sync" --> Server
     Server -- "verify JWT (JWKS)" --> Oidc
     Server --> Postgres
-    Server -- "publish / fetch repertoires" --> R2
 ```
 
 - The **client** holds the source of truth locally (Room on Android/desktop/iOS, IndexedDB on
@@ -83,9 +81,9 @@ flowchart LR
 - Signing in with the **OIDC provider** gets the client a JWT, which the **sync server** verifies
   against the issuer's JWKS before accepting a sync batch. Signing in with Lichess is a separate,
   optional flow used only to query Lichess's opening explorer, not for sync.
-- The server stores sync rows in **Postgres** and the published repertoires' PGN payloads as
-  blobs in **S3 compatible object storage**, so the public repertoire library serves large files
-  straight from object storage instead of the database.
+- The server stores everything in **Postgres**: sync rows, and the published repertoires as move
+  lists sharing the same position and move tables. A published version never changes, so its
+  moves are served with an immutable cache header.
 
 ---
 
