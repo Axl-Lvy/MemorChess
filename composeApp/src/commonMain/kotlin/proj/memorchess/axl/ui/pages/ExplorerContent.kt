@@ -181,9 +181,7 @@ fun ExplorerContent(
         refreshYours(nextMoves, myTreeStore, explorer, yoursBySan)
       }
       evaluator?.let { eval ->
-        coroutineScope.launch {
-          eval.evaluate(explorer.engine.toFen(), explorer.engine.playerTurn)
-        }
+        coroutineScope.launch { eval.evaluate(explorer.engine.toFen(), explorer.engine.playerTurn) }
       }
     }
   }

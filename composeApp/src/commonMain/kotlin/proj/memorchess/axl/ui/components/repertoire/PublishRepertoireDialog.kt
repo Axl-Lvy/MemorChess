@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.repertoire
 
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
@@ -23,6 +22,7 @@ import memorchess.composeapp.generated.resources.library_publish_dialog_title
 import memorchess.composeapp.generated.resources.library_publish_id_label
 import memorchess.composeapp.generated.resources.library_publish_title_label
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.ui.components.popup.KineticDialog
 

@@ -1,7 +1,7 @@
 package proj.memorchess.axl.server.sync
 
-import proj.memorchess.axl.core.sync.DeviceId
 import kotlin.time.Instant
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.RejectionCode
 import proj.memorchess.axl.core.sync.ResolutionSource
 import proj.memorchess.axl.core.sync.SettingSyncRow

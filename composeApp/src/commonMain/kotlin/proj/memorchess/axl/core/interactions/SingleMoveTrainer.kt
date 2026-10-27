@@ -4,7 +4,6 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.engine.BoardLocation
 import proj.memorchess.axl.core.engine.BoardUtils
 import proj.memorchess.axl.core.engine.GameEngine
-import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.Node
 import proj.memorchess.axl.core.graph.RepertoireTagStore
@@ -48,8 +47,7 @@ class SingleMoveTrainer(
     val mover = engine.playerTurn.opponent // engine already advanced past this move
     val playedSquare = BoardUtils.destinationSquare(move, mover)
     val correctSquare =
-      if (isCorrect) null
-      else expectedEdge()?.let { BoardUtils.destinationSquare(it.move, mover) }
+      if (isCorrect) null else expectedEdge()?.let { BoardUtils.destinationSquare(it.move, mover) }
 
     block()
     // Settled before grading suspends, so a retry() racing the grade cannot drop the failure.

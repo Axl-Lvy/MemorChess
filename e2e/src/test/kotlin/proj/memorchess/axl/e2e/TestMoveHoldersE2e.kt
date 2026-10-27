@@ -1,6 +1,5 @@
 package proj.memorchess.axl.e2e
 
-import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -14,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager

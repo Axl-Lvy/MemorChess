@@ -1,7 +1,5 @@
 package proj.memorchess.axl.core.data.explorer
 
-import proj.memorchess.axl.core.engine.Fen
-import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -16,6 +14,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.LichessToken
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.test_util.InMemoryExplorerCache
 
 class TestExplorerViewModel {

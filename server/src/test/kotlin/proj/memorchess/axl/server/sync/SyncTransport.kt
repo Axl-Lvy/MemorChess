@@ -1,11 +1,11 @@
 package proj.memorchess.axl.server.sync
 
-import proj.memorchess.axl.server.auth.UserId
-import proj.memorchess.axl.core.sync.DeviceId
 import kotlin.time.Instant
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.SyncPullResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.SyncPushResponse
+import proj.memorchess.axl.server.auth.UserId
 
 /**
  * How a [TestDevice] reaches the server. The identity is the transport's, never the device's, as in

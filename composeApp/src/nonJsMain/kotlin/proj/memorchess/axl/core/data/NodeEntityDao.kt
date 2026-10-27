@@ -144,8 +144,8 @@ interface NodeEntityDao {
   suspend fun liveMoveOrigins(destination: String): List<String>
 
   /**
-   * Soft deletes [positionKey]'s node and every incident move, queuing each tombstoned row for push in the
-   * same transaction.
+   * Soft deletes [positionKey]'s node and every incident move, queuing each tombstoned row for push
+   * in the same transaction.
    */
   @Transaction
   suspend fun softDeletePositionAndMarkDirty(
@@ -160,9 +160,15 @@ interface NodeEntityDao {
     val nodeChanged = softDeleteNode(positionKey, updatedAt, originDevice, deviceSeq) > 0
     softDeleteMoveFrom(positionKey, updatedAt, originDevice, deviceSeq)
     softDeleteMoveTo(positionKey, updatedAt, originDevice, deviceSeq)
-    if (nodeChanged) upsertOutboxEntry(OutboxEntryEntity.KIND_NODE, positionKey, deviceSeq = deviceSeq)
+    if (nodeChanged)
+      upsertOutboxEntry(OutboxEntryEntity.KIND_NODE, positionKey, deviceSeq = deviceSeq)
     for (destination in outgoing) {
-      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, positionKey, destination, deviceSeq = deviceSeq)
+      upsertOutboxEntry(
+        OutboxEntryEntity.KIND_EDGE,
+        positionKey,
+        destination,
+        deviceSeq = deviceSeq,
+      )
     }
     for (origin in incoming) {
       upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, positionKey, deviceSeq = deviceSeq)
@@ -356,6 +362,8 @@ interface NodeEntityDao {
   suspend fun incomingCount(destination: String): Int
 
   /** Whether a non deleted node row exists for [positionKey]. */
-  @Query("SELECT EXISTS(SELECT 1 FROM NodeEntity WHERE isDeleted = 0 AND positionKey = :positionKey)")
+  @Query(
+    "SELECT EXISTS(SELECT 1 FROM NodeEntity WHERE isDeleted = 0 AND positionKey = :positionKey)"
+  )
   suspend fun nodeExists(positionKey: String): Boolean
 }

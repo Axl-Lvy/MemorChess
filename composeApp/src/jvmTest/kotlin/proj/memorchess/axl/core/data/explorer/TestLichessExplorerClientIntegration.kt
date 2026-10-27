@@ -1,7 +1,5 @@
 package proj.memorchess.axl.core.data.explorer
 
-import proj.memorchess.axl.core.engine.Fen
-import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
@@ -12,6 +10,8 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.LichessToken
+import proj.memorchess.axl.core.engine.Fen
 
 /**
  * Live test against `https://explorer.lichess.ovh`, which answers 401 without a token. It reads

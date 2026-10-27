@@ -3,7 +3,6 @@
 
 package proj.memorchess.axl.core.data.explorer
 
-import proj.memorchess.axl.core.engine.Fen
 import com.juul.indexeddb.Key
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.JsAny
@@ -13,6 +12,7 @@ import kotlinx.serialization.json.Json
 import proj.memorchess.axl.core.data.EXPLORER_CACHE_STORE
 import proj.memorchess.axl.core.data.getIndexedDb
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.Fen
 
 private external interface JsExplorerCacheEntity : JsAny {
   var key: String

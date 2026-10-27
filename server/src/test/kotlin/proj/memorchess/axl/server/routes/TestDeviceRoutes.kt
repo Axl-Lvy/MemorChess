@@ -1,8 +1,5 @@
 package proj.memorchess.axl.server.routes
 
-import proj.memorchess.axl.core.sync.Revision
-import proj.memorchess.axl.server.auth.UserId
-import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -23,7 +20,9 @@ import kotlin.test.Test
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
@@ -34,6 +33,7 @@ import proj.memorchess.axl.server.auth.TEST_AUDIENCE
 import proj.memorchess.axl.server.auth.TEST_ISSUER
 import proj.memorchess.axl.server.auth.TestJwkProvider
 import proj.memorchess.axl.server.auth.TestSigningKey
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.sync.SyncStore
 import proj.memorchess.axl.server.syncModule
@@ -132,7 +132,12 @@ class TestDeviceRoutes {
   @Test
   fun `a removed device below the floor is told to resync`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = Revision(99), lastServed = Revision(99))
+    store.setPositionForTest(
+      user,
+      DeviceId(DEVICE),
+      lastAcked = Revision(99),
+      lastServed = Revision(99),
+    )
     store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
     store.setGcFloorForTest(user, Revision(100))
 
@@ -146,7 +151,12 @@ class TestDeviceRoutes {
   @Test
   fun `reporting the wipe reinstates the device`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = Revision(99), lastServed = Revision(99))
+    store.setPositionForTest(
+      user,
+      DeviceId(DEVICE),
+      lastAcked = Revision(99),
+      lastServed = Revision(99),
+    )
     store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
     store.setGcFloorForTest(user, Revision(100))
 

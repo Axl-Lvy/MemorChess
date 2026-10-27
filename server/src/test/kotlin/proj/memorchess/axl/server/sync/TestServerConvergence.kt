@@ -1,7 +1,5 @@
 package proj.memorchess.axl.server.sync
 
-import proj.memorchess.axl.server.auth.UserId
-import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.withClue
 import io.kotest.matchers.maps.shouldBeEmpty
 import io.kotest.matchers.shouldBe
@@ -9,7 +7,9 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 /**
@@ -26,7 +26,13 @@ internal class TestServerConvergence {
 
   /** Registers [deviceId] under [user] and returns the transport that reaches the store as it. */
   private suspend fun transportFor(user: UserId, deviceId: String): StoreTransport {
-    store.registerDevice(user, DeviceId(deviceId), DevicePlatform.JVM, afterReset = false, serverNow)
+    store.registerDevice(
+      user,
+      DeviceId(deviceId),
+      DevicePlatform.JVM,
+      afterReset = false,
+      serverNow,
+    )
     return StoreTransport(store, user, DeviceId(deviceId))
   }
 

@@ -129,7 +129,12 @@ class TestOidcSignInController {
     }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    tokenStore.save(AccessToken("tok-1"), RefreshToken("ref-1"), fixedNow + 3600.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 3600.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     val result = controller.accessToken()
@@ -153,7 +158,12 @@ class TestOidcSignInController {
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
     // 30s left, inside the 60s buffer.
-    tokenStore.save(AccessToken("tok-1"), RefreshToken("ref-1"), fixedNow + 30.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 30.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     val result = controller.accessToken()
@@ -175,7 +185,12 @@ class TestOidcSignInController {
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
     // Exactly 60s left: the buffer boundary itself refreshes.
-    tokenStore.save(AccessToken("tok-1"), RefreshToken("ref-1"), fixedNow + 60.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 60.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     controller.accessToken() shouldBe TokenResult.Ok(AccessToken("tok-refreshed"))
@@ -190,7 +205,12 @@ class TestOidcSignInController {
     }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    tokenStore.save(AccessToken("tok-1"), RefreshToken("ref-1"), fixedNow + 61.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 61.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     controller.accessToken() shouldBe TokenResult.Ok(AccessToken("tok-1"))

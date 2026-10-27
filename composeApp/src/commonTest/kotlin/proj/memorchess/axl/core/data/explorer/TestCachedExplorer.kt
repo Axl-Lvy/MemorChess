@@ -1,7 +1,5 @@
 package proj.memorchess.axl.core.data.explorer
 
-import proj.memorchess.axl.core.engine.Fen
-import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
@@ -18,6 +16,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.LichessToken
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.test_util.InMemoryExplorerCache
 
 class TestCachedExplorer {
@@ -42,7 +42,8 @@ class TestCachedExplorer {
 
   @Test
   fun freshCacheHitDoesNotCallNetworkForMasters() = runTest {
-    val cache = InMemoryExplorerCache().also { it.seed(Fen("fen1"), ExplorerSource.MASTERS, sample) }
+    val cache =
+      InMemoryExplorerCache().also { it.seed(Fen("fen1"), ExplorerSource.MASTERS, sample) }
     var networkCalls = 0
     val client =
       LichessExplorerClient(
@@ -74,7 +75,8 @@ class TestCachedExplorer {
   fun lichessCacheExpiresAfterTtl() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(Fen("fen2"),
+        it.seed(
+          Fen("fen2"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -111,7 +113,8 @@ class TestCachedExplorer {
   fun networkErrorWithStaleCacheReturnsStale() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(Fen("fen3"),
+        it.seed(
+          Fen("fen3"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -181,7 +184,8 @@ class TestCachedExplorer {
   fun unauthorizedWithStaleCacheReturnsStale() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(Fen("fenAuthStale"),
+        it.seed(
+          Fen("fenAuthStale"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -231,7 +235,8 @@ class TestCachedExplorer {
   fun rateLimitedWithStaleCacheReturnsStale() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(Fen("fenZ"),
+        it.seed(
+          Fen("fenZ"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -260,7 +265,9 @@ class TestCachedExplorer {
   fun lichessCacheWithinTtlSkipsNetwork() = runTest {
     val recent = proj.memorchess.axl.core.date.DateUtil.now()
     val cache =
-      InMemoryExplorerCache().also { it.seed(Fen("fenFresh"), ExplorerSource.LICHESS, sample, recent) }
+      InMemoryExplorerCache().also {
+        it.seed(Fen("fenFresh"), ExplorerSource.LICHESS, sample, recent)
+      }
     var networkCalls = 0
     val client =
       LichessExplorerClient(

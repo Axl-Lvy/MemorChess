@@ -1,7 +1,5 @@
 package proj.memorchess.axl.core.engine.evaluation
 
-import proj.memorchess.axl.core.engine.Fen
-import proj.memorchess.axl.core.engine.Player
 import co.touchlab.kermit.Logger
 import fr.axl_lvy.stockfish_multiplatform.Score
 import fr.axl_lvy.stockfish_multiplatform.StockfishEngine
@@ -15,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.engine.Fen
+import proj.memorchess.axl.core.engine.Player
 
 /**
  * Exposes Stockfish's evaluation of the last [evaluate]d position, from White's perspective.

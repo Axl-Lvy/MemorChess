@@ -17,8 +17,8 @@ object BoardUtils {
   }
 
   /**
-   * Returns the square a played [san] move lands on. [mover] resolves the castling literals,
-   * which name no square directly.
+   * Returns the square a played [san] move lands on. [mover] resolves the castling literals, which
+   * name no square directly.
    */
   fun destinationSquare(san: String, mover: Player): BoardLocation {
     val kingRow = if (mover == Player.WHITE) 0 else 7

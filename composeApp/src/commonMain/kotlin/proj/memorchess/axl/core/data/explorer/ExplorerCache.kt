@@ -1,7 +1,7 @@
 package proj.memorchess.axl.core.data.explorer
 
-import proj.memorchess.axl.core.engine.Fen
 import kotlin.time.Instant
+import proj.memorchess.axl.core.engine.Fen
 
 /**
  * Persistent cache for [LichessExplorerResponse] keyed by (fen, source). Entries never expire;

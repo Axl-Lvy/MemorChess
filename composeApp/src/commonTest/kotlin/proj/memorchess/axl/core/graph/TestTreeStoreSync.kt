@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.graph
 
-import proj.memorchess.axl.core.sync.DeviceId
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull

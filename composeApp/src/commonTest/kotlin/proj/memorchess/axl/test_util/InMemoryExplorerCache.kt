@@ -1,12 +1,12 @@
 package proj.memorchess.axl.test_util
 
-import proj.memorchess.axl.core.engine.Fen
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.explorer.CachedExplorerEntry
 import proj.memorchess.axl.core.data.explorer.ExplorerCache
 import proj.memorchess.axl.core.data.explorer.ExplorerSource
 import proj.memorchess.axl.core.data.explorer.LichessExplorerResponse
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.Fen
 
 /** In memory [ExplorerCache]. */
 class InMemoryExplorerCache : ExplorerCache {

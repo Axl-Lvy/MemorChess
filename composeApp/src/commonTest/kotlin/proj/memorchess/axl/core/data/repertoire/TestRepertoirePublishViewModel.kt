@@ -1,12 +1,12 @@
 package proj.memorchess.axl.core.data.repertoire
 
-import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
 import kotlin.test.Test
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.config.PUBLISHED_REPERTOIRES_SETTING
 import proj.memorchess.axl.core.graph.RepertoireExportResult
@@ -37,7 +37,9 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
     },
     accessToken: suspend () -> TokenResult = { TokenResult.Ok(AccessToken("token")) },
     publish:
-      suspend (AccessToken, String, String, String, RepertoireColor, List<RepertoireMove>) -> PublishOutcome =
+      suspend (
+        AccessToken, String, String, String, RepertoireColor, List<RepertoireMove>,
+      ) -> PublishOutcome =
       { _, _, _, _, _, _ ->
         PublishOutcome.Published(descriptor)
       },
@@ -75,7 +77,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
     val store = PublishedRepertoireStore()
     val vm = viewModel(this, store = store)
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Published("my-italian-game")
@@ -93,7 +100,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         publish = { _, _, _, _, _, _ -> PublishOutcome.RemovedOnServer },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.RemovedOnServer)
@@ -113,7 +125,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.SignedOut)
@@ -138,7 +155,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     (vm.state.value as PublishState.Failed).error should
@@ -173,7 +195,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
   fun publishFailsWhenTheRepertoireHasNothingTaggedToExport() = test {
     val vm = viewModel(this, export = { RepertoireExportResult.Empty })
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.NothingToPublish)
@@ -195,7 +222,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Published("my-italian-game")
@@ -220,7 +252,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     (vm.state.value as PublishState.Failed).error should
@@ -236,7 +273,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         publish = { _, _, _, _, _, _ -> PublishOutcome.InvalidPayload("bad pgn") },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.InvalidPayload("bad pgn"))
@@ -250,7 +292,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         publish = { _, _, _, _, _, _ -> PublishOutcome.PayloadTooLarge("too big") },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.PayloadTooLarge("too big"))
@@ -260,7 +307,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
   fun publishSurfacesForbidden() = test {
     val vm = viewModel(this, publish = { _, _, _, _, _, _ -> PublishOutcome.Forbidden })
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.Forbidden)
@@ -274,7 +326,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         publish = { _, _, _, _, _, _ -> PublishOutcome.QuotaExceeded("too many") },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.QuotaExceeded("too many"))
@@ -284,7 +341,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
   fun publishSurfacesRateLimited() = test {
     val vm = viewModel(this, publish = { _, _, _, _, _, _ -> PublishOutcome.RateLimited })
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.RateLimited)
@@ -294,7 +356,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
   fun publishSurfacesAGenericServerFailure() = test {
     val vm = viewModel(this, publish = { _, _, _, _, _, _ -> PublishOutcome.Failed("boom") })
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.ServerError)
@@ -313,7 +380,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.RateLimited)
@@ -333,7 +405,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
         },
       )
 
-    vm.publish(slug = "my-italian-game", title = "Italian Game", description = "d", side = RepertoireColor.WHITE)
+    vm.publish(
+      slug = "my-italian-game",
+      title = "Italian Game",
+      description = "d",
+      side = RepertoireColor.WHITE,
+    )
     advanceUntilIdle()
 
     vm.state.value shouldBe PublishState.Failed(PublishError.SignedOut)

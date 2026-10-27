@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.sync
 
-import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.longs.shouldBeGreaterThan
@@ -24,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.auth.Account
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.SignInResult

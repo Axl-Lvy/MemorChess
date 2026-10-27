@@ -1,6 +1,5 @@
 package proj.memorchess.axl.server
 
-import proj.memorchess.axl.server.auth.UserId
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation

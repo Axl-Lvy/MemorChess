@@ -1,9 +1,9 @@
 package proj.memorchess.axl.core.data.explorer
 
-import proj.memorchess.axl.core.engine.Fen
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlin.time.Instant
+import proj.memorchess.axl.core.engine.Fen
 
 /** Room row for a cached Lichess explorer response. */
 @Entity(tableName = "ExplorerCacheEntity")

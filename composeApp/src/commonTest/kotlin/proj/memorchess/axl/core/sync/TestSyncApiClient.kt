@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.sync
 
-import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
@@ -16,6 +15,7 @@ import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.auth.AccessToken
 
 class TestSyncApiClient {
 
@@ -68,7 +68,8 @@ class TestSyncApiClient {
   fun rateLimitedPullReturnsRateLimited() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
 
-    client(engine).pull(AccessToken("tok"), DEVICE, ack = null, limit = 500) shouldBe SyncPullOutcome.RateLimited
+    client(engine).pull(AccessToken("tok"), DEVICE, ack = null, limit = 500) shouldBe
+      SyncPullOutcome.RateLimited
   }
 
   @Test
@@ -103,8 +104,10 @@ class TestSyncApiClient {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.PayloadTooLarge) }
 
     client(engine)
-      .push(AccessToken("tok"), SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
-      SyncPushOutcome.TooLarge
+      .push(
+        AccessToken("tok"),
+        SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE),
+      ) shouldBe SyncPushOutcome.TooLarge
   }
 
   @Test
@@ -118,8 +121,10 @@ class TestSyncApiClient {
     }
 
     client(engine)
-      .push(AccessToken("tok"), SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
-      SyncPushOutcome.QuotaExceeded
+      .push(
+        AccessToken("tok"),
+        SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE),
+      ) shouldBe SyncPushOutcome.QuotaExceeded
   }
 
   @Test
@@ -134,7 +139,10 @@ class TestSyncApiClient {
     }
 
     client(engine)
-      .push(AccessToken("tok"), SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE))
+      .push(
+        AccessToken("tok"),
+        SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE),
+      )
       .shouldBeInstanceOf<SyncPushOutcome.Error>()
   }
 
@@ -143,8 +151,10 @@ class TestSyncApiClient {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
 
     client(engine)
-      .push(AccessToken("tok"), SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
-      SyncPushOutcome.RateLimited
+      .push(
+        AccessToken("tok"),
+        SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE),
+      ) shouldBe SyncPushOutcome.RateLimited
   }
 
   @Test
@@ -156,7 +166,8 @@ class TestSyncApiClient {
       respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
     }
 
-    client(engine).registerDevice(AccessToken("tok"), DEVICE, DevicePlatform.JVM, afterReset = true) shouldBe
+    client(engine)
+      .registerDevice(AccessToken("tok"), DEVICE, DevicePlatform.JVM, afterReset = true) shouldBe
       SyncRegisterOutcome.Ok
 
     body shouldBe """{"platform":"jvm","afterReset":true}"""
@@ -164,7 +175,8 @@ class TestSyncApiClient {
 
   @Test
   fun registerMapsAResyncRequiredGone() = runTest {
-    client(gone()).registerDevice(AccessToken("tok"), DEVICE, DevicePlatform.JVM, afterReset = false) shouldBe
+    client(gone())
+      .registerDevice(AccessToken("tok"), DEVICE, DevicePlatform.JVM, afterReset = false) shouldBe
       SyncRegisterOutcome.ResyncRequired
   }
 
@@ -177,8 +189,10 @@ class TestSyncApiClient {
   @Test
   fun pushMapsAResyncRequiredGone() = runTest {
     client(gone())
-      .push(AccessToken("tok"), SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE)) shouldBe
-      SyncPushOutcome.ResyncRequired
+      .push(
+        AccessToken("tok"),
+        SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE),
+      ) shouldBe SyncPushOutcome.ResyncRequired
   }
 
   @Test
@@ -275,26 +289,31 @@ class TestSyncApiClient {
     val result = client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L)
 
     result shouldBe
-      SyncEraseOutcome.Ok(SyncEraseResponse(Instant.parse("2026-01-01T00:00:00Z"), revision = Revision(9L)))
+      SyncEraseOutcome.Ok(
+        SyncEraseResponse(Instant.parse("2026-01-01T00:00:00Z"), revision = Revision(9L))
+      )
   }
 
   @Test
   fun erase401IsUnauthorized() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
 
-    client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.Unauthorized
+    client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe
+      SyncEraseOutcome.Unauthorized
   }
 
   @Test
   fun erase429IsRateLimited() = runTest {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
 
-    client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.RateLimited
+    client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe
+      SyncEraseOutcome.RateLimited
   }
 
   @Test
   fun erase410WithResyncBodyIsResyncRequired() = runTest {
-    client(gone()).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.ResyncRequired
+    client(gone()).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe
+      SyncEraseOutcome.ResyncRequired
   }
 
   @Test
@@ -303,14 +322,17 @@ class TestSyncApiClient {
       respond(content = "", status = HttpStatusCode.InternalServerError)
     }
 
-    client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L).shouldBeInstanceOf<SyncEraseOutcome.Error>()
+    client(engine)
+      .erase(AccessToken("tok"), DEVICE, deviceSeq = 7L)
+      .shouldBeInstanceOf<SyncEraseOutcome.Error>()
   }
 
   @Test
   fun eraseThatThrowsIsError() = runTest {
     val engine = MockEngine { _ -> throw IllegalStateException("boom") }
 
-    client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe SyncEraseOutcome.Error("boom")
+    client(engine).erase(AccessToken("tok"), DEVICE, deviceSeq = 7L) shouldBe
+      SyncEraseOutcome.Error("boom")
   }
 
   private fun gone() = MockEngine {

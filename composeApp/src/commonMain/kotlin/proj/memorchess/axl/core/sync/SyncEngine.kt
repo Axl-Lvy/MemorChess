@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.sync
 
-import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -16,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.DataMove

@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.data.repertoire
 
-import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -12,6 +11,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 
@@ -69,7 +69,8 @@ class RepertoirePublishClient(
   /** Removes [id], the caller's own repertoire. */
   suspend fun remove(accessToken: AccessToken, id: String): RemoveOutcome =
     try {
-      val response: HttpResponse = httpClient.delete("$baseUrl/$id") { bearerAuth(accessToken.value) }
+      val response: HttpResponse =
+        httpClient.delete("$baseUrl/$id") { bearerAuth(accessToken.value) }
       when {
         response.status == HttpStatusCode.NoContent -> RemoveOutcome.Removed
         response.status == HttpStatusCode.NotFound -> RemoveOutcome.NotFound

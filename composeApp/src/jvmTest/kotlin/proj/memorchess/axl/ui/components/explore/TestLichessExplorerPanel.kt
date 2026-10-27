@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.explore
 
-import proj.memorchess.axl.core.engine.Fen
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
@@ -13,6 +12,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerState
 import proj.memorchess.axl.core.data.explorer.LichessExplorerMove
 import proj.memorchess.axl.core.data.explorer.LichessExplorerResponse
 import proj.memorchess.axl.core.data.explorer.LichessOpening
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.ui.setKineticContent
 
 /** Renders [LichessExplorerPanelContent] in each [ExplorerState] and asserts the visible text. */

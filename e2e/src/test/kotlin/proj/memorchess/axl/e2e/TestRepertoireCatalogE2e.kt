@@ -1,6 +1,5 @@
 package proj.memorchess.axl.e2e
 
-import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
@@ -11,6 +10,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.data.repertoire.CatalogResult
 import proj.memorchess.axl.core.data.repertoire.PublishOutcome
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient

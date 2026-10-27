@@ -227,4 +227,3 @@ private fun ApplicationCall.cacheControl(value: String) {
 
 /** The caller's requested page cursor, the last id of the previous page. */
 private fun RoutingContext.cursor(): String? = call.request.queryParameters["cursor"]
-

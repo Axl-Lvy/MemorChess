@@ -1,10 +1,10 @@
 package proj.memorchess.axl.core.sync
 
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlin.test.Test
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 
 internal class TestSyncCodec {
 
@@ -148,7 +148,8 @@ internal class TestSyncCodec {
 
   @Test
   fun pushRequestAndResponseRoundTrip() {
-    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = DeviceId("device-a"))
+    val request =
+      SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = DeviceId("device-a"))
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
 
     val response =

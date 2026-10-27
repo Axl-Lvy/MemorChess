@@ -1,8 +1,5 @@
 package proj.memorchess.axl.server.routes
 
-import proj.memorchess.axl.core.sync.Revision
-import proj.memorchess.axl.server.auth.UserId
-import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -24,10 +21,12 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncEraseRequest
@@ -95,7 +94,13 @@ class TestSyncRoutes {
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
     // Registration gates pulling, so the device rows are primed directly.
     for (device in devices) {
-      store.registerDevice(user, DeviceId(device), DevicePlatform.JVM, afterReset = false, serverNow)
+      store.registerDevice(
+        user,
+        DeviceId(device),
+        DevicePlatform.JVM,
+        afterReset = false,
+        serverNow,
+      )
     }
     block(client, key.token(subject = user.value))
   }
@@ -307,7 +312,9 @@ class TestSyncRoutes {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
         setBody(
-          SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows, device = DeviceId(DEVICE)))
+          SYNC_JSON.encodeToString(
+            SyncPushRequest(emptyList(), emptyList(), rows, device = DeviceId(DEVICE))
+          )
         )
       }
 
@@ -339,7 +346,11 @@ class TestSyncRoutes {
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings, device = DeviceId(DEVICE))))
+        setBody(
+          SYNC_JSON.encodeToString(
+            SyncPushRequest(nodes, edges, settings, device = DeviceId(DEVICE))
+          )
+        )
       }
 
     response.status shouldBe HttpStatusCode.PayloadTooLarge
@@ -503,7 +514,12 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(listOf(node("fen-1")), emptyList(), emptyList(), device = DeviceId(DEVICE))
+            SyncPushRequest(
+              listOf(node("fen-1")),
+              emptyList(),
+              emptyList(),
+              device = DeviceId(DEVICE),
+            )
           )
         )
       }

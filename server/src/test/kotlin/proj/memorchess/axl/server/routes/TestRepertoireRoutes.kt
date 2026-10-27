@@ -1,7 +1,5 @@
 package proj.memorchess.axl.server.routes
 
-import proj.memorchess.axl.server.repertoire.RepertoireStatus
-import proj.memorchess.axl.server.auth.UserId
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -38,11 +36,13 @@ import proj.memorchess.axl.server.auth.TEST_AUDIENCE
 import proj.memorchess.axl.server.auth.TEST_ISSUER
 import proj.memorchess.axl.server.auth.TestJwkProvider
 import proj.memorchess.axl.server.auth.TestSigningKey
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.auth.installJwtAuth
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.repertoire.PublishOutcome
 import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireRow
+import proj.memorchess.axl.server.repertoire.RepertoireStatus
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.repertoire.line
@@ -189,7 +189,9 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     val published =
-      runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now) }
+      runBlocking {
+        store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
+      }
         as PublishOutcome.Published
 
     app(store) { client ->
@@ -259,7 +261,8 @@ class TestRepertoireRoutes {
 
   @Test
   fun `the admin status request spells each status as before`() {
-    val encoded = RepertoireStatus.entries.map { SYNC_JSON.encodeToString(RepertoireStatusRequest(it)) }
+    val encoded =
+      RepertoireStatus.entries.map { SYNC_JSON.encodeToString(RepertoireStatusRequest(it)) }
 
     encoded shouldBe
       listOf("""{"status":"published"}""", """{"status":"unlisted"}""", """{"status":"removed"}""")
@@ -313,7 +316,9 @@ class TestRepertoireRoutes {
     val store = newStore()
     val prefix = newId()
     val ids = listOf("$prefix-1", "$prefix-2", "$prefix-3")
-    runBlocking { ids.forEach { store.publish(author1, it, "T", "D", RepertoireColor.WHITE, moves(), now) } }
+    runBlocking {
+      ids.forEach { store.publish(author1, it, "T", "D", RepertoireColor.WHITE, moves(), now) }
+    }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires?cursor=$prefix&limit=2")

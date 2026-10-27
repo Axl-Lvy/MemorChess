@@ -270,7 +270,8 @@ internal class RepertoireStore(
     withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
         val status = connection.statusOf(id, version)
-        if (status == null || status == RepertoireStatus.REMOVED) null else connection.movesOf(id, version)
+        if (status == null || status == RepertoireStatus.REMOVED) null
+        else connection.movesOf(id, version)
       }
     }
 
@@ -443,7 +444,9 @@ private fun Connection.statusOf(id: String, version: Int): RepertoireStatus? =
     statement ->
     statement.setString(1, id)
     statement.setInt(2, version)
-    statement.executeQuery().use { rows -> if (rows.next()) RepertoireStatus.fromDb(rows.getString(1)) else null }
+    statement.executeQuery().use { rows ->
+      if (rows.next()) RepertoireStatus.fromDb(rows.getString(1)) else null
+    }
   }
 
 /** Every move of [id]'s [version], in a stable order. */
@@ -531,7 +534,8 @@ private fun RepertoireColor.dbValue(): String =
  * @throws IllegalStateException for any other spelling.
  */
 private fun sideFromDb(dbValue: String): RepertoireColor =
-  RepertoireColor.entries.firstOrNull { it.dbValue() == dbValue } ?: error("unknown side '$dbValue'")
+  RepertoireColor.entries.firstOrNull { it.dbValue() == dbValue }
+    ?: error("unknown side '$dbValue'")
 
 /** Converts at full precision; a millisecond round trip would shift a `timestamptz` value. */
 private fun Instant.toSqlTimestamp(): Timestamp =

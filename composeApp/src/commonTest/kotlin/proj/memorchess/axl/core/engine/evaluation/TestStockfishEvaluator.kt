@@ -1,13 +1,13 @@
 package proj.memorchess.axl.core.engine.evaluation
 
-import proj.memorchess.axl.core.engine.Fen
-import proj.memorchess.axl.core.engine.Player
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.engine.Fen
+import proj.memorchess.axl.core.engine.Player
 
 class TestStockfishEvaluator {
 

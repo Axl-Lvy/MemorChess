@@ -2,11 +2,11 @@ package proj.memorchess.axl.core.auth
 
 import com.russhwolf.settings.Settings
 import kotlin.time.Instant
-import proj.memorchess.axl.core.config.getInstantOrNull
-import proj.memorchess.axl.core.config.putInstant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import proj.memorchess.axl.core.config.getInstantOrNull
+import proj.memorchess.axl.core.config.putInstant
 
 /**
  * Persists the sync session: tokens, expiry and the signed in account. Unencrypted at rest, which
@@ -20,15 +20,15 @@ class OidcTokenStore(private val settings: Settings) {
   val currentAccount: StateFlow<Account?> = _currentAccount.asStateFlow()
 
   /** The access token, or `null` if there is no stored session. */
-  fun getAccessToken(): AccessToken? = settings.getStringOrNull(KEY_ACCESS_TOKEN)?.let(::AccessToken)
+  fun getAccessToken(): AccessToken? =
+    settings.getStringOrNull(KEY_ACCESS_TOKEN)?.let(::AccessToken)
 
   /** The refresh token, or `null` if there is no stored session or none was ever issued. */
   fun getRefreshToken(): RefreshToken? =
     settings.getStringOrNull(KEY_REFRESH_TOKEN)?.let(::RefreshToken)
 
   /** When [getAccessToken] expires, or `null` if there is no stored session. */
-  fun getExpiresAt(): Instant? =
-    settings.getInstantOrNull(KEY_EXPIRES_AT)
+  fun getExpiresAt(): Instant? = settings.getInstantOrNull(KEY_EXPIRES_AT)
 
   /**
    * Persists a token set. A `null` [refreshToken] clears the stored one; a `null` [account] keeps

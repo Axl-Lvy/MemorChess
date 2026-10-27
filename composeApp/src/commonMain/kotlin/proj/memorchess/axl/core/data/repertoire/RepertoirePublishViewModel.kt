@@ -1,12 +1,12 @@
 package proj.memorchess.axl.core.data.repertoire
 
-import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.graph.RepertoireExportResult
 

@@ -1,8 +1,5 @@
 package proj.memorchess.axl.server.sync
 
-import proj.memorchess.axl.core.sync.Revision
-import proj.memorchess.axl.server.auth.UserId
-import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
@@ -14,9 +11,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStoreDevices {
@@ -220,7 +220,12 @@ internal class TestSyncStoreDevices {
   fun aDeviceOneRevisionBehindIsNotSynced() = runTest {
     val user = userWithOneSetting()
     val highest = store.listDevicesForTest(user).single().let { _ -> highestRevision(user) }
-    store.setPositionForTest(user, DEVICE, lastAcked = Revision(highest.value - 1), lastServed = highest)
+    store.setPositionForTest(
+      user,
+      DEVICE,
+      lastAcked = Revision(highest.value - 1),
+      lastServed = highest,
+    )
 
     store.deviceStatus(user, DEVICE) shouldBe false
   }

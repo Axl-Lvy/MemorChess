@@ -106,8 +106,8 @@ internal class SyncStore(
   }
 
   /**
-   * Applies every accepted row and returns the highest revision assigned, or [Revision.ZERO] when nothing was
-   * written. Rows are sorted so concurrent pushes take row locks in one order.
+   * Applies every accepted row and returns the highest revision assigned, or [Revision.ZERO] when
+   * nothing was written. Rows are sorted so concurrent pushes take row locks in one order.
    *
    * @throws QuotaExceededException some resource would push [userId] past its cap. Checked under
    *   [acquireUserLock] so two concurrent pushes from the same user cannot both slip past it.
@@ -479,7 +479,10 @@ internal class SyncStore(
       }
   }
 
-  /** The revision below which a tombstone of [userId] may be gone, or [Revision.ZERO] when never collected. */
+  /**
+   * The revision below which a tombstone of [userId] may be gone, or [Revision.ZERO] when never
+   * collected.
+   */
   private fun Connection.gcFloor(userId: UserId): Revision =
     prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use { statement
       ->
@@ -561,8 +564,8 @@ internal class SyncStore(
     }
 
   /**
-   * The highest revision [userId] owns, or [Revision.ZERO]. Never the global `sync_revision` sequence, which
-   * would report every device as behind forever.
+   * The highest revision [userId] owns, or [Revision.ZERO]. Never the global `sync_revision`
+   * sequence, which would report every device as behind forever.
    */
   private fun Connection.highestRevision(userId: UserId): Revision {
     val union =
@@ -708,9 +711,7 @@ internal class SyncStore(
     connection.prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use {
       statement ->
       statement.setString(1, userId.value)
-      statement.executeQuery().use { rows ->
-        if (rows.next()) Revision(rows.getLong(1)) else null
-      }
+      statement.executeQuery().use { rows -> if (rows.next()) Revision(rows.getLong(1)) else null }
     }
   }
 
@@ -731,8 +732,8 @@ internal class SyncStore(
 
   /**
    * Tombstones every live node, edge, repertoire and tag of [userId], records the erase cutoff and
-   * returns the highest revision assigned, or [Revision.ZERO]. Each tombstone is stamped at least a millisecond
-   * after the row it replaces, so it wins on every device.
+   * returns the highest revision assigned, or [Revision.ZERO]. Each tombstone is stamped at least a
+   * millisecond after the row it replaces, so it wins on every device.
    *
    * @throws UnknownDeviceException [deviceId] has no row under [userId].
    * @throws ResyncRequiredException [deviceId] was removed and has fallen below the garbage
@@ -1418,25 +1419,45 @@ private data class EraseCutoff(
 private fun NodeSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
+    copy(
+      isDeleted = true,
+      updatedAt = cutoff.erasedAt,
+      originDevice = DeviceId.ERASE_ORIGIN,
+      deviceSeq = 0,
+    )
 
 /** Returns this edge as an erase tombstone when [cutoff] cuts it, else as is. */
 private fun EdgeSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
+    copy(
+      isDeleted = true,
+      updatedAt = cutoff.erasedAt,
+      originDevice = DeviceId.ERASE_ORIGIN,
+      deviceSeq = 0,
+    )
 
 /** Returns this repertoire as an erase tombstone when [cutoff] cuts it, else as is. */
 private fun RepertoireSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
+    copy(
+      isDeleted = true,
+      updatedAt = cutoff.erasedAt,
+      originDevice = DeviceId.ERASE_ORIGIN,
+      deviceSeq = 0,
+    )
 
 /** Returns this tag as an erase tombstone when [cutoff] cuts it, else as is. */
 private fun EdgeRepertoireTagSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
+    copy(
+      isDeleted = true,
+      updatedAt = cutoff.erasedAt,
+      originDevice = DeviceId.ERASE_ORIGIN,
+      deviceSeq = 0,
+    )
 
 /** Stable identifier for an edge in a rejection report, matching what the client can compute. */
 private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"

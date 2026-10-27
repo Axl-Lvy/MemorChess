@@ -1,8 +1,8 @@
 package proj.memorchess.axl.core.data.explorer
 
-import proj.memorchess.axl.core.engine.Fen
 import kotlinx.serialization.json.Json
 import proj.memorchess.axl.core.data.CustomDatabase
+import proj.memorchess.axl.core.engine.Fen
 
 /** Room backed [ExplorerCache]. */
 internal class NonJsExplorerCache(database: CustomDatabase, private val json: Json) :

@@ -1,7 +1,5 @@
 package proj.memorchess.axl.e2e
 
-import proj.memorchess.axl.core.auth.AccessToken
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -16,6 +14,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.AccessToken
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow

@@ -1,6 +1,5 @@
 package proj.memorchess.axl.core.sync
 
-import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -15,6 +14,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import proj.memorchess.axl.core.auth.AccessToken
 
 /**
  * HTTP client for `:server`'s `/v1/sync`. Every failure maps to a typed outcome, never a thrown
@@ -134,7 +134,11 @@ class SyncApiClient(
    *
    * @param deviceSeq Sequence number stamped on the erase, from the same counter as pushed rows.
    */
-  suspend fun erase(accessToken: AccessToken, deviceId: DeviceId, deviceSeq: Long): SyncEraseOutcome {
+  suspend fun erase(
+    accessToken: AccessToken,
+    deviceId: DeviceId,
+    deviceSeq: Long,
+  ): SyncEraseOutcome {
     return try {
       val response: HttpResponse =
         httpClient.post("$baseUrl/me/erase") {

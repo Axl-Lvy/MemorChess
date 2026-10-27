@@ -78,7 +78,8 @@ class TestDeviceId {
 
   @Test
   fun aPushRequestEncodesItsDeviceAsTheBareString() {
-    val request = SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DeviceId(CANONICAL))
+    val request =
+      SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DeviceId(CANONICAL))
 
     val encoded = SYNC_JSON.encodeToString(request)
 

@@ -60,8 +60,10 @@ internal class TestConflictResolver {
 
   @Test
   fun oneMillisecondEitherSideOfTheBoundaryDecides() {
-    resolve(row(t0), row(t1, originDevice = DeviceId("device-b"))).source shouldBe ResolutionSource.REMOTE
-    resolve(row(t1), row(t0, originDevice = DeviceId("device-b"))).source shouldBe ResolutionSource.LOCAL
+    resolve(row(t0), row(t1, originDevice = DeviceId("device-b"))).source shouldBe
+      ResolutionSource.REMOTE
+    resolve(row(t1), row(t0, originDevice = DeviceId("device-b"))).source shouldBe
+      ResolutionSource.LOCAL
   }
 
   @Test
@@ -80,8 +82,10 @@ internal class TestConflictResolver {
 
   @Test
   fun tiedTimestampsBreakOnGreaterDeviceId() {
-    resolve(row(t1, DeviceId("device-a")), row(t1, DeviceId("device-b"))).source shouldBe ResolutionSource.REMOTE
-    resolve(row(t1, DeviceId("device-b")), row(t1, DeviceId("device-a"))).source shouldBe ResolutionSource.LOCAL
+    resolve(row(t1, DeviceId("device-a")), row(t1, DeviceId("device-b"))).source shouldBe
+      ResolutionSource.REMOTE
+    resolve(row(t1, DeviceId("device-b")), row(t1, DeviceId("device-a"))).source shouldBe
+      ResolutionSource.LOCAL
   }
 
   @Test

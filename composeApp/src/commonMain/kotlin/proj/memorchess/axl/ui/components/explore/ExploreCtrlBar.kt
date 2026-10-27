@@ -1,6 +1,5 @@
 package proj.memorchess.axl.ui.components.explore
 
-import proj.memorchess.axl.core.engine.Player
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +35,7 @@ import memorchess.composeapp.generated.resources.explore_black
 import memorchess.composeapp.generated.resources.explore_save
 import memorchess.composeapp.generated.resources.explore_white
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle

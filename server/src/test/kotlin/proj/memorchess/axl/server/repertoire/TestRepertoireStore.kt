@@ -1,7 +1,5 @@
 package proj.memorchess.axl.server.repertoire
 
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
-import proj.memorchess.axl.server.auth.UserId
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.nulls.shouldBeNull
@@ -13,7 +11,9 @@ import kotlin.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.EdgeIdentity
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.db.resolveEdgeIds
@@ -119,7 +119,8 @@ internal class TestRepertoireStore {
   @Test
   fun `publishing rejects an empty move list`() =
     kotlinx.coroutines.test.runTest {
-      val outcome = store().publish(author1, newId(), "T", "D", RepertoireColor.WHITE, emptyList(), now)
+      val outcome =
+        store().publish(author1, newId(), "T", "D", RepertoireColor.WHITE, emptyList(), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
     }
@@ -142,7 +143,8 @@ internal class TestRepertoireStore {
   fun `publishing rejects one move over the move cap`() =
     kotlinx.coroutines.test.runTest {
       val outcome =
-        store(maxMoves = 1).publish(author1, newId(), "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
+        store(maxMoves = 1)
+          .publish(author1, newId(), "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.PayloadTooLarge>()
     }
@@ -151,7 +153,8 @@ internal class TestRepertoireStore {
   fun `publishing accepts exactly the move cap`() =
     kotlinx.coroutines.test.runTest {
       val outcome =
-        store(maxMoves = 2).publish(author1, newId(), "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
+        store(maxMoves = 2)
+          .publish(author1, newId(), "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.Published>()
     }
@@ -159,7 +162,8 @@ internal class TestRepertoireStore {
   @Test
   fun `publishing rejects an id shape that would break the client install store`() =
     kotlinx.coroutines.test.runTest {
-      val outcome = store().publish(author1, "bad,id", "T", "D", RepertoireColor.WHITE, moves(), now)
+      val outcome =
+        store().publish(author1, "bad,id", "T", "D", RepertoireColor.WHITE, moves(), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
     }
@@ -177,7 +181,8 @@ internal class TestRepertoireStore {
     kotlinx.coroutines.test.runTest {
       val title = "t".repeat(200)
 
-      val outcome = store().publish(author1, newId(), title, "D", RepertoireColor.WHITE, moves(), now)
+      val outcome =
+        store().publish(author1, newId(), title, "D", RepertoireColor.WHITE, moves(), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.Published>()
     }
@@ -187,7 +192,8 @@ internal class TestRepertoireStore {
     kotlinx.coroutines.test.runTest {
       val title = "t".repeat(201)
 
-      val outcome = store().publish(author1, newId(), title, "D", RepertoireColor.WHITE, moves(), now)
+      val outcome =
+        store().publish(author1, newId(), title, "D", RepertoireColor.WHITE, moves(), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
     }
@@ -197,7 +203,8 @@ internal class TestRepertoireStore {
     kotlinx.coroutines.test.runTest {
       val description = "d".repeat(2_000)
 
-      val outcome = store().publish(author1, newId(), "T", description, RepertoireColor.WHITE, moves(), now)
+      val outcome =
+        store().publish(author1, newId(), "T", description, RepertoireColor.WHITE, moves(), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.Published>()
     }
@@ -207,7 +214,8 @@ internal class TestRepertoireStore {
     kotlinx.coroutines.test.runTest {
       val description = "d".repeat(2_001)
 
-      val outcome = store().publish(author1, newId(), "T", description, RepertoireColor.WHITE, moves(), now)
+      val outcome =
+        store().publish(author1, newId(), "T", description, RepertoireColor.WHITE, moves(), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.InvalidPayload>()
     }
@@ -220,7 +228,8 @@ internal class TestRepertoireStore {
       store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("e4"), now)
       val rejectedId = newId()
 
-      val outcome = store.publish(author, rejectedId, "T", "D", RepertoireColor.WHITE, moves("d4"), now)
+      val outcome =
+        store.publish(author, rejectedId, "T", "D", RepertoireColor.WHITE, moves("d4"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
       store.moves(rejectedId, 1).shouldBeNull()
@@ -234,7 +243,8 @@ internal class TestRepertoireStore {
       store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("e4"), now)
       store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("d4"), now)
 
-      val outcome = store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("c4"), now)
+      val outcome =
+        store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("c4"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
     }
@@ -246,7 +256,8 @@ internal class TestRepertoireStore {
       val author = UserId("author-quota-ok-${System.nanoTime()}")
       store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("e4"), now)
 
-      val outcome = store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("d4"), now)
+      val outcome =
+        store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("d4"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.Published>()
     }
@@ -273,7 +284,8 @@ internal class TestRepertoireStore {
       val id = newId()
       store.publish(author, id, "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
 
-      val outcome = store.publish(author, id, "T2", "D2", RepertoireColor.WHITE, moves("d4", "d5"), now)
+      val outcome =
+        store.publish(author, id, "T2", "D2", RepertoireColor.WHITE, moves("d4", "d5"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.Published>()
       outcome.row.version shouldBe 2
@@ -288,7 +300,8 @@ internal class TestRepertoireStore {
       store.publish(author, removed, "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
       store.remove(author, removed)
 
-      val outcome = store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("d4", "d5"), now)
+      val outcome =
+        store.publish(author, newId(), "T", "D", RepertoireColor.WHITE, moves("d4", "d5"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.Published>()
     }
@@ -534,7 +547,8 @@ internal class TestRepertoireStore {
       val otherId = newId()
       store.publish(author, otherId, "T", "D", RepertoireColor.WHITE, moves("d4"), now)
 
-      val outcome = store.publish(author, removedId, "T2", "D2", RepertoireColor.WHITE, moves("c4"), now)
+      val outcome =
+        store.publish(author, removedId, "T2", "D2", RepertoireColor.WHITE, moves("c4"), now)
 
       outcome.shouldBeInstanceOf<PublishOutcome.QuotaExceeded>()
     }
@@ -563,7 +577,9 @@ internal class TestRepertoireStore {
       val outcomes = coroutineScope {
         (1..concurrency)
           .map { n ->
-            async(Dispatchers.IO) { store.publish(author1, id, "T$n", "D", RepertoireColor.WHITE, moves(), now) }
+            async(Dispatchers.IO) {
+              store.publish(author1, id, "T$n", "D", RepertoireColor.WHITE, moves(), now)
+            }
           }
           .map { it.await() }
       }
