@@ -417,8 +417,8 @@ private fun MyRepertoiresSection(
 }
 
 /**
- * One row of [MyRepertoiresSection]. [canUninstall] offers Uninstall even once the catalog no longer
- * lists the repertoire.
+ * One row of [MyRepertoiresSection]. [canUninstall] offers Uninstall even once the catalog no
+ * longer lists the repertoire.
  */
 @Composable
 private fun MyRepertoireRow(

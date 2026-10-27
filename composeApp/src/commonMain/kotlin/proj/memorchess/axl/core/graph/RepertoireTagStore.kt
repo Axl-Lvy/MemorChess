@@ -88,8 +88,8 @@ class RepertoireTagStore(
 
   /**
    * Idempotently adds a membership-only [repertoireId] tag, which does not hold the move, to the
-   * edge from [origin] to [destination], then recomputes [origin]'s trainable projection. Re-tagging
-   * a move the repertoire already holds keeps its marking.
+   * edge from [origin] to [destination], then recomputes [origin]'s trainable projection.
+   * Re-tagging a move the repertoire already holds keeps its marking.
    *
    * @throws IllegalStateException if no move from [origin] to [destination] is stored.
    */
