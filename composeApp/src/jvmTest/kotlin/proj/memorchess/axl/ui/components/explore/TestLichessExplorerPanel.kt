@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.components.explore
 
+import proj.memorchess.axl.core.engine.Fen
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
@@ -81,7 +82,7 @@ class TestLichessExplorerPanel {
   fun loadingStateShowsHeader() = runComposeUiTest {
     setKineticContent {
       LichessExplorerPanelContent(
-        state = ExplorerState.Loading(fen = "f", source = ExplorerSource.LICHESS),
+        state = ExplorerState.Loading(fen = Fen("f"), source = ExplorerSource.LICHESS),
         source = ExplorerSource.LICHESS,
         onSetSource = {},
         onClickMove = {},

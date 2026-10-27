@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.engine.Fen
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlin.time.Instant
@@ -13,6 +14,6 @@ data class ExplorerCacheEntity(
 ) {
   companion object {
     /** Composite primary key shaped as `${source.path}:${fen}`. */
-    fun key(fen: String, source: ExplorerSource): String = "${source.path}:$fen"
+    fun key(fen: Fen, source: ExplorerSource): String = "${source.path}:${fen.value}"
   }
 }

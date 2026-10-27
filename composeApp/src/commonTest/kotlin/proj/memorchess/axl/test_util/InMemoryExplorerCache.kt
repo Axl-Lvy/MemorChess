@@ -1,5 +1,6 @@
 package proj.memorchess.axl.test_util
 
+import proj.memorchess.axl.core.engine.Fen
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.explorer.CachedExplorerEntry
 import proj.memorchess.axl.core.data.explorer.ExplorerCache
@@ -12,7 +13,7 @@ class InMemoryExplorerCache : ExplorerCache {
   private val storage = mutableMapOf<String, CachedExplorerEntry>()
 
   fun seed(
-    fen: String,
+    fen: Fen,
     source: ExplorerSource,
     response: LichessExplorerResponse,
     fetchedAt: Instant = DateUtil.now(),
@@ -20,10 +21,10 @@ class InMemoryExplorerCache : ExplorerCache {
     storage[key(fen, source)] = CachedExplorerEntry(response, fetchedAt)
   }
 
-  override suspend fun get(fen: String, source: ExplorerSource): CachedExplorerEntry? =
+  override suspend fun get(fen: Fen, source: ExplorerSource): CachedExplorerEntry? =
     storage[key(fen, source)]
 
-  override suspend fun put(fen: String, source: ExplorerSource, response: LichessExplorerResponse) {
+  override suspend fun put(fen: Fen, source: ExplorerSource, response: LichessExplorerResponse) {
     storage[key(fen, source)] = CachedExplorerEntry(response, DateUtil.now())
   }
 
@@ -31,5 +32,5 @@ class InMemoryExplorerCache : ExplorerCache {
     storage.clear()
   }
 
-  private fun key(fen: String, source: ExplorerSource): String = "${source.name}:$fen"
+  private fun key(fen: Fen, source: ExplorerSource): String = "${source.name}:${fen.value}"
 }

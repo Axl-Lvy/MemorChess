@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.engine.evaluation
 
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.core.engine.Player
 import co.touchlab.kermit.Logger
 import fr.axl_lvy.stockfish_multiplatform.Score
@@ -57,7 +58,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
    * Evaluates the full 6-part [fen], cancelling any in-progress search. The engine scores for
    * [sideToMove], which is flipped to White's perspective.
    */
-  suspend fun evaluate(fen: String, sideToMove: Player) {
+  suspend fun evaluate(fen: Fen, sideToMove: Player) {
     val currentEngine = awaitEngine() ?: return
 
     // The previous search must fully finish before the engine is touched again.
@@ -71,7 +72,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
 
     searchJob = scope.launch {
       try {
-        currentEngine.setPosition(fen = fen)
+        currentEngine.setPosition(fen = fen.value)
         val depthArg = if (maxDepth == 0) null else maxDepth
         val result =
           currentEngine.search(depth = depthArg) { info ->

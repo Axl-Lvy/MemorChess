@@ -89,8 +89,8 @@ internal fun rememberExplorerViewModel(
   val coroutineScope = rememberCoroutineScope()
   val explorerViewModel =
     remember(cachedExplorer, coroutineScope) { ExplorerViewModel(cachedExplorer, coroutineScope) }
-  LaunchedEffect(explorer) { explorerViewModel.setFen(explorer.engine.toFen().value) }
-  remember { explorer.registerCallBack { explorerViewModel.setFen(explorer.engine.toFen().value) } }
+  LaunchedEffect(explorer) { explorerViewModel.setFen(explorer.engine.toFen()) }
+  remember { explorer.registerCallBack { explorerViewModel.setFen(explorer.engine.toFen()) } }
   return explorerViewModel
 }
 
@@ -165,7 +165,7 @@ fun ExplorerContent(
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }
 
   LaunchedEffect(evaluator) {
-    evaluator?.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn)
+    evaluator?.evaluate(explorer.engine.toFen(), explorer.engine.playerTurn)
   }
 
   remember {
@@ -182,7 +182,7 @@ fun ExplorerContent(
       }
       evaluator?.let { eval ->
         coroutineScope.launch {
-          eval.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn)
+          eval.evaluate(explorer.engine.toFen(), explorer.engine.playerTurn)
         }
       }
     }

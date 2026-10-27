@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.core.auth.LichessToken
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
@@ -43,7 +44,7 @@ class LichessExplorerClient(
    */
   suspend fun fetch(
     source: ExplorerSource,
-    fen: String,
+    fen: Fen,
     plies: Int = DEFAULT_PLIES,
   ): ExplorerResult = mutex.withLock {
     throttle()
@@ -52,7 +53,7 @@ class LichessExplorerClient(
 
   private suspend fun runRequest(
     source: ExplorerSource,
-    fen: String,
+    fen: Fen,
     plies: Int,
     attempt: Int,
   ): ExplorerResult {
@@ -67,7 +68,7 @@ class LichessExplorerClient(
         httpClient.get(url) {
           userAgentProvider()?.let { header(HttpHeaders.UserAgent, it) }
           bearerAuth(token.value)
-          parameter("fen", fen)
+          parameter("fen", fen.value)
           parameter("moves", plies)
           parameter("topGames", 0)
           if (source == ExplorerSource.LICHESS) {
@@ -80,11 +81,11 @@ class LichessExplorerClient(
         response.status.isSuccess() -> ExplorerResult.Ok(response.body())
         response.status == HttpStatusCode.TooManyRequests -> retryOn429(source, fen, plies, attempt)
         response.status == HttpStatusCode.Unauthorized -> {
-          LOGGER.w { "Lichess explorer returned 401 for $url fen=$fen" }
+          LOGGER.w { "Lichess explorer returned 401 for $url fen=${fen.value}" }
           ExplorerResult.Unauthorized
         }
         else -> {
-          LOGGER.w { "Lichess explorer returned ${response.status} for $url fen=$fen" }
+          LOGGER.w { "Lichess explorer returned ${response.status} for $url fen=${fen.value}" }
           ExplorerResult.NetworkError("HTTP ${response.status.value}")
         }
       }
@@ -93,24 +94,24 @@ class LichessExplorerClient(
         HttpStatusCode.TooManyRequests -> retryOn429(source, fen, plies, attempt)
         HttpStatusCode.Unauthorized -> ExplorerResult.Unauthorized
         else -> {
-          LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
+          LOGGER.w(e) { "Lichess explorer request failed for $url fen=${fen.value}" }
           ExplorerResult.NetworkError(e.message ?: "Request failed")
         }
       }
     } catch (e: Exception) {
-      LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
+      LOGGER.w(e) { "Lichess explorer request failed for $url fen=${fen.value}" }
       ExplorerResult.NetworkError(e.message ?: "Request failed")
     }
   }
 
   private suspend fun retryOn429(
     source: ExplorerSource,
-    fen: String,
+    fen: Fen,
     plies: Int,
     attempt: Int,
   ): ExplorerResult {
     if (attempt >= maxAttemptsOn429) {
-      LOGGER.w { "Giving up after $attempt rate limited attempts for $fen" }
+      LOGGER.w { "Giving up after $attempt rate limited attempts for ${fen.value}" }
       return ExplorerResult.RateLimited
     }
     val backoff = INITIAL_BACKOFF * (1 shl (attempt - 1))

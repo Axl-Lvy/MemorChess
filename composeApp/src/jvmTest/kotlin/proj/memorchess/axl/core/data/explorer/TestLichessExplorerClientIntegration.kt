@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -37,7 +38,7 @@ class TestLichessExplorerClientIntegration {
     // After 1.e4, since the bare starting position has no opening name to assert on.
     val afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 
-    val result = client.fetch(ExplorerSource.MASTERS, afterE4)
+    val result = client.fetch(ExplorerSource.MASTERS, Fen(afterE4))
 
     val ok =
       withClue("Lichess returned non Ok result: $result (token length=${token.length})") {

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -48,7 +49,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(buildClient(), InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("test fen")
+    vm.setFen(Fen("test fen"))
     // Not advanceUntilIdle: Ktor's MockEngine dispatches on a real thread.
     val loaded = vm.state.first { it is ExplorerState.Loaded } as ExplorerState.Loaded
 
@@ -70,7 +71,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(buildClient(), InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("fen for switch")
+    vm.setFen(Fen("fen for switch"))
     val firstLoaded = vm.state.first { it is ExplorerState.Loaded } as ExplorerState.Loaded
     firstLoaded.source shouldBe ExplorerSource.MASTERS
 
@@ -97,7 +98,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(errClient, InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("fen with error")
+    vm.setFen(Fen("fen with error"))
     val err = vm.state.first { it is ExplorerState.Error } as ExplorerState.Error
     err.source shouldBe ExplorerSource.MASTERS
   }
@@ -118,7 +119,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(unauthClient, InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("fen with no auth")
+    vm.setFen(Fen("fen with no auth"))
     val unauth = vm.state.first { it is ExplorerState.Unauthorized } as ExplorerState.Unauthorized
     unauth.source shouldBe ExplorerSource.MASTERS
   }

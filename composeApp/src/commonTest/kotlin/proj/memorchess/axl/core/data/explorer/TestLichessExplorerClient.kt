@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -56,7 +57,7 @@ class TestLichessExplorerClient {
     }
     val client = buildClient(engine)
 
-    val result = client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+    val result = client.fetch(ExplorerSource.MASTERS, fen = Fen("rnb fen"))
 
     result.shouldBeInstanceOf<ExplorerResult.Ok>()
     result.response.opening?.eco shouldBe "B00"
@@ -70,7 +71,7 @@ class TestLichessExplorerClient {
     }
     val client = buildClient(engine)
 
-    val result = client.fetch(ExplorerSource.LICHESS, fen = "f")
+    val result = client.fetch(ExplorerSource.LICHESS, fen = Fen("f"))
 
     result.shouldBeInstanceOf<ExplorerResult.NetworkError>()
   }
@@ -88,7 +89,7 @@ class TestLichessExplorerClient {
     }
     val client = buildClient(engine, userAgentProvider = { "test-agent" })
 
-    client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+    client.fetch(ExplorerSource.MASTERS, fen = Fen("rnb fen"))
 
     sentUserAgent shouldBe "test-agent"
   }
@@ -108,7 +109,7 @@ class TestLichessExplorerClient {
     // Firefox.
     val client = buildClient(engine, userAgentProvider = { null })
 
-    client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+    client.fetch(ExplorerSource.MASTERS, fen = Fen("rnb fen"))
 
     sentUserAgent shouldBe null
   }
@@ -131,7 +132,7 @@ class TestLichessExplorerClient {
         maxAttemptsOn429 = 2,
       )
 
-    val result = client.fetch(ExplorerSource.LICHESS, fen = "f")
+    val result = client.fetch(ExplorerSource.LICHESS, fen = Fen("f"))
 
     result shouldBe ExplorerResult.RateLimited
     calls shouldBe 2

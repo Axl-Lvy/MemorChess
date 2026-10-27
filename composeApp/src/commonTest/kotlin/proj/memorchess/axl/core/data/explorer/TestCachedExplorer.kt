@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -41,7 +42,7 @@ class TestCachedExplorer {
 
   @Test
   fun freshCacheHitDoesNotCallNetworkForMasters() = runTest {
-    val cache = InMemoryExplorerCache().also { it.seed("fen1", ExplorerSource.MASTERS, sample) }
+    val cache = InMemoryExplorerCache().also { it.seed(Fen("fen1"), ExplorerSource.MASTERS, sample) }
     var networkCalls = 0
     val client =
       LichessExplorerClient(
@@ -63,7 +64,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.MASTERS, "fen1")
+    val result = explorer.fetch(ExplorerSource.MASTERS, Fen("fen1"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Fresh>()
     networkCalls shouldBe 0
@@ -73,8 +74,7 @@ class TestCachedExplorer {
   fun lichessCacheExpiresAfterTtl() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(
-          "fen2",
+        it.seed(Fen("fen2"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -101,7 +101,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fen2")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fen2"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Fresh>()
     networkCalls shouldBe 1
@@ -111,8 +111,7 @@ class TestCachedExplorer {
   fun networkErrorWithStaleCacheReturnsStale() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(
-          "fen3",
+        it.seed(Fen("fen3"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -131,7 +130,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fen3")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fen3"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
   }
@@ -152,7 +151,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.MASTERS, "fenX")
+    val result = explorer.fetch(ExplorerSource.MASTERS, Fen("fenX"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.NetworkError>()
   }
@@ -173,7 +172,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenNoAuth")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenNoAuth"))
 
     result shouldBe CachedExplorerResult.Unauthorized
   }
@@ -182,8 +181,7 @@ class TestCachedExplorer {
   fun unauthorizedWithStaleCacheReturnsStale() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(
-          "fenAuthStale",
+        it.seed(Fen("fenAuthStale"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -202,7 +200,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenAuthStale")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenAuthStale"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
   }
@@ -224,7 +222,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenY")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenY"))
 
     result shouldBe CachedExplorerResult.RateLimited
   }
@@ -233,8 +231,7 @@ class TestCachedExplorer {
   fun rateLimitedWithStaleCacheReturnsStale() = runTest {
     val cache =
       InMemoryExplorerCache().also {
-        it.seed(
-          "fenZ",
+        it.seed(Fen("fenZ"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -254,7 +251,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenZ")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenZ"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
   }
@@ -263,7 +260,7 @@ class TestCachedExplorer {
   fun lichessCacheWithinTtlSkipsNetwork() = runTest {
     val recent = proj.memorchess.axl.core.date.DateUtil.now()
     val cache =
-      InMemoryExplorerCache().also { it.seed("fenFresh", ExplorerSource.LICHESS, sample, recent) }
+      InMemoryExplorerCache().also { it.seed(Fen("fenFresh"), ExplorerSource.LICHESS, sample, recent) }
     var networkCalls = 0
     val client =
       LichessExplorerClient(
@@ -281,7 +278,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenFresh")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenFresh"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Fresh>()
     networkCalls shouldBe 0
