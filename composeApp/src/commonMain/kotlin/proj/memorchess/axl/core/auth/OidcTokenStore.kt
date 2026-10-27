@@ -2,6 +2,8 @@ package proj.memorchess.axl.core.auth
 
 import com.russhwolf.settings.Settings
 import kotlin.time.Instant
+import proj.memorchess.axl.core.config.getInstantOrNull
+import proj.memorchess.axl.core.config.putInstant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +27,7 @@ class OidcTokenStore(private val settings: Settings) {
 
   /** When [getAccessToken] expires, or `null` if there is no stored session. */
   fun getExpiresAt(): Instant? =
-    settings.getLongOrNull(KEY_EXPIRES_AT)?.let(Instant::fromEpochMilliseconds)
+    settings.getInstantOrNull(KEY_EXPIRES_AT)
 
   /**
    * Persists a token set. A `null` [refreshToken] clears the stored one; a `null` [account] keeps
@@ -38,7 +40,7 @@ class OidcTokenStore(private val settings: Settings) {
     } else {
       settings.remove(KEY_REFRESH_TOKEN)
     }
-    settings.putLong(KEY_EXPIRES_AT, expiresAt.toEpochMilliseconds())
+    settings.putInstant(KEY_EXPIRES_AT, expiresAt)
     if (account != null) {
       settings.putString(KEY_SUB, account.sub)
       if (account.name != null) {
