@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
@@ -35,7 +36,7 @@ class TestLichessExplorerClient {
     userAgentProvider: () -> String? = { null },
   ) =
     LichessExplorerClient(
-      tokenProvider = { "test-token" },
+      tokenProvider = { LichessToken("test-token") },
       userAgentProvider = userAgentProvider,
       httpClient =
         HttpClient(engine) {
@@ -121,7 +122,7 @@ class TestLichessExplorerClient {
     }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(engine) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }

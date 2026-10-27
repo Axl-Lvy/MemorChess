@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
@@ -21,7 +22,7 @@ class TestLichessExplorerClientIntegration {
     LichessExplorerClient(
       httpClient =
         HttpClient { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } },
-      tokenProvider = { token },
+      tokenProvider = { token?.let(::LichessToken) },
     )
 
   @Test

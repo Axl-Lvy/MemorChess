@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.repertoire
 
+import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,14 +21,14 @@ class RepertoirePublishViewModel(
   private val accessToken: suspend () -> TokenResult,
   private val publish:
     suspend (
-      accessToken: String,
+      accessToken: AccessToken,
       slug: String,
       title: String,
       description: String,
       side: RepertoireColor,
       moves: List<RepertoireMove>,
     ) -> PublishOutcome,
-  private val remove: suspend (accessToken: String, slug: String) -> RemoveOutcome,
+  private val remove: suspend (accessToken: AccessToken, slug: String) -> RemoveOutcome,
   private val publishedStore: PublishedRepertoireStore,
   private val scope: CoroutineScope,
 ) {
@@ -121,7 +122,7 @@ class RepertoirePublishViewModel(
     }
 
   /** Resolves a usable access token, or fails [internalState] and returns `null`. */
-  private suspend fun resolveToken(): String? =
+  private suspend fun resolveToken(): AccessToken? =
     when (val result = accessToken()) {
       is TokenResult.Ok -> result.accessToken
       TokenResult.Failed.Transient -> {

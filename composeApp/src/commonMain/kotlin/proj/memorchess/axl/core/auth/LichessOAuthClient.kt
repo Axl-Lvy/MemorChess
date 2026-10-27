@@ -56,7 +56,7 @@ class LichessOAuthClient(private val httpClient: HttpClient) {
         )
       if (response.status.isSuccess()) {
         val payload: TokenResponse = response.body()
-        TokenExchangeResult.Ok(payload.accessToken)
+        TokenExchangeResult.Ok(LichessToken(payload.accessToken))
       } else {
         LOGGER.w { "Lichess token exchange failed with ${response.status}" }
         TokenExchangeResult.Error("HTTP ${response.status.value}")
@@ -68,9 +68,9 @@ class LichessOAuthClient(private val httpClient: HttpClient) {
   }
 
   /** Resolves the username of the account behind [token] via `GET /api/account`. */
-  suspend fun fetchAccount(token: String): AccountResult {
+  suspend fun fetchAccount(token: LichessToken): AccountResult {
     return try {
-      val response: HttpResponse = httpClient.get(ACCOUNT_URL) { bearerAuth(token) }
+      val response: HttpResponse = httpClient.get(ACCOUNT_URL) { bearerAuth(token.value) }
       when {
         response.status.isSuccess() -> {
           val payload: AccountResponse = response.body()
@@ -97,7 +97,7 @@ class LichessOAuthClient(private val httpClient: HttpClient) {
 /** Outcome of [LichessOAuthClient.exchangeCode]. */
 sealed class TokenExchangeResult {
   /** Exchange succeeded; contains the access token. */
-  data class Ok(val accessToken: String) : TokenExchangeResult()
+  data class Ok(val accessToken: LichessToken) : TokenExchangeResult()
 
   /** Any failure with a human readable [message]. */
   data class Error(val message: String) : TokenExchangeResult()

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.e2e
 
+import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
@@ -35,7 +36,7 @@ class TestRepertoireCatalogE2e {
 
       val published =
         publishClient.publish(
-          accessToken = server.tokenFor(author),
+          accessToken = AccessToken(server.tokenFor(author)),
           id = id,
           title = "E2E round trip",
           description = "Published by TestRepertoireCatalogE2e",
@@ -64,7 +65,7 @@ class TestRepertoireCatalogE2e {
     runBlocking<Unit> {
       val outcome =
         publishClient.publish(
-          accessToken = "not-a-jwt",
+          accessToken = AccessToken("not-a-jwt"),
           id = UUID.randomUUID().toString(),
           title = "E2E unauthorized",
           description = "Must never be stored",
@@ -81,7 +82,7 @@ class TestRepertoireCatalogE2e {
       val id = UUID.randomUUID().toString()
       publishClient
         .publish(
-          accessToken = server.tokenFor(server.newUserId()),
+          accessToken = AccessToken(server.tokenFor(server.newUserId())),
           id = id,
           title = "E2E shared state",
           description = "Published on the first server",
@@ -110,7 +111,7 @@ class TestRepertoireCatalogE2e {
       val id = UUID.randomUUID().toString()
       publishClient
         .publish(
-          accessToken = server.tokenFor(server.newUserId()),
+          accessToken = AccessToken(server.tokenFor(server.newUserId())),
           id = id,
           title = "E2E missing version",
           description = "Only version 1 exists",

@@ -76,7 +76,7 @@ class TestOidcClient {
     }
     val client = OidcClient(jsonClient(engine), issuer = "https://issuer.example")
 
-    client.refresh("client-1", "ref-abc", audience = "https://api.example")
+    client.refresh("client-1", RefreshToken("ref-abc"), audience = "https://api.example")
 
     body shouldContain "resource=https%3A%2F%2Fapi.example"
   }
@@ -101,8 +101,8 @@ class TestOidcClient {
     val result = client.exchangeCode("client-1", "app.memorchess://oauth", "code123", "verifier")
 
     result.shouldBeInstanceOf<OidcTokenExchangeResult.Ok>()
-    result.accessToken shouldBe "tok-xyz"
-    result.refreshToken shouldBe "ref-abc"
+    result.accessToken shouldBe AccessToken("tok-xyz")
+    result.refreshToken shouldBe RefreshToken("ref-abc")
     result.expiresInSeconds shouldBe 3600L
     result.account shouldBe Account(sub = "user-1", name = "Alice")
   }
@@ -152,7 +152,7 @@ class TestOidcClient {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.BadRequest) }
     val client = OidcClient(jsonClient(engine), issuer = "https://issuer.example")
 
-    val result = client.refresh("client-1", "dead-refresh-token")
+    val result = client.refresh("client-1", RefreshToken("dead-refresh-token"))
 
     result shouldBe OidcTokenExchangeResult.Rejected
   }
@@ -171,10 +171,10 @@ class TestOidcClient {
     }
     val client = OidcClient(jsonClient(engine), issuer = "https://issuer.example")
 
-    val result = client.refresh("client-1", "ref-abc")
+    val result = client.refresh("client-1", RefreshToken("ref-abc"))
 
     result.shouldBeInstanceOf<OidcTokenExchangeResult.Ok>()
-    result.accessToken shouldBe "tok-new"
-    result.refreshToken shouldBe "ref-new"
+    result.accessToken shouldBe AccessToken("tok-new")
+    result.refreshToken shouldBe RefreshToken("ref-new")
   }
 }

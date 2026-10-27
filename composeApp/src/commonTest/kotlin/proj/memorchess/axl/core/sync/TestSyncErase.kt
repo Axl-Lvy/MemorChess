@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.sync
 
+import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.longs.shouldBeGreaterThan
@@ -158,7 +159,7 @@ class TestSyncErase {
       if (request.isErase()) jsonResponse(ERASE_OK_BODY) else noContent()
     }
 
-    erase(database, TokenResult.Ok("tok"), engine, jobStore = jobStore)
+    erase(database, TokenResult.Ok(AccessToken("tok")), engine, jobStore = jobStore)
 
     jobStore.resetPending shouldBe false
   }
@@ -177,7 +178,7 @@ class TestSyncErase {
       }
     }
 
-    val outcome = erase(database, TokenResult.Ok("tok"), engine)
+    val outcome = erase(database, TokenResult.Ok(AccessToken("tok")), engine)
 
     outcome shouldBe EraseOutcome.Erased
     eraseRequests shouldBe 1
@@ -197,7 +198,7 @@ class TestSyncErase {
       }
     }
 
-    val outcome = erase(database, TokenResult.Ok("tok"), engine)
+    val outcome = erase(database, TokenResult.Ok(AccessToken("tok")), engine)
 
     outcome shouldBe EraseOutcome.Failed
     database.shouldBeIntact()
@@ -259,7 +260,7 @@ class TestSyncErase {
       }
     }
 
-    val outcome = erase(database, TokenResult.Ok("tok"), engine)
+    val outcome = erase(database, TokenResult.Ok(AccessToken("tok")), engine)
 
     outcome shouldBe EraseOutcome.Failed
     resetFlags shouldBe listOf(false)
@@ -278,7 +279,7 @@ class TestSyncErase {
       else noContent()
     }
 
-    val outcome = erase(database, TokenResult.Ok("tok"), engine)
+    val outcome = erase(database, TokenResult.Ok(AccessToken("tok")), engine)
 
     outcome shouldBe EraseOutcome.Failed
     database.shouldBeIntact()
@@ -294,7 +295,7 @@ class TestSyncErase {
 
     val outcome =
       runErase(
-        authProvider = FixedTokenAuthProvider(TokenResult.Ok("tok")),
+        authProvider = FixedTokenAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         applier = testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined)),
         apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
         deviceIdentity = DeviceIdentity.ephemeral(),
@@ -322,7 +323,7 @@ class TestSyncErase {
       }
     }
 
-    erase(database, TokenResult.Ok("tok"), engine, identity)
+    erase(database, TokenResult.Ok(AccessToken("tok")), engine, identity)
 
     stampedSeqs.shouldNotBeEmpty()
     val request = sent.shouldNotBeNull()

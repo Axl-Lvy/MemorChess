@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.client.HttpClient
@@ -44,7 +45,7 @@ class TestCachedExplorer {
     var networkCalls = 0
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ ->
@@ -82,7 +83,7 @@ class TestCachedExplorer {
     var networkCalls = 0
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ ->
@@ -119,7 +120,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -140,7 +141,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -161,7 +162,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
@@ -190,7 +191,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
@@ -211,7 +212,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
@@ -241,7 +242,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
@@ -266,7 +267,7 @@ class TestCachedExplorer {
     var networkCalls = 0
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ ->

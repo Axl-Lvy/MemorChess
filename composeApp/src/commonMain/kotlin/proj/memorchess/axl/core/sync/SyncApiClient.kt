@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.sync
 
+import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -33,7 +34,7 @@ class SyncApiClient(
    *   the server's collection floor can start over.
    */
   suspend fun registerDevice(
-    accessToken: String,
+    accessToken: AccessToken,
     deviceId: DeviceId,
     platform: DevicePlatform,
     afterReset: Boolean,
@@ -41,7 +42,7 @@ class SyncApiClient(
     return try {
       val response: HttpResponse =
         httpClient.put("$baseUrl/me/devices/${deviceId.value}") {
-          bearerAuth(accessToken)
+          bearerAuth(accessToken.value)
           contentType(ContentType.Application.Json)
           setBody(SyncDeviceRegisterRequest(platform.wireName, afterReset))
         }
@@ -69,7 +70,7 @@ class SyncApiClient(
    *   committed none since its last failure.
    */
   suspend fun pull(
-    accessToken: String,
+    accessToken: AccessToken,
     deviceId: DeviceId,
     ack: String?,
     limit: Int,
@@ -77,7 +78,7 @@ class SyncApiClient(
     return try {
       val response: HttpResponse =
         httpClient.get("$baseUrl/sync") {
-          bearerAuth(accessToken)
+          bearerAuth(accessToken.value)
           parameter("device", deviceId.value)
           if (ack != null) parameter("ack", ack)
           parameter("limit", limit)
@@ -100,11 +101,11 @@ class SyncApiClient(
   }
 
   /** Pushes one batch. The caller is responsible for keeping it within the server's row cap. */
-  suspend fun push(accessToken: String, request: SyncPushRequest): SyncPushOutcome {
+  suspend fun push(accessToken: AccessToken, request: SyncPushRequest): SyncPushOutcome {
     return try {
       val response: HttpResponse =
         httpClient.post("$baseUrl/sync") {
-          bearerAuth(accessToken)
+          bearerAuth(accessToken.value)
           contentType(ContentType.Application.Json)
           setBody(request)
         }
@@ -133,11 +134,11 @@ class SyncApiClient(
    *
    * @param deviceSeq Sequence number stamped on the erase, from the same counter as pushed rows.
    */
-  suspend fun erase(accessToken: String, deviceId: DeviceId, deviceSeq: Long): SyncEraseOutcome {
+  suspend fun erase(accessToken: AccessToken, deviceId: DeviceId, deviceSeq: Long): SyncEraseOutcome {
     return try {
       val response: HttpResponse =
         httpClient.post("$baseUrl/me/erase") {
-          bearerAuth(accessToken)
+          bearerAuth(accessToken.value)
           contentType(ContentType.Application.Json)
           setBody(SyncEraseRequest(deviceId, deviceSeq))
         }

@@ -52,7 +52,7 @@ class TestLichessSignInController {
     val result = controller.signIn()
 
     result shouldBe SignInResult.Success
-    tokenStore.getToken() shouldBe "tok-xyz"
+    tokenStore.getToken() shouldBe LichessToken("tok-xyz")
     tokenStore.account.value?.username shouldBe "alice"
   }
 
@@ -142,7 +142,7 @@ class TestLichessSignInController {
   @Test
   fun signOutClearsStore() {
     val tokenStore = OAuthTokenStore(TestSettings())
-    tokenStore.save("tok-xyz", username = "alice")
+    tokenStore.save(LichessToken("tok-xyz"), username = "alice")
     val controller =
       LichessSignInController(
         launch = { _, _, _ -> error("not used") },

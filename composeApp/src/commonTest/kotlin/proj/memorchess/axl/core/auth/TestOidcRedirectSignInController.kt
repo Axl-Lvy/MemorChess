@@ -71,8 +71,8 @@ class TestOidcRedirectSignInController {
   fun signOutDelegatesToWrappedController() {
     val tokenStore = OidcTokenStore(TestSettings())
     tokenStore.save(
-      "tok-1",
-      "ref-1",
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
       Instant.parse("2026-01-01T00:00:00Z"),
       Account("u1", null),
     )

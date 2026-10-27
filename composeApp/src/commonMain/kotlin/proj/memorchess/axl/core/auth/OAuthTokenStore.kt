@@ -17,11 +17,11 @@ class OAuthTokenStore(private val settings: Settings) {
   val account: StateFlow<LichessAccount?> = _account.asStateFlow()
 
   /** Returns the access token, or `null` if the user is not signed in. */
-  fun getToken(): String? = settings.getStringOrNull(KEY_TOKEN)
+  fun getToken(): LichessToken? = settings.getStringOrNull(KEY_TOKEN)?.let(::LichessToken)
 
   /** Persists [token] and [username]; a `null` [username] means it is not resolved yet. */
-  fun save(token: String, username: String?) {
-    settings.putString(KEY_TOKEN, token)
+  fun save(token: LichessToken, username: String?) {
+    settings.putString(KEY_TOKEN, token.value)
     if (username != null) {
       settings.putString(KEY_USERNAME, username)
     } else {
@@ -45,7 +45,7 @@ class OAuthTokenStore(private val settings: Settings) {
   }
 
   private fun load(): LichessAccount? {
-    val token = settings.getStringOrNull(KEY_TOKEN) ?: return null
+    val token = getToken() ?: return null
     val username = settings.getStringOrNull(KEY_USERNAME)
     return LichessAccount(token = token, username = username)
   }
@@ -57,4 +57,4 @@ class OAuthTokenStore(private val settings: Settings) {
 }
 
 /** Signed in Lichess account. */
-data class LichessAccount(val token: String, val username: String?)
+data class LichessAccount(val token: LichessToken, val username: String?)

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.e2e
 
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -44,14 +45,14 @@ class TestSyncEraseE2e {
     val tags: List<EdgeRepertoireTagSyncRow>,
   )
 
-  private suspend fun register(token: String, device: DeviceId) {
+  private suspend fun register(token: AccessToken, device: DeviceId) {
     client
       .registerDevice(token, device, DevicePlatform.JVM, afterReset = false)
       .shouldBeInstanceOf<SyncRegisterOutcome.Ok>()
   }
 
   /** Pulls page after page, confirming each with the next request, until one comes back empty. */
-  private suspend fun pullAll(token: String, device: DeviceId): Caught {
+  private suspend fun pullAll(token: AccessToken, device: DeviceId): Caught {
     val nodes = mutableListOf<NodeSyncRow>()
     val edges = mutableListOf<EdgeSyncRow>()
     val repertoires = mutableListOf<RepertoireSyncRow>()
@@ -142,7 +143,7 @@ class TestSyncEraseE2e {
 
   private fun fen(suffix: String) = "e2e-${UUID.randomUUID()}-$suffix"
 
-  private suspend fun erase(token: String, device: DeviceId): Instant =
+  private suspend fun erase(token: AccessToken, device: DeviceId): Instant =
     client
       .erase(token, device, deviceSeq = 1)
       .shouldBeInstanceOf<SyncEraseOutcome.Ok>()
@@ -152,7 +153,7 @@ class TestSyncEraseE2e {
   @Test
   fun `an erase from one device reaches the other`() =
     runBlocking<Unit> {
-      val token = server.tokenFor(server.newUserId())
+      val token = AccessToken(server.tokenFor(server.newUserId()))
       val deviceA = DeviceId.random()
       val deviceB = DeviceId.random()
       register(token, deviceA)
@@ -189,7 +190,7 @@ class TestSyncEraseE2e {
   @Test
   fun `an unsynced import from before the erase does not survive`() =
     runBlocking<Unit> {
-      val token = server.tokenFor(server.newUserId())
+      val token = AccessToken(server.tokenFor(server.newUserId()))
       val deviceA = DeviceId.random()
       val deviceB = DeviceId.random()
       register(token, deviceA)

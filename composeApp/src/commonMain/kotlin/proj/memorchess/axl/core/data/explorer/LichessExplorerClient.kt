@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.auth.LichessToken
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -26,7 +27,7 @@ import proj.memorchess.axl.core.date.DateUtil
  */
 class LichessExplorerClient(
   private val httpClient: HttpClient,
-  private val tokenProvider: () -> String? = { null },
+  private val tokenProvider: () -> LichessToken? = { null },
   private val userAgentProvider: () -> String? = ::explorerUserAgent,
   private val minGap: Duration = DEFAULT_MIN_GAP,
   private val maxAttemptsOn429: Int = DEFAULT_MAX_ATTEMPTS_ON_429,
@@ -65,7 +66,7 @@ class LichessExplorerClient(
       val response: HttpResponse =
         httpClient.get(url) {
           userAgentProvider()?.let { header(HttpHeaders.UserAgent, it) }
-          bearerAuth(token)
+          bearerAuth(token.value)
           parameter("fen", fen)
           parameter("moves", plies)
           parameter("topGames", 0)

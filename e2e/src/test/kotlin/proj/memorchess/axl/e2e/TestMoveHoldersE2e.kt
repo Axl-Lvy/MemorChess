@@ -1,5 +1,6 @@
 package proj.memorchess.axl.e2e
 
+import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -59,14 +60,14 @@ class TestMoveHoldersE2e {
       database.getPositionIncludingDeleted(from)?.previousAndNextMoves?.nextMoves?.get(san)
   }
 
-  private suspend fun register(token: String, device: Device) {
+  private suspend fun register(token: AccessToken, device: Device) {
     client
       .registerDevice(token, device.identity.originDevice, DevicePlatform.JVM, afterReset = false)
       .shouldBeInstanceOf<SyncRegisterOutcome.Ok>()
   }
 
   /** Pushes [device]'s outbox the way the app does. */
-  private suspend fun push(token: String, device: Device) {
+  private suspend fun push(token: AccessToken, device: Device) {
     val database = device.database
     val outbox = database.getOutbox()
     val request =
@@ -115,7 +116,7 @@ class TestMoveHoldersE2e {
   }
 
   /** Pulls every page for [device] and applies it in the app's order. */
-  private suspend fun pull(token: String, device: Device, limit: Int = PAGE_LIMIT) {
+  private suspend fun pull(token: AccessToken, device: Device, limit: Int = PAGE_LIMIT) {
     var ack: String? = null
     repeat(MAX_PAGES * PAGE_LIMIT) {
       val page =
@@ -144,7 +145,7 @@ class TestMoveHoldersE2e {
   @Test
   fun `an install reaches another device with its markings and no manual hold`() =
     runBlocking<Unit> {
-      val token = server.tokenFor(server.newUserId())
+      val token = AccessToken(server.tokenFor(server.newUserId()))
       val deviceA = Device()
       val deviceB = Device()
       register(token, deviceA)
@@ -180,7 +181,7 @@ class TestMoveHoldersE2e {
   @Test
   fun `an install reaches a device whose pull serves the moves before their positions`() =
     runBlocking<Unit> {
-      val token = server.tokenFor(server.newUserId())
+      val token = AccessToken(server.tokenFor(server.newUserId()))
       val deviceA = Device()
       val deviceB = Device()
       register(token, deviceA)

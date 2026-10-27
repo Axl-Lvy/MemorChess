@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.repertoire
 
+import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -35,7 +36,7 @@ class TestRepertoirePublishClient {
     val client =
       RepertoirePublishClient(httpClient, baseUrl = "https://test.invalid/v1/repertoires")
 
-    client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     SYNC_JSON.decodeFromString<PublishRepertoireRequest>(sent!!) shouldBe
       PublishRepertoireRequest("italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
@@ -73,7 +74,7 @@ class TestRepertoirePublishClient {
       )
     val client = clientAnswering(HttpStatusCode.Created, SYNC_JSON.encodeToString(descriptor))
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.Published(descriptor)
   }
@@ -86,7 +87,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.REMOVED, "removed")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.RemovedOnServer
   }
@@ -99,7 +100,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.FORBIDDEN, "not yours")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.Forbidden
   }
@@ -108,7 +109,7 @@ class TestRepertoirePublishClient {
   fun publishMapsUnauthorized() = runTest {
     val client = clientAnswering(HttpStatusCode.Unauthorized, "")
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.Unauthorized
   }
@@ -117,7 +118,7 @@ class TestRepertoirePublishClient {
   fun publishMapsRateLimited() = runTest {
     val client = clientAnswering(HttpStatusCode.TooManyRequests, "")
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.RateLimited
   }
@@ -130,7 +131,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.TOO_LARGE, "too big")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.PayloadTooLarge("too big")
   }
@@ -143,7 +144,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INVALID_REPERTOIRE, "bad pgn")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.InvalidPayload("bad pgn")
   }
@@ -156,7 +157,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.QUOTA_EXCEEDED, "too many")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.QuotaExceeded("too many")
   }
@@ -169,7 +170,7 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INTERNAL, "server exploded")),
       )
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.Failed("server exploded")
   }
@@ -178,7 +179,7 @@ class TestRepertoirePublishClient {
   fun publishFallsBackToAGenericMessageWhenTheBodyDoesNotDecodeAsApiError() = runTest {
     val client = clientAnswering(HttpStatusCode.InternalServerError, "not json")
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome shouldBe PublishOutcome.Failed("HTTP 500")
   }
@@ -187,7 +188,7 @@ class TestRepertoirePublishClient {
   fun publishCatchesAThrownExceptionAsFailed() = runTest {
     val client = throwingClient()
 
-    val outcome = client.publish("token", "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
+    val outcome = client.publish(AccessToken("token"), "italian-game", "Italian Game", "d", RepertoireColor.WHITE, moves)
 
     outcome should beInstanceOf<PublishOutcome.Failed>()
   }
@@ -196,35 +197,35 @@ class TestRepertoirePublishClient {
   fun removeReturnsRemovedOnNoContent() = runTest {
     val client = clientAnswering(HttpStatusCode.NoContent, "")
 
-    client.remove("token", "italian-game") shouldBe RemoveOutcome.Removed
+    client.remove(AccessToken("token"), "italian-game") shouldBe RemoveOutcome.Removed
   }
 
   @Test
   fun removeMapsNotFound() = runTest {
     val client = clientAnswering(HttpStatusCode.NotFound, "")
 
-    client.remove("token", "italian-game") shouldBe RemoveOutcome.NotFound
+    client.remove(AccessToken("token"), "italian-game") shouldBe RemoveOutcome.NotFound
   }
 
   @Test
   fun removeMapsUnauthorized() = runTest {
     val client = clientAnswering(HttpStatusCode.Unauthorized, "")
 
-    client.remove("token", "italian-game") shouldBe RemoveOutcome.Unauthorized
+    client.remove(AccessToken("token"), "italian-game") shouldBe RemoveOutcome.Unauthorized
   }
 
   @Test
   fun removeMapsRateLimited() = runTest {
     val client = clientAnswering(HttpStatusCode.TooManyRequests, "")
 
-    client.remove("token", "italian-game") shouldBe RemoveOutcome.RateLimited
+    client.remove(AccessToken("token"), "italian-game") shouldBe RemoveOutcome.RateLimited
   }
 
   @Test
   fun removeMapsForbidden() = runTest {
     val client = clientAnswering(HttpStatusCode.Forbidden, "")
 
-    client.remove("token", "italian-game") shouldBe RemoveOutcome.Forbidden
+    client.remove(AccessToken("token"), "italian-game") shouldBe RemoveOutcome.Forbidden
   }
 
   @Test
@@ -235,14 +236,14 @@ class TestRepertoirePublishClient {
         SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INTERNAL, "server exploded")),
       )
 
-    client.remove("token", "italian-game") shouldBe RemoveOutcome.Failed("server exploded")
+    client.remove(AccessToken("token"), "italian-game") shouldBe RemoveOutcome.Failed("server exploded")
   }
 
   @Test
   fun removeCatchesAThrownExceptionAsFailed() = runTest {
     val client = throwingClient()
 
-    val outcome = client.remove("token", "italian-game")
+    val outcome = client.remove(AccessToken("token"), "italian-game")
 
     outcome should beInstanceOf<RemoveOutcome.Failed>()
   }

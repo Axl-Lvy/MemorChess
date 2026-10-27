@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.explorer
 
+import proj.memorchess.axl.core.auth.LichessToken
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -26,7 +27,7 @@ class TestExplorerViewModel {
 
   private fun buildClient() =
     LichessExplorerClient(
-      tokenProvider = { "test-token" },
+      tokenProvider = { LichessToken("test-token") },
       httpClient =
         HttpClient(
           MockEngine { _ ->
@@ -84,7 +85,7 @@ class TestExplorerViewModel {
   fun networkFailureLeadsToErrorState() = runTest {
     val errClient =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -105,7 +106,7 @@ class TestExplorerViewModel {
   fun unauthorizedLeadsToUnauthorizedState() = runTest {
     val unauthClient =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }

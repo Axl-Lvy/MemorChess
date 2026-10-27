@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.repertoire
 
+import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -27,7 +28,7 @@ class RepertoirePublishClient(
 
   /** Publishes or republishes [id] as the caller's own repertoire. */
   suspend fun publish(
-    accessToken: String,
+    accessToken: AccessToken,
     id: String,
     title: String,
     description: String,
@@ -37,7 +38,7 @@ class RepertoirePublishClient(
     try {
       val response: HttpResponse =
         httpClient.post(baseUrl) {
-          bearerAuth(accessToken)
+          bearerAuth(accessToken.value)
           contentType(ContentType.Application.Json)
           setBody(PublishRepertoireRequest(id, title, description, side, moves))
         }
@@ -66,9 +67,9 @@ class RepertoirePublishClient(
     }
 
   /** Removes [id], the caller's own repertoire. */
-  suspend fun remove(accessToken: String, id: String): RemoveOutcome =
+  suspend fun remove(accessToken: AccessToken, id: String): RemoveOutcome =
     try {
-      val response: HttpResponse = httpClient.delete("$baseUrl/$id") { bearerAuth(accessToken) }
+      val response: HttpResponse = httpClient.delete("$baseUrl/$id") { bearerAuth(accessToken.value) }
       when {
         response.status == HttpStatusCode.NoContent -> RemoveOutcome.Removed
         response.status == HttpStatusCode.NotFound -> RemoveOutcome.NotFound

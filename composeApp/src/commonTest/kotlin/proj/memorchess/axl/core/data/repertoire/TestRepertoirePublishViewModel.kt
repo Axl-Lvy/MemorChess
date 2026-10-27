@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.data.repertoire
 
+import proj.memorchess.axl.core.auth.AccessToken
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
@@ -34,13 +35,13 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
     export: suspend (String) -> RepertoireExportResult = {
       RepertoireExportResult.Moves(listOf(e4), maxPlyDepth = 0)
     },
-    accessToken: suspend () -> TokenResult = { TokenResult.Ok("token") },
+    accessToken: suspend () -> TokenResult = { TokenResult.Ok(AccessToken("token")) },
     publish:
-      suspend (String, String, String, String, RepertoireColor, List<RepertoireMove>) -> PublishOutcome =
+      suspend (AccessToken, String, String, String, RepertoireColor, List<RepertoireMove>) -> PublishOutcome =
       { _, _, _, _, _, _ ->
         PublishOutcome.Published(descriptor)
       },
-    remove: suspend (String, String) -> RemoveOutcome = { _, _ -> RemoveOutcome.Removed },
+    remove: suspend (AccessToken, String) -> RemoveOutcome = { _, _ -> RemoveOutcome.Removed },
     store: PublishedRepertoireStore = PublishedRepertoireStore(),
   ) =
     RepertoirePublishViewModel(

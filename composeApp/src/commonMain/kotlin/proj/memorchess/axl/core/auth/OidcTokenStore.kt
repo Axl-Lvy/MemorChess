@@ -20,10 +20,11 @@ class OidcTokenStore(private val settings: Settings) {
   val currentAccount: StateFlow<Account?> = _currentAccount.asStateFlow()
 
   /** The access token, or `null` if there is no stored session. */
-  fun getAccessToken(): String? = settings.getStringOrNull(KEY_ACCESS_TOKEN)
+  fun getAccessToken(): AccessToken? = settings.getStringOrNull(KEY_ACCESS_TOKEN)?.let(::AccessToken)
 
   /** The refresh token, or `null` if there is no stored session or none was ever issued. */
-  fun getRefreshToken(): String? = settings.getStringOrNull(KEY_REFRESH_TOKEN)
+  fun getRefreshToken(): RefreshToken? =
+    settings.getStringOrNull(KEY_REFRESH_TOKEN)?.let(::RefreshToken)
 
   /** When [getAccessToken] expires, or `null` if there is no stored session. */
   fun getExpiresAt(): Instant? =
@@ -33,10 +34,15 @@ class OidcTokenStore(private val settings: Settings) {
    * Persists a token set. A `null` [refreshToken] clears the stored one; a `null` [account] keeps
    * the previously known account.
    */
-  fun save(accessToken: String, refreshToken: String?, expiresAt: Instant, account: Account?) {
-    settings.putString(KEY_ACCESS_TOKEN, accessToken)
+  fun save(
+    accessToken: AccessToken,
+    refreshToken: RefreshToken?,
+    expiresAt: Instant,
+    account: Account?,
+  ) {
+    settings.putString(KEY_ACCESS_TOKEN, accessToken.value)
     if (refreshToken != null) {
-      settings.putString(KEY_REFRESH_TOKEN, refreshToken)
+      settings.putString(KEY_REFRESH_TOKEN, refreshToken.value)
     } else {
       settings.remove(KEY_REFRESH_TOKEN)
     }

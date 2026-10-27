@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.sync
 
+import proj.memorchess.axl.core.auth.AccessToken
 import co.touchlab.kermit.Logger
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -323,7 +324,7 @@ internal suspend fun runSyncCycle(
  * success, else a [CycleOutcome] to stop the cycle.
  */
 private suspend fun registerDevice(
-  token: String,
+  token: AccessToken,
   deviceId: DeviceId,
   apiClient: SyncApiClient,
   jobStore: SyncJobStore,
@@ -351,7 +352,7 @@ private suspend fun registerDevice(
  * assume it, so a device dying before the wipe never merges a full pull into stale rows.
  */
 private suspend fun resync(
-  token: String,
+  token: AccessToken,
   deviceId: DeviceId,
   database: DatabaseQueryManager,
   applier: SyncApplier,
@@ -370,7 +371,7 @@ private suspend fun resync(
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pushOutbox(
-  token: String,
+  token: AccessToken,
   deviceId: DeviceId,
   database: DatabaseQueryManager,
   apiClient: SyncApiClient,
@@ -467,7 +468,7 @@ private suspend fun applyPulledPage(page: SyncPullResponse, applier: SyncApplier
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pullAll(
-  token: String,
+  token: AccessToken,
   applier: SyncApplier,
   apiClient: SyncApiClient,
   deviceId: DeviceId,
