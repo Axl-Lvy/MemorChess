@@ -434,6 +434,7 @@ private fun Edge.toDataMove(): DataMove =
     destination = to,
     move = move,
     isGood = isGood,
+    ownIsGood = ownIsGood,
     isDeleted = isDeleted,
     createdAt = createdAt,
     updatedAt = updatedAt,

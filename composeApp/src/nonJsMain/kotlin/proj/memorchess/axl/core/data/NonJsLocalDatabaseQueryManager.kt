@@ -20,7 +20,10 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   }
 
   override suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode? =
-    database.getNodeEntityDao().getNodeIncludingDeleted(positionKey.value)?.toStoredNode()
+    database
+      .getNodeEntityDao()
+      .getNodeIncludingDeleted(positionKey.value)
+      ?.toStoredNode(includeDeletedMoves = true)
 
   override suspend fun applyRemoteNode(node: DataNode) {
     database.getNodeEntityDao().insertNode(NodeWithMoves.convertToEntity(node).node)

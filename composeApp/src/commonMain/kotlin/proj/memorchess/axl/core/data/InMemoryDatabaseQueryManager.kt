@@ -235,6 +235,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   ): DataMove =
     copy(
       isDeleted = true,
+      ownIsGood = null,
       updatedAt = updatedAt,
       originDevice = originDevice,
       deviceSeq = deviceSeq,

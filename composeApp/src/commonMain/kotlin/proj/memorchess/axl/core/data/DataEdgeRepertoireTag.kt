@@ -11,6 +11,9 @@ import proj.memorchess.axl.core.date.DateUtil
  * @property origin Origin position of the tagged move.
  * @property destination Destination position of the tagged move.
  * @property repertoireId The repertoire this edge belongs to.
+ * @property move The tagged move in standard algebraic notation.
+ * @property isGood The author's marking for a tag written by an install, which makes the repertoire
+ *   a holder of the move, or `null` for a tag that only records membership.
  * @property isDeleted Whether this tag has been removed.
  * @property updatedAt Date at which this row was last updated.
  * @property originDevice Device that wrote this version. Stamped by
@@ -21,6 +24,8 @@ data class DataEdgeRepertoireTag(
   val origin: PositionKey,
   val destination: PositionKey,
   val repertoireId: String,
+  val move: String,
+  val isGood: Boolean? = null,
   val isDeleted: Boolean = false,
   val updatedAt: Instant = DateUtil.now(),
   val originDevice: String = "",

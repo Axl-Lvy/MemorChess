@@ -56,6 +56,7 @@ private external interface JsMoveEntity : JsAny {
   var destination: String
   var move: String
   var isGood: Boolean
+  var ownIsGood: Boolean? // null without a manual hold
   var isDeleted: Boolean
   var createdAt: Double // epoch seconds (Double avoids Long→BigInt)
   var updatedAt: Double // epoch seconds (Double avoids Long→BigInt)
@@ -77,6 +78,7 @@ private external interface JsRepertoireEntity : JsAny {
   var id: String
   var name: String
   var color: String? // RepertoireColor name, or null
+  var installedVersion: Int? // null for a repertoire the user created
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds
   var originDevice: String
@@ -88,6 +90,8 @@ private external interface JsEdgeRepertoireTagEntity : JsAny {
   var origin: String
   var destination: String
   var repertoireId: String
+  var move: String
+  var isGood: Boolean? // null for a membership only tag
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds
   var originDevice: String
@@ -132,6 +136,7 @@ private fun JsMoveEntity.toDataMove(): DataMove =
     destination = PositionKey(destination),
     move = move,
     isGood = isGood,
+    ownIsGood = ownIsGood,
     isDeleted = isDeleted,
     createdAt = Instant.fromEpochSeconds(createdAt.toLong()),
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
@@ -142,6 +147,7 @@ private fun JsMoveEntity.toDataMove(): DataMove =
 private fun JsNodeEntity.toDataNode(
   previousMoves: List<DataMove>,
   nextMoves: List<DataMove>,
+  includeDeletedMoves: Boolean = false,
 ): DataNode {
   val lastReviewSec = lastReview.toLong()
   val firstReviewSec = firstReview.toLong()
@@ -149,8 +155,8 @@ private fun JsNodeEntity.toDataNode(
     positionKey = PositionKey(positionKey),
     previousAndNextMoves =
       PreviousAndNextMoves(
-        previousMoves.filter { !it.isDeleted },
-        nextMoves.filter { !it.isDeleted },
+        previousMoves.filter { includeDeletedMoves || !it.isDeleted },
+        nextMoves.filter { includeDeletedMoves || !it.isDeleted },
       ),
     cardState =
       CardState(
@@ -261,6 +267,7 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
     destination = dataMove.destination.value
     move = dataMove.move
     isGood = isGoodValue
+    ownIsGood = dataMove.ownIsGood
     isDeleted = dataMove.isDeleted
     createdAt = dataMove.createdAt.epochSeconds.toDouble()
     updatedAt = dataMove.updatedAt.epochSeconds.toDouble()
@@ -275,6 +282,7 @@ private fun DataRepertoire.toJsRepertoireEntity(): JsRepertoireEntity {
     id = repertoire.id
     name = repertoire.name
     color = repertoire.color?.name
+    installedVersion = repertoire.installedVersion
     isDeleted = repertoire.isDeleted
     updatedAt = repertoire.updatedAt.epochSeconds.toDouble()
     originDevice = repertoire.originDevice
@@ -287,6 +295,7 @@ private fun JsRepertoireEntity.toDataRepertoire(): DataRepertoire =
     id = id,
     name = name,
     color = color?.let { RepertoireColor.valueOf(it) },
+    installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
     originDevice = originDevice,
@@ -299,6 +308,8 @@ private fun DataEdgeRepertoireTag.toJsEdgeRepertoireTagEntity(): JsEdgeRepertoir
     origin = tag.origin.value
     destination = tag.destination.value
     repertoireId = tag.repertoireId
+    move = tag.move
+    isGood = tag.isGood
     isDeleted = tag.isDeleted
     updatedAt = tag.updatedAt.epochSeconds.toDouble()
     originDevice = tag.originDevice
@@ -311,6 +322,8 @@ private fun JsEdgeRepertoireTagEntity.toDataEdgeRepertoireTag(): DataEdgeReperto
     origin = PositionKey(origin),
     destination = PositionKey(destination),
     repertoireId = repertoireId,
+    move = move,
+    isGood = isGood,
     isDeleted = isDeleted,
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),
     originDevice = originDevice,
@@ -385,7 +398,7 @@ internal const val REPERTOIRES_STORE = "repertoires"
 internal const val TAGS_STORE = "edgeRepertoireTags"
 internal const val NODE_REPERTOIRE_TRAINABLE_STORE = "nodeRepertoireTrainable"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 13
+internal const val DB_VERSION = 14
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -478,7 +491,11 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         movesStore.index("origin").getAll(Key(positionKey.value.toJsString())).toList()
       val previousMoves: List<JsMoveEntity> =
         movesStore.index("destination").getAll(Key(positionKey.value.toJsString())).toList()
-      jsNode.toDataNode(previousMoves.map { it.toDataMove() }, nextMoves.map { it.toDataMove() })
+      jsNode.toDataNode(
+        previousMoves.map { it.toDataMove() },
+        nextMoves.map { it.toDataMove() },
+        includeDeletedMoves = true,
+      )
     }
   }
 
@@ -583,6 +600,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     for (move in incidentMoves) {
       if (move.isDeleted) continue
       move.isDeleted = true
+      move.ownIsGood = null
       move.updatedAt = updatedAt.epochSeconds.toDouble()
       move.originDevice = originDevice
       move.deviceSeq = deviceSeq.toDouble()
@@ -610,6 +628,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       for (m in moves) {
         if (m.move != move || m.isDeleted) continue
         m.isDeleted = true
+        m.ownIsGood = null
         m.updatedAt = updatedAt.epochSeconds.toDouble()
         m.originDevice = originDevice
         m.deviceSeq = deviceSeq.toDouble()

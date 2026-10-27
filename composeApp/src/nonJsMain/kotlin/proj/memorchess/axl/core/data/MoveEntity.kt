@@ -11,7 +11,8 @@ import proj.memorchess.axl.core.date.DateUtil
  * @property origin FEN string of the origin position.
  * @property destination FEN string of the destination position.
  * @property move The move string (e.g., "e4").
- * @property isGood Indicates whether the move has to be learned.
+ * @property isGood Effective marking: whether the move has to be learned.
+ * @property ownIsGood The user's own marking, or `null` without a manual hold.
  */
 @Entity(
   tableName = "MoveEntity",
@@ -30,6 +31,7 @@ data class MoveEntity(
   val destination: String,
   val move: String,
   val isGood: Boolean,
+  val ownIsGood: Boolean? = null,
 
   /** If true, the node is deleted. */
   val isDeleted: Boolean = false,
@@ -54,6 +56,7 @@ data class MoveEntity(
       PositionKey(destination),
       move,
       isGood,
+      ownIsGood,
       isDeleted,
       createdAt,
       updatedAt,
@@ -74,6 +77,7 @@ data class MoveEntity(
         dataMove.destination.value,
         dataMove.move,
         isGood,
+        dataMove.ownIsGood,
         dataMove.isDeleted,
         dataMove.createdAt,
         dataMove.updatedAt,

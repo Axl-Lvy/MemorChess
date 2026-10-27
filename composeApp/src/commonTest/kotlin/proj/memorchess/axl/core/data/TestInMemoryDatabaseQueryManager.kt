@@ -698,7 +698,7 @@ class TestInMemoryDatabaseQueryManager {
   fun insertTagQueuesItsOwnTagKey() = runTest {
     val database = InMemoryDatabaseQueryManager()
 
-    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4"))
 
     assertEquals(
       setOf(DirtyKey.TagKey(key0, key1, "italian-game")),
@@ -766,9 +766,9 @@ class TestInMemoryDatabaseQueryManager {
     val database = InMemoryDatabaseQueryManager()
     val origin = key0
     val destination = key1
-    val live = DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game")
+    val live = DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4")
     val deleted =
-      DataEdgeRepertoireTag(origin, destination, repertoireId = "ruy-lopez", isDeleted = true)
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "ruy-lopez", move = "e4", isDeleted = true)
 
     database.insertTag(live)
     database.insertTag(deleted)
@@ -779,7 +779,7 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun edgesTaggedWithJoinsTheTagOntoItsMoveForItsSan() = runTest {
     val database = seededLine()
-    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4"))
 
     val edges = database.edgesTaggedWith("italian-game")
 
@@ -790,10 +790,10 @@ class TestInMemoryDatabaseQueryManager {
   fun edgesTaggedWithExcludesADeletedTagOrADeletedMove() = runTest {
     val database = seededLine()
     database.insertTag(
-      DataEdgeRepertoireTag(key0, key1, repertoireId = "deleted-tag", isDeleted = true)
+      DataEdgeRepertoireTag(key0, key1, repertoireId = "deleted-tag", move = "e4", isDeleted = true)
     )
     database.deleteMove(key1, "e5", "device-a", 1L, Instant.fromEpochSeconds(1))
-    database.insertTag(DataEdgeRepertoireTag(key1, key2, repertoireId = "deleted-move"))
+    database.insertTag(DataEdgeRepertoireTag(key1, key2, repertoireId = "deleted-move", move = "e4"))
 
     assertEquals(emptyList(), database.edgesTaggedWith("deleted-tag"))
     assertEquals(emptyList(), database.edgesTaggedWith("deleted-move"))
@@ -809,7 +809,7 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun edgesTaggedWithExcludesATagWhoseOriginNodeDoesNotExist() = runTest {
     val database = InMemoryDatabaseQueryManager()
-    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game"))
+    database.insertTag(DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4"))
 
     assertEquals(emptyList(), database.edgesTaggedWith("italian-game"))
   }

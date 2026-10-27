@@ -3,8 +3,10 @@ package proj.memorchess.axl.core.sync
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.DataEdgeRepertoireTag
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
@@ -73,13 +75,14 @@ class TestSyncRowMappers {
         destination = PositionKey("b"),
         move = "e4",
         isGood = true,
+        ownIsGood = true,
         isDeleted = false,
         updatedAt = now,
         originDevice = "device-1",
         deviceSeq = 3L,
       )
 
-    val row = move.toEdgeSyncRow()
+    val row = move.toEdgeSyncRow()!!
     val roundTripped = row.toDataMove()
 
     // DataMove.equals() deliberately excludes originDevice/deviceSeq/updatedAt/createdAt.
@@ -88,6 +91,91 @@ class TestSyncRowMappers {
     roundTripped.deviceSeq shouldBe move.deviceSeq
     roundTripped.updatedAt shouldBe move.updatedAt
     row.origin shouldBe "a"
+  }
+
+  @Test
+  fun aMoveNeverHeldManuallyHasNoEdgeSyncRow() {
+    val move =
+      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, originDevice = "", deviceSeq = 0L)
+
+    move.toEdgeSyncRow() shouldBe null
+  }
+
+  @Test
+  fun anEdgeSyncRowCarriesTheOwnMarkingNotTheEffectiveOne() {
+    val move =
+      DataMove(
+        PositionKey("a"),
+        PositionKey("b"),
+        "e4",
+        isGood = true,
+        ownIsGood = false,
+        originDevice = "device-1",
+        deviceSeq = 3L,
+      )
+
+    val row = move.toEdgeSyncRow()!!
+
+    row.isGood shouldBe false
+    row.isDeleted shouldBe false
+  }
+
+  @Test
+  fun aMoveWhoseManualHoldWasRemovedMapsToATombstone() {
+    val move =
+      DataMove(
+        PositionKey("a"),
+        PositionKey("b"),
+        "e4",
+        isGood = true,
+        ownIsGood = null,
+        originDevice = "device-1",
+        deviceSeq = 3L,
+      )
+
+    move.toEdgeSyncRow()!!.isDeleted shouldBe true
+  }
+
+  @Test
+  fun aPulledManualHoldBecomesTheOwnMarking() {
+    val row =
+      EdgeSyncRow("a", "b", "e4", isGood = false, isDeleted = false, now, "device-1", 3L)
+
+    row.toDataMove().ownIsGood shouldBe false
+    row.copy(isDeleted = true).toDataMove().ownIsGood shouldBe null
+  }
+
+  @Test
+  fun tagMoveAndMarkingSurviveBothDirections() {
+    val tag =
+      DataEdgeRepertoireTag(
+        PositionKey("a"),
+        PositionKey("b"),
+        repertoireId = "london",
+        move = "d4",
+        isGood = true,
+        updatedAt = now,
+        originDevice = "device-1",
+        deviceSeq = 2L,
+      )
+
+    tag.toEdgeRepertoireTagSyncRow().toDataEdgeRepertoireTag() shouldBe tag
+  }
+
+  @Test
+  fun repertoireInstalledVersionSurvivesBothDirections() {
+    val repertoire =
+      DataRepertoire(
+        id = "london",
+        name = "London",
+        color = null,
+        installedVersion = 2,
+        updatedAt = now,
+        originDevice = "device-1",
+        deviceSeq = 2L,
+      )
+
+    repertoire.toRepertoireSyncRow().toDataRepertoire() shouldBe repertoire
   }
 
   @Test

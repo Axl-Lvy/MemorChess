@@ -326,6 +326,7 @@ private fun DataMove.toEdge(): Edge =
     isDeleted = isDeleted,
     originDevice = originDevice,
     deviceSeq = deviceSeq,
+    ownIsGood = ownIsGood,
   )
 
 /**

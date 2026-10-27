@@ -76,7 +76,7 @@ interface NodeEntityDao {
    * @param move The move's notation.
    */
   @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+    "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
   )
   suspend fun softDeleteMove(
@@ -119,7 +119,7 @@ interface NodeEntityDao {
    * @param origin The FEN string of the origin position.
    */
   @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+    "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND origin = :origin"
   )
   suspend fun softDeleteMoveFrom(
@@ -136,7 +136,7 @@ interface NodeEntityDao {
    * @param destination The FEN string of the destination position.
    */
   @Query(
-    "UPDATE MoveEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
+    "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND destination = :destination"
   )
   suspend fun softDeleteMoveTo(

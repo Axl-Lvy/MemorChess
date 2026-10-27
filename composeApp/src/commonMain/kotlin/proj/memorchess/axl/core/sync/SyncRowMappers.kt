@@ -70,23 +70,28 @@ fun NodeSyncRow.toDataNode(
   )
 
 /**
- * The wire shape of a [DataMove]. [DataMove.isGood] is non-nullable on the wire (an
- * exploration-only, unclassified move is never persisted, so it is never pushed either).
+ * The wire shape of this move's manual hold, or `null` when this device has never written one (a
+ * move only an installed repertoire holds). A move whose manual hold was removed maps to a
+ * tombstone.
  */
-fun DataMove.toEdgeSyncRow(): EdgeSyncRow =
-  EdgeSyncRow(
+fun DataMove.toEdgeSyncRow(): EdgeSyncRow? {
+  if (originDevice.isEmpty() && deviceSeq == 0L) return null
+  return EdgeSyncRow(
     origin = origin.value,
     destination = destination.value,
     move = move,
-    isGood = isGood ?: false,
-    isDeleted = isDeleted,
+    isGood = ownIsGood ?: false,
+    isDeleted = isDeleted || ownIsGood == null,
     updatedAt = updatedAt,
     originDevice = originDevice,
     deviceSeq = deviceSeq,
   )
+}
 
 /**
- * Rebuilds a [DataMove] from a pulled [EdgeSyncRow]. [DataMove.createdAt] is not part of the wire
+ * Rebuilds a [DataMove] from a pulled [EdgeSyncRow]: [DataMove.ownIsGood] is the pulled manual hold,
+ * while [DataMove.isGood] keeps the wire value as a placeholder until the caller derives the
+ * effective marking. [DataMove.createdAt] is not part of the wire
  * shape (see [DataMove.createdAt]'s own doc: excluded from equality, "the same move regardless of
  * when it was recorded") and defaults to [EdgeSyncRow.updatedAt] here, the same as a freshly
  * created local move whose real creation time predates this device's knowledge of it.
@@ -97,6 +102,7 @@ fun EdgeSyncRow.toDataMove(): DataMove =
     destination = PositionKey(destination),
     move = move,
     isGood = isGood,
+    ownIsGood = if (isDeleted) null else isGood,
     isDeleted = isDeleted,
     createdAt = updatedAt,
     updatedAt = updatedAt,
@@ -106,40 +112,54 @@ fun EdgeSyncRow.toDataMove(): DataMove =
 
 /** The wire shape of a [DataRepertoire]. */
 fun DataRepertoire.toRepertoireSyncRow(): RepertoireSyncRow =
-  RepertoireSyncRow(id, name, color?.name, isDeleted, updatedAt, originDevice, deviceSeq)
+  RepertoireSyncRow(
+    id = id,
+    name = name,
+    color = color?.name,
+    installedVersion = installedVersion,
+    isDeleted = isDeleted,
+    updatedAt = updatedAt,
+    originDevice = originDevice,
+    deviceSeq = deviceSeq,
+  )
 
 /** Rebuilds a [DataRepertoire] from a pulled [RepertoireSyncRow]. */
 fun RepertoireSyncRow.toDataRepertoire(): DataRepertoire =
   DataRepertoire(
-    id,
-    name,
-    color?.let { RepertoireColor.valueOf(it) },
-    isDeleted,
-    updatedAt,
-    originDevice,
-    deviceSeq,
+    id = id,
+    name = name,
+    color = color?.let { RepertoireColor.valueOf(it) },
+    installedVersion = installedVersion,
+    isDeleted = isDeleted,
+    updatedAt = updatedAt,
+    originDevice = originDevice,
+    deviceSeq = deviceSeq,
   )
 
 /** The wire shape of a [DataEdgeRepertoireTag]. */
 fun DataEdgeRepertoireTag.toEdgeRepertoireTagSyncRow(): EdgeRepertoireTagSyncRow =
   EdgeRepertoireTagSyncRow(
-    origin.value,
-    destination.value,
-    repertoireId,
-    isDeleted,
-    updatedAt,
-    originDevice,
-    deviceSeq,
+    origin = origin.value,
+    destination = destination.value,
+    repertoireId = repertoireId,
+    move = move,
+    isGood = isGood,
+    isDeleted = isDeleted,
+    updatedAt = updatedAt,
+    originDevice = originDevice,
+    deviceSeq = deviceSeq,
   )
 
 /** Rebuilds a [DataEdgeRepertoireTag] from a pulled [EdgeRepertoireTagSyncRow]. */
 fun EdgeRepertoireTagSyncRow.toDataEdgeRepertoireTag(): DataEdgeRepertoireTag =
   DataEdgeRepertoireTag(
-    PositionKey(origin),
-    PositionKey(destination),
-    repertoireId,
-    isDeleted,
-    updatedAt,
-    originDevice,
-    deviceSeq,
+    origin = PositionKey(origin),
+    destination = PositionKey(destination),
+    repertoireId = repertoireId,
+    move = move,
+    isGood = isGood,
+    isDeleted = isDeleted,
+    updatedAt = updatedAt,
+    originDevice = originDevice,
+    deviceSeq = deviceSeq,
   )

@@ -10,6 +10,8 @@ import proj.memorchess.axl.core.date.DateUtil
  * @property id Stable slug: a catalog descriptor id, or a slugified user chosen name.
  * @property name Display name shown in the library and picker.
  * @property color Perspective, or `null` when the repertoire mixes both sides.
+ * @property installedVersion Catalog version installed under [id], or `null` for a repertoire the
+ *   user created.
  * @property isDeleted Whether this row has been deleted.
  * @property updatedAt Date at which this row was last updated.
  * @property originDevice Device that wrote this version. Stamped by
@@ -20,6 +22,7 @@ data class DataRepertoire(
   val id: String,
   val name: String,
   val color: RepertoireColor?,
+  val installedVersion: Int? = null,
   val isDeleted: Boolean = false,
   val updatedAt: Instant = DateUtil.now(),
   val originDevice: String = "",

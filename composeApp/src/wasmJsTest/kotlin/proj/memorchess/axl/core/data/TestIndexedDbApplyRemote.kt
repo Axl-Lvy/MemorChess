@@ -76,7 +76,7 @@ class TestIndexedDbApplyRemote {
     db.applyRemoteNode(node("a"))
     db.applyRemoteNode(node("b"))
     db.applyRemoteMove(DataMove(origin, destination, "e4", isGood = true, updatedAt = now))
-    db.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
+    db.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4"))
 
     db.edgesTaggedWith("italian-game") shouldBe listOf(TaggedEdge(origin, destination, "e4"))
   }
@@ -91,9 +91,90 @@ class TestIndexedDbApplyRemote {
     db.applyRemoteNode(node("b"))
     db.applyRemoteMove(DataMove(origin, destination, "e4", isGood = true, updatedAt = now))
     db.insertTag(
-      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", isDeleted = true)
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4", isDeleted = true)
     )
 
     db.edgesTaggedWith("italian-game") shouldBe emptyList()
+  }
+
+  @Test
+  fun aMoveKeepsItsOwnAndEffectiveMarkings() = runTest {
+    val db = manager()
+    db.eraseAll()
+    db.applyRemoteNode(node("a"))
+    db.applyRemoteNode(node("b"))
+    val move =
+      DataMove(
+        PositionKey("a"),
+        PositionKey("b"),
+        "e4",
+        isGood = true,
+        ownIsGood = null,
+        updatedAt = now,
+      )
+
+    db.applyRemoteMove(move)
+
+    val stored = db.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.getValue("e4")
+    stored.isGood shouldBe true
+    stored.ownIsGood shouldBe null
+  }
+
+  @Test
+  fun aSoftDeletedMoveLosesItsManualHold() = runTest {
+    val db = manager()
+    db.eraseAll()
+    db.applyRemoteNode(node("a"))
+    db.applyRemoteNode(node("b"))
+    db.applyRemoteMove(
+      DataMove(
+        PositionKey("a"),
+        PositionKey("b"),
+        "e4",
+        isGood = true,
+        ownIsGood = true,
+        updatedAt = now,
+      )
+    )
+
+    db.deleteMove(PositionKey("a"), "e4", "d", 2L, now)
+
+    val stored =
+      db.getPositionIncludingDeleted(PositionKey("a"))!!.previousAndNextMoves.nextMoves.getValue(
+        "e4"
+      )
+    stored.isDeleted shouldBe true
+    stored.ownIsGood shouldBe null
+  }
+
+  @Test
+  fun aTagKeepsItsMoveAndMarking() = runTest {
+    val db = manager()
+    db.eraseAll()
+    val tag =
+      DataEdgeRepertoireTag(
+        PositionKey("a"),
+        PositionKey("b"),
+        repertoireId = "london",
+        move = "d4",
+        isGood = false,
+        updatedAt = now,
+      )
+
+    db.applyRemoteTag(tag)
+
+    db.getTagIncludingDeleted(PositionKey("a"), PositionKey("b"), "london") shouldBe tag
+  }
+
+  @Test
+  fun aRepertoireKeepsItsInstalledVersion() = runTest {
+    val db = manager()
+    db.eraseAll()
+    val repertoire =
+      DataRepertoire(id = "london", name = "London", color = null, installedVersion = 4, updatedAt = now)
+
+    db.applyRemoteRepertoire(repertoire)
+
+    db.getRepertoire("london") shouldBe repertoire
   }
 }

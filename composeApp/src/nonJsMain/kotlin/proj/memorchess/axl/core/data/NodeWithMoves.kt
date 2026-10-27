@@ -13,12 +13,13 @@ data class NodeWithMoves(
   val previousMoves: List<MoveEntity>,
   @Relation(parentColumn = "positionKey", entityColumn = "origin") val nextMoves: List<MoveEntity>,
 ) {
-  fun toStoredNode(): DataNode {
+  /** Converts to a [DataNode], keeping soft deleted moves only when [includeDeletedMoves]. */
+  fun toStoredNode(includeDeletedMoves: Boolean = false): DataNode {
     return DataNode(
       PositionKey(node.positionKey),
       PreviousAndNextMoves(
-        previousMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
-        nextMoves.filter { !it.isDeleted }.map { it.toStoredMove() },
+        previousMoves.filter { includeDeletedMoves || !it.isDeleted }.map { it.toStoredMove() },
+        nextMoves.filter { includeDeletedMoves || !it.isDeleted }.map { it.toStoredMove() },
       ),
       CardState(
         dueDate = node.dueDate,

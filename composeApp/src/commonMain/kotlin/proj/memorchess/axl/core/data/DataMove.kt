@@ -15,13 +15,18 @@ data class DataMove(
   val move: String,
 
   /**
-   * Whether the move has to be learned.
+   * Whether the move has to be learned: the effective marking, derived from [ownIsGood] and the
+   * markings of the installed repertoires holding the move. Never synced.
    *
    * A bad move is a mistake. It is still saved because the user has to learn how to counter it.
-   *
-   * Bad moves are always isolated: previous and the next moves are good.
    */
   val isGood: Boolean? = null,
+
+  /**
+   * The user's own marking, or `null` when the user does not hold the move manually. The sync stamps
+   * below version this manual hold.
+   */
+  val ownIsGood: Boolean? = null,
 
   /** Whether the move has been deleted. */
   val isDeleted: Boolean = false,
@@ -57,6 +62,7 @@ data class DataMove(
     val destination: PositionKey,
     val move: String,
     val isGood: Boolean?,
+    val ownIsGood: Boolean?,
     val isDeleted: Boolean,
   ) {
     constructor(
@@ -66,6 +72,7 @@ data class DataMove(
       storedNode.destination,
       storedNode.move,
       storedNode.isGood,
+      storedNode.ownIsGood,
       storedNode.isDeleted,
     )
   }

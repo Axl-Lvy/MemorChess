@@ -17,9 +17,9 @@ import proj.memorchess.axl.core.data.PositionKey
  * @property from Position the move is played from.
  * @property move Move in standard algebraic notation.
  * @property to Position reached after the move.
- * @property isGood Whether the move is part of the user's intended repertoire. `null` for a move
- *   that was explored but not yet classified. A `false` value flags a move kept around as a known
- *   mistake to drill against.
+ * @property isGood Effective marking: whether the move is part of the user's intended repertoire.
+ *   `null` for a move that was explored but not yet classified. A `false` value flags a move kept
+ *   around as a known mistake to drill against.
  * @property createdAt Moment the edge was first added to the repertoire. Unlike [updatedAt], it is
  *   preserved by [TreeStore.addMove] across re-upserts, which keeps the derived
  *   [proj.memorchess.axl.core.data.DataNode.createdAt] stable so new card introduction order does
@@ -30,6 +30,8 @@ import proj.memorchess.axl.core.data.PositionKey
  *   [proj.memorchess.axl.core.sync.DeviceIdentity].
  * @property deviceSeq That device's write counter at the time. See
  *   [proj.memorchess.axl.core.sync.DeviceIdentity.nextDeviceSeq].
+ * @property ownIsGood The user's own marking, or `null` when the user does not hold the move
+ *   manually. The sync stamps version this manual hold.
  */
 data class Edge(
   val from: PositionKey,
@@ -41,4 +43,5 @@ data class Edge(
   val isDeleted: Boolean = false,
   val originDevice: String = "",
   val deviceSeq: Long = 0L,
+  val ownIsGood: Boolean? = null,
 )

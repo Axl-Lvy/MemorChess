@@ -96,16 +96,24 @@ class RepertoireTagStore(
    * repertoire is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so
    * a tag on a live good edge takes effect immediately. Queues its own outbox entry.
    *
-   * Callers decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only
-   * for a genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for
-   * every edge an import describes, present or not.
+   * The tag records membership only: it carries no marking and so does not hold the move. Callers
+   * decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only for a
+   * genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for every
+   * edge an import describes, present or not.
+   *
+   * @throws IllegalStateException if no move from [origin] to [destination] is stored.
    */
   suspend fun tag(origin: PositionKey, destination: PositionKey, repertoireId: String) {
+    val move =
+      checkNotNull(storedMove(origin, destination)) {
+        "Cannot tag the unknown move from $origin to $destination"
+      }
     database.insertTag(
       DataEdgeRepertoireTag(
         origin = origin,
         destination = destination,
         repertoireId = repertoireId,
+        move = move,
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
@@ -117,12 +125,9 @@ class RepertoireTagStore(
 
   /** Tombstones every live tag on the edge from [origin] to [destination]. */
   internal suspend fun tombstoneTags(origin: PositionKey, destination: PositionKey) {
-    for (repertoireId in tagsFor(origin, destination)) {
+    for (live in database.getTags(origin, destination)) {
       database.insertTag(
-        DataEdgeRepertoireTag(
-          origin = origin,
-          destination = destination,
-          repertoireId = repertoireId,
+        live.copy(
           isDeleted = true,
           updatedAt = DateUtil.now(),
           originDevice = deviceIdentity.originDevice,
@@ -130,5 +135,18 @@ class RepertoireTagStore(
         )
       )
     }
+  }
+
+  /** SAN of the stored move from [origin] to [destination], preferring a live one. */
+  private suspend fun storedMove(origin: PositionKey, destination: PositionKey): String? {
+    val candidates =
+      database
+        .getPositionIncludingDeleted(origin)
+        ?.previousAndNextMoves
+        ?.nextMoves
+        ?.values
+        ?.filter { it.destination == destination }
+        .orEmpty()
+    return (candidates.firstOrNull { !it.isDeleted } ?: candidates.firstOrNull())?.move
   }
 }
