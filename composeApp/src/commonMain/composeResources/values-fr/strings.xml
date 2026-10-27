@@ -233,6 +233,7 @@
   <string name="library_install_error_http">Échec du téléchargement avec l'erreur HTTP %1$d.</string>
   <string name="library_install_error_malformed_repertoire">Ce répertoire n'a pas pu être lu : %1$s</string>
   <string name="library_install_error_import">Échec de l'import : %1$s</string>
+  <string name="library_install_error_id_taken">Vous avez déjà un répertoire avec cet identifiant. Renommez-le pour installer celui-ci.</string>
   <string name="library_preview_checking">Vérification de votre répertoire…</string>
   <string name="library_preview_in_common">%1$d coups sur %2$d sont déjà dans votre répertoire.</string>
   <string name="library_preview_in_common_error">Impossible de vérifier vos coups existants.</string>

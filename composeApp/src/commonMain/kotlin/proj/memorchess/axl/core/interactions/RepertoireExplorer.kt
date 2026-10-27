@@ -77,8 +77,13 @@ class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: Rep
           tagStore,
           deviceIdentity,
         )
-      RepertoireMoveImporter(treeStore, tagStore).import(moves, repertoireId = null)
+      // The throwaway store holds this one repertoire, so its holds give every move the author's
+      // marking.
+      RepertoireMoveImporter(treeStore, tagStore).import(moves, repertoireId = VIEWED_REPERTOIRE)
       return RepertoireExplorer(treeStore, tagStore)
     }
   }
 }
+
+/** Repertoire id the viewed moves are installed under in the throwaway store. */
+private const val VIEWED_REPERTOIRE = "viewed"

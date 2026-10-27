@@ -305,7 +305,8 @@ class TreeStore(
   }
 
   /**
-   * Persists a full graph produced by [GraphSerializer.deserialize], stamping this device's
+   * Persists a full graph produced by [GraphSerializer.deserialize] as manual holds, stamping this
+   * device's
    * identity and a fresh write sequence on every node and edge so an imported file can converge
    * with the same file imported on another device instead of colliding on the wire format's
    * placeholder `""`/`0L` identity. Every imported position is invalidated once its row is written,
@@ -330,6 +331,7 @@ class TreeStore(
     fun stamp(move: DataMove): DataMove =
       edgeStamps.getOrPut(EdgeIdentity(move.origin, move.destination, move.move)) {
         move.copy(
+          ownIsGood = if (move.isDeleted) null else move.isGood,
           originDevice = deviceIdentity.originDevice,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
         )

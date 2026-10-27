@@ -8,7 +8,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
-import proj.memorchess.axl.core.config.INSTALLED_REPERTOIRES_SETTING
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.pgn.PgnImportException
@@ -18,10 +17,6 @@ import proj.memorchess.axl.test_util.TestWithKoin
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestRepertoireLibraryViewModel : TestWithKoin() {
-
-  override suspend fun setUp() {
-    INSTALLED_REPERTOIRES_SETTING.reset()
-  }
 
   private val london =
     RepertoireDescriptor(
@@ -63,7 +58,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       PgnImportPreview(totalMoves = 4, movesInCommon = 1)
     },
     reportInstall: suspend (String) -> Unit = {},
-    store: InstalledRepertoireStore = InstalledRepertoireStore(),
+    store: FakeRegistry = FakeRegistry(),
     loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
     loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot> = { emptyMap() },
   ) =
@@ -74,7 +69,16 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       importMoves = importMoves,
       previewMoves = previewMoves,
       reportInstall = reportInstall,
-      installedStore = store,
+      loadRepertoire = { store.rows[it] },
+      registerInstall = { descriptor ->
+        store.rows[descriptor.id] =
+          DataRepertoire(
+            descriptor.id,
+            descriptor.name,
+            descriptor.color,
+            installedVersion = descriptor.version,
+          )
+      },
       loadMyRepertoires = loadMyRepertoires,
       loadMasterySnapshots = loadMasterySnapshots,
       scope = backgroundScope,
@@ -350,7 +354,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun persistedInstalledIdsAreReflectedOnLoad() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     store.markInstalled(london.id)
     val viewModel =
       buildViewModel({ CachedManifestResult.Fresh(manifest(london, caroKann)) }, store = store)
@@ -363,8 +367,55 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   }
 
   @Test
+  fun anOwnRepertoireWithTheCatalogIdIsNotInstalled() = test {
+    val store = FakeRegistry()
+    store.markOwn(london.id)
+    val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(london)) }, store = store)
+
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.NotInstalled
+  }
+
+  @Test
+  fun installIsRefusedWhenAnOwnRepertoireUsesTheId() = test {
+    val store = FakeRegistry()
+    store.markOwn(london.id)
+    var imported = false
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        importMoves = { _, _, _ ->
+          imported = true
+          PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
+        },
+        store = store,
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    val state = viewModel.installStates.first { it[london.id] is RepertoireInstallState.Failed }
+
+    state[london.id] shouldBe RepertoireInstallState.Failed(InstallError.IdTaken)
+    imported shouldBe false
+    store.isInstalled(london.id) shouldBe false
+  }
+
+  @Test
+  fun installRegistersTheDescriptorVersion() = test {
+    val store = FakeRegistry()
+    val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(london)) }, store = store)
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+
+    store.rows.getValue(london.id).installedVersion shouldBe london.version
+  }
+
+  @Test
   fun installSuccessMarksInstalledAndReportsSummary() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
@@ -402,7 +453,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun fetchNetworkErrorFailsTheInstallWithoutMarking() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
@@ -420,7 +471,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun fetchHttpErrorFailsTheInstallWithoutMarking() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
@@ -438,7 +489,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun malformedPgnFailsTheInstallWithoutMarking() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
@@ -457,7 +508,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun importFailureAfterSuccessfulFetchDoesNotMarkInstalled() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     val viewModel =
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
@@ -503,7 +554,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun installOnAnAlreadyInstalledRepertoireReinstalls() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     store.markInstalled(london.id)
     var fetchCalls = 0
     val viewModel =
@@ -570,7 +621,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun reinstallOfAnAlreadyInstalledRepertoireDoesNotReportAgain() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     store.markInstalled(london.id)
     val reportedIds = mutableListOf<String>()
     val viewModel =
@@ -824,7 +875,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun failedInstallCanBeRetriedToSuccess() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     var failNext = true
     val viewModel =
       buildViewModel(
@@ -852,7 +903,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
   @Test
   fun refreshPreservesSessionInstallSummaries() = test {
-    val store = InstalledRepertoireStore()
+    val store = FakeRegistry()
     val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(london)) }, store = store)
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
     viewModel.install(london)
@@ -864,4 +915,19 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     viewModel.installStates.value[london.id] shouldBe
       RepertoireInstallState.Installed(PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1))
   }
+}
+
+/** In memory stand in for the synced repertoire registry. */
+private class FakeRegistry {
+  val rows = mutableMapOf<String, DataRepertoire>()
+
+  fun markInstalled(id: String) {
+    rows[id] = DataRepertoire(id, id, color = null, installedVersion = 1)
+  }
+
+  fun markOwn(id: String) {
+    rows[id] = DataRepertoire(id, id, color = null)
+  }
+
+  fun isInstalled(id: String): Boolean = rows[id]?.installedVersion != null
 }

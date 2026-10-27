@@ -84,6 +84,7 @@ import memorchess.composeapp.generated.resources.library_hero_progress
 import memorchess.composeapp.generated.resources.library_importing
 import memorchess.composeapp.generated.resources.library_install
 import memorchess.composeapp.generated.resources.library_install_error_http
+import memorchess.composeapp.generated.resources.library_install_error_id_taken
 import memorchess.composeapp.generated.resources.library_install_error_import
 import memorchess.composeapp.generated.resources.library_install_error_malformed_repertoire
 import memorchess.composeapp.generated.resources.library_install_error_network
@@ -127,7 +128,6 @@ import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.CreationError
 import proj.memorchess.axl.core.data.repertoire.CreationState
 import proj.memorchess.axl.core.data.repertoire.InstallError
-import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.LibraryCatalogState
 import proj.memorchess.axl.core.data.repertoire.PublishError
 import proj.memorchess.axl.core.data.repertoire.PublishState
@@ -181,13 +181,12 @@ private const val CATALOG_SKELETON_ROWS = 3
 fun RepertoireLibrary(
   catalog: CachedRepertoireCatalog = koinInject(),
   client: RepertoireCatalogClient = koinInject(),
-  installedStore: InstalledRepertoireStore = koinInject(),
   treeStore: TreeStore = koinInject(),
   tagStore: RepertoireTagStore = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   val viewModel =
-    remember(catalog, client, installedStore, treeStore, tagStore, coroutineScope) {
+    remember(catalog, client, treeStore, tagStore, coroutineScope) {
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
         reloadManifest = catalog::refresh,
@@ -195,7 +194,6 @@ fun RepertoireLibrary(
           client.fetchMoves(descriptor.id, descriptor.version, onProgress)
         },
         importMoves = { descriptor, moves, onProgress ->
-          tagStore.register(descriptor.id, descriptor.name, descriptor.color)
           // The importer reads the persisted graph on demand through the bounded cache.
           RepertoireMoveImporter(treeStore, tagStore).import(moves, descriptor.id, onProgress)
         },
@@ -204,7 +202,15 @@ fun RepertoireLibrary(
           RepertoireMoveImporter(treeStore, tagStore).preview(moves)
         },
         reportInstall = client::reportInstall,
-        installedStore = installedStore,
+        loadRepertoire = tagStore::repertoire,
+        registerInstall = { descriptor ->
+          tagStore.register(
+            descriptor.id,
+            descriptor.name,
+            descriptor.color,
+            installedVersion = descriptor.version,
+          )
+        },
         loadMyRepertoires = tagStore::repertoires,
         loadMasterySnapshots = tagStore::masterySnapshots,
         scope = coroutineScope,
@@ -222,7 +228,7 @@ fun RepertoireLibrary(
     previewStates = previewStates,
     myRepertoires = myRepertoires,
     masterySnapshots = masterySnapshots,
-    installedIds = installedStore.installedIds(),
+    installedIds = myRepertoires.filter { it.installedVersion != null }.map { it.id }.toSet(),
     actions =
       RepertoireLibraryActions(
         onInstall = viewModel::install,
@@ -573,7 +579,7 @@ private fun repertoireCreationViewModel(
     importGames = { repertoireId, color, games ->
       PgnImporter(treeStore, tagStore).import(games, color?.toPlayer(), repertoireId)
     },
-    forkRepertoire = tagStore::fork,
+    forkRepertoire = treeStore::fork,
     scope = scope,
   )
 
@@ -834,9 +840,9 @@ private fun pickHeroRepertoire(
 /**
  * Filter chip selection.
  *
- * [MINE] is backed by [installStates][RepertoireInstallState], not [InstalledRepertoireStore] — the
- * "installed" flag already flows into installStates from the view model, so no new dependency is
- * needed to answer "is this cheap" from the #282 brainstorming notes.
+ * [MINE] is backed by [installStates][RepertoireInstallState], not the registry: the "installed" flag
+ * already flows into installStates from the view model, so no new dependency is needed to answer
+ * "is this cheap" from the #282 brainstorming notes.
  */
 private enum class LibraryColorFilter {
   ALL,
@@ -1471,6 +1477,7 @@ private fun installErrorText(error: InstallError): String =
       stringResource(Res.string.library_install_error_malformed_repertoire, error.message)
     is InstallError.ImportFailed ->
       stringResource(Res.string.library_install_error_import, error.message)
+    InstallError.IdTaken -> stringResource(Res.string.library_install_error_id_taken)
   }
 
 /**

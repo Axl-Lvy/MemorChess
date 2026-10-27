@@ -38,7 +38,6 @@ import proj.memorchess.axl.core.data.explorer.getPlatformSpecificExplorerCache
 import proj.memorchess.axl.core.data.getPlatformSpecificDailyActivityStore
 import proj.memorchess.axl.core.data.getPlatformSpecificLocalDatabase
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
-import proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.PublishedRepertoireStore
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
@@ -233,7 +232,6 @@ fun initKoinModules(): Array<Module> {
       RepertoireCatalogClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1/repertoires")
     }
     single { CachedRepertoireCatalog(get()) }
-    single { InstalledRepertoireStore() }
     single {
       RepertoirePublishClient(httpClient = get(), baseUrl = "$SYNC_BASE_URL/v1/repertoires")
     }

@@ -47,8 +47,7 @@ class RepertoireTagStore(
    * for a repertoire the user creates), or overwrites an existing entry (a catalog reinstall
    * re-registering under the same id). Queues its own outbox entry.
    *
-   * @throws IllegalArgumentException if [id] is blank, or contains a comma (mirrors
-   *   [proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore]'s own separator rule).
+   * @throws IllegalArgumentException if [id] is blank, or contains a comma.
    */
   suspend fun register(
     id: String,
@@ -86,6 +85,13 @@ class RepertoireTagStore(
       tag(edge.origin, edge.destination, newId)
     }
   }
+
+  /**
+   * The marking of every live tag on the edge from [origin] to [destination], keyed by repertoire
+   * id: the author's marking for an installed repertoire, `null` for a membership only tag.
+   */
+  suspend fun markings(origin: PositionKey, destination: PositionKey): Map<String, Boolean?> =
+    database.getTags(origin, destination).associate { it.repertoireId to it.isGood }
 
   /** Every repertoire the live edge from [origin] to [destination] is tagged with. */
   suspend fun tagsFor(origin: PositionKey, destination: PositionKey): Set<String> =
