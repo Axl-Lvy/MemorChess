@@ -33,10 +33,9 @@ class SingleMoveTrainer(
   private val treeStore: TreeStore by inject()
   private val tagStore: RepertoireTagStore by inject()
 
-  private var isCorrect: Boolean = true
-
-  // Set once the card is graded by a hint or reveal, so the replayed move is not graded again.
-  private var assisted = false
+  // Set once the card is graded AGAIN by a wrong move, a hint or a reveal, so nothing played or
+  // asked for afterwards grades it again.
+  private var failed = false
   private var answered = false
 
   override suspend fun afterPlayMove(move: String) {
@@ -48,7 +47,7 @@ class SingleMoveTrainer(
       node.outgoing.values.firstOrNull {
         it.to == playedPosition && it.isGood == true && isInScope(it)
       }
-    isCorrect = matchingEdge != null
+    val isCorrect = matchingEdge != null
 
     val moverWasWhite = engine.playerTurn == Player.BLACK // engine already advanced past this move
     val playedSquare = BoardUtils.destinationSquare(move, moverWasWhite)
@@ -57,8 +56,11 @@ class SingleMoveTrainer(
       else expectedEdge()?.let { BoardUtils.destinationSquare(it.move, moverWasWhite) }
 
     block()
-    callBackOnCorrect(if (isCorrect) matchingEdge else null, playedSquare, correctSquare)
-    if (!assisted) {
+    // Settled before grading suspends, so a retry() racing the grade cannot drop the failure.
+    val alreadyFailed = failed
+    if (!isCorrect) failed = true
+    callBackOnCorrect(matchingEdge, playedSquare, correctSquare)
+    if (!alreadyFailed) {
       trainingScheduler.grade(
         node.positionKey,
         if (isCorrect) ReviewGrade.GOOD else ReviewGrade.AGAIN,
@@ -69,15 +71,14 @@ class SingleMoveTrainer(
 
   /**
    * Returns the square the expected move starts from, or `null` when there is no expected move or
-   * it was already answered. Grades the card [ReviewGrade.AGAIN] unless a hint or reveal already
-   * did.
+   * it was already answered. Grades the card [ReviewGrade.AGAIN] unless it already failed.
    */
   suspend fun hint(): BoardLocation? = assist()?.let { (from, _) -> from }
 
   /**
    * Returns the origin and destination squares of the expected move, or `null` when there is no
-   * expected move or it was already answered. Grades the card [ReviewGrade.AGAIN] unless a hint or
-   * reveal already did.
+   * expected move or it was already answered. Grades the card [ReviewGrade.AGAIN] unless it already
+   * failed.
    */
   suspend fun reveal(): Pair<BoardLocation, BoardLocation>? = assist()
 
@@ -91,11 +92,19 @@ class SingleMoveTrainer(
         start.originSquare(edge.move),
         BoardUtils.destinationSquare(edge.move, start.playerTurn == Player.WHITE),
       )
-    if (!assisted) {
-      assisted = true
+    if (!failed) {
+      failed = true
       trainingScheduler.grade(node.positionKey, ReviewGrade.AGAIN)
     }
     return squares
+  }
+
+  /** Puts the trained position back on the board for another attempt, keeping the card failed. */
+  fun retry() {
+    engine = GameEngine(node.positionKey)
+    answered = false
+    unblock()
+    callCallBacks()
   }
 
   private suspend fun expectedEdge(): Edge? =
@@ -109,8 +118,7 @@ class SingleMoveTrainer(
     if (newNode.positionKey != node.positionKey || newNode.positionKey != engine.toPositionKey()) {
       node = newNode
       engine = GameEngine(node.positionKey)
-      isCorrect = true
-      assisted = false
+      failed = false
       answered = false
       unblock()
       callCallBacks()

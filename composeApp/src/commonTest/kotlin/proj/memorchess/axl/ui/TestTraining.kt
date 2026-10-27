@@ -5,6 +5,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
@@ -36,6 +37,7 @@ import proj.memorchess.axl.ui.pages.Training
 import proj.memorchess.axl.ui.util.hasClickLabel
 
 private const val BRAVO_TEXT = "Bravo !"
+private const val FAILED_TEXT = "FAILED"
 
 @OptIn(ExperimentalTestApi::class)
 class TestTraining : TestWithKoin() {
@@ -152,24 +154,32 @@ class TestTraining : TestWithKoin() {
 
   @Test
   fun testFailTraining() = runTestFromSetup {
+    assertNodeWithTextDoesNotExists(FAILED_TEXT)
+    playMove("e2", "e3")
+    waitUntilSuspending { storedStartCard().lapses >= 1 }
+
+    // The same position comes back for a retry, marked failed, until the right move is played.
+    assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
+    assertNodeWithTextExists(FAILED_TEXT)
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
-    // No manual click — Training auto-advances Anki-style on wrong moves. With only one card in
-    // the deck the "no more cards" Bravo screen appears once the wrong move is graded AGAIN.
+    assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
+    // The FAIL counter counted the card once, not once per wrong move.
+    waitUntilSuspending { onAllNodesWithText("1").fetchSemanticsNodes().isNotEmpty() }
+    assertNodeWithTextDoesNotExists("2")
+    playMove("e2", "e4")
+
     assertNodeWithTextExists(BRAVO_TEXT)
-    waitUntilSuspending {
-      val positions = drainAllNodes(database)
-      positions.size == 1 &&
-        positions[0].positionKey == PositionKey.START_POSITION &&
-        positions[0].cardState.lapses >= 1
-    }
+    storedStartCard().reps shouldBe 1
   }
 
   @Test
   fun testIncrementDay() = runTestFromSetup {
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
     playMove("e2", "e3")
-    // Wrong move auto-advances; with only one card the Bravo screen appears.
+    assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
+    playMove("e2", "e4")
+    // With only one card, failed then retried, the Bravo screen appears.
     assertNodeWithTextExists(BRAVO_TEXT)
     assertNodeWithTextExists("INCREMENT A DAY").performClick()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
@@ -194,6 +204,8 @@ class TestTraining : TestWithKoin() {
       assertNodeWithTextExists("INCREMENT A DAY").performClick()
       assertNodeWithTextDoesNotExists(BRAVO_TEXT)
       playMove("e2", "e3")
+      assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
+      playMove("e2", "e4")
       // The failed card is rescheduled past the window, so the deck empties and the counter
       // collapses back to one instead of staying at two.
       assertNodeWithTextExists(BRAVO_TEXT)
@@ -205,6 +217,7 @@ class TestTraining : TestWithKoin() {
   fun testHintGradesTheCardAgainOnce() = runTestFromSetup {
     assertNodeWithTextExists("HINT").performClick()
     waitUntilSuspending { storedStartCard().reps == 1 }
+    assertNodeWithTextExists(FAILED_TEXT)
 
     playMove("e2", "e4")
 
@@ -216,6 +229,7 @@ class TestTraining : TestWithKoin() {
   fun testRevealGradesTheCardAgainOnce() = runTestFromSetup {
     assertNodeWithTextExists("REVEAL").performClick()
     waitUntilSuspending { storedStartCard().reps == 1 }
+    assertNodeWithTextExists(FAILED_TEXT)
 
     playMove("e2", "e4")
 

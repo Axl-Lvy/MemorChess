@@ -248,6 +248,53 @@ class TestSingleMoveTrainer : TestWithKoin() {
   }
 
   @Test
+  fun retryAfterAWrongMoveLetsTheCorrectMoveBePlayedWithoutGradingAgain() = test {
+    clickOnTile("d2")
+    clickOnTile("d4")
+
+    singleMoveTrainer.retry()
+    clickOnTile("e2")
+    clickOnTile("e4")
+
+    lastEdge.shouldNotBeNull().move shouldBe "e4"
+    storedCard().reps shouldBe testNode.cardState.reps + 1
+  }
+
+  @Test
+  fun aSecondWrongMoveAfterRetryIsNotGradedAgain() = test {
+    clickOnTile("d2")
+    clickOnTile("d4")
+
+    singleMoveTrainer.retry()
+    clickOnTile("c2")
+    clickOnTile("c4")
+
+    lastEdge.shouldBeNull()
+    storedCard().reps shouldBe testNode.cardState.reps + 1
+  }
+
+  @Test
+  fun retryResetsTheBoardToTheTrainedPosition() = test {
+    clickOnTile("d2")
+    clickOnTile("d4")
+
+    singleMoveTrainer.retry()
+
+    singleMoveTrainer.engine.toPositionKey() shouldBe testNode.positionKey
+  }
+
+  @Test
+  fun aHintAfterAWrongMoveAndRetryIsShownWithoutGradingAgain() = test {
+    clickOnTile("d2")
+    clickOnTile("d4")
+
+    singleMoveTrainer.retry()
+
+    singleMoveTrainer.hint() shouldBe BoardLocation(1, 4) // e2
+    storedCard().reps shouldBe testNode.cardState.reps + 1
+  }
+
+  @Test
   fun aCorrectMoveStoredOverDisambiguatedIsAccepted() = test {
     val trainer = overDisambiguatedTrainer()
 

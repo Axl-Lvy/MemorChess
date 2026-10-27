@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.training_black_to_move
+import memorchess.composeapp.generated.resources.training_failed
 import memorchess.composeapp.generated.resources.training_hint
 import memorchess.composeapp.generated.resources.training_reveal
 import memorchess.composeapp.generated.resources.training_skip
@@ -46,7 +47,7 @@ private val FEEDBACK_RAISE = 12.dp
  *   pressable edge every filled [KineticButton] now has.
  * - **Turn pill** — a small `panel2`-backed Box with a 12.dp radius and a 1.5.dp `line` border
  *   showing `"BLACK TO MOVE"` or `"WHITE TO MOVE"` in 10sp uppercase text, derived from
- *   [playerTurn].
+ *   [playerTurn]. While [failed] it reads `"FAILED"` in the destructive tone instead.
  * - **HINT** and **REVEAL** — default + primary [KineticButton]s wired to [onHint] / [onReveal].
  *
  * The whole bar sits on a 20.dp-radius `panel` background with a 1.5.dp `line` border. Padding is
@@ -58,6 +59,7 @@ private val FEEDBACK_RAISE = 12.dp
  * @param onHint Invoked when the user taps HINT.
  * @param onReveal Invoked when the user taps REVEAL.
  * @param feedbackActive Whether a wrong answer is currently being shown; raises the whole bar.
+ * @param failed Whether the current card is already failed, so nothing more can count against it.
  * @param modifier Modifier applied to the outer container.
  */
 @Composable
@@ -67,13 +69,19 @@ fun TrainingCtrlBar(
   onHint: () -> Unit,
   onReveal: () -> Unit,
   feedbackActive: Boolean = false,
+  failed: Boolean = false,
   modifier: Modifier = Modifier,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
-  val turnLabel =
-    if (playerTurn == Player.BLACK) stringResource(Res.string.training_black_to_move)
-    else stringResource(Res.string.training_white_to_move)
+  val pillLabel =
+    when {
+      failed -> stringResource(Res.string.training_failed)
+      playerTurn == Player.BLACK -> stringResource(Res.string.training_black_to_move)
+      else -> stringResource(Res.string.training_white_to_move)
+    }
+  val pillTone = if (failed) palette.destructive else palette.ink2
+  val pillBorder = if (failed) palette.destructive else palette.line
 
   val offsetY = remember { Animatable(0f) }
   val raisePx = with(LocalDensity.current) { -FEEDBACK_RAISE.toPx() }
@@ -103,13 +111,13 @@ fun TrainingCtrlBar(
       modifier =
         Modifier.weight(1f)
           .background(palette.panel2, MaterialTheme.shapes.extraSmall)
-          .border(1.5.dp, palette.line, MaterialTheme.shapes.extraSmall)
+          .border(1.5.dp, pillBorder, MaterialTheme.shapes.extraSmall)
           .padding(horizontal = 12.dp, vertical = 8.dp),
       contentAlignment = Alignment.Center,
     ) {
       Text(
-        text = turnLabel,
-        style = typography.labelSm.copy(fontSize = 10.sp, color = palette.ink2),
+        text = pillLabel,
+        style = typography.labelSm.copy(fontSize = 10.sp, color = pillTone),
       )
     }
     KineticButton(onClick = onHint, style = KineticButtonStyle.Default) {
