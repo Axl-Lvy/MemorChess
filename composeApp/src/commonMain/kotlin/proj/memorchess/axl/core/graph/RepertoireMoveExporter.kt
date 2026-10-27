@@ -31,8 +31,10 @@ sealed class RepertoireExportResult {
  * from the start. This keeps an edge when it is itself tagged with the repertoire or leads to a
  * position some live tagged edge is reachable from, so every exported line stays whole and
  * playable. Those positions are found by walking back from the tagged edges, so only the
- * repertoire's own lines and their ancestors are loaded, never the rest of the graph. A move back
- * into a position already on the current line is dropped.
+ * repertoire's own lines and their ancestors are loaded, never the rest of the graph. An untagged
+ * move back into a position already on the current line is dropped, and a move only explored, never
+ * saved, is never exported. Each move is exported in canonical SAN, so a legacy over-disambiguated
+ * spelling still publishes.
  */
 class RepertoireMoveExporter(
   private val treeStore: TreeStore,
@@ -54,14 +56,14 @@ class RepertoireMoveExporter(
       line += position
       val included =
         node.outgoing.values.filter { edge ->
-          !edge.isDeleted &&
-            edge.to !in line &&
-            ((edge.from to edge.to) in taggedEdges || edge.to in leadingToTagged)
+          edge.isLive() &&
+            ((edge.from to edge.to) in taggedEdges ||
+              (edge.to in leadingToTagged && edge.to !in line))
         }
       for (edge in included) {
         val isNew = (edge.from to edge.to) !in moves
         moves[edge.from to edge.to] =
-          RepertoireMove(edge.from.value, edge.move, edge.to.value, edge.isGood == true)
+          RepertoireMove(edge.from.value, canonical(edge), edge.to.value, edge.isGood == true)
         if (isNew) collect(edge.to)
       }
       line -= position
@@ -82,14 +84,14 @@ class RepertoireMoveExporter(
     val pending = ArrayDeque<Node>()
     for (origin in taggedEdges.mapTo(mutableSetOf()) { it.first }) {
       val node = treeStore.node(origin) ?: continue
-      if (node.outgoing.values.any { !it.isDeleted && (it.from to it.to) in taggedEdges }) {
+      if (node.outgoing.values.any { it.isLive() && (it.from to it.to) in taggedEdges }) {
         nodes[origin] = node
         pending += node
       }
     }
     while (pending.isNotEmpty()) {
       for (edge in pending.removeFirst().incoming.values) {
-        if (edge.isDeleted || edge.from in nodes) continue
+        if (!edge.isLive() || edge.from in nodes) continue
         val parent = treeStore.node(edge.from) ?: continue
         nodes[edge.from] = parent
         pending += parent
@@ -97,4 +99,15 @@ class RepertoireMoveExporter(
     }
     return nodes
   }
+
+  /** A saved, not deleted edge; an edge only explored has no marking and is never persisted. */
+  private fun Edge.isLive(): Boolean = !isDeleted && isGood != null
+
+  /** [edge]'s move as the board spells it, or as stored when its origin cannot be replayed. */
+  private fun canonical(edge: Edge): String =
+    try {
+      GameEngine(edge.from).playSanMove(edge.move)
+    } catch (e: RuntimeException) {
+      edge.move
+    }
 }

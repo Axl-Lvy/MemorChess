@@ -469,14 +469,16 @@ private fun Connection.insertVersion(row: RepertoireRow) {
 private fun Connection.insertMoves(row: RepertoireRow, moves: List<RepertoireMove>) {
   val edgeIds = resolveEdgeIds(moves.map { EdgeIdentity(it.from, it.to, it.move) })
   prepareStatement(
-      "INSERT INTO repertoire_edge (repertoire_id, version, edge_id, is_good) VALUES (?, ?, ?, ?)"
+      "INSERT INTO repertoire_edge (repertoire_id, version, edge_id, move, is_good) " +
+        "VALUES (?, ?, ?, ?, ?)"
     )
     .use { statement ->
       for (move in moves) {
         statement.setString(1, row.id)
         statement.setInt(2, row.version)
         statement.setLong(3, edgeIds.getValue(EdgeIdentity(move.from, move.to, move.move)))
-        statement.setBoolean(4, move.isGood)
+        statement.setString(4, move.move)
+        statement.setBoolean(5, move.isGood)
         statement.addBatch()
       }
       statement.executeBatch()
@@ -495,7 +497,7 @@ private fun Connection.statusOf(id: String, version: Int): String? =
 /** Every move of [id]'s [version], in a stable order. */
 private fun Connection.movesOf(id: String, version: Int): List<RepertoireMove> =
   prepareStatement(
-      "SELECT o.position_key, e.move, d.position_key, r.is_good FROM repertoire_edge r " +
+      "SELECT o.position_key, r.move, d.position_key, r.is_good FROM repertoire_edge r " +
         "JOIN move_edge e ON e.id = r.edge_id " +
         "JOIN position o ON o.id = e.origin_id " +
         "JOIN position d ON d.id = e.destination_id " +

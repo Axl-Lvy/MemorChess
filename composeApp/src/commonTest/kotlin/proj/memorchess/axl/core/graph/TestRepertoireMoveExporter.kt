@@ -182,6 +182,60 @@ class TestRepertoireMoveExporter {
   }
 
   @Test
+  fun exportsALegacyOverDisambiguatedMoveInCanonicalSan() = runTest {
+    val fixture = store()
+    val afterNf3 = GameEngine().apply { playSanMove("Nf3") }.toPositionKey()
+    fixture.tree.addMove(rootKey, "Ngf3", afterNf3, isGood = true, fromDepth = 0)
+    fixture.tagStore.tag(rootKey, afterNf3, "reti")
+
+    val result = exporter(fixture).export("reti") as RepertoireExportResult.Moves
+
+    result.moves shouldBe listOf(move(rootKey, "Nf3", afterNf3))
+  }
+
+  @Test
+  fun exportsATaggedMoveBackToAPositionAlreadyOnTheLine() = runTest {
+    val fixture = store()
+    val afterNf3 = after(rootKey, "Nf3")
+    val afterNf6 = after(rootKey, "Nf3", "Nf6")
+    fixture.tree.addMove(rootKey, "Nf3", afterNf3, isGood = true, fromDepth = 0)
+    fixture.tagStore.tag(rootKey, afterNf3, "reti")
+    fixture.tree.addMove(afterNf3, "Nf6", afterNf6, isGood = true, fromDepth = 1)
+    fixture.tagStore.tag(afterNf3, afterNf6, "reti")
+    fixture.tree.addMove(afterNf6, "Ng1", afterNf3, isGood = true, fromDepth = 2)
+    fixture.tagStore.tag(afterNf6, afterNf3, "reti")
+
+    val result = exporter(fixture).export("reti") as RepertoireExportResult.Moves
+
+    result.moves.map { it.move }.toSet() shouldBe setOf("Nf3", "Nf6", "Ng1")
+  }
+
+  @Test
+  fun neverExportsAnUnsavedExplorationMove() = runTest {
+    // 1. Nf3 Nf6 2. d4 is saved and its last move tagged; 1. d4 Nf6 2. Nf3 is only explored, never
+    // saved, yet transposes into the origin of the tagged move.
+    val fixture = store()
+    val afterNf3 = after(rootKey, "Nf3")
+    val afterNf6 = after(rootKey, "Nf3", "Nf6")
+    val afterD4 = after(rootKey, "Nf3", "Nf6", "d4")
+    val afterD5 = after(rootKey, "Nf3", "Nf6", "d4", "d5")
+    val exploredD4 = after(rootKey, "d4")
+    val exploredNf6 = after(rootKey, "d4", "Nf6")
+    fixture.tree.addMove(rootKey, "Nf3", afterNf3, isGood = true, fromDepth = 0)
+    fixture.tree.addMove(afterNf3, "Nf6", afterNf6, isGood = false, fromDepth = 1)
+    fixture.tree.addMove(afterNf6, "d4", afterD4, isGood = true, fromDepth = 2)
+    fixture.tree.addMove(afterD4, "d5", afterD5, isGood = false, fromDepth = 3)
+    fixture.tagStore.tag(afterD4, afterD5, "london")
+    fixture.tree.addMove(rootKey, "d4", exploredD4, isGood = null, fromDepth = 0)
+    fixture.tree.addMove(exploredD4, "Nf6", exploredNf6, isGood = null, fromDepth = 1)
+    fixture.tree.addMove(exploredNf6, "Nf3", afterD4, isGood = null, fromDepth = 2)
+
+    val result = exporter(fixture).export("london") as RepertoireExportResult.Moves
+
+    result.moves.map { it.move } shouldBe listOf("Nf3", "Nf6", "d4", "d5")
+  }
+
+  @Test
   fun dropsAnUntaggedMoveBackToAPositionAlreadyOnTheLine() = runTest {
     // Ng1 leads back to afterNf3, a position already on the line: a move cycle.
     val fixture = store()

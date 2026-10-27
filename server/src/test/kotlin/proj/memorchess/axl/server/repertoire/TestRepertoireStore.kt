@@ -12,7 +12,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
+import proj.memorchess.axl.server.db.EdgeIdentity
 import proj.memorchess.axl.server.db.PostgresTestDb
+import proj.memorchess.axl.server.db.resolveEdgeIds
 
 internal class TestRepertoireStore {
 
@@ -337,6 +339,21 @@ internal class TestRepertoireStore {
       store.publish(author2, newId(), "T", "D", "white", moves("e4", "c5"), now)
 
       edgeRows(e4.from, e4.move) shouldBe 1
+    }
+
+  @Test
+  fun `the download serves the validated spelling even when move_edge holds another one`() =
+    kotlinx.coroutines.test.runTest {
+      val store = store()
+      val id = newId()
+      val nf3 = moves("Nf3").single()
+      PostgresTestDb.dataSource().connection.use { connection ->
+        connection.resolveEdgeIds(listOf(EdgeIdentity(nf3.from, nf3.to, "Ngf3")))
+      }
+
+      store.publish(author1, id, "T", "D", "white", listOf(nf3), now)
+
+      store.moves(id, 1) shouldBe listOf(nf3)
     }
 
   @Test

@@ -124,11 +124,14 @@ CREATE TABLE IF NOT EXISTS repertoire_version (
 CREATE INDEX IF NOT EXISTS repertoire_version_status ON repertoire_version (status, id);
 
 -- The moves of one published version, each with its author's marking. Shares position and
--- move_edge with sync, so a move played by many repertoires and users is stored once.
+-- move_edge with sync, so a move played by many repertoires and users is stored once. The move is
+-- kept here too: move_edge.move is whatever spelling first interned those endpoints, while this
+-- one is the canonical SAN the publish was validated with.
 CREATE TABLE IF NOT EXISTS repertoire_edge (
   repertoire_id text NOT NULL,
   version int NOT NULL,
   edge_id bigint NOT NULL REFERENCES move_edge(id),
+  move text NOT NULL,
   is_good boolean NOT NULL,
   PRIMARY KEY (repertoire_id, version, edge_id),
   FOREIGN KEY (repertoire_id, version) REFERENCES repertoire_version(id, version)
