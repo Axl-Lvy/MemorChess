@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
@@ -133,7 +134,7 @@ internal class TestSyncStoreErase {
     RepertoireSyncRow(
       id = "italian-game",
       name = "Italian Game",
-      color = "WHITE",
+      color = RepertoireColor.WHITE,
       isDeleted = false,
       updatedAt = updatedAt,
       originDevice = origin,

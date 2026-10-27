@@ -267,7 +267,7 @@ private fun JsRepertoireEntity.toDataRepertoire(): DataRepertoire =
   DataRepertoire(
     id = id,
     name = name,
-    color = color?.let { RepertoireColor.valueOf(it) },
+    color = color?.let(RepertoireColor::fromNameOrNull),
     installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = Instant.fromEpochSeconds(updatedAt.toLong()),

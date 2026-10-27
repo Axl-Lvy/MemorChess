@@ -1,5 +1,6 @@
 package proj.memorchess.axl.e2e
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -114,7 +115,7 @@ class TestSyncEraseE2e {
     RepertoireSyncRow(
       id = id,
       name = "E2E erase",
-      color = "WHITE",
+      color = RepertoireColor.WHITE,
       isDeleted = false,
       updatedAt = updatedAt,
       originDevice = device,

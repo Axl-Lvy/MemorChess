@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
@@ -56,7 +57,7 @@ internal class TestSyncStoreQuota {
     RepertoireSyncRow(
       id = id,
       name = id,
-      color = "WHITE",
+      color = RepertoireColor.WHITE,
       isDeleted = false,
       updatedAt = serverNow,
       originDevice = DeviceId("device-a"),

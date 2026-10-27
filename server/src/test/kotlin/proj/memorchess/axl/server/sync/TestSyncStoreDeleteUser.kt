@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -85,7 +86,7 @@ internal class TestSyncStoreDeleteUser {
             RepertoireSyncRow(
               id = "italian-game",
               name = "Italian Game",
-              color = "WHITE",
+              color = RepertoireColor.WHITE,
               isDeleted = false,
               updatedAt = serverNow,
               originDevice = DeviceId("device-a"),

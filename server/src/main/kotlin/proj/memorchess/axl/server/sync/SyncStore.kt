@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
@@ -854,7 +855,7 @@ internal class SyncStore(
                   RepertoireSyncRow(
                     id = rows.getString(1),
                     name = rows.getString(2),
-                    color = rows.getString(3),
+                    color = rows.getString(3)?.let(RepertoireColor::fromNameOrNull),
                     installedVersion = rows.getObject(9) as Int?,
                     isDeleted = rows.getBoolean(4),
                     updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
@@ -1220,14 +1221,14 @@ private val REPERTOIRES =
     readKey = { rows, index -> rows.getString(index) },
     bindPayload = { statement, first, row ->
       statement.setString(first, row.name)
-      statement.setString(first + 1, row.color)
+      statement.setString(first + 1, row.color?.name)
       statement.setObject(first + 2, row.installedVersion, Types.INTEGER)
     },
     readPayload = { rows, incoming, version ->
       RepertoireSyncRow(
         id = incoming.id,
         name = rows.getString(1),
-        color = rows.getString(2),
+        color = rows.getString(2)?.let(RepertoireColor::fromNameOrNull),
         installedVersion = rows.getObject(3) as Int?,
         isDeleted = version.isDeleted,
         updatedAt = version.updatedAt,

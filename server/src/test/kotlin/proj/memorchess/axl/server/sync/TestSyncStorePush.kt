@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
@@ -450,7 +451,7 @@ internal class TestSyncStorePush {
       RepertoireSyncRow(
         id = "italian-game",
         name = "Italian Game",
-        color = "WHITE",
+        color = RepertoireColor.WHITE,
         isDeleted = false,
         updatedAt = serverNow,
         originDevice = DeviceId("device-a"),
@@ -555,7 +556,7 @@ internal class TestSyncStorePush {
       RepertoireSyncRow(
         id = "london",
         name = "London",
-        color = "WHITE",
+        color = RepertoireColor.WHITE,
         installedVersion = 2,
         isDeleted = false,
         updatedAt = serverNow,

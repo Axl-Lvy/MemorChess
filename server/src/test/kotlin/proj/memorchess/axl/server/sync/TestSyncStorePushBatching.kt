@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -89,7 +90,7 @@ internal class TestSyncStorePushBatching {
           RepertoireSyncRow(
             id = "$prefix-rep-$it",
             name = "name-$reps",
-            color = "WHITE",
+            color = RepertoireColor.WHITE,
             isDeleted = false,
             updatedAt = at,
             originDevice = DeviceId("device-a"),

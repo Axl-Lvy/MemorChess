@@ -1,7 +1,14 @@
 package proj.memorchess.axl.core.sync
 
 import kotlin.time.Instant
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 
 /**
  * One synchronized row, in its wire shape. Derived projections such as depth, `hasGoodOutgoing` and
@@ -93,8 +100,8 @@ data class SettingSyncRow(
  * A repertoire's identity: display name and perspective.
  *
  * @property id Slug: a catalog descriptor id, or a slugified user chosen name.
- * @property color Serialized [proj.memorchess.axl.core.data.repertoire.RepertoireColor] name, or
- *   `null` when the repertoire mixes both sides.
+ * @property color Perspective, or `null` when the repertoire mixes both sides. Travels as the
+ *   [RepertoireColor.name], and a name this build has never heard of decodes as `null`.
  * @property installedVersion Catalog version installed under this id, or `null` for a user created
  *   repertoire.
  */
@@ -102,7 +109,7 @@ data class SettingSyncRow(
 data class RepertoireSyncRow(
   val id: String,
   val name: String,
-  val color: String?,
+  @Serializable(with = RepertoireColorNameSerializer::class) val color: RepertoireColor?,
   val installedVersion: Int? = null,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
@@ -131,3 +138,18 @@ data class EdgeRepertoireTagSyncRow(
   override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
+
+/** Encodes a [RepertoireColor] as its enum name, decoding an unknown name as `null`. */
+internal object RepertoireColorNameSerializer : KSerializer<RepertoireColor?> {
+
+  override val descriptor: SerialDescriptor =
+    PrimitiveSerialDescriptor("proj.memorchess.axl.RepertoireColorName", PrimitiveKind.STRING)
+
+  override fun serialize(encoder: Encoder, value: RepertoireColor?) {
+    if (value == null) encoder.encodeNull() else encoder.encodeString(value.name)
+  }
+
+  override fun deserialize(decoder: Decoder): RepertoireColor? =
+    if (decoder.decodeNotNullMark()) RepertoireColor.fromNameOrNull(decoder.decodeString())
+    else decoder.decodeNull()
+}

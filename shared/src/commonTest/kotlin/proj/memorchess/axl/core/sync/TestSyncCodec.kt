@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.sync
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlin.test.Test
@@ -51,7 +52,7 @@ internal class TestSyncCodec {
     RepertoireSyncRow(
       id = "italian-game",
       name = "Italian Game",
-      color = "WHITE",
+      color = RepertoireColor.WHITE,
       installedVersion = 3,
       isDeleted = false,
       updatedAt = Instant.fromEpochSeconds(1_000),
@@ -172,6 +173,26 @@ internal class TestSyncCodec {
   fun repertoireRoundTrips() {
     val text = SYNC_JSON.encodeToString(repertoire)
     SYNC_JSON.decodeFromString<RepertoireSyncRow>(text) shouldBe repertoire
+  }
+
+  @Test
+  fun aRepertoireColorTravelsAsItsEnumName() {
+    val white = SYNC_JSON.encodeToString(repertoire)
+    val black = SYNC_JSON.encodeToString(repertoire.copy(color = RepertoireColor.BLACK))
+    val mixed = SYNC_JSON.encodeToString(repertoire.copy(color = null))
+
+    white shouldContain """"color":"WHITE""""
+    black shouldContain """"color":"BLACK""""
+    mixed shouldContain """"color":null"""
+    SYNC_JSON.decodeFromString<RepertoireSyncRow>(mixed).color shouldBe null
+  }
+
+  @Test
+  fun aRepertoireColorThisBuildHasNeverHeardOfDecodesAsMixed() {
+    val text =
+      SYNC_JSON.encodeToString(repertoire).replace(""""color":"WHITE"""", """"color":"PURPLE"""")
+
+    SYNC_JSON.decodeFromString<RepertoireSyncRow>(text).color shouldBe null
   }
 
   @Test

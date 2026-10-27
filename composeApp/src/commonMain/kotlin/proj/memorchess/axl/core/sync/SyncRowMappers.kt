@@ -6,7 +6,6 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
@@ -108,7 +107,7 @@ fun DataRepertoire.toRepertoireSyncRow(): RepertoireSyncRow =
   RepertoireSyncRow(
     id = id,
     name = name,
-    color = color?.name,
+    color = color,
     installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
@@ -121,7 +120,7 @@ fun RepertoireSyncRow.toDataRepertoire(): DataRepertoire =
   DataRepertoire(
     id = id,
     name = name,
-    color = color?.let { RepertoireColor.valueOf(it) },
+    color = color,
     installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
