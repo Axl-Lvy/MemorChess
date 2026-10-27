@@ -45,11 +45,11 @@ class SingleMoveTrainer(
       }
     val isCorrect = matchingEdge != null
 
-    val moverWasWhite = engine.playerTurn == Player.BLACK // engine already advanced past this move
-    val playedSquare = BoardUtils.destinationSquare(move, moverWasWhite)
+    val mover = engine.playerTurn.opponent // engine already advanced past this move
+    val playedSquare = BoardUtils.destinationSquare(move, mover)
     val correctSquare =
       if (isCorrect) null
-      else expectedEdge()?.let { BoardUtils.destinationSquare(it.move, moverWasWhite) }
+      else expectedEdge()?.let { BoardUtils.destinationSquare(it.move, mover) }
 
     block()
     // Settled before grading suspends, so a retry() racing the grade cannot drop the failure.
@@ -85,7 +85,7 @@ class SingleMoveTrainer(
     val squares =
       Pair(
         start.originSquare(edge.move),
-        BoardUtils.destinationSquare(edge.move, start.playerTurn == Player.WHITE),
+        BoardUtils.destinationSquare(edge.move, start.playerTurn),
       )
     if (!failed) {
       failed = true

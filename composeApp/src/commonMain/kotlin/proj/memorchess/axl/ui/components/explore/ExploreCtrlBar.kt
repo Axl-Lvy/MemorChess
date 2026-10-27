@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.components.explore
 
+import proj.memorchess.axl.core.engine.Player
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -70,7 +71,7 @@ private val SAVE_LABEL_MIN_WIDTH = 500.dp
 fun ExploreCtrlBar(
   actions: ExploreCtrlBarActions,
   evalEnabled: Boolean,
-  playerTurnWhite: Boolean,
+  sideToMove: Player,
   modifier: Modifier = Modifier,
   showSaveDelete: Boolean = true,
 ) {
@@ -78,7 +79,7 @@ fun ExploreCtrlBar(
     ExploreCtrlBarRow(
       actions = actions,
       evalEnabled = evalEnabled,
-      playerTurnWhite = playerTurnWhite,
+      sideToMove = sideToMove,
       showSaveDelete = showSaveDelete,
       showSaveLabel = maxWidth >= SAVE_LABEL_MIN_WIDTH,
     )
@@ -90,7 +91,7 @@ fun ExploreCtrlBar(
 private fun ExploreCtrlBarRow(
   actions: ExploreCtrlBarActions,
   evalEnabled: Boolean,
-  playerTurnWhite: Boolean,
+  sideToMove: Player,
   showSaveDelete: Boolean,
   showSaveLabel: Boolean,
 ) {
@@ -132,7 +133,7 @@ private fun ExploreCtrlBarRow(
     ) {
       Text(
         text =
-          if (playerTurnWhite) stringResource(Res.string.explore_white)
+          if (sideToMove == Player.WHITE) stringResource(Res.string.explore_white)
           else stringResource(Res.string.explore_black),
         style = typography.labelSm.copy(color = palette.ink2),
       )

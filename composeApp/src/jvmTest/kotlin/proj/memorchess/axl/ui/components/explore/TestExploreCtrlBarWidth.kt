@@ -16,6 +16,7 @@ import io.kotest.assertions.withClue
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.ui.setKineticContent
 
 /**
@@ -43,7 +44,7 @@ class TestExploreCtrlBarWidth {
           modifier = Modifier.testTag("bar"),
           actions = noOpActions(),
           evalEnabled = false,
-          playerTurnWhite = true,
+          sideToMove = Player.WHITE,
         )
       }
     }

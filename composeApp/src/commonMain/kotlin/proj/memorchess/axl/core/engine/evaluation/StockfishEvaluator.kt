@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.engine.evaluation
 
+import proj.memorchess.axl.core.engine.Player
 import co.touchlab.kermit.Logger
 import fr.axl_lvy.stockfish_multiplatform.Score
 import fr.axl_lvy.stockfish_multiplatform.StockfishEngine
@@ -53,10 +54,10 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
   }
 
   /**
-   * Evaluates the full 6-part [fen], cancelling any in-progress search. [isBlackToMove] flips the
-   * engine's side-to-move score to White's perspective.
+   * Evaluates the full 6-part [fen], cancelling any in-progress search. The engine scores for
+   * [sideToMove], which is flipped to White's perspective.
    */
-  suspend fun evaluate(fen: String, isBlackToMove: Boolean) {
+  suspend fun evaluate(fen: String, sideToMove: Player) {
     val currentEngine = awaitEngine() ?: return
 
     // The previous search must fully finish before the engine is touched again.
@@ -76,7 +77,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
           currentEngine.search(depth = depthArg) { info ->
             info.depth?.let { _currentDepth.value = it }
             val score = info.score ?: return@search
-            _evaluation.value = toEvaluationScore(score, isBlackToMove)
+            _evaluation.value = toEvaluationScore(score, sideToMove)
             if (info.pv.isNotEmpty()) {
               _bestMove.value = BestMove.fromUci(info.pv.first())
             }
@@ -108,8 +109,8 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
     private const val DEFAULT_SEARCH_DEPTH = 20
 
     /** Converts a side-to-move [Score] to an [EvaluationScore] from White's perspective. */
-    private fun toEvaluationScore(score: Score, isBlackToMove: Boolean): EvaluationScore {
-      val flip = if (isBlackToMove) -1 else 1
+    private fun toEvaluationScore(score: Score, sideToMove: Player): EvaluationScore {
+      val flip = if (sideToMove == Player.BLACK) -1 else 1
       return when (score) {
         is Score.Cp -> EvaluationScore.Centipawns(score.centipawns * flip)
         is Score.Mate -> EvaluationScore.Mate(score.moves * flip)

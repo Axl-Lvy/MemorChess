@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.engine.evaluation
 
+import proj.memorchess.axl.core.engine.Player
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
@@ -30,7 +31,7 @@ class TestStockfishEvaluator {
   fun evaluateProducesScoreAndBestMove() = runTest {
     val evaluator = StockfishEvaluator(maxDepth = 10)
     try {
-      evaluator.evaluate(STARTING_FEN, isBlackToMove = false)
+      evaluator.evaluate(STARTING_FEN, sideToMove = Player.WHITE)
       evaluator.bestMove.first { it != null }.shouldNotBeNull()
       evaluator.evaluation.first { it != null }.shouldNotBeNull()
       evaluator.currentDepth.first { it != null }.shouldNotBeNull()
@@ -43,7 +44,7 @@ class TestStockfishEvaluator {
   fun evaluateStartingPositionReturnsCentipawns() = runTest {
     val evaluator = StockfishEvaluator(maxDepth = 10)
     try {
-      evaluator.evaluate(STARTING_FEN, isBlackToMove = false)
+      evaluator.evaluate(STARTING_FEN, sideToMove = Player.WHITE)
       evaluator.evaluation.first { it != null }.shouldBeInstanceOf<EvaluationScore.Centipawns>()
     } finally {
       evaluator.close()
@@ -54,7 +55,7 @@ class TestStockfishEvaluator {
   fun evaluateMatePositionReturnsMateScore() = runTest {
     val evaluator = StockfishEvaluator(maxDepth = 10)
     try {
-      evaluator.evaluate(MATE_IN_ONE_FEN, isBlackToMove = false)
+      evaluator.evaluate(MATE_IN_ONE_FEN, sideToMove = Player.WHITE)
       evaluator.evaluation.first { it != null }.shouldBeInstanceOf<EvaluationScore.Mate>()
     } finally {
       evaluator.close()
@@ -65,10 +66,10 @@ class TestStockfishEvaluator {
   fun newEvaluationResetsPreviousResults() = runTest {
     val evaluator = StockfishEvaluator(maxDepth = 10)
     try {
-      evaluator.evaluate(STARTING_FEN, isBlackToMove = false)
+      evaluator.evaluate(STARTING_FEN, sideToMove = Player.WHITE)
       evaluator.bestMove.first { it != null }.shouldNotBeNull()
 
-      evaluator.evaluate(MATE_IN_ONE_FEN, isBlackToMove = false)
+      evaluator.evaluate(MATE_IN_ONE_FEN, sideToMove = Player.WHITE)
       evaluator.evaluation.first { it != null }.shouldNotBeNull()
       evaluator.bestMove.first { it != null }.shouldNotBeNull()
     } finally {
@@ -79,7 +80,7 @@ class TestStockfishEvaluator {
   @Test
   fun closeIsIdempotent() = runTest {
     val evaluator = StockfishEvaluator(maxDepth = 10)
-    evaluator.evaluate(STARTING_FEN, isBlackToMove = false)
+    evaluator.evaluate(STARTING_FEN, sideToMove = Player.WHITE)
     evaluator.bestMove.first { it != null }
     evaluator.close()
     evaluator.close()

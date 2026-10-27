@@ -8,48 +8,48 @@ class TestBoardUtils {
 
   @Test
   fun destinationSquareOnAPlainPawnMoveReadsTheTrailingSquare() {
-    assertEquals(BoardLocation(3, 4), BoardUtils.destinationSquare("e4", whiteToMove = true))
+    assertEquals(BoardLocation(3, 4), BoardUtils.destinationSquare("e4", mover = Player.WHITE))
   }
 
   @Test
   fun destinationSquareOnACaptureReadsTheTrailingSquare() {
-    assertEquals(BoardLocation(4, 3), BoardUtils.destinationSquare("exd5", whiteToMove = true))
+    assertEquals(BoardLocation(4, 3), BoardUtils.destinationSquare("exd5", mover = Player.WHITE))
   }
 
   @Test
   fun destinationSquareOnADisambiguatedMoveReadsTheTrailingSquare() {
-    assertEquals(BoardLocation(6, 3), BoardUtils.destinationSquare("Nbd7", whiteToMove = false))
+    assertEquals(BoardLocation(6, 3), BoardUtils.destinationSquare("Nbd7", mover = Player.BLACK))
   }
 
   @Test
   fun destinationSquareOnAPromotionStripsTheEqualsSuffix() {
-    assertEquals(BoardLocation(7, 4), BoardUtils.destinationSquare("e8=Q", whiteToMove = true))
+    assertEquals(BoardLocation(7, 4), BoardUtils.destinationSquare("e8=Q", mover = Player.WHITE))
   }
 
   @Test
   fun destinationSquareOnACaptureCombinedWithPromotionSurvivesBothTransforms() {
     // Both the '=' suffix and a non-trailing 'x' capture marker must survive the
     // substringBefore('=') + takeLast(2) pair together.
-    assertEquals(BoardLocation(7, 3), BoardUtils.destinationSquare("exd8=Q", whiteToMove = true))
+    assertEquals(BoardLocation(7, 3), BoardUtils.destinationSquare("exd8=Q", mover = Player.WHITE))
   }
 
   @Test
   fun destinationSquareOnTheLowCoordinateBoundary() {
-    assertEquals(BoardLocation(0, 0), BoardUtils.destinationSquare("a1", whiteToMove = true))
+    assertEquals(BoardLocation(0, 0), BoardUtils.destinationSquare("a1", mover = Player.WHITE))
   }
 
   @Test
   fun destinationSquareOnTheHighCoordinateBoundary() {
-    assertEquals(BoardLocation(7, 7), BoardUtils.destinationSquare("h8", whiteToMove = true))
-    assertEquals(BoardLocation(7, 7), BoardUtils.destinationSquare("Qxh8", whiteToMove = true))
+    assertEquals(BoardLocation(7, 7), BoardUtils.destinationSquare("h8", mover = Player.WHITE))
+    assertEquals(BoardLocation(7, 7), BoardUtils.destinationSquare("Qxh8", mover = Player.WHITE))
   }
 
   @Test
   fun destinationSquareOnCastlingLiterals() {
-    assertEquals(BoardLocation(0, 6), BoardUtils.destinationSquare("O-O", whiteToMove = true))
-    assertEquals(BoardLocation(0, 2), BoardUtils.destinationSquare("O-O-O", whiteToMove = true))
-    assertEquals(BoardLocation(7, 6), BoardUtils.destinationSquare("O-O", whiteToMove = false))
-    assertEquals(BoardLocation(7, 2), BoardUtils.destinationSquare("O-O-O", whiteToMove = false))
+    assertEquals(BoardLocation(0, 6), BoardUtils.destinationSquare("O-O", mover = Player.WHITE))
+    assertEquals(BoardLocation(0, 2), BoardUtils.destinationSquare("O-O-O", mover = Player.WHITE))
+    assertEquals(BoardLocation(7, 6), BoardUtils.destinationSquare("O-O", mover = Player.BLACK))
+    assertEquals(BoardLocation(7, 2), BoardUtils.destinationSquare("O-O-O", mover = Player.BLACK))
   }
 
   @Test
@@ -59,6 +59,6 @@ class TestBoardUtils {
     val engine = GameEngine(PositionKey("4k3/8/8/8/8/8/8/R3K2R w KQ"))
     val san = engine.playCoordinateMove(Pair(0, 4), Pair(0, 6))
 
-    assertEquals(BoardLocation(0, 6), BoardUtils.destinationSquare(san, whiteToMove = true))
+    assertEquals(BoardLocation(0, 6), BoardUtils.destinationSquare(san, mover = Player.WHITE))
   }
 }

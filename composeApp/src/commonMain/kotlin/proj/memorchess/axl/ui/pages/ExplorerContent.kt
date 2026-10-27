@@ -152,8 +152,8 @@ fun ExplorerContent(
     }
   }
 
-  var playerTurnWhite by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
-  val playedMoves by remember { derivedStateOf { buildMoveDisplays(playedSans, playerTurnWhite) } }
+  var sideToMove by remember { mutableStateOf(explorer.engine.playerTurn) }
+  val playedMoves by remember { derivedStateOf { buildMoveDisplays(playedSans, sideToMove) } }
 
   // LinesExplorer.state is snapshot state, so this recomposes on navigate, save and delete.
   val palette = LocalKineticPalette.current
@@ -165,12 +165,12 @@ fun ExplorerContent(
   DisposableEffect(Unit) { onDispose { evaluator?.close() } }
 
   LaunchedEffect(evaluator) {
-    evaluator?.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn == Player.BLACK)
+    evaluator?.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn)
   }
 
   remember {
     explorer.registerCallBack {
-      playerTurnWhite = explorer.engine.playerTurn == Player.WHITE
+      sideToMove = explorer.engine.playerTurn
       playedSans.clear()
       playedSans.addAll(explorer.playedMoves())
       coroutineScope.launch {
@@ -182,7 +182,7 @@ fun ExplorerContent(
       }
       evaluator?.let { eval ->
         coroutineScope.launch {
-          eval.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn == Player.BLACK)
+          eval.evaluate(explorer.engine.toFen().value, explorer.engine.playerTurn)
         }
       }
     }
@@ -274,7 +274,7 @@ fun ExplorerContent(
               onDelete = onDelete,
             ),
           evalEnabled = evalBarEnabled,
-          playerTurnWhite = playerTurnWhite,
+          sideToMove = sideToMove,
           showSaveDelete = !readOnly,
         )
       },
@@ -365,16 +365,16 @@ private fun nodeStateColor(
  */
 private fun buildMoveDisplays(
   sans: List<String>,
-  currentPlayerTurnWhite: Boolean,
+  sideToMove: Player,
 ): List<MoveDisplay> {
   if (sans.isEmpty()) return emptyList()
-  val firstMoveWhite = if (sans.size % 2 == 1) !currentPlayerTurnWhite else currentPlayerTurnWhite
-  val numberOffset = if (firstMoveWhite) 0 else 1
+  val firstMover = if (sans.size % 2 == 1) sideToMove.opponent else sideToMove
+  val numberOffset = if (firstMover == Player.WHITE) 0 else 1
   return sans.mapIndexed { index, san ->
     MoveDisplay(
       san = san,
       moveNumber = (index + numberOffset) / 2 + 1,
-      isWhiteMove = if (index % 2 == 0) firstMoveWhite else !firstMoveWhite,
+      mover = if (index % 2 == 0) firstMover else firstMover.opponent,
     )
   }
 }
@@ -386,7 +386,7 @@ private fun buildPgnText(moves: List<MoveDisplay>): String? {
     .mapIndexed { index, move ->
       val prefix =
         when {
-          move.isWhiteMove -> "${move.moveNumber}."
+          move.mover == Player.WHITE -> "${move.moveNumber}."
           index == 0 -> "${move.moveNumber}..."
           else -> null
         }
@@ -422,12 +422,9 @@ private fun formatEvaluationScore(score: EvaluationScore): String =
 
 @Composable
 private fun PlayerTurnIndicator(explorer: LinesExplorer) {
-  var playerTurn by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
-  remember { explorer.registerCallBack { playerTurn = explorer.engine.playerTurn == Player.WHITE } }
-  Piece(
-    if (playerTurn) ChessPiece(PieceKind.KING, Player.WHITE)
-    else ChessPiece(PieceKind.KING, Player.BLACK)
-  )
+  var playerTurn by remember { mutableStateOf(explorer.engine.playerTurn) }
+  remember { explorer.registerCallBack { playerTurn = explorer.engine.playerTurn } }
+  Piece(ChessPiece(PieceKind.KING, playerTurn))
 }
 
 @Composable

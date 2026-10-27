@@ -17,11 +17,11 @@ object BoardUtils {
   }
 
   /**
-   * Returns the square a played [san] move lands on. [whiteToMove] resolves the castling literals,
+   * Returns the square a played [san] move lands on. [mover] resolves the castling literals,
    * which name no square directly.
    */
-  fun destinationSquare(san: String, whiteToMove: Boolean): BoardLocation {
-    val kingRow = if (whiteToMove) 0 else 7
+  fun destinationSquare(san: String, mover: Player): BoardLocation {
+    val kingRow = if (mover == Player.WHITE) 0 else 7
     return when (san) {
       "O-O" -> BoardLocation(kingRow, 6)
       "O-O-O" -> BoardLocation(kingRow, 2)
