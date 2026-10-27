@@ -4,6 +4,7 @@ import io.github.alluhemanth.chess.core.ChessGame
 import io.github.alluhemanth.chess.core.board.File
 import io.github.alluhemanth.chess.core.board.Rank
 import io.github.alluhemanth.chess.core.board.Square
+import io.github.alluhemanth.chess.core.move.Move
 import io.github.alluhemanth.chess.core.piece.PieceColor
 import io.github.alluhemanth.chess.core.piece.PieceType
 import io.github.alluhemanth.chess.core.utils.SanUtils
@@ -38,22 +39,35 @@ class GameEngine private constructor(private val game: ChessGame) {
   /**
    * Plays a move given in Standard Algebraic Notation (e.g. "e4", "Nf3", "O-O").
    *
+   * @return the SAN of the move played as [playCoordinateMove] would spell it, so an
+   *   over-disambiguated input such as "Ngf3" comes back as "Nf3".
    * @throws IllegalMoveException if the move is not legal in the current position.
    */
-  fun playSanMove(san: String) {
-    // chess-core signals some rejections by returning false, but others (no matching legal move
-    // at all, an unavailable castle) by throwing IllegalArgumentException or
-    // NoSuchElementException instead. Normalize every case into the one exception this method
-    // promises.
-    val success =
+  fun playSanMove(san: String): String {
+    val move = legalMove(san)
+    val canonical =
+      SanUtils.moveToSan(move, game.getBoard(), game.getGameState()).stripCheckMarkers()
+    if (!game.makeMove(move)) {
+      throw IllegalMoveException("Illegal SAN move: $san")
+    }
+    return canonical
+  }
+
+  private fun legalMove(san: String): Move {
+    // chess-core signals some rejections by throwing IllegalArgumentException or
+    // NoSuchElementException (no matching legal move at all, an unavailable castle). Normalize
+    // every case into the one exception the callers promise.
+    val parsed =
       try {
-        game.makeSanMove(san)
+        SanUtils.sanToMove(san, game.getBoard(), game.getGameState())
       } catch (e: RuntimeException) {
         throw IllegalMoveException("Illegal SAN move: $san", e)
       }
-    if (!success) {
-      throw IllegalMoveException("Illegal SAN move: $san")
-    }
+    return game.getLegalMoves().firstOrNull {
+      it.from == parsed.from &&
+        it.to == parsed.to &&
+        it.promotionPieceType == parsed.promotionPieceType
+    } ?: throw IllegalMoveException("Illegal SAN move: $san")
   }
 
   /**
@@ -119,11 +133,7 @@ class GameEngine private constructor(private val game: ChessGame) {
    * @throws IllegalMoveException if [san] is not a legal move in the current position.
    */
   fun originSquare(san: String): BoardLocation {
-    val target = san.stripCheckMarkers()
-    val move =
-      game.getLegalMoves().firstOrNull {
-        SanUtils.moveToSan(it, game.getBoard(), game.getGameState()).stripCheckMarkers() == target
-      } ?: throw IllegalMoveException("Illegal SAN move: $san")
+    val move = legalMove(san)
     return BoardLocation(row = move.from.rank.value - 1, col = move.from.file.value - 'a')
   }
 

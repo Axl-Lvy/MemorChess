@@ -247,6 +247,54 @@ class TestSingleMoveTrainer : TestWithKoin() {
     card.reps shouldBe testNode.cardState.reps + 1
   }
 
+  @Test
+  fun aCorrectMoveStoredOverDisambiguatedIsAccepted() = test {
+    val trainer = overDisambiguatedTrainer()
+
+    tileClick(trainer, "g1")
+    tileClick(trainer, "f3")
+
+    lastEdge.shouldNotBeNull().move shouldBe "Ngf3"
+  }
+
+  @Test
+  fun aWrongMoveOutlinesTheOverDisambiguatedExpectedMove() = test {
+    val trainer = overDisambiguatedTrainer()
+
+    tileClick(trainer, "d2")
+    tileClick(trainer, "d4")
+
+    lastEdge.shouldBeNull()
+    lastCorrectSquare shouldBe BoardLocation(2, 5) // f3
+  }
+
+  @Test
+  fun revealResolvesAnOverDisambiguatedExpectedMove() = test {
+    overDisambiguatedTrainer().reveal() shouldBe
+      Pair(BoardLocation(0, 6), BoardLocation(2, 5)) // g1-f3
+  }
+
+  /**
+   * Trains the position after 1.e4 e5 against a lone good edge stored as a PGN wrote it, `Ngf3`.
+   */
+  private suspend fun overDisambiguatedTrainer(): SingleMoveTrainer {
+    val engine = GameEngine().apply { listOf("e4", "e5").forEach { playSanMove(it) } }
+    val start = engine.toPositionKey()
+    val nf3Position = engine.apply { playSanMove("Nf3") }.toPositionKey()
+    database.insertNodes(
+      DataNode(
+        positionKey = start,
+        PreviousAndNextMoves(listOf(), listOf(DataMove(start, nf3Position, "Ngf3", isGood = true))),
+        testNode.cardState,
+      )
+    )
+    return SingleMoveTrainer(checkNotNull(treeStore.node(start))) { edge, played, correct ->
+      lastEdge = edge
+      lastPlayedSquare = played
+      lastCorrectSquare = correct
+    }
+  }
+
   private suspend fun storedCard(): CardState =
     checkNotNull(database.getPosition(testNode.positionKey)).cardState
 
