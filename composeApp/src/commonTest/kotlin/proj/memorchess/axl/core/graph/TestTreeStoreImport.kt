@@ -63,6 +63,17 @@ class TestTreeStoreImport {
   }
 
   @Test
+  fun importNodesHoldsEveryImportedMoveManually() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+
+    store.importNodes(importedGraph(Instant.parse("2026-01-01T00:00:00Z")))
+
+    database.getPosition(start)!!.previousAndNextMoves.nextMoves.getValue("e4").ownIsGood shouldBe
+      true
+  }
+
+  @Test
   fun importNodesStampsEveryNodeAndEdgeWithARealDeviceIdentity() = runTest {
     val database = TestDatabases.empty()
     val store = testTreeStore(database)

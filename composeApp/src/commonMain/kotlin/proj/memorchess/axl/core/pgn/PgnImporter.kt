@@ -121,12 +121,13 @@ class PgnImporter(
   }
 
   /**
-   * Whether [move] is already persisted with the same classification, in which case an import would
-   * leave it untouched. Resolves the origin through [TreeStore.node] (a bounded point lookup).
+   * Whether the user already holds [move] manually with the same marking, in which case an import
+   * would leave it untouched. A move only an installed repertoire holds is not present: the import
+   * gives it a manual hold. Resolves the origin through [TreeStore.node] (a bounded point lookup).
    */
   private suspend fun isAlreadyPresent(move: MoveInsertion): Boolean {
     val existingEdge = treeStore.node(move.from)?.outgoing?.get(move.move)
-    return existingEdge != null && existingEdge.isGood == move.isGood
+    return existingEdge != null && existingEdge.ownIsGood == move.isGood
   }
 
   /**

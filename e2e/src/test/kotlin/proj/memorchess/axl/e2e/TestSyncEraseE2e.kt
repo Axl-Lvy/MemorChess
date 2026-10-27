@@ -131,6 +131,7 @@ class TestSyncEraseE2e {
       origin = origin,
       destination = destination,
       repertoireId = repertoireId,
+      move = "e4",
       isDeleted = false,
       updatedAt = updatedAt,
       originDevice = device,

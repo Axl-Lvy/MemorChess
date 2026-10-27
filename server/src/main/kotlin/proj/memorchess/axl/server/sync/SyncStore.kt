@@ -4,6 +4,7 @@ import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Timestamp
+import java.sql.Types
 import javax.sql.DataSource
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
@@ -108,43 +109,35 @@ internal class SyncStore(
         clockRefusal("tag", "${it.origin}|${it.destination}|${it.repertoireId}")
       }
 
-    val (revision, orphanedTags) =
-      inTransaction { connection ->
-        connection.applyBatch(
-          userId,
-          deviceId,
-          nodes.accepted,
-          edges.accepted,
-          settings.accepted,
-          repertoires.accepted,
-          tags.accepted,
-        )
-      }
+    val revision = inTransaction { connection ->
+      connection.applyBatch(
+        userId,
+        deviceId,
+        nodes.accepted,
+        edges.accepted,
+        settings.accepted,
+        repertoires.accepted,
+        tags.accepted,
+      )
+    }
 
     return SyncPushResponse(
       serverTime = serverNow,
       revision = revision,
       rejected =
-        nodes.refused +
-          edges.refused +
-          settings.refused +
-          repertoires.refused +
-          tags.refused +
-          orphanedTags,
+        nodes.refused + edges.refused + settings.refused + repertoires.refused + tags.refused,
     )
   }
 
   /**
    * Applies every accepted row in one transaction and returns the highest revision assigned (`0`
-   * when nothing needed writing), plus the [RejectedRow]s for any tag naming an edge the server has
-   * no record of.
+   * when nothing needed writing).
    *
    * Rows are sorted within each resource so that concurrent pushes take row locks in one order.
    *
-   * @throws QuotaExceededException nodes, edges or repertoires would push [userId] past its cap.
-   *   Checked before anything is resolved or written, under [acquireUserLock], so two concurrent
-   *   pushes from the same user can never both slip past it. Tags are checked further down, once
-   *   the ones naming an edge the server has never seen are known and excluded from the count.
+   * @throws QuotaExceededException some resource would push [userId] past its cap. Checked before
+   *   anything is resolved or written, under [acquireUserLock], so two concurrent pushes from the
+   *   same user can never both slip past it.
    * @throws UnknownDeviceException [deviceId] has no row under [userId].
    * @throws ResyncRequiredException [deviceId] was removed and has fallen below the garbage
    *   collection floor, so it may be holding rows whose tombstones are already gone.
@@ -157,7 +150,7 @@ internal class SyncStore(
     settings: List<SettingSyncRow>,
     sentRepertoires: List<RepertoireSyncRow>,
     sentTags: List<EdgeRepertoireTagSyncRow>,
-  ): Pair<Long, List<RejectedRow>> {
+  ): Long {
     acquireUserLock(userId)
     // Under the same lock as everything else, so a device removed concurrently cannot slip a batch
     // past the check.
@@ -172,23 +165,16 @@ internal class SyncStore(
     checkQuota(userId, NODE_QUOTA, nodes, maxNodesPerUser)
     checkQuota(userId, EDGE_QUOTA, edges, maxEdgesPerUser)
     checkQuota(userId, REPERTOIRE_QUOTA, repertoires, maxRepertoiresPerUser)
+    checkQuota(userId, TAG_QUOTA, tags, maxTagsPerUser)
 
     val positionIds = resolvePositionIds(nodes.map { it.positionKey })
-    val edgeIds =
-      resolveEdgeIds(edges.map { it.identity() }).mapKeys { (identity, _) ->
+    // A tag carries its move, so it interns its edge like an edge row does: an install pushes tags
+    // for moves the user never holds manually.
+    val allEdgeIds =
+      resolveEdgeIds(edges.map { it.identity() } + tags.map { it.identity() }).mapKeys {
+        (identity, _) ->
         identity.origin to identity.destination
       }
-    // A tag may reference an edge not present in this same batch's `edges` list (it was pushed
-    // earlier). Its endpoints are looked up, never created: an edge is interned only by pushing it
-    // as an EdgeSyncRow, so a tag naming one the server has never seen is refused rather than
-    // silently minting a move_edge row with no real move, which move_edge's write-once move column
-    // could never correct afterward.
-    val unresolvedTagEndpoints = tags.map { it.origin to it.destination }.toSet() - edgeIds.keys
-    val lookedUpEdgeIds = lookupEdgeIds(unresolvedTagEndpoints)
-    val allEdgeIds = edgeIds + lookedUpEdgeIds
-    val (resolvableTags, orphanedTags) =
-      tags.partition { (it.origin to it.destination) in allEdgeIds }
-    checkQuota(userId, TAG_QUOTA, resolvableTags, maxTagsPerUser)
 
     val revisions =
       applyAll(userId, NODES, nodes.sortedBy { it.positionKey }) {
@@ -202,46 +188,11 @@ internal class SyncStore(
         applyAll(
           userId,
           TAGS,
-          resolvableTags.sortedBy { "${it.origin}|${it.destination}|${it.repertoireId}" },
+          tags.sortedBy { "${it.origin}|${it.destination}|${it.repertoireId}" },
         ) {
           allEdgeIds.getValue(it.origin to it.destination) to it.repertoireId
         }
-    val revision = revisions.maxOrNull() ?: 0L
-    return revision to
-      orphanedTags.map {
-        RejectedRow(
-          kind = "tag",
-          id = "${it.origin}|${it.destination}|${it.repertoireId}",
-          code = RejectionCode.EDGE_NOT_FOUND,
-          reason = "no known edge from ${it.origin} to ${it.destination}",
-        )
-      }
-  }
-
-  /**
-   * Looks up existing `move_edge` ids for [endpoints], creating nothing: unlike [resolveEdgeIds],
-   * an endpoint pair the server has never seen resolves to no entry rather than a freshly minted
-   * row.
-   */
-  private fun Connection.lookupEdgeIds(
-    endpoints: Set<Pair<String, String>>
-  ): Map<Pair<String, String>, Long> {
-    if (endpoints.isEmpty()) return emptyMap()
-    val ids = HashMap<Pair<String, String>, Long>(endpoints.size)
-    prepareStatement(
-        "SELECT po.position_key, pd.position_key, e.id FROM move_edge e " +
-          JOIN_EDGE_ENDPOINTS +
-          "JOIN unnest(?::text[], ?::text[]) AS k(o, d) " +
-          "ON po.position_key = k.o AND pd.position_key = k.d"
-      )
-      .use { statement ->
-        statement.setArray(1, createArrayOf("text", endpoints.map { it.first }.toTypedArray()))
-        statement.setArray(2, createArrayOf("text", endpoints.map { it.second }.toTypedArray()))
-        statement.executeQuery().use { rows ->
-          while (rows.next()) ids[rows.getString(1) to rows.getString(2)] = rows.getLong(3)
-        }
-      }
-    return ids
+    return revisions.maxOrNull() ?: 0L
   }
 
   /**
@@ -968,7 +919,7 @@ internal class SyncStore(
   ): List<Pair<Long, RepertoireSyncRow>> =
     prepareStatement(
         "SELECT repertoire_id, name, color, is_deleted, updated_at, origin_device, device_seq, " +
-          "revision FROM user_repertoire WHERE user_id = ? AND revision > ? " +
+          "revision, installed_version FROM user_repertoire WHERE user_id = ? AND revision > ? " +
           "ORDER BY revision ASC LIMIT ?"
       )
       .use { statement ->
@@ -984,6 +935,7 @@ internal class SyncStore(
                     id = rows.getString(1),
                     name = rows.getString(2),
                     color = rows.getString(3),
+                    installedVersion = rows.getObject(9) as Int?,
                     isDeleted = rows.getBoolean(4),
                     updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
                     originDevice = rows.getString(6),
@@ -1002,7 +954,8 @@ internal class SyncStore(
   ): List<Pair<Long, EdgeRepertoireTagSyncRow>> =
     prepareStatement(
         "SELECT po.position_key, pd.position_key, t.repertoire_id, t.is_deleted, t.updated_at, " +
-          "t.origin_device, t.device_seq, t.revision FROM user_edge_repertoire_tag t " +
+          "t.origin_device, t.device_seq, t.revision, e.move, t.is_good " +
+          "FROM user_edge_repertoire_tag t " +
           "JOIN move_edge e ON e.id = t.edge_id " +
           JOIN_EDGE_ENDPOINTS +
           "WHERE t.user_id = ? AND t.revision > ? ORDER BY t.revision ASC LIMIT ?"
@@ -1020,6 +973,8 @@ internal class SyncStore(
                     origin = rows.getString(1),
                     destination = rows.getString(2),
                     repertoireId = rows.getString(3),
+                    move = rows.getString(9),
+                    isGood = rows.getObject(10) as Boolean?,
                     isDeleted = rows.getBoolean(4),
                     updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
                     originDevice = rows.getString(6),
@@ -1366,19 +1321,21 @@ private val REPERTOIRES =
   SyncTable<RepertoireSyncRow, String>(
     table = "user_repertoire",
     keyColumns = listOf("repertoire_id"),
-    payloadColumns = listOf("name", "color"),
+    payloadColumns = listOf("name", "color", "installed_version"),
     keyTypes = listOf("text"),
     keyParts = { listOf(it) },
     readKey = { rows, index -> rows.getString(index) },
     bindPayload = { statement, first, row ->
       statement.setString(first, row.name)
       statement.setString(first + 1, row.color)
+      statement.setObject(first + 2, row.installedVersion, Types.INTEGER)
     },
     readPayload = { rows, incoming, version ->
       RepertoireSyncRow(
         id = incoming.id,
         name = rows.getString(1),
         color = rows.getString(2),
+        installedVersion = rows.getObject(3) as Int?,
         isDeleted = version.isDeleted,
         updatedAt = version.updatedAt,
         originDevice = version.originDevice,
@@ -1392,16 +1349,20 @@ private val TAGS =
   SyncTable<EdgeRepertoireTagSyncRow, Pair<Long, String>>(
     table = "user_edge_repertoire_tag",
     keyColumns = listOf("edge_id", "repertoire_id"),
-    payloadColumns = emptyList(),
+    payloadColumns = listOf("is_good"),
     keyTypes = listOf("bigint", "text"),
     keyParts = { (edgeId, repertoireId) -> listOf(edgeId, repertoireId) },
     readKey = { rows, index -> rows.getLong(index) to rows.getString(index + 1) },
-    bindPayload = { _, _, _ -> },
-    readPayload = { _, incoming, version ->
+    bindPayload = { statement, first, row ->
+      statement.setObject(first, row.isGood, Types.BOOLEAN)
+    },
+    readPayload = { rows, incoming, version ->
       EdgeRepertoireTagSyncRow(
         origin = incoming.origin,
         destination = incoming.destination,
         repertoireId = incoming.repertoireId,
+        move = incoming.move,
+        isGood = rows.getObject(1) as Boolean?,
         isDeleted = version.isDeleted,
         updatedAt = version.updatedAt,
         originDevice = version.originDevice,
@@ -1596,6 +1557,8 @@ private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"
 
 /** The shared identity this edge interns to. */
 private fun EdgeSyncRow.identity() = EdgeIdentity(origin, destination, move)
+
+private fun EdgeRepertoireTagSyncRow.identity() = EdgeIdentity(origin, destination, move)
 
 private fun clockRefusal(kind: String, id: String) =
   RejectedRow(

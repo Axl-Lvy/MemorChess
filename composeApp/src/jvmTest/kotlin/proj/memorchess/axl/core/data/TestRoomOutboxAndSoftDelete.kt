@@ -152,6 +152,7 @@ class TestRoomOutboxAndSoftDelete {
         origin,
         destination,
         repertoireId = "italian-game",
+        move = "e4",
         updatedAt = Instant.fromEpochSeconds(1_000),
       )
 
@@ -175,7 +176,9 @@ class TestRoomOutboxAndSoftDelete {
         CardStateFactory.new(),
       ),
     )
-    manager.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
+    manager.insertTag(
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4")
+    )
 
     manager.edgesTaggedWith("italian-game") shouldBe listOf(TaggedEdge(origin, destination, "e4"))
   }
@@ -194,7 +197,13 @@ class TestRoomOutboxAndSoftDelete {
       ),
     )
     manager.insertTag(
-      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", isDeleted = true)
+      DataEdgeRepertoireTag(
+        origin,
+        destination,
+        repertoireId = "italian-game",
+        move = "e4",
+        isDeleted = true,
+      )
     )
 
     manager.edgesTaggedWith("italian-game") shouldBe emptyList()
@@ -264,7 +273,9 @@ class TestRoomOutboxAndSoftDelete {
     manager.insertRepertoire(
       DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
     )
-    manager.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game"))
+    manager.insertTag(
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4")
+    )
 
     manager.eraseAll()
 

@@ -471,7 +471,7 @@ private suspend fun buildPushRequest(
         database.getPositionIncludingDeleted(key.positionKey)?.let { nodes += it.toNodeSyncRow() }
       }
       is DirtyKey.EdgeKey -> {
-        localMove(database, key.origin, key.destination)?.let { edges += it.toEdgeSyncRow() }
+        localMove(database, key.origin, key.destination)?.toEdgeSyncRow()?.let { edges += it }
       }
       is DirtyKey.SettingKey -> Unit
       is DirtyKey.RepertoireKey -> {

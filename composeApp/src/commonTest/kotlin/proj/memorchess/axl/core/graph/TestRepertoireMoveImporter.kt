@@ -44,7 +44,7 @@ class TestRepertoireMoveImporter {
   fun importWritesEveryMoveWithTheAuthorMarking() = runTest {
     val moves = line("e4", "e5", "Nf3")
 
-    val summary = importer.import(moves, repertoireId = null)
+    val summary = importer.import(moves, repertoireId = "a")
 
     assertEquals(PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 0), summary)
     assertEquals(listOf<Boolean?>(true, false, true), moves.map { isGoodOf(it) })
@@ -53,9 +53,9 @@ class TestRepertoireMoveImporter {
   @Test
   fun importKeepsAnExistingGoodMoveGoodWhenTheAuthorMarksItBad() = runTest {
     val e4 = line("e4").single()
-    importer.import(listOf(e4), repertoireId = null)
+    importer.import(listOf(e4), repertoireId = "a")
 
-    val summary = importer.import(listOf(e4.copy(isGood = false)), repertoireId = null)
+    val summary = importer.import(listOf(e4.copy(isGood = false)), repertoireId = "b")
 
     assertEquals(true, isGoodOf(e4))
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 1), summary)
@@ -64,12 +64,39 @@ class TestRepertoireMoveImporter {
   @Test
   fun importUpgradesAnExistingBadMoveWhenTheAuthorMarksItGood() = runTest {
     val e4 = line("e4").single()
-    importer.import(listOf(e4.copy(isGood = false)), repertoireId = null)
+    importer.import(listOf(e4.copy(isGood = false)), repertoireId = "a")
 
-    val summary = importer.import(listOf(e4), repertoireId = null)
+    val summary = importer.import(listOf(e4), repertoireId = "b")
 
     assertEquals(true, isGoodOf(e4))
     assertEquals(PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0), summary)
+  }
+
+  @Test
+  fun importKeepsAnOwnMarking() = runTest {
+    val e4 = line("e4").single()
+    store.addMove(PositionKey(e4.from), e4.move, PositionKey(e4.to), isGood = false, fromDepth = 0)
+
+    val summary = importer.import(listOf(e4), repertoireId = "a")
+
+    assertEquals(false, isGoodOf(e4))
+    assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 1), summary)
+  }
+
+  @Test
+  fun importCreatesNoManualHold() = runTest {
+    val e4 = line("e4").single()
+
+    importer.import(listOf(e4), repertoireId = "a")
+
+    assertNull(
+      database
+        .getPosition(PositionKey(e4.from))!!
+        .previousAndNextMoves
+        .nextMoves
+        .getValue("e4")
+        .ownIsGood
+    )
   }
 
   @Test
@@ -91,7 +118,7 @@ class TestRepertoireMoveImporter {
   fun importOfACycleTerminates() = runTest {
     val moves = line("Nf3", "Nf6", "Ng1", "Ng8")
 
-    val summary = importer.import(moves, repertoireId = null)
+    val summary = importer.import(moves, repertoireId = "a")
 
     assertEquals(4, summary.movesAdded)
   }
@@ -101,7 +128,7 @@ class TestRepertoireMoveImporter {
     val detached = line("d4", "d5")[1]
 
     assertFailsWith<PgnImportException> {
-      importer.import(line("e4") + detached, repertoireId = null)
+      importer.import(line("e4") + detached, repertoireId = "a")
     }
 
     assertNull(isGoodOf(line("e4").single()))
@@ -112,7 +139,7 @@ class TestRepertoireMoveImporter {
     val garbage = line("e4").single().copy(from = "not a fen")
 
     assertFailsWith<PgnImportException> {
-      importer.import(line("d4") + garbage, repertoireId = null)
+      importer.import(line("d4") + garbage, repertoireId = "a")
     }
 
     assertNull(isGoodOf(line("d4").single()))
@@ -121,7 +148,7 @@ class TestRepertoireMoveImporter {
   @Test
   fun previewCountsAGoodExistingMoveMarkedBadByTheAuthorAsPresent() = runTest {
     val e4 = line("e4").single()
-    importer.import(listOf(e4), repertoireId = null)
+    importer.import(listOf(e4), repertoireId = "a")
 
     val preview = importer.preview(listOf(e4.copy(isGood = false)))
 
@@ -131,7 +158,7 @@ class TestRepertoireMoveImporter {
   @Test
   fun previewCountsABadExistingMoveMarkedGoodByTheAuthorAsMissing() = runTest {
     val e4 = line("e4").single()
-    importer.import(listOf(e4.copy(isGood = false)), repertoireId = null)
+    importer.import(listOf(e4.copy(isGood = false)), repertoireId = "a")
 
     val preview = importer.preview(listOf(e4))
 
@@ -151,7 +178,7 @@ class TestRepertoireMoveImporter {
   fun importReportsProgressEndingAtOne() = runTest {
     val reported = mutableListOf<Float>()
 
-    importer.import(line("e4", "e5"), repertoireId = null, onProgress = reported::add)
+    importer.import(line("e4", "e5"), repertoireId = "a", onProgress = reported::add)
 
     assertEquals(1f, reported.last())
   }

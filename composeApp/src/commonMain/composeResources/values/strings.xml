@@ -233,6 +233,7 @@
   <string name="library_install_error_http">Download failed with HTTP error %1$d.</string>
   <string name="library_install_error_malformed_repertoire">This repertoire could not be read: %1$s</string>
   <string name="library_install_error_import">Import failed: %1$s</string>
+  <string name="library_install_error_id_taken">You already have a repertoire with this id. Rename it to install this one.</string>
   <string name="library_preview_checking">Checking your repertoire…</string>
   <string name="library_preview_in_common">%1$d of %2$d moves already in your repertoire.</string>
   <string name="library_preview_in_common_error">Could not check your existing moves.</string>

@@ -82,6 +82,9 @@ CREATE TABLE IF NOT EXISTS user_repertoire (
   PRIMARY KEY (user_id, repertoire_id)
 );
 
+-- The catalog version installed under this id, or null for a repertoire the user created.
+ALTER TABLE user_repertoire ADD COLUMN IF NOT EXISTS installed_version int;
+
 -- The only multi row read path is "everything for this user above this revision".
 CREATE INDEX IF NOT EXISTS user_node_cursor ON user_node (user_id, revision);
 CREATE INDEX IF NOT EXISTS user_edge_cursor ON user_edge (user_id, revision);
@@ -100,6 +103,10 @@ CREATE TABLE IF NOT EXISTS user_edge_repertoire_tag (
   revision bigint NOT NULL,
   PRIMARY KEY (user_id, edge_id, repertoire_id)
 );
+
+-- The author's marking for a tag written by an install, which makes the repertoire a holder of
+-- the move; null for a tag that only records membership.
+ALTER TABLE user_edge_repertoire_tag ADD COLUMN IF NOT EXISTS is_good boolean;
 
 CREATE INDEX IF NOT EXISTS user_edge_repertoire_tag_cursor
   ON user_edge_repertoire_tag (user_id, revision);

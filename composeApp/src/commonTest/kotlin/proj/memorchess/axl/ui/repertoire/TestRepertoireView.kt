@@ -569,6 +569,20 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
+  fun failedIdTakenShowsErrorAndInstallRetry() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Failed(InstallError.IdTaken)),
+    )
+    onNodeWithText("You already have a repertoire with this id. Rename it to install this one.")
+      .assertExists()
+    onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+  }
+
+  @Test
   fun failedImportShowsErrorAndInstallRetry() = runLibraryTest {
     setLibraryContent(
       catalogState =

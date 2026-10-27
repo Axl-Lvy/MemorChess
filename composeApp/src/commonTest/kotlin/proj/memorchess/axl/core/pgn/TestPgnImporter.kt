@@ -35,6 +35,24 @@ class TestPgnImporter {
     database.getPosition(from)?.previousAndNextMoves?.nextMoves?.get(move)?.isGood
 
   @Test
+  fun anInstalledMoveIsNotAlreadyPresentForAPgnImport() = runTest {
+    store.install(
+      "london",
+      listOf(
+        proj.memorchess.axl.core.graph.InstalledMove(keyAfter(), "e4", keyAfter("e4"), true, 0)
+      ),
+    )
+
+    val summary = importer.import(PgnParser.parse("1. e4 *"), perspective = Player.WHITE)
+
+    assertEquals(1, summary.movesAdded)
+    assertEquals(
+      true,
+      database.getPosition(keyAfter())!!.previousAndNextMoves.nextMoves.getValue("e4").ownIsGood,
+    )
+  }
+
+  @Test
   fun doubleImportIsIdempotent() = runTest {
     // Arrange
     val games = PgnParser.parse("1. e4 e5 2. Nf3 Nc6 *")

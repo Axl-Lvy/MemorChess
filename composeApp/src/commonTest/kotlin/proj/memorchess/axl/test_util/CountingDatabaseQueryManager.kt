@@ -131,6 +131,9 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
     destination: PositionKey,
   ): List<DataEdgeRepertoireTag> = delegate.getTags(origin, destination)
 
+  override suspend fun getTagsTouching(position: PositionKey): List<DataEdgeRepertoireTag> =
+    delegate.getTagsTouching(position)
+
   override suspend fun getTagIncludingDeleted(
     origin: PositionKey,
     destination: PositionKey,

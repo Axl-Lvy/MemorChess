@@ -13,6 +13,8 @@ import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.core.sync.DeviceIdentity
+import proj.memorchess.axl.core.sync.toEdgeSyncRow
+import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 /**
@@ -40,6 +42,46 @@ class TestTreeStoreSync {
     assertTrue(outbox.contains(DirtyKey.NodeKey(PositionKey("start"))))
     assertTrue(outbox.contains(DirtyKey.NodeKey(PositionKey("k2"))))
     assertTrue(outbox.contains(DirtyKey.EdgeKey(PositionKey("start"), PositionKey("k2"))))
+  }
+
+  @Test
+  fun installQueuesNoEdgeEntry() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = newStore(database)
+    val start = PositionKey("start")
+    val k2 = PositionKey("k2")
+
+    store.install("a", listOf(InstalledMove(start, "e4", k2, isGood = true, fromDepth = 0)))
+
+    val outbox = database.getOutbox().map { it.key }.toSet()
+    assertTrue(outbox.contains(DirtyKey.TagKey(start, k2, "a")))
+    assertTrue(outbox.contains(DirtyKey.NodeKey(start)))
+    assertTrue(outbox.contains(DirtyKey.NodeKey(k2)))
+    assertFalse(outbox.any { it is DirtyKey.EdgeKey })
+  }
+
+  @Test
+  fun deleteMoveQueuesTheManualHoldTombstoneAndEveryTagTombstone() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = newStore(database)
+    val tagStore = testRepertoireTagStore(database)
+    val start = PositionKey("start")
+    val k2 = PositionKey("k2")
+    store.addMove(start, "e4", k2, isGood = true, fromDepth = 0)
+    store.install("installed", listOf(InstalledMove(start, "e4", k2, isGood = true, fromDepth = 0)))
+    tagStore.tag(start, k2, "own")
+    for (entry in database.getOutbox()) database.clearDirty(listOf(entry))
+
+    store.deleteMove(start, "e4")
+
+    val outbox = database.getOutbox().map { it.key }.toSet()
+    assertTrue(outbox.contains(DirtyKey.EdgeKey(start, k2)))
+    assertTrue(outbox.contains(DirtyKey.TagKey(start, k2, "installed")))
+    assertTrue(outbox.contains(DirtyKey.TagKey(start, k2, "own")))
+    val tombstone =
+      database.getPositionIncludingDeleted(start)!!.previousAndNextMoves.nextMoves.getValue("e4")
+    assertTrue(tombstone.toEdgeSyncRow()!!.isDeleted)
+    assertTrue(database.getTags(start, k2).isEmpty())
   }
 
   @Test

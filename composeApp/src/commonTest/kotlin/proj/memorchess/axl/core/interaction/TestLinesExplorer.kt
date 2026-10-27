@@ -2,8 +2,12 @@ package proj.memorchess.axl.core.interaction
 
 import kotlin.test.*
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DatabaseQueryManager
+import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.engine.GameEngine
+import proj.memorchess.axl.core.graph.InstalledMove
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
@@ -247,16 +251,152 @@ class TestLinesExplorer : TestWithKoin() {
   // --- Repertoire scoped sessions ---------------------------------------------------------
 
   @Test
-  fun aScopedSessionTagsAGenuinelyNewMoveWithItsScope() = test {
+  fun aScopedSessionTagsAGenuinelyNewMoveWithItsScopeOnSave() = test {
     val origin = PositionKey.START_POSITION
     val explorer =
       LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
-
     explorer.playMove("e4")
-
     val destination = explorer.engine.toPositionKey()
+    assertEquals(emptySet(), tagStore.tagsFor(origin, destination))
+
+    explorer.save()
+
     assertEquals(setOf("italian-game"), tagStore.tagsFor(origin, destination))
+    assertEquals(null, database.getTags(origin, destination).single().isGood)
+  }
+
+  @Test
+  fun aScopedSessionLeavesAnAbandonedNewMoveUntagged() = test {
+    val origin = PositionKey.START_POSITION
+    val explorer =
+      LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
+    explorer.initState()
+    explorer.playMove("e4")
+    val abandoned = explorer.engine.toPositionKey()
+    explorer.back()
+    explorer.playMove("d4")
+
+    explorer.save()
+
+    assertEquals(emptySet(), tagStore.tagsFor(origin, abandoned))
+    assertEquals(setOf("italian-game"), tagStore.tagsFor(origin, keyAfter("d4")))
+  }
+
+  // --- Move holders -------------------------------------------------------------------------
+
+  private fun keyAfter(vararg sans: String): PositionKey =
+    GameEngine().apply { sans.forEach { playSanMove(it) } }.toPositionKey()
+
+  private fun installed(isGood: Boolean, vararg sans: String): InstalledMove =
+    InstalledMove(
+      from = keyAfter(*sans.dropLast(1).toTypedArray()),
+      move = sans.last(),
+      to = keyAfter(*sans),
+      isGood = isGood,
+      fromDepth = sans.size - 1,
+    )
+
+  private suspend fun storedMove(vararg sans: String): DataMove =
+    database
+      .getPositionIncludingDeleted(keyAfter(*sans.dropLast(1).toTypedArray()))!!
+      .previousAndNextMoves
+      .nextMoves
+      .getValue(sans.last())
+
+  @Test
+  fun replayingAnInstalledMoveHoldsNothing() = test {
+    treeStore.install("london", listOf(installed(true, "e4")))
+    for (entry in database.getOutbox()) database.clearDirty(listOf(entry))
+    interactionsManager.initState()
+
+    interactionsManager.playMove("e4")
+
+    assertEquals(null, storedMove("e4").ownIsGood)
+    assertTrue(database.getOutbox().none { it.key is DirtyKey.EdgeKey })
+  }
+
+  @Test
+  fun savingThroughAnInstalledLineHoldsTheWholePath() = test {
+    treeStore.install(
+      "london",
+      listOf(
+        installed(true, "e4"),
+        installed(true, "e4", "e5"),
+        installed(true, "e4", "e5", "Nf3"),
+      ),
+    )
+    interactionsManager.initState()
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("Nf3")
+    interactionsManager.playMove("Nc6")
+
+    interactionsManager.save()
+
+    assertEquals(true, storedMove("e4").ownIsGood)
+    assertEquals(true, storedMove("e4", "e5").ownIsGood)
+    assertEquals(true, storedMove("e4", "e5", "Nf3").ownIsGood)
+    assertEquals(true, storedMove("e4", "e5", "Nf3", "Nc6").ownIsGood)
+  }
+
+  @Test
+  fun anOffPathInstalledMoveIsNotHeldOnSave() = test {
+    // 1. Nf3 d5 2. d4 and 1. d4 d5 2. Nf3 reach the same position.
+    treeStore.install(
+      "london",
+      listOf(
+        installed(true, "d4"),
+        installed(false, "d4", "d5"),
+        installed(false, "d4", "d5", "Nf3"),
+      ),
+    )
+    interactionsManager.initState()
+    interactionsManager.playMove("Nf3")
+    interactionsManager.playMove("d5")
+    interactionsManager.playMove("d4")
+
+    interactionsManager.save()
+
+    val transposition = storedMove("d4", "d5", "Nf3")
+    assertEquals(null, transposition.ownIsGood)
+    assertEquals(false, transposition.isGood)
+    assertEquals(true, storedMove("Nf3", "d5", "d4").ownIsGood)
+  }
+
+  @Test
+  fun anOffPathManualMoveTurnsGoodOnSave() = test {
+    interactionsManager.initState()
+    interactionsManager.playMove("d4")
+    interactionsManager.playMove("d5")
+    interactionsManager.playMove("Nf3")
+    interactionsManager.playMove("Nf6")
+    interactionsManager.save()
+    treeStore.addMove(keyAfter("d4", "d5"), "Nf3", keyAfter("d4", "d5", "Nf3"), false, 2)
+    val explorer = LinesExplorer(treeStore = treeStore, tagStore = tagStore)
+    explorer.initState()
+    explorer.playMove("Nf3")
+    explorer.playMove("d5")
+    explorer.playMove("d4")
+
+    explorer.save()
+
+    assertEquals(true, storedMove("d4", "d5", "Nf3").ownIsGood)
+  }
+
+  @Test
+  fun savingBelowANonStartRootHoldsTheLineAboveIt() = test {
+    treeStore.install("london", listOf(installed(true, "e4"), installed(false, "e4", "e5")))
+    val explorer =
+      LinesExplorer(position = keyAfter("e4", "e5"), treeStore = treeStore, tagStore = tagStore)
+    explorer.initState()
+    explorer.playMove("Nf3")
+
+    explorer.save()
+
+    assertEquals(true, storedMove("e4").ownIsGood)
+    assertEquals(false, storedMove("e4", "e5").ownIsGood)
+    assertEquals(true, storedMove("e4", "e5", "Nf3").ownIsGood)
   }
 
   @Test

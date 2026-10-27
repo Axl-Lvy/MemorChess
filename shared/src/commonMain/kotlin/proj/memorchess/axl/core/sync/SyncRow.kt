@@ -67,12 +67,13 @@ data class NodeSyncRow(
 ) : SyncRow
 
 /**
- * A move between two positions, and whether it is one to learn.
+ * The user's manual hold on a move between two positions. A tombstone means the user no longer
+ * holds the move; installed repertoires may still hold it through their tags.
  *
  * @property origin Cropped FEN of the origin position.
  * @property destination Cropped FEN of the destination position.
  * @property move The move in standard algebraic notation.
- * @property isGood Whether the move has to be learned.
+ * @property isGood The user's own marking: whether the move has to be learned.
  */
 @Serializable
 data class EdgeSyncRow(
@@ -109,12 +110,15 @@ data class SettingSyncRow(
  * @property name Display name shown in the library and picker.
  * @property color Serialized [proj.memorchess.axl.core.data.repertoire.RepertoireColor] name, or
  *   `null` when the repertoire mixes both sides (a two sided import such as a Lichess study).
+ * @property installedVersion Catalog version installed under this id, or `null` for a repertoire
+ *   the user created.
  */
 @Serializable
 data class RepertoireSyncRow(
   val id: String,
   val name: String,
   val color: String?,
+  val installedVersion: Int? = null,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
   override val originDevice: String,
@@ -128,12 +132,18 @@ data class RepertoireSyncRow(
  * @property origin Cropped FEN of the origin position.
  * @property destination Cropped FEN of the destination position.
  * @property repertoireId The repertoire this edge belongs to.
+ * @property move The tagged move in standard algebraic notation, so a device that has never seen
+ *   the move can create it.
+ * @property isGood The author's marking for a tag written by an install, which makes the repertoire
+ *   a holder of the move, or `null` for a tag that only records membership.
  */
 @Serializable
 data class EdgeRepertoireTagSyncRow(
   val origin: String,
   val destination: String,
   val repertoireId: String,
+  val move: String,
+  val isGood: Boolean? = null,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
   override val originDevice: String,

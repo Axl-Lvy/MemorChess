@@ -40,19 +40,22 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *   download progress (`0f`..`1f`) through its second parameter as
  *   [RepertoireInstallState.Fetching] is updated. May never call it at all, see
  *   [RepertoireCatalogClient.fetchMoves]'s own KDoc.
- * @param importMoves Merges the downloaded moves into the opening graph for the repertoire named by
- *   `descriptor`, tagging every move with `descriptor.id` and registering it in the repertoire
- *   registry on first install (see the wiring in `RepertoireLibrary.kt`), and reports the summary.
- *   Any exception it throws is surfaced as [InstallError.ImportFailed] and the repertoire is not
- *   marked installed. Reports import progress (`0f`..`1f`) through its third parameter as
- *   [RepertoireInstallState.Importing] is updated.
+ * @param importMoves Installs the downloaded moves into the opening graph as holds of the
+ *   repertoire named by `descriptor`, and reports the summary. Any exception it throws is surfaced
+ *   as [InstallError.ImportFailed] and the repertoire is not registered as installed. Reports
+ *   import progress (`0f`..`1f`) through its third parameter as [RepertoireInstallState.Importing]
+ *   is updated.
  * @param previewMoves Computes, without writing anything, how much of the repertoire the user
  *   already has.
  * @param reportInstall Reports one completed first install of the given repertoire id, feeding the
  *   catalog's anonymous popularity counter (see [RepertoireDescriptor.downloadCount]'s KDoc). Must
  *   never throw; production wiring binds [RepertoireCatalogClient.reportInstall], which satisfies
  *   that by design.
- * @param installedStore Records which repertoires are installed on this device.
+ * @param loadRepertoire Returns the synced registry row of the given id, or `null` when none
+ *   exists; a row with an installed version is an installed repertoire, one without is the user's
+ *   own.
+ * @param registerInstall Registers the given repertoire as installed at its listed version, after a
+ *   successful import.
  * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
  *   normally through [proj.memorchess.axl.core.graph.RepertoireTagStore.repertoires].
  * @param loadMasterySnapshots Returns the mastery snapshot of every registered repertoire, keyed by
@@ -76,7 +79,8 @@ class RepertoireLibraryViewModel(
     ) -> PgnImportSummary,
   private val previewMoves: suspend (moves: List<RepertoireMove>) -> PgnImportPreview,
   private val reportInstall: suspend (id: String) -> Unit,
-  private val installedStore: InstalledRepertoireStore,
+  private val loadRepertoire: suspend (id: String) -> DataRepertoire?,
+  private val registerInstall: suspend (descriptor: RepertoireDescriptor) -> Unit,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot>,
   private val scope: CoroutineScope,
@@ -168,8 +172,9 @@ class RepertoireLibraryViewModel(
   }
 
   /**
-   * Starts installing [descriptor]: fetches its PGN file, imports it into the opening graph, and
-   * marks it installed on success only. Ignored only while a fetch or import for the same
+   * Starts installing [descriptor]: fetches its moves, installs them into the opening graph, and
+   * registers it as installed on success only. Fails with [InstallError.IdTaken] when one of the
+   * user's own repertoires already uses the id. Ignored only while a fetch or import for the same
    * repertoire is already in flight. An already installed repertoire may be reinstalled, which
    * restores any moves the user has since removed (the import skips the moves still present), and a
    * previously failed install may be retried.
@@ -218,7 +223,10 @@ class RepertoireLibraryViewModel(
    * ongoing session (in flight installs, summaries, failures) are preserved, otherwise the
    * persisted installed set decides between installed and not installed.
    */
-  private fun loaded(manifest: RepertoireManifest, isStale: Boolean): LibraryCatalogState.Loaded {
+  private suspend fun loaded(
+    manifest: RepertoireManifest,
+    isStale: Boolean,
+  ): LibraryCatalogState.Loaded {
     val previous = internalInstallStates.value
     internalInstallStates.value =
       manifest.repertoires.associate { descriptor ->
@@ -226,7 +234,7 @@ class RepertoireLibraryViewModel(
         descriptor.id to
           when {
             prior != null && prior !is RepertoireInstallState.NotInstalled -> prior
-            installedStore.isInstalled(descriptor.id) ->
+            loadRepertoire(descriptor.id)?.installedVersion != null ->
               RepertoireInstallState.Installed(summary = null)
             else -> RepertoireInstallState.NotInstalled
           }
@@ -235,6 +243,11 @@ class RepertoireLibraryViewModel(
   }
 
   private suspend fun runInstall(descriptor: RepertoireDescriptor) {
+    val registered = loadRepertoire(descriptor.id)
+    if (registered != null && registered.installedVersion == null) {
+      fail(descriptor.id, InstallError.IdTaken)
+      return
+    }
     val moves =
       fetchRepertoire(
         descriptor,
@@ -243,16 +256,15 @@ class RepertoireLibraryViewModel(
         fail(descriptor.id, it)
       } ?: return
     setInstallState(descriptor.id, RepertoireInstallState.Importing(0f))
-    // Read before markInstalled flips it, so a reinstall of an already-installed repertoire is
-    // never counted as a second install of it.
-    val isFirstInstall = !installedStore.isInstalled(descriptor.id)
+    // A reinstall of an already installed repertoire is never counted as a second install of it.
+    val isFirstInstall = registered == null
     val summary =
       try {
         val importSummary =
           importMoves(descriptor, moves) {
             setInstallState(descriptor.id, RepertoireInstallState.Importing(it))
           }
-        installedStore.markInstalled(descriptor.id)
+        registerInstall(descriptor)
         importSummary
       } catch (e: CancellationException) {
         throw e
@@ -408,6 +420,9 @@ sealed class InstallError {
 
   /** The repertoire decoded but could not be merged into the opening graph. Nothing was written. */
   data class ImportFailed(val message: String) : InstallError()
+
+  /** One of the user's own repertoires already uses the catalog id. Nothing was written. */
+  data object IdTaken : InstallError()
 }
 
 private val LOGGER = Logger.withTag("RepertoireLibraryViewModel")

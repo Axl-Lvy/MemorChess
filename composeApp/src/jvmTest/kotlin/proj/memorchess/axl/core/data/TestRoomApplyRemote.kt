@@ -87,4 +87,112 @@ class TestRoomApplyRemote {
       setOf("e4")
     manager.getOutbox() shouldBe emptyList()
   }
+
+  @Test
+  fun aMoveKeepsItsOwnAndEffectiveMarkings() = runTest {
+    val db = manager
+    db.applyRemoteNode(node("a"))
+    db.applyRemoteNode(node("b"))
+    val move =
+      DataMove(
+        PositionKey("a"),
+        PositionKey("b"),
+        "e4",
+        isGood = true,
+        ownIsGood = null,
+        updatedAt = now,
+      )
+
+    db.applyRemoteMove(move)
+
+    val stored = db.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.getValue("e4")
+    stored.isGood shouldBe true
+    stored.ownIsGood shouldBe null
+  }
+
+  @Test
+  fun aSoftDeletedMoveLosesItsManualHold() = runTest {
+    val db = manager
+    db.applyRemoteNode(node("a"))
+    db.applyRemoteNode(node("b"))
+    db.applyRemoteMove(
+      DataMove(
+        PositionKey("a"),
+        PositionKey("b"),
+        "e4",
+        isGood = true,
+        ownIsGood = true,
+        updatedAt = now,
+      )
+    )
+
+    db.deleteMove(PositionKey("a"), "e4", "d", 2L, now)
+
+    val stored =
+      db
+        .getPositionIncludingDeleted(PositionKey("a"))!!
+        .previousAndNextMoves
+        .nextMoves
+        .getValue("e4")
+    stored.isDeleted shouldBe true
+    stored.ownIsGood shouldBe null
+  }
+
+  @Test
+  fun aTagKeepsItsMoveAndMarking() = runTest {
+    val db = manager
+    val tag =
+      DataEdgeRepertoireTag(
+        PositionKey("a"),
+        PositionKey("b"),
+        repertoireId = "london",
+        move = "d4",
+        isGood = false,
+        updatedAt = now,
+      )
+
+    db.applyRemoteTag(tag)
+
+    db.getTagIncludingDeleted(PositionKey("a"), PositionKey("b"), "london") shouldBe tag
+  }
+
+  @Test
+  fun aRepertoireKeepsItsInstalledVersion() = runTest {
+    val db = manager
+    val repertoire =
+      DataRepertoire(
+        id = "london",
+        name = "London",
+        color = null,
+        installedVersion = 4,
+        updatedAt = now,
+      )
+
+    db.applyRemoteRepertoire(repertoire)
+
+    db.getRepertoire("london") shouldBe repertoire
+  }
+
+  @Test
+  fun getTagsTouchingReturnsLiveTagsFromOrToAPosition() = runTest {
+    val db = manager
+    val a = PositionKey("a")
+    val b = PositionKey("b")
+    val c = PositionKey("c")
+    db.applyRemoteTag(DataEdgeRepertoireTag(a, b, repertoireId = "r", move = "e4", updatedAt = now))
+    db.applyRemoteTag(DataEdgeRepertoireTag(c, a, repertoireId = "r", move = "d4", updatedAt = now))
+    db.applyRemoteTag(DataEdgeRepertoireTag(b, c, repertoireId = "r", move = "c4", updatedAt = now))
+    db.applyRemoteTag(
+      DataEdgeRepertoireTag(
+        a,
+        c,
+        repertoireId = "r",
+        move = "f4",
+        isDeleted = true,
+        updatedAt = now,
+      )
+    )
+
+    db.getTagsTouching(a).map { it.move }.toSet() shouldBe setOf("e4", "d4")
+  }
 }

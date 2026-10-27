@@ -96,6 +96,7 @@ internal class TestSyncStoreDeleteUser {
               origin = origin,
               destination = destination,
               repertoireId = "italian-game",
+              move = "e4",
               isDeleted = false,
               updatedAt = serverNow,
               originDevice = "device-a",

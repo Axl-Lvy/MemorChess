@@ -27,6 +27,7 @@ import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.core.graph.InstalledMove
 import proj.memorchess.axl.test_util.TestSettings
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testSyncApplier
@@ -368,6 +369,44 @@ class TestSyncEngineCycle {
     val sentRequest = SYNC_JSON.decodeFromString<SyncPushRequest>(pushBody!!)
     sentRequest.repertoires.map { it.id } shouldBe listOf("italian-game")
     sentRequest.tags.map { it.repertoireId } shouldBe listOf("italian-game")
+  }
+
+  @Test
+  fun aPushAfterAnInstallSendsTagsAndNodesButNoEdge() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val store = treeStore(database)
+    val origin = PositionKey.START_POSITION
+    val destination = PositionKey("posA b K")
+    store.install(
+      "london",
+      listOf(InstalledMove(origin, "d4", destination, isGood = true, fromDepth = 0)),
+    )
+    var pushBody: String? = null
+    val engine = MockEngine { request ->
+      if (request.method.value == "PUT") {
+        respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
+      } else if (request.method.value == "GET") {
+        jsonResponse(emptyPullBody)
+      } else {
+        pushBody = (request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString()
+        jsonResponse(emptyPushBody)
+      }
+    }
+
+    runSyncCycle(
+      FakeAuthProvider(TokenResult.Ok("tok")),
+      database,
+      syncApplier(database),
+      SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
+      DeviceIdentity.ephemeral(),
+      SyncJobStore(TestSettings()),
+    )
+
+    val sent = SYNC_JSON.decodeFromString<SyncPushRequest>(pushBody!!)
+    sent.edges shouldBe emptyList()
+    sent.nodes.map { it.positionKey }.toSet() shouldBe setOf(origin.value, destination.value)
+    sent.tags.map { Triple(it.repertoireId, it.move, it.isGood) } shouldBe
+      listOf(Triple("london", "d4", true))
   }
 
   @Test

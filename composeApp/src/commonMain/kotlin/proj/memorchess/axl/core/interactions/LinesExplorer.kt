@@ -31,9 +31,12 @@ import proj.memorchess.axl.core.graph.TreeStore
  * edge; deferred as a follow up, since the feature's actual gate is which moves [getNextMoves]
  * offers and a scoped trainer accepts, not the color indicator.
  *
+ * Saving holds the line manually: every move from the starting position to the saved one gets the
+ * user's own marking, so a move an installed repertoire brought in becomes the user's own.
+ *
  * @param repertoireScope When not `null`, [getNextMoves] narrows to edges tagged with this
- *   repertoire, and playing a genuinely new move tags it with this repertoire. `null` behaves
- *   exactly as before this parameter existed.
+ *   repertoire, and saving a line tags the genuinely new moves this session played on it with this
+ *   repertoire. `null` behaves exactly as before this parameter existed.
  */
 open class LinesExplorer(
   position: PositionKey? = null,
@@ -45,6 +48,9 @@ open class LinesExplorer(
   private val startPosition = position ?: PositionKey.START_POSITION
 
   protected val navigation = NavigationHistory(startPosition)
+
+  /** Moves this scoped session created, tagged with [repertoireScope] once a save holds them. */
+  private val newMoves = mutableSetOf<Pair<PositionKey, PositionKey>>()
 
   var state by mutableStateOf(NodeState.UNKNOWN)
     protected set
@@ -129,43 +135,74 @@ open class LinesExplorer(
     val origin = navigation.current
     val destination = engine.toPositionKey()
     val originDepth = navigation.depth
-    val existingEdge = treeStore.node(origin)?.outgoing?.get(move)
+    // Replaying a known move writes nothing: re-upserting it would turn a move an installed
+    // repertoire holds into a manual hold.
     val edge =
-      treeStore.addMove(
-        from = origin,
-        move = move,
-        to = destination,
-        isGood = existingEdge?.isGood,
-        fromDepth = originDepth,
-      )
-    if (repertoireScope != null && existingEdge == null) {
-      tagStore.tag(origin, destination, repertoireScope)
-    }
+      treeStore.node(origin)?.outgoing?.get(move)
+        ?: treeStore
+          .addMove(
+            from = origin,
+            move = move,
+            to = destination,
+            isGood = null,
+            fromDepth = originDepth,
+          )
+          .also { if (repertoireScope != null) newMoves += origin to destination }
     navigation.push(edge, destination)
     state = treeStore.computeState(navigation.current, navigation.arrivedVia?.from)
     callCallBacks()
   }
 
   /**
-   * Classifies the current line as good and saves it. The walk back alternates: even index (the
-   * destination itself and its grandparent) is good; odd index (its parent and great grandparent)
-   * is bad if currently unclassified, otherwise left as is.
+   * Classifies the current line and holds it manually. The walk back alternates: the move reaching
+   * the current position and every second move before it are good; the others keep the marking the
+   * user sees, or turn bad when unclassified. Off line moves into a position on the line turn good
+   * only when the user already holds them. The line above the session's root is held at the
+   * markings it shows, and a scoped session then tags the new moves of the saved line.
    */
   suspend fun save() {
-    val current = navigation.current
-    val currentDepth = treeStore.getDepth(current)
-    classifyIncoming(current, currentDepth, mode = ClassifyMode.GOOD)
-
-    val path = navigation.getBackPath().reversed()
-    for ((index, entry) in path.withIndex()) {
-      val (position, _) = entry
-      val mode = if (index % 2 == 0) ClassifyMode.BAD_IF_UNKNOWN else ClassifyMode.GOOD
-      val depth = treeStore.getDepth(position)
-      classifyIncoming(position, depth, mode)
+    val path = navigation.getBackPath()
+    val root = path.firstOrNull()?.first ?: navigation.current
+    holdLineAbove(root)
+    val reached = listOf(root) + path.map { it.second.to }
+    val pathEdges = path.map { it.second.from to it.second.to }.toSet()
+    for ((index, position) in reached.withIndex()) {
+      val fromCurrent = reached.lastIndex - index
+      val mode = if (fromCurrent % 2 == 0) ClassifyMode.GOOD else ClassifyMode.BAD_IF_UNKNOWN
+      classifyIncoming(position, treeStore.getDepth(position), mode, pathEdges)
+    }
+    if (repertoireScope != null) {
+      for (edge in path.map { it.second }) {
+        if (newMoves.remove(edge.from to edge.to)) tagStore.tag(edge.from, edge.to, repertoireScope)
+      }
     }
 
     state = treeStore.computeState(navigation.current, navigation.arrivedVia?.from)
     toastRenderer.info(Res.string.toast_saved)
+  }
+
+  /**
+   * Holds the line above [root] manually so the saved line stays connected to the starting position
+   * through manual holds: while no move into the position is held, holds the one from the
+   * shallowest origin at the marking it shows.
+   */
+  private suspend fun holdLineAbove(root: PositionKey) {
+    var position = root
+    val visited = mutableSetOf<PositionKey>()
+    while (position != PositionKey.START_POSITION && visited.add(position)) {
+      val incoming =
+        treeStore.node(position)?.incoming?.values?.filter { !it.isDeleted && it.isGood != null }
+      if (incoming.isNullOrEmpty() || incoming.any { it.ownIsGood != null }) return
+      val parent = incoming.minBy { treeStore.getDepth(it.from) }
+      treeStore.addMove(
+        parent.from,
+        parent.move,
+        parent.to,
+        parent.isGood,
+        treeStore.getDepth(parent.from),
+      )
+      position = parent.from
+    }
   }
 
   /** Deletes the current position's children and the position itself. */
@@ -218,15 +255,26 @@ open class LinesExplorer(
     BAD_IF_UNKNOWN,
   }
 
-  private suspend fun classifyIncoming(position: PositionKey, depth: Int, mode: ClassifyMode) {
+  /**
+   * Holds the move into [position] that lies on the saved line, at the marking [mode] gives it.
+   * Other moves into [position] change only when the user already holds them.
+   */
+  private suspend fun classifyIncoming(
+    position: PositionKey,
+    depth: Int,
+    mode: ClassifyMode,
+    pathEdges: Set<Pair<PositionKey, PositionKey>>,
+  ) {
     val incoming = treeStore.node(position)?.incoming?.values?.toList().orEmpty()
     for (edge in incoming) {
+      val onPath = (edge.from to edge.to) in pathEdges
+      if (!onPath && edge.ownIsGood == null) continue
       val newIsGood =
         when (mode) {
           ClassifyMode.GOOD -> true
-          ClassifyMode.BAD_IF_UNKNOWN -> edge.isGood ?: false
+          ClassifyMode.BAD_IF_UNKNOWN -> edge.ownIsGood ?: edge.isGood ?: false
         }
-      if (edge.isGood == newIsGood) continue
+      if (edge.ownIsGood == newIsGood) continue
       val originDepth = (depth - 1).coerceAtLeast(0)
       treeStore.addMove(
         from = edge.from,

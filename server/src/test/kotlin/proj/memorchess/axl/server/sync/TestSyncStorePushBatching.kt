@@ -102,6 +102,7 @@ internal class TestSyncStorePushBatching {
               origin = fen(prefix, it),
               destination = fen(prefix, it + count),
               repertoireId = "$prefix-rep-${it % REPERTOIRES + 1}",
+              move = "e4",
               isDeleted = false,
               updatedAt = at,
               originDevice = "device-a",
