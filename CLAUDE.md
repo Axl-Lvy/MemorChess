@@ -8,7 +8,7 @@ MemorChess is a Kotlin Multiplatform app for memorizing chess openings with spac
 ./gradlew ktfmtFormat                                                                   # format (ktfmt, Google style); a pre-commit hook checks it on master
 ./gradlew jvmTest                                                                       # composeApp + shared tests
 ./gradlew :composeApp:jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache" # one class
-./gradlew :composeApp:wasmJsTest                                                        # wasm UI tests
+./gradlew :composeApp:wasmJsTest --no-configuration-cache                                # wasm UI tests
 ./gradlew :server:test                                                                  # needs Docker
 ./gradlew :e2e:test                                                                     # client against a real server, needs Docker
 ./gradlew :androidApp:connectedCheck                                                    # Android instrumented tests
