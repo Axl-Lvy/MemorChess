@@ -58,6 +58,8 @@ class TreeStore(
   private val notifyDirty: () -> Unit = {},
 ) {
 
+  private val cleanup = HolderCleanup(database)
+
   /**
    * Resolves the node at [positionKey] through the bounded cache.
    *
@@ -304,6 +306,106 @@ class TreeStore(
   suspend fun fork(sourceId: String, newId: String, newName: String, color: RepertoireColor?) {
     holdManually(tagStore.edgesTaggedWith(sourceId))
     tagStore.fork(sourceId, newId, newName, color)
+  }
+
+  /** Number of moves [uninstall] of [repertoireId] would delete. */
+  suspend fun previewUninstall(repertoireId: String): Int {
+    val edges = tagStore.edgesTaggedWith(repertoireId)
+    return cleanup.plan(edges, HoldOverlay(repertoireId, edges.toSet(), emptySet())).moves.size
+  }
+
+  /**
+   * Uninstalls [repertoireId]: tombstones its registry row and tags, then deletes every move no
+   * holder keeps and every position the deletion cuts off, with their review progress. Moves the
+   * user holds or another installed repertoire holds stay, with their re-derived marking.
+   *
+   * @throws IllegalArgumentException if [repertoireId] is not an installed repertoire.
+   */
+  suspend fun uninstall(repertoireId: String) {
+    require(tagStore.repertoire(repertoireId)?.installedVersion != null) {
+      "$repertoireId is not an installed repertoire"
+    }
+    val edges = tagStore.edgesTaggedWith(repertoireId)
+    tagStore.unregister(repertoireId)
+    releaseHolds(repertoireId, edges)
+  }
+
+  /**
+   * Removes [repertoireId]'s holds on [edges], re-derives the marking of the moves something still
+   * holds, and applies the [HolderCleanup] plan. An unheld move is deleted without an outbox entry,
+   * since every device derives move existence from the holders; a removed manual hold, a tag and a
+   * deleted position are queued for push.
+   */
+  private suspend fun releaseHolds(repertoireId: String, edges: List<TaggedEdge>) {
+    if (edges.isEmpty()) return
+    for (edge in edges) tagStore.untag(edge.origin, edge.destination, repertoireId)
+    val plan = cleanup.plan(edges)
+    val deleted = plan.moves.map { TaggedEdge(it.origin, it.destination, it.move) }.toSet()
+    for (edge in edges) {
+      if (edge !in deleted) rederiveMarking(edge)
+    }
+    val now = DateUtil.now()
+    for (move in plan.moves) {
+      tagStore.tombstoneTags(move.origin, move.destination)
+      if (move.ownIsGood != null) {
+        database.deleteMove(
+          move.origin,
+          move.move,
+          deviceIdentity.originDevice,
+          deviceIdentity.nextDeviceSeq(),
+          now,
+        )
+      } else {
+        database.applyRemoteMove(move.copy(isDeleted = true))
+      }
+    }
+    for (position in plan.positions) {
+      database.deletePosition(
+        position,
+        deviceIdentity.originDevice,
+        deviceIdentity.nextDeviceSeq(),
+        now,
+      )
+      trainable.clear(position)
+    }
+    val touched = linkedSetOf<PositionKey>()
+    for (edge in edges + deleted) {
+      touched += edge.origin
+      touched += edge.destination
+    }
+    for (position in touched) cache.invalidate(position)
+    for (origin in edges.map { it.origin } + deleted.map { it.origin }) {
+      if (origin in plan.positions) continue
+      refreshHasGoodOutgoing(origin)
+      trainable.recompute(origin)
+    }
+    notifyDirty()
+  }
+
+  /** Writes the effective marking of the live move [edge] from its holders, without outbox entry. */
+  private suspend fun rederiveMarking(edge: TaggedEdge) {
+    val stored =
+      database.getPositionIncludingDeleted(edge.origin)?.previousAndNextMoves?.nextMoves?.get(
+        edge.move
+      ) ?: return
+    if (stored.isDeleted) return
+    val effective =
+      effectiveMarking(
+        stored.ownIsGood,
+        database.getTags(edge.origin, edge.destination).mapNotNull { it.isGood },
+      ) ?: return
+    if (effective != stored.isGood) database.applyRemoteMove(stored.copy(isGood = effective))
+  }
+
+  /** Re-derives the stored [DataNode.hasGoodOutgoing] of [origin], without outbox entry. */
+  private suspend fun refreshHasGoodOutgoing(origin: PositionKey) {
+    val node = database.getPositionIncludingDeleted(origin) ?: return
+    if (node.isDeleted) return
+    val recomputed =
+      node.previousAndNextMoves.nextMoves.values.any { it.isGood == true && !it.isDeleted }
+    if (recomputed != node.hasGoodOutgoing) {
+      database.applyRemoteNode(node.copy(hasGoodOutgoing = recomputed))
+    }
   }
 
   /**

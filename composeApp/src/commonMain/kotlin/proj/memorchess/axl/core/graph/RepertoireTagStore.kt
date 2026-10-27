@@ -165,6 +165,35 @@ class RepertoireTagStore(
     notifyDirty()
   }
 
+  /** Tombstones the registry row of [id]. Queues its own outbox entry; a no-op when none is live. */
+  internal suspend fun unregister(id: String) {
+    val live = database.getRepertoire(id) ?: return
+    database.insertRepertoire(
+      live.copy(
+        isDeleted = true,
+        updatedAt = DateUtil.now(),
+        originDevice = deviceIdentity.originDevice,
+        deviceSeq = deviceIdentity.nextDeviceSeq(),
+      )
+    )
+    notifyDirty()
+  }
+
+  /** Tombstones the live tag of [repertoireId] on the edge from [origin] to [destination], if any. */
+  internal suspend fun untag(origin: PositionKey, destination: PositionKey, repertoireId: String) {
+    val live =
+      database.getTagIncludingDeleted(origin, destination, repertoireId)?.takeIf { !it.isDeleted }
+        ?: return
+    database.insertTag(
+      live.copy(
+        isDeleted = true,
+        updatedAt = DateUtil.now(),
+        originDevice = deviceIdentity.originDevice,
+        deviceSeq = deviceIdentity.nextDeviceSeq(),
+      )
+    )
+  }
+
   /** Tombstones every live tag on the edge from [origin] to [destination]. */
   internal suspend fun tombstoneTags(origin: PositionKey, destination: PositionKey) {
     for (live in database.getTags(origin, destination)) {
