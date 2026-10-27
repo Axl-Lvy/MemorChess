@@ -140,6 +140,8 @@
   <string name="training_hint">HINT</string>
   <string name="training_reveal">REVEAL</string>
   <string name="training_failed">FAILED</string>
+  <string name="training_hint_confirm">Using a hint marks this move as failed.</string>
+  <string name="training_reveal_confirm">Revealing the move marks it as failed.</string>
   <string name="training_white_to_move">WHITE TO MOVE</string>
   <string name="training_black_to_move">BLACK TO MOVE</string>
   <string name="training_finished_title">Bravo !</string>

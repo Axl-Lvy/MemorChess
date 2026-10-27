@@ -23,7 +23,9 @@ import memorchess.composeapp.generated.resources.training_corner_tag
 import memorchess.composeapp.generated.resources.training_days_in_advance
 import memorchess.composeapp.generated.resources.training_finished_subtitle
 import memorchess.composeapp.generated.resources.training_finished_title
+import memorchess.composeapp.generated.resources.training_hint_confirm
 import memorchess.composeapp.generated.resources.training_increment_day
+import memorchess.composeapp.generated.resources.training_reveal_confirm
 import org.jetbrains.compose.resources.stringResource
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -43,6 +45,7 @@ import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.components.explore.MovesTrail
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
+import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.components.training.BoardContainer
 import proj.memorchess.axl.ui.components.training.KineticProgressRail
 import proj.memorchess.axl.ui.components.training.TrainingCounterRow
@@ -90,6 +93,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
   private var failed by mutableStateOf(false)
   // Monotonic count of graded moves, driving the board feedback animations once per move.
   private var attempt by mutableStateOf(0)
+  private val assistConfirmation = ConfirmationDialog()
 
   // Session counters — live for the lifetime of this `TrainingBoard` instance (i.e. the lifetime
   // of the page). When the user leaves Training and comes back, the page is recreated and these
@@ -122,6 +126,11 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
   private fun showHint(squares: Set<BoardLocation>) {
     hintSquares = hintSquares + squares
     markFailed()
+  }
+
+  /** Runs [assist] right away on a failed card, otherwise once the user confirms [warning]. */
+  private fun confirmAssist(warning: String, assist: () -> Unit) {
+    if (failed) assist() else assistConfirmation.show(warning, assist)
   }
 
   private fun markFailed() {
@@ -223,6 +232,8 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
     modifier: Modifier = Modifier,
   ) {
     val cornerTag = stringResource(Res.string.training_corner_tag)
+    val hintWarning = stringResource(Res.string.training_hint_confirm)
+    val revealWarning = stringResource(Res.string.training_reveal_confirm)
     val scope = rememberCoroutineScope()
     val trainer = remember {
       val trainer =
@@ -324,12 +335,18 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
               onSkip = { scope.launch { choseNextNode() } },
               onHint = {
                 if (!state.isShowing) {
-                  scope.launch { trainer.hint()?.let { showHint(setOf(it)) } }
+                  confirmAssist(hintWarning) {
+                    scope.launch { trainer.hint()?.let { showHint(setOf(it)) } }
+                  }
                 }
               },
               onReveal = {
                 if (!state.isShowing) {
-                  scope.launch { trainer.reveal()?.let { (from, to) -> showHint(setOf(from, to)) } }
+                  confirmAssist(revealWarning) {
+                    scope.launch {
+                      trainer.reveal()?.let { (from, to) -> showHint(setOf(from, to)) }
+                    }
+                  }
                 }
               },
               feedbackActive = state == TrainingBoardState.SHOW_WRONG_MOVE,
@@ -345,6 +362,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
         LandscapeTrainingLayout(content = content, modifier = modifier)
       }
     }
+    assistConfirmation.DrawDialog()
   }
 }
 

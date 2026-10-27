@@ -214,8 +214,55 @@ class TestTraining : TestWithKoin() {
     }
 
   @Test
-  fun testHintGradesTheCardAgainOnce() = runTestFromSetup {
+  fun testHintAsksForConfirmationAndCancelLeavesTheCardUntouched() = runTestFromSetup {
     assertNodeWithTextExists("HINT").performClick()
+    assertNodeWithTagExists("confirmDialog")
+
+    assertNodeWithTagExists("confirmDialogCancelButton").performClick()
+
+    assertNodeWithTagDoesNotExists("confirmDialog")
+    assertNodeWithTextDoesNotExists(FAILED_TEXT)
+    storedStartCard().reps shouldBe 0
+  }
+
+  @Test
+  fun testRevealAsksForConfirmationAndCancelLeavesTheCardUntouched() = runTestFromSetup {
+    assertNodeWithTextExists("REVEAL").performClick()
+    assertNodeWithTagExists("confirmDialog")
+
+    assertNodeWithTagExists("confirmDialogCancelButton").performClick()
+
+    assertNodeWithTagDoesNotExists("confirmDialog")
+    assertNodeWithTextDoesNotExists(FAILED_TEXT)
+    storedStartCard().reps shouldBe 0
+  }
+
+  @Test
+  fun testHintOnAnAlreadyFailedCardSkipsTheConfirmation() = runTestFromSetup {
+    playMove("e2", "e3")
+    assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
+    assertNodeWithTextExists(FAILED_TEXT)
+
+    assertNodeWithTextExists("HINT").performClick()
+    assertNodeWithTextExists("REVEAL").performClick()
+
+    assertNodeWithTagDoesNotExists("confirmDialog")
+    storedStartCard().reps shouldBe 1
+  }
+
+  @Test
+  fun testHintOnACardFailedByAHintSkipsTheConfirmation() = runTestFromSetup {
+    confirmAssist("HINT")
+    assertNodeWithTextExists(FAILED_TEXT)
+
+    assertNodeWithTextExists("REVEAL").performClick()
+
+    assertNodeWithTagDoesNotExists("confirmDialog")
+  }
+
+  @Test
+  fun testHintGradesTheCardAgainOnce() = runTestFromSetup {
+    confirmAssist("HINT")
     waitUntilSuspending { storedStartCard().reps == 1 }
     assertNodeWithTextExists(FAILED_TEXT)
 
@@ -227,7 +274,7 @@ class TestTraining : TestWithKoin() {
 
   @Test
   fun testRevealGradesTheCardAgainOnce() = runTestFromSetup {
-    assertNodeWithTextExists("REVEAL").performClick()
+    confirmAssist("REVEAL")
     waitUntilSuspending { storedStartCard().reps == 1 }
     assertNodeWithTextExists(FAILED_TEXT)
 
@@ -246,7 +293,7 @@ class TestTraining : TestWithKoin() {
       assertNodeWithTextExists("INCREMENT A DAY").performClick()
       assertNodeWithTextExists("INCREMENT A DAY").performClick()
       assertNodeWithTextDoesNotExists(BRAVO_TEXT)
-      assertNodeWithTextExists("REVEAL").performClick()
+      confirmAssist("REVEAL")
       waitUntilSuspending { storedStartCard().reps == 6 }
 
       playMove("e2", "e4")
@@ -254,6 +301,12 @@ class TestTraining : TestWithKoin() {
       assertNodeWithTextExists(BRAVO_TEXT)
       assertNodeWithTextExists("Days in advance: 1")
     }
+
+  /** Presses the HINT or REVEAL button labelled [label] and confirms the fail warning. */
+  private suspend fun ComposeUiTest.confirmAssist(label: String) {
+    assertNodeWithTextExists(label).performClick()
+    assertNodeWithTagExists("confirmDialogOkButton").performClick()
+  }
 
   private suspend fun storedStartCard(): CardState =
     drainAllNodes(database).single { it.positionKey == PositionKey.START_POSITION }.cardState
