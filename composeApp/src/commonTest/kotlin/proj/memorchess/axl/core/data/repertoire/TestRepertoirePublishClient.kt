@@ -118,7 +118,7 @@ class TestRepertoirePublishClient {
     val client =
       clientAnswering(
         HttpStatusCode.BadRequest,
-        SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INVALID_PGN, "bad pgn")),
+        SYNC_JSON.encodeToString(ApiError(ApiErrorCode.INVALID_REPERTOIRE, "bad pgn")),
       )
 
     val outcome = client.publish("token", "italian-game", "Italian Game", "d", "white", "1. e4")

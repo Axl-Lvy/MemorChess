@@ -40,8 +40,8 @@ object ApiErrorCode {
   /** No resource exists at the given id, or it is not visible to this caller. */
   const val NOT_FOUND: String = "not_found"
 
-  /** The uploaded PGN does not parse, has no playable move, or plays an illegal move. */
-  const val INVALID_PGN: String = "invalid_pgn"
+  /** The uploaded repertoire has no move, an illegal move, or a move not connected to the start. */
+  const val INVALID_REPERTOIRE: String = "invalid_repertoire"
 
   /** The request would exceed a per user quota. */
   const val QUOTA_EXCEEDED: String = "quota_exceeded"

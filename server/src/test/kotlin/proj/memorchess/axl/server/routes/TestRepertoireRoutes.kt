@@ -468,7 +468,7 @@ class TestRepertoireRoutes {
 
       response.status shouldBe HttpStatusCode.BadRequest
       SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe
-        ApiErrorCode.INVALID_PGN
+        ApiErrorCode.INVALID_REPERTOIRE
     }
   }
 

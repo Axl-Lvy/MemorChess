@@ -183,7 +183,7 @@ private suspend fun RoutingContext.respondToPublishOutcome(outcome: PublishOutco
   when (outcome) {
     is PublishOutcome.Published -> call.respond(HttpStatusCode.Created, outcome.row.toDescriptor())
     is PublishOutcome.InvalidPayload ->
-      call.respond(HttpStatusCode.BadRequest, ApiError(ApiErrorCode.INVALID_PGN, outcome.reason))
+      call.respond(HttpStatusCode.BadRequest, ApiError(ApiErrorCode.INVALID_REPERTOIRE, outcome.reason))
     is PublishOutcome.PayloadTooLarge ->
       call.respond(HttpStatusCode.PayloadTooLarge, ApiError(ApiErrorCode.TOO_LARGE, outcome.reason))
     PublishOutcome.Forbidden ->
