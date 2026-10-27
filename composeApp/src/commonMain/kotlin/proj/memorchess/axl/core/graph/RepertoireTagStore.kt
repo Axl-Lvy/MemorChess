@@ -150,7 +150,7 @@ class RepertoireTagStore(
       live.copy(
         isDeleted = true,
         updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     )
@@ -167,7 +167,7 @@ class RepertoireTagStore(
         live.copy(
           isDeleted = true,
           updatedAt = DateUtil.now(),
-          originDevice = deviceIdentity.originDevice,
+          originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
         )
       )

@@ -300,7 +300,7 @@ class TreeStore(
         database.deleteMove(
           move.origin,
           move.move,
-          deviceIdentity.originDevice,
+          deviceIdentity.originDevice.value,
           deviceIdentity.nextDeviceSeq(),
           now,
         )
@@ -311,7 +311,7 @@ class TreeStore(
     for (position in plan.positions) {
       database.deletePosition(
         position,
-        deviceIdentity.originDevice,
+        deviceIdentity.originDevice.value,
         deviceIdentity.nextDeviceSeq(),
         now,
       )

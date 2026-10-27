@@ -224,7 +224,7 @@ class TestMoveHoldersE2e {
   @Test
   fun `an uninstall reaches another device and deletes the moves there`() =
     runBlocking<Unit> {
-      val token = server.tokenFor(server.newUserId())
+      val token = AccessToken(server.tokenFor(server.newUserId()))
       val deviceA = Device()
       val deviceB = Device()
       register(token, deviceA)
@@ -248,7 +248,7 @@ class TestMoveHoldersE2e {
   @Test
   fun `a manual hold pushed after an uninstall brings the move back`() =
     runBlocking<Unit> {
-      val token = server.tokenFor(server.newUserId())
+      val token = AccessToken(server.tokenFor(server.newUserId()))
       val deviceA = Device()
       val deviceB = Device()
       register(token, deviceA)
