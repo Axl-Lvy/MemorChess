@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import proj.memorchess.axl.core.data.repertoire.CatalogResult
 import proj.memorchess.axl.core.data.repertoire.PublishOutcome
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
 import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
@@ -38,7 +39,7 @@ class TestRepertoireCatalogE2e {
           id = id,
           title = "E2E round trip",
           description = "Published by TestRepertoireCatalogE2e",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
       val manifest =
@@ -67,7 +68,7 @@ class TestRepertoireCatalogE2e {
           id = UUID.randomUUID().toString(),
           title = "E2E unauthorized",
           description = "Must never be stored",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
 
@@ -84,7 +85,7 @@ class TestRepertoireCatalogE2e {
           id = id,
           title = "E2E shared state",
           description = "Published on the first server",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
         .shouldBeInstanceOf<PublishOutcome.Published>()
@@ -113,7 +114,7 @@ class TestRepertoireCatalogE2e {
           id = id,
           title = "E2E missing version",
           description = "Only version 1 exists",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
         .shouldBeInstanceOf<PublishOutcome.Published>()
