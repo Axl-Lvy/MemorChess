@@ -106,7 +106,9 @@ import memorchess.composeapp.generated.resources.library_publish_error_server
 import memorchess.composeapp.generated.resources.library_publish_error_signed_out
 import memorchess.composeapp.generated.resources.library_publish_error_too_large
 import memorchess.composeapp.generated.resources.library_refresh
+import memorchess.composeapp.generated.resources.library_moves_to_delete
 import memorchess.composeapp.generated.resources.library_reinstall
+import memorchess.composeapp.generated.resources.library_uninstall
 import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.library_stale_hint
 import memorchess.composeapp.generated.resources.library_subtitle
@@ -224,12 +226,14 @@ fun RepertoireLibrary(
   val previewStates by viewModel.previewStates.collectAsState()
   val myRepertoires by viewModel.myRepertoires.collectAsState()
   val masterySnapshots by viewModel.masterySnapshots.collectAsState()
+  val uninstallPreviews by viewModel.uninstallPreviews.collectAsState()
   RepertoireLibraryContent(
     catalogState = catalogState,
     installStates = installStates,
     previewStates = previewStates,
     myRepertoires = myRepertoires,
     masterySnapshots = masterySnapshots,
+    uninstallPreviews = uninstallPreviews,
     installedIds = myRepertoires.filter { it.installedVersion != null }.map { it.id }.toSet(),
     actions =
       RepertoireLibraryActions(
@@ -241,6 +245,8 @@ fun RepertoireLibrary(
         onExplore = { id -> navigator.navigateTo(Route.ExploreRoute(repertoireId = id)) },
         onTrain = { id -> navigator.navigateTo(Route.TrainingRoute(repertoireId = id)) },
         onRepertoireListChanged = viewModel::refreshMyRepertoires,
+        onUninstallRequest = viewModel::requestUninstallPreview,
+        onUninstall = viewModel::uninstall,
       ),
     modifier = Modifier.fillMaxSize().testTag(Route.LibraryRoute.getLabel()),
   )
@@ -276,6 +282,8 @@ internal data class RepertoireLibraryActions(
   val onExplore: (repertoireId: String) -> Unit = {},
   val onTrain: (repertoireId: String) -> Unit = {},
   val onRepertoireListChanged: () -> Unit = {},
+  val onUninstallRequest: (RepertoireDescriptor) -> Unit = {},
+  val onUninstall: (RepertoireDescriptor) -> Unit = {},
 )
 
 /**
@@ -291,12 +299,16 @@ internal fun RepertoireLibraryContent(
   actions: RepertoireLibraryActions,
   masterySnapshots: Map<String, RepertoireMasterySnapshot> = emptyMap(),
   installedIds: Set<String> = emptySet(),
+  uninstallPreviews: Map<String, Int> = emptyMap(),
   modifier: Modifier = Modifier,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val previewDialog = remember { ConfirmationDialog(okText = Res.string.library_install) }
   previewDialog.DrawDialog()
+  val uninstallDialog = remember { ConfirmationDialog(okText = Res.string.library_uninstall) }
+  uninstallDialog.DrawDialog()
+  val latestUninstallPreviews = rememberUpdatedState(uninstallPreviews)
   // The dialog keeps the content lambda from the moment it was shown, so read the latest preview
   // through this holder to reflect the Loading -> Ready transition while the dialog stays open.
   val latestPreviewStates = rememberUpdatedState(previewStates)
@@ -370,6 +382,12 @@ internal fun RepertoireLibraryContent(
             actions.onPreviewRequest(descriptor)
             previewDialog.show(confirm = { actions.onInstall(descriptor) }) {
               PreviewDialogContent(descriptor, latestPreviewStates.value[descriptor.id])
+            }
+          },
+          onUninstallRequest = { descriptor ->
+            actions.onUninstallRequest(descriptor)
+            uninstallDialog.show(confirm = { actions.onUninstall(descriptor) }) {
+              UninstallDialogContent(descriptor, latestUninstallPreviews.value[descriptor.id])
             }
           },
           onView = actions.onView,
@@ -751,6 +769,7 @@ private fun CatalogList(
   masterySnapshots: Map<String, RepertoireMasterySnapshot>,
   onPreviewRequest: (RepertoireDescriptor) -> Unit,
   onInstallRequest: (RepertoireDescriptor) -> Unit,
+  onUninstallRequest: (RepertoireDescriptor) -> Unit,
   onView: (RepertoireDescriptor) -> Unit,
 ) {
   val palette = LocalKineticPalette.current
@@ -807,6 +826,7 @@ private fun CatalogList(
               installState = installStates[descriptor.id] ?: RepertoireInstallState.NotInstalled,
               mastery = masterySnapshots[descriptor.id],
               onInstallRequest = { onInstallRequest(descriptor) },
+              onUninstallRequest = { onUninstallRequest(descriptor) },
               onView = { onView(descriptor) },
             )
           }
@@ -1250,6 +1270,7 @@ private fun RepertoireCard(
   installState: RepertoireInstallState,
   mastery: RepertoireMasterySnapshot?,
   onInstallRequest: () -> Unit,
+  onUninstallRequest: () -> Unit,
   onView: () -> Unit,
 ) {
   val palette = LocalKineticPalette.current
@@ -1325,6 +1346,7 @@ private fun RepertoireCard(
       installState = installState,
       mastery = mastery,
       onInstallRequest = onInstallRequest,
+      onUninstallRequest = onUninstallRequest,
     )
   }
 }
@@ -1372,6 +1394,7 @@ private fun InstallStatusRow(
   installState: RepertoireInstallState,
   mastery: RepertoireMasterySnapshot?,
   onInstallRequest: () -> Unit,
+  onUninstallRequest: () -> Unit,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -1432,9 +1455,24 @@ private fun InstallStatusRow(
             style = typography.bodySm.copy(color = palette.progress),
           )
         }
-        // Reinstalling restores moves the user has removed since installing.
-        KineticButton(onClick = onInstallRequest, style = KineticButtonStyle.Primary) {
-          KineticButtonLabel(stringResource(Res.string.library_reinstall))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          // Reinstalling restores moves the user has removed since installing; updating moves to
+          // the catalog's newer version.
+          KineticButton(onClick = onInstallRequest, style = KineticButtonStyle.Primary) {
+            KineticButtonLabel(
+              stringResource(
+                if (installState.isOutdated) Res.string.library_update
+                else Res.string.library_reinstall
+              )
+            )
+          }
+          KineticButton(
+            onClick = onUninstallRequest,
+            style = KineticButtonStyle.DangerOutline,
+            modifier = Modifier.testTag("$TEST_TAG_CARD:${descriptor.id}:uninstall"),
+          ) {
+            KineticButtonLabel(stringResource(Res.string.library_uninstall))
+          }
         }
       }
     is RepertoireInstallState.Failed ->
@@ -1523,6 +1561,35 @@ private fun PreviewDialogContent(
 }
 
 /**
+ * Body of the uninstall confirmation: the repertoire's name and how many moves the uninstall
+ * deletes, or a checking hint while [movesToDelete] is `null`.
+ */
+@Composable
+private fun UninstallDialogContent(descriptor: RepertoireDescriptor, movesToDelete: Int?) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Text(text = descriptor.name, style = typography.display.copy(color = palette.ink))
+    if (movesToDelete == null) {
+      InstallProgressLine(stringResource(Res.string.library_preview_checking))
+    } else {
+      MovesToDeleteLine(movesToDelete)
+    }
+  }
+}
+
+/** States that [count] moves and their review progress will be deleted. */
+@Composable
+private fun MovesToDeleteLine(count: Int) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  Text(
+    text = pluralStringResource(Res.plurals.library_moves_to_delete, count, count),
+    style = typography.bodySm.copy(color = palette.destructive),
+  )
+}
+
+/**
  * The "moves in common" line of the preview dialog. Renders a checking hint while the overlap loads
  * (also the `null` not-yet-requested case), the count once ready, and a muted notice on failure so
  * a download error never blocks the install. A repertoire with no moves shows nothing.
@@ -1547,6 +1614,9 @@ private fun PreviewOverlap(previewState: RepertoirePreviewState?) {
             ),
           style = typography.bodySm.copy(color = palette.actionText),
         )
+      }
+      if (preview.movesToDelete > 0) {
+        MovesToDeleteLine(preview.movesToDelete)
       }
     }
     is RepertoirePreviewState.Failed ->

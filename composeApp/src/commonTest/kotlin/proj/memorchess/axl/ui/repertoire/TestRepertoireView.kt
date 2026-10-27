@@ -165,6 +165,9 @@ class TestRepertoireView : TestWithKoin() {
     onRetry: () -> Unit = {},
     onRefresh: () -> Unit = {},
     onView: (RepertoireDescriptor) -> Unit = {},
+    uninstallPreviews: Map<String, Int> = emptyMap(),
+    onUninstallRequest: (RepertoireDescriptor) -> Unit = {},
+    onUninstall: (RepertoireDescriptor) -> Unit = {},
   ) {
     setTestContent {
       InitializeApp {
@@ -174,6 +177,7 @@ class TestRepertoireView : TestWithKoin() {
           previewStates = previewStates,
           myRepertoires = emptyList(),
           masterySnapshots = masterySnapshots,
+          uninstallPreviews = uninstallPreviews,
           actions =
             RepertoireLibraryActions(
               onInstall = onInstall,
@@ -181,6 +185,8 @@ class TestRepertoireView : TestWithKoin() {
               onRetry = onRetry,
               onRefresh = onRefresh,
               onView = onView,
+              onUninstallRequest = onUninstallRequest,
+              onUninstall = onUninstall,
             ),
         )
       }
@@ -465,6 +471,81 @@ class TestRepertoireView : TestWithKoin() {
       .assertExists()
     onNodeWithTag(progressTag(secondDescriptor))
       .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
+  }
+
+  @Test
+  fun anInstalledCardOffersUninstall() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNodeWithTag("${cardTag(secondDescriptor)}:uninstall").assertExists()
+    onNodeWithTag("${cardTag(descriptor)}:uninstall").assertDoesNotExist()
+  }
+
+  @Test
+  fun uninstallAsksForConfirmationWithTheCount() = runLibraryTest {
+    val requested = mutableListOf<RepertoireDescriptor>()
+    val uninstalled = mutableListOf<RepertoireDescriptor>()
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+      uninstallPreviews = mapOf(secondDescriptor.id to 3),
+      onUninstallRequest = { requested += it },
+      onUninstall = { uninstalled += it },
+    )
+
+    onNodeWithTag("${cardTag(secondDescriptor)}:uninstall").performClick()
+
+    waitUntilNodeExists(hasText("3 moves and their review progress will be deleted."))
+    assertEquals(listOf(secondDescriptor), requested)
+    assertEquals(emptyList<RepertoireDescriptor>(), uninstalled)
+    onNodeWithTag("confirmDialogOkButton").performClick()
+    assertEquals(listOf(secondDescriptor), uninstalled)
+  }
+
+  @Test
+  fun anOutdatedInstallOffersUpdate() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to RepertoireInstallState.Installed(summary = null, isOutdated = true)
+        ),
+    )
+    onNode(hasText("UPDATE").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNode(hasText("REINSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertDoesNotExist()
+  }
+
+  @Test
+  fun theInstallDialogStatesTheMovesAnUpdateDeletes() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to RepertoireInstallState.Installed(summary = null, isOutdated = true)
+        ),
+      previewStates =
+        mapOf(
+          secondDescriptor.id to
+            RepertoirePreviewState.Ready(
+              PgnImportPreview(totalMoves = 5, movesInCommon = 4, movesToDelete = 1)
+            )
+        ),
+    )
+
+    onNode(hasText("UPDATE").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .performClick()
+
+    waitUntilNodeExists(hasText("1 move and its review progress will be deleted."))
   }
 
   @Test
