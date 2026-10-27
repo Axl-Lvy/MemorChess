@@ -58,7 +58,9 @@ internal class FakeServer {
  * In memory stand in for one device. Its outbox holds keys, not rows, so it never goes stale and
  * repeated edits to one key collapse into a single push.
  */
-internal class FakeClient(private val deviceId: String) {
+internal class FakeClient(deviceId: String) {
+
+  private val deviceId = DeviceId(deviceId)
 
   private val rows = mutableMapOf<String, SettingSyncRow>()
   private val dirty = mutableSetOf<String>()

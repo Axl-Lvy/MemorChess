@@ -18,6 +18,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.server.auth.TEST_AUDIENCE
@@ -99,7 +100,7 @@ class TestRateLimiting {
     SyncStore(PostgresTestDb.dataSource())
       .registerDevice(
         subject,
-        device,
+        DeviceId(device),
         DevicePlatform.JVM,
         afterReset = false,
         Instant.fromEpochSeconds(1_700_000_000),

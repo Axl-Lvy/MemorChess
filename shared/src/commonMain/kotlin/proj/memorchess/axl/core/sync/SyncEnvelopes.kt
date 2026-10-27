@@ -46,7 +46,7 @@ data class SyncPushRequest(
   val settings: List<SettingSyncRow>,
   val repertoires: List<RepertoireSyncRow> = emptyList(),
   val tags: List<EdgeRepertoireTagSyncRow> = emptyList(),
-  val device: String,
+  val device: DeviceId,
 )
 
 /**

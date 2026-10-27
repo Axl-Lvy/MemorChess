@@ -13,7 +13,7 @@ sealed interface SyncRow {
   val updatedAt: Instant
 
   /** Opaque id of the device that wrote this version. Breaks [updatedAt] ties. */
-  val originDevice: String
+  val originDevice: DeviceId
 
   /**
    * Per device write counter, strictly increasing. Between two versions from the same
@@ -49,7 +49,7 @@ data class NodeSyncRow(
   val step: Int,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -70,7 +70,7 @@ data class EdgeSyncRow(
   val isGood: Boolean,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -85,7 +85,7 @@ data class SettingSyncRow(
   val value: String,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -106,7 +106,7 @@ data class RepertoireSyncRow(
   val installedVersion: Int? = null,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -128,6 +128,6 @@ data class EdgeRepertoireTagSyncRow(
   val isGood: Boolean? = null,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow

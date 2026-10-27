@@ -51,6 +51,17 @@ class TestDeviceIdentity {
   }
 
   @kotlin.test.Test
+  fun `a persisted origin device that is not a canonical UUID is replaced and persisted`() {
+    val settings = TestSettings()
+    settings.putString("sync.originDevice", "not-a-uuid")
+
+    val replaced = DeviceIdentity.persisted(settings).originDevice
+
+    DeviceId.parseOrNull(replaced.value) shouldBe replaced
+    DeviceIdentity.persisted(settings).originDevice shouldBe replaced
+  }
+
+  @kotlin.test.Test
   fun `a fresh instance over the same settings never reuses a number already handed out`() =
     runTest {
       val settings = TestSettings()

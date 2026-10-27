@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -129,8 +130,8 @@ class TestDeviceRoutes {
   @Test
   fun `a removed device below the floor is told to resync`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DEVICE, lastAcked = 99, lastServed = 99)
-    store.removeDeviceForTest(user, DEVICE, serverNow)
+    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = 99, lastServed = 99)
+    store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
     store.setGcFloorForTest(user, 100)
 
     val response = client.register(token)
@@ -143,8 +144,8 @@ class TestDeviceRoutes {
   @Test
   fun `reporting the wipe reinstates the device`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DEVICE, lastAcked = 99, lastServed = 99)
-    store.removeDeviceForTest(user, DEVICE, serverNow)
+    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = 99, lastServed = 99)
+    store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
     store.setGcFloorForTest(user, 100)
 
     client.register(token, afterReset = true).status shouldBe HttpStatusCode.NoContent
@@ -170,7 +171,7 @@ class TestDeviceRoutes {
       client.register(token)
       store.push(
         user,
-        DEVICE,
+        DeviceId(DEVICE),
         SyncPushRequest(
           emptyList(),
           emptyList(),
@@ -180,11 +181,11 @@ class TestDeviceRoutes {
               value = "dark",
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = DEVICE,
+              originDevice = DeviceId(DEVICE),
               deviceSeq = 1,
             )
           ),
-          device = DEVICE,
+          device = DeviceId(DEVICE),
         ),
         serverNow,
       )

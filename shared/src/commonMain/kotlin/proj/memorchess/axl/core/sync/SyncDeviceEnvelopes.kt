@@ -28,7 +28,7 @@ data class SyncDeviceRegisterRequest(val platform: String, val afterReset: Boole
  * @property device Canonical UUID of the calling device, which must be registered under the caller.
  * @property deviceSeq The caller's own sequence number at the moment of the erase.
  */
-@Serializable data class SyncEraseRequest(val device: String, val deviceSeq: Long)
+@Serializable data class SyncEraseRequest(val device: DeviceId, val deviceSeq: Long)
 
 /**
  * Outcome of an erase.

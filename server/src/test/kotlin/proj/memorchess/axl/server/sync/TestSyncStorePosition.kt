@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
@@ -158,7 +159,7 @@ internal class TestSyncStorePosition {
   @Test
   fun anUnknownDeviceIsRefused() = runTest {
     shouldThrow<UnknownDeviceException> {
-      store.pull(newUser(), "never-registered", null, 100, now)
+      store.pull(newUser(), DeviceId("never-registered"), null, 100, now)
     }
   }
 
@@ -177,7 +178,7 @@ internal class TestSyncStorePosition {
     shouldThrow<UnknownDeviceException> {
       store.push(
         PostgresTestDb.newUserId(),
-        "never-registered",
+        DeviceId("never-registered"),
         SyncPushRequest(emptyList(), emptyList(), listOf(setting("a", "1")), device = DEVICE),
         now,
       )
@@ -220,6 +221,6 @@ internal class TestSyncStorePosition {
   }
 
   private companion object {
-    const val DEVICE = "22222222-2222-4222-8222-222222222222"
+    val DEVICE = DeviceId("22222222-2222-4222-8222-222222222222")
   }
 }

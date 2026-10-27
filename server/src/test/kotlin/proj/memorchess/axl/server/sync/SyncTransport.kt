@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.SyncPullResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
@@ -20,7 +21,7 @@ internal interface SyncTransport {
 internal class StoreTransport(
   private val store: SyncStore,
   private val userId: String,
-  private val deviceId: String,
+  private val deviceId: DeviceId,
 ) : SyncTransport {
 
   override suspend fun push(request: SyncPushRequest, serverNow: Instant) =

@@ -90,7 +90,7 @@ class TreeStore(
         isGood = isGood,
         createdAt = createdAt,
         updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
         ownIsGood = isGood,
       )
@@ -127,7 +127,7 @@ class TreeStore(
           isGood = insertion.isGood,
           createdAt = createdAt,
           updatedAt = now,
-          originDevice = deviceIdentity.originDevice,
+          originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
           ownIsGood = insertion.isGood,
         )
@@ -246,7 +246,7 @@ class TreeStore(
       edgeStamps.getOrPut(EdgeIdentity(move.origin, move.destination, move.move)) {
         move.copy(
           ownIsGood = if (move.isDeleted) null else move.isGood,
-          originDevice = deviceIdentity.originDevice,
+          originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
         )
       }
@@ -258,7 +258,7 @@ class TreeStore(
             previousMoves = importedNode.previousAndNextMoves.previousMoves.values.map(::stamp),
             nextMoves = importedNode.previousAndNextMoves.nextMoves.values.map(::stamp),
           ),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     }
@@ -298,7 +298,7 @@ class TreeStore(
     val destination = node(from)?.outgoing?.get(move)?.to
     cache.removeEdge(from, move, destination)
     val seq = deviceIdentity.nextDeviceSeq()
-    database.deleteMove(from, move, deviceIdentity.originDevice, seq, DateUtil.now())
+    database.deleteMove(from, move, deviceIdentity.originDevice.value, seq, DateUtil.now())
     persistNode(from)
     // Tombstone before recomputing so the deleted edge's tags are excluded.
     if (destination != null) tagStore.tombstoneTags(from, destination)
@@ -319,7 +319,7 @@ class TreeStore(
     }
     val seq = deviceIdentity.nextDeviceSeq()
     // Write before patching the cache, or a retry could read the superseded row.
-    database.deletePosition(positionKey, deviceIdentity.originDevice, seq, DateUtil.now())
+    database.deletePosition(positionKey, deviceIdentity.originDevice.value, seq, DateUtil.now())
     trainable.clear(positionKey)
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {
@@ -368,7 +368,7 @@ class TreeStore(
       createdAt =
         incoming.values.filter { !it.isDeleted }.minOfOrNull { it.createdAt } ?: DateUtil.now(),
       updatedAt = DateUtil.now(),
-      originDevice = deviceIdentity.originDevice,
+      originDevice = deviceIdentity.originDevice.value,
       deviceSeq = deviceIdentity.nextDeviceSeq(),
     )
 }

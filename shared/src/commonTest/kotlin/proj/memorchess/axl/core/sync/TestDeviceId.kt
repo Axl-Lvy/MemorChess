@@ -66,6 +66,27 @@ class TestDeviceId {
     DeviceId.parseOrNull(random.value) shouldBe random
   }
 
+  @Test
+  fun anEraseRequestEncodesItsDeviceAsTheBareString() {
+    val request = SyncEraseRequest(DeviceId(CANONICAL), deviceSeq = 7)
+
+    val encoded = SYNC_JSON.encodeToString(request)
+
+    encoded shouldBe """{"device":"$CANONICAL","deviceSeq":7}"""
+    SYNC_JSON.decodeFromString<SyncEraseRequest>(encoded) shouldBe request
+  }
+
+  @Test
+  fun aPushRequestEncodesItsDeviceAsTheBareString() {
+    val request = SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DeviceId(CANONICAL))
+
+    val encoded = SYNC_JSON.encodeToString(request)
+
+    encoded shouldBe
+      """{"nodes":[],"edges":[],"settings":[],"repertoires":[],"tags":[],"device":"$CANONICAL"}"""
+    SYNC_JSON.decodeFromString<SyncPushRequest>(encoded) shouldBe request
+  }
+
   private companion object {
     const val CANONICAL = "0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0"
   }

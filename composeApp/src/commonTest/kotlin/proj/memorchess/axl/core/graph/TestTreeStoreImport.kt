@@ -160,7 +160,7 @@ class TestTreeStoreImport {
     // Newer content wins from either side, so the two devices converge.
     val resolutionFromA = resolve(nodeA.toNodeSyncRow(), nodeB.toNodeSyncRow())
     val resolutionFromB = resolve(nodeB.toNodeSyncRow(), nodeA.toNodeSyncRow())
-    resolutionFromA.row.originDevice shouldBe nodeB.originDevice
-    resolutionFromB.row.originDevice shouldBe nodeB.originDevice
+    resolutionFromA.row.originDevice.value shouldBe nodeB.originDevice
+    resolutionFromB.row.originDevice.value shouldBe nodeB.originDevice
   }
 }

@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.sync
 
 import com.russhwolf.settings.Settings
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.sync.Mutex
 
 /**
@@ -11,11 +10,11 @@ import kotlinx.coroutines.sync.Mutex
 class DeviceIdentity private constructor(private val settings: Settings?) {
 
   /** Opaque id of this install. Never displayed, never an identity. */
-  val originDevice: String =
+  val originDevice: DeviceId =
     settings?.let { s ->
-      s.getStringOrNull(KEY_ORIGIN_DEVICE)
-        ?: generateId().also { s.putString(KEY_ORIGIN_DEVICE, it) }
-    } ?: generateId()
+      s.getStringOrNull(KEY_ORIGIN_DEVICE)?.let(DeviceId::parseOrNull)
+        ?: DeviceId.random().also { s.putString(KEY_ORIGIN_DEVICE, it.value) }
+    } ?: DeviceId.random()
 
   // Spun on with tryLock so nextDeviceSeq stays non-suspend; the critical section is tiny.
   private val lock = Mutex()
@@ -54,7 +53,5 @@ class DeviceIdentity private constructor(private val settings: Settings?) {
 
     /** Never persisted: a fresh id and a counter starting at zero every time. */
     fun ephemeral(): DeviceIdentity = DeviceIdentity(null)
-
-    private fun generateId(): String = Uuid.random().toString()
   }
 }

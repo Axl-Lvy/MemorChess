@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
@@ -59,7 +60,7 @@ internal class SyncStore(
 
   /**
    * Applies a batch under last write wins in one transaction, refusing rows stamped too far ahead.
-   * After an erase, rows the cutoff covers are stored as [ERASE_ORIGIN] tombstones; see
+   * After an erase, rows the cutoff covers are stored as [DeviceId.ERASE_ORIGIN] tombstones; see
    * [EraseCutoff.cuts].
    *
    * @throws QuotaExceededException the batch would push nodes, edges, repertoires or tags past
@@ -67,7 +68,7 @@ internal class SyncStore(
    */
   internal suspend fun push(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     request: SyncPushRequest,
     serverNow: Instant,
   ): SyncPushResponse {
@@ -113,7 +114,7 @@ internal class SyncStore(
    */
   private fun Connection.applyBatch(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     sentNodes: List<NodeSyncRow>,
     sentEdges: List<EdgeSyncRow>,
     settings: List<SettingSyncRow>,
@@ -192,7 +193,7 @@ internal class SyncStore(
    */
   internal suspend fun pull(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     ack: String?,
     limit: Int,
     serverNow: Instant,
@@ -256,7 +257,7 @@ internal class SyncStore(
    * @throws UnknownDeviceException when there is no row, since serving from `0` would hand a full
    *   dataset to a device the watermark cannot see.
    */
-  private fun Connection.requireSyncableDevice(userId: String, deviceId: String): DeviceRow {
+  private fun Connection.requireSyncableDevice(userId: String, deviceId: DeviceId): DeviceRow {
     val device = readDevice(userId, deviceId) ?: throw UnknownDeviceException(deviceId)
     if (device.removedAt != null && device.lastAcked < gcFloor(userId)) {
       throw ResyncRequiredException(deviceId)
@@ -264,21 +265,21 @@ internal class SyncStore(
     return device
   }
 
-  private fun Connection.setAcked(userId: String, deviceId: String, acked: Long) {
+  private fun Connection.setAcked(userId: String, deviceId: DeviceId, acked: Long) {
     prepareStatement(
         "UPDATE sync_device SET last_acked_revision = ? WHERE user_id = ? AND device_id = ?"
       )
       .use { statement ->
         statement.setLong(1, acked)
         statement.setString(2, userId)
-        statement.setString(3, deviceId)
+        statement.setString(3, deviceId.value)
         statement.executeUpdate()
       }
   }
 
   private fun Connection.setServed(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     served: Long,
     pageToken: String,
   ) {
@@ -290,7 +291,7 @@ internal class SyncStore(
         statement.setLong(1, served)
         statement.setString(2, pageToken)
         statement.setString(3, userId)
-        statement.setString(4, deviceId)
+        statement.setString(4, deviceId.value)
         statement.executeUpdate()
       }
   }
@@ -329,7 +330,7 @@ internal class SyncStore(
                     step = rows.getInt(10),
                     isDeleted = rows.getBoolean(11),
                     updatedAt = rows.getTimestamp(12).toInstant().toKotlinInstant(),
-                    originDevice = rows.getString(13),
+                    originDevice = DeviceId(rows.getString(13)),
                     deviceSeq = rows.getLong(14),
                   )
               )
@@ -366,7 +367,7 @@ internal class SyncStore(
                     isGood = rows.getBoolean(4),
                     isDeleted = rows.getBoolean(5),
                     updatedAt = rows.getTimestamp(6).toInstant().toKotlinInstant(),
-                    originDevice = rows.getString(7),
+                    originDevice = DeviceId(rows.getString(7)),
                     deviceSeq = rows.getLong(8),
                   )
               )
@@ -398,7 +399,7 @@ internal class SyncStore(
                     value = rows.getString(2),
                     isDeleted = rows.getBoolean(3),
                     updatedAt = rows.getTimestamp(4).toInstant().toKotlinInstant(),
-                    originDevice = rows.getString(5),
+                    originDevice = DeviceId(rows.getString(5)),
                     deviceSeq = rows.getLong(6),
                   )
               )
@@ -417,7 +418,7 @@ internal class SyncStore(
    */
   internal suspend fun registerDevice(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     platform: DevicePlatform,
     afterReset: Boolean,
     serverNow: Instant,
@@ -442,7 +443,7 @@ internal class SyncStore(
   /** Clears the removal and starts the device over at nothing seen. */
   private fun Connection.reinstateAndZero(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     platform: DevicePlatform,
     serverNow: Instant,
   ) {
@@ -454,7 +455,7 @@ internal class SyncStore(
       )
       .use { statement ->
         statement.setString(1, userId)
-        statement.setString(2, deviceId)
+        statement.setString(2, deviceId.value)
         statement.executeUpdate()
       }
   }
@@ -462,7 +463,7 @@ internal class SyncStore(
   /** Clears the removal, keeping the position, for a device that is missing nothing. */
   private fun Connection.reinstate(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     platform: DevicePlatform,
     serverNow: Instant,
   ) {
@@ -470,7 +471,7 @@ internal class SyncStore(
     prepareStatement("UPDATE sync_device SET removed_at = NULL WHERE user_id = ? AND device_id = ?")
       .use { statement ->
         statement.setString(1, userId)
-        statement.setString(2, deviceId)
+        statement.setString(2, deviceId.value)
         statement.executeUpdate()
       }
   }
@@ -483,11 +484,11 @@ internal class SyncStore(
       statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else 0L }
     }
 
-  private fun Connection.readDevice(userId: String, deviceId: String): DeviceRow? =
+  private fun Connection.readDevice(userId: String, deviceId: DeviceId): DeviceRow? =
     readDevices(userId).firstOrNull { it.deviceId == deviceId }
 
   /** Marks a device removed, so the watermark stops waiting on it. Test only. */
-  internal suspend fun removeDeviceForTest(userId: String, deviceId: String, at: Instant) {
+  internal suspend fun removeDeviceForTest(userId: String, deviceId: DeviceId, at: Instant) {
     inTransaction { connection ->
       connection
         .prepareStatement(
@@ -496,7 +497,7 @@ internal class SyncStore(
         .use { statement ->
           statement.setTimestamp(1, at.toTimestamp())
           statement.setString(2, userId)
-          statement.setString(3, deviceId)
+          statement.setString(3, deviceId.value)
           statement.executeUpdate()
         }
     }
@@ -522,7 +523,7 @@ internal class SyncStore(
   /** Inserts the row, or refreshes the platform and last seen time of the one already there. */
   private fun Connection.upsertDevice(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     platform: DevicePlatform,
     serverNow: Instant,
   ) {
@@ -533,7 +534,7 @@ internal class SyncStore(
       )
       .use { statement ->
         statement.setString(1, userId)
-        statement.setString(2, deviceId)
+        statement.setString(2, deviceId.value)
         // The column is text, so the enum becomes its wire name here and nowhere else.
         statement.setString(3, platform.wireName)
         statement.setTimestamp(4, serverNow.toTimestamp())
@@ -546,7 +547,7 @@ internal class SyncStore(
    * live row. Uses `>=` because collecting the newest tombstone can drop the maximum below
    * acknowledgements.
    */
-  internal suspend fun deviceStatus(userId: String, deviceId: String): Boolean? =
+  internal suspend fun deviceStatus(userId: String, deviceId: DeviceId): Boolean? =
     inTransaction { connection ->
       val device =
         connection.readDevice(userId, deviceId)?.takeIf { it.removedAt == null }
@@ -576,7 +577,7 @@ internal class SyncStore(
   /** Forces a device's position, so floor boundaries are reachable without paging. Test only. */
   internal suspend fun setPositionForTest(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     lastAcked: Long,
     lastServed: Long,
   ) {
@@ -590,7 +591,7 @@ internal class SyncStore(
           statement.setLong(1, lastAcked)
           statement.setLong(2, lastServed)
           statement.setString(3, userId)
-          statement.setString(4, deviceId)
+          statement.setString(4, deviceId.value)
           statement.executeUpdate()
         }
     }
@@ -614,7 +615,7 @@ internal class SyncStore(
             while (rows.next()) {
               add(
                 DeviceRow(
-                  deviceId = rows.getString(1),
+                  deviceId = DeviceId(rows.getString(1)),
                   platform =
                     rows.getString(2).let(DevicePlatform::fromWire)
                       ?: error("stored platform '${rows.getString(2)}' is not a known one"),
@@ -732,7 +733,7 @@ internal class SyncStore(
    */
   internal suspend fun erase(
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     deviceSeq: Long,
     serverNow: Instant,
   ): Long = inTransaction { connection ->
@@ -766,7 +767,7 @@ internal class SyncStore(
   private fun Connection.tombstoneAll(
     table: String,
     userId: String,
-    deviceId: String,
+    deviceId: DeviceId,
     deviceSeq: Long,
     serverNow: Instant,
   ): List<Long> =
@@ -780,7 +781,7 @@ internal class SyncStore(
       .use { statement ->
         statement.setTimestamp(1, serverNow.toTimestamp())
         statement.setTimestamp(2, serverNow.toTimestamp())
-        statement.setString(3, deviceId)
+        statement.setString(3, deviceId.value)
         statement.setLong(4, deviceSeq)
         statement.setString(5, userId)
         statement.executeQuery().use { rows ->
@@ -800,7 +801,7 @@ internal class SyncStore(
         statement.setString(1, userId)
         statement.setTimestamp(2, cutoff.erasedAt.toTimestamp())
         statement.setLong(3, cutoff.erasedRevision)
-        statement.setString(4, cutoff.erasedBy)
+        statement.setString(4, cutoff.erasedBy.value)
         statement.setLong(5, cutoff.eraseDeviceSeq)
         statement.executeUpdate()
       }
@@ -819,7 +820,7 @@ internal class SyncStore(
           EraseCutoff(
             erasedAt = rows.getTimestamp(1).toInstant().toKotlinInstant(),
             erasedRevision = rows.getLong(2),
-            erasedBy = rows.getString(3),
+            erasedBy = DeviceId(rows.getString(3)),
             eraseDeviceSeq = rows.getLong(4),
           )
         }
@@ -851,7 +852,7 @@ internal class SyncStore(
                     installedVersion = rows.getObject(9) as Int?,
                     isDeleted = rows.getBoolean(4),
                     updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
-                    originDevice = rows.getString(6),
+                    originDevice = DeviceId(rows.getString(6)),
                     deviceSeq = rows.getLong(7),
                   )
               )
@@ -890,7 +891,7 @@ internal class SyncStore(
                     isGood = rows.getObject(10) as Boolean?,
                     isDeleted = rows.getBoolean(4),
                     updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
-                    originDevice = rows.getString(6),
+                    originDevice = DeviceId(rows.getString(6)),
                     deviceSeq = rows.getLong(7),
                   )
               )
@@ -954,7 +955,7 @@ internal class SyncStore(
             StoredVersion(
               isDeleted = rows.getBoolean(versionStart),
               updatedAt = rows.getTimestamp(versionStart + 1).toInstant().toKotlinInstant(),
-              originDevice = rows.getString(versionStart + 2),
+              originDevice = DeviceId(rows.getString(versionStart + 2)),
               deviceSeq = rows.getLong(versionStart + 3),
             )
           stored[key] = table.readPayload(rows, incomingByKey.getValue(key), version)
@@ -981,7 +982,7 @@ internal class SyncStore(
         statement.setBoolean(tail, row.isDeleted)
         statement.setTimestamp(tail + 1, if (row.isDeleted) row.updatedAt.toTimestamp() else null)
         statement.setTimestamp(tail + 2, row.updatedAt.toTimestamp())
-        statement.setString(tail + 3, row.originDevice)
+        statement.setString(tail + 3, row.originDevice.value)
         statement.setLong(tail + 4, row.deviceSeq)
         statement.setLong(tail + 5, revision)
         statement.addBatch()
@@ -1060,7 +1061,7 @@ private val STORED_VERSION_COLUMNS =
 private class StoredVersion(
   val isDeleted: Boolean,
   val updatedAt: Instant,
-  val originDevice: String,
+  val originDevice: DeviceId,
   val deviceSeq: Long,
 )
 
@@ -1388,9 +1389,6 @@ private fun <T : SyncRow> List<T>.screenClock(
   return Screened(acceptable, tooFarAhead.map(refusal))
 }
 
-/** Origin stamped on rows tombstoned by an erase cutoff, so every device applies them as remote. */
-private const val ERASE_ORIGIN = "00000000-0000-0000-0000-000000000000"
-
 /**
  * A user's last erase: when it happened, the highest revision it assigned, and the device and
  * `deviceSeq` that issued it.
@@ -1398,7 +1396,7 @@ private const val ERASE_ORIGIN = "00000000-0000-0000-0000-000000000000"
 private data class EraseCutoff(
   val erasedAt: Instant,
   val erasedRevision: Long,
-  val erasedBy: String,
+  val erasedBy: DeviceId,
   val eraseDeviceSeq: Long,
 ) {
   /**
@@ -1413,25 +1411,25 @@ private data class EraseCutoff(
 private fun NodeSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
 
 /** Returns this edge as an erase tombstone when [cutoff] cuts it, else as is. */
 private fun EdgeSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
 
 /** Returns this repertoire as an erase tombstone when [cutoff] cuts it, else as is. */
 private fun RepertoireSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
 
 /** Returns this tag as an erase tombstone when [cutoff] cuts it, else as is. */
 private fun EdgeRepertoireTagSyncRow.cutOffAt(cutoff: EraseCutoff) =
   if (!cutoff.cuts(this)) this
   else
-    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = ERASE_ORIGIN, deviceSeq = 0)
+    copy(isDeleted = true, updatedAt = cutoff.erasedAt, originDevice = DeviceId.ERASE_ORIGIN, deviceSeq = 0)
 
 /** Stable identifier for an edge in a rejection report, matching what the client can compute. */
 private fun EdgeSyncRow.edgeId(): String = "$origin|$destination"
@@ -1478,7 +1476,7 @@ internal sealed class RegisterOutcome {
  * @property removedAt When it was removed, or `null` while it is registered.
  */
 internal data class DeviceRow(
-  val deviceId: String,
+  val deviceId: DeviceId,
   val platform: DevicePlatform,
   val lastAcked: Long,
   val lastServed: Long,
@@ -1489,9 +1487,9 @@ internal data class DeviceRow(
 private val logger = LoggerFactory.getLogger(SyncStore::class.java)
 
 /** A caller named a device the server has never been told about. */
-internal class UnknownDeviceException(deviceId: String) :
-  Exception("device '$deviceId' is not registered")
+internal class UnknownDeviceException(deviceId: DeviceId) :
+  Exception("device '${deviceId.value}' is not registered")
 
 /** A removed device came back below what garbage collection already purged. */
-internal class ResyncRequiredException(deviceId: String) :
-  Exception("device '$deviceId' must resync from scratch")
+internal class ResyncRequiredException(deviceId: DeviceId) :
+  Exception("device '${deviceId.value}' must resync from scratch")

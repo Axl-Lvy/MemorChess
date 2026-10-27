@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
@@ -32,7 +33,7 @@ internal class TestSyncStorePull {
       value = value,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -50,7 +51,7 @@ internal class TestSyncStorePull {
       step = 0,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 1,
     )
 
@@ -245,6 +246,6 @@ internal class TestSyncStorePull {
   }
 
   private companion object {
-    const val DEVICE = "33333333-3333-4333-8333-333333333333"
+    val DEVICE = DeviceId("33333333-3333-4333-8333-333333333333")
   }
 }

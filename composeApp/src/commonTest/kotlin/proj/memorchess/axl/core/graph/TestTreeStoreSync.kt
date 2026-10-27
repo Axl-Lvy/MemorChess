@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.graph
 
+import proj.memorchess.axl.core.sync.DeviceId
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -90,7 +91,7 @@ class TestTreeStoreSync {
     store.addMove(PositionKey("start"), "e4", PositionKey("k2"), isGood = true, fromDepth = 0)
 
     val persisted = database.getPosition(PositionKey("start"))!!
-    assertTrue(persisted.originDevice == identity.originDevice)
+    assertTrue(persisted.originDevice == identity.originDevice.value)
     assertTrue(persisted.deviceSeq > 0L)
   }
 

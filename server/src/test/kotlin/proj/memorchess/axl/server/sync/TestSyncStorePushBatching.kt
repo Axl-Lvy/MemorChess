@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
 import io.kotest.matchers.shouldBe
@@ -54,7 +55,7 @@ internal class TestSyncStorePushBatching {
             step = 0,
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -67,7 +68,7 @@ internal class TestSyncStorePushBatching {
             isGood = true,
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -78,7 +79,7 @@ internal class TestSyncStorePushBatching {
             value = "v$reps",
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -90,7 +91,7 @@ internal class TestSyncStorePushBatching {
             color = "WHITE",
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -105,7 +106,7 @@ internal class TestSyncStorePushBatching {
               move = "e4",
               isDeleted = false,
               updatedAt = at,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = seq,
             )
           },
@@ -154,9 +155,9 @@ internal class TestSyncStorePushBatching {
   @Test
   fun aKeyRepeatedWithinOnePushResolvesToTheSameWinnerAsTwoSeparatePushes() = runTest {
     val older =
-      SettingSyncRow("theme", "dark", false, serverNow, originDevice = "device-a", deviceSeq = 1)
+      SettingSyncRow("theme", "dark", false, serverNow, originDevice = DeviceId("device-a"), deviceSeq = 1)
     val newer =
-      SettingSyncRow("theme", "light", false, serverNow, originDevice = "device-a", deviceSeq = 2)
+      SettingSyncRow("theme", "light", false, serverNow, originDevice = DeviceId("device-a"), deviceSeq = 2)
     val together = newUser()
     val apart = newUser()
     fun request(vararg settings: SettingSyncRow) =
@@ -177,7 +178,7 @@ internal class TestSyncStorePushBatching {
   }
 
   private companion object {
-    const val DEVICE = "device-a"
+    val DEVICE = DeviceId("device-a")
 
     /** Kept under the per user repertoire cap, unlike the other resources. */
     const val REPERTOIRES = 100

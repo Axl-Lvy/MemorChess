@@ -14,6 +14,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
@@ -42,14 +43,14 @@ class TestSyncEraseE2e {
     val tags: List<EdgeRepertoireTagSyncRow>,
   )
 
-  private suspend fun register(token: String, device: String) {
+  private suspend fun register(token: String, device: DeviceId) {
     client
       .registerDevice(token, device, DevicePlatform.JVM, afterReset = false)
       .shouldBeInstanceOf<SyncRegisterOutcome.Ok>()
   }
 
   /** Pulls page after page, confirming each with the next request, until one comes back empty. */
-  private suspend fun pullAll(token: String, device: String): Caught {
+  private suspend fun pullAll(token: String, device: DeviceId): Caught {
     val nodes = mutableListOf<NodeSyncRow>()
     val edges = mutableListOf<EdgeSyncRow>()
     val repertoires = mutableListOf<RepertoireSyncRow>()
@@ -79,7 +80,7 @@ class TestSyncEraseE2e {
     error("pull did not terminate")
   }
 
-  private fun node(key: String, updatedAt: Instant, device: String) =
+  private fun node(key: String, updatedAt: Instant, device: DeviceId) =
     NodeSyncRow(
       positionKey = key,
       dueDate = updatedAt,
@@ -97,7 +98,7 @@ class TestSyncEraseE2e {
       deviceSeq = 1,
     )
 
-  private fun edge(origin: String, destination: String, updatedAt: Instant, device: String) =
+  private fun edge(origin: String, destination: String, updatedAt: Instant, device: DeviceId) =
     EdgeSyncRow(
       origin = origin,
       destination = destination,
@@ -109,7 +110,7 @@ class TestSyncEraseE2e {
       deviceSeq = 1,
     )
 
-  private fun repertoire(id: String, updatedAt: Instant, device: String) =
+  private fun repertoire(id: String, updatedAt: Instant, device: DeviceId) =
     RepertoireSyncRow(
       id = id,
       name = "E2E erase",
@@ -125,7 +126,7 @@ class TestSyncEraseE2e {
     destination: String,
     repertoireId: String,
     updatedAt: Instant,
-    device: String,
+    device: DeviceId,
   ) =
     EdgeRepertoireTagSyncRow(
       origin = origin,
@@ -140,7 +141,7 @@ class TestSyncEraseE2e {
 
   private fun fen(suffix: String) = "e2e-${UUID.randomUUID()}-$suffix"
 
-  private suspend fun erase(token: String, device: String): Instant =
+  private suspend fun erase(token: String, device: DeviceId): Instant =
     client
       .erase(token, device, deviceSeq = 1)
       .shouldBeInstanceOf<SyncEraseOutcome.Ok>()
@@ -151,8 +152,8 @@ class TestSyncEraseE2e {
   fun `an erase from one device reaches the other`() =
     runBlocking<Unit> {
       val token = server.tokenFor(server.newUserId())
-      val deviceA = UUID.randomUUID().toString()
-      val deviceB = UUID.randomUUID().toString()
+      val deviceA = DeviceId.random()
+      val deviceB = DeviceId.random()
       register(token, deviceA)
       register(token, deviceB)
       val now = Clock.System.now()
@@ -188,8 +189,8 @@ class TestSyncEraseE2e {
   fun `an unsynced import from before the erase does not survive`() =
     runBlocking<Unit> {
       val token = server.tokenFor(server.newUserId())
-      val deviceA = UUID.randomUUID().toString()
-      val deviceB = UUID.randomUUID().toString()
+      val deviceA = DeviceId.random()
+      val deviceB = DeviceId.random()
       register(token, deviceA)
       register(token, deviceB)
       val erasedAt = erase(token, deviceA)

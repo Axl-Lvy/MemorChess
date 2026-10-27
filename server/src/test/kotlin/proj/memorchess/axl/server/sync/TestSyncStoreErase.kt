@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
@@ -43,7 +44,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Pulls and confirms page after page until [device] has been served everything. */
-  private suspend fun catchUp(user: String, device: String): Caught {
+  private suspend fun catchUp(user: String, device: DeviceId): Caught {
     val nodes = mutableListOf<NodeSyncRow>()
     val edges = mutableListOf<EdgeSyncRow>()
     val settings = mutableListOf<SettingSyncRow>()
@@ -78,7 +79,7 @@ internal class TestSyncStoreErase {
   private fun node(
     key: String,
     updatedAt: Instant = now,
-    origin: String = OTHER,
+    origin: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ) =
     NodeSyncRow(
@@ -102,7 +103,7 @@ internal class TestSyncStoreErase {
     origin: String,
     destination: String,
     updatedAt: Instant = now,
-    device: String = OTHER,
+    device: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ) =
     EdgeSyncRow(
@@ -126,7 +127,7 @@ internal class TestSyncStoreErase {
       deviceSeq = 1,
     )
 
-  private fun repertoire(updatedAt: Instant = now, origin: String = OTHER, deviceSeq: Long = 1) =
+  private fun repertoire(updatedAt: Instant = now, origin: DeviceId = OTHER, deviceSeq: Long = 1) =
     RepertoireSyncRow(
       id = "italian-game",
       name = "Italian Game",
@@ -141,7 +142,7 @@ internal class TestSyncStoreErase {
     origin: String,
     destination: String,
     updatedAt: Instant = now,
-    device: String = OTHER,
+    device: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ) =
     EdgeRepertoireTagSyncRow(
@@ -180,7 +181,7 @@ internal class TestSyncStoreErase {
     user: String,
     updatedAt: Instant,
     serverNow: Instant = now,
-    device: String = OTHER,
+    device: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ): Pair<SyncPushRequest, SyncPushResponse> {
     val a = fen("a")
@@ -213,7 +214,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Every erasable row [device] is served next, the seed node's tombstone left out. */
-  private suspend fun freshRowsFor(user: String, device: String): List<SyncRow> =
+  private suspend fun freshRowsFor(user: String, device: DeviceId): List<SyncRow> =
     catchUp(user, device).erasable.filterNot {
       it is NodeSyncRow && it.positionKey.endsWith("-seed")
     }
@@ -244,7 +245,7 @@ internal class TestSyncStoreErase {
     caught.shouldAllBe(true)
     caught.erasable.forEach {
       it.updatedAt shouldBe now
-      it.originDevice shouldBe ERASE_ORIGIN
+      it.originDevice shouldBe DeviceId.ERASE_ORIGIN
       it.deviceSeq shouldBe 0L
     }
     caught.pusherConvergesOn(pushed)
@@ -591,10 +592,9 @@ internal class TestSyncStoreErase {
   }
 
   private companion object {
-    const val ERASER = "77777777-7777-4777-8777-777777777777"
-    const val OTHER = "88888888-8888-4888-8888-888888888888"
-    const val ERASE_ORIGIN = "00000000-0000-0000-0000-000000000000"
-    const val FRESH = "55555555-5555-4555-8555-555555555555"
-    const val UNREGISTERED = "66666666-6666-4666-8666-666666666666"
+    val ERASER = DeviceId("77777777-7777-4777-8777-777777777777")
+    val OTHER = DeviceId("88888888-8888-4888-8888-888888888888")
+    val FRESH = DeviceId("55555555-5555-4555-8555-555555555555")
+    val UNREGISTERED = DeviceId("66666666-6666-4666-8666-666666666666")
   }
 }

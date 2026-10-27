@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -101,20 +102,20 @@ class TestHttpConvergence {
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
     val token = key.token(subject = user)
     // Registration is a prerequisite for pulling, so the store is primed directly.
-    for (device in listOf("device-a", "device-b")) {
+    for (device in listOf(DEVICE_A, DEVICE_B)) {
       store.registerDevice(
         user,
-        device,
+        DeviceId(device),
         DevicePlatform.JVM,
         afterReset = false,
         clock.now(),
       )
     }
     block(
-      TestDevice("device-a"),
-      HttpTransport(client, token, "device-a"),
-      TestDevice("device-b"),
-      HttpTransport(client, token, "device-b"),
+      TestDevice(DEVICE_A),
+      HttpTransport(client, token, DEVICE_A),
+      TestDevice(DEVICE_B),
+      HttpTransport(client, token, DEVICE_B),
       clock,
     )
   }
@@ -203,5 +204,10 @@ class TestHttpConvergence {
     }
 
     a.snapshot() shouldBe b.snapshot()
+  }
+
+  private companion object {
+    const val DEVICE_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    const val DEVICE_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
   }
 }

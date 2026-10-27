@@ -36,7 +36,7 @@ class TestSyncApplierHolders {
       step = 0,
       isDeleted = deleted,
       updatedAt = now,
-      originDevice = "remote",
+      originDevice = DeviceId("remote"),
       deviceSeq = seq,
     )
 
@@ -54,7 +54,7 @@ class TestSyncApplierHolders {
       isGood = isGood,
       isDeleted = deleted,
       updatedAt = now,
-      originDevice = "remote",
+      originDevice = DeviceId("remote"),
       deviceSeq = seq,
     )
 
@@ -66,7 +66,7 @@ class TestSyncApplierHolders {
       isGood = isGood,
       isDeleted = deleted,
       updatedAt = now,
-      originDevice = "remote",
+      originDevice = DeviceId("remote"),
       deviceSeq = seq,
     )
 

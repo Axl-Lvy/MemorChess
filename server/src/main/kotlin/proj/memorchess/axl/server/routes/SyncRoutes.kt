@@ -57,12 +57,12 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
     rateLimit(RATE_LIMIT_SYNC_READ) {
       get("/v1/me/devices/{deviceId}/status") {
         val synced =
-          store.deviceStatus(call.callerId, call.deviceId().value)
+          store.deviceStatus(call.callerId, call.deviceId())
             ?: throw NotFoundException("no such device")
         call.respond(SyncDeviceStatusResponse(synced))
       }
 
-      get("/v1/sync") { call.respond(store.pull(call.callerId, device().value, ack(), limit(), clock())) }
+      get("/v1/sync") { call.respond(store.pull(call.callerId, device(), ack(), limit(), clock())) }
     }
 
     rateLimit(RATE_LIMIT_SYNC_WRITE) {
@@ -79,12 +79,12 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
             "a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows"
           )
         }
-        val device = requireDevice(request.device, "device")
-        call.respond(store.push(call.callerId, device.value, request, clock()))
+        val device = requireDevice(request.device.value, "device")
+        call.respond(store.push(call.callerId, device, request, clock()))
       }
 
       put("/v1/me/devices/{deviceId}") {
-        val deviceId = call.deviceId().value
+        val deviceId = call.deviceId()
         val request = call.receive<SyncDeviceRegisterRequest>()
         // A plain string on the wire, so an unknown platform never fails decoding.
         val platform =
@@ -117,11 +117,11 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
 /** Erases the caller's synced data as of [serverNow] and answers with the highest revision. */
 private suspend fun RoutingContext.erase(store: SyncStore, serverNow: Instant) {
   val request = call.receive<SyncEraseRequest>()
-  val device = requireDevice(request.device, "device")
+  val device = requireDevice(request.device.value, "device")
   if (request.deviceSeq < 1) {
     throw BadRequestException("deviceSeq must be at least 1, was ${request.deviceSeq}")
   }
-  val revision = store.erase(call.callerId, device.value, request.deviceSeq, serverNow)
+  val revision = store.erase(call.callerId, device, request.deviceSeq, serverNow)
   call.respond(SyncEraseResponse(serverNow, revision))
 }
 

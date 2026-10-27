@@ -52,7 +52,7 @@ class RepertoireTagStore(
         color = color,
         installedVersion = installedVersion,
         updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     )
@@ -104,7 +104,7 @@ class RepertoireTagStore(
         repertoireId = repertoireId,
         move = move,
         updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     )
@@ -131,7 +131,7 @@ class RepertoireTagStore(
         move = move,
         isGood = isGood,
         updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     )
@@ -145,7 +145,7 @@ class RepertoireTagStore(
         live.copy(
           isDeleted = true,
           updatedAt = DateUtil.now(),
-          originDevice = deviceIdentity.originDevice,
+          originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
         )
       )

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
@@ -300,6 +301,6 @@ internal class TestSyncStoreDevices {
       .let { store.listDevicesForTest(user).single().lastServed.coerceAtLeast(1) }
 
   private companion object {
-    const val DEVICE = "11111111-1111-4111-8111-111111111111"
+    val DEVICE = DeviceId("11111111-1111-4111-8111-111111111111")
   }
 }

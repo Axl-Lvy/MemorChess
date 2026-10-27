@@ -29,7 +29,7 @@ fun DataNode.toNodeSyncRow(): NodeSyncRow =
     step = cardState.step,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 
@@ -63,7 +63,7 @@ fun NodeSyncRow.toDataNode(
     isDeleted = isDeleted,
     hasGoodOutgoing = existingHasGoodOutgoing,
     createdAt = existingCreatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )
 
@@ -80,7 +80,7 @@ fun DataMove.toEdgeSyncRow(): EdgeSyncRow? {
     isGood = ownIsGood ?: false,
     isDeleted = isDeleted || ownIsGood == null,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 }
@@ -99,7 +99,7 @@ fun EdgeSyncRow.toDataMove(): DataMove =
     isDeleted = isDeleted,
     createdAt = updatedAt,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )
 
@@ -112,7 +112,7 @@ fun DataRepertoire.toRepertoireSyncRow(): RepertoireSyncRow =
     installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 
@@ -125,7 +125,7 @@ fun RepertoireSyncRow.toDataRepertoire(): DataRepertoire =
     installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )
 
@@ -139,7 +139,7 @@ fun DataEdgeRepertoireTag.toEdgeRepertoireTagSyncRow(): EdgeRepertoireTagSyncRow
     isGood = isGood,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 
@@ -153,6 +153,6 @@ fun EdgeRepertoireTagSyncRow.toDataEdgeRepertoireTag(): DataEdgeRepertoireTag =
     isGood = isGood,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )

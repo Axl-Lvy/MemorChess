@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
@@ -50,7 +51,7 @@ internal class TestSyncStoreDeleteUser {
               step = 0,
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -63,7 +64,7 @@ internal class TestSyncStoreDeleteUser {
               isGood = true,
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -74,7 +75,7 @@ internal class TestSyncStoreDeleteUser {
               value = "dark",
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -86,7 +87,7 @@ internal class TestSyncStoreDeleteUser {
               color = "WHITE",
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -99,7 +100,7 @@ internal class TestSyncStoreDeleteUser {
               move = "e4",
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -165,6 +166,6 @@ internal class TestSyncStoreDeleteUser {
   }
 
   private companion object {
-    const val DEVICE = "44444444-4444-4444-8444-444444444444"
+    val DEVICE = DeviceId("44444444-4444-4444-8444-444444444444")
   }
 }

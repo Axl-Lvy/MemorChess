@@ -34,7 +34,7 @@ class SettingSyncMetadataStore(
     try {
       val seq = deviceIdentity.nextDeviceSeq()
       settings.putBoolean(isDeletedKey(key), isDeleted)
-      settings.putString(originDeviceKey(key), deviceIdentity.originDevice)
+      settings.putString(originDeviceKey(key), deviceIdentity.originDevice.value)
       settings.putLong(deviceSeqKey(key), seq)
       // Last: read gates on updatedAt, so a crash mid-stamp leaves the previous metadata readable.
       settings.putLong(updatedAtKey(key), DateUtil.now().epochSeconds)

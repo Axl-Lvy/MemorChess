@@ -24,7 +24,7 @@ class TestSettingSyncMetadataStore {
 
     val metadata = store.read("appTheme")!!
     metadata.isDeleted shouldBe false
-    metadata.originDevice shouldBe identity.originDevice
+    metadata.originDevice shouldBe identity.originDevice.value
   }
 
   @kotlin.test.Test

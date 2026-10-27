@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.string.shouldContain
@@ -34,7 +35,7 @@ internal class TestSyncStoreQuota {
       step = 0,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -46,7 +47,7 @@ internal class TestSyncStoreQuota {
       isGood = true,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -57,7 +58,7 @@ internal class TestSyncStoreQuota {
       color = "WHITE",
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -69,7 +70,7 @@ internal class TestSyncStoreQuota {
       move = "e4",
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -79,7 +80,7 @@ internal class TestSyncStoreQuota {
       value = "v",
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -296,6 +297,6 @@ internal class TestSyncStoreQuota {
   }
 
   private companion object {
-    const val DEVICE = "88888888-8888-4888-8888-888888888888"
+    val DEVICE = DeviceId("88888888-8888-4888-8888-888888888888")
   }
 }

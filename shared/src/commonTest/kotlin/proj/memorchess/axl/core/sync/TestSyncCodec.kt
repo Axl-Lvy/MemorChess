@@ -21,7 +21,7 @@ internal class TestSyncCodec {
       step = 0,
       isDeleted = false,
       updatedAt = Instant.parse("2026-09-03T10:15:30Z"),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 0,
     )
 
@@ -33,7 +33,7 @@ internal class TestSyncCodec {
       isGood = true,
       isDeleted = false,
       updatedAt = Instant.fromEpochMilliseconds(1),
-      originDevice = "device-b",
+      originDevice = DeviceId("device-b"),
       deviceSeq = 0,
     )
 
@@ -43,7 +43,7 @@ internal class TestSyncCodec {
       value = "london-system-white",
       isDeleted = false,
       updatedAt = Instant.parse("2100-01-01T00:00:00Z"),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 0,
     )
 
@@ -55,7 +55,7 @@ internal class TestSyncCodec {
       installedVersion = 3,
       isDeleted = false,
       updatedAt = Instant.fromEpochSeconds(1_000),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 1L,
     )
 
@@ -68,7 +68,7 @@ internal class TestSyncCodec {
       isGood = false,
       isDeleted = false,
       updatedAt = Instant.fromEpochSeconds(1_000),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 1L,
     )
 
@@ -147,7 +147,7 @@ internal class TestSyncCodec {
 
   @Test
   fun pushRequestAndResponseRoundTrip() {
-    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = "device-a")
+    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = DeviceId("device-a"))
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
 
     val response =
@@ -196,7 +196,7 @@ internal class TestSyncCodec {
         settings = emptyList(),
         repertoires = listOf(repertoire),
         tags = listOf(tag),
-        device = "device-a",
+        device = DeviceId("device-a"),
       )
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
   }

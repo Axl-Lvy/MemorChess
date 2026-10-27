@@ -150,7 +150,7 @@ class TestSyncApiClient {
   fun registerSendsThePlatformAndTheResetFlag() = runTest {
     var body = ""
     val engine = MockEngine { request ->
-      request.url.encodedPath shouldBe "/v1/me/devices/$DEVICE"
+      request.url.encodedPath shouldBe "/v1/me/devices/${DEVICE.value}"
       body = (request.body as io.ktor.http.content.TextContent).text
       respond(content = ByteReadChannel(""), status = HttpStatusCode.NoContent)
     }
@@ -321,7 +321,7 @@ class TestSyncApiClient {
   }
 
   private companion object {
-    const val DEVICE = "11111111-1111-4111-8111-111111111111"
+    val DEVICE = DeviceId("11111111-1111-4111-8111-111111111111")
     const val ERASE_OK_BODY = """{"serverTime":"2026-01-01T00:00:00Z","revision":9}"""
   }
 }

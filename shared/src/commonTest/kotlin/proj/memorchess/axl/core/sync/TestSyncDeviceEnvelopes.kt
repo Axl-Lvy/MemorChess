@@ -55,10 +55,10 @@ class TestSyncDeviceEnvelopes {
         nodes = emptyList(),
         edges = emptyList(),
         settings = emptyList(),
-        device = "device-1",
+        device = DeviceId("device-1"),
       )
 
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)).device shouldBe
-      "device-1"
+      DeviceId("device-1")
   }
 }

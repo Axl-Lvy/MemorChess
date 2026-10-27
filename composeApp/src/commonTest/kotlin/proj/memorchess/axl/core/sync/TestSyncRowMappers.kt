@@ -143,7 +143,7 @@ class TestSyncRowMappers {
 
   @Test
   fun aPulledManualHoldBecomesTheOwnMarking() {
-    val row = EdgeSyncRow("a", "b", "e4", isGood = false, isDeleted = false, now, "device-1", 3L)
+    val row = EdgeSyncRow("a", "b", "e4", isGood = false, isDeleted = false, now, DeviceId("device-1"), 3L)
 
     row.toDataMove().ownIsGood shouldBe false
     row.copy(isDeleted = true).toDataMove().ownIsGood shouldBe null
@@ -198,7 +198,7 @@ class TestSyncRowMappers {
         step = 0,
         isDeleted = false,
         updatedAt = now,
-        originDevice = "d",
+        originDevice = DeviceId("d"),
         deviceSeq = 1L,
       )
 

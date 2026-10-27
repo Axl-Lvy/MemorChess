@@ -324,7 +324,7 @@ internal suspend fun runSyncCycle(
  */
 private suspend fun registerDevice(
   token: String,
-  deviceId: String,
+  deviceId: DeviceId,
   apiClient: SyncApiClient,
   jobStore: SyncJobStore,
 ): CycleOutcome? {
@@ -352,7 +352,7 @@ private suspend fun registerDevice(
  */
 private suspend fun resync(
   token: String,
-  deviceId: String,
+  deviceId: DeviceId,
   database: DatabaseQueryManager,
   applier: SyncApplier,
   apiClient: SyncApiClient,
@@ -371,7 +371,7 @@ private suspend fun resync(
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pushOutbox(
   token: String,
-  deviceId: String,
+  deviceId: DeviceId,
   database: DatabaseQueryManager,
   apiClient: SyncApiClient,
 ): CycleOutcome? {
@@ -406,7 +406,7 @@ private suspend fun pushOutbox(
  * that no longer exist.
  */
 private suspend fun buildPushRequest(
-  deviceId: String,
+  deviceId: DeviceId,
   database: DatabaseQueryManager,
   batch: List<OutboxEntry>,
 ): SyncPushRequest {
@@ -470,7 +470,7 @@ private suspend fun pullAll(
   token: String,
   applier: SyncApplier,
   apiClient: SyncApiClient,
-  deviceId: String,
+  deviceId: DeviceId,
 ): CycleOutcome? {
   // Token of the last page written locally, for the server to confirm; null until one is.
   var ack: String? = null

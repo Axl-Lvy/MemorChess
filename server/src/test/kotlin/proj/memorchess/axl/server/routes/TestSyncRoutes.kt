@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -65,7 +66,7 @@ class TestSyncRoutes {
     val subject = PostgresTestDb.newUserId()
     registrar.registerDevice(
       subject,
-      DEVICE,
+      DeviceId(DEVICE),
       DevicePlatform.JVM,
       afterReset = false,
       serverNow,
@@ -92,7 +93,7 @@ class TestSyncRoutes {
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
     // Registration gates pulling, so the device rows are primed directly.
     for (device in devices) {
-      store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, serverNow)
+      store.registerDevice(user, DeviceId(device), DevicePlatform.JVM, afterReset = false, serverNow)
     }
     block(client, key.token(subject = user))
   }
@@ -103,7 +104,7 @@ class TestSyncRoutes {
       value = value,
       isDeleted = false,
       updatedAt = at,
-      originDevice = DEVICE,
+      originDevice = DeviceId(DEVICE),
       deviceSeq = 1,
     )
 
@@ -113,7 +114,7 @@ class TestSyncRoutes {
       contentType(ContentType.Application.Json)
       setBody(
         SYNC_JSON.encodeToString(
-          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DEVICE)
+          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DeviceId(DEVICE))
         )
       )
     }
@@ -304,7 +305,7 @@ class TestSyncRoutes {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
         setBody(
-          SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows, device = DEVICE))
+          SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows, device = DeviceId(DEVICE)))
         )
       }
 
@@ -327,7 +328,7 @@ class TestSyncRoutes {
           isGood = true,
           isDeleted = false,
           updatedAt = serverNow,
-          originDevice = "device-a",
+          originDevice = DeviceId("device-a"),
           deviceSeq = 1,
         )
       }
@@ -336,7 +337,7 @@ class TestSyncRoutes {
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings, device = DEVICE)))
+        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings, device = DeviceId(DEVICE))))
       }
 
     response.status shouldBe HttpStatusCode.PayloadTooLarge
@@ -408,13 +409,13 @@ class TestSyncRoutes {
                       step = 0,
                       isDeleted = false,
                       updatedAt = serverNow,
-                      originDevice = "device-a",
+                      originDevice = DeviceId("device-a"),
                       deviceSeq = 1,
                     )
                   ),
                 edges = emptyList(),
                 settings = emptyList(),
-                device = DEVICE,
+                device = DeviceId(DEVICE),
               )
             )
           )
@@ -438,7 +439,7 @@ class TestSyncRoutes {
       step = 0,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = DEVICE,
+      originDevice = DeviceId(DEVICE),
       deviceSeq = 1,
     )
 
@@ -450,7 +451,7 @@ class TestSyncRoutes {
     }
 
   private fun eraseBody(device: String, deviceSeq: Long = 1) =
-    SYNC_JSON.encodeToString(SyncEraseRequest(device, deviceSeq))
+    SYNC_JSON.encodeToString(SyncEraseRequest(DeviceId(device), deviceSeq))
 
   @Test
   fun `erase requires authentication`() = withServer { client, _ ->
@@ -500,7 +501,7 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(listOf(node("fen-1")), emptyList(), emptyList(), device = DEVICE)
+            SyncPushRequest(listOf(node("fen-1")), emptyList(), emptyList(), device = DeviceId(DEVICE))
           )
         )
       }
@@ -526,7 +527,7 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(emptyList(), emptyList(), emptyList(), device = stranger)
+            SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DeviceId(stranger))
           )
         )
       }

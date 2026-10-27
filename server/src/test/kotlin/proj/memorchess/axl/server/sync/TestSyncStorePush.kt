@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -39,7 +40,7 @@ internal class TestSyncStorePush {
     key: String,
     value: String,
     at: Instant,
-    device: String = "device-a",
+    device: DeviceId = DeviceId("device-a"),
     seq: Long = 1,
     deleted: Boolean = false,
   ) =
@@ -64,7 +65,7 @@ internal class TestSyncStorePush {
     key: String,
     reps: Int,
     at: Instant,
-    device: String = "device-a",
+    device: DeviceId = DeviceId("device-a"),
     seq: Long = 1,
   ) =
     NodeSyncRow(
@@ -89,7 +90,7 @@ internal class TestSyncStorePush {
     destination: String,
     isGood: Boolean,
     at: Instant,
-    device: String = "device-a",
+    device: DeviceId = DeviceId("device-a"),
     seq: Long = 1,
   ) =
     EdgeSyncRow(
@@ -162,7 +163,7 @@ internal class TestSyncStorePush {
     store.push(
       user,
       DEVICE,
-      request(setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")),
+      request(setting("theme", "light", Instant.fromEpochMilliseconds(20), device = DeviceId("device-b"))),
       serverNow,
     )
     storedSetting(user, "theme")?.value shouldBe "light"
@@ -174,9 +175,9 @@ internal class TestSyncStorePush {
     // commit would keep a winner `resolve` never allowed.
     val user = newUser()
     val fromDeviceA =
-      setting("theme", "dark", Instant.fromEpochMilliseconds(10), device = "device-a")
+      setting("theme", "dark", Instant.fromEpochMilliseconds(10), device = DeviceId("device-a"))
     val fromDeviceB =
-      setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")
+      setting("theme", "light", Instant.fromEpochMilliseconds(20), device = DeviceId("device-b"))
     val expectedWinner = resolve(local = fromDeviceA, remote = fromDeviceB).row
 
     coroutineScope {
@@ -205,7 +206,7 @@ internal class TestSyncStorePush {
       store.push(
         user,
         DEVICE,
-        request(setting("theme", "light", Instant.fromEpochMilliseconds(10), device = "device-b")),
+        request(setting("theme", "light", Instant.fromEpochMilliseconds(10), device = DeviceId("device-b"))),
         serverNow,
       )
     // The pushed row lost, yet the revision must move, or the pusher never learns and diverges.
@@ -450,7 +451,7 @@ internal class TestSyncStorePush {
         color = "WHITE",
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
 
@@ -486,7 +487,7 @@ internal class TestSyncStorePush {
         move = "e4",
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
 
@@ -522,7 +523,7 @@ internal class TestSyncStorePush {
         isGood = true,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
 
@@ -556,7 +557,7 @@ internal class TestSyncStorePush {
         installedVersion = 2,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
     val tag =
@@ -568,7 +569,7 @@ internal class TestSyncStorePush {
         isGood = true,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 2L,
       )
 
@@ -591,7 +592,7 @@ internal class TestSyncStorePush {
         isGood = true,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
     val bad = good.copy(isGood = false, deviceSeq = 2L)
@@ -629,7 +630,7 @@ internal class TestSyncStorePush {
   }
 
   private companion object {
-    const val DEVICE = "77777777-7777-4777-8777-777777777777"
+    val DEVICE = DeviceId("77777777-7777-4777-8777-777777777777")
     const val PULL_LIMIT = 500
   }
 }

@@ -34,13 +34,13 @@ class SyncApiClient(
    */
   suspend fun registerDevice(
     accessToken: String,
-    deviceId: String,
+    deviceId: DeviceId,
     platform: DevicePlatform,
     afterReset: Boolean,
   ): SyncRegisterOutcome {
     return try {
       val response: HttpResponse =
-        httpClient.put("$baseUrl/me/devices/$deviceId") {
+        httpClient.put("$baseUrl/me/devices/${deviceId.value}") {
           bearerAuth(accessToken)
           contentType(ContentType.Application.Json)
           setBody(SyncDeviceRegisterRequest(platform.wireName, afterReset))
@@ -70,7 +70,7 @@ class SyncApiClient(
    */
   suspend fun pull(
     accessToken: String,
-    deviceId: String,
+    deviceId: DeviceId,
     ack: String?,
     limit: Int,
   ): SyncPullOutcome {
@@ -78,7 +78,7 @@ class SyncApiClient(
       val response: HttpResponse =
         httpClient.get("$baseUrl/sync") {
           bearerAuth(accessToken)
-          parameter("device", deviceId)
+          parameter("device", deviceId.value)
           if (ack != null) parameter("ack", ack)
           parameter("limit", limit)
         }
@@ -133,7 +133,7 @@ class SyncApiClient(
    *
    * @param deviceSeq Sequence number stamped on the erase, from the same counter as pushed rows.
    */
-  suspend fun erase(accessToken: String, deviceId: String, deviceSeq: Long): SyncEraseOutcome {
+  suspend fun erase(accessToken: String, deviceId: DeviceId, deviceSeq: Long): SyncEraseOutcome {
     return try {
       val response: HttpResponse =
         httpClient.post("$baseUrl/me/erase") {
