@@ -57,7 +57,7 @@ class TestSyncRoutes {
       jwksUrl = URI("https://issuer.test/jwks.json"),
     )
 
-  /** Primes device rows for callers the harness did not create. Same pool, same rows. */
+  /** Primes device rows for callers the harness did not create. */
   private val registrar = SyncStore(PostgresTestDb.dataSource())
 
   /** A token for a fresh caller whose device is already registered. */
@@ -90,8 +90,7 @@ class TestSyncRoutes {
       )
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
-    // Registration gates pulling, and its own route arrives with the device endpoints. Until then
-    // the store is primed directly, which is what a real client does over HTTP.
+    // Registration gates pulling, so the device rows are primed directly.
     for (device in devices) {
       store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, serverNow)
     }
@@ -336,8 +335,7 @@ class TestSyncRoutes {
     val deleted = client.delete("/v1/me") { header(HttpHeaders.Authorization, "Bearer $token") }
 
     deleted.status shouldBe HttpStatusCode.NoContent
-    // Deletion clears the device rows too, so the caller is a stranger until it registers again,
-    // which is exactly what its next sync cycle does.
+    // Deletion clears the device rows too, so the caller must register again.
     client.pull(token).status shouldBe HttpStatusCode.BadRequest
   }
 

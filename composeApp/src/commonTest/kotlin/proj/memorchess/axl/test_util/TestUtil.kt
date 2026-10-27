@@ -7,17 +7,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 /** Default page size used when draining the whole store one bounded page at a time in tests. */
 private const val DRAIN_PAGE_SIZE = 256
 
-/**
- * Drains every non deleted node out of [database] by looping the bounded [getNodesPage] read until
- * the cursor terminates, returning them as a single list.
- *
- * This is test only assembly of a bounded fixture: production code never collects the whole store.
- * It exists so tests can keep asserting over the full live set while still exercising the bounded
- * paged read path the app uses.
- *
- * @param database The store to read from.
- * @return Every live node, in position key ascending order.
- */
+/** Reads every non deleted node of [database] page by page, in position key ascending order. */
 internal suspend fun drainAllNodes(database: DatabaseQueryManager): List<DataNode> {
   val nodes = mutableListOf<DataNode>()
   var cursor: String? = null
@@ -29,38 +19,22 @@ internal suspend fun drainAllNodes(database: DatabaseQueryManager): List<DataNod
   return nodes
 }
 
-/**
- * Get button description according to string resource.
- *
- * @param buttonName Name of the button to get description for.
- */
+/** Returns the content description of the navigation button named [buttonName]. */
 fun getNavigationButtonDescription(buttonName: String): String {
   return "$buttonName button"
 }
 
-/**
- * Get tile description according to string resource.
- *
- * @param tileName Name of the tile to get description for.
- */
+/** Returns the content description of the tile named [tileName]. */
 fun getTileDescription(tileName: String): String {
   return "Tile $tileName"
 }
 
-/**
- * Get next move button description according to string resource.
- *
- * @param move Name of the button to get description for.
- */
+/** Returns the content description of the button playing [move]. */
 fun getNextMoveDescription(move: String): String {
   return "Play $move"
 }
 
-/**
- * Get a piece description according to string resource.
- *
- * @param piece Name of the piece to get description for.
- */
+/** Returns the content description of [piece]. */
 fun getPieceDescription(piece: String): String {
   return "Piece $piece"
 }

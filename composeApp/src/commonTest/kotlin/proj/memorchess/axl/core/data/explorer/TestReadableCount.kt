@@ -7,12 +7,7 @@ import kotlin.test.Test
 import proj.memorchess.axl.ui.components.explore.LichessExplorerPanelContent
 import proj.memorchess.axl.ui.setKineticContent
 
-/**
- * Renders the panel with rows whose game counts hit each `toReadableCount` formatting branch.
- *
- * Lives at this seam (not as a unit test of `toReadableCount` itself, which is private) so we still
- * pin the boundary behaviour without exposing the helper.
- */
+/** Pins every `toReadableCount` branch through the panel, since the helper itself is private. */
 @OptIn(ExperimentalTestApi::class)
 class TestReadableCount {
 

@@ -15,10 +15,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
-/**
- * Room backed coverage of soft-delete stamping and the sync outbox, mirroring
- * [TestInMemoryDatabaseQueryManager]'s equivalent cases against a real isolated SQLite database.
- */
+/** Room backed coverage of soft delete stamping and the sync outbox. */
 class TestRoomOutboxAndSoftDelete {
 
   private val database: CustomDatabase = freshDatabase()
@@ -126,9 +123,7 @@ class TestRoomOutboxAndSoftDelete {
 
   @Test
   fun insertRepertoireThenGetRepertoireRoundTripsThroughRoom() = runTest {
-    // Room's DateConverters store an Instant at second precision, so updatedAt must already be
-    // whole seconds for a byte-identical round trip, exactly like TestSyncStorePush's own
-    // sub-millisecond-precision test documents server side.
+    // Room stores an Instant at second precision, so updatedAt must be whole seconds.
     val repertoire =
       DataRepertoire(
         id = "italian-game",
@@ -222,8 +217,7 @@ class TestRoomOutboxAndSoftDelete {
         CardStateFactory.new(),
       ),
     )
-    // The insertNodes calls above already queued both nodes; clear that so this assertion is
-    // specific to what deletePosition itself queues.
+    // Clear what insertNodes queued, so the assertion covers only deletePosition.
     manager.clearDirty(manager.getOutbox())
 
     manager.deletePosition(origin, "device-a", 9L, Instant.fromEpochSeconds(1))
@@ -233,7 +227,7 @@ class TestRoomOutboxAndSoftDelete {
         OutboxEntry(DirtyKey.NodeKey(origin), 9L),
         OutboxEntry(DirtyKey.EdgeKey(origin, destination), 9L),
       )
-    // The cascade reached the MoveEntity row itself through the public API, not only the outbox.
+    // The cascade reaches the move row too, not only the outbox.
     manager.getPosition(destination)!!.previousAndNextMoves.previousMoves.shouldBeEmpty()
   }
 

@@ -7,10 +7,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
 
-/**
- * IndexedDB backed coverage of the sync remote-apply surface, mirroring [TestInMemoryApplyRemote]'s
- * equivalent cases.
- */
+/** IndexedDB backed coverage of the sync remote-apply surface. */
 class TestIndexedDbApplyRemote {
 
   private val now = Instant.parse("2026-01-01T00:00:00Z")

@@ -14,23 +14,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Speaks OAuth 2.0 + PKCE with `https://lichess.org`.
- *
- * Handles the two HTTP calls the client owns: the access token exchange after Lichess redirects
- * back with an authorization code, and the `/api/account` request used to resolve the signed in
- * user's username for display.
- *
- * The browser side of the flow (showing `lichess.org/oauth?...` and reading the redirect) is
- * platform specific and lives behind [OAuthLauncher].
+ * OAuth 2.0 + PKCE client for `https://lichess.org`: token exchange and account lookup. The browser
+ * side of the flow lives behind [OAuthLauncher].
  */
 class LichessOAuthClient(private val httpClient: HttpClient) {
 
-  /**
-   * Builds the authorization URL the user must visit to grant access.
-   *
-   * Lichess accepts the `scope` parameter empty for read only explorer access; we still pass it so
-   * the URL is unambiguous.
-   */
+  /** Builds the authorization URL the user must visit to grant access. */
   fun buildAuthorizationUrl(
     clientId: String,
     redirectUri: String,
@@ -137,12 +126,7 @@ private data class TokenResponse(
 
 private val LOGGER = Logger.withTag("LichessOAuthClient")
 
-/**
- * Minimal RFC 3986 percent encoder for query string components.
- *
- * Ktor's URL builder would do this, but here we are concatenating into a URL we hand to the OS
- * browser, which would not run any further normalization.
- */
+/** RFC 3986 percent encoder for query string components handed to the OS browser. */
 internal fun encodeURLComponent(value: String): String = buildString {
   for (b in value.encodeToByteArray()) {
     val c = b.toInt() and 0xff

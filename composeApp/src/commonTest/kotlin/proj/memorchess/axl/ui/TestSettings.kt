@@ -40,7 +40,6 @@ class TestSettings : TestWithKoin() {
 
   @Test
   fun testTrainingMoveDelaySlider() = runTestFromSetup {
-    // Verify the slider exists
     assertNodeWithTagExists(TRAINING_MOVE_DELAY_SETTING.name)
 
     slideToRight(TRAINING_MOVE_DELAY_SETTING.name)
@@ -101,19 +100,15 @@ class TestSettings : TestWithKoin() {
 
   @Test
   fun testResetButton() = runTestFromSetup {
-
-    // Set non default values
     TRAINING_MOVE_DELAY_SETTING.setValue(3.0.seconds)
     MAX_NEW_MOVES_PER_DAY_SETTING.setValue(5)
 
-    // The Danger Zone is the last LazyColumn section, so it is not composed until scrolled into
-    // view. Scroll the list to the reset button before interacting with it.
+    // The Danger Zone is the last lazy section, so it is not composed until scrolled into view.
     onNodeWithTag(SETTINGS_SECTION_LIST_TAG).performScrollToNode(hasTestTag("resetConfigButton"))
     assertNodeWithTagExists("resetConfigButton").performClick()
     assertNodeWithTagExists("confirmDialog")
     assertNodeWithTagExists("confirmDialogOkButton").performClick()
 
-    // Verify the values were reset to defaults
     waitUntilSuspending {
       TRAINING_MOVE_DELAY_SETTING.defaultValue == TRAINING_MOVE_DELAY_SETTING.getValue()
     }
@@ -131,11 +126,9 @@ class TestSettings : TestWithKoin() {
     streakTracker.recordReview()
     assertNodeWithTagDoesNotExists("confirmDialog")
 
-    // The Danger Zone is the last LazyColumn section, so it is not composed until scrolled into
-    // view. Scroll the list to the erase button before interacting with it.
+    // The Danger Zone is the last lazy section, so it is not composed until scrolled into view.
     onNodeWithTag(SETTINGS_SECTION_LIST_TAG).performScrollToNode(hasTestTag("eraseAllDataButton"))
 
-    // Verify the confirmation dialog appears and click on "Cancel"
     assertNodeWithTagExists("eraseAllDataButton").performClick()
     assertNodeWithTagExists("confirmDialog")
     assertNodeWithTagExists("confirmDialogCancelButton").performClick()
@@ -145,14 +138,10 @@ class TestSettings : TestWithKoin() {
       positionsAfterCancel.isNotEmpty()
     }
 
-    // Verify the confirmation dialog appears and click OK
     assertNodeWithTagExists("eraseAllDataButton").performClick()
     assertNodeWithTagExists("confirmDialogOkButton").performClick()
 
-    // Verify the database is cleared
     waitUntilSuspending { drainAllNodes(database).isEmpty() }
-
-    // Verify the streak was wiped along with the rest of the training history
     waitUntilSuspending { streakTracker.streakDays() == 0 }
   }
 }

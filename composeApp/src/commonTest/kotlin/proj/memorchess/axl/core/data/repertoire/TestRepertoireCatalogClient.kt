@@ -265,8 +265,7 @@ class TestRepertoireCatalogClient {
 
   @Test
   fun fetchMovesWithZeroContentLengthReportsNoProgress() = runTest {
-    // An honestly empty body, Content-Length included, is the boundary case that would otherwise
-    // divide by zero when computing bytesSentTotal / contentLength.
+    // A Content-Length of 0 would divide by zero when computing the progress fraction.
     val engine = MockEngine { _ ->
       respond(
         content = "",
@@ -283,7 +282,6 @@ class TestRepertoireCatalogClient {
 
     client.fetchMoves("london-system-white", 1, onProgress = reported::add)
 
-    // Nothing to divide by: guarded rather than reporting a NaN or infinite fraction.
     reported shouldBe emptyList()
   }
 
@@ -334,8 +332,7 @@ class TestRepertoireCatalogClient {
 
   @Test
   fun reportInstallSwallowsANetworkFailure() = runTest {
-    // Must not throw: a caller reporting a completed install never has its own state disturbed by
-    // this being best-effort telemetry.
+    // Best-effort telemetry: must not throw.
     clientThrowing().reportInstall("london-system-white")
   }
 

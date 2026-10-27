@@ -31,13 +31,8 @@ import androidx.compose.ui.unit.dp
 /**
  * A horizontally scrollable row of selectable items, each represented by a [WideScrollBarChild].
  *
- * @param modifier Modifier to be applied to the row.
- * @param children List of [WideScrollBarChild] items to display.
- * @param minWidth Minimum width for each child item.
- * @param changeSelectedColor If true, changes the color of the selected item.
  * @param selectedInitial The index of the initially selected item, or -1 for none.
  * @param baseColor The background color for unselected items.
- * @param selectedColor The background color for the selected item.
  */
 @Composable
 fun WideScrollableRow(
@@ -141,7 +136,6 @@ private fun BoxWithConstraintsScope.DrawScrollIndicators(
   scrollState: ScrollState,
 ) {
   if (isScrollable) {
-    // Left gradient
     if (scrollState.canScrollBackward) {
       Box(
         modifier =
@@ -155,7 +149,6 @@ private fun BoxWithConstraintsScope.DrawScrollIndicators(
             )
       )
     }
-    // Right gradient
     if (scrollState.canScrollForward) {
       Box(
         modifier =

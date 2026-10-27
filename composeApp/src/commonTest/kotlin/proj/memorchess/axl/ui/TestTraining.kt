@@ -59,23 +59,14 @@ class TestTraining : TestWithKoin() {
     }
   }
 
-  /**
-   * Forces the long-term scheduler for these UI tests. They verify training interaction mechanics
-   * (move play, feedback, promotion, the day counter) where one answer finishes a single-card deck.
-   * With the short-term scheduler on (the production default) a card stays in the session on
-   * sub-day learning steps until it graduates, so it never reaches the "Bravo!" screen after a
-   * single answer. The in-session relearning behavior itself is covered by the scheduler and
-   * algorithm unit tests; here it would only add timing flakiness.
-   */
+  /** Forces the long-term scheduler, so one answer finishes a single-card deck. */
   private fun disableShortTermScheduler() {
     SHORT_TERM_ENABLED_SETTING.setValue(false)
   }
 
   suspend fun resetDatabase(cardState: CardState = dueNowFromLastWeek()) {
-    // Delete all existing nodes
     database.eraseAll()
 
-    // Create a test node with e4 as a good move
     val engine = GameEngine()
     val startPos = engine.toPositionKey()
 
@@ -83,27 +74,21 @@ class TestTraining : TestWithKoin() {
     val e4Pos = engine.toPositionKey()
     val e4Move = DataMove(startPos, e4Pos, "e4", isGood = true)
 
-    // Create the node with the move. The good outgoing e4 edge makes it trainable, so the derived
-    // hasGoodOutgoing projection the scheduler filters on must be set.
+    // The scheduler filters on hasGoodOutgoing, so it must be set.
     val testNode =
       DataNode(
         positionKey = startPos,
         PreviousAndNextMoves(listOf(), listOf(e4Move)),
         cardState,
-        // The start position is the root, so its depth is 0. Stated explicitly because the new
-        // card queue orders by ascending depth and this fixture must sort ahead of deeper nodes.
+        // The new card queue orders by ascending depth, and this fixture must sort first.
         depth = 0,
         hasGoodOutgoing = true,
       )
 
-    // Save the node to the database
     database.insertNodes(testNode)
   }
 
-  /**
-   * Brand new card due immediately. Failure on a new card maps to a one day interval under FSRS 6
-   * with default weights, matching the UI assertions that check the day increment counter.
-   */
+  /** Brand new card due now; failing it yields a one day interval under default FSRS 6 weights. */
   private fun dueNowFromLastWeek(): CardState {
     val now = DateUtil.now()
     return CardState(
@@ -118,10 +103,8 @@ class TestTraining : TestWithKoin() {
   }
 
   /**
-   * Graduated card due in two days, mature enough (high stability) that failing it reschedules it
-   * three days out under FSRS 6 with default weights and fuzz off. Drives the day counter reset
-   * scenario: the card only surfaces when training two days in advance, and a failure there pushes
-   * it beyond the window again, emptying the deck.
+   * Mature card due in two days; failing it reschedules it three days out under default FSRS 6
+   * weights with fuzz off.
    */
   private fun matureReviewCardDueInTwoDays(): CardState {
     val now = DateUtil.now()
@@ -179,7 +162,6 @@ class TestTraining : TestWithKoin() {
     playMove("e2", "e3")
     assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
     playMove("e2", "e4")
-    // With only one card, failed then retried, the Bravo screen appears.
     assertNodeWithTextExists(BRAVO_TEXT)
     assertNodeWithTextExists("INCREMENT A DAY").performClick()
     assertNodeWithTextDoesNotExists(BRAVO_TEXT)
@@ -188,15 +170,13 @@ class TestTraining : TestWithKoin() {
   }
 
   /**
-   * Verifies the day counter reset behavior on a failed review: failing a card while training two
-   * days in advance collapses the counter back to one. The card is mature, so the failure
-   * reschedules it beyond the two day window and empties the deck, which is what triggers the
-   * reset.
+   * The failed mature card is rescheduled past the window, so the deck empties and the counter
+   * resets to one.
    */
   @Test
   fun testResetDayOnFail() =
     runTestFromSetup(matureReviewCardDueInTwoDays()) {
-      // Nothing is due today nor tomorrow: the card only surfaces two days in advance.
+      // The card only surfaces two days in advance.
       assertNodeWithTextExists(BRAVO_TEXT)
       assertNodeWithTextExists("Days in advance: 0")
       assertNodeWithTextExists("INCREMENT A DAY").performClick()
@@ -206,8 +186,6 @@ class TestTraining : TestWithKoin() {
       playMove("e2", "e3")
       assertTileContainsPiece("e2", ChessPiece(PieceKind.PAWN, Player.WHITE))
       playMove("e2", "e4")
-      // The failed card is rescheduled past the window, so the deck empties and the counter
-      // collapses back to one instead of staying at two.
       assertNodeWithTextExists(BRAVO_TEXT)
       assertNodeWithTextExists("Days in advance: 1")
       assertNodeWithTextDoesNotExists("Days in advance: 2")
@@ -317,7 +295,6 @@ class TestTraining : TestWithKoin() {
     disableShortTermScheduler()
     try {
       TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
-      // Insert a second move in the database
       val engine = GameEngine()
       val startPos = engine.toPositionKey()
 
@@ -328,7 +305,6 @@ class TestTraining : TestWithKoin() {
       val e5Pos = engine.toPositionKey()
       val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
 
-      // Create the node with the move
       val testNode =
         DataNode(
           positionKey = e4Pos,
@@ -390,25 +366,15 @@ class TestTraining : TestWithKoin() {
   }
 
   /**
-   * Clicks a board tile without [proj.memorchess.axl.ui.clickOnTile]'s wait loop, which polls via
-   * [mainClock]-driven recomposition passes and so cannot make progress once [mainClock] is paused.
-   * Only safe once the board is already known to be settled and the tile already visible.
+   * Clicks a tile without [proj.memorchess.axl.ui.clickOnTile]'s wait loop, which stalls while
+   * [mainClock] is paused. Only safe on a settled board with the tile visible.
    */
   private fun ComposeUiTest.clickSettledTile(tileName: String) {
     onNode(hasClickLabel(getTileDescription(tileName))).performClick()
   }
 
-  // ---------------------------------------------------------------------------------------------
-  // Issue #286: board-anchored correct/wrong training motion. PlusOneFloater is composed only
-  // while feedback.playedSquare != null, which the .takeIf { state.isShowing } guard limits to the
-  // window before choseNextNode() runs, gated by TRAINING_MOVE_DELAY_SETTING (default one second).
-  // runComposeUiTest's clock auto-advances through that delay the moment any node lookup calls
-  // waitForIdle, which performClick/onNodeWithTag already do, so the clock must be held still to
-  // observe either side of the transition reliably instead of racing it. The first (selecting)
-  // click settles the board through the normal, clock-driven wait helper. The clock is then
-  // paused before the second (move-completing) click, which uses the non-waiting
-  // clickSettledTile, since clickOnTile's wait loop cannot make progress once autoAdvance is off.
-  // ---------------------------------------------------------------------------------------------
+  // The floater only shows during TRAINING_MOVE_DELAY_SETTING, which the test clock auto-advances
+  // through on any node lookup, so the floater tests pause it before the move-completing click.
 
   @Test
   fun testPlusOneFloaterAppearsAfterACorrectMove() = runComposeUiTest {
@@ -450,7 +416,6 @@ class TestTraining : TestWithKoin() {
     }
   }
 
-  /** Regression test for issue #286: the floater must sit over the square it celebrates. */
   @Test
   fun testPlusOneFloaterIsAnchoredOverThePlayedSquare() = runComposeUiTest {
     koinSetUp()

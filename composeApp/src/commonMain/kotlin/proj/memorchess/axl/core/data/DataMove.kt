@@ -15,34 +15,24 @@ data class DataMove(
   val move: String,
 
   /**
-   * Whether the move has to be learned: the effective marking, derived from [ownIsGood] and the
-   * markings of the installed repertoires holding the move. Never synced.
-   *
-   * A bad move is a mistake. It is still saved because the user has to learn how to counter it.
+   * Effective marking, derived from [ownIsGood] and the installed repertoires holding the move;
+   * never synced. A bad move is kept so the user learns to counter it.
    */
   val isGood: Boolean? = null,
 
-  /**
-   * The user's own marking, or `null` when the user does not hold the move manually. The sync
-   * stamps below version this manual hold.
-   */
+  /** The user's own marking, or `null` when not held manually; the sync stamps version it. */
   val ownIsGood: Boolean? = null,
 
   /** Whether the move has been deleted. */
   val isDeleted: Boolean = false,
 
-  /**
-   * Date at which this move was first added.
-   *
-   * Excluded from equality like [updatedAt]: two moves describing the same transition are the same
-   * move regardless of when they were recorded.
-   */
+  /** Date this move was first added. Excluded from equality, like every timestamp. */
   val createdAt: Instant = DateUtil.now(),
 
   /** Date at which this move was updated */
   val updatedAt: Instant = DateUtil.now(),
 
-  /** Device that wrote this version. Stamped by [proj.memorchess.axl.core.graph.TreeStore]. */
+  /** Device that wrote this version. */
   val originDevice: String = "",
 
   /** That device's write counter at the time. */

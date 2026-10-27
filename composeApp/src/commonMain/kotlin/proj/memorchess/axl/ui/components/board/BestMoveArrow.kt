@@ -26,23 +26,12 @@ private const val KINGSIDE_ROOK_DEST_COL = 5
 private const val QUEENSIDE_ROOK_COL = 0
 private const val QUEENSIDE_ROOK_DEST_COL = 3
 
-/**
- * All information needed to draw a best-move arrow on the board.
- *
- * @property move The engine's recommended move.
- * @property pieceKind The kind of piece being moved, used to detect knights and castling.
- */
+/** The engine's best move and the kind of piece it moves. */
 data class BestMoveArrowData(val move: BestMove, val pieceKind: PieceKind?)
 
 /**
- * Draws an arrow overlay on the board indicating the engine's best move.
- *
- * Renders a straight arrow for most moves, an L-shaped arrow for knight moves, and a double arrow
- * (king + rook) for castling.
- *
- * @param data The arrow data, or `null` to draw nothing.
- * @param inverted Whether the board is flipped (Black's perspective).
- * @param modifier Modifier for the canvas.
+ * Draws the engine's best move as an arrow: L-shaped for a knight, doubled for castling. Draws
+ * nothing when [data] is `null`.
  */
 @Composable
 fun BestMoveArrow(data: BestMoveArrowData?, inverted: Boolean, modifier: Modifier = Modifier) {
@@ -88,7 +77,7 @@ private fun DrawScope.drawStraightArrow(from: Offset, to: Offset, tileSize: Floa
   drawArrowhead(to, angle, tileSize, color)
 }
 
-/** Draws an L-shaped arrow for knight moves: two perpendicular segments. */
+/** Draws an L-shaped knight arrow. */
 private fun DrawScope.drawKnightArrow(
   from: Offset,
   to: Offset,
@@ -100,19 +89,16 @@ private fun DrawScope.drawKnightArrow(
   val rowDelta = abs(bestMove.to.row - bestMove.from.row)
   val colDelta = abs(bestMove.to.col - bestMove.from.col)
 
-  // The corner of the L is along the longer axis from the source, then turns to the shorter axis.
+  // The L runs along the longer axis first, then turns to the shorter one.
   val corner =
     if (rowDelta > colDelta) {
-      // Move 2 rows first, then 1 col
       BoardLocation(bestMove.to.row, bestMove.from.col)
     } else {
-      // Move 2 cols first, then 1 row
       BoardLocation(bestMove.from.row, bestMove.to.col)
     }
   val cornerPixel = toPixel(corner, inverted, tileSize)
   val strokeWidth = tileSize * SHAFT_WIDTH_FACTOR
 
-  // First leg
   drawLine(
     color = color,
     start = from,
@@ -121,7 +107,6 @@ private fun DrawScope.drawKnightArrow(
     cap = StrokeCap.Round,
   )
 
-  // Second leg (shortened by arrowhead length)
   val angle = atan2(to.y - cornerPixel.y, to.x - cornerPixel.x)
   val headLength = tileSize * ARROWHEAD_LENGTH_FACTOR
   val shaftEnd = Offset(to.x - cos(angle) * headLength, to.y - sin(angle) * headLength)
@@ -136,19 +121,17 @@ private fun DrawScope.drawKnightArrow(
   drawArrowhead(to, angle, tileSize, color)
 }
 
-/** Draws two straight arrows for castling: one for the king, one for the rook. */
+/** Draws the king and rook arrows of a castling move. */
 private fun DrawScope.drawCastlingArrows(
   bestMove: BestMove,
   inverted: Boolean,
   tileSize: Float,
   color: Color,
 ) {
-  // King arrow
   val kingFrom = toPixel(bestMove.from, inverted, tileSize)
   val kingTo = toPixel(bestMove.to, inverted, tileSize)
   drawStraightArrow(kingFrom, kingTo, tileSize, color)
 
-  // Rook arrow
   val isKingside = bestMove.to.col > bestMove.from.col
   val row = bestMove.from.row
   val rookFrom =

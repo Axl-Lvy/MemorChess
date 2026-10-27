@@ -24,20 +24,8 @@ import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
 /**
- * Kinetic toggle switch. Mirrors `.toggle` and `.toggle.on` from
- * `design-proposals/kinetic-base.css`.
+ * Kinetic toggle switch: a pill whose thumb slides left when off and right when on.
  *
- * A 44×24.dp pill with an 18×18.dp thumb that slides between the left (off) and right (on) edges.
- * Off state uses `panel3` background with a `lineBright` border and an `ink3` thumb; on state
- * switches to an `action` background and border with an `onAction` thumb. The thumb's horizontal
- * offset is animated via [animateDpAsState] with the default spring spec.
- *
- * Picks up [LocalIndication] for press/hover indication so it inherits whatever the surrounding
- * Material theme provides on each target.
- *
- * @param checked whether the toggle is currently in the "on" state.
- * @param onCheckedChange invoked with the new state when the user toggles the control.
- * @param modifier external modifier applied to the toggle pill.
  * @param enabled when false, the control is dimmed to 50% alpha and clicks are ignored.
  */
 @Composable
@@ -58,7 +46,7 @@ fun KineticToggle(
   val borderColor = if (checked) palette.action else palette.lineBright
   val thumbColor = if (checked) palette.onAction else palette.ink3
 
-  // Off: 2.dp from left. On: 22.dp from left (i.e. 2.dp from the right of the 44.dp pill).
+  // 2.dp inset from either edge of the 44.dp pill.
   val targetOffset = if (checked) 22.dp else 2.dp
   val thumbOffset by animateDpAsState(targetValue = targetOffset)
 

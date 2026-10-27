@@ -15,7 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import proj.memorchess.axl.test_util.TestSettings
 
-/** Exercises the full sign in orchestration with a fake launcher and a mocked HTTP client. */
+/** Tests the full sign in orchestration with a fake launcher and a mocked HTTP client. */
 class TestLichessSignInController {
 
   private val tokenJson = """{"access_token":"tok-xyz"}"""
@@ -93,7 +93,6 @@ class TestLichessSignInController {
 
   @Test
   fun everyLaunchErrorSurfacesFailed() = runTest {
-    // Exercises every OAuthLaunchError -> StringResource mapping arm of toMessage().
     for (error in OAuthLaunchError.entries) {
       val tokenStore = OAuthTokenStore(TestSettings())
       val controller =
@@ -114,7 +113,6 @@ class TestLichessSignInController {
   @Test
   fun tokenRejectedAfterIssuanceClearsStoreAndFails() = runTest {
     val tokenStore = OAuthTokenStore(TestSettings())
-    // Token exchange succeeds, but the immediate /api/account call is rejected with 401.
     val engine = MockEngine { request ->
       when (request.url.encodedPath) {
         "/api/token" ->

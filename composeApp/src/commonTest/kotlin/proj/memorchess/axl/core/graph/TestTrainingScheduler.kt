@@ -61,10 +61,6 @@ class TestTrainingScheduler {
     return SchedulerFixture(store, scheduler, tagStore)
   }
 
-  /**
-   * What [newScheduler] hands back. A data class rather than a `Pair` so a case that tags edges can
-   * destructure the tag store as a third component while the others keep taking only two.
-   */
   private data class SchedulerFixture(
     val store: TreeStore,
     val scheduler: TrainingScheduler,
@@ -128,9 +124,8 @@ class TestTrainingScheduler {
 
   @Test
   fun gradeRecordsAPositionSyncedFromAnotherDeviceAsTodaysOnlyLocalReview() = runTest {
-    // posA's card state carries a lastReview from earlier today, as if SyncEngine had pulled it
-    // from another device that already reviewed it. This device's streak store has nothing for
-    // today yet, so this grade is this device's first local review of the day and must count.
+    // posA was reviewed earlier today on another device; this grade is still this device's first
+    // local review of the day.
     val (store, scheduler, streakTracker) = newSchedulerWithStreak()
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     val today = DateUtil.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -180,9 +175,8 @@ class TestTrainingScheduler {
 
   @Test
   fun gradeRecordsUnderTheConfiguredZonesDayNotTheSystemDefault() = runTest {
-    // 26 hours apart, so their current calendar dates can never coincide, and the system's own
-    // zone can match at most one of them. A scheduler built with either zone must record under
-    // that zone's own day, never the other one's and never the system's.
+    // 26 hours apart, so their current dates never coincide and the system zone matches at most
+    // one.
     val zoneAhead = UtcOffset(hours = 14).asTimeZone()
     val zoneBehind = UtcOffset(hours = -12).asTimeZone()
     val (storeAhead, schedulerAhead, streakAhead) = newSchedulerWithStreak(zoneAhead)
@@ -224,7 +218,6 @@ class TestTrainingScheduler {
   @Test
   fun nextDuePicksMinimumDepth() = runTest {
     val (store, scheduler) = newScheduler()
-    // posA via startPos at depth 0, posB via posA at depth 1
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
     val entry = scheduler.nextDue()
@@ -243,7 +236,6 @@ class TestTrainingScheduler {
   fun nextDueSkipsFutureDueDates() = runTest {
     val (store, scheduler) = newScheduler()
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
-    // Push the start position into the future
     val futureState = CardStateFactory.new(DateUtil.now() + 5.days)
     store.updateCardState(startPos, futureState)
     assertNull(scheduler.nextDue())
@@ -252,7 +244,6 @@ class TestTrainingScheduler {
   @Test
   fun nextAfterPrefersReachableDestination() = runTest {
     val (store, scheduler) = newScheduler()
-    // Two reachable children from startPos
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = startPos, move = "d4", to = posB, isGood = true, fromDepth = 0)
     // Each child has its own next move so it is trainable
@@ -260,7 +251,6 @@ class TestTrainingScheduler {
     store.addMove(from = posB, move = "d5", to = posC, isGood = true, fromDepth = 1)
     val entry = scheduler.nextAfter(startPos)
     assertNotNull(entry)
-    // Must be one of the immediate children
     assertEquals(true, entry.positionKey == posA || entry.positionKey == posB)
   }
 
@@ -272,8 +262,6 @@ class TestTrainingScheduler {
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
     assertEquals(2, scheduler.pendingCount())
   }
-
-  // Phase 3 propagation: the tiered selection over CardPhase states (issue #134 gaps 1 and 2).
 
   @Test
   fun readyLearningCardWithEarlierDueComesFirst() = runTest {
@@ -307,7 +295,7 @@ class TestTrainingScheduler {
     store.addMove(from = posB, move = "Nf3", to = posC, isGood = true, fromDepth = 2)
     val now = DateUtil.now()
     // No review card is due (startPos pushed far into the future); only sub-day learning cards
-    // remain, both not yet due. The earliest-due learning card resurfaces — one minute before ten.
+    // remain, both not yet due. The earliest-due learning card resurfaces.
     store.updateCardState(startPos, CardStateFactory.new(now + 5.days))
     store.updateCardState(posA, learningCard(now + 10.minutes))
     store.updateCardState(posB, learningCard(now + 1.minutes))
@@ -327,10 +315,8 @@ class TestTrainingScheduler {
 
   @Test
   fun nextDuePicksNewCardsByDepthThenCreatedAt() = runTest {
-    // New-card ordering is the approximate fallback: shallower positions first, ties broken by the
-    // earliest creation. The e4 line is older (smaller createdAt) but reaches posB at depth 2; the
-    // d4 line is newer but reaches posC at depth 1. Once startPos and posA are no longer due, the
-    // shallower posC must surface before the deeper posB, even though its line was added later.
+    // The older e4 line reaches posB at depth 2; the newer d4 line reaches posC at depth 1, so the
+    // shallower posC surfaces first once startPos and posA are no longer due.
     val t1 = Instant.parse("2026-01-01T00:00:00Z")
     val t2 = Instant.parse("2026-01-02T00:00:00Z")
     val endOfOldLine = PositionKey("endOld w K")
@@ -365,8 +351,6 @@ class TestTrainingScheduler {
     store.updateCardState(posA, CardStateFactory.new(now + 5.days))
     assertEquals(posC, scheduler.nextDue()?.positionKey)
   }
-
-  // Daily caps: how many new moves and how many total moves are served per day.
 
   @Test
   fun newLimitZeroServesNoNewCards() = runTest {
@@ -501,8 +485,6 @@ class TestTrainingScheduler {
     val (store, scheduler) = newScheduler()
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
-    // With budget available, nextAfter returns the first eligible reachable child so the session
-    // stays in the current line.
     assertEquals(posA, scheduler.nextAfter(startPos)?.positionKey)
   }
 
@@ -511,8 +493,6 @@ class TestTrainingScheduler {
     val (store, scheduler) = newScheduler(maxNew = 0)
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
-    // posA is a brand new card. With the new-card cap at zero, staying in the line must not
-    // introduce it: nextAfter honors the cap and returns null for the reachable NEW child.
     assertNull(scheduler.nextAfter(startPos))
   }
 
@@ -522,8 +502,7 @@ class TestTrainingScheduler {
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.addMove(from = posA, move = "e5", to = posB, isGood = true, fromDepth = 1)
     store.addMove(from = posC, move = "Nf3", to = posB, isGood = true, fromDepth = 0)
-    // posC already consumed the single daily slot today, so the total budget is exhausted. Even a
-    // reachable, otherwise-eligible child must not be served.
+    // posC already consumed the single daily slot today.
     store.updateCardState(posC, reviewedTodayCard())
     assertNull(scheduler.nextAfter(startPos))
   }
@@ -531,8 +510,7 @@ class TestTrainingScheduler {
   @Test
   fun nextAfterReturnsNullWhenNoReachableChildIsEligible() = runTest {
     val (store, scheduler) = newScheduler()
-    // startPos's only child posA has no good outgoing edge, so it is not trainable and not
-    // eligible; nextAfter then finds nothing reachable.
+    // posA has no good outgoing edge, so it is not trainable.
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     assertNull(scheduler.nextAfter(startPos))
   }
@@ -582,8 +560,7 @@ class TestTrainingScheduler {
     val zone = UtcOffset(hours = 1).asTimeZone()
     val (store, scheduler) = newScheduler(timeZone = zone)
     val today = LocalDate(2026, 6, 13)
-    // dueDate sits exactly on the exclusive day boundary (next local midnight). Because the bound
-    // is exclusive, the review belongs to the next day and must not be served for today.
+    // Exactly on the exclusive day boundary, so the review belongs to tomorrow.
     val nextMidnight = LocalDateTime(2026, 6, 14, 0, 0).toInstant(zone)
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.updateCardState(startPos, reviewCard(nextMidnight))
@@ -596,7 +573,6 @@ class TestTrainingScheduler {
     val zone = UtcOffset(hours = 1).asTimeZone()
     val (store, scheduler) = newScheduler(timeZone = zone)
     val today = LocalDate(2026, 6, 13)
-    // One second below the exclusive boundary: still due today.
     val justBeforeMidnight = LocalDateTime(2026, 6, 13, 23, 59, 59).toInstant(zone)
     store.addMove(from = startPos, move = "e4", to = posA, isGood = true, fromDepth = 0)
     store.updateCardState(startPos, reviewCard(justBeforeMidnight))
@@ -606,12 +582,8 @@ class TestTrainingScheduler {
 
   @Test
   fun pendingCountDefaultsToTheSchedulersOwnZoneNotTheSystemZone() = runTest {
-    // 26 hours apart, so their current local dates can never coincide, and a system zone default
-    // could agree with the wrong window for at most one of the two. posC was already trained at
-    // the real "now", which always falls inside its own zone's current day by definition, so the
-    // cap holds under the fix. If the default day instead came from the system zone, the window
-    // handed to at least one of these schedulers would miss "now" entirely, posC would stop
-    // consuming the single slot, and pendingCount would surface the still new startPos card.
+    // 26 hours apart, so a system zone default would miss "now" for at least one scheduler: posC
+    // would stop consuming the single slot and the new startPos card would surface.
     val zoneAhead = UtcOffset(hours = 14).asTimeZone()
     val zoneBehind = UtcOffset(hours = -12).asTimeZone()
     val (storeAhead, schedulerAhead) = newScheduler(maxTotal = 1, timeZone = zoneAhead)
@@ -695,8 +667,6 @@ class TestTrainingScheduler {
       step = 0,
     )
 
-  // --- Scoped scheduling -------------------------------------------------------------------
-
   @Test
   fun nextAfterOnlyOffersADestinationTaggedWithTheActiveScope() = runTest {
     val (store, scheduler, tagStore) = newScheduler()
@@ -706,16 +676,12 @@ class TestTrainingScheduler {
     val leafB = PositionKey("posLeafB w K")
     store.addMove(startPos, "e4", destinationA, isGood = true, fromDepth = 0)
     store.addMove(startPos, "d4", destinationB, isGood = true, fromDepth = 0)
-    // Each destination needs its own good outgoing edge to be eligible; see
-    // nextAfterReturnsNullWhenNoReachableChildIsEligible above.
+    // Each destination needs its own good outgoing edge to be eligible.
     store.addMove(destinationA, "e5", leafA, isGood = true, fromDepth = 1)
     store.addMove(destinationB, "d5", leafB, isGood = true, fromDepth = 1)
     tagStore.tag(startPos, destinationA, "italian-game")
     tagStore.tag(startPos, destinationB, "queens-gambit")
-    // destinationA/destinationB must each be trainable within the scope too (their own outgoing
-    // edge tagged the same way), not merely reached by a tagged edge: see the design's
-    // NodeRepertoireTrainable
-    // note on findEligibleAmong's own scope check.
+    // Each destination must also be trainable within the scope, through its own tagged edge.
     tagStore.tag(destinationA, leafA, "italian-game")
     tagStore.tag(destinationB, leafB, "queens-gambit")
 
@@ -771,8 +737,7 @@ class TestTrainingScheduler {
     tagStore.tag(italianA, italianLeaf, "italian-game")
     tagStore.tag(gambitA, gambitLeaf, "queens-gambit")
 
-    // No repertoireId: every trainable due card counts, tagged or not (startPos itself carries no
-    // tag of its own), exactly like before repertoire scoping existed.
+    // Unscoped, every trainable due card counts, including the untagged startPos.
     assertEquals(3, scheduler.dueCount())
   }
 

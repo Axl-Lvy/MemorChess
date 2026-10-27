@@ -25,10 +25,6 @@ import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
-// ---------------------------------------------------------------------------
-// External JS interfaces for IndexedDB object stores
-// ---------------------------------------------------------------------------
-
 /** JS object stored in the "nodes" object store. */
 private external interface JsNodeEntity : JsAny {
   var positionKey: String
@@ -43,11 +39,11 @@ private external interface JsNodeEntity : JsAny {
   var step: Int
   var depth: Int
   var hasGoodOutgoing: Int // 0/1; IndexedDB cannot range-index a JS boolean directly
-  var createdAt: Double // epoch seconds (Double avoids Long to BigInt)
+  var createdAt: Double // epoch seconds; Double avoids Long to BigInt
   var isDeleted: Boolean
-  var updatedAt: Double // epoch seconds (Double avoids Long to BigInt)
+  var updatedAt: Double // epoch seconds; Double avoids Long to BigInt
   var originDevice: String
-  var deviceSeq: Double // avoids Long→BigInt, same reasoning as createdAt/updatedAt
+  var deviceSeq: Double // Double avoids Long to BigInt
 }
 
 /** JS object stored in the "moves" object store. */
@@ -58,10 +54,10 @@ private external interface JsMoveEntity : JsAny {
   var isGood: Boolean
   var ownIsGood: Boolean? // null without a manual hold
   var isDeleted: Boolean
-  var createdAt: Double // epoch seconds (Double avoids Long→BigInt)
-  var updatedAt: Double // epoch seconds (Double avoids Long→BigInt)
+  var createdAt: Double // epoch seconds; Double avoids Long to BigInt
+  var updatedAt: Double // epoch seconds; Double avoids Long to BigInt
   var originDevice: String
-  var deviceSeq: Double // avoids Long→BigInt, same reasoning as createdAt/updatedAt
+  var deviceSeq: Double // Double avoids Long to BigInt
 }
 
 /** JS object stored in the "outbox" object store. */
@@ -70,7 +66,7 @@ private external interface JsOutboxEntry : JsAny {
   var key1: String
   var key2: String
   var key3: String
-  var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
+  var deviceSeq: Double // Double avoids Long to BigInt
 }
 
 /** JS object stored in the "repertoires" object store. */
@@ -82,7 +78,7 @@ private external interface JsRepertoireEntity : JsAny {
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds
   var originDevice: String
-  var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
+  var deviceSeq: Double // Double avoids Long to BigInt
 }
 
 /** JS object stored in the "edgeRepertoireTags" object store. */
@@ -95,25 +91,17 @@ private external interface JsEdgeRepertoireTagEntity : JsAny {
   var isDeleted: Boolean
   var updatedAt: Double // epoch seconds
   var originDevice: String
-  var deviceSeq: Double // avoids Long→BigInt, same reasoning as JsNodeEntity.deviceSeq
+  var deviceSeq: Double // Double avoids Long to BigInt
 }
 
 /** JS object stored in the "nodeRepertoireTrainable" object store. */
 private external interface JsNodeRepertoireTrainableEntity : JsAny {
   var positionKey: String
   var repertoireId: String
-  var lastReview: Double // epoch seconds; 0 means null, same convention as JsNodeEntity
+  var lastReview: Double // epoch seconds; 0 means null
 }
 
-// ---------------------------------------------------------------------------
-// JS object creation (same pattern as library-internal jso)
-// ---------------------------------------------------------------------------
-
 private fun <T : JsAny> emptyObject(): T = js("({})")
-
-// ---------------------------------------------------------------------------
-// JsArray → List helper
-// ---------------------------------------------------------------------------
 
 /** Converts a [JsArray] returned by IndexedDB `getAll()` to a Kotlin [List]. */
 @Suppress("UNCHECKED_CAST")
@@ -125,10 +113,6 @@ private fun <T : JsAny> JsArray<*>.toList(): List<T> {
   }
   return result
 }
-
-// ---------------------------------------------------------------------------
-// Conversion: JS → domain
-// ---------------------------------------------------------------------------
 
 private fun JsMoveEntity.toDataMove(): DataMove =
   DataMove(
@@ -180,10 +164,7 @@ private fun JsNodeEntity.toDataNode(
   )
 }
 
-/**
- * Builds a [proj.memorchess.axl.core.graph.TrainingEntry] from a node row without loading any
- * edges, the IndexedDB counterpart of the Room `NodeCardProjection` mapping.
- */
+/** Builds a [TrainingEntry] from a node row without loading edges. */
 private fun JsNodeEntity.toTrainingEntry(): TrainingEntry {
   val lastReviewSec = lastReview.toLong()
   val firstReviewSec = firstReview.toLong()
@@ -203,10 +184,6 @@ private fun JsNodeEntity.toTrainingEntry(): TrainingEntry {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Compound IndexedDB key range helpers
-// ---------------------------------------------------------------------------
-
 /** Builds a JS array usable as a compound IndexedDB key from already-JS values. */
 private fun jsKeyArray(vararg elements: JsAny): JsArray<JsAny> {
   val array = JsArray<JsAny>()
@@ -223,10 +200,6 @@ private fun Double.toJsKey(): JsAny = toJsNumber()
 // Sentinels spanning the full ordered domain of a compound key slot.
 private val LOW_NUMBER: JsAny = Double.NEGATIVE_INFINITY.toJsNumber()
 private val HIGH_NUMBER: JsAny = Double.POSITIVE_INFINITY.toJsNumber()
-
-// ---------------------------------------------------------------------------
-// Conversion: domain → JS
-// ---------------------------------------------------------------------------
 
 private fun DataNode.toJsNodeEntity(): JsNodeEntity {
   val node = this
@@ -330,11 +303,7 @@ private fun JsEdgeRepertoireTagEntity.toDataEdgeRepertoireTag(): DataEdgeReperto
     deviceSeq = deviceSeq.toLong(),
   )
 
-// ---------------------------------------------------------------------------
-// Conversion: DirtyKey <-> JS outbox entry
-// ---------------------------------------------------------------------------
-
-/** The parts a [JsOutboxEntry]'s compound key splits into. See [DirtyKey.outboxKeyParts]. */
+/** The parts a [JsOutboxEntry]'s compound key splits into. */
 private data class OutboxKeyParts(
   val kind: String,
   val key1: String,
@@ -376,7 +345,7 @@ private fun JsOutboxEntry.toDirtyKey(): DirtyKey =
 private fun JsOutboxEntry.toOutboxEntry(): OutboxEntry =
   OutboxEntry(toDirtyKey(), deviceSeq.toLong())
 
-/** String discriminators for [JsOutboxEntry.kind], mirroring the Room backend's own constants. */
+/** String discriminators for [JsOutboxEntry.kind]. */
 private object OutboxKind {
   const val NODE = "NODE"
   const val EDGE = "EDGE"
@@ -384,10 +353,6 @@ private object OutboxKind {
   const val REPERTOIRE = "REPERTOIRE"
   const val TAG = "TAG"
 }
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 internal const val NODES_STORE = "nodes"
 internal const val MOVES_STORE = "moves"
@@ -406,19 +371,14 @@ private val GOOD: JsAny = 1.toJsKey()
 /** The two in-session phases, used to span both LEARNING and RELEARNING with bounded queries. */
 private val IN_SESSION_PHASES = listOf(CardPhase.LEARNING.name, CardPhase.RELEARNING.name)
 
-// ---------------------------------------------------------------------------
-// IndexedDB-backed DatabaseQueryManager
-// ---------------------------------------------------------------------------
-
 /** Local database for wasmJs backed by IndexedDB. */
 object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   private suspend fun db(): Database = getIndexedDb()
 
   /**
-   * Queues [key] for push at [deviceSeq], keeping the higher of the stored and new sequence on a
-   * repeat mark. Callable from inside another store's write transaction so a row change and its
-   * outbox entry commit together.
+   * Queues [key] at [deviceSeq], keeping the higher sequence on a repeat mark. Runs inside the
+   * caller's write transaction, so a row change and its outbox entry commit together.
    */
   private suspend fun com.juul.indexeddb.WriteTransaction.upsertOutboxEntry(
     key: DirtyKey,
@@ -454,7 +414,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         for (move in allMoves) {
           movesStore.put(move.toJsMoveEntity())
         }
-        // Queues the node's own outbox entry in the same transaction as the row write it names.
         upsertOutboxEntry(DirtyKey.NodeKey(dataNode.positionKey), dataNode.deviceSeq)
       }
     }
@@ -499,10 +458,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  /**
-   * Writes [node]'s row directly, without touching [MOVES_STORE] or queuing an outbox entry, the
-   * remote-apply counterpart of [insertNodes].
-   */
+  /** Writes [node]'s row directly, without touching [MOVES_STORE] or queuing an outbox entry. */
   override suspend fun applyRemoteNode(node: DataNode) {
     val database = db()
     database.writeTransaction(NODES_STORE) { objectStore(NODES_STORE).put(node.toJsNodeEntity()) }
@@ -520,17 +476,13 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     return database.transaction(NODES_STORE, MOVES_STORE) {
       val nodesStore = objectStore(NODES_STORE)
       val movesStore = objectStore(MOVES_STORE)
-      // Primary key range over positionKey: open lower bound skips the cursor itself so the page
-      // starts strictly after it, mirroring the SQL `positionKey > :cursor`. With a null cursor the
-      // whole store is in range and the cursor walks from the smallest key ascending.
+      // Open lower bound, so the page starts strictly after the cursor.
       val range = cursor?.let { lowerBound(it.toJsString(), open = true) }
       val live = mutableListOf<JsNodeEntity>()
       nodesStore
         .openCursor(range, Cursor.Direction.Next)
         .map { it.value as JsNodeEntity }
-        // Soft deleted rows are skipped in place so the page holds up to `limit` live nodes,
-        // exactly
-        // like the Room `WHERE isDeleted IS FALSE ... LIMIT :limit` query.
+        // Skip soft deleted rows in place, so the page holds up to `limit` live nodes.
         .firstOrNull { jsNode ->
           if (!jsNode.isDeleted) {
             live.add(jsNode)
@@ -574,10 +526,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  /**
-   * Flips [position]'s row and each of [incidentMoves] to deleted, queuing an outbox entry for each
-   * row change in the same transaction as the write it names.
-   */
+  /** Flips [position] and each of [incidentMoves] to deleted, queuing each row's outbox entry. */
   private suspend fun com.juul.indexeddb.WriteTransaction.softDeletePosition(
     position: PositionKey,
     incidentMoves: List<JsMoveEntity>,
@@ -594,7 +543,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       jsNode.originDevice = originDevice
       jsNode.deviceSeq = deviceSeq.toDouble()
       nodesStore.put(jsNode)
-      // Queues the node's own outbox entry in the same transaction as the row flip.
       upsertOutboxEntry(DirtyKey.NodeKey(position), deviceSeq)
     }
     for (move in incidentMoves) {
@@ -605,7 +553,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       move.originDevice = originDevice
       move.deviceSeq = deviceSeq.toDouble()
       movesStore.put(move)
-      // Queues exactly the edges this call tombstoned, in the same transaction.
       upsertOutboxEntry(
         DirtyKey.EdgeKey(PositionKey(move.origin), PositionKey(move.destination)),
         deviceSeq,
@@ -633,7 +580,6 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         m.originDevice = originDevice
         m.deviceSeq = deviceSeq.toDouble()
         movesStore.put(m)
-        // Queues the edge's own outbox entry in the same transaction as the row flip.
         upsertOutboxEntry(DirtyKey.EdgeKey(origin, PositionKey(m.destination)), deviceSeq)
       }
     }
@@ -673,12 +619,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       repertoireId = repertoireId,
     )
 
-  /**
-   * Earliest-due in-session card. [ready] selects `dueDate <= now`, otherwise `dueDate > now`. Runs
-   * one bounded cursor per in-session phase on the `good_phase_due` index and keeps the smaller due
-   * date, mirroring the SQL `phase IN (LEARNING, RELEARNING) ORDER BY dueDate ASC LIMIT 1`. Soft
-   * deleted rows are skipped so the result matches the Room `WHERE isDeleted = 0` queries.
-   */
+  /** Earliest due live in-session card; [ready] selects `dueDate <= now`, else `dueDate > now`. */
   private suspend fun nextLearningCard(
     dueBound: Double,
     ready: Boolean,
@@ -702,8 +643,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
               lowerOpen = true,
             )
           }
-        // The index orders by due date ascending, so the first non-deleted row of this phase is the
-        // earliest-due live candidate; deleted rows are skipped in place.
+        // The index orders by due date, so the first live row is this phase's earliest due.
         val candidate =
           index
             .openCursor(range, Cursor.Direction.Next)
@@ -744,11 +684,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * All trainable, live rows of [phase] due before [dayEnd], read from the bounded compound range
-   * on `good_phase_due_depth_created`, optionally narrowed to [repertoireId]. The set is bounded to
-   * the due rows of one phase; the caller reduces it by the tier's ordering (`depth`, or `depth`
-   * then `createdAt`) because the index orders by due date first. Soft deleted rows are excluded to
-   * match the Room `WHERE isDeleted = 0` queries.
+   * Trainable live rows of [phase] due before [dayEnd], optionally narrowed to [repertoireId]. The
+   * index orders by due date first, so the caller applies the tier's own ordering.
    */
   private suspend fun com.juul.indexeddb.Transaction.dueGoodRows(
     phase: String,
@@ -769,11 +706,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       .filter { !it.isDeleted && isTrainableFor(it.positionKey, repertoireId) }
   }
 
-  /**
-   * `true` when [repertoireId] is `null` (no scope), or [positionKey] has a live
-   * `NodeRepertoireTrainable` row for it. A point lookup on the trainable store's compound primary
-   * key, bounded the same way every other candidate check in this class already is.
-   */
+  /** `true` when [repertoireId] is `null` or [positionKey] has a trainable row for it. */
   private suspend fun com.juul.indexeddb.Transaction.isTrainableFor(
     positionKey: String,
     repertoireId: String?,
@@ -792,9 +725,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val end = dayEndExclusive.epochSeconds.toDouble()
     return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val store = objectStore(NODES_STORE)
-      // firstReview/lastReview store the "never reviewed" null as the 0.0 sentinel, so a day window
-      // that begins at epoch 0 would otherwise sweep those nulls in. Excluding values <= 0.0 keeps
-      // parity with Room (NULL excluded) and InMemory regardless of where the window starts.
+      // 0.0 encodes a null review, so exclude it even when the window starts at epoch 0.
       val introduced =
         store
           .index("firstReview")
@@ -851,7 +782,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val end = dayEndExclusive.epochSeconds.toDouble()
     return database.transaction(NODES_STORE, NODE_REPERTOIRE_TRAINABLE_STORE) {
       val store = objectStore(NODES_STORE)
-      // Bounded by the candidate count (branching factor): one primary-key get per key, in order.
+      // One primary key get per candidate, in the caller's order.
       for (key in keys) {
         val node = store.get(Key(key.value.toJsString()))?.unsafeCast<JsNodeEntity>() ?: continue
         if (node.isDeleted || node.hasGoodOutgoing != 1) continue
@@ -910,9 +841,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
-   * subtree (incoming count at most one), resolved with index lookups. A convergent position
-   * reachable through an outside parent is excluded.
+   * Live children of [origin] with at most one live incoming edge, so a position also reachable
+   * from outside the subtree is excluded.
    */
   private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
     val candidates = childMoveDestinations(origin.value)
@@ -1006,7 +936,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
             parts.key3.toJsString(),
           )
         val existing = store.get(key)?.unsafeCast<JsOutboxEntry>()
-        // Only remove the entry when no fresher mark has landed since it was read for push.
+        // Remove only when no fresher mark landed since the push read it.
         if (existing != null && existing.deviceSeq.toLong() <= entry.deviceSeq) store.delete(key)
       }
     }
@@ -1188,8 +1118,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
             .openCursor(range, Cursor.Direction.Next)
             .map { it.value as JsNodeRepertoireTrainableEntity }
             .toList()
-        // A tombstoned position's trainable row is stale until its own delete path clears it (see
-        // TreeStore); this filter is the correctness backstop for that, not merely an optimization.
+        // A tombstoned position's trainable row is stale until its delete path clears it; this
+        // filter is the correctness backstop, not merely an optimization.
         val live = rows.mapNotNull { row ->
           val node = nodesStore.get(Key(row.positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
           if (node != null && !node.isDeleted) row to node else null

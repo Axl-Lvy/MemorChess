@@ -12,7 +12,7 @@ import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.init
 import proj.memorchess.axl.ui.KoinStarterApp
 
-/** Entry point of the Android app. Wires platform initialization then composes the shared UI. */
+/** Entry point of the Android app. */
 class MainActivity : ComponentActivity() {
 
   @OptIn(ExperimentalComposeUiApi::class)
@@ -21,8 +21,7 @@ class MainActivity : ComponentActivity() {
     AndroidContextProvider.initialize(this)
     FileKit.init(this)
     setContent {
-      // Exposes Compose testTags as accessibility resource ids so UiAutomator (used by the
-      // :macrobenchmark module) can find the bottom navigation items.
+      // Lets UiAutomator in :macrobenchmark find composables by testTag.
       Box(Modifier.semantics { testTagsAsResourceId = true }) { KoinStarterApp() }
     }
   }

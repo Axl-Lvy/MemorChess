@@ -42,13 +42,9 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.setKineticContent
 import proj.memorchess.axl.ui.waitUntilNodeExists
 
-/** Per-row test tag, mirroring the shape of the caller-supplied production tags. */
 private fun rowTag(item: NavigationBarItemContent) = "rail_${item.name}"
 
-/**
- * A [DailyActivityStore] whose reads never complete, so `produceState` stays unresolved. Used to
- * observe the rail's loading branch deterministically.
- */
+/** A [DailyActivityStore] whose reads never complete, keeping the rail in its loading branch. */
 private class NeverReturningDailyActivityStore : DailyActivityStore {
   override suspend fun getRecord(date: LocalDate): DailyActivityRecord = awaitCancellation()
 
@@ -57,28 +53,15 @@ private class NeverReturningDailyActivityStore : DailyActivityStore {
   override suspend fun eraseAll(): Unit = awaitCancellation()
 }
 
-/**
- * Pins [KineticSideBar]'s streak card, its badge branch and the per-row test-tag contract.
- *
- * No Koin container: both dependencies are built by hand and passed explicitly, which also proves
- * the `koinInject()` defaults really are defaults.
- */
+/** Pins [KineticSideBar]'s streak card, its badge and the per-row test tags. */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticSideBar {
 
   private val items = NavigationBarItemContent.entries.sortedBy { it.index }
 
   /**
-   * Seeds [store] so that [StreakTracker.streakDays] reports [streak] and
-   * [StreakTracker.cardsCompletedToday] reports [done].
-   *
-   * A non-zero streak with nothing done yet lives on YESTERDAY's active record — that is exactly
-   * what `streakDays()` falls back to, and the normal state of the app first thing in the morning.
-   * Writing records directly rather than calling `recordReview()` N times is deliberate: a
-   * 99999-day streak must not cost 99999 writes, and `recordReview()` cannot produce a multi-day
-   * streak without walking every intervening day.
-   *
-   * Callers keep `(streak, done)` self-consistent: `done > 0` implies `streak >= 1`.
+   * Seeds [store] with a [streak] carried by yesterday's record and [done] cards today, written
+   * directly so a large streak costs one write. `done > 0` requires `streak >= 1`.
    */
   private suspend fun seedStreak(store: InMemoryDailyActivityStore, streak: Int, done: Int) {
     val today = DateUtil.today()
@@ -104,9 +87,7 @@ internal class TestKineticSideBar {
     }
   }
 
-  /**
-   * An in memory database holding [count] brand new cards, i.e. [count] pending training entries.
-   */
+  /** An in memory database holding [count] brand new cards. */
   private suspend fun dbWithDueCards(count: Int): InMemoryDatabaseQueryManager {
     val database = TestDatabases.empty()
     if (count > 0) {
@@ -152,10 +133,7 @@ internal class TestKineticSideBar {
       .map { it.text }
       .filter { text -> text.any { it.isDigit() } }
 
-  /**
-   * Every digit-bearing text on the row tagged [tag]. A nav row merges its descendants (it is
-   * clickable), so the label and the badge both surface as texts on the row's own node.
-   */
+  /** Every digit-bearing text on the row tagged [tag], which merges its label and badge. */
   private fun ComposeUiTest.rowDigitTexts(tag: String): List<String> =
     onNodeWithTag(tag)
       .fetchSemanticsNode()
@@ -166,12 +144,8 @@ internal class TestKineticSideBar {
       .filter { text -> text.any { it.isDigit() } }
 
   /**
-   * Asserts the node whose text matches [text] laid out on a single line, i.e. the rail gave it its
-   * full intrinsic width instead of squeezing it into a wrap.
-   *
-   * `TextLayoutResult.hasVisualOverflow` is deliberately not used: in this harness it reports
-   * `true` even for a one-character line that plainly fits, so it carries no signal. Wrapping is
-   * the failure mode a five-digit streak actually has.
+   * Asserts the node with [text] is laid out on one line. `hasVisualOverflow` is useless here: this
+   * harness reports it even for text that fits.
    */
   private fun ComposeUiTest.assertLaidOutOnOneLine(text: String, substring: Boolean = false) {
     val results = mutableListOf<TextLayoutResult>()
@@ -182,8 +156,6 @@ internal class TestKineticSideBar {
       ?.invoke(results)
     results.first().lineCount shouldBe 1
   }
-
-  // STREAK NUMBER
 
   @Test
   fun streakZeroRenders() = runComposeUiTest {
@@ -218,8 +190,6 @@ internal class TestKineticSideBar {
     onNodeWithText("99999").assertIsDisplayed()
     assertLaidOutOnOneLine("99999")
   }
-
-  // TODAY LINE — the `target == 0` vs `target > 0` branch
 
   @Test
   fun targetZeroHidesTheSlash() = runComposeUiTest {
@@ -267,8 +237,7 @@ internal class TestKineticSideBar {
 
     setRail(StreakTracker(store), schedulerOver(database))
 
-    // The headline number must never wrap; the secondary line is allowed to, and does at a
-    // six-digit target. Nothing is clipped either way — the rail scrolls.
+    // Only the headline number must never wrap; the secondary line may at a six-digit target.
     waitUntilNodeExists(hasText("99999/100000", substring = true))
     assertLaidOutOnOneLine("99999")
   }
@@ -278,16 +247,12 @@ internal class TestKineticSideBar {
     setRail(StreakTracker(NeverReturningDailyActivityStore()), schedulerOver(dbWithDueCards(3)))
 
     waitUntilNodeExists(hasTestTag(rowTag(NavigationBarItemContent.Training)))
-    // Nothing in the rail carries a digit until the snapshot resolves — not even a placeholder "0".
     digitTexts(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text)).shouldBeEmpty()
   }
 
   @Test
   fun targetDoesNotDoubleCountAGradedInSessionCard() = runComposeUiTest {
-    // A single new card, graded GOOD once, lands in CardPhase.LEARNING step 1 (the default Fsrs6
-    // ladder is [1.minutes, 10.minutes], so GOOD advances one step without graduating). It is now
-    // both "done" (its first review of the day already happened) and "in session" (still mid
-    // learning). The target must count it once, not twice.
+    // GOOD moves a new card to a learning step, so it is both done and in session.
     val store = InMemoryDailyActivityStore()
     val streakTracker = StreakTracker(store)
     val database = dbWithDueCards(1)
@@ -311,8 +276,6 @@ internal class TestKineticSideBar {
     onNode(hasText("1/2", substring = true)).assertDoesNotExist()
   }
 
-  // ROWS AND THE TEST-TAG CONTRACT
-
   @Test
   fun activeRowIsSelected() = runComposeUiTest {
     val store = InMemoryDailyActivityStore()
@@ -326,8 +289,7 @@ internal class TestKineticSideBar {
 
   @Test
   fun trainingRowStaysSelectedOnThePushedTrainingBoard() = runComposeUiTest {
-    // Training's destination is TodayRoute, but the row must also stay selected once the pushed
-    // TrainingRoute board is on screen, not just on the Today dashboard itself.
+    // Training's destination is TodayRoute, but its row must stay selected on the pushed board too.
     val store = InMemoryDailyActivityStore()
     setRail(
       StreakTracker(store),
@@ -378,8 +340,6 @@ internal class TestKineticSideBar {
       onNodeWithTag(rowTag(it)).assertHasClickAction()
     }
   }
-
-  // BADGE — the `takeIf { it > 0 }` branch
 
   @Test
   fun noBadgeWhenNothingIsDue() = runComposeUiTest {

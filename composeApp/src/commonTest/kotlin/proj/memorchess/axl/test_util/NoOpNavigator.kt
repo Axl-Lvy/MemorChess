@@ -8,7 +8,7 @@ import androidx.navigation.NavHostController
 import proj.memorchess.axl.ui.pages.navigation.Navigator
 import proj.memorchess.axl.ui.pages.navigation.Route
 
-/** A no-operation implementation of the Navigator interface for testing purposes */
+/** A [Navigator] that does nothing. */
 open class NoOpNavigator : Navigator {
   override fun navigateTo(route: Route) {
     // Nothing to do

@@ -27,14 +27,7 @@ import proj.memorchess.axl.ui.theme.KineticLightPalette
 
 private const val BUTTON_TAG = "kinetic_button"
 
-/**
- * Propagation tests for [KineticButton]'s new filled/transparent elevation branch, its square
- * icon-only footprint, and the press paths through the new pressable/scale modifier chain.
- *
- * Extends [TestWithKoin] because pressing a button builds
- * [proj.memorchess.axl.ui.theme.KineticMotion.Routine.buttonPress], which reads
- * [REDUCE_MOTION_SETTING] through Koin.
- */
+/** Extends [TestWithKoin] since a press reads [REDUCE_MOTION_SETTING] through Koin. */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticButton : TestWithKoin() {
 
@@ -104,12 +97,6 @@ internal class TestKineticButton : TestWithKoin() {
     clicks shouldBe 0
   }
 
-  /**
-   * A held press at the very top edge — the position the press translate would move out from under
-   * a real finger — still delivers the click. Note this passes with the modifier chain in either
-   * order on the desktop host: `performTouchInput` re-resolves the node's bounds on the lift, so
-   * the harness never reproduces the drift. It covers the two-phase press path, not the ordering.
-   */
   @Test
   fun aHeldPressAtTheTopEdgeStillClicks() = runButtonTest {
     var clicks = 0
@@ -122,9 +109,8 @@ internal class TestKineticButton : TestWithKoin() {
         KineticButtonLabel("go")
       }
     }
-    // Two separate gestures with an idle in between: the press state has to land and the 3.dp
-    // press translate has to be applied before the finger lifts, which is the exact moment a
-    // clickable chained after the elevation would slide out from under the stationary pointer.
+    // Two gestures, so the press translate applies before the lift. The desktop harness re-resolves
+    // bounds on lift, so this covers the two-phase press, not the modifier order.
     onNodeWithTag(BUTTON_TAG).performTouchInput { down(Offset(centerX, 2f)) }
     waitForIdle()
     onNodeWithTag(BUTTON_TAG).performTouchInput { up() }
@@ -175,12 +161,7 @@ internal class TestKineticButton : TestWithKoin() {
     clicks shouldBe 1
   }
 
-  /**
-   * [KineticButtonStyle.Danger] fills its entire face with [KineticLightPalette.destructive] —
-   * never a plain red. Renders with no text content so every interior pixel samples the fill, not a
-   * label glyph; [KineticButton] requires a trailing content lambda but nothing inside it is
-   * required to draw anything.
-   */
+  /** Renders no content, so the centre pixel samples the fill rather than a glyph. */
   @Test
   fun dangerStyleFillsWithDestructiveNeverRed() = runButtonTest {
     setKineticContent {
@@ -196,12 +177,7 @@ internal class TestKineticButton : TestWithKoin() {
     pixel shouldBe KineticLightPalette.destructive
   }
 
-  /**
-   * [KineticButtonStyle.DangerOutline] strokes its 1.5.dp border in
-   * [KineticLightPalette.destructiveDim] — never a plain red. Samples device-pixel column 0 at
-   * mid-height (the default 36.dp button is 18.dp tall at its midpoint), away from the rounded
-   * corners, where a 1.5px stroke on a straight edge fully covers the first pixel column.
-   */
+  /** Samples column 0 at mid-height, away from the corners, where the stroke covers it fully. */
   @Test
   fun dangerOutlineStyleStrokesWithDestructiveDimNeverRed() = runButtonTest {
     setKineticContent {
@@ -216,16 +192,7 @@ internal class TestKineticButton : TestWithKoin() {
     pixel shouldBe KineticLightPalette.destructiveDim
   }
 
-  /**
-   * The Danger Zone section itself — not just a manually-styled [KineticButton] — must wire its
-   * "erase all data" action to [KineticButtonStyle.Danger]. Renders the real [DangerZoneSection]
-   * and samples the actual `eraseAllDataButton` node, so swapping its `buttonStyle` to
-   * [KineticButtonStyle.Primary] in [DangerZoneSection] would fail this test, unlike sampling a
-   * bare button styled `Danger` in isolation. Unlike [dangerStyleFillsWithDestructiveNeverRed]'s
-   * empty-content button, this button carries a real centered label, so it samples column 0 at
-   * mid-height (the default 36.dp button is 18.dp tall at its midpoint) rather than the center, to
-   * land on the fill and not a text glyph.
-   */
+  /** Samples column 0 at mid-height to land on the fill rather than the centred label. */
   @Test
   fun eraseAllDataButtonInDangerZoneFillsWithDestructive() = runButtonTest {
     setKineticContent { DangerZoneSection(onReset = {}) }
@@ -234,12 +201,6 @@ internal class TestKineticButton : TestWithKoin() {
     pixel shouldBe KineticLightPalette.destructive
   }
 
-  /**
-   * The Danger Zone section itself must wire its "reset config" action to
-   * [KineticButtonStyle.DangerOutline]. Renders the real [DangerZoneSection] and samples the actual
-   * `resetConfigButton` node's border, so swapping its `buttonStyle` away from `DangerOutline` in
-   * [DangerZoneSection] would fail this test.
-   */
   @Test
   fun resetConfigButtonInDangerZoneStrokesWithDestructiveDim() = runButtonTest {
     setKineticContent { DangerZoneSection(onReset = {}) }
@@ -248,13 +209,6 @@ internal class TestKineticButton : TestWithKoin() {
     pixel shouldBe KineticLightPalette.destructiveDim
   }
 
-  /**
-   * The Danger Zone section must actually invoke [DangerZoneSection]'s `onReset` callback once the
-   * user confirms the reset action, not just style the button correctly. Confirming through the
-   * real [proj.memorchess.axl.ui.components.popup.ConfirmationDialog] flow, rather than only
-   * checking the button's style, is what would have caught a reset that resets settings but never
-   * signals the caller to reload.
-   */
   @Test
   fun resetConfigButtonInvokesOnResetAfterConfirmation() = runButtonTest {
     var resetCount = 0

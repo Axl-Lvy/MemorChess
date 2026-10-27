@@ -49,25 +49,11 @@ enum class ExploreInfoTab {
 }
 
 /**
- * Info panel rendered on the right rail (desktop / landscape) or below the board (portrait /
- * compact). The same Composable feeds both layouts — there's no behavioural or wording difference
- * between orientations, only the parent's [modifier] decides the panel's footprint. The panel is a
- * 20.dp card with a 1.5.dp stroke.
+ * Explore info panel with Continuations, Lichess explorer, and Notes tabs. The caller's [modifier]
+ * sets its footprint.
  *
- * Three tabs:
- * - **Continuations** — saved next moves at the current position, wrapped in a [FlowRow] of 12.dp
- *   mono SAN pills with a 1.5.dp stroke, so they reflow without a hard column count. Behaves well
- *   on a 280.dp landscape strip and on a 420.dp desktop column alike.
- * - **Lichess** — embedded [LichessExplorerPanel] driven by [explorerViewModel].
- * - **Notes** — placeholder for future personal annotations.
- *
- * @param nextMoves List of SAN continuations available at the current position.
- * @param onPlayMove Invoked when the user taps one of the continuation chips.
- * @param explorerViewModel View model driving the Lichess opening explorer tab.
- * @param onPlayLichessMove Invoked when the user taps a Lichess move.
- * @param isMine Returns whether a SAN continuation is already a classified good move in the
- *   viewer's own repertoire. Matching continuations are tagged YOURS. Null disables the tagging.
- * @param modifier Outer modifier (caller sets the panel size).
+ * @param isMine whether a SAN continuation is already a good move in the viewer's repertoire, which
+ *   tags it YOURS; `null` disables the tagging.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -87,8 +73,7 @@ fun ExploreSidebar(
   val notesLabel = stringResource(Res.string.explore_tab_notes)
   val panelShape = MaterialTheme.shapes.medium
 
-  // No clip: the 12.dp padding is applied after the border, so every child is inset from the
-  // 20.dp corners and none of them can paint into one.
+  // No clip needed: the padding after the border keeps every child off the rounded corners.
   Column(
     modifier =
       modifier
@@ -134,7 +119,7 @@ fun ExploreSidebar(
   }
 }
 
-/** Flowing row of 12.dp mono SAN pills, 1.5.dp stroke, for the Continuations tab. */
+/** Continuations tab: a flowing row of SAN pills. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ContinuationsContent(
@@ -165,10 +150,8 @@ private fun ContinuationsContent(
     verticalArrangement = Arrangement.spacedBy(8.dp),
   ) {
     nextMoves.forEach { san ->
-      // The clip must precede `clickable`: the indication's state layer paints the node's square
-      // bounds, so without it the ripple squares off the 12.dp corners. Keeping `clickable` and
-      // `testTag` adjacent keeps the click and the tag on one semantics node, which the board and
-      // repertoire tests resolve through.
+      // The clip must precede `clickable` or the ripple squares off the corners. `clickable` and
+      // `testTag` stay adjacent so the click and the tag share one semantics node.
       Box(
         modifier =
           Modifier.background(palette.panel2, chipShape)

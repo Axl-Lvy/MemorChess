@@ -32,36 +32,21 @@ import proj.memorchess.axl.server.db.EdgeIdentity
 import proj.memorchess.axl.server.db.resolveEdgeIds
 import proj.memorchess.axl.server.db.resolvePositionIds
 
-/** Largest number of nodes one user may own at once. Settings are exempt; see [SyncStore.push]. */
+/** Largest number of nodes one user may own at once. */
 internal const val MAX_SYNC_NODES_PER_USER: Int = 20_000
 
 /** Largest number of edges one user may own at once. */
 internal const val MAX_SYNC_EDGES_PER_USER: Int = 20_000
 
-/**
- * Largest number of local repertoires one user may own at once. Distinct from
- * [proj.memorchess.axl.server.repertoire.MAX_REPERTOIRES_PER_USER], which caps the published
- * catalog rather than a device's own repertoire list.
- */
+/** Largest number of local repertoires one user may own at once, published ones aside. */
 internal const val MAX_SYNC_REPERTOIRES_PER_USER: Int = 200
 
 /** Largest number of edge to repertoire tags one user may own at once. */
 internal const val MAX_SYNC_TAGS_PER_USER: Int = 50_000
 
 /**
- * The server side of the sync protocol, over a Postgres database.
- *
- * Every conflict goes through `:shared`'s `resolve`, and no SQL in here orders by `updated_at` to
- * decide a winner. That is deliberate: one implementation of the rule, shared with the client, is
- * the only way the two cannot drift apart.
- *
- * @param dataSource Pooled connections. Each call takes one and returns it.
- * @param maxNodesPerUser Cap on how many nodes one user may own.
- * @param maxEdgesPerUser Cap on how many edges one user may own.
- * @param maxRepertoiresPerUser Cap on how many local repertoires one user may own.
- * @param maxTagsPerUser Cap on how many edge to repertoire tags one user may own.
- * @param ioDispatcher Where the blocking JDBC work runs. Injected rather than hardcoded so a caller
- *   can substitute one, which also keeps the choice of dispatcher out of this class's business.
+ * Server side of the sync protocol, over Postgres. Every conflict goes through `:shared`'s
+ * `resolve`, never an SQL order on `updated_at`, so client and server cannot drift apart.
  */
 internal class SyncStore(
   private val dataSource: DataSource,
@@ -73,25 +58,12 @@ internal class SyncStore(
 ) {
 
   /**
-   * Applies a batch under last write wins and reports whatever was refused.
+   * Applies a batch under last write wins in one transaction, refusing rows stamped too far ahead.
+   * After an erase, rows the cutoff covers are stored as [ERASE_ORIGIN] tombstones; see
+   * [EraseCutoff.cuts].
    *
-   * A row is stored as sent, or refused, with one exception: after an erase, a node, edge,
-   * repertoire or tag stamped before the user's erase cutoff is stored as a tombstone from
-   * [ERASE_ORIGIN] instead, unless the pushing device has already pulled the erase or the eraser
-   * wrote the row after erasing (see [EraseCutoff.cuts]). A row whose `updatedAt` is further ahead
-   * than the tolerance allows comes back in [SyncPushResponse.rejected] so the client can re-stamp
-   * and retry.
-   *
-   * The whole batch is one transaction, and rows are applied in key order so concurrent pushes take
-   * locks in the same sequence.
-   *
-   * Nodes, edges, repertoires and tags are also checked against their per user cap before anything
-   * is written: a push that would carry the owning user past one throws [QuotaExceededException]
-   * and stores nothing. Settings carry no cap; they are small, bounded key/value pairs rather than
-   * a resource a caller can grow without limit.
-   *
-   * @param serverNow The server's clock, passed in so the refusal boundary is testable.
-   * @throws QuotaExceededException the batch would push some resource past its per user cap.
+   * @throws QuotaExceededException the batch would push nodes, edges, repertoires or tags past
+   *   their per user cap; nothing is stored.
    */
   internal suspend fun push(
     userId: String,
@@ -130,17 +102,14 @@ internal class SyncStore(
   }
 
   /**
-   * Applies every accepted row in one transaction and returns the highest revision assigned (`0`
-   * when nothing needed writing).
+   * Applies every accepted row and returns the highest revision assigned, or `0` when nothing was
+   * written. Rows are sorted so concurrent pushes take row locks in one order.
    *
-   * Rows are sorted within each resource so that concurrent pushes take row locks in one order.
-   *
-   * @throws QuotaExceededException some resource would push [userId] past its cap. Checked before
-   *   anything is resolved or written, under [acquireUserLock], so two concurrent pushes from the
-   *   same user can never both slip past it.
+   * @throws QuotaExceededException some resource would push [userId] past its cap. Checked under
+   *   [acquireUserLock] so two concurrent pushes from the same user cannot both slip past it.
    * @throws UnknownDeviceException [deviceId] has no row under [userId].
-   * @throws ResyncRequiredException [deviceId] was removed and has fallen below the garbage
-   *   collection floor, so it may be holding rows whose tombstones are already gone.
+   * @throws ResyncRequiredException [deviceId] was removed and fell below the garbage collection
+   *   floor.
    */
   private fun Connection.applyBatch(
     userId: String,
@@ -195,10 +164,7 @@ internal class SyncStore(
     return revisions.maxOrNull() ?: 0L
   }
 
-  /**
-   * Runs [block] in one transaction on a pooled connection, committing on success and rolling back
-   * on any failure.
-   */
+  /** Runs [block] in one transaction on a pooled connection, rolling back on any failure. */
   private suspend fun <T> inTransaction(block: (Connection) -> T): T =
     withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
@@ -213,30 +179,14 @@ internal class SyncStore(
     }
 
   /**
-   * One bounded page of rows [deviceId] has not been served, ordered by the server assigned
-   * revision.
-   *
-   * The position is a revision and **never** a timestamp. Using `updated_at` instead looks
-   * equivalent and silently loses rows forever: a device with a slow clock writes a row stamped
-   * earlier than a position another device has already passed, and that row is never returned
-   * again.
-   *
-   * Each resource is queried separately with its own limit, so a table that filled its page may
-   * still be holding rows. [SyncPullResponse.nextCursor] is therefore the **lowest** such ceiling
-   * across the five, and rows above it are withheld until the next page. Advancing further could
-   * skip a row in a table that had not caught up, and re-sending is free because applying a row is
-   * idempotent.
-   *
-   * Runs in one transaction under [acquireUserLock], so the five queries see one snapshot. Without
-   * that, a push committing between two of them yields a page carrying an edge without the node
-   * from the same push, and confirming it would authorize purging a tombstone the page never
-   * carried.
+   * One bounded page of rows [deviceId] has not been served, ordered by server revision. The cursor
+   * is a revision, never `updated_at`, which would lose rows written by a device with a slow clock.
+   * [SyncPullResponse.nextCursor] is the lowest ceiling among full per resource pages, so no table
+   * is skipped. Runs under [acquireUserLock] so all five queries see one snapshot.
    *
    * @param ack Token of the page the caller has just written locally, or `null` when it has
-   *   committed nothing since its last failure. A token that matches nothing confirms nothing,
-   *   which is what a replayed request looks like.
+   *   committed nothing since its last failure.
    * @param limit Maximum rows per resource; must be strictly positive.
-   * @throws IllegalArgumentException when [limit] is not strictly positive.
    * @throws UnknownDeviceException when [deviceId] has no row under [userId].
    * @throws ResyncRequiredException when [deviceId] was removed and has fallen below the floor.
    */
@@ -278,9 +228,7 @@ internal class SyncStore(
       fun <T> List<Pair<Long, T>>.upTo(bound: Long?) =
         (if (bound == null) this else filter { it.first <= bound }).map { it.second }
 
-      // A plain assignment. It states what this device was handed, which is what the column means.
-      // A maximum would behave identically, since the ceiling cannot fall while the acknowledgement
-      // is unchanged, but it would suggest a guarantee this column does not need.
+      // A plain assignment, not a maximum: the column states what this device was handed.
       val servedThrough =
         listOf(nodes, edges, settings, repertoires, tags)
           .flatMap { page -> page.map { it.first } }
@@ -305,9 +253,8 @@ internal class SyncStore(
   /**
    * The device's row, refusing a caller that may no longer sync.
    *
-   * @throws UnknownDeviceException when there is no row: there is no position to serve from and no
-   *   floor to check against, and serving from `0` would hand a full dataset to a device the
-   *   watermark cannot see.
+   * @throws UnknownDeviceException when there is no row, since serving from `0` would hand a full
+   *   dataset to a device the watermark cannot see.
    */
   private fun Connection.requireSyncableDevice(userId: String, deviceId: String): DeviceRow {
     val device = readDevice(userId, deviceId) ?: throw UnknownDeviceException(deviceId)
@@ -461,12 +408,12 @@ internal class SyncStore(
       }
 
   /**
-   * Upserts one device, refreshing its last seen time and its reported platform.
+   * Upserts one device, refreshing its last seen time and platform, or returns
+   * [RegisterOutcome.ResyncRequired] when it was removed and fell below the garbage collection
+   * floor.
    *
-   * @param afterReset The caller reports having wiped its synced local state, which is the only
-   *   thing that lets a device below the garbage collection floor start over.
-   * @return [RegisterOutcome.ResyncRequired] when this device was removed and has fallen below that
-   *   floor, [RegisterOutcome.Ok] otherwise.
+   * @param afterReset The caller wiped its synced local state, the only way a device below the
+   *   floor can start over.
    */
   internal suspend fun registerDevice(
     userId: String,
@@ -475,17 +422,13 @@ internal class SyncStore(
     afterReset: Boolean,
     serverNow: Instant,
   ): RegisterOutcome = inTransaction { connection ->
-    // Under the same lock as collection, which reads this device's position and the floor this
-    // decision is made against. Without it a removed device can be reinstated keeping a position
-    // that a concurrently written floor is about to overtake, and it would then never be told to
-    // resync while its tombstones were purged underneath it.
+    // Under the collection lock, or a removed device could be reinstated at a position a concurrent
+    // floor is about to overtake, and never be told to resync.
     connection.acquireUserLock(userId)
     val existing = connection.readDevice(userId, deviceId)
     when {
-      // First, and unconditionally: a 204 confirming a reset can be lost in transit, and the
-      // client then retries against a row that is already reinstated. Ignoring the flag there
-      // would leave a device that has just wiped its database sitting at its old acknowledgement,
-      // silently missing everything below it.
+      // First and unconditionally: a lost 204 makes the client retry the reset against an already
+      // reinstated row, which must still be zeroed.
       afterReset -> connection.reinstateAndZero(userId, deviceId, platform, serverNow)
       existing == null || existing.removedAt == null ->
         connection.upsertDevice(userId, deviceId, platform, serverNow)
@@ -532,12 +475,7 @@ internal class SyncStore(
       }
   }
 
-  /**
-   * The highest revision below which a tombstone may already be gone for [userId].
-   *
-   * `0` when this user has never been collected, which makes "no floor at all" fall out of the same
-   * comparison rather than needing a branch of its own.
-   */
+  /** The revision below which a tombstone of [userId] may be gone, or `0` when never collected. */
   private fun Connection.gcFloor(userId: String): Long =
     prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use { statement
       ->
@@ -548,9 +486,7 @@ internal class SyncStore(
   private fun Connection.readDevice(userId: String, deviceId: String): DeviceRow? =
     readDevices(userId).firstOrNull { it.deviceId == deviceId }
 
-  /**
-   * Marks a device removed, so the watermark stops waiting on it. Test only until the follow up.
-   */
+  /** Marks a device removed, so the watermark stops waiting on it. Test only. */
   internal suspend fun removeDeviceForTest(userId: String, deviceId: String, at: Instant) {
     inTransaction { connection ->
       connection
@@ -606,13 +542,9 @@ internal class SyncStore(
   }
 
   /**
-   * Whether [deviceId] has confirmed committing every row [userId] has, or `null` when there is no
-   * live row for it.
-   *
-   * The comparison is `>=` rather than equality because collection can lower the user's maximum:
-   * when the newest row is a tombstone every device has committed, collecting it drops that maximum
-   * below the very acknowledgements that authorized the delete, and equality would then report a
-   * fully caught up device as behind.
+   * Whether [deviceId] has confirmed committing every row [userId] has, or `null` when it has no
+   * live row. Uses `>=` because collecting the newest tombstone can drop the maximum below
+   * acknowledgements.
    */
   internal suspend fun deviceStatus(userId: String, deviceId: String): Boolean? =
     inTransaction { connection ->
@@ -623,10 +555,8 @@ internal class SyncStore(
     }
 
   /**
-   * The highest revision [userId] owns across [PER_USER_TABLES], or `0` when they own nothing.
-   *
-   * Per user, and never the `sync_revision` sequence itself: that counter is global, so comparing
-   * against it would report every device as behind forever.
+   * The highest revision [userId] owns, or `0`. Never the global `sync_revision` sequence, which
+   * would report every device as behind forever.
    */
   private fun Connection.highestRevision(userId: String): Long {
     val union =
@@ -643,9 +573,7 @@ internal class SyncStore(
     }
   }
 
-  /**
-   * Forces a device's position, so the floor boundaries are reachable without paging. Test only.
-   */
+  /** Forces a device's position, so floor boundaries are reachable without paging. Test only. */
   internal suspend fun setPositionForTest(
     userId: String,
     deviceId: String,
@@ -702,13 +630,8 @@ internal class SyncStore(
       }
 
   /**
-   * Deletes every tombstone every registered device has confirmed committing, per user.
-   *
-   * One transaction per user, never one spanning the loop: a single transaction over every user
-   * would hold every user's advisory lock at once and block all pushes for as long as this ran.
-   *
-   * Idempotent, so two instances firing on the same schedule are safe. The second takes the same
-   * per user lock and finds nothing left to delete.
+   * Deletes every tombstone all registered devices have confirmed, one transaction per user so no
+   * run holds every user's lock at once. Idempotent, so concurrent instances are safe.
    */
   internal suspend fun collectTombstones() {
     for (userId in usersWithDevices()) {
@@ -728,9 +651,8 @@ internal class SyncStore(
   private suspend fun collectTombstonesOf(userId: String) {
     inTransaction { connection ->
       connection.acquireUserLock(userId)
-      // Read under the lock that guards the delete below, never before it. A registration
-      // landing between an unlocked read and this block could reinstate a removed device at a
-      // position the floor written here is about to overtake.
+      // Read under the lock guarding the delete, or a concurrent registration could reinstate a
+      // removed device below the floor written here.
       val watermark = connection.watermarkOf(userId)
       // Either some device has committed nothing yet, or there is genuinely nothing to reclaim.
       if (watermark == null || watermark == 0L) return@inTransaction
@@ -757,11 +679,9 @@ internal class SyncStore(
   }
 
   /**
-   * The lowest acknowledgement across [userId]'s devices that are still registered, or `null` when
-   * every one of them has been removed.
-   *
-   * Removed devices are excluded, which is the whole point of removal: one lost install would
-   * otherwise hold this user's watermark down forever.
+   * The lowest acknowledgement across [userId]'s registered devices, or `null` when all are
+   * removed. Removed devices are excluded so one lost install cannot hold the watermark down
+   * forever.
    */
   private fun Connection.watermarkOf(userId: String): Long? =
     prepareStatement(
@@ -787,13 +707,8 @@ internal class SyncStore(
   }
 
   /**
-   * Removes every row belonging to [userId].
-   *
-   * Only the per user tables. The shared `position` and `move_edge` rows stay, because they are
-   * append only and other users reference them.
-   *
-   * This is one half of account deletion. The identity itself lives with the auth provider and has
-   * to be removed there too; performing only one half leaves a resurrectable account.
+   * Removes every per user row of [userId], leaving the shared `position` and `move_edge` rows.
+   * Only half of account deletion: the identity must also be removed at the auth provider.
    */
   internal suspend fun deleteUser(userId: String) {
     inTransaction { connection ->
@@ -807,11 +722,9 @@ internal class SyncStore(
   }
 
   /**
-   * Tombstones every live node, edge, repertoire and tag of [userId] and records the erase moment.
-   * Settings are left alone. Returns the highest revision assigned, or `0` when nothing was live.
-   *
-   * Each tombstone is stamped at least a millisecond after the row it replaces, so it beats that
-   * row on every device however far ahead its clock was.
+   * Tombstones every live node, edge, repertoire and tag of [userId], records the erase cutoff and
+   * returns the highest revision assigned, or `0`. Each tombstone is stamped at least a millisecond
+   * after the row it replaces, so it wins on every device.
    *
    * @throws UnknownDeviceException [deviceId] has no row under [userId].
    * @throws ResyncRequiredException [deviceId] was removed and has fallen below the garbage
@@ -988,12 +901,7 @@ internal class SyncStore(
 
   /**
    * Writes [rows] under last write wins and returns the revisions assigned, skipping identical
-   * replays.
-   *
-   * Reads every stored counterpart in one locked query, resolves in memory, then writes the winners
-   * in one batch, so the number of round trips does not grow with [rows]. A row repeating an
-   * earlier key is resolved against that earlier winner. A losing row still advances the survivor's
-   * revision, so the pusher is served the survivor again.
+   * replays. A losing row still advances the survivor's revision, so the pusher is served it again.
    */
   private fun <R : SyncRow, K> Connection.applyAll(
     userId: String,
@@ -1019,10 +927,7 @@ internal class SyncStore(
     return revisions
   }
 
-  /**
-   * The stored rows of every key in [keyed], locked for the rest of the transaction, by key. A key
-   * with no stored row is absent.
-   */
+  /** The stored rows of the keys in [keyed], by key, locked for the rest of the transaction. */
   private fun <R : SyncRow, K> Connection.readAllLocked(
     userId: String,
     table: SyncTable<R, K>,
@@ -1096,10 +1001,8 @@ internal class SyncStore(
     }
 
   /**
-   * Serializes every push from [userId] against each other for the rest of the transaction.
-   *
-   * Without it, two concurrent pushes from the same user could each check a quota against the same
-   * stale count, both decide they are under the cap, and together push the user over it.
+   * Serializes [userId]'s pushes for the rest of the transaction, so two concurrent quota checks
+   * cannot both pass against the same stale count.
    */
   private fun Connection.acquireUserLock(userId: String) {
     prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
@@ -1135,18 +1038,10 @@ internal class SyncStore(
   }
 }
 
-/**
- * Refused because applying the batch would push some resource past its per user cap. Nothing in the
- * batch is stored, request row locks or not.
- */
+/** Refused because the batch would push some resource past its per user cap; nothing is stored. */
 internal class QuotaExceededException(message: String) : Exception(message)
 
-/**
- * Locks the selected row for the rest of the transaction.
- *
- * Without it two concurrent pushes for one key both read the old row, both decide they win, and one
- * silently overwrites the other's decision.
- */
+/** Locks the selected row, so two concurrent pushes for one key cannot both decide they win. */
 private const val FOR_UPDATE = " FOR UPDATE"
 
 /** Joins a `move_edge` row to the `position` rows at both its ends, keyed `po`/`pd`. */
@@ -1170,20 +1065,14 @@ private class StoredVersion(
 )
 
 /**
- * How one per user table stores rows of type [R] under last write wins.
+ * How one per user table stores rows of type [R], keyed by [K], under last write wins.
  *
- * @param K What identifies a row within the table once shared `position` and `move_edge` ids are
- *   resolved.
  * @property keyColumns Columns that, beside `user_id`, identify one row, in [keyParts] order.
- * @property payloadColumns Columns holding the row's own data, in [bindPayload] and [readPayload]
- *   order.
- * @property keyTypes The SQL type of each of [keyColumns], so a batch of keys binds as arrays.
- * @property keyParts Splits a key into one value per [keyColumns] entry.
- * @property readKey Rebuilds a key from [keyColumns], read from the given result set index.
- * @property bindPayload Binds a row's data to [payloadColumns], starting at the given parameter
- *   index.
- * @property readPayload Rebuilds the stored row from [payloadColumns], read from index `1`, taking
- *   its identity from the incoming row it is being resolved against.
+ * @property payloadColumns The row's own data, in [bindPayload] and [readPayload] order.
+ * @property readKey Rebuilds a key from [keyColumns], starting at the given result set index.
+ * @property bindPayload Binds a row's data, starting at the given parameter index.
+ * @property readPayload Rebuilds the stored row from index `1`, taking its identity from the
+ *   incoming row it is resolved against.
  */
 private class SyncTable<R : SyncRow, K>(
   val table: String,
@@ -1196,10 +1085,7 @@ private class SyncTable<R : SyncRow, K>(
   val readPayload: (ResultSet, R, StoredVersion) -> R,
 ) {
 
-  /**
-   * Selects every row of one `user_id` whose key is among the given arrays, one per [keyColumns]
-   * entry, locking them. Reads payload, then version, then key columns.
-   */
+  /** Selects and locks one user's rows whose key is in the bound arrays: payload, version, key. */
   val selectSql: String =
     "SELECT ${(payloadColumns + STORED_VERSION_COLUMNS + keyColumns).joinToString { "t.$it" }} " +
       "FROM $table t " +
@@ -1458,9 +1344,8 @@ private fun countStoredAmong(sql: String): (Connection, String, List<String>) ->
   }
 
 /**
- * Counts in one query, [sql] taking one text array per entry of [partsOf], then the user id.
- *
- * Counts rows rather than identities, so it relies on the identities being distinct.
+ * Counts in one query, [sql] taking one text array per entry of [partsOf], then the user id. Counts
+ * rows rather than identities, so the identities must be distinct.
  */
 private fun <I> countStoredAmongTuples(
   sql: String,
@@ -1494,11 +1379,7 @@ private val ERASABLE_TABLES =
 /** Screening outcome for one resource: what may be written, and what was refused. */
 private class Screened<T : SyncRow>(val accepted: List<T>, val refused: List<RejectedRow>)
 
-/**
- * Splits rows into those the server may store and those whose clock is too far ahead to accept.
- *
- * A pure split rather than a filter with a side effect, so neither half depends on iteration order.
- */
+/** Splits rows into those the server may store and those whose clock is too far ahead. */
 private fun <T : SyncRow> List<T>.screenClock(
   serverNow: Instant,
   refusal: (T) -> RejectedRow,
@@ -1569,11 +1450,8 @@ private fun clockRefusal(kind: String, id: String) =
   )
 
 /**
- * Converts without losing precision.
- *
- * Going through `toEpochMilliseconds()` would truncate: `kotlin.time.Instant` carries nanoseconds
- * and `timestamptz` carries microseconds, so a millisecond round trip would silently move a
- * timestamp and a stored row would no longer be byte identical to the row that was sent.
+ * Converts without losing precision: a millisecond round trip would truncate the microseconds
+ * `timestamptz` keeps, so a stored row would no longer match the row that was sent.
  */
 private fun Instant.toTimestamp(): Timestamp =
   Timestamp.from(java.time.Instant.ofEpochSecond(epochSeconds, nanosecondsOfSecond.toLong()))

@@ -7,7 +7,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerSource
 import proj.memorchess.axl.core.data.explorer.LichessExplorerResponse
 import proj.memorchess.axl.core.date.DateUtil
 
-/** Test only in memory [ExplorerCache]. Not used by production code. */
+/** In memory [ExplorerCache]. */
 class InMemoryExplorerCache : ExplorerCache {
   private val storage = mutableMapOf<String, CachedExplorerEntry>()
 

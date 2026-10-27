@@ -16,13 +16,9 @@ import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.drainAllNodes
 
-/**
- * Direct branch coverage for [InMemoryDatabaseQueryManager]: insert/query, soft deletes of both
- * positions and moves, incident-move tombstoning, erase, and the last-update aggregate.
- */
+/** Branch coverage for [InMemoryDatabaseQueryManager]. */
 class TestInMemoryDatabaseQueryManager {
 
-  // A three position line start -e4-> key1 -e5-> key2, with the matching incident moves.
   private val key0 = keyAfter()
   private val key1 = keyAfter("e4")
   private val key2 = keyAfter("e4", "e5")
@@ -69,11 +65,9 @@ class TestInMemoryDatabaseQueryManager {
     val database = seededLine()
     database.deletePosition(key2)
     assertNull(database.getPosition(key2))
-    // key0 never referenced key2, so its e4 move (to key1) survives the cascade untouched.
     assertFalse(
       database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted
     )
-    // key1 keeps its incoming e4 live but its outgoing e5, which pointed at key2, is tombstoned.
     val key1Moves = database.getPosition(key1)!!.previousAndNextMoves
     assertFalse(key1Moves.previousMoves.getValue("e4").isDeleted)
     assertTrue(key1Moves.nextMoves.getValue("e5").isDeleted)
@@ -83,8 +77,6 @@ class TestInMemoryDatabaseQueryManager {
   fun softDeletingAPositionHidesItFromReads() = runTest {
     val database = seededLine()
     database.deletePosition(key1)
-    // A soft deleted position is hidden from every read: the point lookup returns null and the
-    // position drops out of the paged live read, leaving the two surviving rows.
     assertNull(database.getPosition(key1))
     assertEquals(2, drainAllNodes(database).size)
   }
@@ -117,7 +109,6 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun deletingAMoveWhoseDestinationIsAbsentUpdatesOnlyTheOrigin() = runTest {
     val database = InMemoryDatabaseQueryManager()
-    // Only the origin exists; its e4 edge points at a key1 node that was never inserted.
     database.insertNodes(node(key0, previous = listOf(), next = listOf(moveE4)))
     database.deleteMove(key0, "e4")
     assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted)
@@ -135,7 +126,6 @@ class TestInMemoryDatabaseQueryManager {
       node(keyD4, previous = listOf(moveD4), next = listOf()),
     )
     database.deleteMove(key0, "e4")
-    // d4 stays live. Only the matching e4 is tombstoned, on both of its ends.
     val originMoves = database.getPosition(key0)!!.previousAndNextMoves.nextMoves
     assertFalse(originMoves.getValue("d4").isDeleted)
     assertTrue(originMoves.getValue("e4").isDeleted)
@@ -165,7 +155,6 @@ class TestInMemoryDatabaseQueryManager {
     database.insertNodes(
       node(key0, previous = listOf(), next = listOf(recentMove), updatedAt = nodeStamp)
     )
-    // The move is newer than its node, so it drives the aggregate.
     assertEquals(moveStamp, database.getLastUpdate())
   }
 
@@ -176,8 +165,6 @@ class TestInMemoryDatabaseQueryManager {
     database.insertNodes(node(key0, previous = listOf(), next = listOf(), updatedAt = nodeStamp))
     assertEquals(nodeStamp, database.getLastUpdate())
   }
-
-  // --- Bounded scheduling query surface ---
 
   private val now = Instant.fromEpochSeconds(1_000)
   private val dayStart = Instant.fromEpochSeconds(0)
@@ -222,7 +209,6 @@ class TestInMemoryDatabaseQueryManager {
     database.insertNodes(
       schedNode("deep", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(100), depth = 5),
       schedNode("shallow", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(200), depth = 1),
-      // Not good: excluded even though shallowest and due.
       schedNode(
         "notgood",
         CardPhase.REVIEW,
@@ -230,7 +216,6 @@ class TestInMemoryDatabaseQueryManager {
         depth = 0,
         hasGoodOutgoing = false,
       ),
-      // Wrong phase.
       schedNode("new", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(50), depth = 0),
     )
     assertEquals(PositionKey("shallow"), database.nextDueReviewCard(dayEnd)?.positionKey)
@@ -239,7 +224,6 @@ class TestInMemoryDatabaseQueryManager {
   @Test
   fun nextDueReviewCard_excludesDueDateEqualToDayEnd() = runTest {
     val database = InMemoryDatabaseQueryManager()
-    // dueDate exactly at the exclusive bound belongs to the next day.
     database.insertNodes(schedNode("boundary", CardPhase.REVIEW, dueDate = dayEnd, depth = 0))
     assertNull(database.nextDueReviewCard(dayEnd))
   }
@@ -270,9 +254,7 @@ class TestInMemoryDatabaseQueryManager {
         createdAt = Instant.fromEpochSeconds(900),
       ),
     )
-    // Shallowest wins regardless of createdAt.
     assertEquals(PositionKey("d0"), database.nextDueNewCard(dayEnd)?.positionKey)
-    // Among the depth-1 ties, the earlier createdAt wins once d0 is removed.
     database.deletePosition(PositionKey("d0"))
     assertEquals(PositionKey("d1early"), database.nextDueNewCard(dayEnd)?.positionKey)
   }
@@ -290,7 +272,6 @@ class TestInMemoryDatabaseQueryManager {
     database.insertNodes(
       schedNode("late", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(900)),
       schedNode("early", CardPhase.RELEARNING, dueDate = Instant.fromEpochSeconds(100)),
-      // Pending (due in the future) must not be picked as ready.
       schedNode("future", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(5_000)),
     )
     assertEquals(PositionKey("early"), database.nextReadyLearningCard(now)?.positionKey)
@@ -303,7 +284,6 @@ class TestInMemoryDatabaseQueryManager {
       schedNode("atNow", CardPhase.LEARNING, dueDate = now),
       schedNode("future", CardPhase.RELEARNING, dueDate = Instant.fromEpochSeconds(2_000)),
     )
-    // Strictly greater than now: the card due exactly at now is ready, not pending.
     assertEquals(PositionKey("future"), database.nextPendingLearningCard(now)?.positionKey)
   }
 
@@ -319,7 +299,6 @@ class TestInMemoryDatabaseQueryManager {
     val database = InMemoryDatabaseQueryManager()
     val inWindow = Instant.fromEpochSeconds(5_000)
     database.insertNodes(
-      // introducedToday: firstReview in window; also trained today.
       schedNode(
         "introduced",
         CardPhase.REVIEW,
@@ -328,7 +307,6 @@ class TestInMemoryDatabaseQueryManager {
         lastReview = inWindow,
         depth = 0,
       ),
-      // trainedToday only: lastReview in window, firstReview before window.
       schedNode(
         "trainedOnly",
         CardPhase.REVIEW,
@@ -337,7 +315,6 @@ class TestInMemoryDatabaseQueryManager {
         lastReview = inWindow,
         depth = 1,
       ),
-      // firstReview at the exclusive upper bound: outside the window.
       schedNode(
         "atBoundary",
         CardPhase.REVIEW,
@@ -346,15 +323,12 @@ class TestInMemoryDatabaseQueryManager {
         lastReview = dayEnd,
         depth = 2,
       ),
-      // due new, good.
       schedNode("dueNew", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(400), depth = 3),
-      // in session.
       schedNode("learning", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(500), depth = 4),
     )
     val counts = database.getSchedulingCounts(dayStart, dayEnd)
     assertEquals(1, counts.introducedToday)
     assertEquals(2, counts.trainedToday)
-    // dueReviews: introduced, trainedOnly, atBoundary all REVIEW and due before dayEnd.
     assertEquals(3, counts.dueReviews)
     assertEquals(1, counts.dueNew)
     assertEquals(1, counts.inSession)
@@ -370,28 +344,19 @@ class TestInMemoryDatabaseQueryManager {
   fun findEligibleAmong_returnsFirstEligibleKeyOrNull() = runTest {
     val database = InMemoryDatabaseQueryManager()
     database.insertNodes(
-      // Not in the candidate set even though eligible.
       schedNode("other", CardPhase.LEARNING, dueDate = now),
-      // In set, in session: eligible.
       schedNode("learning", CardPhase.LEARNING, dueDate = Instant.fromEpochSeconds(9_999)),
-      // In set, REVIEW due: eligible.
       schedNode("dueReview", CardPhase.REVIEW, dueDate = Instant.fromEpochSeconds(100)),
-      // In set but not due and not in session: ineligible.
       schedNode("notDue", CardPhase.REVIEW, dueDate = dayEnd),
     )
     val candidates =
       listOf(PositionKey("learning"), PositionKey("dueReview"), PositionKey("notDue"))
     val result = database.findEligibleAmong(candidates, dayEnd)
     assertEquals(PositionKey("learning"), result?.positionKey)
-    // Empty candidate set yields null.
     assertNull(database.findEligibleAmong(emptyList(), dayEnd))
-    // None eligible yields null.
     assertNull(database.findEligibleAmong(listOf(PositionKey("notDue")), dayEnd))
   }
 
-  // --- countDescendants ---------------------------------------------------------------------
-
-  /** Builds a node with the given outgoing edges; depth is irrelevant to the descendant count. */
   private fun countNode(key: PositionKey, previous: List<DataMove>, next: List<DataMove>) =
     DataNode(key, PreviousAndNextMoves(previous, next), CardStateFactory.new())
 
@@ -404,7 +369,6 @@ class TestInMemoryDatabaseQueryManager {
   fun countDescendantsLeafIsOne() = runTest {
     val database = InMemoryDatabaseQueryManager()
     database.insertNodes(countNode(key0, previous = listOf(), next = listOf()))
-    // The root itself is counted even with no children.
     assertEquals(1, database.countDescendants(key0))
   }
 
@@ -427,8 +391,7 @@ class TestInMemoryDatabaseQueryManager {
 
   @Test
   fun countDescendantsStopsAtConvergentNode() = runTest {
-    // key0 -e4-> key1 -e5-> key2, plus a second parent posB -d4-> key2. Deleting key0's subtree
-    // would keep key2 (reachable through posB), so it is not counted.
+    // posB is a second parent of key2, so deleting key0's subtree keeps key2.
     val posB = keyAfter("d4")
     val d4 = DataMove(posB, key2, "d4", isGood = true)
     val database = InMemoryDatabaseQueryManager()
@@ -438,13 +401,9 @@ class TestInMemoryDatabaseQueryManager {
       countNode(key2, previous = listOf(moveE5, d4), next = listOf()),
       countNode(posB, previous = listOf(), next = listOf(d4)),
     )
-    // key0 and key1 are counted; key2 is convergent and excluded.
     assertEquals(2, database.countDescendants(key0))
   }
 
-  // --- getNodesPage -------------------------------------------------------------------------
-
-  /** Drains the whole store one page of [limit] at a time, returning the visited keys in order. */
   private suspend fun DatabaseQueryManager.pageAllKeys(limit: Int): List<PositionKey> {
     val visited = mutableListOf<PositionKey>()
     var cursor: String? = null
@@ -456,7 +415,7 @@ class TestInMemoryDatabaseQueryManager {
     return visited
   }
 
-  /** Inserts [count] synthetic nodes whose keys sort deterministically, returns them ascending. */
+  /** Inserts [count] nodes with sortable keys and returns the keys ascending. */
   private suspend fun InMemoryDatabaseQueryManager.seedPageable(count: Int): List<PositionKey> {
     val keys = (0 until count).map { PositionKey("page${it.toString().padStart(3, '0')}") }
     insertNodes(*keys.map { countNode(it, previous = listOf(), next = listOf()) }.toTypedArray())
@@ -478,8 +437,7 @@ class TestInMemoryDatabaseQueryManager {
     val database = InMemoryDatabaseQueryManager()
     database.seedPageable(2)
     val first = database.getNodesPage(cursor = null, limit = 2)
-    // A full page that exactly drains the store still advertises a cursor; the follow-up page is
-    // empty and terminates with a null cursor.
+    // A full page still advertises a cursor; only the empty follow-up page ends with null.
     assertEquals(2, first.nodes.size)
     assertEquals(
       database.getPosition(first.nodes.last().positionKey)!!.positionKey.value,
@@ -496,7 +454,6 @@ class TestInMemoryDatabaseQueryManager {
     val expected = database.seedPageable(3)
     val page = database.getNodesPage(cursor = null, limit = 100)
     assertEquals(expected, page.nodes.map { it.positionKey })
-    // A partial page (fewer than limit rows) is the last page, so the cursor is null.
     assertNull(page.nextCursor)
   }
 
@@ -504,7 +461,6 @@ class TestInMemoryDatabaseQueryManager {
   fun getNodesPage_storeSizeExactMultipleOfLimitTerminatesOnEmptyPage() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val expected = database.seedPageable(6)
-    // Six rows in pages of two: three full pages then an empty terminating page.
     val visited = database.pageAllKeys(limit = 2)
     assertEquals(expected, visited)
   }
@@ -520,7 +476,6 @@ class TestInMemoryDatabaseQueryManager {
   fun getNodesPage_carriesEdgesLikeASingleRead() = runTest {
     val database = seededLine()
     val byKey = database.pageAll(limit = 1).associateBy { it.positionKey }
-    // The page read reconstructs the same node set and edges as a single point read would.
     assertEquals(setOf("e4"), byKey.getValue(key0).previousAndNextMoves.nextMoves.keys)
     assertEquals(setOf("e4"), byKey.getValue(key1).previousAndNextMoves.previousMoves.keys)
     assertEquals(setOf("e5"), byKey.getValue(key1).previousAndNextMoves.nextMoves.keys)
@@ -542,7 +497,6 @@ class TestInMemoryDatabaseQueryManager {
     assertFailsWith<IllegalArgumentException> { database.getNodesPage(cursor = null, limit = -1) }
   }
 
-  /** Drains the whole store one page of [limit] at a time, returning the visited nodes in order. */
   private suspend fun DatabaseQueryManager.pageAll(limit: Int): List<DataNode> {
     val visited = mutableListOf<DataNode>()
     var cursor: String? = null
@@ -556,7 +510,6 @@ class TestInMemoryDatabaseQueryManager {
 
   @Test
   fun countDescendantsIsCappedAtTheRequestedBound() = runTest {
-    // A linear chain of 10 nodes: key_0 -> key_1 -> ... -> key_9.
     val keys = (0 until 10).map { PositionKey("chain$it x K") }
     val moves = (0 until 9).map { DataMove(keys[it], keys[it + 1], "m$it", isGood = true) }
     val database = InMemoryDatabaseQueryManager()
@@ -567,23 +520,17 @@ class TestInMemoryDatabaseQueryManager {
     }
     database.insertNodes(*nodes.toTypedArray())
     val root = keys[0]
-    // The chain has 10 nodes, so any cap below 10 binds and returns exactly the cap. Just below, at
-    // and just above an arbitrary cap of 5 all return that cap.
     assertEquals(4, database.countDescendants(root, cap = 4))
     assertEquals(5, database.countDescendants(root, cap = 5))
     assertEquals(6, database.countDescendants(root, cap = 6))
-    // The whole chain when the cap is generous.
     assertEquals(10, database.countDescendants(root, cap = 100))
-    // Zero (and negative) cap counts nothing.
     assertEquals(0, database.countDescendants(root, cap = 0))
   }
 
   @Test
   fun softDeletingAPositionBumpsUpdatedAt() = runTest {
     val database = seededLine()
-    // The fixture's own moves default to DateUtil.now() at construction time, so the stamp has to
-    // be strictly later than "now" to be provably the new maximum rather than coincidentally past
-    // it.
+    // Fixture moves are stamped DateUtil.now(), so the tombstone must be later to be the maximum.
     val stamp = proj.memorchess.axl.core.date.DateUtil.now() + kotlin.time.Duration.parse("P365D")
     database.deletePosition(key1, "device-a", 5L, stamp)
     assertEquals(stamp, database.getLastUpdate())
@@ -644,10 +591,8 @@ class TestInMemoryDatabaseQueryManager {
     val key = DirtyKey.NodeKey(key1)
     database.markDirty(key, 1L)
     val read = database.getOutbox()
-    // A fresh write bumps the key to seq 2 in the gap between reading the outbox and clearing it.
     database.markDirty(key, 2L)
     database.clearDirty(read)
-    // The clear named seq 1, but the stored entry has since moved to seq 2: it must survive.
     assertEquals(listOf(OutboxEntry(key, 2L)), database.getOutbox())
   }
 
@@ -708,15 +653,11 @@ class TestInMemoryDatabaseQueryManager {
     )
   }
 
-  // --- Soft delete cascades to incident moves, and insertNodes never clobbers a tombstone --------
-
   @Test
   fun softDeletingAPositionCascadesTheTombstoneToIncidentMovesOnBothEnds() = runTest {
     val database = seededLine()
     val stamp = Instant.fromEpochSeconds(1_234)
     database.deletePosition(key1, "device-a", 5L, stamp)
-    // key1's own outgoing e5 and the surviving neighbours' copies of both incident edges are
-    // tombstoned, exactly like Room's softDeleteNode + softDeleteMoveFrom + softDeleteMoveTo.
     assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted)
     assertTrue(
       database.getPosition(key2)!!.previousAndNextMoves.previousMoves.getValue("e5").isDeleted
@@ -725,12 +666,9 @@ class TestInMemoryDatabaseQueryManager {
 
   @Test
   fun deletingMoveThroughTreeStorePersistDoesNotClobberTheTombstoneWrittenByDeleteMove() = runTest {
-    // Regression coverage for the insertNodes clobber bug: a delete call writes a tombstone, then a
-    // node persist derived from a cache that no longer has the edge must not erase it.
     val database = seededLine()
     database.deleteMove(key1, "e5", "device-a", 1L, Instant.fromEpochSeconds(1))
-    // Simulate TreeStore.deleteMove's follow up persistNode(from): the cache no longer has the
-    // removed edge, so the re-inserted node's nextMoves is empty.
+    // TreeStore then persists the origin from a cache that no longer has the edge.
     database.insertNodes(node(key1, previous = listOf(moveE4), next = listOf()))
     val tombstone = database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5")
     assertTrue(tombstone.isDeleted)
@@ -750,8 +688,6 @@ class TestInMemoryDatabaseQueryManager {
       !database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted
     )
   }
-
-  // --- Repertoire registry and edge tag CRUD -------------------------------------------------
 
   @Test
   fun insertRepertoireThenGetRepertoireReturnsIt() = runTest {
@@ -829,14 +765,11 @@ class TestInMemoryDatabaseQueryManager {
     assertEquals(emptyList(), database.edgesTaggedWith("italian-game"))
   }
 
-  // --- NodeRepertoireTrainable projection --------------------------------------------------
-
   @Test
   fun replaceTrainableRepertoiresOverwritesThePreviousMembershipSet() = runTest {
     val database = InMemoryDatabaseQueryManager()
     val position = key0
-    // TreeStore never writes a trainable row for a position it cannot resolve, so this seam's own
-    // "position is live" backstop assumes the position exists.
+    // The node must exist, since only trainable rows of live positions count.
     database.insertNodes(DataNode(position, PreviousAndNextMoves(), CardStateFactory.new()))
 
     database.replaceTrainableRepertoires(
@@ -907,8 +840,6 @@ class TestInMemoryDatabaseQueryManager {
       database.getRepertoireMasterySnapshots(listOf("italian-game")).getValue("italian-game")
     assertEquals(RepertoireMasterySnapshot(0, 0, null), snapshot)
   }
-
-  // --- Scoped scheduling queries ---------------------------------------------------------
 
   @Test
   fun nextDueNewCardExcludesACardOutsideTheGivenRepertoire() = runTest {

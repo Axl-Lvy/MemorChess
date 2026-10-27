@@ -79,9 +79,8 @@ internal class TestIdResolver {
 
   @Test
   fun concurrentOverlappingBatchesDoNotDeadlock() {
-    // The reason every batch is sorted by key. Two transactions inserting overlapping sets in
-    // opposite orders deadlock; sorting gives them one lock order. Without the sort this fails
-    // with "deadlock detected" rather than hanging, so it is a real assertion.
+    // Sorting each batch by key gives overlapping transactions one lock order; without it this
+    // fails with "deadlock detected" rather than hanging.
     val shared = (1..40).map { key("shared-$it") }
     val pool = Executors.newFixedThreadPool(4)
     try {

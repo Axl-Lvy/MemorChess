@@ -36,19 +36,15 @@ import proj.memorchess.axl.ui.setKineticContent
 import proj.memorchess.axl.ui.waitUntilNodeExists
 
 /**
- * Pins [KineticDesktopRail]'s loading/loaded contract and its week-strip wiring.
- *
- * The streak card's own digit/badge/target-boundary battery already lives on [TestKineticSideBar]
- * ([StreakCard] is shared), so this class only checks that [KineticDesktopRail] wires it and
- * [proj.memorchess.axl.ui.components.today.WeekStrip] correctly, plus the nav-row wiring already
- * pinned via [KineticSideNav].
+ * Pins [KineticDesktopRail]'s loading and loaded states and its week strip; the shared [StreakCard]
+ * is covered by `TestKineticSideBar`.
  */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticDesktopRail {
 
   private val items = NavigationBarItemContent.entries.sortedBy { it.index }
 
-  /** Mirrors `TestKineticSideBar`'s never-returning store, used to pin the loading branch. */
+  /** Never returns, pinning the loading branch. */
   private class NeverReturningDailyActivityStore : DailyActivityStore {
     override suspend fun getRecord(date: LocalDate): DailyActivityRecord = awaitCancellation()
 
@@ -57,7 +53,7 @@ internal class TestKineticDesktopRail {
     override suspend fun eraseAll(): Unit = awaitCancellation()
   }
 
-  /** Mirrors `TestKineticSideBar.seedStreak`: a non-zero streak lives on yesterday's record. */
+  /** A non-zero streak lives on yesterday's record; [done] lands on today's. */
   private suspend fun seedStreak(store: InMemoryDailyActivityStore, streak: Int, done: Int) {
     val today = DateUtil.today()
     if (streak > 0) {

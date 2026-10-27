@@ -10,13 +10,9 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.ChessPiece
 
 /**
- * Renders a single chess piece. Reads the painter from [LocalPiecePainters] — preloaded once at the
- * theme layer — so mounting 32 pieces on board reentry is a synchronous map lookup rather than 32
- * async resource loads.
+ * Renders a single chess piece from the preloaded [LocalPiecePainters].
  *
- * @param piece The piece to render.
- * @param modifier Modifier for customizing the image.
- * @param contentDescription Accessibility description.
+ * @param contentDescription Accessibility description; describes the piece when `null`.
  */
 @Composable
 fun Piece(piece: ChessPiece, modifier: Modifier = Modifier, contentDescription: String? = null) {

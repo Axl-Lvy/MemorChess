@@ -19,10 +19,8 @@ import kotlin.test.Test
 import proj.memorchess.axl.ui.setKineticContent
 
 /**
- * Guards [ExploreCtrlBar] against the Save label starving Delete of layout space (see #349). A
- * fixed-width [androidx.compose.foundation.layout.Row] does not overflow past its own bounds when a
- * child grows. It shrinks later non-weighted children instead. So a Save button too wide for the
- * row can shrink Delete down to zero size, making it unreachable rather than merely crowding it.
+ * A fixed width Row shrinks later children instead of overflowing, so a wide Save label could
+ * shrink Delete down to zero size.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestExploreCtrlBarWidth {
@@ -56,10 +54,7 @@ class TestExploreCtrlBarWidth {
     it.config.getOrNull(SemanticsProperties.ContentDescription)?.contains(description) == true
   }
 
-  // Master already squeezes Delete below its full 36.dp square at this width (the bar's six
-  // icon-only controls plus the turn pill are already a few dp over budget here, a pre-existing
-  // gap unrelated to #349). This test only guards against the regression #349 could add on top of
-  // that: Save's label pushing Delete all the way down to zero and making it unreachable.
+  // Delete is already below its full 36.dp at this width; this only guards it against zero.
   @Test
   fun deleteStaysReachableOnASmallPortraitPhone() =
     withBarAt(344.dp) { bar ->
@@ -104,9 +99,8 @@ class TestExploreCtrlBarWidth {
       }
     }
 
-  // The tightest labeled case: exactly at the threshold, in English, with room for only 42.dp of
-  // slack over the measured minimum. If SAVE_LABEL_MIN_WIDTH is ever lowered past that minimum,
-  // this is the test that catches it.
+  // The tightest labeled case, 42.dp over the measured minimum: catches SAVE_LABEL_MIN_WIDTH
+  // lowered past that minimum.
   @Test
   fun saveShowsItsLabelAndDeleteStaysFullSizeAtExactlyTheThreshold() =
     withBarAt(500.dp) { bar ->

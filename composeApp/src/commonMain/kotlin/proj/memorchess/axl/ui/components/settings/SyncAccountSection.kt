@@ -50,17 +50,9 @@ import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/** Holds a sign-in error as a [StringResource] plus an optional format argument. */
 private data class SyncSignInError(val res: StringResource, val arg: String?)
 
-/**
- * Sync account row: sign in / sign out against [authProvider], the current account's identity, and
- * [syncEngine]'s status with a "sync now" action.
- *
- * Visual layer mirrors [LichessAccountSection]: a 56.dp square avatar (first letter of the display
- * name, or "?" when signed out), the account name on top, a status line below, and a
- * [KineticButton] on the right.
- */
+/** Sync account row: sign in or out against [authProvider], showing the account and sync status. */
 @Composable
 fun SyncAccountSection(
   authProvider: AuthProvider = koinInject(),
@@ -100,7 +92,7 @@ fun SyncAccountSection(
   )
 }
 
-/** Stateless variant for previews and tests. */
+/** Stateless content of [SyncAccountSection]. */
 @Composable
 internal fun SyncAccountSectionContent(
   account: Account?,
@@ -149,10 +141,6 @@ internal fun SyncAccountSectionContent(
   }
 }
 
-/**
- * Display string for one [SyncJobStatus] value. Exhaustive `when`: a new status must be added here,
- * per project convention for a state machine reaching a UI consumer.
- */
 private fun SyncJobStatus.toStringResource(): StringResource =
   when (this) {
     SyncJobStatus.IDLE -> Res.string.sync_status_idle
@@ -163,14 +151,12 @@ private fun SyncJobStatus.toStringResource(): StringResource =
     SyncJobStatus.PAUSED_QUOTA_EXCEEDED -> Res.string.sync_status_paused_quota_exceeded
   }
 
-/** The account's display name, falling back to [Account.sub] when no name was decoded. */
 private fun displayName(account: Account): String = account.name ?: account.sub
 
-/** First letter of the display name uppercased, or "?" when signed out. */
 private fun avatarInitial(account: Account?): String =
   account?.let(::displayName)?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
-/** Account name and status lines shown between the avatar and the action button. */
+/** Account name over a connection status line. */
 @Composable
 private fun SyncAccountIdentity(
   account: Account?,
@@ -229,10 +215,7 @@ private fun SyncAccountAction(
   }
 }
 
-/**
- * Small 56.dp avatar with the account's initial, rounded to 8.dp per the 1f/1l "LINKED" badge
- * literal.
- */
+/** Square avatar showing the account's initial. */
 @Composable
 private fun SyncAvatar(initial: String) {
   val palette = LocalKineticPalette.current

@@ -14,20 +14,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
 /**
- * HTTP client for the remote repertoire catalog.
+ * HTTP client for the remote repertoire catalog, mapping every failure to a [CatalogResult].
  *
- * Served by `:server` at [DEFAULT_BASE_URL] (`manifest.json`, `<id>/versions/<version>/moves`); the
- * catalog is populated by users publishing their own repertoires (see `RepertoirePublishClient`),
- * not by any static file source.
- *
- * Responses are read as plain text, then decoded here: the manifest with kotlinx.serialization
- * (unknown fields tolerated) and move lists, both with kotlinx.serialization. Every failure is
- * mapped to a typed [CatalogResult] so callers never have to inspect Ktor exceptions — except
- * [reportInstall], a fire and forget write with no result to map, since a caller's own install
- * outcome must never depend on this telemetry succeeding.
- *
- * @param httpClient The Ktor client used for requests.
- * @param baseUrl Root URL of the catalog, without a trailing slash. Injectable for tests.
+ * @param baseUrl Root URL of the catalog, without a trailing slash.
  */
 class RepertoireCatalogClient(
   private val httpClient: HttpClient,
@@ -37,13 +26,10 @@ class RepertoireCatalogClient(
   private val json = Json { ignoreUnknownKeys = true }
 
   /**
-   * Fetches and validates `manifest.json` from the catalog root.
+   * Fetches the catalog manifest; a `schemaVersion` other than 2 is
+   * [CatalogResult.MalformedManifest].
    *
-   * A manifest whose `schemaVersion` differs from 2 is reported as
-   * [CatalogResult.MalformedManifest]; see [RepertoireManifest] for the rationale.
-   *
-   * @param bypassCache Asks every HTTP cache on the way (the browser's included) to revalidate with
-   *   the server instead of answering from a cached copy.
+   * @param bypassCache Makes every HTTP cache, the browser's included, revalidate with the server.
    */
   suspend fun fetchManifest(bypassCache: Boolean = false): CatalogResult<RepertoireManifest> {
     val body =
@@ -68,15 +54,10 @@ class RepertoireCatalogClient(
   }
 
   /**
-   * Fetches the moves of version [version] of the repertoire [id].
-   *
-   * A body that does not decode, or that holds no move at all, is reported as
+   * Fetches the moves of version [version] of the repertoire [id]; an undecodable or empty list is
    * [CatalogResult.MalformedRepertoire].
    *
-   * @param onProgress Reports the fraction of the response body downloaded so far, from the
-   *   underlying Ktor client's byte counter. Never called at all when the server's response carries
-   *   no `Content-Length` (there is then nothing to divide by), so a caller must not assume it
-   *   fires even once.
+   * @param onProgress Downloaded fraction of the body; never called without a `Content-Length`.
    */
   suspend fun fetchMoves(
     id: String,
@@ -103,10 +84,8 @@ class RepertoireCatalogClient(
   }
 
   /**
-   * Reports one completed install of the repertoire [id], for the anonymous popularity counter the
-   * catalog's `downloadCount` field carries (see [RepertoireDescriptor.downloadCount]'s KDoc). Best
-   * effort: a network failure or a non success HTTP status is logged and otherwise swallowed, never
-   * thrown, so a caller's own install outcome is never disturbed by this being unreachable.
+   * Reports one completed install of the repertoire [id] to the catalog's popularity counter. Best
+   * effort: failures are logged, never thrown.
    */
   suspend fun reportInstall(id: String) {
     try {
@@ -151,17 +130,15 @@ class RepertoireCatalogClient(
       Download.Failure(CatalogResult.NetworkError(e.message ?: "Request failed"))
     }
 
-  /** Outcome of the raw text download step, before any content validation. */
+  /** Outcome of the raw download, before content validation. */
   private sealed interface Download {
-    /** The body of a successful response. */
     data class Body(val text: String) : Download
 
-    /** The failure to surface to the caller unchanged. */
     data class Failure(val result: CatalogResult<Nothing>) : Download
   }
 
   private companion object {
-    /** Deliberately unresolvable; see the class doc. */
+    /** Deliberately unresolvable, so a missing override fails as a network error. */
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1/repertoires"
     const val MANIFEST_FILE = "manifest.json"
     const val SUPPORTED_SCHEMA_VERSION = 2

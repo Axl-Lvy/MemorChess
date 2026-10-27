@@ -38,13 +38,8 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 private val LOGGER = Logger.withTag("Explore")
 
 /**
- * Free exploration page. Lets the user wander the opening graph, save lines as good, or prune
- * subtrees.
- *
- * The persisted graph is demand paged, so nothing is preloaded: the loading phase only resolves
- * whether the requested [position] is stored (a single point lookup), then the board reads each
- * position on demand through [TreeStore.node]. [repertoireId] narrows the session to one
- * repertoire, or `null` for the unscoped default.
+ * Free exploration page: wander the opening graph, save lines, or prune subtrees. [repertoireId]
+ * narrows the session to one repertoire.
  */
 @Composable
 fun Explore(
@@ -58,8 +53,7 @@ fun Explore(
     modifier = Modifier.fillMaxSize().testTag(Route.ExploreRoute.DEFAULT.getLabel()),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    // Resolved during the loading phase: the starting position to open on, or null to start from
-    // the root when the requested position is not stored yet.
+    // Stays null, starting from the root, when the requested position is not stored.
     var initialPosition by remember { mutableStateOf<PositionKey?>(null) }
     LoadingWidget({ initialPosition = extractInitialPosition(position, treeStore) }) {
       val linesExplorer =

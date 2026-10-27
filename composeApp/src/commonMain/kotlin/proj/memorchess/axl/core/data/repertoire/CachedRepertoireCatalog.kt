@@ -10,22 +10,8 @@ import proj.memorchess.axl.core.config.REPERTOIRE_MANIFEST_FETCHED_AT_SETTING
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Combines the network [RepertoireCatalogClient] with a persisted manifest cache so that opening
- * the library does not require network on every visit.
- *
- * On [getManifest] the cache is consulted first. An entry younger than [ttl] is returned
- * immediately. Otherwise the manifest is refreshed from the network; if the refresh fails for any
- * reason, the cached entry is returned with the staleness flagged so the UI can show a warning.
- *
- * Storage choice: the manifest is a few kilobytes at most, so instead of the Room and IndexedDB
- * machinery used by the explorer cache it is persisted as a plain JSON string plus a fetch
- * timestamp in two Multiplatform Settings backed config items ([REPERTOIRE_MANIFEST_CACHE_SETTING]
- * and [REPERTOIRE_MANIFEST_FETCHED_AT_SETTING]). This works identically on every target including
- * wasm, needs no schema and therefore no migrations, and is cleared by the settings reset flow. A
- * cached entry that no longer decodes is silently treated as absent.
- *
- * @param client The network client used to refresh the manifest.
- * @param ttl Time before a cached manifest is considered stale, default [DEFAULT_TTL].
+ * Repertoire catalog manifest backed by a settings cache younger than [ttl], falling back to the
+ * stale cache when a refresh fails.
  */
 class CachedRepertoireCatalog(
   private val client: RepertoireCatalogClient,
@@ -44,8 +30,7 @@ class CachedRepertoireCatalog(
   }
 
   /**
-   * Fetches the manifest from the network now, whatever the age of the cache and bypassing HTTP
-   * caches, so a repertoire published moments ago shows up. Falls back to the cached manifest as
+   * Fetches the manifest now, bypassing every cache, falling back to the cached manifest as
    * [CachedManifestResult.Stale] when the fetch fails.
    */
   suspend fun refresh(): CachedManifestResult = fetchAndCache(readCache(), bypassCache = true)
@@ -65,7 +50,7 @@ class CachedRepertoireCatalog(
       is CatalogResult.HttpError ->
         cached?.let { CachedManifestResult.Stale(it.manifest) }
           ?: CachedManifestResult.HttpError(result.status)
-      // MalformedRepertoire never occurs for manifest fetches; included for exhaustiveness.
+      // MalformedRepertoire never occurs for manifest fetches.
       is CatalogResult.MalformedManifest,
       is CatalogResult.MalformedRepertoire -> {
         val message =

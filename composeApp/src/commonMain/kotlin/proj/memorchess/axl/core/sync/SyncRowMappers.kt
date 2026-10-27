@@ -12,8 +12,8 @@ import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * The wire shape of [DataNode]'s scheduling fields, per the parent spec section 5.1: `depth`,
- * `hasGoodOutgoing`, `createdAt` and [DataNode.previousAndNextMoves] never travel.
+ * The wire shape of [DataNode]'s scheduling fields. `depth`, `hasGoodOutgoing`, `createdAt` and
+ * [DataNode.previousAndNextMoves] never travel.
  */
 fun DataNode.toNodeSyncRow(): NodeSyncRow =
   NodeSyncRow(
@@ -34,10 +34,8 @@ fun DataNode.toNodeSyncRow(): NodeSyncRow =
   )
 
 /**
- * Rebuilds a [DataNode] from a pulled [NodeSyncRow], keeping the caller-supplied local-only fields
- * untouched since the wire row carries none of them. An unrecognized [NodeSyncRow.phase] (a future
- * server sending a phase this client predates) falls back to [CardPhase.NEW] rather than throwing,
- * the same tolerance [proj.memorchess.axl.core.data.NodeWithMoves] already applies for Room reads.
+ * Rebuilds a [DataNode] from a pulled [NodeSyncRow] and the caller-supplied local-only fields. An
+ * unknown [NodeSyncRow.phase] falls back to [CardPhase.NEW].
  */
 fun NodeSyncRow.toDataNode(
   existingMoves: PreviousAndNextMoves,
@@ -70,9 +68,8 @@ fun NodeSyncRow.toDataNode(
   )
 
 /**
- * The wire shape of this move's manual hold, or `null` when this device has never written one (a
- * move only an installed repertoire holds). A move whose manual hold was removed maps to a
- * tombstone.
+ * The wire shape of this move's manual hold, or `null` when none was ever written. A removed manual
+ * hold maps to a tombstone.
  */
 fun DataMove.toEdgeSyncRow(): EdgeSyncRow? {
   if (originDevice.isEmpty() && deviceSeq == 0L) return null
@@ -89,12 +86,8 @@ fun DataMove.toEdgeSyncRow(): EdgeSyncRow? {
 }
 
 /**
- * Rebuilds a [DataMove] from a pulled [EdgeSyncRow]: [DataMove.ownIsGood] is the pulled manual
- * hold, while [DataMove.isGood] keeps the wire value as a placeholder until the caller derives the
- * effective marking. [DataMove.createdAt] is not part of the wire shape (see [DataMove.createdAt]'s
- * own doc: excluded from equality, "the same move regardless of when it was recorded") and defaults
- * to [EdgeSyncRow.updatedAt] here, the same as a freshly created local move whose real creation
- * time predates this device's knowledge of it.
+ * Rebuilds a [DataMove] from a pulled [EdgeSyncRow]. [DataMove.isGood] holds the wire value until
+ * the caller derives the effective marking.
  */
 fun EdgeSyncRow.toDataMove(): DataMove =
   DataMove(

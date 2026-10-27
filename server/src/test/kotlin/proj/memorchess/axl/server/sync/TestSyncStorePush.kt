@@ -26,7 +26,7 @@ internal class TestSyncStorePush {
 
   private val store = SyncStore(PostgresTestDb.dataSource())
 
-  /** A fresh user with one registered device, which pushing now requires. */
+  /** A fresh user with one registered device, which pushing requires. */
   private suspend fun newUser(): String {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
@@ -170,13 +170,8 @@ internal class TestSyncStorePush {
 
   @Test
   fun concurrentPushesOfTwoVersionsOfTheSameSettingConvergeToTheResolvedWinner() = runTest {
-    // Both pushes read the stored row, resolve it against their own incoming row, then write the
-    // winner back. Run one after the other, that pipeline is trivially correct. Run the two truly
-    // in parallel and a read that is not locked can let both transactions see the same stale stored
-    // row, so each writes its own idea of the winner and whichever commits last overwrites the
-    // other, losing an update `resolve` would never have allowed. Launching both through
-    // `store.push` exercises the real pipeline, including the `readSetting(lockRow = true)` call
-    // inside `applySetting`, from two coroutines that genuinely run at the same time.
+    // Without the row lock in applySetting, both pushes could read the same stale row and the last
+    // commit would keep a winner `resolve` never allowed.
     val user = newUser()
     val fromDeviceA =
       setting("theme", "dark", Instant.fromEpochMilliseconds(10), device = "device-a")
@@ -290,8 +285,7 @@ internal class TestSyncStorePush {
 
   @Test
   fun aSubMillisecondTimestampSurvivesTheRoundTrip() = runTest {
-    // Postgres timestamptz keeps microseconds. A millisecond conversion would move this value,
-    // and a stored row must be byte identical to the row that was sent.
+    // timestamptz keeps microseconds; a millisecond conversion would alter the stored row.
     val user = newUser()
     val precise = Instant.fromEpochSeconds(1_000, 123_456_000)
     store.push(user, DEVICE, request(setting("theme", "dark", precise)), serverNow)

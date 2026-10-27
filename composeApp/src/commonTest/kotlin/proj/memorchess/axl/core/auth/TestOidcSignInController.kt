@@ -174,7 +174,7 @@ class TestOidcSignInController {
     }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    // Exactly 60s left: the buffer boundary itself must still refresh (not "more than" 60s).
+    // Exactly 60s left: the buffer boundary itself refreshes.
     tokenStore.save("tok-1", "ref-1", fixedNow + 60.seconds, Account("user-1", null))
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
@@ -238,8 +238,7 @@ class TestOidcSignInController {
     }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    // A stored access token but no refresh token at all (e.g. the issuer never granted offline
-    // access): expired means there is nothing left to try.
+    // No refresh token at all, e.g. the issuer never granted offline access.
     tokenStore.save("tok-1", null, fixedNow, Account("user-1", null))
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 

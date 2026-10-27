@@ -17,20 +17,9 @@ import proj.memorchess.axl.ui.components.board.KineticBoardShell
 import proj.memorchess.axl.ui.components.board.registeredFlash
 
 /**
- * Wraps the chess board inside a [KineticBoardShell] for the Training page.
+ * Training board inside a [KineticBoardShell], kept square at the smaller side of its slot.
  *
- * Sizing strategy mirrors `ExploreBoardSection`: a [BoxWithConstraints] picks the smaller of the
- * available width/height so the shell stays square regardless of slot shape, then the inner [Board]
- * receives a `Modifier.fillMaxWidth().aspectRatio(1f)`.
- *
- * @param inverted Whether to render the board from the black perspective.
- * @param trainer Active [InteractionsManager] handling clicks on the board.
- * @param modifier Modifier applied to the outer container; typically `Modifier.fillMaxWidth()`.
- * @param compact When `true`, uses the compact [KineticBoardShell] variant (tighter padding /
- *   shadow). Callers pass `true` in portrait, `false` in landscape.
- * @param cornerTagText Optional text rendered as the shell corner tag (e.g. `"TRAINING"`).
- * @param feedback Training feedback for the current attempt; drives the [registeredFlash] border
- *   and every board-anchored correct/wrong overlay.
+ * @param inverted whether the board is seen from black's side.
  */
 @Composable
 fun BoardContainer(

@@ -82,8 +82,9 @@ class TestOpeningTree {
   @Test
   fun updateCardStateOnUnknownPositionIsANoOp() = runTest {
     val store = testTreeStore(TestDatabases.empty())
-    // posA is not in the graph. The call should log a warning and return without throwing.
+
     store.updateCardState(posA, CardStateFactory.new())
+
     assertNull(store.node(posA))
   }
 

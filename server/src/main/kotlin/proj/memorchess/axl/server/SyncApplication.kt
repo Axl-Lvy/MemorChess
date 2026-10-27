@@ -42,10 +42,7 @@ import proj.memorchess.axl.server.sync.ResyncRequiredException
 import proj.memorchess.axl.server.sync.SyncStore
 import proj.memorchess.axl.server.sync.UnknownDeviceException
 
-/**
- * Largest request body accepted, checked against the declared length so nothing oversized is ever
- * buffered. A full sync batch is orders of magnitude smaller than this.
- */
+/** Largest request body accepted, checked on the declared length so nothing oversized is read. */
 internal const val MAX_BODY_BYTES: Long = 8L * 1024 * 1024
 
 private val logger = LoggerFactory.getLogger("proj.memorchess.axl.server")
@@ -57,18 +54,12 @@ internal class TooLargeException(message: String) : Exception(message)
 internal data class RateLimitTier(val limit: Int, val refillPeriod: Duration)
 
 /**
- * Every rate limit tier the server enforces. A test builds its own instance with a tiny budget
- * instead of firing production sized traffic at itself.
+ * Every rate limit tier the server enforces.
  *
- * @property syncWrite Authenticated writes, keyed by caller: `/v1/sync` push, `/v1/me` deletion,
- *   publishing and removing a repertoire.
- * @property syncRead Authenticated reads, keyed by caller: `/v1/sync` pull.
- * @property publicRead Anonymous catalog and blob reads, keyed by caller IP.
- * @property admin The moderation route, keyed by caller IP. It carries no credential of its own
- *   (see [proj.memorchess.axl.server.routes.repertoireModule]'s KDoc): this budget only slows down
- *   whoever reaches it, and does not stand in for the missing credential. Both this tier and
- *   [publicRead] trust [clientIp], which in turn trusts that only Cloudflare can reach the origin;
- *   see that function's KDoc for what breaks if that stops being true.
+ * @property syncWrite Authenticated writes, keyed by caller.
+ * @property syncRead Authenticated pulls, keyed by caller.
+ * @property publicRead Anonymous reads, keyed by [clientIp].
+ * @property admin The uncredentialed moderation route, keyed by [clientIp]; it only slows callers.
  */
 internal data class RateLimitTiers(
   val syncWrite: RateLimitTier,
@@ -77,7 +68,7 @@ internal data class RateLimitTiers(
   val admin: RateLimitTier,
 )
 
-/** The budgets every production deployment enforces, named here so the numbers appear once. */
+/** The budgets every production deployment enforces. */
 internal val PRODUCTION_RATE_LIMITS =
   RateLimitTiers(
     syncWrite = RateLimitTier(60, 1.minutes),
@@ -92,13 +83,9 @@ internal val RATE_LIMIT_PUBLIC_READ = RateLimitName("public-read")
 internal val RATE_LIMIT_ADMIN = RateLimitName("admin")
 
 /**
- * Assembles the server: plugins, error mapping, probes and routes.
- *
- * Every collaborator is a parameter so a test builds the same module production does.
+ * Assembles the sync server: plugins, error mapping, probes and routes.
  *
  * @param readiness Whether the server can currently do work, answered by `/ready`.
- * @param clock Source of server time, substituted in tests that pin the skew boundary.
- * @param rateLimits The request budgets to enforce, substituted in tests that need to exhaust one.
  */
 internal fun Application.syncModule(
   config: ServerConfig,
@@ -129,12 +116,7 @@ internal fun Application.syncModule(
   }
 }
 
-/**
- * Mounts every module a deployment answers requests with: sync, then the repertoire catalog.
- *
- * @param clock Source of server time, substituted in tests that pin the skew boundary.
- * @param rateLimits The request budgets to enforce, substituted in tests that need to exhaust one.
- */
+/** Mounts every module a deployment answers requests with: sync, then the repertoire catalog. */
 internal fun Application.serverModules(
   config: ServerConfig,
   jwkProvider: JwkProvider,
@@ -148,14 +130,7 @@ internal fun Application.serverModules(
   repertoireModule(repertoireStore, clock, rateLimits)
 }
 
-/**
- * Installs the named rate limit tiers, if not already installed.
- *
- * [syncModule] and [proj.memorchess.axl.server.routes.repertoireModule] each call this, and either
- * one may run first: production always installs both on the same `Application`, but a test may
- * mount `repertoireModule` on its own (see its own tests), so neither module can assume the other
- * already registered these tiers.
- */
+/** Installs the named rate limit tiers unless already installed, so any module may run first. */
 internal fun Application.installRateLimiting(tiers: RateLimitTiers = PRODUCTION_RATE_LIMITS) {
   if (pluginOrNull(RateLimit) != null) return
   install(RateLimit) {
@@ -178,40 +153,21 @@ internal fun Application.installRateLimiting(tiers: RateLimitTiers = PRODUCTION_
   }
 }
 
-/**
- * The authenticated caller's user id, or its IP when called from a route with no principal.
- *
- * The fallback never actually triggers on a route wrapped in `authenticate`: an unauthenticated
- * call never reaches a nested rate limiter, since the authentication challenge answers first. It
- * exists so this never throws if a route is ever rewired without that wrapping.
- */
+/** The authenticated caller's user id, or its IP on a route with no principal. */
 private fun ApplicationCall.callerKey(): String = principal<Caller>()?.userId ?: clientIp()
 
 /**
- * The caller's IP, trusting Cloudflare's own header over the socket address.
- *
- * The deployment sits entirely behind Cloudflare, so [io.ktor.server.request.ApplicationRequest]'s
- * remote host is Cloudflare's edge, the same handful of addresses for every caller. Keying an
- * anonymous rate limit on that would limit all callers together rather than each on their own.
- *
- * This header is trustworthy only because the origin is reachable exclusively through Cloudflare:
- * nothing here stops a direct caller from setting it to a fresh value on every request. If the
- * origin is ever exposed directly, [RateLimitTiers.publicRead] and [RateLimitTiers.admin] are both
- * trivially bypassed; [RateLimitTiers.syncWrite] and [RateLimitTiers.syncRead] are unaffected,
- * since those key on the verified JWT subject instead.
+ * The caller's IP from Cloudflare's header, since the socket address is Cloudflare's edge.
+ * Spoofable, so IP-keyed limits hold only while the origin is reachable exclusively through
+ * Cloudflare.
  */
 private fun ApplicationCall.clientIp(): String =
   request.header("CF-Connecting-IP") ?: request.local.remoteHost
 
-/**
- * Maps every failure to an [ApiError], so no stack trace, SQL text or exception class name reaches
- * a caller.
- */
+/** Maps every failure to an [ApiError], so no stack trace or SQL text reaches a caller. */
 private fun Application.installErrorMapping() {
   install(StatusPages) {
-    // The RateLimit plugin answers a rejection itself, with an empty body; this rewrites it to the
-    // same ApiError shape as every other failure, rather than every client learning a second body
-    // format just for this one status.
+    // RateLimit answers with an empty body; rewrite it to the ApiError shape of every failure.
     status(HttpStatusCode.TooManyRequests) { call, status ->
       call.respond(status, ApiError(ApiErrorCode.RATE_LIMITED, "too many requests, slow down"))
     }

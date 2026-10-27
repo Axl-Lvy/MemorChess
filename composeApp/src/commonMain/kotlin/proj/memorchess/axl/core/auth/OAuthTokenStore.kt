@@ -6,14 +6,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Persists the Lichess OAuth access token and (optionally) the username it belongs to.
- *
- * Backed by [Settings] so the token survives process restarts on every platform. On Android this
- * lands in SharedPreferences, on iOS in NSUserDefaults, on JVM in a Properties file under the user
- * config directory, and on wasmJs in localStorage. None of those are encrypted at rest, which is
- * acceptable for a read only Lichess token without scopes.
- *
- * Token mutations push to [account] so the UI can recompose.
+ * Persists the Lichess OAuth access token and the username it belongs to. Storage is not encrypted
+ * at rest, which is acceptable for a read only token without scopes.
  */
 class OAuthTokenStore(private val settings: Settings) {
 
@@ -25,7 +19,7 @@ class OAuthTokenStore(private val settings: Settings) {
   /** Returns the access token, or `null` if the user is not signed in. */
   fun getToken(): String? = settings.getStringOrNull(KEY_TOKEN)
 
-  /** Persists [token] and [username]. Pass a `null` [username] if it has not been resolved yet. */
+  /** Persists [token] and [username]; a `null` [username] means it is not resolved yet. */
   fun save(token: String, username: String?) {
     settings.putString(KEY_TOKEN, token)
     if (username != null) {
@@ -36,7 +30,7 @@ class OAuthTokenStore(private val settings: Settings) {
     _account.value = LichessAccount(token = token, username = username)
   }
 
-  /** Persists [username] without changing the token. Used after the initial token exchange. */
+  /** Persists [username] without changing the token; does nothing when signed out. */
   fun setUsername(username: String) {
     val token = getToken() ?: return
     settings.putString(KEY_USERNAME, username)

@@ -52,9 +52,7 @@ class TestSyncRowMappers {
         existingCreatedAt = node.createdAt,
       )
 
-    // DataNode.equals() deliberately excludes depth/hasGoodOutgoing/createdAt/originDevice/
-    // deviceSeq/updatedAt (see its own EssentialData), so a plain `shouldBe node` would pass even
-    // if the mapper silently dropped one of those. Check them explicitly.
+    // DataNode.equals() excludes the fields checked below, so check them explicitly.
     roundTripped shouldBe node
     roundTripped.depth shouldBe node.depth
     roundTripped.hasGoodOutgoing shouldBe node.hasGoodOutgoing
@@ -85,7 +83,7 @@ class TestSyncRowMappers {
     val row = move.toEdgeSyncRow()!!
     val roundTripped = row.toDataMove()
 
-    // DataMove.equals() deliberately excludes originDevice/deviceSeq/updatedAt/createdAt.
+    // DataMove.equals() excludes the fields checked below, so check them explicitly.
     roundTripped shouldBe move
     roundTripped.originDevice shouldBe move.originDevice
     roundTripped.deviceSeq shouldBe move.deviceSeq

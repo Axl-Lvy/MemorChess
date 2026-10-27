@@ -17,7 +17,7 @@ import proj.memorchess.axl.test_util.GatingDatabaseQueryManager
 import proj.memorchess.axl.test_util.testNodeCache
 import proj.memorchess.axl.test_util.testSyncApplier
 
-/** Tests for [SyncApplier]'s resolution of pulled rows against their local copies. */
+/** Tests [SyncApplier]'s resolution of pulled rows against their local copies. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestSyncApplier {
 
@@ -63,7 +63,7 @@ class TestSyncApplier {
   @Test
   fun applyNodeLocalWinsSkipsTheWrite() = runTest {
     val applier = applier()
-    // A local row from the same origin device as the incoming remote row, with a higher deviceSeq.
+    // Same origin device as the incoming row, with a higher deviceSeq.
     applier.applyNode(row("start", deviceSeq = 5L))
 
     val outcome = applier.applyNode(row("start", deviceSeq = 1L))
@@ -78,11 +78,10 @@ class TestSyncApplier {
     val applier = SyncApplier(database, cache, TrainableProjection(database, cache))
     val laterDueDate = Instant.parse("2026-06-01T00:00:00Z")
     applier.applyNode(row("start", deviceSeq = 1L, dueDate = now))
-    cache.resolve(PositionKey("start")) // warms the cache with the deviceSeq=1 due date
+    cache.resolve(PositionKey("start"))
 
     applier.applyNode(row("start", deviceSeq = 2L, dueDate = laterDueDate))
 
-    // If the invalidation did not happen this would still read the deviceSeq=1 cached due date.
     cache.resolve(PositionKey("start")).node?.cardState?.dueDate shouldBe laterDueDate
   }
 
@@ -128,8 +127,6 @@ class TestSyncApplier {
       ResolutionSource.REMOTE
     gating.gate.complete(Unit)
 
-    // The load started before the apply and resumed after it. It must not have put the pre sync row
-    // back over the applied one.
     cache.peek(positionKey)?.cardState?.dueDate shouldBe laterDueDate
   }
 }

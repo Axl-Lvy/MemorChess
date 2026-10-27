@@ -15,9 +15,7 @@ import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.server.db.PostgresTestDb
 
-/**
- * Verifies the per user row count quota [SyncStore.push] enforces on each resource but settings.
- */
+/** Verifies the per user row quota [SyncStore.push] enforces on every resource but settings. */
 internal class TestSyncStoreQuota {
 
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
@@ -87,7 +85,7 @@ internal class TestSyncStoreQuota {
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
-  /** A fresh user with one registered device, which pushing now requires. */
+  /** A fresh user with one registered device, which pushing requires. */
   private suspend fun newUser(store: SyncStore): String {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)

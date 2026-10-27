@@ -71,7 +71,6 @@ class TestNavigationHistory {
     val nav = NavigationHistory(startPos)
     nav.push(moveToA, posA)
     nav.back()
-    // Push a different move — should clear forward stack
     val posC = PositionKey("posC b K")
     val moveToC =
       Edge(

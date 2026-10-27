@@ -100,8 +100,7 @@ class TestHttpConvergence {
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
     val token = key.token(subject = user)
-    // Registration is a prerequisite for pulling, and its own route arrives with the device
-    // endpoints. Until then the store is primed directly, which is what the client does over HTTP.
+    // Registration is a prerequisite for pulling, so the store is primed directly.
     for (device in listOf("device-a", "device-b")) {
       store.registerDevice(
         user,

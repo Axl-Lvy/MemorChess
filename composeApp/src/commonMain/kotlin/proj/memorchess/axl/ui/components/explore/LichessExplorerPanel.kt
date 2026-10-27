@@ -48,11 +48,9 @@ private const val TEST_TAG_ROOT = "lichess_explorer_panel"
 private const val TEST_TAG_MOVE_ROW = "lichess_explorer_move_row"
 
 /**
- * Read only side panel that displays popular moves from the Lichess Opening Explorer for the
- * position currently shown in the explore view.
+ * Read only panel showing popular Lichess Opening Explorer moves for the current position.
  *
- * @param viewModel Drives fetches and exposes the state to render.
- * @param onClickMove Invoked when the user taps a move row, with the SAN as argument.
+ * @param onClickMove receives the SAN of the tapped move.
  */
 @Composable
 fun LichessExplorerPanel(
@@ -71,10 +69,7 @@ fun LichessExplorerPanel(
   )
 }
 
-/**
- * Stateless rendering of the explorer panel. Split out from [LichessExplorerPanel] so tests can
- * drive each [ExplorerState] without standing up a full [ExplorerViewModel].
- */
+/** Stateless rendering of [LichessExplorerPanel]. */
 @Composable
 internal fun LichessExplorerPanelContent(
   state: ExplorerState,

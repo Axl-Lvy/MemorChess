@@ -6,12 +6,7 @@ import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
-/**
- * Room backed [DatabaseQueryManager] for non-JS platforms.
- *
- * Takes its [CustomDatabase] explicitly so the production singleton wires the shared file while
- * tests can drive an isolated database through the same public API.
- */
+/** Room backed [DatabaseQueryManager] for non-JS platforms. */
 internal class NonJsLocalDatabaseQueryManager(private val database: CustomDatabase) :
   DatabaseQueryManager {
 
@@ -135,7 +130,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
         .getNodeEntityDao()
         .eligibleAmong(keys.map { it.value }, dayEndExclusive, repertoireId)
         .associateBy { it.positionKey }
-    // Preserve the caller's candidate order: return the first key that came back eligible.
+    // Preserve the caller's candidate order.
     return keys.firstNotNullOfOrNull { eligible[it.value] }?.toTrainingEntry()
   }
 
@@ -145,9 +140,8 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   }
 
   /**
-   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
-   * subtree (incoming count at most one), resolved with point queries. A convergent position
-   * reachable through an outside parent is excluded.
+   * Live children of [origin] with at most one live incoming edge, so a position also reachable
+   * from outside the subtree is excluded.
    */
   private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
     val dao = database.getNodeEntityDao()
@@ -160,7 +154,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     return result
   }
 
-  /** Rebuilds a [TrainingEntry] from the lightweight projection, no edges loaded. */
+  /** Rebuilds a [TrainingEntry] from the projection without loading edges. */
   private fun NodeCardProjection.toTrainingEntry(): TrainingEntry =
     TrainingEntry(
       PositionKey(positionKey),
@@ -265,7 +259,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   }
 }
 
-/** The parts an [OutboxEntryEntity]'s compound key splits into. See [DirtyKey.outboxKeyParts]. */
+/** The parts an [OutboxEntryEntity]'s compound key splits into. */
 private data class OutboxKeyParts(
   val kind: String,
   val key1: String,

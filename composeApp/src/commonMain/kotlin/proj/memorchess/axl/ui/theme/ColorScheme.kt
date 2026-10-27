@@ -3,10 +3,10 @@ package proj.memorchess.axl.ui.theme
 import androidx.compose.ui.graphics.Color
 import proj.memorchess.axl.core.util.CanDisplayName
 
-/** Legacy success tint used by a few status indicators. Kept until those callers are restyled. */
+/** Success tint of a few status indicators. */
 val goodTint = Color(0xFF4CAF50)
 
-/** User-selectable app theme mode. Persisted via `APP_THEME_SETTING`. */
+/** User selectable app theme mode. */
 enum class AppThemeSetting : CanDisplayName {
   SYSTEM,
   LIGHT,

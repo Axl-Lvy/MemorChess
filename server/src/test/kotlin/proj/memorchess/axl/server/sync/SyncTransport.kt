@@ -6,10 +6,8 @@ import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.SyncPushResponse
 
 /**
- * How a [TestDevice] reaches the server.
- *
- * The identity is the transport's, never the device's, which mirrors production: the caller cannot
- * name a user, so neither can a test device.
+ * How a [TestDevice] reaches the server. The identity is the transport's, never the device's, as in
+ * production.
  */
 internal interface SyncTransport {
 

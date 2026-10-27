@@ -17,58 +17,21 @@ import kotlin.math.cos
 import kotlin.math.sin
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
-/**
- * Outer diameter of the ring. Not read off the design canvas, which this sandbox could not reach.
- * Sized to read as a bold dashboard centerpiece pending a design pass.
- */
 private val RING_DIAMETER = 120.dp
 
-/**
- * Stroke width of both the track and the progress arc, matching
- * [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s height.
- */
+/** Matches [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s height. */
 private val RING_STROKE_WIDTH = 10.dp
 
-/**
- * Radius of the soft glow halo at the progress tip, matching
- * [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker glow.
- */
+/** Matches [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker glow. */
 private val TIP_GLOW_RADIUS = 6.dp
 
-/**
- * Radius of the solid dot at the progress tip, matching
- * [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker dot.
- */
+/** Matches [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s marker dot. */
 private val TIP_DOT_RADIUS = 4.dp
 
 /**
- * Kinetic circular goal ring.
+ * Circular goal ring: a clockwise progress arc from 12 o'clock with a dot at its tip.
  *
- * A [RING_DIAMETER] circle used on the Today page to show today's training goal completion. Renders
- * three layers via [Modifier.drawBehind], mirroring
- * [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s track/fill/marker structure
- * adapted from a bar to a ring:
- * 1. A full [panel3][proj.memorchess.axl.ui.theme.KineticPalette.panel3] track circle, stroked with
- *    round caps.
- * 2. A clockwise [progress][proj.memorchess.axl.ui.theme.KineticPalette.progress] arc starting at
- *    12 o'clock (`-90` degrees) and sweeping `360 * progress` degrees. Only drawn when the clamped
- *    progress is strictly greater than `0f`, to avoid a zero-length arc artifact — same rationale
- *    as the rail's zero-width fill guard.
- * 3. A soft [progressGlow][proj.memorchess.axl.ui.theme.KineticPalette.progressGlow] halo behind a
- *    solid [progress][proj.memorchess.axl.ui.theme.KineticPalette.progress] dot, positioned at the
- *    arc's current tip. Always drawn, even at `0f` (where the tip sits at 12 o'clock), so the ring
- *    always shows a head — exactly like the rail's marker.
- *
- * The [progress] parameter is clamped into `0f..1f`. Non-finite values (`NaN`, `+∞`, `-∞`) fall
- * back to `0f`. The clamped value is also reported to accessibility services as a
- * [ProgressBarRangeInfo] over `0f..1f`.
- *
- * No center label slot: like [proj.memorchess.axl.ui.components.training.KineticProgressRail], this
- * stays presentation only. The caller overlays its own text centered in a [Box] around it.
- *
- * @param progress Goal completion in `[0f, 1f]`. Values outside this range are clamped; `NaN` and
- *   infinities are treated as `0f`.
- * @param modifier Modifier applied to the outer [RING_DIAMETER] square container.
+ * @param progress Goal completion, clamped into `0f..1f`; `NaN` and infinities count as `0f`.
  */
 @Composable
 fun GoalRing(progress: Float, modifier: Modifier = Modifier) {
@@ -93,7 +56,6 @@ fun GoalRing(progress: Float, modifier: Modifier = Modifier) {
           val arcSize = Size(diameter, diameter)
           val stroke = Stroke(width = strokePx, cap = StrokeCap.Round)
 
-          // 1. Track.
           drawArc(
             color = panel3,
             startAngle = 0f,
@@ -104,9 +66,7 @@ fun GoalRing(progress: Float, modifier: Modifier = Modifier) {
             style = stroke,
           )
 
-          // 2. Progress arc — only when there is something to draw, otherwise a zero-length arc
-          //    would still risk a backend-dependent artifact (same rationale as the rail's
-          //    zero-width fill guard).
+          // A zero length arc can leave a backend dependent artifact.
           if (safeProgress > 0f) {
             drawArc(
               color = progressColor,
@@ -119,8 +79,7 @@ fun GoalRing(progress: Float, modifier: Modifier = Modifier) {
             )
           }
 
-          // 3. Tip glow + dot. Always drawn (also at progress == 0), so the ring always shows a
-          //    head — at 12 o'clock when empty, back at 12 o'clock when full.
+          // The tip is drawn even at 0, so the ring always shows a head.
           val tipAngleDegrees = -90f + 360f * safeProgress
           val tipAngleRadians = tipAngleDegrees * (kotlin.math.PI.toFloat() / 180f)
           val radius = diameter / 2f

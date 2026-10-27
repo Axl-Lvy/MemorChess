@@ -23,17 +23,9 @@ import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 
 /**
- * Cache of resolved [Painter]s for the 12 distinct chess pieces, keyed by [ChessPiece].
- *
- * The board renders up to 32 pieces simultaneously and remounts every time the user switches pages.
- * Calling [painterResource] per tile would spawn 32 async resource loads on each remount;
- * preloading once at the theme layer turns mounts into synchronous map lookups so the board appears
- * in a single frame.
- *
- * Backed by [compositionLocalOf] (read-tracked) rather than `staticCompositionLocalOf` so painter
- * resolutions during app startup invalidate only the [Piece] composables that read the cache — with
- * a static local, the entire subtree under the theme recomposed on each of the 12 async painter
- * resolutions and visibly froze the initial loading indicator.
+ * Preloaded [Painter]s for the 12 chess pieces, so a board remount is a map lookup, not 32 async
+ * loads. Read-tracked, so each async painter resolution recomposes only the readers, not the theme
+ * subtree.
  */
 val LocalPiecePainters =
   compositionLocalOf<Map<ChessPiece, Painter>> {
@@ -41,9 +33,8 @@ val LocalPiecePainters =
   }
 
 /**
- * Eagerly resolves all 12 chess-piece painters and provides them via [LocalPiecePainters]. Mount
- * once at app/theme scope so the cache survives page navigation; calls to [painterResource] inside
- * are de-duped by Compose Resources so this is cheap to re-enter on theme changes.
+ * Resolves all 12 piece painters for [LocalPiecePainters]. Mount at theme scope so the cache
+ * survives page navigation.
  */
 @Composable
 fun rememberPiecePainters(): Map<ChessPiece, Painter> {

@@ -12,8 +12,7 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * Room backed coverage of the sync remote-apply surface, mirroring [TestInMemoryApplyRemote]'s
- * equivalent cases against a real isolated SQLite database.
+ * Room backed counterpart of [TestInMemoryApplyRemote], against a real isolated SQLite database.
  */
 class TestRoomApplyRemote {
 

@@ -3,12 +3,9 @@ package proj.memorchess.axl.ui.components.buttons
 import androidx.compose.runtime.Composable
 
 /**
- * Represents a child item for use in a [wide scrollable row][WideScrollableRow] UI component.
+ * A child item of a [wide scrollable row][WideScrollableRow].
  *
- * @property testTag A string used for testing purposes to identify this child.
- * @property onClick Callback invoked when the child is clicked.
- * @property drawContent Composable lambda to draw the content of the child. Receives a Boolean
- *   indicating if the child is selected.
+ * @property drawContent Draws the child, given whether it is selected.
  */
 data class WideScrollBarChild(
   val testTag: String,

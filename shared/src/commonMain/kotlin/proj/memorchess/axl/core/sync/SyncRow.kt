@@ -4,11 +4,8 @@ import kotlin.time.Instant
 import kotlinx.serialization.Serializable
 
 /**
- * One synchronized row, in the shape it travels over the wire.
- *
- * Only facts travel. Derived projections owned by [proj.memorchess.axl.core.graph.TreeStore], such
- * as a node's depth, `hasGoodOutgoing` and `createdAt`, are recomputed after a pull rather than
- * merged, because merging them independently produces a store that disagrees with itself.
+ * One synchronized row, in its wire shape. Derived projections such as depth, `hasGoodOutgoing` and
+ * `createdAt` never travel; they are recomputed after a pull so the store stays self-consistent.
  */
 sealed interface SyncRow {
 
@@ -19,32 +16,22 @@ sealed interface SyncRow {
   val originDevice: String
 
   /**
-   * Per device counter, strictly increasing with every local write that device makes.
-   *
-   * For two versions written by the same device this is the **only** thing [resolve] compares, and
-   * [updatedAt] is ignored. A counter cannot move backwards, whereas a clock can, so this is what
-   * keeps a device's own newer write from losing to its own older one. Only comparable between rows
-   * carrying the same [originDevice]; counters from different devices are unrelated.
+   * Per device write counter, strictly increasing. Between two versions from the same
+   * [originDevice], [resolve] compares only this, since a clock can move backwards.
    */
   val deviceSeq: Long
 
-  /** Whether this row is a tombstone. A deletion is an ordinary write, never a special case. */
+  /** Whether this row is a tombstone. */
   val isDeleted: Boolean
 }
 
 /**
  * A position and its scheduling state.
  *
- * @property positionKey Cropped FEN, as a plain string rather than a
- *   [proj.memorchess.axl.core.data.PositionKey], because an inline value class on the wire adds
- *   surprise without benefit. Conversion happens at the client and server boundaries.
- * @property dueDate Moment the card is next due.
- * @property lastReview Moment of the most recent review, or `null` for a brand new card.
- * @property firstReview Moment of the very first review, or `null` for a never reviewed card.
+ * @property positionKey Cropped FEN, as a plain string on the wire.
+ * @property lastReview Most recent review, or `null` for a brand new card.
+ * @property firstReview First review, or `null` for a never reviewed card.
  * @property stability FSRS stability of the memory trace, in days.
- * @property difficulty FSRS card difficulty.
- * @property reps Total number of recorded reviews.
- * @property lapses Total number of times the card has been forgotten.
  * @property phase Name of the card's phase in the FSRS state machine.
  * @property step Index into the active learning or relearning step ladder.
  */
@@ -90,7 +77,6 @@ data class EdgeSyncRow(
 /**
  * One persisted setting.
  *
- * @property key Identifier of the setting.
  * @property value Its serialized value.
  */
 @Serializable
@@ -107,11 +93,10 @@ data class SettingSyncRow(
  * A repertoire's identity: display name and perspective.
  *
  * @property id Slug: a catalog descriptor id, or a slugified user chosen name.
- * @property name Display name shown in the library and picker.
  * @property color Serialized [proj.memorchess.axl.core.data.repertoire.RepertoireColor] name, or
- *   `null` when the repertoire mixes both sides (a two sided import such as a Lichess study).
- * @property installedVersion Catalog version installed under this id, or `null` for a repertoire
- *   the user created.
+ *   `null` when the repertoire mixes both sides.
+ * @property installedVersion Catalog version installed under this id, or `null` for a user created
+ *   repertoire.
  */
 @Serializable
 data class RepertoireSyncRow(
@@ -126,16 +111,13 @@ data class RepertoireSyncRow(
 ) : SyncRow
 
 /**
- * One edge tagged as belonging to one repertoire. Many to many: the same edge can carry more than
- * one row, one per repertoire it belongs to.
+ * One edge tagged as belonging to one repertoire; an edge carries one row per repertoire.
  *
  * @property origin Cropped FEN of the origin position.
  * @property destination Cropped FEN of the destination position.
- * @property repertoireId The repertoire this edge belongs to.
- * @property move The tagged move in standard algebraic notation, so a device that has never seen
- *   the move can create it.
- * @property isGood The author's marking for a tag written by an install, which makes the repertoire
- *   a holder of the move, or `null` for a tag that only records membership.
+ * @property move The tagged move in SAN, so a device that has never seen the move can create it.
+ * @property isGood The author's marking for a tag written by an install, or `null` for a tag that
+ *   only records membership.
  */
 @Serializable
 data class EdgeRepertoireTagSyncRow(

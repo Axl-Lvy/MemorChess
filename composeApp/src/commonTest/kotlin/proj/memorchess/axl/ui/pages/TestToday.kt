@@ -40,11 +40,7 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.waitUntilNodeExists
 
-/**
- * A [DailyActivityStore] whose reads never complete, so `produceState` stays unresolved. Used to
- * observe [Today]'s loading branch deterministically, mirroring `TestKineticSideBar`'s
- * `NeverReturningDailyActivityStore`.
- */
+/** A [DailyActivityStore] whose reads never complete, so [Today] stays in its loading branch. */
 private class NeverReturningDailyActivityStore : DailyActivityStore {
   override suspend fun getRecord(date: LocalDate): DailyActivityRecord = awaitCancellation()
 
@@ -54,19 +50,8 @@ private class NeverReturningDailyActivityStore : DailyActivityStore {
 }
 
 /**
- * Pins [Today]'s stats-loading contract, the goal-ring target branches, the CTA plural boundary,
- * and the pick-up card's loading/empty/populated states.
- *
- * Every dependency besides Koin is built by hand and passed explicitly, matching
- * `TestKineticSideBar`'s style. [TestWithKoin] is needed here (unlike `TestKineticSideBar`) because
- * the CTA is a real `KineticButton`, whose press animation reads the reduce-motion setting through
- * Koin on first press. That is the same reason `TestKineticBottomNav` keeps its whole class on
- * `TestWithKoin` rather than splitting it.
- *
- * The goal ring and CTA plural assertions go through test tags carrying the underlying number
- * (`today_goal_label_done`/`today_goal_label_progress`, `today_cta_pending_count_N`) rather than
- * matching resource text. The resource locale is not fixed on CI, so a text assertion would be
- * flaky by construction, matching `TestKineticBottomNav`'s own rule.
+ * Counts are asserted through test tags rather than resource text, whose locale CI does not fix.
+ * [TestWithKoin] backs the CTA's reduce-motion read on first press.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestToday : TestWithKoin() {
@@ -80,9 +65,7 @@ class TestToday : TestWithKoin() {
     }
   }
 
-  /**
-   * An in memory database holding [count] brand new cards, i.e. [count] pending training entries.
-   */
+  /** An in memory database holding [count] brand new, hence pending, cards. */
   private suspend fun dbWithDueCards(count: Int): InMemoryDatabaseQueryManager {
     val database = TestDatabases.empty()
     if (count > 0) {
@@ -114,8 +97,6 @@ class TestToday : TestWithKoin() {
     }
   }
 
-  // STREAK BADGE
-
   @Test
   fun zeroDayStreakRendersTheBadge() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
@@ -128,8 +109,6 @@ class TestToday : TestWithKoin() {
     onNodeWithText("0").assertIsDisplayed()
   }
 
-  // WEEK STRIP — every one of the seven cells renders
-
   @Test
   fun everyWeekStripCellRenders() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
@@ -139,8 +118,6 @@ class TestToday : TestWithKoin() {
     waitUntilNodeExists(hasTestTag("today_week_strip"))
     (1..7).forEach { isoIndex -> onNodeWithTag("today_week_cell_$isoIndex").assertExists() }
   }
-
-  // GOAL RING — target == 0 vs target > 0, goal already met
 
   @Test
   fun zeroCardsDueAndGoalAlreadyMetReportsFullRingAndATappableCta() = runTestFromSetup {
@@ -180,8 +157,6 @@ class TestToday : TestWithKoin() {
     onNodeWithTag("today_goal_label_progress").assertDoesNotExist()
   }
 
-  // PICK UP CARD — no repertoires installed vs. a populated repertoire
-
   @Test
   fun noRepertoiresInstalledRendersTheEmptyPickUpCard() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
@@ -218,8 +193,6 @@ class TestToday : TestWithKoin() {
     onNode(hasText("Italian Game")).assertIsDisplayed()
   }
 
-  // CTA PLURAL BOUNDARY
-
   @Test
   fun ctaAtOnePendingUsesTheSingularBranch() = runTestFromSetup {
     val store = InMemoryDailyActivityStore()
@@ -242,11 +215,7 @@ class TestToday : TestWithKoin() {
     onNodeWithTag("today_cta_pending_count_2", useUnmergedTree = true).assertIsDisplayed()
   }
 
-  // WEEK CELL CLASSIFICATION — every arm, independent of which real day the suite runs on.
-  // Drives WeekStrip (an internal, testable seam) directly with a chosen todayIsoIndex, rather
-  // than calling the page-private classifyWeekCell, and reads the classification back off each
-  // cell's semantics state description instead of its (locale dependent) background colour.
-
+  // A chosen todayIsoIndex keeps the classification independent of the day the suite runs on.
   private suspend fun ComposeUiTest.setWeekStrip(
     week: List<Boolean>,
     todayIsoIndex: Int,
@@ -310,8 +279,7 @@ class TestToday : TestWithKoin() {
 
   @Test
   fun mondayBoundaryHasNoPastDayLeftFuture() = runTestFromSetup {
-    // Today is Monday (isoIndex 1): every other day of the week is FUTURE, none can be
-    // DONE/MISSED, the boundary the spec calls out explicitly.
+    // isoIndex 1 is Monday, so every other day is in the future.
     setWeekStrip(week = weekOf(), todayIsoIndex = 1)
 
     (2..7).forEach { isoIndex ->
@@ -322,7 +290,7 @@ class TestToday : TestWithKoin() {
 
   @Test
   fun sundayBoundaryHasNoFutureDayLeft() = runTestFromSetup {
-    // Today is Sunday (isoIndex 7): every other day is in the past, none can be FUTURE.
+    // isoIndex 7 is Sunday, so every other day is in the past.
     setWeekStrip(week = weekOf(7), todayIsoIndex = 7)
 
     (1..6).forEach { isoIndex ->
@@ -333,16 +301,13 @@ class TestToday : TestWithKoin() {
 
   @Test
   fun customTagPrefixRendersTagsUnderThatPrefix() = runTestFromSetup {
-    // The desktop rail renders its own WeekStrip alongside Today's on a wide window; a distinct
-    // prefix is what keeps the two from colliding on the same test tags.
+    // The desktop rail renders its own WeekStrip beside Today's, so their tags must not collide.
     setWeekStrip(week = weekOf(2), todayIsoIndex = 4, tagPrefix = "rail_week")
 
     onNodeWithTag("rail_week_strip").assertExists()
     onNodeWithTag("rail_week_cell_2").assert(hasWeekCellState("DONE"))
     onNodeWithTag("today_week_strip").assertDoesNotExist()
   }
-
-  // LOADING CONTRACT
 
   @Test
   fun loadingRendersNoContent() = runTestFromSetup {

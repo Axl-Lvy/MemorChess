@@ -103,8 +103,8 @@ class TestLichessExplorerClient {
         headers = headersOf("Content-Type", "application/json"),
       )
     }
-    // wasmJs sends none: a browser owns the wire User-Agent, and a script supplied override
-    // fails explorer.lichess.ovh's CORS preflight on Firefox.
+    // wasmJs sends none: a script supplied User-Agent fails the explorer's CORS preflight on
+    // Firefox.
     val client = buildClient(engine, userAgentProvider = { null })
 
     client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
@@ -133,7 +133,6 @@ class TestLichessExplorerClient {
     val result = client.fetch(ExplorerSource.LICHESS, fen = "f")
 
     result shouldBe ExplorerResult.RateLimited
-    // Two attempts because maxAttemptsOn429 = 2 means we make 2 calls total.
     calls shouldBe 2
   }
 }

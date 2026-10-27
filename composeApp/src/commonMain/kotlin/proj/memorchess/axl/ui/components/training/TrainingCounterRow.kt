@@ -12,20 +12,11 @@ import memorchess.composeapp.generated.resources.training_success
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Three-counter row used by the Kinetic Training page.
+ * Success, fail and left counters side by side, sharing the width evenly.
  *
- * Follows artboards `1b`/`1h` — SUCCESS, FAIL, LEFT side by side with an 8.dp gap, each rendered
- * through [KineticCounterBlock] with its semantic [KineticCounterTone].
- *
- * The three [KineticCounterBlock] instances are placed inside a [Row] with `Arrangement.spacedBy`
- * and each receives `Modifier.weight(1f)` so the row distributes evenly across the available width.
- * All three counts are unconstrained [Int]s and gracefully render any value (including `0` and
- * [Int.MAX_VALUE]) via [Int.toString], per the numeric-edge-cases rule.
- *
- * @param successCount Number of successful attempts in the current session.
- * @param failCount Number of failed attempts in the current session.
- * @param leftCount Number of training entries still pending today.
- * @param modifier Modifier applied to the outer [Row].
+ * @param successCount Successful attempts in the current session.
+ * @param failCount Failed attempts in the current session.
+ * @param leftCount Training entries still pending today.
  */
 @Composable
 fun TrainingCounterRow(

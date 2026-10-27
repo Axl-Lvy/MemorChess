@@ -30,35 +30,15 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-// Every dimension below is a placeholder rather than a design canvas read
-// (`claude.ai/design/p/db4f236e-b602-4b5f-bcbb-a4cf70525664`), which this sandboxed environment
-// could not reach. Each constant instead cites the closest existing Kinetic value it reuses, per
-// the spec's own fallback rule, and should get a pass against the real artboard once reachable.
-
-/** Size of one week-strip day cell. Not read off an artboard; see the file header note. */
 private val WEEK_CELL_SIZE = 40.dp
 
-/**
- * Gap between week-strip cells, reused from
- * [proj.memorchess.axl.ui.components.navigation.KineticSideBar]'s row gap (8.dp).
- */
 private val WEEK_CELL_GAP = 8.dp
 
-/**
- * Corner radius of a week-strip cell, reused from the bottom nav's active-pill radius (14.dp),
- * halved for a smaller element.
- */
 private val WEEK_CELL_SHAPE = RoundedCornerShape(10.dp)
 
 /**
- * Visual state of one week strip cell.
- *
- * Modeled as four states rather than the three named in the spec. [MISSED] is a distinct arm for a
- * past day with no review, and [TODAY] always wins over [DONE] even once today has been reviewed,
- * because today's own done state is already communicated by the streak badge and the goal ring, so
- * the strip does not double encode it. This is a deliberate deviation pending design confirmation.
- * If a review finds the mockup shows only three states, [MISSED] should collapse into [FUTURE]'s
- * unfilled treatment.
+ * Visual state of one week strip cell. [TODAY] wins over [DONE], since the streak badge and goal
+ * ring already show whether today was reviewed.
  */
 internal enum class WeekCellState {
   DONE,
@@ -68,12 +48,8 @@ internal enum class WeekCellState {
 }
 
 /**
- * Classifies one week strip cell at [isoIndex] (`1` Monday .. `7` Sunday), given [todayIsoIndex]
- * and whether that date counts towards the streak ([active]).
- *
- * [todayIsoIndex] is a parameter rather than a direct
- * [proj.memorchess.axl.core.date.DateUtil.today] read, so [WeekStrip] (and anything driving it) can
- * be exercised for every arm regardless of which real calendar day a test happens to run on.
+ * Classifies the week strip cell at [isoIndex] (`1` Monday .. `7` Sunday); [active] means that date
+ * counts towards the streak.
  */
 internal fun classifyWeekCell(isoIndex: Int, todayIsoIndex: Int, active: Boolean): WeekCellState =
   when {
@@ -96,23 +72,11 @@ internal fun weekdayNameRes(isoDayNumber: Int): StringResource =
   }
 
 /**
- * Seven cells, Monday to Sunday, showing this ISO week's activity against [todayIsoIndex].
+ * Seven cells, Monday to Sunday, showing this ISO week's activity against [todayIsoIndex]. Each
+ * cell exposes its [WeekCellState] name as its semantics state description.
  *
- * Shared between [proj.memorchess.axl.ui.pages.Today] and the desktop rail
- * ([proj.memorchess.axl.ui.components.navigation.KineticDesktopRail]), which can both be on screen
- * at once on a wide window. [tagPrefix] keeps their two instances' test tags from colliding.
- *
- * [todayIsoIndex] is supplied by the caller rather than read from
- * [proj.memorchess.axl.core.date.DateUtil] directly, which lets a test drive every
- * [classifyWeekCell] arm through this composable for a chosen day, without a test override on
- * `DateUtil.today`. Each cell reports its classification as a semantics state description
- * (`"DONE"`/`"MISSED"`/`"TODAY"`/`"FUTURE"`) for exactly that purpose.
- *
- * @param tagPrefix Prefix for this instance's test tags: `"${tagPrefix}_strip"` on the row,
- *   `"${tagPrefix}_cell_<isoIndex>"` on each cell.
- * @param cellSize Side length of one cell. Defaults to the width Today's own full-width page uses;
- *   the desktop rail passes a smaller size so all seven cells fit its narrower column.
- * @param cellGap Gap between cells.
+ * @param tagPrefix Prefix of the `_strip` and `_cell_<isoIndex>` test tags; must differ between
+ *   instances on screen at once.
  */
 @Composable
 internal fun WeekStrip(

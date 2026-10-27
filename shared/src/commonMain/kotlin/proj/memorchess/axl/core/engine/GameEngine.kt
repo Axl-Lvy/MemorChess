@@ -11,23 +11,15 @@ import io.github.alluhemanth.chess.core.utils.SanUtils
 import proj.memorchess.axl.core.data.PositionKey
 
 /**
- * Wrapper around [ChessGame] from chess-core-kmp that provides a simpler API for the app.
- *
- * Manages board state, validates moves (SAN and coordinate-based), handles promotions, and produces
- * [PositionKey]s for node storage. SAN strings returned by move methods never include check or
- * checkmate markers (`+`/`#`), for consistency with stored move data.
+ * Chess game that validates and plays moves and produces [PositionKey]s. Returned SAN never carries
+ * check or checkmate markers, matching stored move data.
  */
 class GameEngine private constructor(private val game: ChessGame) {
 
   /** Creates a new game from the standard starting position. */
   constructor() : this(ChessGame())
 
-  /**
-   * Creates a new game from the given [PositionKey].
-   *
-   * Accepts cropped FENs (3–5 parts) as stored by [PositionKey]; missing fields (en passant,
-   * half-move clock, full-move number) are filled with defaults.
-   */
+  /** Creates a new game from a [PositionKey], filling the cropped FEN fields with defaults. */
   constructor(
     positionKey: PositionKey
   ) : this(ChessGame().also { it.loadFen(toFullFen(positionKey.value)) })
@@ -54,9 +46,7 @@ class GameEngine private constructor(private val game: ChessGame) {
   }
 
   private fun legalMove(san: String): Move {
-    // chess-core signals some rejections by throwing IllegalArgumentException or
-    // NoSuchElementException (no matching legal move at all, an unavailable castle). Normalize
-    // every case into the one exception the callers promise.
+    // chess-core rejects some moves by throwing; normalize them into IllegalMoveException.
     val parsed =
       try {
         SanUtils.sanToMove(san, game.getBoard(), game.getGameState())
@@ -73,9 +63,8 @@ class GameEngine private constructor(private val game: ChessGame) {
   /**
    * Plays a non-promotion move identified by board coordinates.
    *
-   * @param from source square as (row, col) where row 0 = rank 1, col 0 = file a.
-   * @param to destination square in the same coordinate system.
-   * @return the SAN string of the move played (without check/checkmate markers).
+   * @param from source square as (row, col) where row 0 = rank 1, col 0 = file a; [to] likewise.
+   * @return the SAN of the move played.
    * @throws IllegalMoveException if no legal non-promotion move matches the coordinates.
    */
   fun playCoordinateMove(from: Pair<Int, Int>, to: Pair<Int, Int>): String {
@@ -100,10 +89,7 @@ class GameEngine private constructor(private val game: ChessGame) {
   /**
    * Plays a promotion move identified by board coordinates and the chosen promotion piece.
    *
-   * @param from source square as (row, col).
-   * @param to destination square as (row, col).
-   * @param promotion the piece kind to promote to (typically QUEEN, ROOK, BISHOP, or KNIGHT).
-   * @return the SAN string of the promotion move played (without check/checkmate markers).
+   * @return the SAN of the move played.
    * @throws IllegalMoveException if no legal promotion move matches the coordinates and piece.
    */
   fun playCoordinateMoveWithPromotion(
@@ -158,20 +144,13 @@ class GameEngine private constructor(private val game: ChessGame) {
   fun toFen(): Fen = Fen(game.getFen())
 
   /**
-   * Builds a [PositionKey] for the current board state.
-   *
-   * The key contains a cropped FEN (board + turn + castling, and en passant only when an adjacent
-   * enemy pawn can actually capture). This ensures that positions which are identical for
-   * repertoire purposes share the same key regardless of move counters.
+   * Builds a [PositionKey] from the board, turn, castling, and en passant only when a capture is
+   * possible, so move counters never split one position into several keys.
    */
   fun toPositionKey(): PositionKey {
     return PositionKey(toCroppedFenString())
   }
 
-  /**
-   * Produces the cropped FEN used by [toPositionKey]. Includes en passant only when
-   * [isEnPassantRelevant] — i.e. an adjacent pawn of the current player can actually capture.
-   */
   private fun toCroppedFenString(): String {
     val fen = game.getFen()
     val parts = fen.split(" ")
@@ -188,17 +167,13 @@ class GameEngine private constructor(private val game: ChessGame) {
     }
   }
 
-  /**
-   * Checks whether the en passant square in the FEN is actually capturable — i.e. there is an
-   * adjacent pawn of the current player on the correct rank.
-   */
+  /** Whether a pawn of the side to move can actually capture en passant. */
   private fun isEnPassantRelevant(fenParts: List<String>): Boolean {
     val enPassantSquare = fenParts[3]
     if (enPassantSquare == "-") return false
 
     val epCol = enPassantSquare[0] - 'a'
-    // White to move → en passant target on rank 6, pawns on rank 5 (row index 4)
-    // Black to move → en passant target on rank 3, pawns on rank 4 (row index 3)
+    // Capturing pawns stand on rank 5 (row 4) for White, rank 4 (row 3) for Black.
     val checkingRow = if (fenParts[1] == "w") 4 else 3
     val currentPlayer = if (fenParts[1] == "w") Player.WHITE else Player.BLACK
 
@@ -218,10 +193,8 @@ class GameEngine private constructor(private val game: ChessGame) {
   }
 
   companion object {
-    /** Strips check (`+`) and checkmate (`#`) suffixes from a SAN string. */
     private fun String.stripCheckMarkers(): String = trimEnd('+', '#')
 
-    /** Converts (row, col) coordinates to a chess-core [Square]. */
     private fun toSquare(coords: Pair<Int, Int>): Square {
       return Square(File('a' + coords.second), Rank(coords.first + 1))
     }
@@ -252,12 +225,7 @@ class GameEngine private constructor(private val game: ChessGame) {
         PieceColor.BLACK -> Player.BLACK
       }
 
-    /**
-     * Converts a cropped FEN (board + turn + castling [+ en passant]) to a full 6-part FEN by
-     * appending default half-move clock (0) and full-move number (1) if missing.
-     *
-     * A fen with less than 5 parts is invalid
-     */
+    /** Pads a cropped FEN to six parts with a zero half-move clock and full-move number 1. */
     private fun toFullFen(fen: String): String {
       val parts = fen.trim().split(" ")
       return when (parts.size) {

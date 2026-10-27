@@ -15,14 +15,7 @@ import proj.memorchess.axl.core.data.ScopedSchedulingCounts
 import proj.memorchess.axl.core.data.TaggedEdge
 import proj.memorchess.axl.core.graph.TrainingEntry
 
-/**
- * [DatabaseQueryManager] decorator that counts how many times each position is point looked up via
- * [getPosition], so cache tests can assert hit / miss behaviour and prefetch fan out. Every other
- * operation delegates to [delegate] unchanged.
- *
- * @property delegate Backing manager, normally an
- *   [proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager].
- */
+/** [DatabaseQueryManager] decorator counting [getPosition] calls per position. */
 class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   DatabaseQueryManager {
 

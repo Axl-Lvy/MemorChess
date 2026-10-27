@@ -40,27 +40,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 private val FEEDBACK_RAISE = 12.dp
 
 /**
- * Bottom control bar for the Kinetic Training page.
- *
- * Follows artboards `1b`/`1h`. Layout, left to right:
- * - **SKIP** — default [KineticButton]; wired to [onSkip]. Like the other two it carries the chunky
- *   pressable edge every filled [KineticButton] now has.
- * - **Turn pill** — a small `panel2`-backed Box with a 12.dp radius and a 1.5.dp `line` border
- *   showing `"BLACK TO MOVE"` or `"WHITE TO MOVE"` in 10sp uppercase text, derived from
- *   [playerTurn]. While [failed] it reads `"FAILED"` in the destructive tone instead.
- * - **HINT** and **REVEAL** — default + primary [KineticButton]s wired to [onHint] / [onReveal].
- *
- * The whole bar sits on a 20.dp-radius `panel` background with a 1.5.dp `line` border. Padding is
- * 10.dp vertical / 12.dp horizontal so the bar feels tighter than the rest of the page. While
- * [feedbackActive] is `true` the whole bar rises by [FEEDBACK_RAISE].
- *
- * @param playerTurn The side whose turn it is; controls the turn pill text.
- * @param onSkip Invoked when the user taps SKIP.
- * @param onHint Invoked when the user taps HINT.
- * @param onReveal Invoked when the user taps REVEAL.
- * @param feedbackActive Whether a wrong answer is currently being shown; raises the whole bar.
- * @param failed Whether the current card is already failed, so nothing more can count against it.
- * @param modifier Modifier applied to the outer container.
+ * Training control bar: SKIP, a turn pill reading FAILED once [failed], HINT and REVEAL. Rises by
+ * [FEEDBACK_RAISE] while [feedbackActive].
  */
 @Composable
 fun TrainingCtrlBar(

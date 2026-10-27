@@ -22,10 +22,7 @@ java {
   targetCompatibility = JavaVersion.VERSION_21
 }
 
-application {
-  // The Docker image in the deployment step invokes this through installDist's start script.
-  mainClass.set("proj.memorchess.axl.server.MainKt")
-}
+application { mainClass.set("proj.memorchess.axl.server.MainKt") }
 
 dependencies {
   implementation(projects.shared)
@@ -42,8 +39,7 @@ dependencies {
   implementation(libs.ktor.server.auth)
   implementation(libs.ktor.server.auth.jwt)
   implementation(libs.ktor.serialization.kotlinx.json)
-  // :shared declares kotlinx.serialization as implementation, so it is not on this module's
-  // compile classpath transitively, and SYNC_JSON is a Json in this module's signatures.
+  // Not transitive from :shared, and SYNC_JSON exposes a Json in this module's signatures.
   implementation(libs.kotlinx.serialization.json)
   runtimeOnly(libs.slf4j.simple)
 
@@ -62,29 +58,19 @@ dependencies {
   testImplementation(libs.kotest.assertions)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.ktor.server.test.host)
-  // The test HTTP client needs its own ContentNegotiation to decode responses; the server side
-  // declaration above does not put it on the client's classpath.
+  // The test HTTP client needs its own ContentNegotiation; the server one is not on its classpath.
   testImplementation(libs.ktor.client.content.negotiation)
-  // Testcontainers logs its Docker discovery through slf4j; without a provider the reason a
-  // container fails to start is swallowed.
+  // Without an slf4j provider, the reason a Testcontainers container fails to start is swallowed.
   testRuntimeOnly(libs.slf4j.simple)
 }
 
 tasks.test {
-  // Testcontainers 1.21.3 bundles a docker-java that negotiates Docker API 1.32, which Docker 29
-  // refuses outright: its minimum is 1.40. Without this every container test dies with
-  // "Could not find a valid Docker environment", whose real cause is only visible once an slf4j
-  // provider is on the test classpath. 1.40 has been supported since Docker 19.03, so it is a
-  // safe floor. Left overridable for anyone who needs a different one.
+  // Testcontainers' docker-java negotiates Docker API 1.32, below Docker 29's minimum of 1.40.
   systemProperty("api.version", System.getenv("DOCKER_API_VERSION") ?: "1.40")
 }
 
-// Bakes the build sha into build-info.properties, read by BuildInfo at runtime and served by
-// GET /v1/version. The Docker image build passes -PbuildSha=<short sha>. Anywhere else (local
-// builds, tests) it falls back to "dev". buildSha is a local val inside the task's own
-// configuration block, not a script-level property, because a filesMatching action referencing a
-// script-level val captures the whole script object, which the configuration cache refuses to
-// serialize.
+// buildSha stays local to this block: a script-level val referenced by filesMatching captures the
+// whole script object, which the configuration cache cannot serialize.
 tasks.processResources {
   val buildSha = providers.gradleProperty("buildSha").orElse("dev")
   inputs.property("buildSha", buildSha)

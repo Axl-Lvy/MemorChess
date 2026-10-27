@@ -74,9 +74,8 @@ internal class TestSyncStoreGc {
     store.pull(user, device, null, 500, now).settings
 
   /**
-   * The setting [user] still stores under [key], as a device registered from scratch sees it.
-   *
-   * Registers that device, which pins the watermark at `0`, so call it only after collection.
+   * The setting [user] still stores under [key], as a fresh device sees it. Registers that device,
+   * pinning the watermark at `0`, so call it only after collection.
    */
   private suspend fun storedSetting(user: String, key: String): SettingSyncRow? {
     register(user, OBSERVER)

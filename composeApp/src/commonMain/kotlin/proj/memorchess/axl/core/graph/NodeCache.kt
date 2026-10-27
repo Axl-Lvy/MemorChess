@@ -21,9 +21,8 @@ fun interface NodeLoader {
 /**
  * Outcome of a [NodeCache.resolve].
  *
- * @property node The resolved node, or `null` when the position could not be resolved.
- * @property hit `true` when the node was returned without waiting on a load. A caller that joined
- *   someone else's in flight load reports `false`, so neighbour prefetch fans out for it too.
+ * @property hit `true` only when no load was awaited, someone else's included, so neighbour
+ *   prefetch fans out for a caller that joined an in flight load too.
  */
 data class Resolution(val node: Node?, val hit: Boolean)
 
@@ -35,16 +34,8 @@ private enum class Direction {
 private data class TouchedEdge(val direction: Direction, val move: String)
 
 /**
- * What a mutator changed on a key while a load of that key was in flight.
- *
- * One type covers every mutator, because a key can be invalidated and edited within the same load
- * and neither may be dropped. Marks merge as mutators accumulate: [stale] ors, [replacement] takes
- * the later, [edits] union with the later winning per key, [depth] takes the smaller.
- *
- * @property stale The row this load read is superseded on disk.
- * @property replacement A complete node that supersedes the loaded one.
- * @property edits Per move edits, a `null` value being a removal.
- * @property depth A depth a mutator asked for.
+ * What mutators changed on a key while its load was in flight; one type, since a key can be both
+ * invalidated and edited within one load. In [edits], a `null` value is a removal.
  */
 private data class RaceMark(
   var stale: Boolean = false,
@@ -54,30 +45,16 @@ private data class RaceMark(
 )
 
 /**
- * Bounded LRU cache of [Node]s with single flight loading and race reconciliation.
+ * Bounded LRU cache of [Node]s with single flight loading and race reconciliation. Public methods
+ * take the non reentrant mutex; `*Unlocked` helpers assume it is already held.
  *
- * Owns the [OpeningTree], the mutex guarding it, the set of in flight load claims, and the marks
- * recording what a mutator changed under a load. Every public method takes the mutex; each is a
- * thin wrapper over a private body that assumes the lock is already held, because finalization
- * marks, clears and inserts in one critical section and [Mutex] is not reentrant.
- *
- * @param loader Point lookup used on a miss.
- * @param loadScope Scope whose [Job] bounds a load's lifetime. Only the job is taken, never the
- *   dispatcher: a load runs [Dispatchers.Unconfined] so a foreground [resolve] miss completes on
- *   the caller's own continuation instead of waiting for this scope to be scheduled. Every load
- *   runs here, misses included and not just background prefetch, so cancelling this scope fails
- *   every miss, which is the intended way to tear a cache down. The cache derives its own
- *   [SupervisorJob] child of the handed [Job], so one failed load never cancels a sibling or the
- *   caller, while a transient cache still dies with whatever owns the scope it was built from. That
- *   derived supervisor is a permanent child, so a caller that joins the handed [Job] would wait
- *   forever: hand a [Job] nobody joins, such as a [SupervisorJob] or a lifecycle scope.
+ * @param loadScope Bounds every load, misses included, so cancelling it fails every miss. Its [Job]
+ *   gains a permanent [SupervisorJob] child, so hand one nobody joins.
  */
 class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
 
-  // Unconfined last, so it overrides whatever dispatcher the handed scope carries. A load then
-  // runs on the thread that installed or resumed it and never waits on a dispatcher of its own,
-  // which a foreground resolve is blocked on. Under a Compose UI test on wasmJs nothing pumps
-  // Dispatchers.Default, and every miss hung forever when the load needed it.
+  // Unconfined last, overriding the scope's dispatcher, so a foreground resolve never waits on
+  // another dispatcher: wasmJs Compose UI tests never pump Dispatchers.Default.
   private val scope =
     CoroutineScope(
       loadScope.coroutineContext +
@@ -92,19 +69,11 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
 
   /**
    * Resolves the node at [positionKey], loading it on a miss and deduping concurrent callers onto
-   * one load.
-   *
-   * A mutator's edits always survive a concurrent load, including across the one retry a
-   * superseding write forces, and the node returned is always the one left in the cache. After two
-   * invalidations inside a single load chain the caller can see a row one sync cycle behind.
-   * Nothing corrects that on its own: it survives until eviction, the next invalidation, or the
-   * next mutation of the key.
+   * one load. Two invalidations within one load can leave the row one sync cycle behind.
    */
   suspend fun resolve(positionKey: PositionKey): Resolution {
     val claim = mutex.withLock {
-      // The claim check comes before the residency check. A key that is resident with a claim in
-      // flight is a key whose cached row a mutator or a sync apply has just superseded, and the
-      // claim is the read that will replace it.
+      // Claim before residency: a resident key with a claim in flight holds a superseded row.
       val existing = inFlight[positionKey]
       if (existing != null) {
         existing
@@ -155,8 +124,7 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
    */
   suspend fun upsertEdge(edge: Edge, fromDepth: Int) {
     mutex.withLock {
-      // Both endpoints are marked here rather than inside OpeningTree.upsertEdge: a shared helper
-      // that marked only the key it was handed would silently drop the destination.
+      // Both endpoints are marked, or a load of the destination in flight would drop the edge.
       markEdgeUnlocked(edge.from, Direction.OUTGOING, edge.move, edge, fromDepth)
       markEdgeUnlocked(edge.to, Direction.INCOMING, edge.move, edge, fromDepth + 1)
       tree.upsertEdge(edge, fromDepth)
@@ -171,8 +139,7 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
    */
   suspend fun removeEdge(from: PositionKey, move: String, to: PositionKey?) {
     mutex.withLock {
-      // Marked before the removal, not after: OpeningTree.removeEdge returns early when the origin
-      // is not resident, and the mark has to be set even when the removal itself was a no op.
+      // Marked first: the mark is needed even when OpeningTree.removeEdge is a no op.
       markEdgeUnlocked(from, Direction.OUTGOING, move, null, null)
       if (to != null) markEdgeUnlocked(to, Direction.INCOMING, move, null, null)
       tree.removeEdge(from, move)
@@ -191,11 +158,8 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
   internal suspend fun residentCount(): Int = mutex.withLock { tree.residentCount() }
 
   /**
-   * Installs a claim for [positionKey] and returns it. The caller must hold [mutex].
-   *
-   * The `async` body reaches its own finalization only by taking [mutex], which this caller still
-   * holds, so the claim is always recorded in [inFlight] before finalization can remove it. That
-   * holds even on an unconfined dispatcher, where the body starts running inline.
+   * Installs and returns a claim for [positionKey]. The caller must hold [mutex], which keeps the
+   * claim recorded in [inFlight] before its body, even run inline, can finalize.
    */
   private fun installClaimUnlocked(
     positionKey: PositionKey,
@@ -222,15 +186,13 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
       loadedOk = true
     } finally {
       mutex.withLock {
-        // Remove the claim first, then insert, then install the retry. Inserting while the key
-        // still held a claim would have finalization mark itself, and installing the retry before
-        // the insert would have the insert mark the retry.
+        // Claim removal, then insert, then retry: inserting under the claim would mark itself,
+        // and installing the retry first would have the insert mark the retry.
         inFlight.remove(positionKey)
         val mark = raced.remove(positionKey)
         if (!loadedOk) {
-          // On a second attempt the tree holds the superseded candidate this load was installed to
-          // replace, so a failure must take it with it. The database is authoritative for the edits
-          // that go too, and the next resolve reads them back.
+          // A second attempt replaces a superseded candidate, so a failure drops it too; the next
+          // resolve reads the edits back from the database.
           if (attempt == 2) tree.removeNode(positionKey)
         } else {
           candidate = reconcile(positionKey, loaded, mark)
@@ -262,13 +224,8 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
   }
 
   /**
-   * The node [mark]'s edits apply to: its replacement, else the row [loaded], else a fresh empty
-   * node. `null` when nothing shows the position exists.
-   *
-   * A fresh node needs positive evidence, an edit that adds an edge or a depth a mutator asked for.
-   * Removals are not evidence, so a mark holding nothing but removals over an absent row leaves the
-   * key dropped rather than resident as an empty shell, which [Node.computeState] would read as the
-   * root.
+   * The node [mark]'s edits apply to, or `null` when nothing shows the position exists. Removals
+   * are not evidence: an empty shell would read as the root in [Node.computeState].
    */
   private fun reconcileBase(positionKey: PositionKey, loaded: Node?, mark: RaceMark): Node? {
     mark.replacement?.let {
@@ -329,11 +286,7 @@ private fun DataMove.toEdge(): Edge =
     ownIsGood = ownIsGood,
   )
 
-/**
- * Builds a fully edged [Node] from a persisted [DataNode]: non deleted incoming and outgoing moves
- * become [Edge]s. A single point lookup returns both directions, so this rebuilds one node
- * completely.
- */
+/** Builds a fully edged [Node] from the non deleted moves of a persisted [DataNode]. */
 private fun DataNode.toNode(): Node {
   val outgoing = mutableMapOf<String, Edge>()
   val incoming = mutableMapOf<String, Edge>()

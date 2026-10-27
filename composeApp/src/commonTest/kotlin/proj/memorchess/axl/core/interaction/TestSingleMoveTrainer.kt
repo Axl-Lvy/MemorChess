@@ -59,8 +59,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
         difficulty = 5.0,
         reps = 1,
         lapses = 0,
-        // A graduated card due for review: a wrong answer is a genuine lapse (REVIEW ->
-        // relearning).
+        // Graduated, so a wrong answer is a genuine lapse.
         phase = CardPhase.REVIEW,
       )
 
@@ -107,7 +106,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
     assertTrue(updatedNode.cardState.lapses >= 1, "Lapses should increase on incorrect review")
     assertEquals(testNode.cardState.reps + 1, updatedNode.cardState.reps)
     assertEquals(BoardLocation(3, 3), lastPlayedSquare) // d4
-    assertEquals(BoardLocation(3, 4), lastCorrectSquare) // e4, the node's good edge
+    assertEquals(BoardLocation(3, 4), lastCorrectSquare) // e4
   }
 
   @Test
@@ -119,8 +118,8 @@ class TestSingleMoveTrainer : TestWithKoin() {
     assertNotNull(updatedNode)
     assertTrue(updatedNode.cardState.lapses >= 1, "Lapses should increase on unknown move")
     assertEquals(testNode.cardState.reps + 1, updatedNode.cardState.reps)
-    assertEquals(BoardLocation(3, 2), lastPlayedSquare) // c4, matched no edge at all
-    assertEquals(BoardLocation(3, 4), lastCorrectSquare) // e4, the node's good edge still resolves
+    assertEquals(BoardLocation(3, 2), lastPlayedSquare) // c4
+    assertEquals(BoardLocation(3, 4), lastCorrectSquare) // e4
   }
 
   @Test
@@ -140,8 +139,8 @@ class TestSingleMoveTrainer : TestWithKoin() {
     tileClick(scopedTrainer, "e2")
     tileClick(scopedTrainer, "e4")
 
-    assertEquals(null, correctEdge) // rejected: correct chess move, wrong repertoire
-    assertNull(correctSquare) // no edge is tagged for "italian-game", so nothing to outline
+    assertEquals(null, correctEdge)
+    assertNull(correctSquare) // nothing is tagged "italian-game", so nothing to outline
   }
 
   @Test
@@ -321,9 +320,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
       Pair(BoardLocation(0, 6), BoardLocation(2, 5)) // g1-f3
   }
 
-  /**
-   * Trains the position after 1.e4 e5 against a lone good edge stored as a PGN wrote it, `Ngf3`.
-   */
+  /** Trains the position after 1.e4 e5 against a lone good edge stored as `Ngf3`. */
   private suspend fun overDisambiguatedTrainer(): SingleMoveTrainer {
     val engine = GameEngine().apply { listOf("e4", "e5").forEach { playSanMove(it) } }
     val start = engine.toPositionKey()

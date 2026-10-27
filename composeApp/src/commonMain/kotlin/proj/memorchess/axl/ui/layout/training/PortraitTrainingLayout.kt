@@ -13,14 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * Portrait Training layout — single centered column matching the Kinetic mobile design.
- *
- * Vertical stack: counters row → progress rail → moves trail → board (filling the remaining height,
- * centered) → control bar. Padding is intentionally tighter than [LandscapeTrainingLayout] so the
- * board can dominate the available height on phone-shaped screens.
- *
- * @param modifier Modifier applied to the outer [Column].
- * @param content Slot bag rendered into this layout.
+ * Portrait Training layout: a centered column of counters, progress, moves trail, board, and
+ * control bar, the board taking the remaining height.
  */
 @Composable
 fun PortraitTrainingLayout(modifier: Modifier = Modifier, content: TrainingLayoutContent) {

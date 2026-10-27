@@ -14,30 +14,18 @@ enum class SyncJobStatus {
   /** A cycle is scheduled to run at [SyncJobState.nextAttemptAt]. */
   SCHEDULED,
 
-  /**
-   * A cycle is in progress. A value read back as this at startup is a crash, not a resumable state:
-   * see [SyncEngine]'s startup recovery.
-   */
+  /** A cycle is in progress; read back at startup, it means the app crashed mid cycle. */
   RUNNING,
 
-  /**
-   * The previous cycle failed transiently; retrying at [SyncJobState.nextAttemptAt] with
-   * exponential backoff.
-   */
+  /** The previous cycle failed transiently; retrying at [SyncJobState.nextAttemptAt]. */
   BACKING_OFF,
 
-  /**
-   * The last token refresh was rejected by the issuer. No retry timer; resumes only on a fresh sign
-   * in.
-   */
+  /** The issuer rejected the last token refresh; resumes only on a fresh sign in. */
   PAUSED_NO_AUTH,
 
   /**
-   * The last push would have exceeded a per user storage quota. No retry timer, since retrying the
-   * same outbox can never succeed on its own. A dirty write does not resume it either, same as
-   * every other paused or backing off state, and doubly so here: a further local write only makes
-   * the quota worse, never better. Resumes only on an explicit [SyncEngine.syncNow] or
-   * [SyncEngine.onAppForeground].
+   * The last push would have exceeded a per user storage quota; resumes only on
+   * [SyncEngine.syncNow] or [SyncEngine.onAppForeground], never on a dirty write.
    */
   PAUSED_QUOTA_EXCEEDED,
 }
@@ -45,15 +33,12 @@ enum class SyncJobStatus {
 /** One persisted snapshot of the sync job's state. */
 data class SyncJobState(val status: SyncJobStatus, val nextAttemptAt: Instant?, val attempt: Int) {
   companion object {
-    /** The state a fresh install (or a just-cleared store) reads as. */
+    /** The state a fresh install or a cleared store reads as. */
     val IDLE = SyncJobState(SyncJobStatus.IDLE, null, 0)
   }
 }
 
-/**
- * Persists [SyncEngine]'s job state across process restarts. Backed by [Settings], same mechanism
- * as [proj.memorchess.axl.core.auth.OidcTokenStore].
- */
+/** Persists [SyncEngine]'s job state across process restarts. */
 class SyncJobStore(private val settings: Settings) {
 
   /** The current state, or [SyncJobState.IDLE] if nothing has ever been written. */

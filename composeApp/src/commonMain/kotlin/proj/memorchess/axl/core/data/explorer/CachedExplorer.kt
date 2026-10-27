@@ -5,14 +5,8 @@ import kotlin.time.Duration.Companion.days
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Combines a network [LichessExplorerClient] with a persistent [ExplorerCache].
- *
- * On [fetch] the cache is consulted first. A fresh entry within the source's TTL is returned
- * immediately. A stale entry is refreshed from the network; if the refresh fails for any reason,
- * the stale entry is returned with the staleness flagged so the UI can show a warning.
- *
- * Masters cache: indefinite (the OTB corpus is immutable history). Lichess cache: [lichessTtl],
- * default 7 days.
+ * Serves Lichess explorer responses from an [ExplorerCache], refreshing stale entries from the
+ * network and falling back to the stale entry when the refresh fails.
  */
 class CachedExplorer(
   private val client: LichessExplorerClient,

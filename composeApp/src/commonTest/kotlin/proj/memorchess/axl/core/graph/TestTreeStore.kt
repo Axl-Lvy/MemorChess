@@ -26,10 +26,7 @@ import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
 /**
- * Tests for the derived projection columns [DataNode.hasGoodOutgoing] and [DataNode.createdAt], and
- * for the repertoire registry, edge tagging, and `NodeRepertoireTrainable` maintenance, maintained
- * by [TreeStore] on every write. Assertions read the persisted [DataNode] back through the public
- * [proj.memorchess.axl.core.data.DatabaseQueryManager.getPosition] API.
+ * Tests for the derived columns and repertoire projections [TreeStore] maintains on every write.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestTreeStore {
@@ -109,7 +106,6 @@ class TestTreeStore {
   fun explorationEdgeDoesNotSetHasGoodOutgoing() = runTest {
     val database = TestDatabases.empty()
     val store = testTreeStore(database)
-    // An exploration edge (isGood == null) is not persisted, then classify it as a known mistake.
     store.addMove(from = start, move = "e4", to = posA, isGood = false, fromDepth = 0)
     val persisted = database.getPosition(start)
     assertNotNull(persisted)
@@ -121,10 +117,7 @@ class TestTreeStore {
 
   @Test
   fun nodeCreatedAtIsEarliestIncomingEdgeCreatedAt() = runTest {
-    // posB has two good incoming edges with distinct createdAt; the persisted createdAt must be the
-    // earlier one. Seed via insertNodes so the edge createdAt values are controlled, then a write
-    // to
-    // posB re-persists it through Node.toDataNode() (which resolves posB on demand).
+    // Seeded directly so the edge createdAt values are controlled.
     val viaA = move(posA, "Nc3", posB, t2)
     val viaC = move(posC, "Nf3", posB, t1)
     val database = TestDatabases.empty()
@@ -134,7 +127,7 @@ class TestTreeStore {
       node(posB, 2, listOf(viaA, viaC), emptyList()),
     )
     val store = testTreeStore(database)
-    // Trigger a re-persist of posB by adding an outgoing edge from it.
+    // Any write re-persists posB.
     store.addMove(from = posB, move = "d4", to = start, isGood = true, fromDepth = 2)
     val persisted = database.getPosition(posB)
     assertNotNull(persisted)
@@ -149,8 +142,6 @@ class TestTreeStore {
   fun rootNodeCreatedAtFallsBackToNow() = runTest {
     val database = TestDatabases.empty()
     val store = testTreeStore(database)
-    // The start position is persisted as the origin of a classified edge; it has no incoming edges,
-    // so createdAt falls back to now and is a set, non throwing value within the call window.
     val before = DateUtil.now()
     store.addMove(from = start, move = "e4", to = posA, isGood = true, fromDepth = 0)
     val after = DateUtil.now()
@@ -161,8 +152,6 @@ class TestTreeStore {
       "root createdAt must fall back to ~now when there are no incoming edges",
     )
   }
-
-  // --- Trainable projection maintenance on the delete paths ---------------------------------
 
   @Test
   fun deletingTheLastTaggedGoodEdgeClearsTheOriginsTrainableMembership() = runTest {
@@ -210,8 +199,7 @@ class TestTreeStore {
     store.addMove(from = from, move = "e4", to = to, isGood = true, fromDepth = 0)
     database.gate.complete(Unit)
 
-    // Cache side assertions: every backend merges move rows per key, so the disk state is identical
-    // with and without the mark and a persisted row assertion cannot fail.
+    // Asserted on the cache: every backend merges move rows per key, so disk state cannot tell.
     val resolved = assertNotNull(store.node(to))
     assertEquals(setOf("e4"), resolved.incoming.keys)
     assertEquals(setOf("e5"), resolved.outgoing.keys)
@@ -220,7 +208,6 @@ class TestTreeStore {
 
   @Test
   fun aMissFansOutPrefetchAndAHitDoesNot() = runTest {
-    // Both values of Resolution.hit propagated through the facade.
     val child = PositionKey("child b K")
     val edge = DataMove(origin = start, destination = child, move = "e4", isGood = true)
     val backing = InMemoryDatabaseQueryManager()

@@ -1,9 +1,8 @@
 package proj.memorchess.axl.core.auth
 
 /**
- * Builds this platform's [AuthProvider] for the sync/Logto identity flow. Native platforms
- * (Android, iOS, JVM) sign in through a popup via [launcher]; wasmJs uses a full page redirect
- * instead (see the design spec for why the popup technique is not viable there).
+ * Builds this platform's [AuthProvider] for the sync identity flow. Native platforms sign in
+ * through a popup via [launcher]; wasmJs uses a full page redirect.
  */
 internal expect fun getPlatformSpecificSyncAuthProvider(
   oidcClient: OidcClient,

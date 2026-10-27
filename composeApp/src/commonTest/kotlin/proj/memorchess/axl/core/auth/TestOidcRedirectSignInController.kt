@@ -31,11 +31,8 @@ class TestOidcRedirectSignInController {
   @Test
   fun signInPersistsPendingRecordAndNavigatesButNeverReturns() = runTest {
     val pendingStore = PendingOidcRedirectStore(TestSettings())
-    // A CompletableDeferred awaited off the virtual test dispatcher, not advanceUntilIdle(),
-    // because PkceGenerator.generate() suspends on a genuinely async platform primitive (the
-    // browser's crypto.subtle.digest on wasmJs): its completion is never scheduled on the test
-    // scheduler's virtual queue, so neither advancing virtual time nor a virtual-time
-    // withTimeout ever observes it — only real time does.
+    // Awaited in real time: on wasmJs PkceGenerator.generate() suspends on crypto.subtle.digest,
+    // whose completion the virtual test scheduler never observes.
     val navigatedTo = CompletableDeferred<String>()
     val delegate =
       OidcSignInController(

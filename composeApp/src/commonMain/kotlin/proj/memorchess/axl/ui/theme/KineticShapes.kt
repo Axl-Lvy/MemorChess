@@ -5,9 +5,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
 /**
- * Kinetic shape defaults. Cards, buttons, and sheets round to a chunky 20.dp. Pills, chips, and
- * badges use a smaller, distinct scale (12.dp / 16.dp) so the two families read apart. Anything
- * that needs a one-off radius still declares its own [RoundedCornerShape] inline.
+ * Kinetic shape defaults: 20.dp for cards, buttons and sheets, 12.dp or 16.dp for pills and chips.
  */
 val kineticShapes: Shapes =
   Shapes(

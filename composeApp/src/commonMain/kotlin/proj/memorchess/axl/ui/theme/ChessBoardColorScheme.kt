@@ -6,14 +6,8 @@ import proj.memorchess.axl.core.util.CanDisplayName
 /**
  * Available color schemes for the chess board.
  *
- * @property lightSquareColor Light square color.
- * @property darkSquareColor Dark square color.
- * @property displayName The name to display for this color scheme.
- * @property selectedBorderColor The color of the border around selected squares. The Kinetic
- *   schemes keep this on the `action` role: selection is the interactive affordance.
- * @property arrowColor The color of the best-move arrow. The Kinetic schemes ride the `progress`
- *   role here, so the engine suggestion is lime in dark and violet in light, separated from
- *   selection. The other schemes are user-chosen skins and keep their own hues.
+ * @property selectedBorderColor Border around selected squares.
+ * @property arrowColor Best-move arrow.
  */
 enum class ChessBoardColorScheme(
   val lightSquareColor: Color,
@@ -71,11 +65,7 @@ enum class ChessBoardColorScheme(
     arrowColor = Color(0x80DE9A04),
     displayName = "Wood",
   ),
-  /**
-   * The on-brand board: violet squares, lime best-move arrow. Unlike [KINETIC_DARK] and
-   * [KINETIC_LIGHT], which use neutral greys, this is the one scheme that visually ties the board
-   * to the Kinetic palette regardless of the app's own light/dark theme. Default board style.
-   */
+  /** On-brand violet board, independent of the app's light/dark theme. Default board style. */
   KINETIC_VIOLET(
     lightSquareColor = Color(0xFFD9C9FF),
     darkSquareColor = Color(0xFF6D28D9),

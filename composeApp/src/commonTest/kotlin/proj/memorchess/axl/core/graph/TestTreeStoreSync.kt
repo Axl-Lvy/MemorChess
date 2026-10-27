@@ -17,11 +17,7 @@ import proj.memorchess.axl.core.sync.toEdgeSyncRow
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
-/**
- * Behavioural tests proving [TreeStore] marks the outbox dirty and stamps its [DeviceIdentity] on
- * every write path: [TreeStore.addMove], [TreeStore.addMoves], [TreeStore.updateCardState],
- * [TreeStore.deleteMove] and [TreeStore.deleteNode].
- */
+/** Tests that every [TreeStore] write marks the outbox dirty and stamps its [DeviceIdentity]. */
 class TestTreeStoreSync {
 
   @OptIn(ExperimentalCoroutinesApi::class)
@@ -150,8 +146,6 @@ class TestTreeStoreSync {
 
   @Test
   fun deleteMoveTombstoneSurvivesTheFollowUpPersistOfTheSurvivingOrigin() = runTest {
-    // Regression coverage: deleteMove's persistNode(from) call, driven by a cache that has already
-    // dropped the removed edge, must not erase the tombstone deleteMove itself just wrote.
     val database = InMemoryDatabaseQueryManager()
     val store = newStore(database)
     store.ensurePosition(PositionKey("start"), 0)
@@ -165,10 +159,7 @@ class TestTreeStoreSync {
 
   @Test
   fun deleteMoveThroughAColdCacheStillUpdatesHasGoodOutgoingAndQueuesTheNode() = runTest {
-    // Regression coverage: a second TreeStore over the same backing database starts with an empty
-    // cache, so "start" is not resident. deleteMove must resolve it through node() itself rather
-    // than relying on the caller having warmed it, or the follow up persistNode(from) is a
-    // documented no-op on a cache miss and hasGoodOutgoing silently goes stale.
+    // A second store over the same database starts with a cold cache.
     val database = InMemoryDatabaseQueryManager()
     val store1 = newStore(database)
     store1.ensurePosition(PositionKey("start"), 0)

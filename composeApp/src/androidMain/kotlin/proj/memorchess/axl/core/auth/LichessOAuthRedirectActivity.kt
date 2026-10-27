@@ -4,12 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 
-/**
- * Headless activity registered against the `memorchess://oauth` scheme.
- *
- * Receives the redirect URI from the Custom Tab, hands it to [PendingOAuth], then finishes so the
- * MainActivity comes back to the foreground.
- */
+/** Headless activity handing the `memorchess://oauth` redirect to [PendingOAuth]. */
 class LichessOAuthRedirectActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {

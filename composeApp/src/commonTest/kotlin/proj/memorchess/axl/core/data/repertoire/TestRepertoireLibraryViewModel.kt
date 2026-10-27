@@ -568,14 +568,12 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
         store = store,
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
-    // The catalog seeds an Installed(summary = null) state from persistence.
     viewModel.installStates.value[london.id] shouldBe
       RepertoireInstallState.Installed(summary = null)
 
     viewModel.install(london)
     val state = viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
 
-    // Reinstall re-fetches and re-imports, restoring removed moves and reporting the fresh summary.
     fetchCalls shouldBe 1
     state[london.id] shouldBe
       RepertoireInstallState.Installed(PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 6))
@@ -594,8 +592,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
     viewModel.install(london)
     viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
-    // Installed is published before reportInstall is even called (it must never gate on the
-    // report), so a fake that itself suspends needs the scheduler drained before asserting.
+    // Installed is published before reportInstall runs, so drain the scheduler first.
     testScheduler.advanceUntilIdle()
 
     reportedIds shouldBe listOf(london.id)
@@ -613,8 +610,6 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
     viewModel.install(london)
 
-    // Installed must be observable while the (never completing here) report call is still in
-    // flight, proving the install outcome is not gated on that best-effort telemetry round trip.
     viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
     gate.complete(Unit)
   }
@@ -670,7 +665,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
     viewModel.install(london)
 
-    // The guard sets Fetching(0f) synchronously, before the fetch coroutine is even launched.
+    // Set synchronously, before the fetch coroutine launches.
     viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.Fetching(0f)
     gate.complete(Unit)
     viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }

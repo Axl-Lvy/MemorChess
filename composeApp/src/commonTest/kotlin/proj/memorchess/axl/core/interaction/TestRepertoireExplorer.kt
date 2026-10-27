@@ -9,10 +9,7 @@ import proj.memorchess.axl.core.interactions.RepertoireExplorer
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.repertoireMovesOf
 
-/**
- * Exercises the read-only repertoire navigator: only PGN moves are playable, off-book moves are
- * rejected, navigation walks the transient graph, and transpositions are shared.
- */
+/** Tests for the read-only [RepertoireExplorer]. */
 class TestRepertoireExplorer : TestWithKoin() {
 
   private suspend fun explorerOf(vararg pgns: String): RepertoireExplorer =
@@ -55,7 +52,7 @@ class TestRepertoireExplorer : TestWithKoin() {
   @Test
   fun clickingAnOffBookMoveIsRejected() = test {
     val explorer = explorerOf("1. e4 e5 *")
-    // Drag the d-pawn d2-d4: legal, but off-book, so the board must snap back.
+    // Legal but off-book.
     clickMove(explorer, "d2", "d4")
     assertEquals(PositionKey.START_POSITION, explorer.engine.toPositionKey())
   }
@@ -90,7 +87,6 @@ class TestRepertoireExplorer : TestWithKoin() {
 
   @Test
   fun branchesOfferEveryBookContinuation() = test {
-    // One position, two book replies.
     val explorer = explorerOf("1. e4 e5 2. Nf3 (2. Bc4) *")
     explorer.playMove("e4")
     explorer.playMove("e5")
@@ -99,7 +95,6 @@ class TestRepertoireExplorer : TestWithKoin() {
 
   @Test
   fun transposedLinesShareTheSamePosition() = test {
-    // Two move orders reaching the same position via different first moves.
     val explorer = explorerOf("1. d4 d5 2. Nf3 *", "1. Nf3 d5 2. d4 *")
     assertEquals(listOf("Nf3", "d4"), explorer.getNextMoves())
 

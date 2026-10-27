@@ -14,11 +14,9 @@ import proj.memorchess.axl.ui.components.controls.KineticSwatchPicker
 import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 
 /**
- * Board Style settings section content. Renders a swatch picker over
- * [ChessBoardColorScheme.entries] and persists changes via [CHESS_BOARD_COLOR_SETTING].
+ * Swatch picker over [ChessBoardColorScheme.entries], persisted via [CHESS_BOARD_COLOR_SETTING].
  *
- * @param reloadKey value used to force re-reading the persisted setting on external reloads.
- * @param onReload called after a swatch selection so the parent can refresh dependent composables.
+ * @param reloadKey Changing it re-reads the persisted setting.
  */
 @Composable
 fun BoardStyleSection(reloadKey: Any, onReload: () -> Unit = {}) {

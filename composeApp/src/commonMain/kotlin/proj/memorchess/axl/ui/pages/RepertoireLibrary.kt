@@ -167,15 +167,11 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 private const val TEST_TAG_CARD = "library_repertoire_card"
 private const val TEST_TAG_MY_REPERTOIRE_ROW = "library_my_repertoire_row"
 
-/** Number of breathing skeleton rows shown while the catalog manifest is loading. */
 private const val CATALOG_SKELETON_ROWS = 3
 
 /**
  * Repertoire library page. Lists the repertoires of the remote catalog and lets the user install
  * any of them into the opening graph after a metadata preview.
- *
- * All list and install state lives in [RepertoireLibraryViewModel]; this composable only wires the
- * Koin collaborators into the view model and renders its flows.
  */
 @Composable
 fun RepertoireLibrary(
@@ -194,13 +190,9 @@ fun RepertoireLibrary(
           client.fetchMoves(descriptor.id, descriptor.version, onProgress)
         },
         importMoves = { descriptor, moves, onProgress ->
-          // The importer reads the persisted graph on demand through the bounded cache.
           RepertoireMoveImporter(treeStore, tagStore).import(moves, descriptor.id, onProgress)
         },
-        previewMoves = { moves ->
-          // The overlap is read against the persisted graph on demand through the bounded cache.
-          RepertoireMoveImporter(treeStore, tagStore).preview(moves)
-        },
+        previewMoves = { moves -> RepertoireMoveImporter(treeStore, tagStore).preview(moves) },
         reportInstall = client::reportInstall,
         loadRepertoire = tagStore::repertoire,
         registerInstall = { descriptor ->
@@ -244,27 +236,13 @@ fun RepertoireLibrary(
   )
 }
 
-/** Maps the catalog's [RepertoireColor] to the engine [Player] the importer classifies against. */
 private fun RepertoireColor.toPlayer(): Player =
   when (this) {
     RepertoireColor.WHITE -> Player.WHITE
     RepertoireColor.BLACK -> Player.BLACK
   }
 
-/**
- * User actions raised by [RepertoireLibraryContent], grouped so the content stays within the
- * parameter budget.
- *
- * @property onInstall Install (or reinstall) the given repertoire into the opening graph.
- * @property onPreviewRequest Request the move-overlap preview for the given repertoire.
- * @property onRetry Retry loading the catalog after a failure.
- * @property onRefresh Refetch the catalog from the network now, ignoring any cached copy.
- * @property onView Open the read-only viewer for the given repertoire.
- * @property onExplore Open the Explore page scoped to the given registered repertoire.
- * @property onTrain Open the Training page scoped to the given registered repertoire.
- * @property onRepertoireListChanged Reloads the "My Repertoires" list; called after a create or
- *   fork completes so the new repertoire shows up without leaving the page.
- */
+/** User actions raised by [RepertoireLibraryContent]. */
 internal data class RepertoireLibraryActions(
   val onInstall: (RepertoireDescriptor) -> Unit,
   val onPreviewRequest: (RepertoireDescriptor) -> Unit,
@@ -276,10 +254,7 @@ internal data class RepertoireLibraryActions(
   val onRepertoireListChanged: () -> Unit = {},
 )
 
-/**
- * Stateless rendering of the library page. Split out from [RepertoireLibrary] so tests can drive
- * each [LibraryCatalogState] and [RepertoireInstallState] without standing up a full view model.
- */
+/** Stateless rendering of [RepertoireLibrary]. */
 @Composable
 internal fun RepertoireLibraryContent(
   catalogState: LibraryCatalogState,
@@ -376,12 +351,7 @@ internal fun RepertoireLibraryContent(
   }
 }
 
-/**
- * The user's own repertoires (Task 6's registry), each with Explore/Train actions scoped to it.
- * Distinct from the catalog list below: this is the user's own tree, not a downloadable one. There
- * is no per repertoire "Untagged" entry: an untagged position already shows up under the unscoped
- * "All" entry point (`repertoireId = null`), which this section does not otherwise change.
- */
+/** The user's own repertoires, each with Explore and Train actions scoped to it. */
 @Composable
 private fun MyRepertoiresSection(
   repertoires: List<DataRepertoire>,
@@ -409,9 +379,7 @@ private fun MyRepertoiresSection(
         name = repertoire.name,
         id = repertoire.id,
         color = repertoire.color,
-        // A catalog installed repertoire, or one mixing both colors (color == null), is never
-        // offered a publish action: the former is not the user's own content, and the latter has
-        // no single declared side for RepertoirePublishClient.publish's side field.
+        // An installed repertoire is not the user's own, and a mixed-color one has no single side.
         canPublish = repertoire.id !in installedIds && repertoire.color != null,
         onExplore = onExplore,
         onTrain = onTrain,
@@ -461,11 +429,7 @@ private fun MyRepertoireRow(
   }
 }
 
-/**
- * "Create repertoire" icon action shown next to [MyRepertoiresSection]'s title. Owns its own
- * [RepertoireCreationViewModel] (mirroring [PublishAction]'s self contained wiring) and closes the
- * dialog, resets the view model, and calls [onRepertoireListChanged] once the create completes.
- */
+/** "Create repertoire" icon action; calls [onRepertoireListChanged] once a create completes. */
 @Composable
 private fun CreateRepertoireAction(onRepertoireListChanged: () -> Unit) {
   val treeStore: TreeStore = koinInject()
@@ -508,11 +472,7 @@ private fun CreateRepertoireAction(onRepertoireListChanged: () -> Unit) {
   )
 }
 
-/**
- * "Fork repertoire" icon action shown on every [MyRepertoireRow]. Duplicates [sourceId]'s tagged
- * edges into a new repertoire under a name the dialog suggests, keeping [sourceColor]. Wiring
- * mirrors [CreateRepertoireAction].
- */
+/** "Fork repertoire" icon action duplicating [sourceId]'s tagged edges into a new repertoire. */
 @Composable
 private fun ForkRepertoireAction(
   sourceId: String,
@@ -562,12 +522,6 @@ private fun ForkRepertoireAction(
   )
 }
 
-/**
- * Builds a [RepertoireCreationViewModel] wired to [tagStore]: [RepertoireTagStore.repertoires] for
- * the existing-id check, [RepertoireTagStore.register] and [RepertoireTagStore.fork] directly, and
- * a [PgnImporter] for pasted-PGN imports (mirroring [RepertoireLibrary]'s own `importGames`
- * wiring).
- */
 private fun repertoireCreationViewModel(
   treeStore: TreeStore,
   tagStore: RepertoireTagStore,
@@ -583,7 +537,6 @@ private fun repertoireCreationViewModel(
     scope = scope,
   )
 
-/** Maps [error] to its user facing message. */
 @Composable
 private fun creationErrorMessage(error: CreationError): String =
   when (error) {
@@ -600,7 +553,6 @@ private data class CreationDialogPresentation(
   val done: Boolean,
 )
 
-/** Maps [state] to its [CreationDialogPresentation]. */
 @Composable
 private fun creationDialogPresentation(state: CreationState): CreationDialogPresentation =
   when (state) {
@@ -619,9 +571,8 @@ private fun creationDialogPresentation(state: CreationState): CreationDialogPres
   }
 
 /**
- * Publish lifecycle action for one repertoire's row: Publish when never published, Update and
- * Unpublish once published, both disabled mid flight, and a sign in hint instead of the dialog
- * while signed out.
+ * Publish, or Update and Unpublish once published, for one repertoire row; disabled mid flight, and
+ * replaced by a sign in hint while signed out.
  */
 @Composable
 private fun PublishAction(localId: String, name: String, color: RepertoireColor) {
@@ -702,7 +653,6 @@ private fun PublishAction(localId: String, name: String, color: RepertoireColor)
   )
 }
 
-/** Maps [error] to its user facing message, per the spec's error handling section. */
 @Composable
 private fun publishErrorMessage(error: PublishError): String =
   when (error) {
@@ -735,11 +685,8 @@ private fun CatalogError(message: String, onRetry: () -> Unit) {
 }
 
 /**
- * Loaded catalog body: a stale data hint when the list comes from an expired cache, an empty
- * message when the catalog lists nothing, and otherwise a hero pick, the color filter chips and one
- * card per (filtered) repertoire — or a "nothing matches" message when the filter excludes
- * everything. Requests the hero's overlap preview through [onPreviewRequest] whenever the pick
- * changes.
+ * Loaded catalog body: stale hint, hero pick, color filter chips, and one card per filtered
+ * repertoire. Requests the hero's overlap preview whenever the pick changes.
  */
 @Composable
 private fun CatalogList(
@@ -815,16 +762,8 @@ private fun CatalogList(
 }
 
 /**
- * Picks the "picked for you" hero repertoire: the most downloaded one (#309's real recommendation
- * signal) among the ones the user has not installed yet, so the hero never recommends something
- * already trained. Falls back to the overall most downloaded repertoire when every one of them is
- * already installed — there is then no better recommendation to make, and [HeroPackCard] renders
- * that fallback the same as any other pick (see its own KDoc on why it never special-cases install
- * state itself).
- *
- * [List.maxByOrNull] keeps the first element on a tie, so a catalog whose entries all carry the
- * same [RepertoireDescriptor.downloadCount] (every manifest predating this field, `0` for all)
- * falls back to catalog order, identical to the placeholder behavior this replaces.
+ * The most downloaded repertoire not installed yet, or the most downloaded overall when all are.
+ * Ties keep catalog order.
  */
 private fun pickHeroRepertoire(
   repertoires: List<RepertoireDescriptor>,
@@ -837,13 +776,7 @@ private fun pickHeroRepertoire(
   return candidates.maxByOrNull { it.downloadCount }
 }
 
-/**
- * Filter chip selection.
- *
- * [MINE] is backed by [installStates][RepertoireInstallState], not the registry: the "installed"
- * flag already flows into installStates from the view model, so no new dependency is needed to
- * answer "is this cheap" from the #282 brainstorming notes.
- */
+/** Filter chip selection; [MINE] means installed from the catalog. */
 private enum class LibraryColorFilter {
   ALL,
   WHITE,
@@ -851,10 +784,6 @@ private enum class LibraryColorFilter {
   MINE,
 }
 
-/**
- * Narrows [repertoires] to the ones matching [filter], per [installStates] for
- * [MINE][LibraryColorFilter.MINE].
- */
 private fun filterRepertoires(
   repertoires: List<RepertoireDescriptor>,
   installStates: Map<String, RepertoireInstallState>,
@@ -869,12 +798,8 @@ private fun filterRepertoires(
   }
 
 /**
- * 8dp-tall, 5dp-radius progress bar shared by the hero card, the per-pack mastery bar and the
- * install-progress bar. [fraction] is read lazily and only during the draw phase — never during
- * composition — so an animated caller (the install sweep) does not force this composable (or its
- * parent) to recompose every frame; only the draw pass re-runs. [testTag] carries a
- * [ProgressBarRangeInfo] so tests can assert the exact fraction via `assertRangeInfoEquals` without
- * reaching into a private function from another package.
+ * Rounded progress bar exposing its value as [ProgressBarRangeInfo]. [fraction] is never read
+ * during composition, so an animated caller does not recompose every frame.
  */
 @Composable
 private fun LibraryProgressBar(
@@ -908,23 +833,12 @@ private fun LibraryProgressBar(
   )
 }
 
-/** Alpha under KineticMotion.Routine.loadingSkeleton()'s low end of the breathing pulse. */
+/** Lowest alpha of the skeleton's breathing pulse. */
 private const val SKELETON_ALPHA_LOW = 0.4f
 
 /**
- * Breathing skeleton block: a flat [color] fill on [shape] whose alpha pulses between
- * [SKELETON_ALPHA_LOW] and 1f, driven by [KineticMotion.Routine.loadingSkeleton]. Replaces the two
- * former `CircularProgressIndicator` call sites, per #273's determinate-loading spec.
- *
- * Built on [rememberInfiniteTransition]/[infiniteRepeatable], matching the existing precedent in
- * `KineticBootIndicator` — not a hand-rolled `while (isActive) { animateTo(...) }` loop. Compose's
- * test clock (`runComposeUiTest`'s default `autoAdvance = true`) only knows how to auto-cancel
- * animations driven through `withInfiniteAnimationFrameNanos` (`InfiniteAnimationPolicy`), which is
- * exactly what [rememberInfiniteTransition] uses internally; a loop built on plain `withFrameNanos`
- * always leaves a pending frame awaiter, so `waitForIdle()` never returns and every test that
- * renders a skeleton hangs. The spec passed to [infiniteRepeatable] is built once, outside
- * composition, inside the [remember] block — never freshly on every recomposition, per
- * [KineticMotion]'s own KDoc on wasmJs cost.
+ * Flat [color] block on [shape] whose alpha breathes. Uses [rememberInfiniteTransition] rather than
+ * a `withFrameNanos` loop, which would hang Compose tests in `waitForIdle()`.
  */
 @Composable
 private fun SkeletonBlock(modifier: Modifier, shape: Shape, color: Color, testTag: String? = null) {
@@ -935,10 +849,7 @@ private fun SkeletonBlock(modifier: Modifier, shape: Shape, color: Color, testTa
       targetValue = 1f,
       animationSpec =
         remember {
-          // KineticMotion.Routine.loadingSkeleton() is declared to return FiniteAnimationSpec<T>,
-          // even though its actual instance (a tween()) is a DurationBasedAnimationSpec<T> —
-          // infiniteRepeatable requires that narrower static type, hence the cast. tween() always
-          // implements DurationBasedAnimationSpec, so this is safe for every KineticMotion spec.
+          // Safe cast: loadingSkeleton() is typed FiniteAnimationSpec but is always a tween.
           infiniteRepeatable(
             animation =
               KineticMotion.Routine.loadingSkeleton<Float>() as DurationBasedAnimationSpec<Float>,
@@ -956,11 +867,8 @@ private fun SkeletonBlock(modifier: Modifier, shape: Shape, color: Color, testTa
 }
 
 /**
- * Maps [state] to the determinate install-progress fraction shown on a pack card's progress bar,
- * from the real per-phase fraction [RepertoireInstallState] now carries (#309): Fetching's byte
- * progress covers 0%-30%, Importing's game-planning progress covers 30%-100%. `null` means "no
- * install bar" — [NotInstalled][RepertoireInstallState.NotInstalled] and
- * [Failed][RepertoireInstallState.Failed] show the action button instead.
+ * Install progress of a pack card: fetching covers 0 to 30%, importing 30 to 100%. `null` when no
+ * progress bar is shown.
  */
 private fun installProgressFraction(state: RepertoireInstallState): Float? =
   when (state) {
@@ -971,13 +879,7 @@ private fun installProgressFraction(state: RepertoireInstallState): Float? =
     is RepertoireInstallState.Failed -> null
   }
 
-/**
- * [HeroPackCard]'s light/dark values, pre-resolved once instead of eight separate `if
- * (palette.isLight)` ternaries scattered through the composable — a SonarCloud finding on the
- * original version (cognitive complexity 31, ceiling 15). Values are named per usage site even
- * where two sites happen to share a color today, so a future palette tune can move them
- * independently without hunting for coincidental sharing.
- */
+/** [HeroPackCard]'s colors for the current light or dark palette. */
 private data class HeroCardTheme(
   val cardBackground: Modifier,
   val colorBadgeBackground: Color,
@@ -1004,10 +906,7 @@ private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme 
     )
   } else {
     HeroCardTheme(
-      // Dark drops the solid violet fill for a bordered panel per 1j.html's own note, "so the
-      // lime CTA stays the brightest thing on screen". palette.panel2/lineBright are the closest
-      // existing tokens to 1j's literal #2A1B47/#4A2E86 (no exact palette match exists for those
-      // two bespoke hex values — approximated rather than adding new tokens).
+      // A bordered panel instead of the violet fill, so the lime CTA stays the brightest thing.
       cardBackground =
         Modifier.background(palette.panel2, shape).border(1.5.dp, palette.lineBright, shape),
       colorBadgeBackground = palette.actionDim,
@@ -1021,16 +920,8 @@ private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme 
   }
 
 /**
- * Hero "picked for you" pack card at the top of the library. [descriptor] is chosen by
- * [pickHeroRepertoire]'s most-downloaded signal. Its progress row shows how many of the
- * repertoire's moves the user already has, read from [previewState], and is hidden until that
- * overlap is ready or when the repertoire has no move.
- *
- * Does NOT look at [descriptor]'s own [RepertoireInstallState] itself: the badge and CTA render the
- * same whether or not this exact repertoire happens to be installed. That never matters in practice
- * — [pickHeroRepertoire] already excludes an installed repertoire whenever a not-yet- installed one
- * exists, falling back to an installed one only once the whole catalog is — so this composable
- * stays free of install-state branching by construction rather than needing its own.
+ * Hero "picked for you" pack card, showing how many of its moves the user already has once known.
+ * Ignores install state, since [pickHeroRepertoire] only picks an installed one when all are.
  */
 @Composable
 private fun HeroPackCard(
@@ -1132,11 +1023,7 @@ private fun HeroPackCard(
       large = true,
       modifier = Modifier.fillMaxWidth().testTag("library_hero_card:cta"),
     ) {
-      // Plain styled Text, NOT KineticButtonLabel: KineticButtonLabel upper-cases its argument and
-      // renders at KineticButton's default LocalTextStyle (Baloo 2 600 12sp), which would read
-      // "ADD TO MY TRAINING" at the wrong size and case. The mockup (1d.html/1j.html) shows
-      // sentence case at Baloo 2 800 16sp; the button's content slot is free-form, so this is
-      // supplied directly.
+      // Not KineticButtonLabel, which would upper-case the text at the default small size.
       Text(
         stringResource(Res.string.library_hero_cta),
         style = typography.display.copy(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold),
@@ -1145,12 +1032,6 @@ private fun HeroPackCard(
   }
 }
 
-/**
- * 9dp-radius pill badge: Nunito 900 8.5sp, 0.08em tracking. Nunito's bundled cuts stop at Bold
- * (700) — see `kineticTypography()`'s `nunitoFamily()` — so "900" renders at Bold, same accepted
- * limitation the rest of Kinetic's "800"/"900" Nunito labels already live with via
- * `typography.label*`.
- */
 @Composable
 private fun LibraryBadge(text: String, background: Color, content: Color) {
   val typography = LocalKineticTypography.current
@@ -1213,11 +1094,6 @@ private fun FilterChip(
   ) {
     Text(
       label,
-      // The selected content color uses palette.onAction as the closest documented "text that
-      // reads on a vivid/dark fill" token: exact match in light (mockup's white text == onAction
-      // light exactly); in dark it's a close approximation of the mockup's #1A1030, not an exact
-      // hex match — no palette field is an exact match in dark, so the nearest documented token is
-      // used rather than a new literal, consistent with kineticPressableEdgeColor's own precedent.
       style =
         typography.label.copy(
           fontSize = 11.5.sp,
@@ -1228,7 +1104,6 @@ private fun FilterChip(
   }
 }
 
-/** Localized label resource for one [LibraryColorFilter]. */
 private fun labelResFor(filter: LibraryColorFilter): StringResource =
   when (filter) {
     LibraryColorFilter.ALL -> Res.string.library_filter_all
@@ -1237,11 +1112,7 @@ private fun labelResFor(filter: LibraryColorFilter): StringResource =
     LibraryColorFilter.MINE -> Res.string.library_filter_mine
   }
 
-/**
- * One catalog entry: icon tile, name, color tag, NEW/IN TRAINING badge, description, move count,
- * and the install action or its progress and outcome. [mastery] is the repertoire's registered
- * mastery snapshot, or `null` when it has none.
- */
+/** One catalog entry card, with its install action or progress. */
 @Composable
 private fun RepertoireCard(
   descriptor: RepertoireDescriptor,
@@ -1268,8 +1139,7 @@ private fun RepertoireCard(
       horizontalArrangement = Arrangement.spacedBy(8.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      // Decorative icon tile: RepertoireDescriptor carries no per-opening glyph field (the
-      // mockup's piece icons were hand-picked dressing), so the name's first letter stands in.
+      // RepertoireDescriptor has no glyph, so the name's first letter stands in.
       Box(
         modifier = Modifier.size(34.dp).background(palette.panel2, RoundedCornerShape(11.dp)),
         contentAlignment = Alignment.Center,
@@ -1350,19 +1220,8 @@ private fun ColorTag(color: RepertoireColor) {
 }
 
 /**
- * Bottom row of a card. Walks every [RepertoireInstallState]: the install button when nothing has
- * happened yet, the determinate install-progress bar ([installProgressFraction]) plus a status line
- * while fetching or importing, the [mastery] bar (solid over trainable positions, hidden when
- * nothing is trainable yet) plus the import summary once installed in this session (no summary when
- * restored from persistence), and the failure message plus a retry button after a failed attempt.
- *
- * The install-progress bar is one [Animatable] hoisted for the whole row, not per branch, so a new
- * [installProgressFraction] target — whether from the next real progress tick or the Fetching ->
- * Importing hand-off — glides from wherever the bar last sat instead of jumping. A reinstall goes
- * the other way — Installed/Importing (at or near 100%) back to Fetching's freshly reset 0% — where
- * continuing from wherever it sat would sweep the bar backward instead of restarting it; that case
- * snaps to 0 first. [LibraryProgressBar] only reads the animatable in the draw phase, so this
- * composable itself never recomposes on animation frames.
+ * Bottom row of a card for its install state. One [Animatable] spans every state, so the progress
+ * bar glides across state changes instead of jumping.
  */
 @Composable
 private fun InstallStatusRow(
@@ -1376,8 +1235,7 @@ private fun InstallStatusRow(
   val animatedFraction = remember { Animatable(0f) }
   LaunchedEffect(installState) {
     val target = installProgressFraction(installState) ?: return@LaunchedEffect
-    // Reinstalling restarts the sweep at 0 instead of draining backward from wherever a prior
-    // install cycle left it (Installed's implicit 100%, or a stalled Importing).
+    // Reinstalling restarts at 0 instead of draining backward from a prior install.
     if (installState is RepertoireInstallState.Fetching && animatedFraction.value > target) {
       animatedFraction.snapTo(0f)
     }
@@ -1466,7 +1324,6 @@ private fun InstallProgressLine(label: String) {
   }
 }
 
-/** Resolves the localized message for an [InstallError]. */
 @Composable
 private fun installErrorText(error: InstallError): String =
   when (error) {
@@ -1480,13 +1337,7 @@ private fun installErrorText(error: InstallError): String =
     InstallError.IdTaken -> stringResource(Res.string.library_install_error_id_taken)
   }
 
-/**
- * Metadata preview shown in the confirmation dialog before an install starts, including the live
- * overlap of [previewState] (how many of the repertoire's moves the user already has).
- *
- * @param descriptor The repertoire being previewed.
- * @param previewState Overlap computation state, or `null` while none has been published yet.
- */
+/** Install confirmation content: repertoire metadata and how many of its moves the user has. */
 @Composable
 private fun PreviewDialogContent(
   descriptor: RepertoireDescriptor,
@@ -1521,9 +1372,8 @@ private fun PreviewDialogContent(
 }
 
 /**
- * The "moves in common" line of the preview dialog. Renders a checking hint while the overlap loads
- * (also the `null` not-yet-requested case), the count once ready, and a muted notice on failure so
- * a download error never blocks the install. A repertoire with no moves shows nothing.
+ * The "moves in common" line of the preview dialog. A failure shows a muted notice, so it never
+ * blocks the install.
  */
 @Composable
 private fun PreviewOverlap(previewState: RepertoirePreviewState?) {

@@ -24,9 +24,7 @@ class TestBoard : TestWithKoin() {
       koinSetUp()
       try {
         val explorer = LinesExplorer(treeStore = treeStore, tagStore = tagStore)
-        // Positional arguments: on the old signature (inverted defaulted, listed first) this is a
-        // type mismatch and the test source set fails to compile. On the fixed signature
-        // (interactionsManager first, inverted required second) it compiles.
+        // Positional on purpose, to pin Board's parameter order.
         setTestContent { InitializeApp { Board(explorer, inverted) } }
         block()
       } finally {

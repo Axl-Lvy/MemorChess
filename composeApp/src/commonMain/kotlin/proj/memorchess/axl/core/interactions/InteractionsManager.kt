@@ -15,12 +15,7 @@ import proj.memorchess.axl.core.engine.IllegalMoveException
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 
-/**
- * Class that handles clicks on the chess board.
- *
- * @param engine The game engine managing the current position.
- * @constructor Creates an interaction manager from a game engine.
- */
+/** Handles clicks and moves on the chess board. */
 abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
 
   val toastRenderer: ToastRenderer by inject()
@@ -38,7 +33,7 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
 
   private val callBacks = mutableStateListOf<(Boolean) -> Unit>()
 
-  /** Register a new callback that will be triggered on each tile change. */
+  /** Registers a callback triggered on each tile change. */
   fun registerCallBack(callBack: (Boolean) -> Unit) {
     callBacks.add(callBack)
   }
@@ -47,11 +42,7 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
     callBacks.forEach { it(withAnimation) }
   }
 
-  /**
-   * Clicks on a tile.
-   *
-   * @param coordinates The clicked tile's coordinates.
-   */
+  /** Handles a click on the tile at [coordinates]. */
   suspend fun clickOnTile(coordinates: Pair<Int, Int>) {
     if (isBlocked) {
       LOGGER.w { "Clicked on tile ${BoardUtils.tileName(coordinates)} but the game is blocked" }
@@ -81,25 +72,12 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
     }
   }
 
-  /**
-   * Gets the player of the piece on the given coordinates.
-   *
-   * @param coordinates The coordinates of the tile to check.
-   * @return The player of the piece on the tile, or null if there is no piece.
-   */
   private fun getPlayerAt(coordinates: Pair<Int, Int>) =
     engine.pieceAt(coordinates.first, coordinates.second)?.player
 
-  /**
-   * Plays a move directly.
-   *
-   * @param move the move to play, in Standard Algebraic Notation. An illegal move (e.g. one coming
-   *   from an external source such as the Lichess opening explorer) is rejected with a toast rather
-   *   than applied.
-   */
+  /** Plays [move], given in SAN; an illegal move is rejected with a toast. */
   suspend fun playMove(move: String) {
-    // An external source (e.g. the Lichess opening explorer) may spell the move with "+"/"#"
-    // markers or extra disambiguation; the engine's spelling keeps the same edge either way.
+    // External sources may add "+"/"#" or over-disambiguate; the engine's spelling keeps one edge.
     val san =
       try {
         engine.playSanMove(move)
@@ -111,11 +89,7 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
     afterPlayMove(san)
   }
 
-  /**
-   * Applies a promotion.
-   *
-   * @param pieceKind The chosen piece kind to promote to.
-   */
+  /** Completes the pending promotion with [pieceKind]. */
   suspend fun applyPromotion(pieceKind: PieceKind) {
     val from = checkNotNull(pendingPromotionFrom) { "No pending promotion" }
     val to = checkNotNull(pendingPromotionTo) { "No pending promotion" }
@@ -126,18 +100,10 @@ abstract class InteractionsManager(var engine: GameEngine) : KoinComponent {
     afterPlayMove(san)
   }
 
-  /**
-   * Called after a move is played.
-   *
-   * @param move The move that was played.
-   */
+  /** Called after [move], in SAN, is played. */
   abstract suspend fun afterPlayMove(move: String)
 
-  /**
-   * Resets the game to a new position.
-   *
-   * @param position The new position key to reset the game to.
-   */
+  /** Resets the game to [position], or to the starting position when `null`. */
   fun reset(position: PositionKey? = null) {
     engine = if (position == null) GameEngine() else GameEngine(position)
     needPromotion.value = false

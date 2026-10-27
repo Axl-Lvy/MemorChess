@@ -6,9 +6,8 @@ import kotlinx.serialization.Serializable
 /**
  * Registers one device, and reports a completed local wipe.
  *
- * @property platform [DevicePlatform.wireName], kept as a plain string on the wire so a platform
- *   added by a newer client never breaks an older peer's decoding. Callers work with the enum and
- *   convert here, at the boundary.
+ * @property platform [DevicePlatform.wireName], a plain string so a platform added by a newer
+ *   client never breaks an older peer's decoding.
  * @property afterReset `true` only on the register call that follows a `410`, once the caller has
  *   wiped its synced local state.
  */
@@ -61,11 +60,8 @@ enum class DevicePlatform(val wireName: String) {
   companion object {
 
     /**
-     * The platform [wireName] names, or `null` when this build has never heard of it.
-     *
-     * `null` rather than a throw for the same reason [SyncDeviceRegisterRequest.platform] is a
-     * plain string: a platform added by a newer client must not break an older peer, which an enum
-     * on the wire would turn into a decoding failure.
+     * The platform [wireName] names, or `null` when this build has never heard of it, so a newer
+     * client's platform never breaks an older peer.
      */
     fun fromWire(wireName: String): DevicePlatform? = entries.firstOrNull {
       it.wireName == wireName

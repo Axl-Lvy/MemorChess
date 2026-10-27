@@ -74,10 +74,7 @@ interface RepertoireDao {
     repertoireId: String,
   ): EdgeRepertoireTagEntity?
 
-  /**
-   * Every live tagged edge of [repertoireId], joined onto its [MoveEntity] for the SAN the tag row
-   * does not carry. A tag or move that is soft deleted is excluded from either side of the join.
-   */
+  /** Every live tagged edge of [repertoireId], joined onto its live [MoveEntity] for the SAN. */
   @Query(
     "SELECT m.* FROM EdgeRepertoireTagEntity t JOIN MoveEntity m " +
       "ON t.origin = m.origin AND t.destination = m.destination " +
@@ -86,9 +83,8 @@ interface RepertoireDao {
   suspend fun edgesTaggedWith(repertoireId: String): List<MoveEntity>
 
   /**
-   * Queues an outbox entry, keeping the higher of the stored and new `deviceSeq` on a repeat mark.
-   * Duplicates [OutboxDao.upsert]'s query so it can share a `@Transaction` with the row write it
-   * names, the same reason [NodeEntityDao.upsertOutboxEntry] does.
+   * Queues an outbox entry, keeping the higher `deviceSeq` on a repeat mark. Duplicates
+   * [OutboxDao.upsert] so it can share a `@Transaction` with the row write it names.
    */
   @Query(
     "INSERT INTO OutboxEntryEntity (kind, key1, key2, key3, deviceSeq) " +
@@ -103,10 +99,10 @@ interface RepertoireDao {
     deviceSeq: Long,
   )
 
-  /** Hard wipes every repertoire and tag row. Used by [DatabaseQueryManager.eraseAll]. */
+  /** Hard wipes every repertoire row. */
   @Query("DELETE FROM RepertoireEntity") suspend fun eraseAllRepertoires()
 
-  /** See [eraseAllRepertoires]. */
+  /** Hard wipes every tag row. */
   @Query("DELETE FROM EdgeRepertoireTagEntity") suspend fun eraseAllTags()
 
   @Query("DELETE FROM NodeRepertoireTrainableEntity WHERE positionKey = :positionKey")
@@ -133,10 +129,8 @@ interface RepertoireDao {
   suspend fun countSolid(repertoireId: String): Int
 
   /**
-   * Joins against [NodeEntity] and filters `isDeleted`, the same as [countSolid]: a tombstoned
-   * position's trainable row is stale until its own delete path clears it (see
-   * [proj.memorchess.axl.core.graph.TreeStore]), and this join is the correctness backstop for
-   * that, not merely an optimization.
+   * Counts [repertoireId]'s live trainable positions. The `isDeleted` join is a correctness
+   * backstop for a tombstoned position's trainable row, not merely an optimization.
    */
   @Query(
     "SELECT COUNT(*) FROM NodeRepertoireTrainableEntity t JOIN NodeEntity n " +
@@ -150,6 +144,6 @@ interface RepertoireDao {
   )
   suspend fun maxLastReview(repertoireId: String): Instant?
 
-  /** Hard wipes every trainable row. Used by [DatabaseQueryManager.eraseAll]. */
+  /** Hard wipes every trainable row. */
   @Query("DELETE FROM NodeRepertoireTrainableEntity") suspend fun eraseAllTrainable()
 }

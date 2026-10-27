@@ -15,14 +15,10 @@ import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 
 /**
- * HTTP client for `:server`'s authenticated repertoire publish surface, mirroring
- * [proj.memorchess.axl.core.sync.SyncApiClient]'s typed outcome pattern: every failure maps to a
- * sealed outcome, never a thrown Ktor exception.
+ * HTTP client for `:server`'s authenticated repertoire publish API. Every failure maps to a sealed
+ * outcome, never a thrown exception.
  *
- * @param baseUrl Root URL of `/v1/repertoires`, without a trailing slash. Koin wires the real
- *   deployed server here; [DEFAULT_BASE_URL] is a deliberately unresolvable placeholder for callers
- *   that construct this client directly, same convention as [RepertoireCatalogClient]'s own
- *   default.
+ * @param baseUrl Root URL of `/v1/repertoires`, without a trailing slash.
  */
 class RepertoirePublishClient(
   private val httpClient: HttpClient,
@@ -90,20 +86,16 @@ class RepertoirePublishClient(
     }
 
   companion object {
-    /** Deliberately unresolvable; see the class doc. */
+    /** Deliberately unresolvable placeholder, so a missing override fails visibly. */
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1/repertoires"
   }
 }
 
-/**
- * Whether this response's body names [code], defaulting to `false` on a body that fails to decode.
- */
+/** Whether this response's body names [code], `false` if it does not decode. */
 private suspend fun HttpResponse.namesCode(code: String): Boolean =
   runCatching { body<ApiError>() }.getOrNull()?.code == code
 
-/**
- * This response's error message, or a generic fallback when the body fails to decode as [ApiError].
- */
+/** This response's [ApiError] message, or a generic fallback if it does not decode. */
 private suspend fun HttpResponse.errorMessage(): String =
   runCatching { body<ApiError>() }.getOrNull()?.message ?: "HTTP ${status.value}"
 

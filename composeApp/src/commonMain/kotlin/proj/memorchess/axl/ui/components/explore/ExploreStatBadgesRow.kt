@@ -26,23 +26,7 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/**
- * Compact 3-badge stat row: eval / position count / retention.
- *
- * The artboards draw three separate cards, not one segmented bar, so each badge carries its own
- * 12.dp shape and 1.5.dp stroke and the row itself is a plain three-up with a gutter. That is why
- * this does not reuse the top bar's `KineticTopBarPill`, whose flush left stripe would read as a
- * doubled edge once every badge has a frame of its own.
- *
- * Not currently wired into either explore layout: `PortraitExploreLayout` intentionally omits it
- * (see its KDoc), and `LandscapeExploreLayout` does not consume the
- * `ExploreLayoutContent.statBadges` slot either, so this row is unreachable at runtime today.
- *
- * Values are placeholders for v1; wiring to real evaluation/position/retention data is left for a
- * follow-up wave.
- *
- * @param modifier External modifier applied to the row.
- */
+/** Row of three stat badges (eval, position count, retention) showing placeholder values. */
 @Composable
 fun ExploreStatBadgesRow(modifier: Modifier = Modifier) {
   Row(
@@ -68,14 +52,7 @@ fun ExploreStatBadgesRow(modifier: Modifier = Modifier) {
   }
 }
 
-/**
- * One stat card of [ExploreStatBadgesRow]: a 44.dp `panel` card with a 12.dp shape and a 1.5.dp
- * `line` stroke, stacking an uppercase [label] over a Baloo 2 [value].
- *
- * @param label Small uppercase caption, e.g. `"EVAL"`.
- * @param value Big display value, e.g. `"+0.0"`.
- * @param modifier External modifier applied to the card.
- */
+/** One stat card: an uppercase [label] over a large [value]. */
 @Composable
 private fun ExploreStatBadge(label: String, value: String, modifier: Modifier = Modifier) {
   val palette = LocalKineticPalette.current

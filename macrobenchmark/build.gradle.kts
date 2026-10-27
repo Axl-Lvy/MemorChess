@@ -15,8 +15,7 @@ android {
     minSdk = libs.versions.android.minSdk.get().toInt()
     targetSdk = libs.versions.android.targetSdk.get().toInt()
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    // Required for the TraceSectionMetric: makes Macrobenchmark enable the Perfetto SDK
-    // tracing that the runtime-tracing artifact in the target app emits through.
+    // TraceSectionMetric needs Macrobenchmark to enable Perfetto SDK tracing.
     testInstrumentationRunnerArguments["androidx.benchmark.fullTracing.enable"] = "true"
   }
 
@@ -26,8 +25,7 @@ android {
   }
 
   buildTypes {
-    // Matches the benchmark build type of :androidApp so both APKs install together. The
-    // test APK itself may stay debuggable; only the target app must not be.
+    // Matches :androidApp's benchmark build type; only the target app must not be debuggable.
     create("benchmark") {
       isDebuggable = true
       signingConfig = getByName("debug").signingConfig
@@ -36,8 +34,7 @@ android {
   }
 
   targetProjectPath = ":androidApp"
-  // The benchmark instruments itself against the separately installed target app instead of
-  // loading the app into the instrumentation process.
+  // Runs against the separately installed target app instead of loading it in-process.
   experimentalProperties["android.experimental.self-instrumenting"] = true
 
   testOptions {
@@ -55,13 +52,11 @@ android {
 
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_21) } }
 
-// Only the benchmark variant makes sense for this module.
 androidComponents { beforeVariants(selector().all()) { it.enable = it.buildType == "benchmark" } }
 
 ktfmt { googleStyle() }
 
-// The ktfmt plugin does not detect source sets compiled by the Kotlin support built into
-// AGP 9, so the Kotlin sources of this module are wired up manually.
+// ktfmt does not detect source sets compiled by AGP 9's built-in Kotlin, so wire them manually.
 val ktfmtFormatBenchmarkSources =
   tasks.register<KtfmtFormatTask>("ktfmtFormatBenchmarkSources") {
     source = fileTree("src") { include("**/*.kt") }

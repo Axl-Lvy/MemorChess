@@ -16,12 +16,11 @@ import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 import proj.memorchess.axl.server.ServerConfig
 
-/** Name of the only authentication provider, referenced by every protected route. */
+/** Name of the sync authentication provider. */
 internal const val SYNC_AUTH: String = "sync-jwt"
 
 /**
- * Longest `sub` accepted. Providers stay well under this; the cap exists so a forged token cannot
- * make the server key rows on an unbounded string.
+ * Longest `sub` accepted, so a forged token cannot make the server key rows on an unbounded string.
  */
 private const val MAX_SUBJECT_LENGTH = 255
 
@@ -37,8 +36,8 @@ private const val JWKS_FETCHES_PER_MINUTE = 10L
 /**
  * The authenticated caller.
  *
- * @property userId The token's `sub`. Every per user row is keyed by this and by nothing the caller
- *   sent in a body or a query parameter.
+ * @property userId The token's `sub`; per user rows are keyed by this alone, never by request
+ *   input.
  */
 internal data class Caller(val userId: String)
 

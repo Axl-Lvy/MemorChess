@@ -5,17 +5,10 @@ import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
- * Immutable vertex in the [OpeningTree].
+ * Immutable vertex in the [OpeningTree], with its edges keyed by [Edge.move].
  *
- * Two reverse maps keyed by move SAN keep the local neighbourhood readable. The full graph is
- * traversed by looking up the edge's [Edge.to] or [Edge.from] back in [OpeningTree].
- *
- * @property positionKey Position represented by this node.
- * @property outgoing Edges leaving [positionKey], keyed by [Edge.move].
- * @property incoming Edges arriving at [positionKey], keyed by [Edge.move].
- * @property depth Shortest known distance from the root, in plies. No default: a wrong value here
- *   silently reorders the new card training queue instead of failing loudly.
- * @property cardState Spaced repetition state for this position.
+ * @property depth Shortest known distance from the root, in plies. No default: a wrong value
+ *   silently reorders the new card queue instead of failing loudly.
  */
 data class Node(
   val positionKey: PositionKey,
@@ -26,15 +19,8 @@ data class Node(
 ) {
 
   /**
-   * Computes this node's [NodeState] given which position we [arrivedFrom].
-   *
-   * Pure function of this node's [incoming] edges, which a single point lookup fully populates, so
-   * it is correct under demand paging without consulting the rest of the graph. An [incoming] map
-   * with no edges is the root: [NodeState.FIRST]. Otherwise the incoming classifications are
-   * aggregated (a mix of good and bad arrivals is a [NodeState.BAD_STATE]) and combined with the
-   * classification of the arriving edge.
-   *
-   * @param arrivedFrom Origin position the user came from, or `null` when no path is tracked.
+   * Computes this node's [NodeState] when reached from [arrivedFrom] (`null` when no path is
+   * tracked). Reads only [incoming], so it stays correct under demand paging.
    */
   fun computeState(arrivedFrom: PositionKey?): NodeState {
     if (incoming.isEmpty()) return NodeState.FIRST

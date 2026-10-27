@@ -18,29 +18,15 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**
- * Measures opening graph construction and the demand-paged read path through [TreeStore], the
- * single mutation chokepoint production code uses, over a repertoire sized set of positions
- * replayed from [OpeningLines].
- *
- * Since the graph became demand-paged, [TreeStore] holds only a bounded LRU of nodes and resolves
- * misses through a [proj.memorchess.axl.core.data.DatabaseQueryManager]. The benchmark backs it
- * with an [InMemoryDatabaseQueryManager] (a pure in-memory map, no platform database I/O) so the
- * read path exercises real cache hits and miss-then-rebuild resolves without disk skewing the
- * numbers.
- *
- * Guards against regressions in the immutable copy on write strategy of the cache (every edge
- * upsert rebuilds the affected nodes) and in the per-lookup resolve cost on the navigation/training
- * read path, both of which would degrade with repertoire size long before users notice.
+ * Measures building the opening graph through [TreeStore] and its demand-paged read path, backed by
+ * an [InMemoryDatabaseQueryManager] so disk I/O does not skew the numbers.
  */
 @State(Scope.Benchmark)
 class OpeningTreeBenchmark {
 
   private var edges: List<OpeningLines.MoveEdge> = emptyList()
 
-  /**
-   * Scope every cache load runs on, prefetch and the resolve behind a miss alike; supervised so one
-   * failed load cannot abort the run.
-   */
+  /** Runs every cache load; supervised so one failed load cannot abort the run. */
   private val loadScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
   private var prebuiltStore: TreeStore = newStore()
@@ -51,26 +37,13 @@ class OpeningTreeBenchmark {
     prebuiltStore = buildStore()
   }
 
-  /**
-   * Builds the whole graph from scratch, edge by edge, through [TreeStore.addMove] with classified
-   * moves, which includes the conversion of touched nodes to their persisted shape and the
-   * write-through to the backing store.
-   *
-   * Guards the cost of saving a repertoire sized batch of moves, the dominant operation of the
-   * initial load and of bulk imports.
-   */
+  /** Builds the whole graph edge by edge through [TreeStore.addMove], as a bulk import does. */
   @Benchmark
   fun buildTreeFromEdges(bh: Blackhole) {
     bh.consume(buildStore())
   }
 
-  /**
-   * Resolves every position of the prebuilt graph through the demand-paged read path: node access,
-   * depth, membership, and the state computation the board coloring runs for the displayed
-   * position.
-   *
-   * Guards the read path executed on every navigation step in the explorer and the trainer.
-   */
+  /** Resolves every position through the read path each explorer and trainer step runs. */
   @Benchmark
   fun lookupEveryPosition(bh: Blackhole) = runBlocking {
     for (edge in edges) {

@@ -3,10 +3,8 @@ package proj.memorchess.axl
 import android.content.Context
 
 /**
- * Holds the process wide application [Context] used by the Android actuals of this library.
- *
- * The host application must call [initialize] before composing
- * [proj.memorchess.axl.ui.KoinStarterApp].
+ * Holds the process wide application [Context] for the Android actuals. [initialize] must be called
+ * before composing [proj.memorchess.axl.ui.KoinStarterApp].
  */
 object AndroidContextProvider {
   private var applicationContext: Context? = null
@@ -16,7 +14,6 @@ object AndroidContextProvider {
     applicationContext = context.applicationContext
   }
 
-  /** The registered application context. */
   internal val context: Context
     get() =
       checkNotNull(applicationContext) {

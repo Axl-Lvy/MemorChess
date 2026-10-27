@@ -3,12 +3,8 @@ package proj.memorchess.axl.core.data.repertoire
 import proj.memorchess.axl.core.config.PUBLISHED_REPERTOIRES_SETTING
 
 /**
- * Records, per local repertoire id, the public slug it was last published under.
- *
- * Local only bookkeeping, never verified against the server on load: a second device publishing the
- * same repertoire under the same default slug still succeeds as a version bump (the server only
- * checks that the same author owns the id), so the worst case of this being stale is a row that
- * offers "Publish" once more instead of "Update", never a failure.
+ * Records, per local repertoire id, the public slug it was last published under. Local only and
+ * never verified; a stale entry only offers "Publish" instead of "Update".
  */
 class PublishedRepertoireStore {
 
@@ -27,7 +23,7 @@ class PublishedRepertoireStore {
     save(entries() + (localId to slug))
   }
 
-  /** Clears [localId]'s recorded slug, for example after the server reports it was removed. */
+  /** Clears [localId]'s recorded slug. */
   fun clearPublished(localId: String) {
     save(entries() - localId)
   }

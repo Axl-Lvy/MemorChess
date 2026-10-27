@@ -9,13 +9,8 @@ import platform.Foundation.NSURLComponents
 import platform.Foundation.NSURLQueryItem
 
 /**
- * iOS OAuth launcher.
- *
- * Uses [ASWebAuthenticationSession] which presents a system browser sheet (Safari), captures the
- * redirect with the registered callback scheme, and returns control to the app.
- *
- * The redirect URI passed in must use a custom scheme (e.g. `memorchess://oauth`) so iOS can
- * intercept it without requiring an Info.plist entry.
+ * iOS OAuth launcher backed by [ASWebAuthenticationSession]. The redirect URI must use a custom
+ * scheme (e.g. `memorchess://oauth`) so iOS intercepts it without an Info.plist entry.
  */
 actual class OAuthLauncher {
 

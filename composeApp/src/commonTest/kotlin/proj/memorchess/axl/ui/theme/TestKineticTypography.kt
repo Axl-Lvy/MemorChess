@@ -7,7 +7,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import proj.memorchess.axl.ui.setKineticContent
 
-/** Coverage for [fontFamilies], the eager-preload list [proj.memorchess.axl.ui.App] gates on. */
+/** Tests [fontFamilies], the list of fonts preloaded eagerly. */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticTypography {
 

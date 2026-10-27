@@ -12,13 +12,7 @@ import proj.memorchess.axl.ui.assertNodeWithTagExists
 import proj.memorchess.axl.ui.pages.REPERTOIRE_VIEW_TEST_TAG
 import proj.memorchess.axl.ui.theme.AppTheme
 
-/**
- * Smoke coverage for [Router] itself, rather than for [isTabToTabTransition] in isolation. Renders
- * the real `NavHost` and drives it through tab to tab navigation and a push and pop onto
- * [Route.RepertoireViewRoute]. That is otherwise only reachable from the device only androidApp
- * instrumented tests. Provides a real [DelegateNavigator] rather than [TestWithKoin]'s recording
- * fake, since the point here is to actually navigate the controller [Router] renders.
- */
+/** Drives the real [Router] through a real [DelegateNavigator], not [TestWithKoin]'s fake. */
 @OptIn(ExperimentalTestApi::class)
 internal class TestRouterRendering : TestWithKoin() {
 
@@ -43,7 +37,6 @@ internal class TestRouterRendering : TestWithKoin() {
 
   @Test
   fun rendersTheStartDestinationWithNoCrash() = runTestFromSetup {
-    // The start destination is Route.TodayRoute, not the board directly; see Route.TodayRoute.
     assertNodeWithTagExists(Route.TodayRoute.getLabel())
   }
 

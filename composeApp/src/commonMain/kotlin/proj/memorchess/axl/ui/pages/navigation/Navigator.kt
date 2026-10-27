@@ -6,26 +6,22 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 
-/** Navigator interface to abstract navigation logic. */
+/** Abstracts app navigation. */
 interface Navigator {
 
-  /** Navigate to a specific route. */
+  /** Navigates to [route]. */
   fun navigateTo(route: Route)
 
-  /** Get the current back stack entry as a state. */
+  /** The current back stack entry as state. */
   @Composable fun currentBackStackEntryAsState(): State<NavBackStackEntry?>
 
-  /** Call a delegate function with the underlying NavHostController. */
+  /** Runs [delegate] with the underlying [NavHostController]. */
   suspend fun callDelegate(delegate: suspend (NavHostController) -> Unit)
 }
 
 /**
- * Composition local that exposes the active [Navigator] to descendant composables.
- *
- * Provided once at the root by [proj.memorchess.axl.ui.App] (for production) or by the test
- * harness. Components that need to read or trigger navigation consume this rather than going
- * through the DI container, which keeps composition scoped state out of the process scoped Koin
- * container.
+ * Exposes the active [Navigator] to descendant composables. It is a composition local rather than a
+ * Koin single because navigation state is composition scoped.
  */
 val LocalNavigator =
   staticCompositionLocalOf<Navigator> { error("No Navigator provided in the composition tree") }

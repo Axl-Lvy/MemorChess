@@ -64,11 +64,7 @@ import proj.memorchess.axl.ui.components.settings.sections.TrainingBehaviorSecti
 import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.util.BasicReloader
 
-/**
- * Test tag on the scrollable [LazyColumn] of settings sections. Exposed so tests can scroll the
- * list to a section that is initially off-screen (and therefore not yet composed) before
- * interacting with it.
- */
+/** Test tag on the scrollable [LazyColumn] of settings sections. */
 internal const val SETTINGS_SECTION_LIST_TAG = "settingsSectionList"
 
 /** Identifier for one settings section in the page model. */
@@ -127,15 +123,7 @@ private val NAV_GROUPS: List<SettingsNavGroup> =
     ),
   )
 
-/**
- * Settings page. Branches on the current [WindowSizeClass]: wide layouts get a sidebar nav on the
- * left and a scrollable section list on the right; narrow layouts get just the section list.
- *
- * The sections are explicit (no enum loop) so each one can carry its own controls and copy. A
- * [BasicReloader] threaded into every section forces a re-read of the underlying
- * [proj.memorchess .axl.core.config.ConfigItem]s when the user resets settings or changes the
- * active theme.
- */
+/** Settings page, with a sidebar nav beside the section list on wide windows. */
 @Composable
 fun Settings() {
   val reloader = remember { BasicReloader() }

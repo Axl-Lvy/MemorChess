@@ -1,24 +1,13 @@
 package proj.memorchess.axl.core.data
 
 /**
- * Bounded daily scheduling tallies for a single calendar day.
+ * Scheduling tallies for one calendar day, each a `COUNT(*)` over an indexed predicate.
  *
- * Every field is a `COUNT(*)` over an indexed predicate. No row set crosses the persistence seam to
- * produce these numbers, so the cost is constant regardless of repertoire size. Computed by
- * [DatabaseQueryManager.getSchedulingCounts] and consumed by
- * [proj.memorchess.axl.core.graph.TrainingScheduler] to enforce the daily caps and report the
- * pending count without ever enumerating the graph.
- *
- * @property introducedToday Number of cards whose `firstReview` falls inside the day window
- *   `[dayStart, dayEndExclusive)`. Drives the new card cap.
- * @property trainedToday Number of cards whose `lastReview` falls inside the day window `[dayStart,
- *   dayEndExclusive)`. Drives the total reviews cap.
- * @property dueReviews Number of trainable graduated cards due on or before the day:
- *   `hasGoodOutgoing AND phase = REVIEW AND dueDate < dayEndExclusive`.
- * @property dueNew Number of trainable brand new cards due on or before the day: `hasGoodOutgoing
- *   AND phase = NEW AND dueDate < dayEndExclusive`.
- * @property inSession Number of trainable cards currently mid learning: `hasGoodOutgoing AND phase
- *   IN (LEARNING, RELEARNING)`. These are exempt from the daily caps.
+ * @property introducedToday Cards whose `firstReview` is in `[dayStart, dayEndExclusive)`.
+ * @property trainedToday Cards whose `lastReview` is in `[dayStart, dayEndExclusive)`.
+ * @property dueReviews Trainable `REVIEW` cards with `dueDate < dayEndExclusive`.
+ * @property dueNew Trainable `NEW` cards with `dueDate < dayEndExclusive`.
+ * @property inSession Trainable `LEARNING`/`RELEARNING` cards; exempt from the daily caps.
  */
 data class SchedulingCounts(
   val introducedToday: Int,
@@ -29,8 +18,7 @@ data class SchedulingCounts(
 )
 
 /**
- * Scoped counterpart of the three [SchedulingCounts] fields that make sense to narrow to one
- * repertoire. `introducedToday`/`trainedToday` have no scoped equivalent: the daily caps stay
- * global regardless of scope.
+ * [SchedulingCounts] narrowed to one repertoire, without the daily cap tallies since those stay
+ * global.
  */
 data class ScopedSchedulingCounts(val dueReviews: Int, val dueNew: Int, val inSession: Int)

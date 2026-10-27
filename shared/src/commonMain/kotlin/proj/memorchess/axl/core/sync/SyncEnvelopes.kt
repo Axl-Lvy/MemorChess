@@ -5,11 +5,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * The JSON configuration both sides of the protocol must use.
- *
- * `ignoreUnknownKeys` is the forward compatibility guarantee: a newer peer may add a field, and an
- * already shipped one must keep working. `encodeDefaults` is on so a default valued field is always
- * present on the wire, which keeps a payload readable in a log or a test failure.
+ * The JSON configuration both sides of the protocol must use. `ignoreUnknownKeys` keeps a shipped
+ * peer working when a newer one adds a field.
  */
 val SYNC_JSON: Json = Json {
   ignoreUnknownKeys = true
@@ -19,17 +16,10 @@ val SYNC_JSON: Json = Json {
 /**
  * One bounded page of rows the caller has not seen.
  *
- * @property serverTime The server's clock at the moment of the response, so a client can detect its
- *   own skew.
+ * @property serverTime The server's clock at response time, so a client can detect its own skew.
  * @property nextCursor Revision the server withheld rows above, or `null` when no table filled its
  *   page. Diagnostic only: the caller's position is kept server side.
- * @property pageToken Opaque token naming this page. The caller sends it back as `ack` on its next
- *   pull once these rows are written locally, which is how the server learns the page landed.
- * @property nodes Changed positions.
- * @property edges Changed moves.
- * @property settings Changed settings.
- * @property repertoires Changed repertoires.
- * @property tags Changed edge to repertoire tags.
+ * @property pageToken Sent back as `ack` on the next pull once these rows are written locally.
  */
 @Serializable
 data class SyncPullResponse(
@@ -46,14 +36,8 @@ data class SyncPullResponse(
 /**
  * A batch of locally changed rows, sent in one request.
  *
- * @property nodes Positions to write.
- * @property edges Moves to write.
- * @property settings Settings to write.
- * @property repertoires Repertoires to write.
- * @property tags Edge to repertoire tags to write.
- * @property device The pushing device's origin id. Deliberately without a default, so that no call
- *   site and no wire payload can omit it: a push that names no device is refused, and a defaulted
- *   empty string would turn that refusal into a silent failure to sync at all.
+ * @property device The pushing device's origin id. Deliberately without a default: a defaulted
+ *   empty string would turn the server's refusal into a silent failure to sync.
  */
 @Serializable
 data class SyncPushRequest(
@@ -68,7 +52,6 @@ data class SyncPushRequest(
 /**
  * The outcome of a push.
  *
- * @property serverTime The server's clock at the moment of the response.
  * @property revision Highest revision the server assigned while applying this batch.
  * @property rejected Rows the server refused. A client surfaces these rather than retrying forever.
  */
@@ -83,9 +66,7 @@ data class SyncPushResponse(
  * One refused row.
  *
  * @property kind Resource name: `node`, `edge`, `setting`, `repertoire` or `tag`.
- * @property id Identifier of the row within its resource, for the client to match against its own.
- * @property code Machine readable cause, one of [RejectionCode]. Clients branch on this, never on
- *   [reason].
+ * @property code One of [RejectionCode]. Clients branch on this, never on [reason].
  * @property reason Human readable explanation, safe to log and to show.
  */
 @Serializable
@@ -97,10 +78,8 @@ data class RejectedRow(
 )
 
 /**
- * Causes a row can be refused for.
- *
- * These are plain strings rather than an enum on purpose: an older client must survive a newer
- * server sending a code it has never heard of, which an enum would turn into a decoding failure.
+ * Causes a row can be refused for. Plain strings rather than an enum, so an older client survives a
+ * code it has never heard of.
  */
 object RejectionCode {
 

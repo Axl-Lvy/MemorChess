@@ -4,10 +4,7 @@ import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 
-/**
- * A repertoire's "N of M positions solid" mastery snapshot, shaped the way the Today page's
- * pick-up-where-you-left-off card wants to show it.
- */
+/** A repertoire's "N of M positions solid" mastery snapshot. */
 internal data class RepertoireMastery(
   val repertoireName: String,
   val solidCount: Int,

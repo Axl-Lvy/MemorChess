@@ -10,10 +10,7 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 
-/**
- * White/Black/Mixed (`null`) side picker shared by [CreateRepertoireDialog] and
- * [ForkRepertoireDialog].
- */
+/** White/Black/Mixed (`null`) side picker. */
 @Composable
 internal fun RepertoireColorPicker(
   selected: RepertoireColor?,

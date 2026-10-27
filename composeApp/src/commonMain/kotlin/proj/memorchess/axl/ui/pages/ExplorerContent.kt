@@ -73,25 +73,14 @@ import proj.memorchess.axl.ui.layout.explore.PortraitExploreLayout
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
 /**
- * Read-only configuration for [ExplorerContent]. When non-null the explorer becomes a viewer: the
- * Save and Delete controls and the node save-state indicators are hidden because the underlying
- * graph is a throwaway copy that nothing can mutate.
+ * Read-only configuration for [ExplorerContent], hiding Save, Delete and the save-state indicators.
  *
- * @property initialInverted Initial board orientation; `true` opens from black's side (used to show
- *   a black repertoire from black's perspective).
- * @property cornerTag Overrides the board shell corner tag, since the node save-state label is not
- *   meaningful in read-only mode (the repertoire name is shown instead).
+ * @property initialInverted `true` opens the board from black's side.
+ * @property cornerTag Replaces the save-state corner tag.
  */
 data class ExplorerViewerMode(val initialInverted: Boolean = false, val cornerTag: String? = null)
 
-/**
- * Creates an [ExplorerViewModel] bound to [explorer]: seeds it with the explorer's current FEN and
- * refreshes it on every move. Shared by the free-exploration page and the read-only repertoire
- * viewer, which wire the Lichess explorer panels identically.
- *
- * @param explorer The explorer whose position drives the opening explorer panels.
- * @param cachedExplorer Backing data source for the returned [ExplorerViewModel].
- */
+/** Creates an [ExplorerViewModel] that follows [explorer]'s current position. */
 @Composable
 internal fun rememberExplorerViewModel(
   explorer: LinesExplorer,
@@ -106,16 +95,11 @@ internal fun rememberExplorerViewModel(
 }
 
 /**
- * Shared explorer content relying on a [LinesExplorer].
+ * Explorer page content for [explorer]: board, moves trail, controls and sidebar.
  *
- * @param explorer The explorer instance.
- * @param explorerViewModel View model driving the Lichess opening explorer panels.
- * @param onSave Invoked when the Kinetic control bar Save button is tapped.
- * @param onDelete Invoked when the Kinetic control bar Delete button is tapped.
- * @param header Optional header content rendered above the layout.
- * @param viewerMode When non-null, renders the read-only viewer variant; see [ExplorerViewerMode].
- * @param myTreeStore When non null, continuations already present as a classified good move the
- *   user owns in this store at the current position are tagged YOURS in the sidebar.
+ * @param viewerMode When non-null, renders the read-only viewer.
+ * @param myTreeStore When non-null, good moves the user holds in it are tagged YOURS in the
+ *   sidebar.
  */
 @Composable
 fun ExplorerContent(
@@ -130,11 +114,8 @@ fun ExplorerContent(
   val readOnly = viewerMode != null
   var inverted by remember { mutableStateOf(viewerMode?.initialInverted ?: false) }
   val coroutineScope = rememberCoroutineScope()
-  // Demand paged: the next-move list is resolved through a suspend lookup, so it starts empty and
-  // is filled once below and again on every navigation callback.
   val nextMoves = remember { mutableStateListOf<String>() }
   val yoursBySan = remember { mutableStateMapOf<String, Boolean>() }
-  // SAN path from the explorer's root to the current position, for the moves trail.
   val playedSans = remember { mutableStateListOf<String>() }
 
   LaunchedEffect(explorer) {
@@ -150,7 +131,7 @@ fun ExplorerContent(
     mutableStateOf(BEST_MOVE_ARROW_ENABLED_SETTING.getValue())
   }
 
-  // Evaluator is created/destroyed based on the toggles so the device stops computing when off.
+  // No evaluator while both features are off, so the device stops computing.
   val needsEngine = evalBarEnabled || bestMoveArrowEnabled
   val maxDepth = remember { ENGINE_MAX_DEPTH_SETTING.getValue() }
   var evaluator by remember {
@@ -174,9 +155,7 @@ fun ExplorerContent(
   var playerTurnWhite by remember { mutableStateOf(explorer.engine.playerTurn == Player.WHITE) }
   val playedMoves by remember { derivedStateOf { buildMoveDisplays(playedSans, playerTurnWhite) } }
 
-  // Read the live save-state of the current position. `LinesExplorer.state` is
-  // mutableStateOf-backed
-  // so this reactively recomposes when the user navigates, saves, or deletes.
+  // LinesExplorer.state is snapshot state, so this recomposes on navigate, save and delete.
   val palette = LocalKineticPalette.current
   val nodeState = explorer.state
   val cornerTagLabel =
@@ -268,8 +247,7 @@ fun ExplorerContent(
           moves = playedMoves,
           currentIndex = playedMoves.lastIndex,
           onSeek = { index ->
-            // Reads the live depth on each iteration (rather than a step count captured once) so
-            // two quick taps converge on their own targets instead of over-backing past the root.
+            // Reads the live depth each iteration so two quick taps cannot back past the root.
             coroutineScope.launch { while (explorer.depth > index + 1) explorer.back() }
           },
           modifier = trailModifier,
@@ -333,10 +311,7 @@ fun ExplorerContent(
   }
 }
 
-/**
- * Marks each SAN in [moves] as YOURS in [yoursBySan] when [myTreeStore] holds it as a good move at
- * [explorer]'s current position. No-op when [myTreeStore] is `null` or [moves] is empty.
- */
+/** Marks each SAN in [moves] as YOURS when [myTreeStore] holds it as a good move here. */
 private suspend fun refreshYours(
   moves: List<String>,
   myTreeStore: TreeStore?,
@@ -357,11 +332,7 @@ private suspend fun refreshYours(
   yoursBySan.putAll(moves.associateWith { it in mineSans })
 }
 
-/**
- * Maps a [NodeState] to the short uppercase label shown in the board shell's corner tag. Mirrors
- * the wording of the legacy [proj.memorchess.axl.ui.components.board.StateIndicator] but compressed
- * to fit in the small tag: SAVED / PARTIAL / NEW / UNKNOWN MOVE / BAD.
- */
+/** Short corner tag label for [state]. */
 private fun nodeStateLabel(state: NodeState): StringResource =
   when (state) {
     NodeState.FIRST -> Res.string.tag_start
@@ -373,12 +344,7 @@ private fun nodeStateLabel(state: NodeState): StringResource =
     NodeState.BAD_STATE -> Res.string.tag_conflict
   }
 
-/**
- * Maps a [NodeState] to the color used to tint the corner-tag label. `progress` = position is part
- * of a fully-saved good line; `streakText` = saved but only partially good; `ink3` = unknown / new
- * position; `destructive` = conflicting (the same position is reached by both a good and a bad
- * line).
- */
+/** Corner tag label color for [state]. */
 private fun nodeStateColor(
   state: NodeState,
   palette: proj.memorchess.axl.ui.theme.KineticPalette,
@@ -394,10 +360,8 @@ private fun nodeStateColor(
   }
 
 /**
- * Builds the moves-trail chip list from the SAN path [sans], inferring each ply's color and move
- * number from [currentPlayerTurnWhite] (the side to move once every SAN in [sans] has been played),
- * since [proj.memorchess.axl.core.data.PositionKey] retains no real full-move number for the path's
- * root.
+ * Builds the moves trail chips from [sans], inferring colors and move numbers from the side to move
+ * after them, since [proj.memorchess.axl.core.data.PositionKey] retains no full-move number.
  */
 private fun buildMoveDisplays(
   sans: List<String>,
@@ -415,10 +379,7 @@ private fun buildMoveDisplays(
   }
 }
 
-/**
- * Minimal PGN movetext built from [moves] (no tags), e.g. `"1. e4 e5 2. Nf3"`. Returns `null` when
- * [moves] is empty so the trail's PGN button stays hidden until a move has been played.
- */
+/** Minimal PGN movetext of [moves], e.g. `"1. e4 e5 2. Nf3"`, or `null` when empty. */
 private fun buildPgnText(moves: List<MoveDisplay>): String? {
   if (moves.isEmpty()) return null
   return moves
@@ -434,11 +395,7 @@ private fun buildPgnText(moves: List<MoveDisplay>): String? {
     .joinToString(" ")
 }
 
-/**
- * Approximate eval ratio from an [EvaluationScore]. Returns `0.5f` when null. Maps centipawns into
- * `[0f, 1f]` by clamping into `[-600, +600]` centipawns; mates collapse to fully-favorable for the
- * side delivering mate.
- */
+/** Eval bar ratio in `0f..1f` for [score], `0.5f` when `null`. */
 private fun computeEvalRatio(score: EvaluationScore?): Float =
   when (score) {
     null -> 0.5f
@@ -449,10 +406,7 @@ private fun computeEvalRatio(score: EvaluationScore?): Float =
     is EvaluationScore.Mate -> if (score.moves >= 0) 1f else 0f
   }
 
-/**
- * Pretty-prints an [EvaluationScore] for the eval rail readout. `Centipawns(32)` becomes `"+0.3"`,
- * `Mate(3)` becomes `"M3"`, `Mate(-2)` becomes `"-M2"`.
- */
+/** Formats [score] for the eval readout: `"+0.3"`, `"M3"`, `"-M2"`. */
 private fun formatEvaluationScore(score: EvaluationScore): String =
   when (score) {
     is EvaluationScore.Centipawns -> {
@@ -494,10 +448,7 @@ private fun EvalBarToggleButton(
   }
 }
 
-/**
- * Returns the evaluator to use after a toggle change: creates a new one when [shouldRun] is `true`
- * and none exists, or closes and returns `null` when [shouldRun] is `false`.
- */
+/** The evaluator after a toggle change; closes [current] when [shouldRun] is `false`. */
 private fun updateEvaluator(
   shouldRun: Boolean,
   current: StockfishEvaluator?,

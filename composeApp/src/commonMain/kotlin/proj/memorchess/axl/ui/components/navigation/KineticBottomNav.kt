@@ -47,62 +47,35 @@ import proj.memorchess.axl.ui.theme.KineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/** Thickness of the bar's top line — the mockup's `border-top: 1.5px`. */
 private val BAR_BORDER = 1.5.dp
 
-/** Cell icon target size (mockup: `width: 23px`). */
 private val ICON_SIZE = 23.dp
 
-/** Vertical gap between icon and label (mockup: `gap: 4px`). */
 private val ICON_LABEL_SPACER = 4.dp
 
-/** Total bar height, bottom padding included — the mockup's `height: 80px`. */
 private val BAR_HEIGHT = 80.dp
 
-/** Horizontal inset of the cell row (mockup: `padding: 0 6px 10px`). */
 private val BAR_HORIZONTAL_PADDING = 6.dp
 
-/** Bottom inset of the cell row, taken out of [BAR_HEIGHT]. */
 private val BAR_BOTTOM_PADDING = 10.dp
 
-/** Corner radius of the active cell's filled pill. */
 private val PILL_RADIUS = 14.dp
 
-/** Vertical padding inside the pill, applied to active and inactive cells alike. */
 private val PILL_VERTICAL_PADDING = 5.dp
 
-/** Horizontal padding inside the pill, applied to active and inactive cells alike. */
 private val PILL_HORIZONTAL_PADDING = 16.dp
 
-/** Label size (mockup: `font: 900 9.5px Nunito`). */
 private val LABEL_SIZE = 9.5.sp
 
 /**
- * Returns `true` when [currentRoute] resolves to the same destination as [item]. The route fed in
- * from the back stack is the destination's serial name in lower case (e.g. `"training"`) while
- * [NavigationBarItemContent.ownedRouteLabels] is capitalised (`"Training"`), so the match ignores
- * case. It is checked against every label the item owns, not just its own destination, so a tab
- * stays highlighted for every route it conceptually covers. See
- * [NavigationBarItemContent.Training].
+ * Whether [currentRoute] matches one of [item]'s route labels; back stack routes are lower case.
  */
 internal fun isActive(item: NavigationBarItemContent, currentRoute: String): Boolean =
   item.ownedRouteLabels.any { it.equals(currentRoute, ignoreCase = true) }
 
 /**
- * Resolved look of one navigation cell, shared by the bottom bar and the desktop side rail.
- *
- * [pill] is the cell's fill. When inactive it is [KineticPalette.actionDim] at **alpha 0** rather
- * than [Color.Transparent] — the latter is black at alpha 0, and Compose interpolates colours
- * through Oklab, so fading the violet pill to it would drag the mid-animation frames through grey.
- * Keeping the hue fixed and animating only the alpha gives a clean fade, and still paints nothing
- * where the fill is applied statically.
- *
- * The active fill is the [KineticPalette.actionDim] role rather than a literal match of the dark
- * artboard's `#2E1D52`. That hex is [KineticPalette.panel3], which is the *inert* surface elsewhere
- * (the toggle's off track, the slider's inactive track, a number field's ground), so reusing it for
- * a selected cell would make one token mean both "on" and "off". Light is exact either way —
- * `actionDim` and `panel3` are both `#EDE4FF` there — and dark ends up one step brighter than the
- * artboard.
+ * Resolved look of one navigation cell. An inactive [pill] is `actionDim` at alpha 0, not
+ * [Color.Transparent], so the Oklab fade keeps its hue instead of passing through grey.
  */
 @Immutable
 internal data class KineticNavCellStyle(
@@ -116,13 +89,7 @@ internal fun kineticNavCellStyle(palette: KineticPalette, active: Boolean): Kine
   if (active) KineticNavCellStyle(palette.actionDim, palette.action, FontWeight.Black)
   else KineticNavCellStyle(palette.actionDim.copy(alpha = 0f), palette.ink3, FontWeight.ExtraBold)
 
-/**
- * Renders [item]'s icon constrained to [size] and tinted with [tint]. The enum's icon lambda relies
- * on `LocalContentColor` (it builds plain [androidx.compose.material3.Icon] composables), so the
- * tint flows through via [CompositionLocalProvider]. When [active] flips to `true`, the icon plays
- * [KineticMotion.Routine.iconPop]'s scale bump once, skipped entirely when
- * [KineticMotion.shouldPlayIconPop] is false.
- */
+/** Renders [item]'s icon at [size] tinted with [tint], popping once when [active] turns true. */
 @Composable
 internal fun NavCellIcon(
   item: NavigationBarItemContent,
@@ -145,53 +112,28 @@ internal fun NavCellIcon(
   }
 }
 
-/**
- * Drives an icon scale [androidx.compose.animation.core.Animatable] through the pop, 1 to 1.12 and
- * back to 1, exactly once per transition from inactive to active.
- */
+/** Pops the icon scale to 1.12 and back, once per transition from inactive to active. */
 private suspend fun CoreAnimatable<Float, AnimationVector1D>.pop(
   active: Boolean,
   wasActive: MutableState<Boolean>,
 ) {
   val justActivated = active && !wasActive.value
   wasActive.value = active
-  // Newly inactive: reset first, so tapping away mid pop snaps back to rest rather than freezing
-  // near 1.1.
+  // Reset first, so tapping away mid pop snaps back to rest instead of freezing.
   if (!active) {
     if (value != 1f) snapTo(1f)
     return
   }
   // A tab that mounts already active must not pop.
   if (!justActivated) return
-  // The requirement is no pop at all, not a merely flattened one, so this returns before any
-  // animateTo call rather than relying on iconPop()'s spec collapsing on its own.
+  // Reduced motion means no pop at all, not a flattened one, so return before any animateTo.
   if (!KineticMotion.shouldPlayIconPop()) return
   val spec = KineticMotion.Routine.iconPop<Float>()
   animateTo(1.12f, spec)
   animateTo(1f, spec)
 }
 
-/**
- * Kinetic mobile bottom navigation bar.
- *
- * A full-width, edge-anchored row on `panel` with a 1.5.dp `line` top border and four equal-width
- * cells stacking an icon over a 9.5sp uppercase label. The active cell paints a filled 14.dp
- * `actionDim` pill behind its icon and inks both icon and label with `action`; selection is never a
- * colour-only change. Inactive cells keep the identical pill padding, so nothing shifts on
- * selection.
- *
- * The pill's fade is held in an [Animatable] read **inside `drawBehind`**, so it runs in the draw
- * phase with no recomposition and the motion spec is built at the launch site rather than on every
- * composition.
- *
- * @param items Navigation entries; rendered in the order supplied.
- * @param currentRoute The current route label; compared against [NavigationBarItemContent]'s
- *   destination label to determine the active cell.
- * @param onSelect Invoked when the user taps a cell.
- * @param modifier Optional layout modifier.
- * @param itemModifier Optional per-cell modifier, e.g. for attaching `Modifier.testTag(...)` to
- *   individual cells from a calling wrapper.
- */
+/** Mobile bottom navigation bar of icon and label cells, the active one on a filled pill. */
 @Composable
 fun KineticBottomNav(
   items: List<NavigationBarItemContent>,
@@ -231,8 +173,7 @@ fun KineticBottomNav(
       val pill = remember { Animatable(style.pill) }
       // Keyed on the colour rather than on `active`, so a light↔dark palette flip repaints too.
       LaunchedEffect(style.pill) {
-        // First composition (and any already-settled state) costs nothing: no spec allocation, no
-        // reduce-motion settings read, and the active tab is painted final rather than fading in.
+        // Settled states skip the animation, so the first composition paints the final pill.
         if (pill.value != style.pill) {
           pill.animateTo(style.pill, KineticMotion.Routine.screenTransition())
         }
@@ -243,8 +184,7 @@ fun KineticBottomNav(
             .fillMaxHeight()
             .then(itemModifier(item))
             .semantics { selected = active }
-            // Tapping the cell for the screen you are already on is a no-op (avoids a pointless
-            // re-navigation + transition); the node stays clickable so its test tag is tappable.
+            // Re-tapping the current screen is a no-op, yet the node stays clickable for tests.
             .clickable(enabled = true, onClick = { if (!active) onSelect(item) }),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -263,8 +203,6 @@ fun KineticBottomNav(
         }
         Spacer(modifier = Modifier.height(ICON_LABEL_SPACER))
         Text(
-          // Kept uppercase (the mockup shows Title Case): the casing change is out of this
-          // issue's scope. labelSm's 0.1em tracking is kept, uppercase needs it.
           text = stringResource(item.destination.displayNameRes()).uppercase(),
           style =
             typography.labelSm.copy(

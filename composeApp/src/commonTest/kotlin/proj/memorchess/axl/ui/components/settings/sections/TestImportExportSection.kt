@@ -28,10 +28,7 @@ import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.waitUntilSuspending
 
-/**
- * UI coverage for [LichessStudyImportField]'s repertoire picker, which routes to
- * [LichessStudyImporter.import]'s `repertoireId` parameter.
- */
+/** UI coverage for [LichessStudyImportField]'s repertoire picker. */
 @OptIn(ExperimentalTestApi::class)
 class TestImportExportSection : TestWithKoin() {
 
@@ -66,9 +63,8 @@ class TestImportExportSection : TestWithKoin() {
     onNodeWithTag("lichessStudyInput").performTextInput("aaaaaaaa")
     onNodeWithTag("lichessStudyImportButton").performClick()
 
-    // The MockEngine response dispatches on Dispatchers.Default, so the import's completion is
-    // polled by waitUntilSuspending, which yields to it between polls, instead of trusted to a
-    // single awaitIdle().
+    // MockEngine responds on Dispatchers.Default, so poll with waitUntilSuspending rather than
+    // trust a single awaitIdle().
     val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
     var tags: Set<String>? = null
     waitUntilSuspending {

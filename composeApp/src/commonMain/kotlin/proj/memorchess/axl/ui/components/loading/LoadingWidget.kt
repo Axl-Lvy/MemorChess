@@ -18,16 +18,8 @@ import proj.memorchess.axl.core.config.MINIMUM_LOADING_TIME_SETTING
 import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
- * A composable that displays a loading indicator while a suspending function is executed. Once the
- * function completes, it displays the provided composable content.
- *
- * While loading it shows the Kinetic [KineticBootIndicator]; when the work finishes the content
- * "powers on" by [clip-revealing][bootReveal] top-to-bottom rather than snapping in. This
- * composable also ensures the loading indicator is shown for at least the
- * [minimum duration specified in the application configuration][MINIMUM_LOADING_TIME_SETTING].
- *
- * @param suspendingFunction The suspending function to execute.
- * @param composable The composable content to display after loading.
+ * Shows [KineticBootIndicator] while [suspendingFunction] runs, for at least
+ * [MINIMUM_LOADING_TIME_SETTING], then reveals [composable].
  */
 @Composable
 fun LoadingWidget(suspendingFunction: suspend () -> Any?, composable: @Composable () -> Unit) {
@@ -49,11 +41,7 @@ fun LoadingWidget(suspendingFunction: suspend () -> Any?, composable: @Composabl
   }
 }
 
-/**
- * Reveals content behind a hard horizontal edge that travels top-to-bottom once, on first
- * composition. The reveal fraction is held in an [Animatable] read inside [drawWithContent], so the
- * reveal runs in the draw phase with no recomposition of the wrapped content.
- */
+/** Reveals content top-to-bottom once, in the draw phase so the content never recomposes. */
 private fun Modifier.bootReveal(): Modifier = composed {
   val reveal = remember { Animatable(0f) }
   LaunchedEffect(Unit) { reveal.animateTo(1f, animationSpec = KineticMotion.registerTween()) }

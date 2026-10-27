@@ -17,17 +17,8 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**
- * Read only navigator over the lines of a single repertoire.
- *
- * Unlike [LinesExplorer], which mutates the user's persisted opening graph, this explorer walks a
- * throwaway [TreeStore] built from a downloaded PGN (see [build]) and never writes anything back.
- * Only moves that exist in that PGN can be played: an off book move is rejected and the board snaps
- * back to the position it came from. Back / forward / reset and the next move list are inherited
- * from [LinesExplorer] and operate on the transient graph, which contains exactly the repertoire's
- * moves.
- *
- * @constructor Wraps an already populated transient [treeStore]. Use [build] to create one from
- *   PGN.
+ * Read only navigator over one repertoire's lines in a throwaway [TreeStore] made by [build]. An
+ * off book move is rejected and the board snaps back.
  */
 class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: RepertoireTagStore) :
   LinesExplorer(position = null, treeStore = treeStore, tagStore = tagStore) {
@@ -36,14 +27,14 @@ class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: Rep
     val origin = navigation.current
     val edge = treeStore.node(origin)?.outgoing?.get(move)
     if (edge == null) {
-      // Legal chess move but not part of this repertoire: undo it and stay put.
+      // Legal but not in this repertoire: undo it.
       engine = GameEngine(origin)
       toastRenderer.info(Res.string.toast_not_in_repertoire)
       callCallBacks(false)
       return
     }
     navigation.push(edge, edge.to)
-    // After the push, navigation.arrivedVia is exactly this edge, so edge.from is the parent.
+    // navigation.arrivedVia is now this edge, so edge.from is the parent.
     state = treeStore.computeState(navigation.current, edge.from)
     callCallBacks()
   }
@@ -52,16 +43,12 @@ class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: Rep
     /**
      * Builds an explorer over [moves], written into a fresh in memory graph.
      *
-     * @param moves A published repertoire's moves, normally from
-     *   [proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient.fetchMoves].
      * @throws proj.memorchess.axl.core.pgn.PgnImportException if a position is malformed or a move
      *   is not connected to the starting position.
      */
     suspend fun build(moves: List<RepertoireMove>): RepertoireExplorer {
-      // A parentless supervisor rather than the caller's Job. NodeCache attaches a permanent child
-      // supervisor to whatever Job it is handed, so tying it to the caller would leave that caller
-      // unable to complete. Nothing can leak here: the store is in memory, prefetch is one ply, and
-      // a load over a HashMap finishes in microseconds.
+      // Parentless: NodeCache gives the handed Job a permanent child, which would keep the caller
+      // from completing. Nothing leaks since the store is in memory.
       val scope = CoroutineScope(coroutineContext + SupervisorJob())
       val database = InMemoryDatabaseQueryManager()
       val deviceIdentity = DeviceIdentity.ephemeral()
@@ -77,8 +64,7 @@ class RepertoireExplorer private constructor(treeStore: TreeStore, tagStore: Rep
           tagStore,
           deviceIdentity,
         )
-      // The throwaway store holds this one repertoire, so its holds give every move the author's
-      // marking.
+      // The store holds only this repertoire, so its holds give every move the author's marking.
       RepertoireMoveImporter(treeStore, tagStore).import(moves, repertoireId = VIEWED_REPERTOIRE)
       return RepertoireExplorer(treeStore, tagStore)
     }

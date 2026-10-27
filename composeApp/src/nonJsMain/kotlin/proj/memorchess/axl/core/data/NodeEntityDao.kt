@@ -12,12 +12,8 @@ import kotlin.time.Instant
 interface NodeEntityDao {
 
   /**
-   * Inserts a new node with its moves into the database, queuing each node's own outbox entry in
-   * the same transaction as the row write it names.
-   *
-   * If the node already exists, it will be replaced. Same for the moves.
-   *
-   * @param nodes The node with its next and previous moves to insert.
+   * Inserts or replaces [nodes] with their moves, queuing each node's outbox entry in the same
+   * transaction.
    */
   @Transaction
   suspend fun insertNodeAndMoves(nodes: Collection<NodeWithMoves>) {
@@ -33,9 +29,8 @@ interface NodeEntityDao {
   }
 
   /**
-   * Queues an outbox entry, keeping the higher of the stored and new `deviceSeq` on a repeat mark.
-   * Duplicates [OutboxDao.upsert]'s query so it can share a `@Transaction` with the row write it
-   * names, since Room cannot span one `@Transaction` default method across two `@Dao` interfaces.
+   * Queues an outbox entry, keeping the higher `deviceSeq` on a repeat mark. Duplicates
+   * [OutboxDao.upsert] because Room cannot span one `@Transaction` across two `@Dao` interfaces.
    */
   @Query(
     "INSERT INTO OutboxEntryEntity (kind, key1, key2, key3, deviceSeq) " +
@@ -50,31 +45,14 @@ interface NodeEntityDao {
     deviceSeq: Long,
   )
 
-  /**
-   * Inserts a new node into the database.
-   *
-   * If the node already exists, it will be replaced.
-   *
-   * @param item The node to insert.
-   */
+  /** Inserts or replaces a node. */
   @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertNode(item: NodeEntity)
 
-  /**
-   * Inserts moves into the database.
-   *
-   * If a move already exists, it will be replaced.
-   *
-   * @param items The collection of moves to insert.
-   */
+  /** Inserts or replaces moves. */
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertMoves(items: Collection<MoveEntity>)
 
-  /**
-   * Soft deletes a move by flipping its `isDeleted` flag and stamping the sync fields.
-   *
-   * @param origin The move's origin.
-   * @param move The move's notation.
-   */
+  /** Soft deletes a move and stamps the sync fields. */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
@@ -94,10 +72,8 @@ interface NodeEntityDao {
   suspend fun liveMoveDestination(origin: String, move: String): String?
 
   /**
-   * Soft deletes [origin]/[move] and queues its edge for push, atomically: the destination is read
-   * before the row is flipped so the outbox entry names the edge that was actually tombstoned, in
-   * the same transaction as the flip. A no-op, including no outbox write, when the move is missing
-   * or already deleted.
+   * Soft deletes [origin]/[move] and queues its edge for push in one transaction. A no-op when the
+   * move is missing or already deleted.
    */
   @Transaction
   suspend fun softDeleteMoveAndMarkDirty(
@@ -107,17 +83,13 @@ interface NodeEntityDao {
     originDevice: String,
     deviceSeq: Long,
   ) {
+    // Read before the flip, while the edge is still live, so the outbox names the tombstoned edge.
     val destination = liveMoveDestination(origin, move) ?: return
     softDeleteMove(origin, move, updatedAt, originDevice, deviceSeq)
     upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, destination, deviceSeq = deviceSeq)
   }
 
-  /**
-   * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag and stamping the
-   * sync fields.
-   *
-   * @param origin The FEN string of the origin position.
-   */
+  /** Soft deletes all moves leaving [origin] and stamps the sync fields. */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND origin = :origin"
@@ -129,12 +101,7 @@ interface NodeEntityDao {
     deviceSeq: Long,
   )
 
-  /**
-   * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag and
-   * stamping the sync fields.
-   *
-   * @param destination The FEN string of the destination position.
-   */
+  /** Soft deletes all moves arriving at [destination] and stamps the sync fields. */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND destination = :destination"
@@ -150,16 +117,13 @@ interface NodeEntityDao {
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen AND isDeleted IS FALSE")
   suspend fun getNode(fen: String): NodeWithMoves?
 
-  /**
-   * [getNode] without the `isDeleted IS FALSE` filter, for conflict resolution against a pulled
-   * sync row that may need to compare against a local tombstone.
-   */
+  /** [getNode] including tombstones, for conflict resolution against pulled sync rows. */
   @Transaction
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :fen")
   suspend fun getNodeIncludingDeleted(fen: String): NodeWithMoves?
 
   /**
-   * Soft deletes a node row by flipping its `isDeleted` flag and stamping the sync fields.
+   * Soft deletes a node row and stamps the sync fields.
    *
    * @return The number of rows flipped: `1` when the node was live, `0` when it was missing or
    *   already deleted.
@@ -180,10 +144,8 @@ interface NodeEntityDao {
   suspend fun liveMoveOrigins(destination: String): List<String>
 
   /**
-   * Soft deletes [fen]'s node and every incident move, queuing the node (when it was live) and each
-   * tombstoned edge for push, all in the same transaction as the row changes: the incident live
-   * edges are read before the flips so the outbox entries name exactly the edges tombstoned by this
-   * call.
+   * Soft deletes [fen]'s node and every incident move, queuing each tombstoned row for push in the
+   * same transaction.
    */
   @Transaction
   suspend fun softDeletePositionAndMarkDirty(
@@ -192,6 +154,7 @@ interface NodeEntityDao {
     originDevice: String,
     deviceSeq: Long,
   ) {
+    // Read before the flips, so the outbox names exactly the edges this call tombstones.
     val outgoing = childrenOf(fen)
     val incoming = liveMoveOrigins(fen)
     val nodeChanged = softDeleteNode(fen, updatedAt, originDevice, deviceSeq) > 0
@@ -342,10 +305,8 @@ interface NodeEntityDao {
   suspend fun countInSession(repertoireId: String? = null): Int
 
   /**
-   * Computes the day's five scheduling tallies in one transaction. See
-   * [DatabaseQueryManager.getSchedulingCounts]. Every helper's `repertoireId` resolves to its
-   * default `null`, reproducing today's unscoped behavior exactly: the daily caps stay global
-   * regardless of scope (see [DatabaseQueryManager.getScopedCounts]'s own doc).
+   * Computes the day's five scheduling tallies in one transaction. They are unscoped, so the daily
+   * caps stay global whatever the repertoire.
    */
   @Transaction
   suspend fun getSchedulingCounts(dayStart: Instant, dayEndExclusive: Instant): SchedulingCounts =
@@ -370,9 +331,8 @@ interface NodeEntityDao {
     )
 
   /**
-   * Eligible projections among an explicit bounded key set: trainable and either mid learning or
-   * due before [dayEndExclusive]. The caller orders the result by candidate order. See
-   * [DatabaseQueryManager.findEligibleAmong].
+   * Unordered eligible projections among [keys]: trainable and either mid learning or due before
+   * [dayEndExclusive].
    */
   @Query(
     "SELECT positionKey, dueDate, lastReview, firstReview, stability, difficulty, reps, lapses, phase, step " +
@@ -387,19 +347,11 @@ interface NodeEntityDao {
     repertoireId: String? = null,
   ): List<NodeCardProjection>
 
-  /**
-   * Destinations of every non deleted move leaving [origin]. Used by the bounded descendant count
-   * to expand one node's children with a single indexed point query (`origin` is indexed). See
-   * [DatabaseQueryManager.countDescendants].
-   */
+  /** Destinations of every non deleted move leaving [origin]. */
   @Query("SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin")
   suspend fun childrenOf(origin: String): List<String>
 
-  /**
-   * Number of non deleted move edges arriving at [destination] (`destination` is indexed). Used by
-   * the bounded descendant count to honour the convergence rule. See
-   * [DatabaseQueryManager.countDescendants].
-   */
+  /** Number of non deleted moves arriving at [destination]. */
   @Query("SELECT COUNT(*) FROM MoveEntity WHERE isDeleted = 0 AND destination = :destination")
   suspend fun incomingCount(destination: String): Int
 

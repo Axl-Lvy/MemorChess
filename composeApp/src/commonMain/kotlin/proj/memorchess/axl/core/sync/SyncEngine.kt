@@ -25,8 +25,7 @@ import proj.memorchess.axl.core.data.PositionKey
 
 /**
  * Drives the sync push+pull cycle: debounces local writes into one attempt, retries a transient
- * failure with backoff, and pauses entirely when the session has no valid auth. See the sync design
- * doc section 4 for the full state machine.
+ * failure with backoff, and pauses entirely when the session has no valid auth.
  */
 interface SyncEngine {
   /** Current job status, for the UI. */
@@ -45,17 +44,13 @@ interface SyncEngine {
   fun syncNow()
 
   /**
-   * Erases the user's synced data on the server then this device, or this device only when signed
-   * out, then runs a cycle when it succeeded. Never deletes locally when the server erase did not
-   * succeed; suspends past a running cycle.
+   * Erases synced data on the server then on this device (this device only when signed out), then
+   * syncs. Never deletes locally if the server erase failed; waits for a running cycle.
    */
   suspend fun eraseEverywhere(): EraseOutcome
 }
 
-/**
- * Outcome of one push+pull cycle, decoupled from HTTP/token specifics so the state machine can be
- * tested without a real [proj.memorchess.axl.core.auth.AuthProvider] or [SyncApiClient].
- */
+/** Outcome of one push+pull cycle, decoupled from HTTP and token specifics. */
 internal sealed class CycleOutcome {
   data object Success : CycleOutcome()
 
@@ -63,28 +58,16 @@ internal sealed class CycleOutcome {
 
   data object PausedNoAuth : CycleOutcome()
 
-  /**
-   * A push would exceed the server's per user storage quota. Distinct from [Transient]: retrying
-   * the same outbox can never succeed until the user frees space, so [DefaultSyncEngine] pauses
-   * instead of backing off.
-   */
+  /** A push would exceed the storage quota; retrying cannot help until the user frees space. */
   data object QuotaExceeded : CycleOutcome()
 
   /**
-   * The server refused this device until it wipes its synced local state. Internal to the cycle:
-   * [DefaultSyncEngine] never sees it, because the cycle performs the wipe itself and reports
-   * [Transient] so the next attempt starts clean.
+   * The server refused this device until it wipes its synced state. Never escapes the cycle, which
+   * wipes and reports [Transient].
    */
   data object ResyncRequired : CycleOutcome()
 }
 
-/**
- * @param jobStore Persists state across restarts.
- * @param scope Coroutine scope the driving loop runs on.
- * @param now Clock, injectable for tests.
- * @param runErase The erase behind [eraseEverywhere]; never runs concurrently with [runCycle].
- * @param runCycle The actual push+pull cycle; internal so only this module wires it.
- */
 internal class DefaultSyncEngine(
   private val jobStore: SyncJobStore,
   private val scope: CoroutineScope,
@@ -104,16 +87,13 @@ internal class DefaultSyncEngine(
   private val cycleMutex = Mutex()
 
   override fun start() {
-    // A foreground hook can begin a cycle before this runs, because a resume effect fires during
-    // composition while this call is dispatched. That cycle is in flight, not a crashed one, and
-    // recovering over it would leave a second cycle running beside it. A stored RUNNING from a
-    // previous process is still recovered below, since a fresh engine starts IDLE.
+    // A resume effect can start a cycle before this runs; recovering over it would run a second
+    // one. A RUNNING stored by a dead process is still recovered, since a fresh engine starts IDLE.
     if (_status.value == SyncJobStatus.RUNNING) return
     val stored = jobStore.read()
     val recovered =
       if (stored.status == SyncJobStatus.RUNNING) {
-        // Nothing can have been mid cycle across a process restart: a stored RUNNING is a crash,
-        // not a resumable state.
+        // A stored RUNNING means the previous process crashed mid cycle.
         SyncJobState(SyncJobStatus.SCHEDULED, now(), attempt = stored.attempt)
       } else {
         stored
@@ -121,12 +101,10 @@ internal class DefaultSyncEngine(
     jobStore.write(recovered)
     _status.value = recovered.status
     when (recovered.status) {
-      // BACKING_OFF too: its timer lived only in the dead process, and notifyDirty deliberately
-      // ignores dirt in that state, so without this the device would run no cycle at all.
+      // BACKING_OFF's timer died with the old process, and notifyDirty ignores dirt in that state.
       SyncJobStatus.SCHEDULED,
       SyncJobStatus.BACKING_OFF -> scheduleTimer(recovered.nextAttemptAt ?: now())
-      // An app relaunched into IDLE with a clean outbox would otherwise run no cycle at all, and a
-      // device that never pulls holds its user's garbage collection watermark down forever.
+      // A device that never pulls holds its user's garbage collection watermark down forever.
       SyncJobStatus.IDLE -> armHeartbeat()
       else -> Unit
     }
@@ -144,8 +122,7 @@ internal class DefaultSyncEngine(
         schedule(if (proposed < cap) DEBOUNCE else cap - now())
       }
       SyncJobStatus.RUNNING -> {
-        // Handled when the in-flight cycle finishes: onCycleFinished re-checks this flag and
-        // reschedules a fresh burst instead of dropping the signal.
+        // onCycleFinished reschedules a fresh burst instead of dropping the signal.
         pendingRetriggerDuringRun = true
       }
       SyncJobStatus.BACKING_OFF,
@@ -187,17 +164,14 @@ internal class DefaultSyncEngine(
   }
 
   private fun launchCycle() {
-    // The single place a cycle starts, which is why the guard lives here rather than in runNow:
-    // scheduleTimer calls this straight after its delay with no suspension point in between, so a
-    // cancel landing after that delay returns would not stop it.
+    // Guarded here, not in runNow: scheduleTimer calls this right after its delay with no
+    // suspension point, so a cancel landing then would not stop it.
     if (_status.value == SyncJobStatus.RUNNING) {
       pendingRetriggerDuringRun = true
       return
     }
     setState(SyncJobState(SyncJobStatus.RUNNING, null, attempt = jobStore.read().attempt))
-    // Cleared here rather than inside the launched body: the engine is RUNNING from the line
-    // above, so a signal arriving before that body is dispatched sets the flag, and clearing it
-    // in there would drop it.
+    // Cleared here, not in the launched body, so a signal arriving before dispatch is kept.
     pendingRetriggerDuringRun = false
     scope.launch {
       val outcome =
@@ -233,19 +207,12 @@ internal class DefaultSyncEngine(
       CycleOutcome.PausedNoAuth -> setState(SyncJobState(SyncJobStatus.PAUSED_NO_AUTH, null, 0))
       CycleOutcome.QuotaExceeded ->
         setState(SyncJobState(SyncJobStatus.PAUSED_QUOTA_EXCEEDED, null, 0))
-      // Never reaches here: runSyncCycle performs the wipe itself and reports Transient. Handled
-      // rather than merged into Transient so the compiler flags a future path that does escape.
+      // Unreachable: runSyncCycle wipes and reports Transient itself.
       CycleOutcome.ResyncRequired -> onCycleFinished(CycleOutcome.Transient)
     }
   }
 
-  /**
-   * Schedules the next heartbeat cycle.
-   *
-   * Only ever fires out of `IDLE`. `BACKING_OFF` keeps its own timer, and the two paused states
-   * have none by design: a device parked in either one is legitimately frozen and only `syncNow` or
-   * `onAppForeground` leaves them.
-   */
+  /** Schedules the next heartbeat cycle, which only fires out of `IDLE`. */
   private fun armHeartbeat() {
     timerJob?.cancel()
     timerJob = scope.launch {
@@ -273,12 +240,8 @@ private fun Double.pow(exp: Int): Double {
 }
 
 /**
- * Wires [DefaultSyncEngine] to the real push+pull cycle. `settings` outbox entries are read but not
- * yet pushed, and a pulled [SettingSyncRow] is not yet applied:
- * [proj.memorchess.axl.core.config.SettingSyncMetadataStore] has no generic "read/write this key's
- * current value as a string" surface for an arbitrary [proj.memorchess.axl.core.config.ConfigItem]
- * to hang a remote-apply path off of, and guessing one under time pressure risks silently
- * corrupting a user's settings — a real follow-up, not something this plan should paper over.
+ * Creates a [SyncEngine] running the real push+pull cycle. Settings are neither pushed nor applied
+ * from pulls.
  */
 fun SyncEngine(
   authProvider: AuthProvider,
@@ -297,13 +260,7 @@ fun SyncEngine(
     runSyncCycle(authProvider, database, applier, apiClient, deviceIdentity, jobStore)
   }
 
-/**
- * How often an otherwise idle app runs a cycle.
- *
- * Its only constraint is staying comfortably shorter than the interval between the server's
- * collection runs, since it sets the floor on how stale a watermark can be when collection reads
- * it.
- */
+/** How often an idle app runs a cycle; must stay well below the server's collection interval. */
 internal val HEARTBEAT = 30.minutes
 
 /** Largest batch pushed in one request, matching `:server`'s own `MAX_PUSH_ROWS` cap. */
@@ -340,8 +297,8 @@ internal suspend fun runSyncCycle(
     pushOutbox(token, deviceId, database, apiClient)?.let {
       when (it) {
         CycleOutcome.ResyncRequired -> resyncRequired = true
-        // Still pulls: a pull never raises quota use, and it acknowledges tombstones (an erase's
-        // among them) that garbage collection cannot purge, nor free quota, until every device has.
+        // Still pulls: a pull never raises quota use, and garbage collection frees quota only
+        // once every device has acknowledged the tombstones.
         CycleOutcome.QuotaExceeded -> quotaExceeded = true
         else -> return it
       }
@@ -362,10 +319,8 @@ internal suspend fun runSyncCycle(
 }
 
 /**
- * Registers this device, which gates both push and pull, reporting it as reset when
- * [SyncJobStore.resetPending] is set and clearing that once the server accepted it.
- *
- * `null` on success, a [CycleOutcome] to stop the cycle otherwise.
+ * Registers this device, reporting and then clearing [SyncJobStore.resetPending]. `null` on
+ * success, else a [CycleOutcome] to stop the cycle.
  */
 private suspend fun registerDevice(
   token: String,
@@ -392,11 +347,8 @@ private suspend fun registerDevice(
 }
 
 /**
- * Throws away everything this device holds from sync and starts it over at nothing seen.
- *
- * The wipe is reported to the server rather than assumed by it: a device that died between the
- * refusal and the wipe would otherwise pull the whole dataset on top of stale rows, and a local row
- * whose tombstone is already gone would survive that merge and could be pushed back.
+ * Wipes everything this device holds from sync and reports the wipe rather than letting the server
+ * assume it, so a device dying before the wipe never merges a full pull into stale rows.
  */
 private suspend fun resync(
   token: String,
@@ -412,8 +364,7 @@ private suspend fun resync(
   if (reported != SyncRegisterOutcome.Ok) {
     LOGGER.w { "Reporting the wipe failed with $reported" }
   }
-  // Transient either way. The wipe is already done locally, and a cycle that could not report it
-  // is refused again next time and reports it then.
+  // Transient either way: an unreported wipe is refused again next cycle and reported then.
   return CycleOutcome.Transient
 }
 
@@ -430,8 +381,7 @@ private suspend fun pushOutbox(
     val request = buildPushRequest(deviceId, database, batch)
     when (val outcome = apiClient.push(token, request)) {
       is SyncPushOutcome.Ok -> {
-        // Every pushed entry is cleared, rejected ones included: a RejectedRow is a permanent
-        // refusal per its own doc, so retrying it forever would spin the job indefinitely.
+        // Rejected rows are cleared too: a RejectedRow is permanent, so a retry would spin forever.
         database.clearDirty(batch)
       }
       SyncPushOutcome.Unauthorized -> return CycleOutcome.Transient
@@ -452,9 +402,8 @@ private suspend fun pushOutbox(
 }
 
 /**
- * Builds one push batch's rows from the outbox entries' current local state. Skips
- * [DirtyKey.SettingKey] entries (see [SyncEngine]'s own doc) and any key whose row has since
- * disappeared from the outbox's own view of the world (nothing left to push).
+ * Builds one push batch from the outbox entries' current local state, skipping settings and rows
+ * that no longer exist.
  */
 private suspend fun buildPushRequest(
   deviceId: String,
@@ -509,7 +458,6 @@ private suspend fun localMove(
     ?.values
     ?.firstOrNull { it.destination == destination }
 
-/** Applies every row of one pulled [page] through [applier]. */
 private suspend fun applyPulledPage(page: SyncPullResponse, applier: SyncApplier) {
   for (node in page.nodes) applier.applyNode(node)
   for (edge in page.edges) applier.applyMove(edge)
@@ -524,15 +472,13 @@ private suspend fun pullAll(
   apiClient: SyncApiClient,
   deviceId: String,
 ): CycleOutcome? {
-  // The token of the page this device has written, sent back so the server may confirm it. Null on
-  // the first request of a cycle, because nothing has been committed in it yet.
+  // Token of the last page written locally, for the server to confirm; null until one is.
   var ack: String? = null
   while (true) {
     when (val outcome = apiClient.pull(token, deviceId, ack, PULL_LIMIT)) {
       is SyncPullOutcome.Ok -> {
         val page = outcome.response
-        // The request that comes back empty is the one confirming the last page carrying rows,
-        // which is why the loop cannot stop on the page that carried them.
+        // Only the empty response confirms the last page with rows, so the loop cannot stop sooner.
         if (page.isEmpty()) return null
         applyPulledPage(page, applier)
         ack = page.pageToken
@@ -548,7 +494,6 @@ private suspend fun pullAll(
   }
 }
 
-/** Whether this page carried no rows at all, which is what terminates the pull loop. */
 private fun SyncPullResponse.isEmpty(): Boolean =
   nodes.isEmpty() &&
     edges.isEmpty() &&

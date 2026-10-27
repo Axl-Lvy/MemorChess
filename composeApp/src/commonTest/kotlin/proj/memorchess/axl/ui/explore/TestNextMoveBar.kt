@@ -86,8 +86,7 @@ class TestNextMoveBar : TestWithKoin() {
       clickOnSave()
       clickOnBack()
     }
-    // The continuations now reflow as a FlowRow of chips (no hard column count), so every saved
-    // move — first and last alike — is laid out and reachable without a dedicated scroll container.
+    // Continuations reflow as chips, so every saved move is reachable without scrolling.
     assertNextMoveExist("a3")
     assertNextMoveExist("h4").performClick()
     assertPieceMoved("h2", "h4", ChessPiece(PieceKind.PAWN, Player.WHITE))

@@ -6,33 +6,15 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * Per card scheduling state.
+ * Per card scheduling state. Outside [SchedulingAlgorithm], only [dueDate] should be read; the
+ * other fields belong to the algorithm.
  *
- * Wave A commits to FSRS named fields directly. The shape is intentionally a flat data class rather
- * than a sealed hierarchy: any future [SchedulingAlgorithm] implementation either reinterprets
- * these fields (most SRS algorithms expose analogous concepts of stability and difficulty) or
- * stores extra state in its own internal representation while still surfacing a [dueDate] here.
- * Keeping the type flat means [proj.memorchess.axl.core.graph.TrainingScheduler] and the rest of
- * the codebase remain agnostic of which algorithm produced the state.
- *
- * The only field consumers outside of [SchedulingAlgorithm] should read is [dueDate]. All other
- * fields are owned by the algorithm.
- *
- * @property dueDate Moment when the card is next due for review.
  * @property lastReview Moment of the most recent review, or `null` for a brand new card.
- * @property firstReview Moment of the very first review ever recorded, or `null` for a card that
- *   has never been reviewed. Stamped once by the scheduling algorithm and never changed afterwards;
- *   drives the daily new card count. [lastReview] cannot serve that purpose because learning steps
- *   re-review a card several times the same day.
+ * @property firstReview Moment of the first review, or `null` if never reviewed. Never changes once
+ *   set, unlike [lastReview] which learning steps update several times a day.
  * @property stability FSRS stability of the memory trace, in days.
- * @property difficulty FSRS card difficulty, conventionally clamped to the interval one through
- *   ten.
- * @property reps Number of successful reviews recorded so far.
- * @property lapses Number of times the card has been forgotten.
- * @property phase Lifecycle phase in the FSRS state machine. Sub-day learning steps keep a card in
- *   the current training session; a [CardPhase.REVIEW] phase means it is on a day grained interval.
- * @property step Index into the active learning or relearning step ladder. Meaningful only while
- *   [phase] is [CardPhase.LEARNING] or [CardPhase.RELEARNING]; zero otherwise.
+ * @property difficulty FSRS difficulty, clamped to `[1, 10]`.
+ * @property step Index into the learning or relearning step ladder; zero outside those phases.
  */
 data class CardState(
   val dueDate: Instant,
@@ -49,11 +31,6 @@ data class CardState(
   /** Returns the [dueDate] projected onto the calendar day in [timeZone]. */
   fun dueLocalDate(timeZone: TimeZone): LocalDate = dueDate.toLocalDateTime(timeZone).date
 
-  /**
-   * Whether the card is mid learning, i.e. on a sub-day step ([CardPhase.LEARNING] or
-   * [CardPhase.RELEARNING]). Such a card stays in the active training session until a correct
-   * answer graduates it to [CardPhase.REVIEW]; the scheduler keeps surfacing it regardless of
-   * calendar day.
-   */
+  /** Whether the card is on a sub-day step, staying in the session until it graduates. */
   fun isInSession(): Boolean = phase == CardPhase.LEARNING || phase == CardPhase.RELEARNING
 }

@@ -6,9 +6,8 @@ import java.io.RandomAccessFile
 import kotlin.test.Test
 
 /**
- * Verifies that every bundled `.ttf` filename stem matches the PostScript name (nameID 6) baked
- * into the font's own `name` table, so a font imported by its filename resolves to the family the
- * OS and font tooling actually report.
+ * Verifies every bundled `.ttf` filename stem matches its PostScript name, so a font imported by
+ * filename resolves to the family the OS reports.
  */
 class TestBundledFontNaming {
 

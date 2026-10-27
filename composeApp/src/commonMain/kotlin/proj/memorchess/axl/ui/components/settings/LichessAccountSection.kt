@@ -47,15 +47,7 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 /** Holds a sign-in error as a [StringResource] plus an optional format argument. */
 private data class SignInError(val res: StringResource, val arg: String?)
 
-/**
- * Lichess account row.
- *
- * Visual layer follows the Kinetic settings card: a 56.dp square cyan-tinted avatar (showing the
- * first letter of the username, or "?" when signed out), the username on top in `display`, a small
- * status line below, and a [Row] of [KineticButton]s on the right (sign-in / sign-out).
- *
- * All OAuth wiring is unchanged from the previous Material version — only the rendering changed.
- */
+/** Lichess account row with sign-in and sign-out actions. */
 @Composable
 fun LichessAccountSection(
   signInController: LichessSignInController = koinInject(),
@@ -93,7 +85,7 @@ fun LichessAccountSection(
   )
 }
 
-/** Stateless variant for previews and tests. */
+/** Stateless body of [LichessAccountSection]. */
 @Composable
 internal fun LichessAccountSectionContent(
   account: LichessAccount?,
@@ -139,7 +131,7 @@ internal fun LichessAccountSectionContent(
 private fun avatarInitial(account: LichessAccount?): String =
   account?.username?.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
-/** Username and connection-status lines shown between the avatar and the action button. */
+/** Username and connection-status lines. */
 @Composable
 private fun LichessAccountIdentity(
   account: LichessAccount?,
@@ -198,10 +190,6 @@ private fun LichessAccountAction(
   }
 }
 
-/**
- * Small 56.dp avatar with the user's initial, rounded to 8.dp per the 1f/1l "LINKED" badge literal;
- * mirrors `.lichess-avatar` from the HTML.
- */
 @Composable
 private fun LichessAvatar(initial: String) {
   val palette = LocalKineticPalette.current

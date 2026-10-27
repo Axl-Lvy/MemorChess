@@ -11,7 +11,7 @@ import proj.memorchess.axl.test_util.testNodeCache
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
-/** Unit tests for [TrainableProjection]'s recompute and clear. */
+/** Tests [TrainableProjection]'s recompute and clear. */
 class TestTrainableProjection {
 
   private val start = PositionKey.START_POSITION

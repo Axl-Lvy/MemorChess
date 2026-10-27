@@ -47,10 +47,7 @@ class TestExplorePruneSheet : TestWithKoin() {
   private fun chainMove(from: Int, to: Int): DataMove =
     DataMove(chainKey(from), chainKey(to), "m$from-$to", isGood = true)
 
-  /**
-   * Builds a linear chain of [length] nodes rooted at [PositionKey.START_POSITION], each with
-   * exactly one child, so `countDescendants` from the root returns exactly [length].
-   */
+  /** Builds a linear chain of [length] nodes whose root has exactly [length] descendants. */
   private fun buildDescendantChain(length: Int): List<DataNode> =
     (0 until length).map { index ->
       val incoming = if (index == 0) emptyList() else listOf(chainMove(index - 1, index))
@@ -91,9 +88,7 @@ class TestExplorePruneSheet : TestWithKoin() {
 
   @Test
   fun testTappingSheetBodyDoesNotDismissSheet() = runTestFromSetup {
-    // Regression test: the panel used to have no pointer-input node of its own, so a tap landing
-    // on its text or padding fell through to the full-screen scrim behind it and dismissed the
-    // sheet instead of doing nothing.
+    // A tap on the panel must not fall through to the scrim behind it.
     database.insertNodes(
       DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
     )
@@ -117,8 +112,7 @@ class TestExplorePruneSheet : TestWithKoin() {
 
   @Test
   fun testZeroDescendantsShowsZeroCountWithLiveDeleteButton() = runTestFromSetup {
-    // No node saved at the current position: countDescendants returns 0, and the plural "other"
-    // arm (not "one") reads "delete 0 positions?". The Ok button must still work.
+    // No node saved, so the count is 0, which takes the plural "other" arm.
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTextExists("Are you sure you want to delete 0 positions?")
     assertNodeWithTagExists("pruneConfirmSheetOkButton").assertIsEnabled().performClick()

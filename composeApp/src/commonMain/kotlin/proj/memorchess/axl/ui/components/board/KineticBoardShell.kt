@@ -21,37 +21,13 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 import proj.memorchess.axl.ui.theme.kineticShadow
 
 /**
- * Kinetic board shell. Mirrors `.board-shell`, `.board-shell.compact`, `.board-shell::after`,
- * `.board-shell .corner-tag`, and `.board-shell .your-move` from
- * `design-proposals/kinetic-base.css` — the chrome around the chess board.
+ * Chrome around the chess board: a shadowed panel with an accent stripe, an optional corner tag and
+ * an optional your-move pill. The caller applies any `aspectRatio(1f)` to [modifier].
  *
- * Renders four pieces of chrome around a [content] slot:
- * - **Panel + border + hard-offset shadow** via [Modifier.kineticShadow] (big in normal mode, small
- *   in [compact] mode). Inner padding is 18.dp normally, 10.dp in compact mode.
- * - **Accent stripe** — a 60.dp×4.dp (or 40.dp×3.dp when [compact]) streak→action horizontal
- *   gradient straddling the top-right edge of the panel, with a soft streak glow behind it. Drawn
- *   via [Modifier.drawWithContent] so it sits on top of the panel border but behind the absolute
- *   children (tag, pill).
- * - **Corner tag** — when [cornerTag] is non-null, a small uppercase label punched through the
- *   top-left border (offset by 12.dp from the left, -7.dp vertically). An optional
- *   [cornerTagAccent] suffix is appended in `actionText` colour.
- * - **Your-move pill** — when [yourMovePill] is non-null, a pill in the action colour, positioned
- *   at the top-centre sliding up out of the panel by ~16.dp, with a small downward caret glyph.
- *
- * The shell is just chrome — [content] receives the entire inner area (board grid). The caller is
- * responsible for any `aspectRatio(1f)` constraint on the outer [modifier].
- *
- * @param modifier Outer modifier applied to the shell.
- * @param compact When `true`, uses the tighter padding/shadow/stripe variants.
- * @param cornerTag Optional uppercase label punched through the top-left border (e.g. `"EXPLORE ·
- *   italian/quiet"`).
- * @param cornerTagAccent Optional suffix in the action colour, appended to [cornerTag] in
- *   `actionText` colour (e.g. a move count like `"12"`).
- * @param cornerTagColor Optional override for the [cornerTag] text colour. Defaults to `ink3` when
- *   `null`. Useful for status tags that need to convey state (progress = saved, destructive =
- *   error, …).
- * @param yourMovePill Optional action pill at the top-centre (e.g. `"YOUR MOVE"`).
- * @param content The inner board area (typically a board grid).
+ * @param cornerTag Uppercase label punched through the top-left border.
+ * @param cornerTagAccent Suffix appended to [cornerTag] in the action text colour.
+ * @param cornerTagColor [cornerTag] text colour, `ink3` when `null`.
+ * @param yourMovePill Action pill at the top centre.
  */
 @Composable
 fun KineticBoardShell(
@@ -74,7 +50,6 @@ fun KineticBoardShell(
   val streakGlow = palette.streakGlow.copy(alpha = 0.4f)
 
   Box(modifier = modifier, contentAlignment = Alignment.TopStart) {
-    // Panel with shadow + border + accent stripe.
     Box(
       modifier =
         Modifier.matchParentSize()
@@ -84,17 +59,15 @@ fun KineticBoardShell(
             drawContent()
             val stripeWpx = stripeWidth.toPx()
             val stripeHpx = stripeHeight.toPx()
-            // Position: top-right, straddling the top edge of the panel border.
+            // Flush right, straddling the panel's top edge.
             val x = size.width - stripeWpx
             val y = -stripeHpx / 2f
-            // Soft glow behind the crisp stripe.
             val glowExtra = 4.dp.toPx()
             drawRect(
               color = streakGlow,
               topLeft = Offset(x - glowExtra, y - glowExtra),
               size = Size(stripeWpx + glowExtra * 2f, stripeHpx + glowExtra * 2f),
             )
-            // Crisp streak→action gradient stripe.
             drawRect(
               brush =
                 Brush.horizontalGradient(
@@ -111,7 +84,6 @@ fun KineticBoardShell(
       content()
     }
 
-    // Corner tag — punched through the top-left border, half-outside.
     if (cornerTag != null) {
       Box(
         modifier =
@@ -136,7 +108,6 @@ fun KineticBoardShell(
       }
     }
 
-    // Your-move pill — slides up out of the top edge by ~16.dp.
     if (yourMovePill != null) {
       Box(
         modifier =

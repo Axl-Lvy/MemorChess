@@ -157,8 +157,6 @@ class TestSyncAccountSection : TestWithKoin() {
     check(clicked)
   }
 
-  // Propagation tests through every SyncJobStatus value, per project convention for a new state
-  // reaching an existing consumer.
   private fun statusRendersLine(status: SyncJobStatus) = runTestFromSetup {
     setTestContent {
       InitializeApp {

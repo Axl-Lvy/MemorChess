@@ -8,22 +8,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Web OAuth launcher.
- *
- * Opens [authorizationUrl] in a popup window, then waits for the callback page it eventually
- * navigates to (served at [redirectUri]) to broadcast its URL on a `BroadcastChannel`; see
- * `LICHESS_OAUTH_CALLBACK_BODY` in `:server`. This does not poll `popup.location.href` or
- * `popup.closed`, and the callback page does not post through `window.opener`: on Chrome, the popup
- * gets detached from its opener once it navigates to `lichess.org`, so neither `popup.closed` nor
- * `window.opener` can be trusted afterwards, even once the popup navigates back to our own origin.
- * A polling implementation built on `popup.closed` reported every sign in as cancelled within
- * ~150ms, well before the user could authorize. `BroadcastChannel` is scoped by origin rather than
- * by window reference, so it is unaffected. One consequence: since we no longer watch
- * `popup.closed`, a user who closes the popup by hand before authorizing is only noticed once
- * [SIGN_IN_TIMEOUT] elapses, rather than immediately.
- *
- * The popup approach was picked over a full page redirect to keep the OAuth flow self contained in
- * one suspend call. Some browsers block popups unless the call originates from a click handler.
+ * Opens the authorization URL in a popup and awaits the callback page's `BroadcastChannel` message.
+ * Chrome detaches the popup from its opener on lichess.org, so `popup.closed` and `window.opener`
+ * cannot be trusted; a popup closed by hand is only noticed after [SIGN_IN_TIMEOUT].
  */
 actual class OAuthLauncher {
 
@@ -83,15 +70,9 @@ actual class OAuthLauncher {
 }
 
 /**
- * Opens the `BroadcastChannel` that receives the callback page's own URL, keeping only the one
- * whose href starts with [redirectUri] and carries [expectedState]. Filtering on the state too (not
- * just the path) matters because the channel is shared across every concurrent attempt on the page:
- * without it, a message left over from an older attempt (for example a popup the user is still
- * authorizing in after starting a second sign in) could be mistaken for the current attempt's
- * answer instead of being ignored, since [parseRedirect] only rejects a state mismatch after the
- * fact. The channel name (`memorchess-oauth`) is kept in sync with the server's own copy of it
- * (`BROADCAST_CHANNEL_NAME` in `StaticFrontendRoutes.kt`) by hand, not by shared code.
- * [takeMatchedHref] drains what it captured; [uninstallMessageListener] tears it down.
+ * Captures the callback href matching [redirectUri] and [expectedState]; the state filter ignores
+ * leftovers from older concurrent attempts. The channel name must match the server's
+ * `BROADCAST_CHANNEL_NAME` by hand.
  */
 private fun installMessageListener(redirectUri: String, expectedState: String): Unit =
   js(
@@ -111,9 +92,7 @@ private fun installMessageListener(redirectUri: String, expectedState: String): 
     }"""
   )
 
-/**
- * Returns and clears the href captured by [installMessageListener], or `null` if none arrived yet.
- */
+/** Returns and clears the href captured by [installMessageListener], or `null` if none arrived. */
 private fun takeMatchedHref(): String? =
   js(
     """{

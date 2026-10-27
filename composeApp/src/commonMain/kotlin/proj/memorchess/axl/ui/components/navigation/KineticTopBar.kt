@@ -45,12 +45,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 /**
  * One entry in the [KineticTopBar] center navigation strip.
  *
- * @param route Logical route identifier, expected to match the active route passed to
- *   [KineticTopBar]. Typically a `Route` enum name.
- * @param label Uppercase nav label, e.g. `"EXPLORE"`.
  * @param number Small digit shown left of the label, e.g. `"01"`.
- * @param ownedRoutes Every route label this entry is active for. Defaults to just [route]. Lets one
- *   tab (e.g. Training) stay highlighted across more than one destination.
+ * @param ownedRoutes Every route this entry is highlighted for. Defaults to just [route].
  */
 data class KineticTopBarNavItem(
   val route: String,
@@ -60,20 +56,11 @@ data class KineticTopBarNavItem(
 )
 
 /**
- * Kinetic top bar — mirrors `.topbar`, `.brand`, `.topnav`, `.top-meta` from
- * `design-proposals/kinetic-base.css`.
+ * Top bar with the brand block, a center navigation strip and a right-side [metaPills] slot.
  *
- * Three-column layout: brand block (left), nav items (center), optional meta pills (right). A 1.dp
- * bottom border on `line` is laid down inside the row; a 1.dp gradient underline (transparent ->
- * streak -> action -> streak -> transparent at alpha 0.5) is drawn on top via [drawWithContent] so
- * it appears flush with the bar's bottom edge.
- *
- * @param navItems Nav entries shown in the center strip.
- * @param activeRoute Route currently selected; matched against [KineticTopBarNavItem.route].
- * @param onNavigate Invoked with a nav item's route when the user taps it.
- * @param modifier Outer modifier.
- * @param compact When true, uses a 44.dp bar height and a 28.dp brand mark — intended for mobile.
- * @param metaPills Optional right-side slot for [KineticTopBarPill]s (or any other content).
+ * @param activeRoute Route currently selected, matched case-insensitively against
+ *   [KineticTopBarNavItem.ownedRoutes].
+ * @param compact Whether to use the shorter mobile bar.
  */
 @Composable
 fun KineticTopBar(
@@ -109,14 +96,12 @@ fun KineticTopBar(
         .height(barHeight)
         .drawWithContent {
           drawContent()
-          // 1.dp bottom border on `line`
           val borderPx = 1.dp.toPx()
           drawRect(
             color = palette.line,
             topLeft = Offset(0f, size.height - borderPx),
             size = Size(size.width, borderPx),
           )
-          // Gradient underline at alpha 0.5, flush with the bottom edge.
           drawRect(
             brush = gradientBrush,
             topLeft = Offset(0f, size.height - borderPx),
@@ -127,29 +112,24 @@ fun KineticTopBar(
         .padding(horizontal = 24.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {
-    // LEFT — brand block
     BrandBlock(markSize = markSize)
 
-    // CENTER — nav items, fills remaining space, items left-aligned at start.
     Row(
       modifier = Modifier.weight(1f).fillMaxHeight().padding(start = 32.dp),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(0.dp),
     ) {
       navItems.forEach { item ->
-        // The back stack route is the serial name in lower case. Nav item routes use the
-        // capitalised label, so match ignoring case against every route the item owns.
+        // Back stack routes are lower case serial names; nav routes are capitalised labels.
         val active = item.ownedRoutes.any { it.equals(activeRoute, ignoreCase = true) }
         TopNavLink(
           item = item,
           active = active,
-          // No-op when already on this route — don't re-navigate to the current screen.
           onClick = { if (!active) onNavigate(item.route) },
         )
       }
     }
 
-    // RIGHT — meta pills slot.
     Row(
       modifier = Modifier.fillMaxHeight(),
       verticalAlignment = Alignment.CenterVertically,
@@ -159,7 +139,6 @@ fun KineticTopBar(
   }
 }
 
-/** Brand block: skewed violet mark + "MEMOR/CHESS" wordmark with a slash in the action colour. */
 @Composable
 private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp) {
   val palette = LocalKineticPalette.current
@@ -181,7 +160,6 @@ private fun BrandBlock(markSize: androidx.compose.ui.unit.Dp) {
   }
 }
 
-/** Single center-nav link with active underline. */
 @Composable
 private fun TopNavLink(item: KineticTopBarNavItem, active: Boolean, onClick: () -> Unit) {
   val palette = LocalKineticPalette.current
@@ -227,16 +205,9 @@ private fun TopNavLink(item: KineticTopBarNavItem, active: Boolean, onClick: () 
 }
 
 /**
- * Meta pill rendered in the top bar's right-hand slot. Mirrors `.pill` / `.pill.hot` from
- * `design-proposals/kinetic-base.css`.
+ * Caption-over-value pill for the top bar's right-hand slot.
  *
- * Vertically stacks a small [label] over a Baloo 2 [value], with a 1.dp `line` left border and
- * 14.dp horizontal padding so consecutive pills sit flush against one another.
- *
- * @param label Small uppercase caption, e.g. `"EVAL"`.
- * @param value Big display value, e.g. `"+0.4"`.
- * @param hot When true, both label and value adopt `actionText`, and a leading `"● "` (in `action`)
- *   is prepended to the value to signal a live data feed.
+ * @param hot Whether to highlight the pill as a live data feed.
  */
 @Composable
 fun KineticTopBarPill(label: String, value: String, hot: Boolean = false) {

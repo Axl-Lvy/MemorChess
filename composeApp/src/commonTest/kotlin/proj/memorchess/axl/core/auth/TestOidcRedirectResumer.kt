@@ -18,8 +18,6 @@ import proj.memorchess.axl.test_util.TestSettings
 
 class TestOidcRedirectResumer {
 
-  // --- decideOidcRedirectExchange: pure, no I/O ---
-
   @Test
   fun pathNotMatchingRedirectPathIsNotACallback() {
     val decision =
@@ -110,8 +108,6 @@ class TestOidcRedirectResumer {
 
     decision shouldBe OidcRedirectDecision.Callback(cleanedUrl = "/#settings", exchange = null)
   }
-
-  // --- exchangeOidcRedirectCode: async, needs a real OidcClient/OidcTokenStore ---
 
   private fun httpClient(engine: MockEngine): HttpClient =
     HttpClient(engine) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }

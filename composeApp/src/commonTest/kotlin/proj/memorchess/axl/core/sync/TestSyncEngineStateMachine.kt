@@ -25,8 +25,7 @@ class TestSyncEngineStateMachine {
   ) =
     DefaultSyncEngine(
       jobStore = jobStore,
-      // backgroundScope: the driving loop is inherently long lived (it reschedules itself
-      // indefinitely in production too), so its job must not be one runTest waits to complete.
+      // The driving loop reschedules itself forever, so runTest must not wait on it.
       scope = backgroundScope,
       now = { Instant.fromEpochMilliseconds(testScheduler.currentTime) },
       runErase = erase,
@@ -44,7 +43,7 @@ class TestSyncEngineStateMachine {
     e.status.value shouldBe SyncJobStatus.SCHEDULED
 
     advanceTimeBy(2.seconds + 100.milliseconds)
-    e.status.value shouldBe SyncJobStatus.IDLE // cycle ran and succeeded
+    e.status.value shouldBe SyncJobStatus.IDLE
   }
 
   @Test
@@ -129,7 +128,6 @@ class TestSyncEngineStateMachine {
     advanceTimeBy(100.milliseconds)
     e.status.value shouldBe SyncJobStatus.PAUSED_NO_AUTH
 
-    // No further cycle should fire on its own after a long wait.
     advanceTimeBy(600.seconds)
     cycles shouldBe 1
   }
@@ -150,7 +148,6 @@ class TestSyncEngineStateMachine {
     advanceTimeBy(100.milliseconds)
     e.status.value shouldBe SyncJobStatus.PAUSED_QUOTA_EXCEEDED
 
-    // No further cycle should fire on its own after a long wait.
     advanceTimeBy(600.seconds)
     cycles shouldBe 1
   }
@@ -224,9 +221,8 @@ class TestSyncEngineStateMachine {
         }
       )
 
-    // The lifecycle hook can reach the engine before start() does: a resume effect runs during
-    // composition, while start() is dispatched from a coroutine launched alongside it. The
-    // in flight cycle it begins is not a crashed one and must not be recovered over.
+    // A resume effect can reach the engine before start() does; its in flight cycle is not a
+    // crashed one.
     e.onAppForeground()
     e.start()
     advanceTimeBy(3.seconds)
@@ -292,8 +288,7 @@ class TestSyncEngineStateMachine {
       )
     e.start()
 
-    // syncNow marks the engine RUNNING synchronously but the cycle body has not run yet, so this
-    // signal lands in the window where that body used to clear the retrigger flag.
+    // syncNow marks the engine RUNNING before the cycle body runs; this signal lands in between.
     e.syncNow()
     e.notifyDirty()
     advanceTimeBy(30.seconds)

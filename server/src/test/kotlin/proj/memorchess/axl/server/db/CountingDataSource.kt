@@ -6,7 +6,7 @@ import java.sql.ResultSet
 import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
 
-/** Counts every JDBC round trip a test drives through it, over a real Testcontainers connection. */
+/** Counts every JDBC round trip a test drives through it. */
 internal class CountingDataSource(
   private val delegate: DataSource,
   val executions: AtomicInteger = AtomicInteger(),

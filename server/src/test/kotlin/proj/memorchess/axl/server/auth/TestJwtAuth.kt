@@ -41,7 +41,7 @@ class TestJwtAuth {
       jwksUrl = URI("https://issuer.test/jwks.json"),
     )
 
-  /** Mounts one authenticated route echoing the caller id, which is the whole contract. */
+  /** Mounts one authenticated route echoing the caller id. */
   private fun Application.echoCaller(provider: com.auth0.jwk.JwkProvider) {
     installJwtAuth(config, provider)
     routing { authenticate(SYNC_AUTH) { get("/whoami") { call.respondText(call.callerId) } } }
@@ -51,8 +51,7 @@ class TestJwtAuth {
     provider: com.auth0.jwk.JwkProvider = TestJwkProvider(key),
     block: suspend (io.ktor.client.HttpClient) -> Unit,
   ) = testApplication {
-    // The challenge answers with an ApiError, which needs a serializer installed. Task 5 installs
-    // this in the production module; here it is the test's own scaffolding.
+    // The challenge answers with an ApiError, which needs a serializer installed.
     application {
       install(ContentNegotiation) { json(SYNC_JSON) }
       echoCaller(provider)

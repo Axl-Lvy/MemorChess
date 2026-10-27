@@ -14,13 +14,7 @@ import memorchess.composeapp.generated.resources.dialog_ok
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-/**
- * A confirmation dialog that can be shown with a confirmation action.
- *
- * @param okText String resource for the confirm button label (defaults to [Res.string.dialog_ok]).
- * @param cancelText String resource for the dismiss button label (defaults to
- *   [Res.string.dialog_cancel]).
- */
+/** A dialog that runs an action once the user confirms. */
 class ConfirmationDialog(
   private val okText: StringResource = Res.string.dialog_ok,
   private val cancelText: StringResource = Res.string.dialog_cancel,
@@ -29,22 +23,12 @@ class ConfirmationDialog(
   private var content by mutableStateOf<@Composable () -> Unit>({})
   private var onConfirm = {}
 
-  /**
-   * Show the confirmation dialog with the given confirmation action.
-   *
-   * @param text The text to show in the dialog.
-   * @param confirm The action to perform when the user confirms.
-   */
+  /** Shows [text] and runs [confirm] if the user confirms. */
   fun show(text: String, confirm: () -> Unit) {
     show(confirm, content = { Text(text) })
   }
 
-  /**
-   * Show the confirmation dialog with the given confirmation action and content.
-   *
-   * @param confirm The action to perform when the user confirms.
-   * @param content The composable content to show in the dialog.
-   */
+  /** Shows [content] and runs [confirm] if the user confirms. */
   fun show(confirm: () -> Unit, content: @Composable () -> Unit) {
     onConfirm = confirm
     this.content = content
@@ -55,8 +39,6 @@ class ConfirmationDialog(
   fun DrawDialog() {
     KineticDialog(
       visible = show,
-      // Tapping outside the dialog or pressing system back dismisses it as a cancel: drop the
-      // pending confirm action and hide, exactly like the Cancel button.
       onDismissRequest = {
         onConfirm = {}
         show = false

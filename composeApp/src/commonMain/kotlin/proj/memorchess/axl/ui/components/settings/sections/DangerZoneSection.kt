@@ -42,23 +42,10 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
- * Danger Zone settings section content. Renders two irreversible actions: reset every persisted
- * preference to its default value, and erase all data on this device and, when signed in, on every
- * device synced to the account.
+ * Danger Zone settings content: resets every preference, or erases all data (streak included) on
+ * this device and, when signed in, on every synced device. Both actions ask for confirmation.
  *
- * Each action stacks the description above the action button so long captions ("Cannot be undone")
- * stay readable on narrow screens rather than wrapping into a 50% sub-column next to the button.
- * Buttons span the full width.
- *
- * Each action is gated by a [ConfirmationDialog]; the user must confirm before the underlying call
- * fires. Test tags `resetConfigButton` and `eraseAllDataButton` are preserved.
- *
- * @param syncEngine Performs the "erase all data" action; a failed erase shows an error under the
- *   erase row and deletes nothing.
- * @param streakTracker Also wiped once the erase succeeds, so the streak and daily count go with
- *   the rest of the training history.
- * @param onReset Called after the user confirms the reset; the parent typically triggers a reload
- *   so the rest of the settings page reflects the restored defaults.
+ * @param onReset called after the user confirms the reset.
  */
 @Composable
 fun DangerZoneSection(
@@ -108,8 +95,8 @@ fun DangerZoneSection(
         dlg.show(eraseConfirm) {
           eraseOutcome = null
           coroutineScope.launch {
-            // Not cancellable: leaving the page mid erase must not strand a server erase that
-            // already succeeded with the local wipe and the streak still in place.
+            // Not cancellable: leaving mid erase must not strand a succeeded server erase without
+            // the local wipe.
             eraseOutcome =
               withContext(NonCancellable) {
                 syncEngine.eraseEverywhere().also {
@@ -124,11 +111,7 @@ fun DangerZoneSection(
   }
 }
 
-/**
- * One Danger-Zone action: vertical stack of title + description, followed by a full-width Kinetic
- * button. The vertical layout keeps the long "Cannot be undone." caption from being squashed into a
- * narrow column on phones.
- */
+/** One Danger Zone action: title and description stacked above a full-width button. */
 @Composable
 private fun DangerRow(
   title: String,

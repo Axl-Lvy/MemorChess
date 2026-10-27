@@ -7,14 +7,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
 import proj.memorchess.axl.core.pgn.PgnImporter
 
 /**
- * End to end flow that imports a Lichess study into the opening graph.
- *
- * Downloads the study with [LichessStudyClient], then merges every chapter through [PgnImporter],
- * which reads the persisted graph on demand. The importer validates the whole study before writing,
- * so a failed import leaves the graph exactly as it was.
- *
- * @property client Downloads and parses the study export.
- * @property treeStore Mutation chokepoint of the opening graph that receives the imported moves.
+ * Imports a Lichess study into the opening graph. The whole study is validated before writing, so a
+ * failed import leaves the graph untouched.
  */
 class LichessStudyImporter(
   private val client: LichessStudyClient,
@@ -25,12 +19,8 @@ class LichessStudyImporter(
   private val pgnImporter = PgnImporter(treeStore, tagStore)
 
   /**
-   * Imports the study referenced by [input].
-   *
-   * @param input A study URL or a bare study id.
-   * @param repertoireId When not `null`, tags every imported move with this repertoire. `null`
-   *   imports untagged, exactly as before this parameter existed.
-   * @return A typed result the UI can render without inspecting exceptions.
+   * Imports the study referenced by [input], a study URL or a bare study id. Tags every imported
+   * move with [repertoireId] unless it is `null`.
    */
   suspend fun import(input: String, repertoireId: String? = null): LichessStudyImportResult =
     when (val fetched = client.fetchStudy(input)) {

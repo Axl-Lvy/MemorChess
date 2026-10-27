@@ -2,22 +2,14 @@ package proj.memorchess.axl.core.engine.evaluation
 
 import proj.memorchess.axl.core.engine.BoardLocation
 
-/**
- * The engine's recommended move, parsed from UCI notation.
- *
- * @property from Source square.
- * @property to Destination square.
- */
+/** The engine's recommended move, parsed from UCI notation. */
 data class BestMove(val from: BoardLocation, val to: BoardLocation) {
   companion object {
     private const val MIN_UCI_LENGTH = 4
 
     /**
-     * Parses a UCI move string (e.g. "e2e4") into a [BestMove].
-     *
-     * Promotion suffixes (e.g. "e7e8q") are ignored — only the first four characters are used.
-     *
-     * @return The parsed move, or `null` if the string is malformed.
+     * Parses a UCI move such as `e2e4`, or returns `null` if malformed. Promotion suffixes are
+     * ignored.
      */
     fun fromUci(uci: String): BestMove? {
       if (uci.length < MIN_UCI_LENGTH) return null

@@ -3,10 +3,8 @@ package proj.memorchess.axl.core.sync
 import kotlin.time.Instant
 
 /**
- * In memory stand in for the server, holding one resource keyed by [SettingSyncRow.key].
- *
- * Every accepted write is stamped with a monotonically increasing revision from a single counter,
- * exactly as a Postgres sequence would. Pulls are driven by that revision and never by a timestamp.
+ * In memory stand in for the server, holding settings only. Pulls are driven by a revision counter,
+ * like a Postgres sequence, never by a timestamp.
  */
 internal class FakeServer {
 
@@ -23,12 +21,8 @@ internal class FakeServer {
   internal fun currentRevision(): Long = revisionCounter
 
   /**
-   * Applies [incoming] under last write wins and returns whatever it refused.
-   *
-   * A row is stored byte identical to the row that was sent, or not stored at all. The server never
-   * rewrites [SyncRow.updatedAt]: see [isTooFarAhead] for why a rewrite diverges permanently.
-   *
-   * Batches are sorted by key so concurrent transactions take locks in the same order.
+   * Applies [incoming] under last write wins and returns whatever it refused. Never rewrites
+   * [SyncRow.updatedAt]; see [isTooFarAhead] for why a rewrite diverges permanently.
    */
   internal fun push(incoming: List<SettingSyncRow>, serverNow: Instant): List<RejectedRow> {
     val rejected = mutableListOf<RejectedRow>()
@@ -48,14 +42,8 @@ internal class FakeServer {
       if (winner.source == ResolutionSource.REMOTE) {
         rows[row.key] = Stored(winner.row, ++revisionCounter)
       } else if (winner.row != row) {
-        // The pushed row lost. Advance the surviving row's revision anyway, even though its
-        // content is unchanged, so that every client re-receives it on its next pull.
-        //
-        // Without this the pusher diverges permanently: the surviving row sits at a revision the
-        // pusher's cursor has already passed, so it is never sent again, and the pusher keeps a
-        // version the rest of the world rejected. The revision is server owned metadata, so
-        // bumping it changes nothing a client compares. Skipped when the pushed row is identical
-        // to the stored one, which is an idempotent replay and needs no announcement.
+        // The pushed row lost: still advance the survivor's revision, or the pusher, whose cursor
+        // has passed it, would never be served it again and diverge permanently.
         rows[row.key] = Stored(winner.row, ++revisionCounter)
       }
     }
@@ -67,10 +55,8 @@ internal class FakeServer {
 }
 
 /**
- * In memory stand in for one device: a row store, a pull cursor, and an outbox of dirty keys.
- *
- * The outbox holds **keys, not rows**, so it can never go stale and repeated edits to one key
- * collapse into a single push.
+ * In memory stand in for one device. Its outbox holds keys, not rows, so it never goes stale and
+ * repeated edits to one key collapse into a single push.
  */
 internal class FakeClient(private val deviceId: String) {
 
@@ -109,12 +95,8 @@ internal class FakeClient(private val deviceId: String) {
   }
 
   /**
-   * Pushes every dirty key, re-stamps whatever the server refused for clock skew, then pulls
-   * everything new.
-   *
-   * A refused row is re-stamped against the server's clock and left dirty, so it goes out on the
-   * next round. Retrying within this round instead would risk a loop against a server whose clock
-   * is itself moving.
+   * Pushes every dirty key, re-stamps clock refusals for the next round rather than retrying now,
+   * then pulls everything new.
    */
   internal fun sync(server: FakeServer, serverNow: Instant) {
     val rejected = server.push(dirty.mapNotNull { rows[it] }, serverNow)

@@ -24,40 +24,21 @@ import proj.memorchess.axl.ui.theme.KineticMotion
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/**
- * Visual tone of a [KineticCounterBlock].
- *
- * The tone controls the color of the 3.dp left accent stripe. The numeric value itself always uses
- * the [ink] color so the block reads as a neutral stat card rather than a colored badge.
- */
+/** Color of a [KineticCounterBlock]'s left stripe; the value itself always uses `ink`. */
 enum class KineticCounterTone {
-  /** Progress left border — success / correct count. */
+  /** Progress stripe, for a correct count. */
   Success,
-  /** Destructive left border — failure / incorrect count. */
+  /** Destructive stripe, for an incorrect count. */
   Fail,
-  /** Ink3 left border — generic stats such as "Left". */
+  /** Ink3 stripe, for generic stats. */
   Neutral,
 }
 
 /**
- * Small numeric stat card used on the Training page.
+ * Small stat card: an uppercase [label] over a large [value], with a left stripe colored by [tone].
+ * The caller sets its width through [modifier].
  *
- * Follows artboards `1b`/`1h`: a 20.dp-radius panel card with a 1.5.dp `line` border and a 3.dp
- * colored stripe on the left whose color is selected by [tone]. The card is clipped to its shape
- * before the stripe is drawn, so the stripe's left end rounds with the card, and the stripe is
- * drawn over the border so all 3.dp of it stay visible. Inside, a small uppercase [label] sits
- * above a big Baloo 2 [value].
- *
- * The component never sets its own width; the caller is expected to provide it through [modifier]
- * (typically `Modifier.weight(1f)` inside a 3-cell Row). When called without any width modifier the
- * block falls back to [Modifier.wrapContentWidth] so an unconstrained call still renders.
- *
- * The [value] is rendered via [Int.toString] without thousand separators, so it gracefully handles
- * the full Int range including [Int.MAX_VALUE] and negative values (with a leading minus sign).
- *
- * @param animateOnChange When `true`, a value change rolls the digits up (the outgoing value
- *   slides/fades out upward, the incoming one slides/fades in from below), gated behind
- *   [KineticMotion.shouldAnimateBoardFeedback] so reduced motion swaps the value with no animation.
+ * @param animateOnChange When `true`, a value change rolls the digits up unless motion is reduced.
  */
 @Composable
 fun KineticCounterBlock(
@@ -83,8 +64,8 @@ fun KineticCounterBlock(
       modifier
         .clip(shape)
         .background(palette.panel, shape)
-        // Drawn after the content — and so after the border, which is chained below and paints on
-        // top of what it wraps — or the 1.5.dp stroke would cover half the 3.dp stripe.
+        // Draws after its content, which includes the border chained below, so the stroke cannot
+        // cover half the stripe.
         .drawWithContent {
           drawContent()
           val stripePx = 3.dp.toPx()

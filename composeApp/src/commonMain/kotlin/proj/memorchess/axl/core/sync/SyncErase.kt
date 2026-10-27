@@ -24,9 +24,8 @@ sealed interface EraseOutcome {
 }
 
 /**
- * Erases the user's synced data on the server, then on this device. Signed out, erases this device
- * only and leaves a reset pending in [jobStore] for the next sign in. Deletes nothing locally
- * unless the server erase succeeded.
+ * Erases the user's synced data on the server, then locally only if that succeeded. Signed out,
+ * erases this device only and leaves a reset pending in [jobStore] for the next sign in.
  */
 internal suspend fun runErase(
   authProvider: AuthProvider,

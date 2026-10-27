@@ -10,15 +10,9 @@ import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.graph.RepertoireExportResult
 
 /**
- * Drives one repertoire's publish lifecycle: publish, update (republish under the same slug), and
- * unpublish. Mirrors `RepertoireLibraryViewModel`'s shape: the collaborators are injected as
- * suspending functions so tests can substitute trivial fakes, production wiring binds
- * [proj.memorchess.axl.core.graph.RepertoireMoveExporter.export],
- * [proj.memorchess.axl.core.auth.AuthProvider.accessToken], [RepertoirePublishClient.publish] and
- * [RepertoirePublishClient.remove].
+ * Drives one repertoire's publish lifecycle: publish, republish under the same slug, and unpublish.
  *
  * @param localId The repertoire's local id (`DataRepertoire.id`), distinct from its public slug.
- * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).
  */
 class RepertoirePublishViewModel(
   private val localId: String,
@@ -106,10 +100,7 @@ class RepertoirePublishViewModel(
     }
   }
 
-  /**
-   * Checks [export] against the shared [RepertoirePublishLimits] before it ever reaches the
-   * network. Returns `null` when every cap is satisfied.
-   */
+  /** Checks [export] against [RepertoirePublishLimits], returning `null` when every cap holds. */
   private fun exportCapProblem(export: RepertoireExportResult.Moves): PublishError? =
     when {
       export.moves.size > RepertoirePublishLimits.MAX_REPERTOIRE_MOVES ->
@@ -132,8 +123,6 @@ class RepertoirePublishViewModel(
         fail(PublishError.RateLimited)
         null
       }
-      // TokenResult.Failed.Terminal means the session is already cleared; SignedOut is the same
-      // terminal state the UI shows for it.
       TokenResult.SignedOut,
       TokenResult.Failed.Terminal -> {
         fail(PublishError.SignedOut)
@@ -147,7 +136,7 @@ class RepertoirePublishViewModel(
   }
 }
 
-/** Publish lifecycle state of one repertoire. Consumed by Compose. */
+/** Publish lifecycle state of one repertoire. */
 sealed class PublishState {
   data object NotPublished : PublishState()
 

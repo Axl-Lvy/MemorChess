@@ -19,27 +19,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 
 /**
- * Kinetic motion tokens.
- *
- * Most of the Kinetic design system's motion follows "Register, don't drift": hard edges and flat
- * offset shadows carry through to a fast attack, a hard settle, and no overshoot. [Celebratory]
- * reverses that law on purpose. Gamification payoffs (a correct answer, a streak milestone) are
- * meant to feel like a reward, and a reward that registers instead of bouncing reads as flat, not
- * disciplined, so those two moments get real springs with visible overshoot. The interactions that
- * gamification does not touch use [Routine] instead, the fast family with no overshoot the rest of
- * the app already expects. The legacy tween and transition helpers below (registerTween,
- * sweepTween, holdEnter, holdExit, hudEnter, hudExit) sit alongside [Routine] rather than inside
- * it.
- *
- * The [Duration] and [Easing] tokens just below (instant, register, travel, attack, pieceGlide,
- * sweep) are object level vals, allocated once. Every animation spec, in [Celebratory] and
- * [Routine] alike, is instead built by a function that allocates a fresh spec on each call. The
- * ones whose spec depends on reduce motion also read [REDUCE_MOTION_SETTING] from the persisted
- * Settings store on that same call, so building one costs an allocation plus a settings read: build
- * it once where the animation is launched, not on every recomposition. Consumers drive the built
- * spec through the draw or layout phase (`graphicsLayer`, `offset { }`, `drawBehind`) reading an
- * `Animatable`/transition value inside the lambda, never by reading an animated value while
- * composing. That keeps the single threaded wasmJs target lag free.
+ * Kinetic motion tokens: overshoot-free [Routine] specs and bouncy [Celebratory] ones. Builders
+ * allocate and may read [REDUCE_MOTION_SETTING] on each call, so build once per animation, and read
+ * animated values in the draw or layout phase, never in composition, to keep wasmJs lag free.
  */
 object KineticMotion {
 
@@ -49,24 +31,16 @@ object KineticMotion {
   /** In-screen swaps: dialogs, loading reveal, settings section changes. */
   val register: Duration = 180.milliseconds
 
-  /** Screen-to-screen accent sweep — long enough to read as a deliberate scan across the screen. */
+  /** Screen-to-screen accent sweep. */
   val travel: Duration = 420.milliseconds
 
-  /**
-   * Signature easing: an instant attack that settles hard, with no overshoot. Used for everything
-   * that should read as a precision instrument "registering" a value.
-   */
+  /** Signature easing: an instant attack that settles hard, with no overshoot. */
   val attack: Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
 
-  /**
-   * The one deliberate exception to [attack]. A sliding chess piece is physical mass, so a gentle
-   * deceleration reads more naturally than the snappy [attack] used for UI chrome.
-   */
+  /** Gentle deceleration for sliding chess pieces, the one exception to [attack]. */
   val pieceGlide: Easing = FastOutSlowInEasing
 
-  /**
-   * Constant-velocity easing for the accent sweep line — a mechanical wipe, not a decelerating one.
-   */
+  /** Constant-velocity easing for the accent sweep line. */
   val sweep: Easing = LinearEasing
 
   private fun Duration.ms(): Int = inWholeMilliseconds.toInt()
@@ -78,22 +52,17 @@ object KineticMotion {
   fun <T> sweepTween(): FiniteAnimationSpec<T> = tween(travel.ms(), easing = sweep)
 
   /**
-   * No-op enter that keeps an incoming `NavHost` destination composed for the full [travel] window
-   * without any visible fade (alpha stays at 1). It exists only to give the two-panel curtain wipe
-   * a running transition clock to drive the clip from — the visual is done by the wipe-reveal clip,
-   * not by this fade.
+   * No-op enter keeping an incoming `NavHost` destination composed for [travel], so the curtain
+   * wipe has a transition clock to drive its clip.
    */
   fun holdEnter(): EnterTransition = fadeIn(animationSpec = sweepTween(), initialAlpha = 1f)
 
-  /**
-   * No-op exit mirroring [holdEnter]: keeps the outgoing destination fully visible for [travel].
-   */
+  /** No-op exit mirroring [holdEnter]: keeps the outgoing destination visible for [travel]. */
   fun holdExit(): ExitTransition = fadeOut(animationSpec = sweepTween(), targetAlpha = 1f)
 
   /**
-   * Incoming transition for a navigation between two bottom nav tabs: a slide from [fromRight]'s
-   * edge plus a fade, timed by [Routine.screenTransition]. Collapses to a plain fade when reduce
-   * motion is on.
+   * Incoming bottom nav tab transition: a slide from [fromRight]'s edge plus a fade, or only a fade
+   * when reduce motion is on.
    */
   fun tabEnter(fromRight: Boolean): EnterTransition =
     if (reduceMotionEnabled()) fadeIn(animationSpec = Routine.screenTransition())
@@ -108,18 +77,12 @@ object KineticMotion {
   /** Scale a HUD element registers in from, just short of full size. */
   private const val HUD_INITIAL_SCALE: Float = 0.94f
 
-  /**
-   * "Power-on" enter for HUD surfaces (dialogs, the promotion selector): fades up while registering
-   * in from [HUD_INITIAL_SCALE] over [register] with the signature [attack] easing — a fast, hard
-   * settle with no overshoot.
-   */
+  /** "Power-on" enter for HUD surfaces, fading up while scaling in from [HUD_INITIAL_SCALE]. */
   fun hudEnter(): EnterTransition =
     fadeIn(animationSpec = registerTween()) +
       scaleIn(initialScale = HUD_INITIAL_SCALE, animationSpec = registerTween())
 
-  /**
-   * "Power-off" exit mirroring [hudEnter]: fades out while collapsing back to [HUD_INITIAL_SCALE].
-   */
+  /** "Power-off" exit mirroring [hudEnter]. */
   fun hudExit(): ExitTransition =
     fadeOut(animationSpec = registerTween()) +
       scaleOut(targetScale = HUD_INITIAL_SCALE, animationSpec = registerTween())
@@ -127,37 +90,26 @@ object KineticMotion {
   /** Duration every [Celebratory]/[Routine] spring collapses to when reduce motion is on. */
   private val reducedMotionDuration: Duration = 120.milliseconds
 
-  /** Whether [REDUCE_MOTION_SETTING] is on. */
   private fun reduceMotionEnabled(): Boolean = REDUCE_MOTION_SETTING.getValue()
 
-  /**
-   * A [spring] with the given [dampingRatio] and [stiffness], collapsed to a flat
-   * [reducedMotionDuration] tween when reduce motion is on.
-   */
+  /** A [spring], collapsed to a flat [reducedMotionDuration] tween when reduce motion is on. */
   private fun <T> reducibleSpring(dampingRatio: Float, stiffness: Float): FiniteAnimationSpec<T> =
     if (reduceMotionEnabled()) tween(reducedMotionDuration.ms(), easing = attack)
     else spring(dampingRatio = dampingRatio, stiffness = stiffness)
 
-  /**
-   * Whether the streak-milestone overlay should appear. False when reduce motion is on, per the
-   * mockup's accessibility note: the overlay is skipped entirely rather than shown flat.
-   */
+  /** Whether the streak-milestone overlay should appear. False when reduce motion is on. */
   fun shouldShowStreakMilestone(): Boolean = !reduceMotionEnabled()
 
   /** Whether the bottom nav icon pop should play. False when reduce motion is on. */
   fun shouldPlayIconPop(): Boolean = !reduceMotionEnabled()
 
   /**
-   * Whether the board training feedback overlays (correct/wrong square animations, the "+1"
-   * floater, the counter roll) should animate. False when reduce motion is on: every one of those
-   * effects is skipped outright, with its end state rendered immediately instead.
+   * Whether the board training feedback overlays should animate. False when reduce motion is on, in
+   * which case their end state renders immediately.
    */
   fun shouldAnimateBoardFeedback(): Boolean = !reduceMotionEnabled()
 
-  /**
-   * Springs with visible overshoot, reserved for the two gamification payoffs the "register, don't
-   * drift" law deliberately excludes: a correct answer and a streak milestone.
-   */
+  /** Springs with visible overshoot, reserved for a correct answer and a streak milestone. */
   object Celebratory {
     private const val CORRECT_ANSWER_DAMPING: Float = 0.4f
     private const val CORRECT_ANSWER_STIFFNESS: Float = 500f
@@ -176,10 +128,7 @@ object KineticMotion {
       )
   }
 
-  /**
-   * Fast springs and short tweens with no overshoot, for the interactions gamification does not
-   * touch. This is the "register, don't drift" law given concrete spec values.
-   */
+  /** Fast springs and short tweens with no overshoot, for interactions outside gamification. */
   object Routine {
     private const val WRONG_ANSWER_DURATION_MS: Int = 120
     private const val SCREEN_TRANSITION_DAMPING: Float = 0.8f
@@ -208,11 +157,7 @@ object KineticMotion {
     fun <T> bottomSheet(): FiniteAnimationSpec<T> =
       reducibleSpring(dampingRatio = BOTTOM_SHEET_DAMPING, stiffness = BOTTOM_SHEET_STIFFNESS)
 
-    /**
-     * Bottom nav icon pop on selection: a fast, settled bump to 1.12x and back. Reuses
-     * [screenTransition]'s spring since the mockup pins only the pop's amplitude, not its own
-     * spring curve.
-     */
+    /** Bottom nav icon pop on selection, sharing [screenTransition]'s spring. */
     fun <T> iconPop(): FiniteAnimationSpec<T> =
       reducibleSpring(
         dampingRatio = SCREEN_TRANSITION_DAMPING,

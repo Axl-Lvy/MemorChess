@@ -6,7 +6,7 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
-/** Tests for [DataNode], focused on its derived-column equality semantics. */
+/** Tests [DataNode]'s derived-column equality semantics. */
 class TestDataNode {
 
   @Test
@@ -20,8 +20,7 @@ class TestDataNode {
   @Test
   fun omittedDepthDefaultsToTheSentinelThatSortsLastInTheNewCardQueue() {
     val node = DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
-    // nextDueNewCard orders ascending by depth, so an unset value must be the largest possible
-    // depth rather than the smallest: 0 would jump every real position to the front of the queue.
+    // nextDueNewCard orders by ascending depth, so 0 would jump the queue.
     node.depth shouldBe Int.MAX_VALUE
   }
 }

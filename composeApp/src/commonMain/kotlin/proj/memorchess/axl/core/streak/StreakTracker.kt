@@ -10,12 +10,8 @@ import proj.memorchess.axl.core.data.DailyActivityStore
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Local daily-activity and streak driver, the single chokepoint over [DailyActivityStore].
- *
- * A local day counts towards the streak once at least one review lands on it; a day that ends with
- * zero reviews breaks it. Rollover happens at local midnight, since every method keys off a
- * [LocalDate] rather than a wall clock instant. Cross-device sync is explicitly out of scope: this
- * reads and writes local storage only.
+ * Tracks local daily activity and the review streak. A local day counts once it has a review; a day
+ * that ends with none breaks the streak.
  */
 class StreakTracker(private val store: DailyActivityStore) {
 
@@ -24,11 +20,8 @@ class StreakTracker(private val store: DailyActivityStore) {
     store.getRecord(day)?.cardsReviewed ?: 0
 
   /**
-   * Current streak length in days, as of [day].
-   *
-   * Once [day] itself has a review, its own streak length is returned. Otherwise the streak is not
-   * yet broken by [day] alone: it still reflects the previous day's length when that day was
-   * active, and falls back to `0` once a full day has passed with no review.
+   * Current streak length in days as of [day]. A [day] without a review yet still shows the
+   * previous day's streak.
    */
   suspend fun streakDays(day: LocalDate = DateUtil.today()): Int {
     val today = store.getRecord(day)
@@ -37,10 +30,7 @@ class StreakTracker(private val store: DailyActivityStore) {
     return if (yesterday?.isActive == true) yesterday.streakLength else 0
   }
 
-  /**
-   * Records one reviewed position on [day]: increments its count and, on [day]'s first review,
-   * chains its streak length onto the previous day's (`1` when that day was not active).
-   */
+  /** Records one reviewed position on [day], extending the previous day's streak if any. */
   suspend fun recordReview(day: LocalDate = DateUtil.today()) {
     val existing = store.getRecord(day)
     val streakLength = existing?.streakLength ?: computeStreakLength(day)
@@ -55,11 +45,8 @@ class StreakTracker(private val store: DailyActivityStore) {
   }
 
   /**
-   * Activity for the ISO calendar week (Monday to Sunday) containing [day], oldest first.
-   *
-   * Each element is `true` when that date counts towards the streak
-   * ([DailyActivityRecord.isActive]), `false` otherwise, including for a date with no record at
-   * all. Seven bounded [DailyActivityStore.getRecord] calls, never a range query.
+   * Whether each day of the ISO week (Monday to Sunday) containing [day] counts towards the streak,
+   * oldest first.
    */
   suspend fun weekActivity(day: LocalDate = DateUtil.today()): List<Boolean> {
     val monday = day.minus(day.dayOfWeek.isoDayNumber - 1, DateTimeUnit.DAY)

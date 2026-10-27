@@ -10,18 +10,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Measures how long composing the chess board takes when entering the Explore screen.
- *
- * The `BoardGrid` trace sections come from Compose composition tracing: the benchmark build of the
- * app ships `androidx.compose.runtime:runtime-tracing`, and this module enables
- * `androidx.benchmark.fullTracing.enable`, which makes the Compose runtime emit one Perfetto slice
- * per composable. No marker code exists in the app itself.
- *
- * Each iteration starts on Settings (no board) and measures the navigation into Explore, so the
- * board is composed from scratch inside the measured window. This benchmark deliberately carries no
- * [androidx.benchmark.macro.FrameTimingMetric]: composition tracing skews frame numbers, and on CI
- * emulators the frame timeline regularly produces no expect/actual slices at all, which fails the
- * whole run. [ScreenNavigationBenchmark] is the frame timing source.
+ * Measures how long composing the chess board takes when entering the Explore screen. No frame
+ * timing metric: composition tracing skews it, and CI emulators often emit no frame slices.
  */
 @OptIn(ExperimentalMetricApi::class)
 @RunWith(AndroidJUnit4::class)

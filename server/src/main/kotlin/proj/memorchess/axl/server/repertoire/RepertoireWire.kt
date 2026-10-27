@@ -14,12 +14,7 @@ internal data class RepertoireCatalogPage(
   val repertoires: List<RepertoireDescriptor>,
 )
 
-/**
- * Maps a stored version to the public catalog contract.
- *
- * @param downloadCount The id's recorded install count (see [RepertoireStore.countsFor]), `0` when
- *   the caller has none to report.
- */
+/** Maps a stored version to the public catalog contract. */
 internal fun RepertoireRow.toDescriptor(downloadCount: Long = 0): RepertoireDescriptor =
   RepertoireDescriptor(
     id = id,

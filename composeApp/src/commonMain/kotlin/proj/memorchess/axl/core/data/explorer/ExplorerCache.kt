@@ -3,10 +3,8 @@ package proj.memorchess.axl.core.data.explorer
 import kotlin.time.Instant
 
 /**
- * Persistent cache for [LichessExplorerResponse] keyed by (fen, source).
- *
- * Implementations store the raw response as JSON plus a [fetchedAt] timestamp. TTL evaluation is
- * performed by callers; storage is content addressed and does not expire entries on its own.
+ * Persistent cache for [LichessExplorerResponse] keyed by (fen, source). Entries never expire;
+ * callers apply the TTL to [CachedExplorerEntry.fetchedAt].
  */
 interface ExplorerCache {
 

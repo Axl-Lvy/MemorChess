@@ -14,39 +14,20 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
- * Free Spaced Repetition Scheduler, version 6 (long term variant).
+ * Free Spaced Repetition Scheduler, version 6, ported from
+ * https://github.com/open-spaced-repetition/ts-fsrs.
  *
- * Ported from the TypeScript reference at https://github.com/open-spaced-repetition/ts-fsrs (files
- * `packages/fsrs/src/constant.ts`, `packages/fsrs/src/algorithm.ts`, and
- * `packages/fsrs/src/abstract_scheduler.ts`). The long term variant grants every review a day
- * grained interval, which fits the chess opening trainer where reviews are always spaced by at
- * least one day.
- *
- * FSRS 6 differs from FSRS 5 in two ways that matter here: the parameter vector has 21 elements
- * (the last one being the decay coefficient), and the FACTOR used when computing the next interval
- * is derived from that decay rather than the fixed 19 over 81 of FSRS 5.
- *
- * @property weights 21 element parameter vector. Defaults to the canonical FSRS 6 weights.
- * @property requestRetention Desired probability of recall when the next review is scheduled.
- * @property maximumInterval Hard cap, in days, on the next interval.
- * @property enableFuzz Supplier read on every [schedule] call deciding whether the canonical FSRS
- *   interval fuzz is applied. Defaults to off, matching ts-fsrs' `default_enable_fuzz = false`. It
- *   is a supplier rather than a flat flag so a user toggling the setting takes effect immediately
- *   on the long lived singleton without a restart.
- * @property nextFuzz Source of the per-review fuzz pick, a unit value in `[0, 1)` drawn once per
- *   [schedule] call and shared across the four candidate grades so the spread is keyed on the
- *   review event, not the grade. Defaults to a fresh draw from [Random.Default]; production seeds a
- *   single process-wide [Random] from the wall clock at app start so that two cards graded
- *   identically on the same day still scatter across their fuzz band. Tests inject a fixed-seed
- *   [Random] for reproducibility.
- * @property enableShortTerm Supplier read on every [schedule] call deciding whether the short term
- *   (learning steps) scheduler runs. Defaults to on, matching ts-fsrs' `default_enable_short_term =
- *   true`. When off, every review graduates straight to a day grained [CardPhase.REVIEW] interval,
- *   reproducing the original long term only behavior. Same supplier rationale as [enableFuzz].
- * @property learningSteps Sub-day intervals a new card walks through before graduating. A correct
- *   answer advances one step; passing the last step graduates the card to [CardPhase.REVIEW].
- * @property relearningSteps Sub-day intervals a lapsed review card walks through before returning
- *   to [CardPhase.REVIEW].
+ * @property weights 21 element FSRS 6 parameter vector, the last being the decay.
+ * @property requestRetention Desired probability of recall when the next review is due.
+ * @property maximumInterval Cap on the next interval, in days.
+ * @property enableFuzz Read on every [schedule] call, so toggling the setting applies without a
+ *   restart.
+ * @property nextFuzz Unit value in `[0, 1)` drawn once per [schedule] call and shared across
+ *   grades.
+ * @property enableShortTerm Read on every [schedule] call; when off, every review graduates
+ *   straight to a day grained [CardPhase.REVIEW] interval.
+ * @property learningSteps Sub-day intervals a new card walks through before graduating.
+ * @property relearningSteps Sub-day intervals a lapsed card walks through before graduating again.
  */
 class Fsrs6SchedulingAlgorithm(
   private val weights: DoubleArray = DEFAULT_WEIGHTS,
@@ -65,18 +46,10 @@ class Fsrs6SchedulingAlgorithm(
     }
   }
 
-  /**
-   * Decay coefficient. ts-fsrs stores the absolute value at index 20 and negates inside its
-   * forgetting curve; we precompute the negated form so that the rs-fsrs flavored formulas below
-   * can use it directly.
-   */
+  /** Negated decay coefficient; ts-fsrs stores its absolute value at index 20. */
   private val decay: Double = -weights[20]
 
-  /**
-   * Forgetting curve FACTOR derived from the active decay so that R(stability, stability) =
-   * [requestRetention]. Used both inside the forgetting curve and when converting a target
-   * stability back to a day interval.
-   */
+  /** Forgetting curve factor such that R(stability, stability) = [requestRetention]. */
   private val factor: Double = requestRetention.pow(1.0 / decay) - 1.0
 
   override fun initial(now: Instant): CardState =
@@ -104,11 +77,8 @@ class Fsrs6SchedulingAlgorithm(
   }
 
   /**
-   * Short term path: advances the FSRS memory state exactly as the long term path does, then routes
-   * the card through the learning, review or relearning steps based on its current
-   * [CardState.phase] to pick the next due moment. Sub-day steps keep the card in the active
-   * session; graduating to [CardPhase.REVIEW] produces a day grained interval and removes it from
-   * the session.
+   * Advances the memory state like the long term path, then routes the card through its learning,
+   * review or relearning steps to pick the next due moment.
    */
   private fun shortTermReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
     val lastReview = base.lastReview
@@ -129,8 +99,8 @@ class Fsrs6SchedulingAlgorithm(
       if (lastReview == null) initDifficulty(grade) else nextDifficulty(base.difficulty, grade)
     val fuzz = nextFuzz()
     val outcome = route(base.phase, base.step, grade, stability, elapsedDays, fuzz)
-    // A lapse is a forgotten *graduated* card, matching canonical FSRS. Failing during initial
-    // learning or while already relearning does not add another lapse.
+    // A lapse is a forgotten graduated card, as in canonical FSRS: failing while learning or
+    // relearning adds none.
     val isLapse = grade == ReviewGrade.AGAIN && base.phase == CardPhase.REVIEW
     return CardState(
       dueDate = now + outcome.delay,
@@ -177,9 +147,8 @@ class Fsrs6SchedulingAlgorithm(
     }
 
   /**
-   * Walks a card through a learning or relearning [steps] ladder. AGAIN drops back to the first
-   * step, HARD repeats the current step, GOOD advances one (graduating past the last), and EASY
-   * graduates immediately. An empty ladder graduates on any grade.
+   * Walks a card through [steps]: AGAIN restarts, HARD repeats the step, GOOD advances (graduating
+   * past the last), EASY graduates.
    */
   private fun learningRoute(
     steps: List<Duration>,
@@ -206,9 +175,7 @@ class Fsrs6SchedulingAlgorithm(
     }
   }
 
-  /**
-   * Produces a graduated [CardPhase.REVIEW] outcome with a day grained interval from [stability].
-   */
+  /** Graduated [CardPhase.REVIEW] outcome with a day grained interval from [stability]. */
   private fun graduate(stability: Double, elapsedDays: Double, fuzz: Double): StepOutcome =
     StepOutcome(intervalDays(stability, elapsedDays, fuzz).days, CardPhase.REVIEW, 0)
 
@@ -284,8 +251,6 @@ class Fsrs6SchedulingAlgorithm(
     )
   }
 
-  // FSRS math.
-
   private fun forgettingCurve(elapsedDays: Double, stability: Double): Double {
     if (stability <= 0.0) return 1.0
     return (1.0 + factor * elapsedDays / stability).pow(decay)
@@ -344,28 +309,14 @@ class Fsrs6SchedulingAlgorithm(
     return max(next, MIN_STABILITY)
   }
 
-  /**
-   * Interval in days from a target stability, before monotonic ordering or maximum clamp. Applies
-   * the canonical fuzz when [enableFuzz] is on; otherwise rounds the raw stability over factor
-   * ratio exactly as the unfuzzed path always did.
-   *
-   * @param fuzz Deterministic unit value in `[0, 1)` shared across the four grades of a single
-   *   review so that the fuzz spread is keyed on the card, not on the grade.
-   */
+  /** Interval in days for [stability], before ordering and capping, fuzzed when [enableFuzz]. */
   private fun intervalDays(stability: Double, elapsedDays: Double, fuzz: Double): Long {
     val raw = stability / factor
     return if (enableFuzz()) applyFuzz(raw, elapsedDays, fuzz)
     else round(raw).toLong().coerceAtLeast(1L)
   }
 
-  /**
-   * Canonical FSRS interval fuzz, ported from ts-fsrs (`help.ts` `get_fuzz_range` and
-   * `algorithm.ts` `apply_fuzz`). Intervals below [FUZZ_MIN_INTERVAL] days are returned unfuzzed.
-   * Otherwise the interval is spread by a band that widens with the interval ([FUZZ_RANGES]), then
-   * a deterministic [fuzz] factor picks a day inside `[minIvl, maxIvl]`. The `interval >
-   * elapsedDays` guard keeps the fuzzed interval from scheduling the card before it was actually
-   * due.
-   */
+  /** Canonical FSRS fuzz from ts-fsrs `apply_fuzz`: [fuzz] picks a day in [interval]'s band. */
   private fun applyFuzz(interval: Double, elapsedDays: Double, fuzz: Double): Long {
     if (interval < FUZZ_MIN_INTERVAL) return round(interval).toLong().coerceAtLeast(1L)
     var delta = 1.0
@@ -374,6 +325,7 @@ class Fsrs6SchedulingAlgorithm(
     }
     var minIvl = max(2.0, round(interval - delta))
     val maxIvl = min(round(interval + delta), maximumInterval.toDouble())
+    // Never schedule the card before it was actually due.
     if (interval > elapsedDays) minIvl = max(minIvl, elapsedDays + 1.0)
     minIvl = min(minIvl, maxIvl)
     return floor(fuzz * (maxIvl - minIvl + 1.0) + minIvl).toLong().coerceAtLeast(1L)
@@ -383,11 +335,7 @@ class Fsrs6SchedulingAlgorithm(
     if (this < lo) lo else if (this > hi) hi else this
 
   companion object {
-    /**
-     * Default FSRS 6 weights, taken verbatim from https://github.com/open-spaced-repetition/ts-fsrs
-     * (file `packages/fsrs/src/constant.ts`, constant `default_w`). The last element is the
-     * absolute value of the decay coefficient.
-     */
+    /** Default FSRS 6 weights, verbatim from ts-fsrs `default_w`. */
     val DEFAULT_WEIGHTS: DoubleArray =
       doubleArrayOf(
         0.212,
@@ -417,21 +365,12 @@ class Fsrs6SchedulingAlgorithm(
     private const val DIFFICULTY_MIN: Double = 1.0
     private const val DIFFICULTY_MAX: Double = 10.0
 
-    /**
-     * Milliseconds in one day, used to derive fractional elapsed days from a
-     * [kotlin.time.Duration].
-     */
     private const val MILLIS_PER_DAY: Double = 86_400_000.0
 
-    /**
-     * Intervals strictly below this many days are never fuzzed (ts-fsrs `apply_fuzz` threshold).
-     */
+    /** Intervals below this many days are never fuzzed. */
     private const val FUZZ_MIN_INTERVAL: Double = 2.5
 
-    /**
-     * Fuzz bands from ts-fsrs (`help.ts` `FUZZ_RANGES`). The spread factor shrinks as intervals
-     * grow: 15% in `[2.5, 7)`, 10% in `[7, 20)`, 5% from 20 days onward.
-     */
+    /** Fuzz bands from ts-fsrs `FUZZ_RANGES`. */
     private val FUZZ_RANGES: List<FuzzRange> =
       listOf(
         FuzzRange(start = 2.5, end = 7.0, factor = 0.15),

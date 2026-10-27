@@ -17,7 +17,6 @@ internal fun parseDecodedQuery(search: String): Map<String, String> {
 
 private fun decodeUriComponent(value: String): String = decodeUriComponentJs(value)
 
-// `value` is referenced inside the `js(...)` snippet, not by real Kotlin code, so static analysis
-// sees it as unused; same pattern already accepted in OAuthLauncher.wasmJs.kt.
+// `value` is only referenced inside the `js(...)` snippet.
 @Suppress("UNUSED_PARAMETER")
 private fun decodeUriComponentJs(value: String): String = js("globalThis.decodeURIComponent(value)")

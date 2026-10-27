@@ -25,20 +25,11 @@ import proj.memorchess.axl.ui.setTestContent
 import proj.memorchess.axl.ui.theme.KineticDarkPalette
 import proj.memorchess.axl.ui.theme.KineticLightPalette
 
-/** Per-cell test tag, mirroring the shape of the caller-supplied production tags. */
 private fun tagOf(item: NavigationBarItemContent) = "nav_${item.name}"
 
 /**
- * Pins [KineticBottomNav]'s selection contract: exactly one cell reports `selected`, the tagged
- * per-cell node stays clickable, and tapping the active cell is a no-op.
- *
- * Assertions go through test tags and semantics, never through label text: the resource locale is
- * not fixed on CI, so a text assertion would be flaky by construction.
- *
- * Koin is only strictly needed by [activeCellFollowsCurrentRoute], the one test that drives a live
- * active↔inactive transition and therefore reaches the reduce-motion setting behind
- * [proj.memorchess.axl.ui.theme.KineticMotion]; keeping the whole class on [TestWithKoin] is
- * simpler than splitting it.
+ * Pins [KineticBottomNav]'s selection contract. Asserts through tags and semantics, never label
+ * text, since the CI locale is not fixed.
  */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticBottomNav : TestWithKoin() {
@@ -89,8 +80,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun trainingCellStaysSelectedOnThePushedTrainingBoard() = runTestFromSetup {
-    // Training's destination is TodayRoute, but the tab must also stay selected once the pushed
-    // TrainingRoute board is on screen, not just on the Today dashboard itself.
+    // Training's destination is TodayRoute, but its tab must stay selected on the pushed board too.
     setBar(Route.TrainingRoute.DEFAULT.getLabel(), mutableListOf())
 
     onNodeWithTag(tagOf(NavigationBarItemContent.Training)).assertIsSelected()
@@ -123,9 +113,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun selectionStillFollowsRouteWhenReduceMotionIsOn() = runTestFromSetup {
-    // graphicsLayer scale is invisible to the semantics tree, so this cannot observe the icon pop
-    // itself. That pixel level assertion lives in TestKineticBottomNavReduceMotion (jvmTest). This
-    // only pins that selection still tracks the route when reduce motion is on.
+    // The icon pop is invisible to semantics; TestKineticBottomNavReduceMotion checks pixels.
     REDUCE_MOTION_SETTING.setValue(true)
     val route = mutableStateOf(Route.ExploreRoute.DEFAULT.getLabel())
     setTestContent {
@@ -148,10 +136,7 @@ internal class TestKineticBottomNav : TestWithKoin() {
 
   @Test
   fun eachItemIsTheOnlySelectedCellForItsOwnRoute() = runTestFromSetup {
-    // onlyTheActiveCellIsSelected and activeCellFollowsCurrentRoute only ever exercise
-    // Training/Settings. isActive() matches per item on a case-insensitive label, so drive every
-    // item's own route through the same bar and assert exactly it is selected — the state that
-    // drives kineticNavCellStyle's pill, per `selected = active` in KineticBottomNav.
+    // isActive() matches each item on a case-insensitive label, so every item's route is driven.
     val route = mutableStateOf(items.first().destination.getLabel())
     setTestContent {
       InitializeApp {

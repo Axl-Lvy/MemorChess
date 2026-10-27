@@ -6,30 +6,15 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * Data class representing a node in the database.
+ * A position node as stored in the database. Equality only compares the position, moves, card state
+ * and deletion flag.
  *
- * @property positionKey The position.
- * @property previousAndNextMoves The linked moves.
- * @property cardState Scheduling state used by the active
- *   [proj.memorchess.axl.core.scheduling.SchedulingAlgorithm]. Holds the next due date and any
- *   algorithm specific state such as FSRS stability and difficulty.
- * @property depth The minimum depth at which this position can be reached from the root. Defaults
- *   to [Int.MAX_VALUE], since nextDueNewCard orders new cards by ascending depth and an unset value
- *   must sort last rather than jump the queue.
- * @property hasGoodOutgoing Derived projection: `true` iff this node has at least one non deleted
- *   outgoing edge marked good. The persistence layer recomputes it from [previousAndNextMoves] on
- *   every write, so a caller-supplied value here is only a fallback for a node with no moves
- *   attached yet. Excluded from equality because it is recomputed from the node's outgoing edges.
- * @property createdAt Derived projection owned by [proj.memorchess.axl.core.graph.TreeStore]: the
- *   moment the position was first added, taken from the earliest non deleted incoming edge. Used as
- *   the new card ordering tiebreak after [depth] and excluded from equality like [updatedAt].
- * @property originDevice Device that wrote this version. Stamped by
- *   [proj.memorchess.axl.core.graph.TreeStore] from its
- *   [proj.memorchess.axl.core.sync.DeviceIdentity]. Excluded from equality like [updatedAt].
- * @property deviceSeq That device's write counter at the time. See
- *   [proj.memorchess.axl.core.sync.DeviceIdentity.nextDeviceSeq]. Excluded from equality like
- *   [updatedAt].
- * @constructor Creates a new node.
+ * @property depth Minimum depth from the root; [Int.MAX_VALUE] when unset so new card ordering puts
+ *   it last.
+ * @property hasGoodOutgoing Whether a live outgoing edge is marked good. Recomputed on every write,
+ *   so a supplied value only matters for a node with no moves yet.
+ * @property createdAt When the position was first added; breaks new card ordering ties after
+ *   [depth].
  */
 data class DataNode(
   val positionKey: PositionKey,

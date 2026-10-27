@@ -59,11 +59,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * One displayable move in the [MovesTrail].
  *
  * @property san Standard Algebraic Notation of the move (e.g. `"Nf3"`).
- * @property moveNumber 1-indexed full-move number. Combined with [isWhiteMove] to render `"1."` or
- *   `"1..."` before the SAN.
- * @property isGuess `true` when this move is the user's pending guess and should be rendered with a
- *   dashed border and a trailing `" ?"`.
- * @property isWhiteMove `true` for a white ply, `false` for a black ply.
+ * @property moveNumber 1-indexed full-move number.
+ * @property isGuess `true` when this move is the user's pending guess.
  */
 data class MoveDisplay(
   val san: String,
@@ -80,38 +77,12 @@ private val EdgeFadeWidth = 16.dp
 private val ArrowSize = 24.dp
 
 /**
- * Horizontal "moves trail" — Kinetic counterpart of `.trail` in
- * `design-proposals/kinetic-base.css`.
+ * Scrollable strip of move chips with an optional opening badge and PGN overlay, kept scrolled to
+ * the current move.
  *
- * Layout, left to right:
- * 1. **Opening pin** ([openingName]) — only rendered when non-null. Uppercase 9.5sp on `actionSoft`
- *    background with `actionText` text, padded 12.dp horizontally.
- * 2. **Scrollable chip strip** — a [LazyRow] of [MoveDisplay] chips on a `bg2` background. Each
- *    chip carries a 1.dp `line` border and `bg` background by default, rendering the SAN in mono
- *    11sp prefixed with the move number (`"1. Nf3"` / `"1... Nf6"`). Items are separated by 4.dp.
- *    The strip fades its leftmost and rightmost ~16.dp into the trail background via a
- *    `drawWithContent` gradient overlay so chips dissolve at the boundary instead of butting
- *    against the arrows.
- *     - Current move ([currentIndex] == index): solid `action` background with `onAction` text and
- *       `action` border.
- *     - Guess move ([MoveDisplay.isGuess]): dashed `ink4` border drawn via [drawBehind] with a
- *       dashed [PathEffect], and the SAN gets a trailing `" ?"`.
- *
- *   Whenever [currentIndex] changes the strip auto-scrolls so the current chip is visible.
- * 3. **Left/right arrows** — `◀ ▶` 24.dp icon buttons that page the scroll by roughly one viewport
- *    in each direction.
- * 4. **PGN button** — only rendered when [pgnText] is non-null. Opens a dismissable [Dialog] with a
- *    scrollable two-column move list (white / black) styled on `panel` with a 1.dp `line` border,
- *    mirroring the `.pgn-overlay`/`.pgn-card` rule set.
- *
- * The whole container is 36.dp tall with a `bg2` background and a 1.dp `line` bottom border.
- *
- * @param moves The full ply list, in playing order.
  * @param currentIndex Index of the current move, or `-1` for no selection.
  * @param onSeek Invoked with the chip's index when the user taps a chip.
- * @param openingName Optional opening label rendered in the pinned left badge.
- * @param pgnText Optional raw PGN string shown in the overlay. The overlay button is only shown
- *   when this is non-null.
+ * @param pgnText Raw PGN shown in the overlay; the overlay button is hidden when `null`.
  */
 @Composable
 fun MovesTrail(
@@ -122,9 +93,6 @@ fun MovesTrail(
   openingName: String? = null,
   pgnText: String? = null,
 ) {
-  // Self-hide when there's nothing meaningful to display. The trail still occupies its container
-  // slot via the caller's [modifier], so layouts using `Modifier.fillMaxWidth()` won't suddenly
-  // jump in height — but it doesn't paint the arrows/PGN/opening-pin chrome over empty content.
   if (moves.isEmpty() && openingName.isNullOrEmpty() && pgnText.isNullOrEmpty()) {
     return
   }
@@ -135,8 +103,7 @@ fun MovesTrail(
   val scope = rememberCoroutineScope()
   var pgnOpen by remember { mutableStateOf(false) }
 
-  // Auto-snap to the current chip when the selection changes. Skips negative / out-of-range
-  // indices to avoid a `LazyList` crash on empty trails.
+  // An out-of-range index would crash the LazyList.
   LaunchedEffect(currentIndex, moves.size) {
     if (currentIndex in moves.indices) {
       listState.animateScrollToItem(currentIndex)
@@ -146,7 +113,6 @@ fun MovesTrail(
   Row(
     modifier =
       modifier.fillMaxWidth().height(TrailHeight).background(palette.bg2).drawBehind {
-        // 1.dp bottom border in `line` (matches `.trail` `border-bottom`).
         val strokePx = 1.dp.toPx()
         drawLine(
           color = palette.line,
@@ -222,10 +188,7 @@ fun MovesTrail(
   }
 }
 
-/**
- * Scrollable chip strip with edge fades. Extracted from [MovesTrail] so its nested fade-drawing and
- * per-chip selection logic don't inflate the parent's cognitive complexity.
- */
+/** Scrollable chip strip with edge fades. */
 @Composable
 private fun RowScope.TrailChipStrip(
   listState: LazyListState,
@@ -240,7 +203,6 @@ private fun RowScope.TrailChipStrip(
         drawContent()
         val fadePx = EdgeFadeWidth.toPx().coerceAtMost(size.width / 2f)
         if (fadePx > 0f) {
-          // Left fade: bg2 -> transparent
           drawRect(
             brush =
               Brush.horizontalGradient(
@@ -251,7 +213,6 @@ private fun RowScope.TrailChipStrip(
             topLeft = Offset(0f, 0f),
             size = Size(fadePx, size.height),
           )
-          // Right fade: transparent -> bg2
           drawRect(
             brush =
               Brush.horizontalGradient(
@@ -287,7 +248,6 @@ private fun nextScrollTarget(listState: LazyListState, moveCount: Int): Int {
   return (lastVisible + 4).coerceAtMost((moveCount - 1).coerceAtLeast(0))
 }
 
-/** Single move chip — renders one ply with its number prefix, current/guess states, and click. */
 @Composable
 private fun MoveChip(move: MoveDisplay, isCurrent: Boolean, onClick: () -> Unit) {
   val palette = LocalKineticPalette.current
@@ -302,8 +262,6 @@ private fun MoveChip(move: MoveDisplay, isCurrent: Boolean, onClick: () -> Unit)
     }
   val contentColor = if (isCurrent) palette.onAction else palette.ink2
 
-  // Dashed border for guess chips: drawn with a dashed PathEffect via drawBehind so the dash
-  // pattern matches `.trail-mv.guess { border-style: dashed }`.
   val borderModifier =
     if (move.isGuess && !isCurrent) {
       Modifier.drawBehind {
@@ -343,7 +301,6 @@ private fun MoveChip(move: MoveDisplay, isCurrent: Boolean, onClick: () -> Unit)
   }
 }
 
-/** Small 24.dp arrow button used on either side of the scroll strip. */
 @Composable
 private fun TrailArrow(onClick: () -> Unit, isLeft: Boolean) {
   val palette = LocalKineticPalette.current
@@ -356,17 +313,11 @@ private fun TrailArrow(onClick: () -> Unit, isLeft: Boolean) {
         .clickable(onClick = onClick),
     contentAlignment = Alignment.Center,
   ) {
-    // Render a simple Unicode glyph rather than pulling in a vector resource — keeps this
-    // component self-contained and matches the `◀ ▶` characters cited in the brief.
     Text(text = if (isLeft) "◀" else "▶", style = TextStyle(fontSize = 10.sp, color = palette.ink3))
   }
 }
 
-/**
- * PGN overlay dialog. Mirrors `.pgn-overlay` / `.pgn-card`: panel background, 1.dp line border,
- * scrollable two-column grid (move number, white ply, black ply). The current move is highlighted
- * in `actionText`.
- */
+/** PGN overlay listing the moves in a two-column grid, highlighting the current one. */
 @Composable
 private fun PgnDialog(
   pgnText: String,
@@ -376,8 +327,7 @@ private fun PgnDialog(
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
-  // Pair the moves into (white, black) rows keyed by full-move number so the grid lines up even
-  // when the trail starts on black or contains gaps.
+  // Keyed by move number so rows line up even when the trail starts on black or has gaps.
   val rows =
     remember(moves) {
       val grouped = moves.withIndex().groupBy { it.value.moveNumber }
@@ -449,7 +399,6 @@ private fun PgnDialog(
   }
 }
 
-/** Internal data carrier for a row of the PGN overlay. */
 private data class PgnRow(
   val number: Int,
   val white: MoveDisplay?,
@@ -458,7 +407,6 @@ private data class PgnRow(
   val blackIndex: Int,
 )
 
-/** One row of the PGN overlay — number, white ply, black ply, separated by a 1.dp `line`. */
 @Composable
 private fun PgnRowView(row: PgnRow, currentIndex: Int) {
   val palette = LocalKineticPalette.current
@@ -498,7 +446,7 @@ private fun PgnRowView(row: PgnRow, currentIndex: Int) {
   }
 }
 
-/** Single ply cell within a PGN row. Renders an em dash for missing plies. */
+/** PGN row cell, showing a dash for a missing ply. */
 @Composable
 private fun PlyCell(
   modifier: Modifier,

@@ -14,10 +14,8 @@ import proj.memorchess.axl.core.sync.DeviceIdentity
 import proj.memorchess.axl.core.sync.SyncApplier
 
 /**
- * Builds a [NodeCache] over [database] on [scope].
- *
- * The default scope is unconfined, so a load and its neighbour prefetch run inline inside the call
- * that triggered them and a test observes their effect as soon as it returns.
+ * Builds a [NodeCache] over [database] on [scope]. The default unconfined scope runs loads and
+ * prefetches inline, so a test observes their effect as soon as the call returns.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 fun testNodeCache(

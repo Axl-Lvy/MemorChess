@@ -40,17 +40,12 @@ import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 import proj.memorchess.axl.ui.theme.AppTheme
 
 /**
- * Base class for tests that need Koin dependency injection.
- *
- * Use [test] for coroutine-based tests (wraps everything in a single `runTest`). For UI tests that
- * need `runComposeUiTest`, use [koinSetUp]/[koinTearDown] directly.
+ * Base class for tests that need Koin. Use [test] for coroutine tests, or [koinSetUp] and
+ * [koinTearDown] around `runComposeUiTest`.
  */
 abstract class TestWithKoin : KoinComponent {
 
-  /**
-   * Recording navigator exposed to the composition tree under [LocalNavigator]. Tests that want to
-   * assert which destination was navigated to read this directly.
-   */
+  /** Recording navigator provided under [LocalNavigator]. */
   protected val navigator: RememberLastRouteNavigator = RememberLastRouteNavigator()
 
   /** Override to add suspend setup logic within [test]'s single coroutine scope. */
@@ -60,9 +55,8 @@ abstract class TestWithKoin : KoinComponent {
   open suspend fun tearDown() {}
 
   /**
-   * Runs a test within a single [runTest], handling Koin lifecycle and calling [setUp]/[tearDown].
-   *
-   * This avoids the wasmJs limitation where only one `runTest` can be called per test method.
+   * Runs [block] in a single [runTest] with Koin and [setUp]/[tearDown] around it, since wasmJs
+   * allows only one `runTest` per test method.
    */
   fun test(block: suspend TestScope.() -> Unit) = runTest {
     koinSetUp()
@@ -100,17 +94,11 @@ abstract class TestWithKoin : KoinComponent {
       single<DatabaseQueryManager> { TestDatabases.empty() }
       single<DailyActivityStore> { InMemoryDailyActivityStore() }
       single<ToastRenderer> { ToastRendererForTests }
-      // Unconfined rather than the production Dispatchers.Default: setValue/reset's outbox enqueue
-      // then runs to completion inline (no true suspension point on the in memory backend) instead
-      // of hopping onto a background thread that could still be touching test state after the test
-      // method has returned. Not cancelled in koinTearDown: ALL_SETTINGS_ITEMS are top level vals
-      // whose lazy Koin injections are cached forever, so cancelling this scope here would leave
-      // every later test's setValue silently skipping markDirty once its scope reference goes
-      // stale. Unconfined with no real suspension point leaves nothing to cancel anyway.
+      // Unconfined so the settings outbox enqueue runs inline instead of outliving the test on
+      // another thread. Never cancelled: ALL_SETTINGS_ITEMS cache their Koin injections forever, so
+      // a cancelled scope would make every later test silently skip markDirty.
       single<CoroutineScope>(named(SETTINGS_SYNC_SCOPE)) { CoroutineScope(Dispatchers.Unconfined) }
-      // Explorer overrides: an in memory cache and a MockEngine that always errors so no test
-      // accidentally hits the real Lichess service. Tests that exercise the explorer rebuild
-      // these on their own.
+      // An in memory explorer cache and an always failing engine, so no test hits Lichess.
       single { offlineExplorerHttpClient() }
       single { OAuthTokenStore(get()) }
       single { LichessOAuthClient(get()) }
@@ -140,12 +128,8 @@ abstract class TestWithKoin : KoinComponent {
     }
 
   /**
-   * Wraps a test's composable content so that descendants can resolve [LocalNavigator] and the
-   * Kinetic theme locals ([LocalKineticPalette], [LocalKineticTypography]). Production code
-   * provides both from [proj.memorchess.axl.ui.App]; tests that render fragments in isolation need
-   * them too — without [AppTheme] any Composable that reads
-   * [proj.memorchess.axl.ui.theme.LocalKineticTypography] crashes at the `staticCompositionLocalOf`
-   * default.
+   * Provides [LocalNavigator] and the [AppTheme] locals to [block]; without them, reading a Kinetic
+   * theme local crashes.
    */
   @OptIn(KoinInternalApi::class)
   @Composable

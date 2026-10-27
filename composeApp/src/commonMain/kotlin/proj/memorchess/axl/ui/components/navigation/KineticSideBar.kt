@@ -62,83 +62,42 @@ import proj.memorchess.axl.ui.components.today.WeekStrip
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/** Rail width — the mockup's desktop `width: 232px`. */
 private val SIDE_BAR_WIDTH = 232.dp
 
-/** Thickness of the rail's right line (mockup: `border-right: 1.5px`). */
 private val RAIL_BORDER = 1.5.dp
 
-/** Vertical inset of the rail's content (mockup: `padding: 20px 14px`). */
 private val RAIL_VERTICAL_PADDING = 20.dp
 
-/** Horizontal inset of the rail's content. */
 private val RAIL_HORIZONTAL_PADDING = 14.dp
 
-/** Gap between the rail's stacked blocks and between nav rows (mockup: `gap: 8px`). */
 private val RAIL_GAP = 8.dp
 
-/** Brand tile size at the top of the rail. */
 private val BRAND_TILE = 34.dp
 
-/** Corner radius of a nav row, matching the bottom bar's active pill. */
 private val ROW_SHAPE = RoundedCornerShape(14.dp)
 
-/** Vertical padding inside a nav row (mockup: `padding: 11px 12px`). */
 private val ROW_VERTICAL_PADDING = 11.dp
 
-/** Horizontal padding inside a nav row. */
 private val ROW_HORIZONTAL_PADDING = 12.dp
 
-/** Gap between a row's icon, label and badge (mockup: `gap: 11px`). */
 private val ROW_GAP = 11.dp
 
-/** Icon size inside a rail row (mockup: `width: 21px`). */
 private val RAIL_ICON_SIZE = 21.dp
 
-/** Corner radius of the row's count badge (mockup: `border-radius: 8px`). */
 private val BADGE_SHAPE = RoundedCornerShape(8.dp)
 
-/** Offset of the streak card's hard bottom edge — the mockup's `box-shadow: 0 3px 0`. */
 private val STREAK_EDGE_OFFSET = 3.dp
 
-/** Fixed gap between the streak card and the first nav row (mockup: a 6px spacer). */
 private val STREAK_NAV_SPACER = 6.dp
 
-/** Snapshot of the numbers shown on the rail; `null` until the first fetch resolves. */
 @Immutable
 private data class RailStats(val streak: Int, val done: Int, val target: Int, val due: Int)
 
 /**
- * Kinetic vertical chrome rail. Used on compact-height screens — phone landscape, or a desktop
- * window shortened below the medium-height breakpoint — where a horizontal top bar would eat too
- * much vertical space. A desktop window at a normal height gets [KineticDesktopRail] instead.
+ * Vertical chrome rail for compact-height screens, stacking the brand, a streak card and a
+ * [KineticSideNav]. Its counts refresh on navigation, not live.
  *
- * Owns the chrome — `panel` background, 1.5.dp `line` right border, system-bar insets and padding —
- * and stacks a brand row, a streak card and a [KineticSideNav] block of full-width labelled rows.
- * The outer edge stays square: it is edge-anchored. The content scrolls, because the rail's natural
- * height only just fits a phone in landscape and a larger font scale overflows it.
- *
- * **Where the streak target comes from.** There is no daily-goal setting in the app, so the target
- * is `StreakTracker.cardsCompletedToday() + TrainingScheduler.dueCount()` — what has been done
- * today plus the due reviews and due new cards still to come today, once the daily caps are
- * applied. [TrainingScheduler.pendingCount] is deliberately **not** used here: it also folds in
- * every in-session (mid learning) card, and a card graded today already counts in `done`, so adding
- * it a second time via `pendingCount()` made the target grow when a review failed and shrink as the
- * card graduated. The Training row's badge still uses `pendingCount()`, since that badge means
- * "everything left to serve", in-session cards included. When the total is `0` the `/target` half
- * is dropped rather than a number being invented.
- *
- * **Refresh contract.** Refreshed on navigation ([currentRoute] is a `produceState` key), not live:
- * neither [StreakTracker] nor [TrainingScheduler] emits a stream today, so counts advanced during
- * an open training session are picked up the next time the user changes screen.
- *
- * @param items Route entries to render as nav rows.
- * @param currentRoute Active route label (matched against `item.destination.getLabel()`).
- * @param onSelect Invoked with the tapped item.
- * @param modifier Outer modifier.
- * @param itemModifier Optional per-row modifier, e.g. for attaching `Modifier.testTag(...)`.
- * @param streakTracker Source of the streak and today's completed count.
- * @param scheduler Source of the still-due count driving the target and the Training badge.
+ * @param currentRoute Active route label, matched against `item.destination.getLabel()`.
  */
 @Composable
 fun KineticSideBar(
@@ -155,6 +114,7 @@ fun KineticSideBar(
     produceState<RailStats?>(null, streakTracker, scheduler, currentRoute) {
       val done = streakTracker.cardsCompletedToday()
       val due = scheduler.pendingCount()
+      // dueCount, not pendingCount: in-session cards graded today already count in done.
       val target = done + scheduler.dueCount()
       value =
         RailStats(streak = streakTracker.streakDays(), done = done, target = target, due = due)
@@ -192,14 +152,6 @@ fun KineticSideBar(
   }
 }
 
-/**
- * Brand tile plus wordmark at the top of the rail.
- *
- * [BrandMark] is reused unchanged: it draws a skewed parallelogram rather than the mockup's 11.dp
- * rounded tile, and restyling it belongs to a brand/top-bar issue. The wordmark reuses the top
- * bar's "MEMOR/CHESS" split rather than the mockup's Title-Case "MemorChess" — same casing call as
- * the nav labels.
- */
 @Composable
 private fun RailBrandRow() {
   val palette = LocalKineticPalette.current
@@ -220,9 +172,8 @@ private fun RailBrandRow() {
     Text(
       text = wordmark,
       style = typography.brand.copy(fontSize = 18.sp, fontWeight = FontWeight.ExtraBold),
-      // The row leaves the wordmark ~144.dp; at a large system font scale it would otherwise wrap
-      // to two lines and push the streak card down. Clip instead of ellipsis: the brand mark beside
-      // it already identifies the app, so a trailing "…" would only add noise.
+      // A large font scale would wrap the wordmark and push the streak card down. Clip rather than
+      // ellipsize: the brand mark beside it already identifies the app.
       maxLines = 1,
       overflow = TextOverflow.Clip,
     )
@@ -230,15 +181,9 @@ private fun RailBrandRow() {
 }
 
 /**
- * Streak card: the day count beside a "DAY STREAK" label over today's progress.
- *
- * Shared between [KineticSideBar] and [KineticDesktopRail]. Renders with both number slots empty
- * while [streak] is still `null`, so the card never flashes a "0" it is about to replace. The whole
- * card inks with `onStreak` in both themes.
- *
- * @param streak Resolved streak count, or `null` while the first fetch is in flight.
- * @param done Cards completed today; ignored while [streak] is `null`.
- * @param target Today's goal target; ignored while [streak] is `null`.
+ * Streak card showing the day count over today's progress. While [streak] is `null` both number
+ * slots stay empty and [done] and [target] are ignored, so the card never flashes a placeholder
+ * "0".
  */
 @Composable
 internal fun StreakCard(streak: Int?, done: Int, target: Int) {
@@ -276,7 +221,6 @@ internal fun StreakCard(streak: Int?, done: Int, target: Int) {
       Text(
         // 0 while stats are still loading: the plural form a real streak of 0 would use.
         text = pluralStringResource(Res.plurals.side_rail_day_streak, streak ?: 0),
-        // labelSm already carries the mockup's 9sp size and 0.1em tracking.
         style = typography.labelSm.copy(fontWeight = FontWeight.Black, color = palette.onStreak),
       )
       Text(
@@ -293,23 +237,11 @@ internal fun StreakCard(streak: Int?, done: Int, target: Int) {
 }
 
 /**
- * Kinetic wide-screen side navigation: full-width labelled rows.
+ * Wide-screen side navigation of full-width labelled rows. Unlike the bottom bar, nothing animates,
+ * so it reads no reduce-motion setting.
  *
- * Each row is an icon, an uppercase label and an optional count badge. The active row fills with
- * `actionDim` at a 14.dp radius and inks with `action`; inactive rows paint nothing (their style
- * colour is `actionDim` at alpha 0) and ink with `ink3`. Unlike the bottom bar's pill the fill is
- * **not** animated — a full-row fill is not an appearing pill, and keeping it static leaves the
- * rail with no animation cost and no reduce-motion settings read. The row icons skip the bottom
- * bar's selection pop for the same reason.
- *
- * @param items Navigation entries; rendered in the order supplied.
- * @param currentRoute The current route label; compared against [NavigationBarItemContent]'s
- *   destination label to determine the active row.
- * @param onSelect Invoked when the user taps a row.
- * @param modifier Optional layout modifier.
- * @param itemModifier Optional per-row modifier, e.g. for attaching `Modifier.testTag(...)`.
- * @param badgeCount Optional trailing count per item; `null` or a non-positive value renders no
- *   badge.
+ * @param currentRoute Current route label, compared against each item's destination label.
+ * @param badgeCount Trailing count per item; `null` or a non-positive value renders no badge.
  */
 @Composable
 fun KineticSideNav(
@@ -333,19 +265,16 @@ fun KineticSideNav(
             .clip(ROW_SHAPE)
             .then(itemModifier(item))
             .semantics { selected = active }
-            // Tapping the row for the screen you are already on is a no-op; the node stays
-            // clickable so its test tag is tappable.
+            // Stays clickable when active, as a no-op, so its test tag remains tappable.
             .clickable(enabled = true, onClick = { if (!active) onSelect(item) })
             .background(style.pill, ROW_SHAPE)
             .padding(vertical = ROW_VERTICAL_PADDING, horizontal = ROW_HORIZONTAL_PADDING),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(ROW_GAP),
       ) {
-        // Explicitly false rather than the row's active above: the rail's icons never pop, per
-        // this composable's KDoc.
+        // Rail icons never pop, even on the active row.
         NavCellIcon(item, style.content, size = RAIL_ICON_SIZE, active = false)
         Text(
-          // Kept uppercase for the same reason as the bottom bar's labels.
           text = stringResource(item.destination.displayNameRes()).uppercase(),
           style =
             typography.label.copy(
@@ -381,7 +310,6 @@ fun KineticSideNav(
   }
 }
 
-/** Snapshot of the numbers [KineticDesktopRail] renders; `null` until the first fetch resolves. */
 @Immutable
 private data class DesktopRailStats(
   val streak: Int,
@@ -393,26 +321,10 @@ private data class DesktopRailStats(
 )
 
 /**
- * Kinetic wide-screen desktop rail. Used on a wide **and** tall window
- * (`WIDTH_DP_EXPANDED_LOWER_BOUND` or greater, `HEIGHT_DP_MEDIUM_LOWER_BOUND` or greater) — a
- * desktop window at a normal height gets this rail instead of [KineticSideBar]'s compact-height
- * treatment or a horizontal top bar.
+ * Desktop rail for wide and tall windows: the [KineticSideBar] blocks in a scrollable section, with
+ * a [WeekStrip] anchored at the bottom. Its counts refresh on navigation, not live.
  *
- * Stacks a brand row, a streak card and a [KineticSideNav] block in a scrollable middle section (so
- * a window right at the height breakpoint, or a large font scale, never clips them), with a
- * [WeekStrip] as a fixed last child so it stays genuinely anchored at the rail's bottom edge
- * instead of scrolling away with the rest.
- *
- * See [KineticSideBar]'s KDoc for where the streak target and refresh contract come from; this rail
- * follows the exact same rule, plus [StreakTracker.weekActivity] for the week strip.
- *
- * @param items Route entries to render as nav rows.
- * @param currentRoute Active route label (matched against `item.destination.getLabel()`).
- * @param onSelect Invoked with the tapped item.
- * @param modifier Outer modifier.
- * @param itemModifier Optional per-row modifier, e.g. for attaching `Modifier.testTag(...)`.
- * @param streakTracker Source of the streak, today's completed count and this week's activity.
- * @param scheduler Source of the still-due count driving the target and the Training badge.
+ * @param currentRoute Active route label, matched against `item.destination.getLabel()`.
  */
 @Composable
 fun KineticDesktopRail(
@@ -429,6 +341,7 @@ fun KineticDesktopRail(
     produceState<DesktopRailStats?>(null, streakTracker, scheduler, currentRoute) {
       val done = streakTracker.cardsCompletedToday()
       val due = scheduler.pendingCount()
+      // dueCount, not pendingCount: in-session cards graded today already count in done.
       val target = done + scheduler.dueCount()
       value =
         DesktopRailStats(
@@ -481,9 +394,7 @@ fun KineticDesktopRail(
         week = it.week,
         todayIsoIndex = it.todayIsoIndex,
         tagPrefix = "rail_week",
-        // The rail's content column is only SIDE_BAR_WIDTH (232.dp) minus its own horizontal
-        // padding wide; Today's default 40.dp cells don't fit seven-across in that space.
-        // RAIL_ICON_SIZE (21.dp) does: 7 * 21.dp + 6 * WEEK_CELL_GAP (8.dp) = 195.dp.
+        // The default 40.dp cells don't fit seven across the rail; 7 * 21.dp + 6 * 8.dp gaps do.
         cellSize = RAIL_ICON_SIZE,
       )
     }

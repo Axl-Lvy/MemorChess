@@ -28,23 +28,9 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
- * A label-on-left, boxed numeric input on the right, used by the settings sections for integer
- * settings. Sibling of [KineticToggleRow] for the boolean case.
+ * Labelled integer input accepting up to [maxDigits] digits. Each valid number commits through
+ * [onValueCommit]; an empty field commits nothing.
  *
- * Only digits are accepted: the input is filtered to `0-9` and capped at [maxDigits] characters, so
- * negatives, decimals and other text are structurally rejected rather than validated after the
- * fact, and the value can never overflow [Int] (six digits stays below `Int.MAX_VALUE`). The field
- * may be left empty while editing; an empty field commits nothing and keeps the previous value. A
- * valid number commits immediately through [onValueCommit].
- *
- * The displayed buffer re-seeds from [value] whenever [value] changes, so an external reset (the
- * settings Danger Zone) is reflected without the caller forcing a recomposition key.
- *
- * @param value Current integer value, shown when the field is not being edited.
- * @param onValueCommit Called with the parsed value whenever the field holds a valid number.
- * @param label Text shown on the left.
- * @param modifier External modifier applied to the root row.
- * @param maxDigits Maximum number of digits accepted. Defaults to six.
  * @param testTag Test tag applied to the text field, conventionally the backing setting's name.
  */
 @Composable

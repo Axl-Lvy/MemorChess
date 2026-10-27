@@ -17,36 +17,12 @@ import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 import proj.memorchess.axl.core.streak.StreakTracker
 
 /**
- * Spaced repetition driver for the opening tree.
+ * Spaced repetition driver for the opening tree, built on bounded [DatabaseQueryManager] queries
+ * that never enumerate the repertoire.
  *
- * Drives entirely off the bounded scheduling surface of [DatabaseQueryManager]: a single
- * [DatabaseQueryManager.getSchedulingCounts] call plus a constant number of `LIMIT 1` lookups per
- * selection. It holds no graph and never enumerates the repertoire, so its cost stays constant no
- * matter how large the repertoire grows. Writing a review result back goes through [TreeStore],
- * which owns the only mutation path.
- *
- * A position is trainable when it has at least one outgoing edge marked as good, captured by the
- * derived `hasGoodOutgoing` column the queries filter on.
- *
- * Two daily caps bound a session, both counted on distinct positions within the calendar day in
- * [timeZone]:
- * - [maxNewMovesPerDay] caps positions whose very first review happens today, counted through
- *   [proj.memorchess.axl.core.data.SchedulingCounts.introducedToday];
- * - [maxTotalMovesPerDay] caps everything trained today, counted through
- *   [proj.memorchess.axl.core.data.SchedulingCounts.trainedToday].
- *
- * Cards mid learning steps are exempt: like Anki, a card that entered the session finishes its
- * sub-day steps even when the caps are reached. The counts derive from the persisted card states on
- * every call, so they reset at local midnight on their own. Training ahead (passing a future [day])
- * gets a fresh budget for that day by design, matching Anki's study-ahead behavior.
- *
- * The caps are suppliers rather than flat values so a settings change takes effect immediately on
- * the long lived singleton. Both are required: a caller that wants no cap must say so explicitly by
- * supplying `{ Int.MAX_VALUE }`, rather than getting that behavior by omission.
- *
- * [streakTracker] is optional and defaults to absent, so direct construction still works without
- * any streak wiring; when present, [grade] feeds it and [streakDays]/[cardsCompletedToday] expose
- * it.
+ * [maxNewMovesPerDay] and [maxTotalMovesPerDay] cap distinct positions per calendar day in
+ * [timeZone]; like Anki, cards mid learning steps are exempt. The caps are suppliers so a settings
+ * change applies immediately, and they stay global when a call is scoped to one repertoire.
  */
 class TrainingScheduler(
   private val database: DatabaseQueryManager,
@@ -60,29 +36,11 @@ class TrainingScheduler(
 ) {
 
   /**
-   * Returns the next [TrainingEntry] to train, or `null` when there is nothing left for [day].
+   * Returns the next [TrainingEntry] to train for [day], or `null` when nothing is left. The entry
+   * stays scheduled until [grade] graduates it to a day grained interval.
    *
-   * One [DatabaseQueryManager.getSchedulingCounts] call establishes the day's remaining budgets,
-   * then the four bounded query tiers are asked in order so the in-session learning loop drains in
-   * step order without starving the day's review queue:
-   * 1. **Ready learning cards** — a [proj.memorchess.axl.core.scheduling.CardPhase.LEARNING] or
-   *    `RELEARNING` card whose sub-day due moment has arrived. The earliest due wins, so a card on
-   *    a one minute step surfaces before one on a ten minute step. Exempt from the caps.
-   * 2. **Review cards** due on or before [day] — picked by smallest graph depth to follow the
-   *    natural opening order. Consumes the total budget.
-   * 3. **New cards** due on or before [day] — picked by `depth ASC, createdAt ASC`, so shallower
-   *    positions surface first with ties broken by when the position was first added. Consumes the
-   *    new ∩ total budget.
-   * 4. **Pending learning cards** — sub-day cards not yet due. Falling through to these guarantees
-   *    a just-failed card always resurfaces in the same session rather than ending it early, again
-   *    earliest-due first. Exempt from the caps.
-   *
-   * The entry is **not** removed from the schedule: a card leaves the session only when [grade]
-   * graduates it to a day grained review interval.
-   *
-   * @param repertoireId When not `null`, every tier narrows to positions trainable within this
-   *   repertoire. The daily caps stay global regardless of scope. `null` reproduces today's
-   *   unscoped behavior exactly.
+   * @param repertoireId When not `null`, only positions trainable within this repertoire are
+   *   served.
    */
   suspend fun nextDue(
     day: LocalDate = DateUtil.today(timeZone),
@@ -90,51 +48,32 @@ class TrainingScheduler(
   ): TrainingEntry? {
     val now = DateUtil.now()
     val (dayStart, dayEnd) = dayBounds(day)
-    val counts =
-      database.getSchedulingCounts(dayStart, dayEnd) // caps stay global, see the class doc
+    val counts = database.getSchedulingCounts(dayStart, dayEnd)
     val newRemaining = (maxNewMovesPerDay() - counts.introducedToday).coerceAtLeast(0)
     val totalRemaining = (maxTotalMovesPerDay() - counts.trainedToday).coerceAtLeast(0)
 
-    // Tier 1: in-session, due now — exempt from caps.
     database.nextReadyLearningCard(now, repertoireId)?.let {
       return it
     }
-    // Tier 2: due reviews — consume total budget.
     if (totalRemaining > 0) {
       database.nextDueReviewCard(dayEnd, repertoireId)?.let {
         return it
       }
     }
-    // Tier 3: due new — consume new ∩ total budget.
     if (newRemaining > 0 && totalRemaining > 0) {
       database.nextDueNewCard(dayEnd, repertoireId)?.let {
         return it
       }
     }
-    // Tier 4: in-session, not yet due — exempt from caps.
+    // Falling through to not yet due learning cards keeps a just failed card in the session.
     return database.nextPendingLearningCard(now, repertoireId)
   }
 
   /**
-   * Returns a trainable entry reachable from one of [position]'s outgoing edges, or `null` when
-   * none qualifies. Picking such an entry preserves the natural opening order during a session.
+   * Returns a trainable entry reachable through one of [position]'s outgoing edges, or `null` when
+   * none qualifies within the daily caps, so a session can follow the current line.
    *
-   * Resolves [position]'s outgoing destinations (bounded by the branching factor) from the cache,
-   * then asks the database for the first eligible one through
-   * [DatabaseQueryManager.findEligibleAmong] so no graph enumeration happens.
-   *
-   * The daily caps are enforced here too, so staying in the current line cannot introduce more new
-   * cards than [maxNewMovesPerDay] or train more than [maxTotalMovesPerDay] allows. A single
-   * [DatabaseQueryManager.getSchedulingCounts] call establishes the day's remaining budgets: when
-   * the total budget is exhausted nothing is returned, and a brand new
-   * ([proj.memorchess.axl.core.scheduling.CardPhase.NEW]) candidate is withheld once the new budget
-   * is exhausted. In-session and review candidates only need the total budget to remain. The cost
-   * stays bounded: one counts call plus the single [DatabaseQueryManager.findEligibleAmong] lookup,
-   * never a graph walk.
-   *
-   * @param repertoireId When not `null`, [position]'s destinations are narrowed to edges tagged
-   *   with this repertoire before the eligibility lookup. `null` reproduces today's unscoped
-   *   behavior exactly.
+   * @param repertoireId When not `null`, only edges tagged with this repertoire are followed.
    */
   suspend fun nextAfter(
     position: PositionKey,
@@ -161,14 +100,10 @@ class TrainingScheduler(
   }
 
   /**
-   * Counts entries still to train for [day]: in-session cards plus the servable due reviews and new
-   * cards once the daily caps are applied. Computed from a single
-   * [DatabaseQueryManager.getSchedulingCounts] call, so its cost is constant regardless of
-   * repertoire size, and it reports what the trainer will actually serve.
+   * Counts entries still to train for [day]: in-session cards plus the due reviews and new cards
+   * the daily caps still allow.
    *
-   * @param repertoireId When not `null`, the due reviews/new/in-session tallies narrow to this
-   *   repertoire through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null`
-   *   reproduces today's unscoped behavior exactly.
+   * @param repertoireId When not `null`, counts only this repertoire's cards.
    */
   suspend fun pendingCount(
     day: LocalDate = DateUtil.today(timeZone),
@@ -188,20 +123,11 @@ class TrainingScheduler(
   }
 
   /**
-   * Counts due reviews and due new cards servable for [day] once the daily caps are applied,
-   * deliberately **excluding** [SchedulingCounts.inSession].
+   * Counts due reviews and new cards the daily caps still allow for [day], excluding in-session
+   * cards: [StreakTracker.cardsCompletedToday] already counts them, so adding them would double
+   * count.
    *
-   * Unlike [pendingCount], this is not "everything the trainer will still serve today": a card mid
-   * learning steps was already counted the moment it was first graded today (through
-   * [StreakTracker.cardsCompletedToday]), so folding [SchedulingCounts.inSession] back in here
-   * would double count it against a caller that already adds that number in separately. Cards left
-   * mid learning from a previous day and not yet touched today are excluded from the result too,
-   * since [SchedulingCounts] carries no way to tell the two cases apart. This exclusion applies
-   * whether or not [repertoireId] narrows the result.
-   *
-   * @param repertoireId When not `null`, the due reviews/new tallies narrow to this repertoire
-   *   through [DatabaseQueryManager.getScopedCounts]; the daily caps stay global. `null` reproduces
-   *   today's unscoped behavior exactly.
+   * @param repertoireId When not `null`, counts only this repertoire's cards.
    */
   suspend fun dueCount(
     day: LocalDate = DateUtil.today(timeZone),
@@ -219,14 +145,7 @@ class TrainingScheduler(
     return reviewsServable + newServable
   }
 
-  /**
-   * Due reviews and due new cards servable today, in that order, once the daily caps are applied.
-   *
-   * @param dueReviews Trainable due reviews to budget, [caps]'s own by default; a caller narrowing
-   *   to one repertoire passes its scoped count instead, while the caps themselves stay global.
-   * @param dueNew Trainable due new cards to budget, [caps]'s own by default; same scoping rule as
-   *   [dueReviews].
-   */
+  /** Due reviews and due new cards servable once the daily caps are applied, in that order. */
   private fun servableCounts(
     caps: SchedulingCounts,
     dueReviews: Int = caps.dueReviews,
@@ -240,13 +159,7 @@ class TrainingScheduler(
     return reviewsServable to newServable
   }
 
-  /**
-   * Persists the result of a review for [position]. Computes the next
-   * [proj.memorchess.axl.core.scheduling.CardState] through [SchedulingAlgorithm] and stores it
-   * through [TreeStore]. Also feeds [streakTracker], on this position's first review of the local
-   * day or on any review while [streakTracker] has nothing recorded for the day yet, so a position
-   * whose only review of the day arrived from another device via sync still reaches the streak.
-   */
+  /** Persists the result of a review for [position] and feeds the streak. */
   suspend fun grade(position: PositionKey, grade: ReviewGrade) {
     val node = treeStore.node(position) ?: return
     val now = DateUtil.now()
@@ -257,15 +170,14 @@ class TrainingScheduler(
       val day = now.toLocalDateTime(timeZone).date
       val (dayStart, _) = dayBounds(day)
       val alreadyReviewedToday = previousLastReview != null && previousLastReview >= dayStart
+      // An empty streak day still records: today's earlier review may have arrived via sync.
       if (!alreadyReviewedToday || streakTracker.cardsCompletedToday(day) == 0) {
         streakTracker.recordReview(day)
       }
     }
   }
 
-  /**
-   * Number of positions reviewed for the first time today, or `0` when [streakTracker] is absent.
-   */
+  /** Positions reviewed for the first time today, or `0` without a [streakTracker]. */
   suspend fun cardsCompletedToday(): Int =
     streakTracker?.cardsCompletedToday(DateUtil.now().toLocalDateTime(timeZone).date) ?: 0
 
@@ -273,13 +185,7 @@ class TrainingScheduler(
   suspend fun streakDays(): Int =
     streakTracker?.streakDays(DateUtil.now().toLocalDateTime(timeZone).date) ?: 0
 
-  /**
-   * Computes the half open day window `[dayStart, dayEndExclusive)` for [day] in [timeZone].
-   *
-   * `dayStart` is local midnight of [day]; `dayEndExclusive` is local midnight of the following
-   * day. "Due on or before [day]" is `dueDate < dayEndExclusive`; "happened on [day]" is `>=
-   * dayStart && < dayEndExclusive`.
-   */
+  /** Returns the half open window `[dayStart, dayEndExclusive)` of [day] in [timeZone]. */
   private fun dayBounds(day: LocalDate): Pair<Instant, Instant> {
     val dayStart = day.atStartOfDayIn(timeZone)
     val dayEndExclusive = day.plus(1, DateTimeUnit.DAY).atStartOfDayIn(timeZone)

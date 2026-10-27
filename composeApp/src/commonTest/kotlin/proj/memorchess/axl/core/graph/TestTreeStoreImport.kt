@@ -18,9 +18,8 @@ import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testTreeStore
 
 /**
- * Tests for [TreeStore.importNodes], the entry point [GraphSerializer.deserialize] results must be
- * persisted through instead of a direct [proj.memorchess.axl.core.data.DatabaseQueryManager] call,
- * since the wire format carries no device identity of its own.
+ * [TreeStore.importNodes] must stamp deserialized graphs, since the wire format carries no device
+ * identity.
  */
 class TestTreeStoreImport {
 
@@ -29,9 +28,7 @@ class TestTreeStoreImport {
   private val posB = PositionKey("posB b K")
 
   /**
-   * A two node graph connected by one edge, shaped exactly as [GraphSerializer.deserialize] emits
-   * it: the same [DataMove] appears once in [start]'s `nextMoves` and once in [posA]'s
-   * `previousMoves`, both with the wire format's placeholder `""`/`0L` identity.
+   * A one edge graph shaped as [GraphSerializer.deserialize] emits it, with placeholder identity.
    */
   private fun importedGraph(updatedAt: Instant): List<DataNode> {
     val edge =
@@ -86,8 +83,7 @@ class TestTreeStoreImport {
     origin.deviceSeq shouldBeGreaterThan 0L
     destination.originDevice shouldBe origin.originDevice
 
-    // The trap: the edge is described once from each endpoint. Both copies must carry the exact
-    // same stamp, not two different ones from a naive allocation per node.
+    // The edge is described once from each endpoint; both copies must carry the same stamp.
     val fromOrigin = origin.previousAndNextMoves.nextMoves.getValue("e4")
     val fromDestination = destination.previousAndNextMoves.previousMoves.getValue("e4")
     fromOrigin.originDevice shouldBe origin.originDevice
@@ -106,8 +102,7 @@ class TestTreeStoreImport {
 
     store.importNodes(importedGraph(Instant.parse("2026-01-01T00:00:00Z")))
 
-    // insertNodes merges, so the database now holds both edges. Read back through the cache: with
-    // start left resident this served the pre import node and the imported "e4" stayed invisible.
+    // insertNodes merges, so both edges must be visible through the cache too.
     store.node(start)!!.outgoing.keys shouldBe setOf("d4", "e4")
   }
 
@@ -160,12 +155,9 @@ class TestTreeStoreImport {
     val nodeA = databaseA.getPosition(start)!!
     val nodeB = databaseB.getPosition(start)!!
 
-    // Two independent devices produce two different identities. Before the fix both stayed the
-    // wire format's shared "" placeholder and could never be told apart.
     nodeA.originDevice shouldNotBe nodeB.originDevice
 
-    // Newer content must win the same way seen from either side, which is what makes the two
-    // devices converge instead of each insisting its own copy is authoritative forever.
+    // Newer content wins from either side, so the two devices converge.
     val resolutionFromA = resolve(nodeA.toNodeSyncRow(), nodeB.toNodeSyncRow())
     val resolutionFromB = resolve(nodeB.toNodeSyncRow(), nodeA.toNodeSyncRow())
     resolutionFromA.row.originDevice shouldBe nodeB.originDevice

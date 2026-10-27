@@ -34,8 +34,7 @@ class TestTrainingNodeOrder : TestWithKoin() {
 
   @Test
   fun testSchedulerHonorsNewLimitSetting() = test {
-    // The injected scheduler reads the cap from the config item. Vienna positions are all brand
-    // new, so dropping the new limit to zero empties the queue; restoring it brings them back.
+    // Vienna positions are all new, so a zero new limit empties the queue.
     assertNotNull(scheduler.nextDue())
     MAX_NEW_MOVES_PER_DAY_SETTING.setValue(0)
     assertNull(scheduler.nextDue())

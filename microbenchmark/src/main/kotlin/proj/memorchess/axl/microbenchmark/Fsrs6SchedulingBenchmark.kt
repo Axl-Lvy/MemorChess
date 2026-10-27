@@ -13,13 +13,8 @@ import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.scheduling.ReviewGrade
 
 /**
- * Measures a full [Fsrs6SchedulingAlgorithm] scheduling pass over a deterministic batch of
- * [CardState] values covering every [ReviewGrade], every [CardPhase], and a first review.
- *
- * Guards against regressions in the FSRS math (forgetting curve, stability and difficulty updates,
- * interval fuzz). The trainer schedules every reviewed position synchronously on the UI thread, so
- * a slowdown here directly delays the next card after each answer. The fuzz source is a constant so
- * results never depend on randomness.
+ * Measures [Fsrs6SchedulingAlgorithm] over a deterministic batch covering every grade and phase.
+ * The trainer schedules on the UI thread, so a slowdown here delays the next card.
  */
 @State(Scope.Benchmark)
 class Fsrs6SchedulingBenchmark {
@@ -38,8 +33,7 @@ class Fsrs6SchedulingBenchmark {
 
   @Setup
   fun setup() {
-    // One null entry exercises the first review path; the rest sweep phases, learning steps,
-    // elapsed times, stabilities and difficulties with fixed arithmetic progressions.
+    // The null entry exercises the first review path.
     cards =
       listOf(null) +
         (0 until 100).map { i ->
@@ -57,11 +51,7 @@ class Fsrs6SchedulingBenchmark {
         }
   }
 
-  /**
-   * Schedules every card of the batch with all four grades through the short term state machine.
-   *
-   * Guards the learning and relearning routing on top of the core FSRS math.
-   */
+  /** Schedules every card with all four grades through the short term state machine. */
   @Benchmark
   fun shortTermSchedulingPass(bh: Blackhole) {
     for (card in cards) {
@@ -71,12 +61,7 @@ class Fsrs6SchedulingBenchmark {
     }
   }
 
-  /**
-   * Schedules every card of the batch with all four grades through the long term path, which
-   * computes candidate intervals for all grades and enforces their monotonic ordering.
-   *
-   * Guards the heavier all grades candidate computation of the long term scheduler.
-   */
+  /** Schedules every card with all four grades through the long term path. */
   @Benchmark
   fun longTermSchedulingPass(bh: Blackhole) {
     for (card in cards) {

@@ -3,7 +3,7 @@ package proj.memorchess.axl.core.data.explorer
 import kotlinx.serialization.json.Json
 import proj.memorchess.axl.core.data.CustomDatabase
 
-/** Room backed [ExplorerCache]. Shared by Android, JVM and iOS through `nonJsMain`. */
+/** Room backed [ExplorerCache]. */
 internal class NonJsExplorerCache(database: CustomDatabase, private val json: Json) :
   ExplorerCache {
 

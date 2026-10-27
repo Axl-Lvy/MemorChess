@@ -15,11 +15,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * Speaks OAuth 2.0 + PKCE + OpenID Connect with [issuer].
- *
- * Handles the two token endpoint calls the client owns (the initial code exchange and refresh) plus
- * decoding the id token for display. The browser side of the flow is platform specific and lives
- * behind [OAuthLauncher], reused unchanged from the Lichess flow.
+ * OAuth 2.0 + PKCE + OpenID Connect token client for [issuer]. The browser side of the flow lives
+ * in [OAuthLauncher].
  */
 class OidcClient(private val httpClient: HttpClient, private val issuer: String = SYNC_ISSUER) {
 
@@ -40,10 +37,7 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
       "&resource=${audience.encode()}" +
       "&state=${state.encode()}"
 
-  /**
-   * Exchanges [code] (received from the redirect URI) for a token set via PKCE, with an access
-   * token scoped to [audience].
-   */
+  /** Exchanges the redirect's authorization [code] for a token set scoped to [audience]. */
   suspend fun exchangeCode(
     clientId: String,
     redirectUri: String,
@@ -63,9 +57,9 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
     )
 
   /**
-   * Exchanges a stored refresh token for a new token set scoped to [audience], like [exchangeCode].
-   * The issuer rotates refresh tokens for public clients: the caller must persist the returned
-   * [OidcTokenExchangeResult.Ok.refreshToken], not reuse [refreshToken].
+   * Exchanges [refreshToken] for a new token set scoped to [audience]. The issuer rotates refresh
+   * tokens: persist the returned [OidcTokenExchangeResult.Ok.refreshToken], never reuse the old
+   * one.
    */
   suspend fun refresh(
     clientId: String,
@@ -141,10 +135,8 @@ private data class OidcTokenResponse(
 @Serializable private data class IdTokenPayload(val sub: String, val name: String? = null)
 
 /**
- * Decodes the `sub` and `name` claims out of an id token's payload segment, for display only. The
- * signature is not verified: the token just travelled over TLS straight from the issuer's own token
- * endpoint, so there is nothing to verify against here that the transport did not already
- * guarantee.
+ * Decodes the `sub` and `name` claims of [idToken] for display. The signature is not verified: the
+ * token came over TLS straight from the issuer's token endpoint.
  */
 @OptIn(ExperimentalEncodingApi::class)
 internal fun decodeIdToken(idToken: String): Account? {

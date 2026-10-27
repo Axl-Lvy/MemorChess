@@ -18,20 +18,11 @@ import proj.memorchess.axl.ui.theme.KineticDarkPalette
 import proj.memorchess.axl.ui.theme.KineticLightPalette
 
 /**
- * Pins [KineticEvalRail]'s production seams: [evalRailSafeRatio] (the clamping contract),
- * [evalRailMarkerBand] (the marker never escapes the rail, and a zero-height rail does not throw),
- * and [kineticEvalMarkerColor], which the issue's acceptance criterion moved off the `action`
- * family. The glow and value-text colours read `palette.progressGlow`/`palette.progressText`
- * directly in production and are covered by `TestKineticPalette`, so they are not repinned here.
- *
- * Groups 1-3 are plain non-composable assertions and carry the whole contract on purpose: the
- * composable smoke tests of group 4 only prove that composition completes, because the draw pass
- * that `drawBehind` lives in is not guaranteed to run on every test host.
+ * The plain helper tests carry the contract: the composable tests only prove composition completes,
+ * since the draw pass is not guaranteed to run on every test host.
  */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticEvalRail {
-
-  // GROUP 1 — evalRailSafeRatio clamping.
 
   @Test
   fun safeRatioKeepsZero() {
@@ -89,8 +80,6 @@ internal class TestKineticEvalRail {
     evalRailSafeRatio(-0.0f).toRawBits() shouldBe 0.0f.toRawBits()
   }
 
-  // GROUP 2 — evalRailMarkerBand geometry.
-
   @Test
   fun markerBandAlwaysStaysInsideTheRail() {
     val ratios = listOf(0f, Float.MIN_VALUE, 0.25f, 0.5f, 1f)
@@ -143,13 +132,9 @@ internal class TestKineticEvalRail {
     band.endInclusive shouldBe MARKER_THICKNESS
   }
 
-  // GROUP 3 — the marker colour seam the rail rides.
-  //
-  // Each test pins a literal hex rather than the palette property the seam returns: asserting
-  // `seam(palette) shouldBe palette.progress` restates the seam's own body and cannot fail.
-
   @Test
   fun markerIsLimeInDarkPalette() {
+    // A literal hex, since asserting `palette.progress` would restate the seam and never fail.
     kineticEvalMarkerColor(KineticDarkPalette) shouldBe Color(0xFFB4F542)
   }
 
@@ -169,8 +154,6 @@ internal class TestKineticEvalRail {
     kineticEvalMarkerColor(KineticDarkPalette) shouldNotBe
       kineticEvalMarkerColor(KineticLightPalette)
   }
-
-  // GROUP 4 — composition smoke tests.
 
   @Test
   fun railComposesAtRatioZero() = runComposeUiTest {
@@ -262,7 +245,7 @@ internal class TestKineticEvalRail {
   }
 
   private companion object {
-    /** The rail's crisp marker is 2.dp thick; these tests work in raw pixels at density 1. */
+    /** The rail's 2.dp marker, in raw pixels at density 1. */
     const val MARKER_THICKNESS = 2f
   }
 }

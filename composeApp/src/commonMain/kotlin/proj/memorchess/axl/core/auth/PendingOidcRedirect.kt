@@ -2,10 +2,7 @@ package proj.memorchess.axl.core.auth
 
 import com.russhwolf.settings.Settings
 
-/**
- * One in-flight wasmJs redirect sign-in attempt: the PKCE verifier and CSRF state generated before
- * navigating to the authorization URL, plus the hash to return to once it completes.
- */
+/** In-flight wasmJs redirect sign-in: PKCE verifier, CSRF state, and the hash to return to. */
 internal data class PendingOidcRedirect(
   val state: String,
   val codeVerifier: String,
@@ -13,15 +10,11 @@ internal data class PendingOidcRedirect(
 )
 
 /**
- * Persists at most one [PendingOidcRedirect] across the full page reload the wasmJs redirect flow
- * requires. Backed by [Settings], same store [OidcTokenStore] uses. A new [save] overwrites any
- * earlier abandoned attempt, so no explicit expiry is needed; two tabs starting sign in
- * concurrently share this one record and the first to finish invalidates the other, an accepted
- * limitation for this app's traffic (see the design spec).
+ * Persists at most one [PendingOidcRedirect] across the wasmJs redirect page reload. A new [save]
+ * overwrites any abandoned attempt, so two tabs signing in concurrently invalidate each other.
  */
 internal class PendingOidcRedirectStore(private val settings: Settings) {
 
-  /** Overwrites any previously stored record. */
   fun save(record: PendingOidcRedirect) {
     settings.putString(KEY_STATE, record.state)
     settings.putString(KEY_VERIFIER, record.codeVerifier)
@@ -36,7 +29,6 @@ internal class PendingOidcRedirectStore(private val settings: Settings) {
     return PendingOidcRedirect(state, verifier, returnHash)
   }
 
-  /** Removes the stored record, if any. */
   fun clear() {
     settings.remove(KEY_STATE)
     settings.remove(KEY_VERIFIER)

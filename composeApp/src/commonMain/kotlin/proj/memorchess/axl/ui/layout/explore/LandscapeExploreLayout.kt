@@ -13,18 +13,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Threshold below which the layout switches to phone-landscape paddings + narrower side panel. */
+/** Height below which the layout uses phone landscape paddings and a narrower side panel. */
 private val COMPACT_HEIGHT_THRESHOLD = 480.dp
 
 /**
- * Desktop / landscape Kinetic explore layout. Composes the moves trail, board (with optional eval
- * rail), and control bar in a tall left column; the [ExploreLayoutContent.sideInfo] slot fills a
- * fixed-width right rail.
- *
- * Two variants based on available height:
- * - **Tall (height >= 480.dp)**: 28.dp paddings, 420.dp side panel — desktop and tablet.
- * - **Compact (height < 480.dp)**: 12.dp paddings, 280.dp side panel — phone landscape, where the
- *   board is the priority and the side info gets a tighter strip.
+ * Landscape explore layout: moves trail, board and control bar in a left column, with
+ * [ExploreLayoutContent.sideInfo] in a fixed width right rail.
  */
 @Composable
 fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {

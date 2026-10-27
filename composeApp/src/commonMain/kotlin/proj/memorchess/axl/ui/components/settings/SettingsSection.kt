@@ -22,30 +22,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 import proj.memorchess.axl.ui.theme.kineticShadow
 
 /**
- * Kinetic settings section container. Mirrors `.section`, `.section-h`, and `.card.full` from
- * `design-proposals/kinetic-settings-desktop.html`.
- *
- * Renders a `panel` background clipped and outlined to a 20.dp rounded
- * [MaterialTheme.shapes.medium] card, with a 1.5.dp `line` border and a 5.dp Kinetic offset shadow
- * following the same rounded outline. The card's own border is the single visible stroke on the
- * card — [kineticShadow] is asked not to draw its own line stroke (`drawBorder = false`), since it
- * is chained outside this card's border, its stroke draws on top of it. The [title] sits at the top
- * in Baloo 2 700 16sp `ink`, with an optional [description] line beneath in `labelSm` `ink3`. A
- * 12.dp gap separates the title block from [content].
- *
- * When [danger] is true the section gains a 3.dp `destructive` vertical strip on the left edge,
- * drawn with [drawWithContent] *after* the card's own border so the full 3.dp width paints on top
- * of it instead of being partly covered by it; the background is tinted with `destructiveSoft` and
- * the border switches to `destructiveDim`. Like the rest of the card, the strip is still subject to
- * the outer 20.dp corner clip, so it visibly tapers off — rather than showing a hard-edged
- * rectangle — over the last ~20.dp before each corner. Use this for the Danger Zone section only.
- *
- * @param title Uppercase-ready section heading, rendered as-is.
- * @param modifier External modifier applied to the outer column.
- * @param description Optional secondary line shown directly under the title.
- * @param danger When true, applies the danger styling (destructive strip + tinted background).
- * @param content Section body, rendered in a [Column] with no inter-child spacing — callers compose
- *   their own spacing.
+ * Settings section card with a [title], an optional [description], and [content]. [danger] adds the
+ * destructive strip and tint reserved for the Danger Zone.
  */
 @Composable
 fun SettingsSection(
@@ -61,7 +39,7 @@ fun SettingsSection(
   val borderColor = if (danger) palette.destructiveDim else palette.line
   val titleColor = if (danger) palette.destructive else palette.ink
   val strip = palette.destructive
-  val cardShape = MaterialTheme.shapes.medium // 20.dp, per SHAPE CONTRACT "Cards / panels / sheets"
+  val cardShape = MaterialTheme.shapes.medium
 
   Column(
     modifier =
@@ -72,10 +50,7 @@ fun SettingsSection(
         .background(color = background, shape = cardShape)
         .then(
           if (danger) {
-            // Placed *outside* (before, in chain order) the border below: border draws its stroke
-            // only after drawContent() returns, so a strip drawn behind the border would have its
-            // outer half painted over. drawWithContent lets us draw the strip only after the whole
-            // chain below — border included — has finished, putting it on top instead.
+            // Chained before the border so the strip draws after the border's stroke, on top of it.
             Modifier.drawWithContent {
               drawContent()
               val stripPx = 3.dp.toPx()

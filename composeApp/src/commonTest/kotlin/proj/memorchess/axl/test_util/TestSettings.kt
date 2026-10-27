@@ -2,7 +2,7 @@ package proj.memorchess.axl.test_util
 
 import com.russhwolf.settings.Settings
 
-/** A simple implementation of [Settings] for testing purposes, backed by a mutable map. */
+/** Map backed [Settings] for tests. */
 class TestSettings : Settings {
 
   private val map = mutableMapOf<String, Any?>()

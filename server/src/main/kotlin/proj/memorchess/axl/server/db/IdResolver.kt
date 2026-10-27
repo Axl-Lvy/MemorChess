@@ -7,18 +7,13 @@ import java.sql.Connection
  *
  * @property origin Cropped FEN of the origin position.
  * @property destination Cropped FEN of the destination position.
- * @property move The move in standard algebraic notation. A pure function of the two endpoints, and
- *   therefore stored once globally rather than once per user.
+ * @property move The move in standard algebraic notation, derived from the two endpoints.
  */
 internal data class EdgeIdentity(val origin: String, val destination: String, val move: String)
 
 /**
- * Interns [keys] into the shared `position` table and returns their ids.
- *
- * Runs inside the caller's transaction, so a push can resolve ids and write user rows atomically.
- * The batch is **sorted** before insertion: two concurrent transactions inserting overlapping sets
- * in different orders deadlock, and a single lock order removes the possibility. Duplicates within
- * [keys] collapse, and keys that already exist are left untouched.
+ * Interns [keys] into the shared `position` table within the caller's transaction and returns their
+ * ids. Keys are inserted sorted, since concurrent inserts in different orders deadlock.
  */
 internal fun Connection.resolvePositionIds(keys: Collection<String>): Map<String, Long> {
   val distinct = keys.toSortedSet()
@@ -45,12 +40,8 @@ internal fun Connection.resolvePositionIds(keys: Collection<String>): Map<String
 }
 
 /**
- * Interns [edges] into the shared `move_edge` table and returns their ids, resolving both endpoints
- * through [resolvePositionIds] first.
- *
- * Sorted for the same lock ordering reason as [resolvePositionIds]. `move` is written only on
- * insert: it is derivable from the endpoints, so an existing row's value is authoritative and is
- * never updated.
+ * Interns [edges] into the shared `move_edge` table and returns their ids, sorted for the same lock
+ * order as [resolvePositionIds]. An existing row's `move` is never updated.
  */
 internal fun Connection.resolveEdgeIds(edges: Collection<EdgeIdentity>): Map<EdgeIdentity, Long> {
   val distinct = edges.toSortedSet(compareBy({ it.origin }, { it.destination }))

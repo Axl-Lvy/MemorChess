@@ -6,11 +6,8 @@ import javax.sql.DataSource
 import org.testcontainers.containers.PostgreSQLContainer
 
 /**
- * One Postgres container shared by the whole test run.
- *
- * Starting a container per test class costs seconds each. Tests isolate themselves with a distinct
- * user id instead, which is realistic: the store is multi tenant by design, and the only global
- * state is the shared `position` and `move_edge` tables, which are append only.
+ * One Postgres container shared by the whole test run. Tests isolate themselves by user id, since
+ * the only global tables, `position` and `move_edge`, are append only.
  */
 internal object PostgresTestDb {
 

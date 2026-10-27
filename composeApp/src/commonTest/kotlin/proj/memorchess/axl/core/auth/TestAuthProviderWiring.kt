@@ -6,10 +6,8 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.test_util.TestWithKoin
 
 /**
- * Verifies the DI graph actually resolves an [AuthProvider], catching a broken Koin binding
- * (missing dependency, wrong scope) that a unit test constructing [OidcSignInController] directly
- * would never see. Not pinned to a concrete type: [getPlatformSpecificSyncAuthProvider] returns a
- * different implementation on wasmJs ([OidcRedirectSignInController]) than on other platforms.
+ * Catches a broken Koin binding for [AuthProvider] that direct construction would miss. Not pinned
+ * to a concrete type, since wasmJs binds a different implementation.
  */
 class TestAuthProviderWiring : TestWithKoin() {
 

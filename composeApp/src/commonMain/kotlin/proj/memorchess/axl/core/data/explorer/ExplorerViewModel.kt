@@ -14,19 +14,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 /**
- * Drives the Lichess explorer panel.
- *
- * Observes the current FEN from the explore screen, debounces rapid changes (so a fast click
- * through several moves does not trigger one fetch per move), and exposes a [StateFlow] of
- * [ExplorerState] that the UI renders.
- *
- * The active [ExplorerSource] is also exposed as state so the source toggle in the UI controls both
- * the request and the displayed result.
- *
- * Callers must:
- * 1. Provide a [CoroutineScope] tied to the screen's lifecycle (use `rememberCoroutineScope` in
- *    Compose).
- * 2. Push the current FEN via [setFen] whenever the explorer's board position changes.
+ * Drives the Lichess explorer panel from the FENs pushed through [setFen], debounced. [scope] must
+ * be tied to the screen's lifecycle.
  */
 @OptIn(FlowPreview::class)
 class ExplorerViewModel(
@@ -42,7 +31,7 @@ class ExplorerViewModel(
   /** Current state of the panel. */
   val state: StateFlow<ExplorerState> = internalState.asStateFlow()
 
-  /** Currently selected source (masters or lichess). */
+  /** Currently selected source. */
   val source: StateFlow<ExplorerSource> = sourceFlow.asStateFlow()
 
   init {
@@ -86,7 +75,7 @@ class ExplorerViewModel(
   }
 }
 
-/** State of the explorer panel. Consumed by Compose. */
+/** State of the explorer panel. */
 sealed class ExplorerState {
   /** No FEN pushed yet. */
   data object Idle : ExplorerState()
@@ -107,7 +96,7 @@ sealed class ExplorerState {
   /** No cached entry and Lichess rate limited the request. */
   data class RateLimited(val source: ExplorerSource) : ExplorerState()
 
-  /** User is not signed in to Lichess, or the token was rejected. UI should prompt sign in. */
+  /** User is not signed in to Lichess, or the token was rejected. */
   data class Unauthorized(val source: ExplorerSource) : ExplorerState()
 
   /** No cached entry and the network call failed. */

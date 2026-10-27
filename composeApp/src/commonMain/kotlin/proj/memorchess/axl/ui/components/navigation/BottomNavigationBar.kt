@@ -5,11 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import proj.memorchess.axl.ui.pages.navigation.LocalNavigator
 
-/**
- * App-level bottom navigation bar. Delegates rendering to [KineticBottomNav] and wires the active
- * route into [LocalNavigator]; the wrapper exists so call sites in `App.kt` remain unchanged and
- * Android instrumented tests can keep referencing the `bottom_navigation_bar_item_*` test tags.
- */
+/** App-level bottom navigation bar: a [KineticBottomNav] that navigates via [LocalNavigator]. */
 @Composable
 fun BottomNavigationBar(
   currentRoute: String,

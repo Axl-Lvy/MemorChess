@@ -16,10 +16,7 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 
 @OptIn(ExperimentalTestApi::class)
 class TestNavigation {
-  /**
-   * The Compose test rule used to interact with the UI. This is automatically initialized by JUnit
-   * before tests are executed.
-   */
+  /** Compose rule driving [MainActivity]. */
   @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
 
   @Test
@@ -34,11 +31,8 @@ class TestNavigation {
 
   @Test
   fun testGoToTraining() {
-    // TodayRoute is the NavHost start destination, so the Training tab is already active on
-    // launch and tapping it there would be a no-op. Start from Explore instead, so the tap below
-    // is a real navigation.
+    // Today is the start destination, so tapping Training from there would be a no-op.
     this.clickOnDestinationButton(Route.ExploreRoute.DEFAULT)
-    // The Training tab now lands on Today first (see Route.TodayRoute), not the board directly.
     this.clickOnDestinationButton(Route.TodayRoute)
     assertNodeWithTagExists("bottom_navigation_bar_item_${Route.TodayRoute.getLabel()}")
     waitUntilNodeExists(hasTestTag("today_cta")).performClick()
@@ -55,25 +49,12 @@ class TestNavigation {
     assertNodeWithTagExists("bottom_navigation_bar_item_${Route.SettingsRoute.getLabel()}")
   }
 
-  /**
-   * Clicks on a navigation button for the specified destination.
-   *
-   * This method waits for the navigation button to be visible, then clicks on it.
-   *
-   * @param destination The destination to navigate to
-   */
   private fun clickOnDestinationButton(destination: Route) {
     waitUntilNodeExists(hasTestTag("bottom_navigation_bar_item_${destination.getLabel()}"))
       .performClick()
   }
 
-  /**
-   * Asserts that a UI element with the specified tag exists and returns it.
-   *
-   * @param tag The tag used to identify the UI element
-   * @return The SemanticsNodeInteraction representing the found element
-   * @throws AssertionError if no element with the specified tag exists
-   */
+  /** Waits for the node tagged [tag] and asserts it exists. */
   fun assertNodeWithTagExists(tag: String): SemanticsNodeInteraction {
     return waitUntilNodeExists(hasTestTag(tag)).assertExists()
   }

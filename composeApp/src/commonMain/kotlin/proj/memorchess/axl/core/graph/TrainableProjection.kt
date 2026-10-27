@@ -4,15 +4,8 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 
 /**
- * Projection of a position's live, good, tagged outgoing edges into its `NodeRepertoireTrainable`
- * row set.
- *
- * Reads its tags straight from [DatabaseQueryManager.getTags] rather than through
- * [RepertoireTagStore], whose own tag write recomputes this projection. Depending the other way
- * would close a cycle between the two.
- *
- * @param database Persistence backend.
- * @param cache Cache the origin is resolved through.
+ * Projects a position's live, good, tagged outgoing edges into its `NodeRepertoireTrainable` rows.
+ * Reads tags from [DatabaseQueryManager.getTags], not [RepertoireTagStore], to avoid a cycle.
  */
 class TrainableProjection(
   private val database: DatabaseQueryManager,
@@ -20,9 +13,8 @@ class TrainableProjection(
 ) {
 
   /**
-   * Rewrites [origin]'s entire row set: one row per repertoire with at least one live, good
-   * outgoing edge tagged with it, each stamped with [origin]'s current card state review date. A no
-   * op when [origin] cannot be resolved.
+   * Rewrites [origin]'s rows, one per repertoire tagging a live, good outgoing edge, stamped with
+   * [origin]'s last review. A no-op when [origin] cannot be resolved.
    */
   suspend fun recompute(origin: PositionKey) {
     val resolved = cache.resolve(origin).node ?: return
@@ -34,7 +26,7 @@ class TrainableProjection(
     database.replaceTrainableRepertoires(origin, repertoireIds, resolved.cardState.lastReview)
   }
 
-  /** Empties [positionKey]'s row set, for a position that is being deleted. */
+  /** Empties [positionKey]'s row set. */
   suspend fun clear(positionKey: PositionKey) {
     database.replaceTrainableRepertoires(positionKey, emptySet(), null)
   }

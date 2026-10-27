@@ -59,15 +59,13 @@ import proj.memorchess.axl.ui.theme.goodTint
 import proj.memorchess.axl.ui.util.BasicReloader
 
 /**
- * Training board entry point. Selects the first card on entry. [repertoireId] narrows the session
- * to one repertoire, or `null` for the unscoped default.
+ * Training board entry point. [repertoireId] narrows the session to one repertoire, or `null` for
+ * the unscoped default.
  */
 @Composable
 fun TrainingBoardPage(modifier: Modifier = Modifier, repertoireId: String? = null) {
   val trainingBoard = remember(repertoireId) { TrainingBoard(repertoireId) }
-  // The initial card selection is suspendable, so it runs inside the loading phase: the board only
-  // renders once the first card is chosen, avoiding a transient "nothing to train" flash before
-  // selection completes. The graph is demand paged, so no eager load is needed.
+  // Choosing the first card while loading avoids a transient "nothing to train" flash.
   LoadingWidget({ trainingBoard.choseNextNode() }) { trainingBoard.Draw(modifier = modifier) }
 }
 
@@ -88,16 +86,13 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
   private var chosenNode by mutableStateOf<Node?>(null)
   // Squares outlined by HINT / REVEAL for the current card.
   private var hintSquares by mutableStateOf(emptySet<BoardLocation>())
-  // Whether the current card was failed by a wrong move, a hint or a reveal. A failed card counts
-  // once as a fail and is retried until the right move is played, which then counts nothing.
+  // A failed card counts once as a fail and is retried until played right, which counts nothing.
   private var failed by mutableStateOf(false)
-  // Monotonic count of graded moves, driving the board feedback animations once per move.
+  // Bumped per graded move so the feedback animations play once per move.
   private var attempt by mutableStateOf(0)
   private val assistConfirmation = ConfirmationDialog()
 
-  // Session counters — live for the lifetime of this `TrainingBoard` instance (i.e. the lifetime
-  // of the page). When the user leaves Training and comes back, the page is recreated and these
-  // reset to 0.
+  // Reset whenever the page is recreated.
   private var successCount by mutableStateOf(0)
   private var failCount by mutableStateOf(0)
 
@@ -107,8 +102,6 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
       produceState(0, localReloader.getKey(), daysInAdvance) {
         value = trainingScheduler.pendingCount(dayOffset(daysInAdvance), repertoireId)
       }
-    // Auto-advance after a correct move: wait moveDelay then move on to the next entry. A wrong
-    // move is retried on the same card instead, see NodeToTrain.
     LaunchedEffect(reloader.getKey()) {
       if (state == TrainingBoardState.SHOW_CORRECT_MOVE) {
         delay(moveDelay)
@@ -140,11 +133,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
     }
   }
 
-  /**
-   * Selects the next card to train and updates [chosenNode]. Suspends because it queries the
-   * bounded scheduling surface. Called for the initial selection during the loading phase and after
-   * every move or skip.
-   */
+  /** Selects the next card to train into [chosenNode]. */
   suspend fun choseNextNode() {
     // A failed card was graded AGAIN, so it collapses the days-in-advance window.
     state = if (failed) TrainingBoardState.FROM_WRONG_MOVE else state.toPlayableState()
@@ -167,11 +156,8 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
   @Composable
   private fun NoNodeToTrain(modifier: Modifier = Modifier) {
     if (!state.isCorrect && daysInAdvance > 1) {
-      // A failed review while training days in advance collapses the window back to one day, so
-      // the user reviews the forgotten card again soon instead of keeping on burning future days.
-      // This must also re-run node selection: writing daysInAdvance alone only recomposes, and
-      // when the deck at the collapsed window is empty the early return would otherwise leave the
-      // screen blank.
+      // A failed review collapses the window to one day. Selection must re-run too: writing
+      // daysInAdvance alone only recomposes, leaving the screen blank on an empty deck.
       LaunchedEffect(Unit) {
         daysInAdvance = 1
         choseNextNode()
@@ -257,15 +243,9 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
       trainer.registerCallBack { reloader.reload() }
       trainer
     }
-    // Swap the trainer's node only when the training entry actually changes. Calling updateNode on
-    // every recomposition (e.g. when `state` flips to SHOW_CORRECT_MOVE right after the user's
-    // move)
-    // would re-trigger its "engine drifted past node" reset path — that's what caused the
-    // user-visible "move plays → rollback → both moves animate together" glitch: the rollback came
-    // from the reset, and the combined animation came from the next entry's updateNode diffing the
-    // pre-move position against the next training position.
+    // Calling updateNode on every recomposition would trigger its reset path and roll back the
+    // user's move, so it only runs when the entry changes.
     LaunchedEffect(nodeToLearn) { trainer.updateNode(nodeToLearn) }
-    // A wrong move stays on screen for moveDelay, then the same position comes back for a retry.
     LaunchedEffect(state) {
       if (state == TrainingBoardState.SHOW_WRONG_MOVE) {
         delay(moveDelay)
@@ -273,11 +253,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
         trainer.retry()
       }
     }
-    // Derive board orientation from nodeToLearn directly, not from `trainer.engine`. The trainer's
-    // engine has not yet been swapped to the new entry at this point in composition (updateNode
-    // runs in the LaunchedEffect, after composition), so reading trainer.engine.playerTurn here
-    // returns the player-to-move of the OLD engine — i.e. the opponent's color after the user's
-    // last move. That mis-derivation was causing the board to flip whenever a new entry loaded.
+    // Not trainer.engine: updateNode swaps it after composition, so it would still be the old one.
     val inverted =
       remember(nodeToLearn.positionKey) {
         GameEngine(nodeToLearn.positionKey).playerTurn == Player.BLACK
@@ -325,8 +301,6 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
           },
           progress = { mod -> KineticProgressRail(progress = progress, modifier = mod) },
           movesTrail = { mod ->
-            // v1: empty trail. Acceptable per the Explore precedent; the Training visual port does
-            // not yet surface the line history.
             MovesTrail(moves = emptyList(), currentIndex = -1, onSeek = {}, modifier = mod)
           },
           controlBar = { mod ->

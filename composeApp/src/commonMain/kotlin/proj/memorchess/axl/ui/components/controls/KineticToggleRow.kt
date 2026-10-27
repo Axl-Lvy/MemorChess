@@ -12,13 +12,9 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
- * A label-on-left, [KineticToggle]-on-right row, used by the settings sections for boolean
- * settings.
+ * A row with [label] on the left and a [KineticToggle] on the right.
  *
- * @param label Text shown on the left.
- * @param checked Current toggle state.
- * @param onCheckedChange Called with the new state when the toggle flips.
- * @param testTag Test tag applied to the toggle, conventionally the backing setting's name.
+ * @param testTag Applied to the toggle.
  */
 @Composable
 fun KineticToggleRow(

@@ -17,21 +17,10 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 private val SEAM_WIDTH = 2.dp
 
 /**
- * Two-panel curtain wipe for a `NavHost` destination. During a navigation both the outgoing and
- * incoming screens are composed at once (kept alive by [KineticMotion.holdEnter] / [holdExit]);
- * this modifier clips each to its side of a vertical accent seam that travels across the screen, so
- * the old screen and the new screen are visible **simultaneously**, split by the moving line.
+ * Curtain wipe clipping the outgoing and incoming `NavHost` screens to either side of a moving
+ * seam. Pair with [KineticMotion.holdEnter] and [KineticMotion.holdExit] so both stay composed.
  *
- * Both panels stay static — only the clip boundary moves — which keeps the per-frame cost to two
- * clipped layer composites plus the seam rect. The wipe progress is taken from the destination's
- * own enter/exit [transition] and read **inside [drawWithContent]**, so the clip animates in the
- * draw phase with no recomposition. The incoming panel paints the bright seam (unclipped, on top)
- * so it is drawn exactly once.
- *
- * Apply inside a `composable<…> { }` block, where the receiver is the [AnimatedVisibilityScope].
- *
- * @param revealFromRight When `true` the incoming screen grows in from the right edge (seam travels
- *   right-to-left); when `false` it grows in from the left. Driven by navigation direction.
+ * @param revealFromRight Whether the incoming screen grows in from the right edge.
  */
 @Composable
 fun AnimatedVisibilityScope.wipeReveal(revealFromRight: Boolean): Modifier {
@@ -46,7 +35,6 @@ fun AnimatedVisibilityScope.wipeReveal(revealFromRight: Boolean): Modifier {
     // Normalize so both panels share one 0 -> 1 wipe progress.
     val p = if (entering) raw else 1f - raw
     val w = size.width
-    // Seam x. Reveal-from-right means the seam starts at the right edge and travels left.
     val x = if (revealFromRight) (1f - p) * w else p * w
     // The new (entering) screen occupies the already-revealed side; the old one the remainder.
     val newOnLeft = !revealFromRight

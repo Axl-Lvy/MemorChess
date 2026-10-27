@@ -17,7 +17,7 @@ internal class TestSyncStorePull {
 
   private val store = SyncStore(PostgresTestDb.dataSource())
 
-  /** A fresh user with one registered device, which pushing now requires. */
+  /** A fresh user with one registered device, which pushing requires. */
   private suspend fun newUser(): String {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
@@ -64,7 +64,7 @@ internal class TestSyncStorePull {
       serverNow,
     )
 
-  /** A fresh user with one registered device, which pulling now requires. */
+  /** A fresh user with one registered device, which pulling requires. */
   private suspend fun registeredUser(): String {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
@@ -221,9 +221,8 @@ internal class TestSyncStorePull {
       serverNow,
     )
 
-    // With limit 2 the settings page fills and its ceiling is the second setting's revision, which
-    // is BELOW both node revisions. The nodes must therefore be withheld entirely, or the caller
-    // would advance its cursor past settings it never received.
+    // The settings page fills below both node revisions, so the nodes are withheld; otherwise the
+    // cursor would skip settings never received.
     val page = pull(user, limit = 2)
     page.settings.map { it.key } shouldBe listOf("a", "b")
     page.nodes.shouldBeEmpty()

@@ -44,20 +44,10 @@ private val PLUS_ONE_FLOAT_DISTANCE = 24.dp
 /** Fraction of the tile size the correct-answer ring expands to, past the tile's own edge. */
 private const val RING_MAX_RADIUS_FRACTION = 0.75f
 
-/** How far [KineticMotion.Celebratory.correctAnswer]'s scale pop grows a played square. */
+/** Scale a correctly played square pops to. */
 private const val SQUARE_POP_SCALE = 1.14f
 
-/**
- * Displays the chess board grid with interactive tiles and animated pieces.
- *
- * Renders the board tiles and pieces, handles tile selection, and animates piece movement. Uses
- * Compose for UI and coroutines for click handling and animation.
- *
- * @param state The board state containing tile, piece, and move information.
- * @param bestMoveArrow Arrow overlay data, or `null` to hide the arrow.
- * @param feedback Training feedback for the current attempt, or the default (nothing to show).
- * @param modifier Modifier for customizing the board layout.
- */
+/** Displays the interactive chess board with animated pieces and training feedback. */
 @Composable
 fun BoardGrid(
   state: BoardGridState,
@@ -70,11 +60,8 @@ fun BoardGrid(
 
   val animationDuration = MOVE_ANIMATION_DURATION_SETTING.getValue()
 
-  // Hoisted here, rather than into DrawTileGrid alongside the other overlay animatables, purely
-  // for z order: BoardGrid composes DrawTileGrid, then DrawPieceGrid, then BestMoveArrow, so a
-  // sibling composed after all three paints above every piece and the arrow, where the floater
-  // needs to be read. BoardGrid is DrawTileGrid's own parent, at least as long lived, so "fires
-  // exactly once per attempt" still holds one level up.
+  // Hoisted here rather than into DrawTileGrid for z order: the floater must paint above every
+  // piece and the arrow.
   val plusOneOffsetY = remember { Animatable(0f) }
   val plusOneAlpha = remember { Animatable(0f) }
   val plusOneFloatPx = with(LocalDensity.current) { PLUS_ONE_FLOAT_DISTANCE.toPx() }
@@ -93,18 +80,11 @@ fun BoardGrid(
       }
       plusOneAlpha.animateTo(0f, KineticMotion.Celebratory.correctAnswer())
     }
-    // else: reduced motion, a wrong answer, or no move played yet. Both animatables are already
-    // snapped to rest above, and PlusOneFloater is not even composed unless
-    // feedback.isCorrect == true && feedback.playedSquare != null, so there is nothing further to
-    // do.
   }
 
   BoxWithConstraints(modifier = modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-    // Derive every tile's offset from a single measurement. The board is uniform, so each tile is
-    // maxWidth / 8; recording positions this way avoids the 64 per-tile BoxWithConstraints
-    // (subcompositions) that used to make navigating to a board screen hitch. Offsets are a
-    // coordinate space consumed only as deltas by AnimatedPiece, so they are independent of board
-    // inversion.
+    // One measurement instead of 64 per-tile subcompositions, which make board screens hitch.
+    // AnimatedPiece only uses these offsets as deltas, so they ignore board inversion.
     val tileSize = maxWidth / 8
     remember(tileSize) {
       for (row in 0..7) {
@@ -129,21 +109,8 @@ fun BoardGrid(
 }
 
 /**
- * Composable function that draws the grid of tiles on the chessboard.
- *
- * The 64 cells exist only to carry the per-tile clickable semantics (click label and on-screen
- * position) that tests and accessibility rely on. Tile backgrounds and the selection highlight are
- * painted in a single [drawBehind] on the grid instead of per-cell composables, so selecting a tile
- * only invalidates the draw phase. Tile pixel positions for piece animation are derived once by
- * [BoardGrid] from a single measurement rather than per tile here.
- *
- * The click label template is resolved through [stringResource] once for the whole grid and
- * formatted per tile, because per-cell resource lookups dominated the board composition time.
- *
- * @param state The board state containing tile information and selection.
- * @param scope Coroutine scope for handling tile click events asynchronously.
- * @param feedback Training feedback for the current attempt; drives the played-square scale pop /
- *   pink pulse, the correct-answer ring, the wrong-answer square outline, and the hint outline.
+ * Draws the tiles and training feedback overlays. The 64 cells only carry click semantics; tiles
+ * and overlays are painted in one [drawBehind], so selecting a tile only invalidates drawing.
  */
 @Composable
 private fun DrawTileGrid(
@@ -154,18 +121,16 @@ private fun DrawTileGrid(
   val colors = CHESS_BOARD_COLOR_SETTING.getValue()
   val palette = LocalKineticPalette.current
   val borderWidth = with(LocalDensity.current) { 3.dp.toPx() }
+  // Resolved once for the grid: per-cell resource lookups dominated board composition time.
   val tileDescriptionTemplate = stringResource(Res.string.description_board_tile)
 
-  // Every Animatable driving an overlay DrawTileGrid itself paints or composes is hoisted here and
-  // driven by exactly one LaunchedEffect(feedback.attempt), mirroring registeredFlash's shape: this
-  // composable stays mounted for the whole time the board is shown, so "fires exactly once per
-  // attempt" holds. (The "+1" floater is the one exception, hoisted into BoardGrid instead. See
-  // there for why.)
-  val squareScale = remember { Animatable(1f) } // correct: 1 -> 1.14 -> 1
-  val wrongPulseAlpha = remember { Animatable(0f) } // wrong: 0 -> 1 -> 0, pink
-  val ringRadiusFraction = remember { Animatable(0f) } // correct: expanding ring
+  // Driven by one LaunchedEffect(feedback.attempt); this composable stays mounted while the board
+  // is shown, so the feedback fires exactly once per attempt.
+  val squareScale = remember { Animatable(1f) }
+  val wrongPulseAlpha = remember { Animatable(0f) }
+  val ringRadiusFraction = remember { Animatable(0f) }
   val ringAlpha = remember { Animatable(0f) }
-  val outlineAlpha = remember { Animatable(0f) } // wrong: correct-square outline
+  val outlineAlpha = remember { Animatable(0f) } // Correct square's outline after a wrong answer.
 
   LaunchedEffect(feedback.attempt) {
     animateTileFeedback(
@@ -209,10 +174,8 @@ private fun DrawTileGrid(
 }
 
 /**
- * Resets [squareScale], [wrongPulseAlpha], [ringRadiusFraction], [ringAlpha] and [outlineAlpha] to
- * rest, then plays the correct- or wrong-answer celebration for [feedback]. Resetting first avoids
- * a prior attempt's still-running animation leaving a stale value (e.g. a second wrong answer in a
- * row finding the outline already at alpha 1 and treating `animateTo(1f)` as a no-op).
+ * Resets every animatable to rest, then plays [feedback]'s animation. Resetting first keeps a prior
+ * attempt's stale value from turning `animateTo` into a no-op.
  */
 private suspend fun CoroutineScope.animateTileFeedback(
   feedback: BoardTrainingFeedback,
@@ -242,8 +205,6 @@ private suspend fun CoroutineScope.animateTileFeedback(
         ringAlpha.animateTo(0f, KineticMotion.Celebratory.correctAnswer())
       }
     }
-    // else: every animatable is already at rest above. That resting state (scale 1, alpha 0
-    // everywhere) is the "instant, no celebration" end state the reduced-motion path asks for.
   } else if (feedback.isCorrect == false && feedback.playedSquare != null) {
     if (animate) {
       wrongPulseAlpha.animateTo(1f, KineticMotion.Routine.wrongAnswer())
@@ -251,19 +212,14 @@ private suspend fun CoroutineScope.animateTileFeedback(
     }
     if (feedback.correctSquare != null) {
       if (animate) outlineAlpha.animateTo(1f, KineticMotion.Routine.wrongAnswer())
-      else outlineAlpha.snapTo(1f) // reduced motion: outline appears immediately, stays visible
+      else outlineAlpha.snapTo(1f)
     }
   }
 }
 
 /**
- * Paints every tile's opaque background, then every overlay (hint outline, selection border,
- * correct-answer ring, wrong-answer outline) in a second pass.
- *
- * Two passes on purpose: a tile's background must be down before any overlay is drawn, or a later
- * tile in draw order (to the right / below) paints its background over an earlier tile's overlay.
- * The ring especially spills past its own tile's edge into its neighbours at full expansion, so
- * painting overlays tile-by-tile inside a single pass clips them there.
+ * Paints every tile background, then every overlay in a second pass, so a later tile's background
+ * never covers an overlay, like the ring, that spills past its own tile.
  */
 private fun DrawScope.drawTilesAndOverlays(
   state: BoardGridState,
@@ -293,8 +249,7 @@ private fun DrawScope.drawTilesAndOverlays(
     val topLeft = Offset(index % 8 * tileSize, index / 8 * tileSize)
     val isSelected =
       selected != null && selected.first == location.row && selected.second == location.col
-    // Before the selection border, which shares its inset, so tapping a hinted square still
-    // shows the selection.
+    // Before the selection border, which shares its inset, so a hinted tile still shows selection.
     if (location in feedback.hintSquares) {
       drawRect(
         color = palette.action,
@@ -304,8 +259,7 @@ private fun DrawScope.drawTilesAndOverlays(
       )
     }
     if (isSelected) {
-      // Inset by half the stroke so the border stays inside the tile, matching the previous
-      // Modifier.border rendering.
+      // Inset by half the stroke so the border stays inside the tile.
       drawRect(
         color = colors.selectedBorderColor,
         topLeft = topLeft + Offset(borderWidth / 2f, borderWidth / 2f),
@@ -368,26 +322,14 @@ private fun PlayedSquareOverlay(
   }
 }
 
-/**
- * Composable function that draws the grid of chess pieces on the board.
- *
- * Renders each piece at its corresponding tile location. Handles piece animation when a move
- * occurs, and displays the piece at its destination after the animation completes.
- *
- * The piece content description template is resolved through [stringResource] once for the whole
- * grid and formatted per piece, because per-cell resource lookups dominated the board composition
- * time.
- *
- * @param state The board state containing piece and move information.
- * @param animationDuration Duration for animating piece movement between tiles.
- * @param tilePositions Map of board locations to their pixel positions for animation.
- */
+/** Draws the pieces, animating the ones currently moving. */
 @Composable
 private fun DrawPieceGrid(
   state: BoardGridState,
   animationDuration: Duration,
   tilePositions: Map<BoardLocation, DpOffset>,
 ) {
+  // Resolved once for the grid: per-cell resource lookups dominated board composition time.
   val pieceDescriptionTemplate = stringResource(Res.string.description_board_piece)
   DrawGrid({ this }) {
     val location = state.getBoardLocationAt(it)
@@ -412,15 +354,7 @@ private fun DrawPieceGrid(
   }
 }
 
-/**
- * Composable for drawing an 8x8 grid structure for the chess board.
- *
- * Iterates over rows and columns, applying the provided boxModifier and boxContent for each tile.
- *
- * @param boxModifier Modifier applied to each grid tile, can be used for click handling or styling.
- * @param modifier Modifier applied to the grid as a whole, e.g. to paint all tile backgrounds.
- * @param boxContent Content composable for each grid tile, typically used to render tile or piece.
- */
+/** Lays out an 8x8 grid, applying [boxModifier] and [boxContent] to each tile index. */
 @Composable
 private fun DrawGrid(
   boxModifier: @Composable Modifier.(Int) -> Modifier,
@@ -441,18 +375,7 @@ private fun DrawGrid(
   }
 }
 
-/**
- * Composable for animating a chess piece movement on the board grid.
- *
- * Animates the piece from its current position to the destination tile using an offset animation.
- * Removes the piece from the move list after the animation completes.
- *
- * @param state The current board grid state containing piece and move information.
- * @param location The board location of the piece to animate.
- * @param tilePositions Map of board locations to their pixel offsets on the board.
- * @param animationDuration Duration of the slide, sourced once from the caller.
- * @param pieceDescriptionTemplate Content description template, resolved once by the caller.
- */
+/** Slides the piece at [location] to its destination, then removes it from the pending moves. */
 @Composable
 private fun AnimatedPiece(
   state: BoardGridState,
@@ -503,8 +426,7 @@ private fun AnimatedPiece(
   val pieceToMove = state.tileToPiece[destinationLocation]
   checkNotNull(pieceToMove) { "No piece at $destinationLocation" }
   val offsetMultiplier = if (state.inverted) -1 else 1
-  // Read the animated offsets inside the placement lambda so the slide runs in the layout phase
-  // (no per-frame recomposition of the piece).
+  // Read inside the placement lambda so the slide runs in layout, without per-frame recomposition.
   Piece(
     pieceToMove,
     Modifier.offset {
@@ -520,13 +442,7 @@ private fun AnimatedPiece(
   }
 }
 
-/**
- * Formats a single-placeholder string resource template without going through the resource
- * formatter, so bulk callers pay the resource lookup only once for the template.
- *
- * @param template Raw resource string containing a `%1$s` placeholder.
- * @param argument Value substituted for the placeholder.
- */
+/** Substitutes [argument] for the `%1$s` placeholder of [template], bypassing the formatter. */
 private fun formatSingleArgTemplate(template: String, argument: String): String {
   return template.replace($$"%1$s", argument)
 }

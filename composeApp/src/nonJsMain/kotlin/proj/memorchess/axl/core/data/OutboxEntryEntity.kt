@@ -10,8 +10,7 @@ import androidx.room.Entity
  *   tag's origin.
  * @property key2 The edge's destination, or the tag's destination. Empty for the other kinds.
  * @property key3 The tag's repertoire id. Empty for every other kind.
- * @property deviceSeq The `deviceSeq` of the write this entry names. See [OutboxEntry] and
- *   [DatabaseQueryManager.clearDirty].
+ * @property deviceSeq The `deviceSeq` of the write this entry names.
  */
 @Entity(tableName = "OutboxEntryEntity", primaryKeys = ["kind", "key1", "key2", "key3"])
 data class OutboxEntryEntity(

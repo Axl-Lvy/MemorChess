@@ -51,17 +51,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 const val REPERTOIRE_VIEW_TEST_TAG = "repertoire_view"
 
 /**
- * Read only viewer for a single catalog repertoire.
- *
- * Fetches the repertoire's PGN every time it opens (no offline copy is kept), replays it into a
- * throwaway opening graph and lets the user navigate it on a board through [ExplorerContent] in
- * read-only mode: no save or delete, and only moves present in the PGN can be played. Works for any
- * repertoire whether or not it is installed, so it doubles as a preview before install.
- *
- * @param repertoireId Id of the repertoire to display, as listed in the catalog manifest.
- * @param catalog Resolves the descriptor (name, color, PGN path) from the manifest.
- * @param client Downloads and parses the PGN.
- * @param cachedExplorer Backs the Lichess opening explorer panels of [ExplorerContent].
+ * Read only viewer for a single catalog repertoire, installed or not, downloaded afresh on every
+ * open. Only moves present in the repertoire can be played.
  */
 @Composable
 fun RepertoireView(
@@ -96,7 +87,6 @@ fun RepertoireView(
   }
 }
 
-/** Wires the explorer view model and renders the read-only [ExplorerContent]. */
 @Composable
 private fun RepertoireViewReady(
   explorer: RepertoireExplorer,
@@ -120,7 +110,6 @@ private fun RepertoireViewReady(
   )
 }
 
-/** Small pill stating the repertoire viewer is read only, shown once above the board. */
 @Composable
 private fun ReadOnlyChip() {
   val palette = LocalKineticPalette.current
@@ -137,7 +126,6 @@ private fun ReadOnlyChip() {
   }
 }
 
-/** Error body with a retry action, mirroring the catalog error styling of the library page. */
 @Composable
 private fun RepertoireViewError(error: RepertoireViewError, onRetry: () -> Unit) {
   val palette = LocalKineticPalette.current
@@ -154,7 +142,6 @@ private fun RepertoireViewError(error: RepertoireViewError, onRetry: () -> Unit)
   }
 }
 
-/** Resolves the localized message for a [RepertoireViewError]. */
 @Composable
 private fun RepertoireViewError.resolveMessage(): String =
   when (this) {
@@ -169,10 +156,7 @@ private fun RepertoireViewError.resolveMessage(): String =
     is RepertoireViewError.NotFound -> stringResource(Res.string.repertoire_view_not_found, id)
   }
 
-/**
- * Loads the repertoire: resolves its descriptor from the manifest, downloads and parses its PGN,
- * then builds the read-only explorer. Every failure maps to a typed [RepertoireViewError].
- */
+/** Resolves the descriptor from the manifest, downloads its moves and builds the explorer. */
 private suspend fun loadRepertoire(
   repertoireId: String,
   catalog: CachedRepertoireCatalog,
@@ -217,13 +201,10 @@ private suspend fun loadRepertoire(
 /** Loading lifecycle of the repertoire viewer. */
 private sealed interface RepertoireViewState {
 
-  /** The descriptor and moves are being fetched. */
   data object Loading : RepertoireViewState
 
-  /** Loading failed; [error] describes how. */
   data class Error(val error: RepertoireViewError) : RepertoireViewState
 
-  /** The moves are loaded and [explorer] is ready to navigate [descriptor]. */
   data class Ready(val explorer: RepertoireExplorer, val descriptor: RepertoireDescriptor) :
     RepertoireViewState
 }
@@ -234,10 +215,8 @@ private sealed interface RepertoireViewError {
   /** Manifest or moves download failed before an HTTP status was obtained. */
   data class Network(val message: String) : RepertoireViewError
 
-  /** A download answered with a non success HTTP [status]. */
   data class Http(val status: Int) : RepertoireViewError
 
-  /** The manifest is invalid. */
   data class MalformedManifest(val message: String) : RepertoireViewError
 
   /** The moves do not decode or there are none. */
@@ -246,6 +225,5 @@ private sealed interface RepertoireViewError {
   /** The moves decoded but hold a malformed or disconnected position and could not be loaded. */
   data class Import(val message: String) : RepertoireViewError
 
-  /** No repertoire with [id] exists in the manifest. */
   data class NotFound(val id: String) : RepertoireViewError
 }

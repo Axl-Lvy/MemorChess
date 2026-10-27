@@ -15,10 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Wraps the Stockfish engine and exposes position evaluation as a [StateFlow].
- *
- * Each call to [evaluate] cancels the previous search and starts a new one. The evaluation is
- * normalized to White's perspective.
+ * Exposes Stockfish's evaluation of the last [evaluate]d position, from White's perspective.
  *
  * @param maxDepth Maximum search depth (5–25), or 0 for infinite.
  */
@@ -56,16 +53,13 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
   }
 
   /**
-   * Evaluates the given FEN position. Cancels any in-progress search.
-   *
-   * @param fen Full 6-part FEN string.
-   * @param isBlackToMove `true` when it is Black's turn, used to flip the score to White's
-   *   perspective.
+   * Evaluates the full 6-part [fen], cancelling any in-progress search. [isBlackToMove] flips the
+   * engine's side-to-move score to White's perspective.
    */
   suspend fun evaluate(fen: String, isBlackToMove: Boolean) {
     val currentEngine = awaitEngine() ?: return
 
-    // Cancel previous search and wait for it to fully finish before touching the engine again.
+    // The previous search must fully finish before the engine is touched again.
     searchJob?.let {
       currentEngine.stop()
       it.join()
@@ -113,12 +107,7 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
     private const val TAG = "StockfishEvaluator"
     private const val DEFAULT_SEARCH_DEPTH = 20
 
-    /**
-     * Converts a library [Score] to an [EvaluationScore] from White's perspective.
-     *
-     * The library reports scores from the side-to-move's perspective, so we flip when Black is to
-     * move.
-     */
+    /** Converts a side-to-move [Score] to an [EvaluationScore] from White's perspective. */
     private fun toEvaluationScore(score: Score, isBlackToMove: Boolean): EvaluationScore {
       val flip = if (isBlackToMove) -1 else 1
       return when (score) {

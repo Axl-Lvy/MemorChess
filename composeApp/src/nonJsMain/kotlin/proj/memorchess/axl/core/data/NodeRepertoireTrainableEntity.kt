@@ -5,10 +5,8 @@ import androidx.room.Index
 import kotlin.time.Instant
 
 /**
- * Room entity backing the `NodeRepertoireTrainable` derived projection: existence means
- * [positionKey] has a live good outgoing edge tagged [repertoireId]. Owned entirely by
- * [proj.memorchess.axl.core.graph.TreeStore], recomputed the same way [NodeEntity.hasGoodOutgoing]
- * is, and never synced.
+ * Row of the derived `NodeRepertoireTrainable` projection: existence means [positionKey] has a live
+ * good outgoing edge tagged [repertoireId]. Recomputed locally and never synced.
  */
 @Entity(
   tableName = "NodeRepertoireTrainableEntity",

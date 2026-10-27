@@ -12,16 +12,7 @@ import memorchess.composeapp.generated.resources.auth_state_mismatch
 import memorchess.composeapp.generated.resources.auth_token_rejected
 import org.jetbrains.compose.resources.StringResource
 
-/**
- * Drives the end to end OAuth sign in:
- *
- * 1. Generate a PKCE pair and a random `state` value.
- * 2. Hand the authorization URL to [OAuthLauncher] and wait for the redirect.
- * 3. Exchange the authorization code for an access token via [LichessOAuthClient].
- * 4. Persist the token, then fetch the username and persist it too.
- *
- * The caller (UI) only sees a [SignInResult] and a token store flow it can observe.
- */
+/** Signs in to Lichess with OAuth PKCE and persists the resulting token and username. */
 class LichessSignInController(
   private val launch:
     suspend (
@@ -35,7 +26,7 @@ class LichessSignInController(
   private val clientId: String = LICHESS_CLIENT_ID,
 ) {
 
-  /** Convenience constructor binding to the platform [OAuthLauncher]. */
+  /** Binds to the platform [OAuthLauncher]. */
   constructor(
     launcher: OAuthLauncher,
     oauthClient: LichessOAuthClient,
@@ -129,10 +120,7 @@ sealed class SignInResult {
   /** User dismissed the browser before authorizing. */
   data object Cancelled : SignInResult()
 
-  /**
-   * Sign in failed; [message] is a [StringResource] suitable for display. [arg] is an optional
-   * format argument to be passed to [stringResource] when resolving the message.
-   */
+  /** Sign in failed; [message] is displayable, with [arg] as its optional format argument. */
   data class Failed(val message: StringResource, val arg: String? = null) : SignInResult()
 }
 

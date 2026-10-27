@@ -76,8 +76,6 @@ class TestStreakTracker {
 
     tracker.recordReview(day1)
 
-    // Midnight has rolled over into day2, but day2 has had no review yet: the streak is not yet
-    // broken and today's own count resets.
     tracker.streakDays(day2) shouldBe 1
     tracker.cardsCompletedToday(day2) shouldBe 0
   }
@@ -97,7 +95,6 @@ class TestStreakTracker {
   fun multiDayGapResetsStreakToOne() = runTest {
     val tracker = StreakTracker(InMemoryDailyActivityStore())
     val day2 = day1.plus(1, DateTimeUnit.DAY)
-    // day3 is skipped entirely: no review at all.
     val day4 = day1.plus(3, DateTimeUnit.DAY)
 
     tracker.recordReview(day1)
@@ -114,7 +111,6 @@ class TestStreakTracker {
     val day3 = day1.plus(2, DateTimeUnit.DAY)
 
     tracker.recordReview(day1)
-    // day2 has no review at all; by day3, the gap has broken the streak.
 
     tracker.streakDays(day3) shouldBe 0
   }
@@ -147,12 +143,9 @@ class TestStreakTracker {
     tracker.cardsCompletedToday(lastDay) shouldBe 1
   }
 
-  // WEEK ACTIVITY
-
   @Test
   fun weekActivityMarksOnlyTheActiveMidWeekDay() = runTest {
     val tracker = StreakTracker(InMemoryDailyActivityStore())
-    // 2026-09-02 is a Wednesday.
     val wednesday = LocalDate(2026, 9, 2)
     tracker.recordReview(wednesday)
 
@@ -162,7 +155,6 @@ class TestStreakTracker {
   @Test
   fun weekActivityAnchoredOnMondayStartsTheWeekAtItself() = runTest {
     val tracker = StreakTracker(InMemoryDailyActivityStore())
-    // 2026-08-31 is a Monday.
     val monday = LocalDate(2026, 8, 31)
     tracker.recordReview(monday)
 
@@ -172,7 +164,6 @@ class TestStreakTracker {
   @Test
   fun weekActivityAnchoredOnSundayEndsTheWeekAtItself() = runTest {
     val tracker = StreakTracker(InMemoryDailyActivityStore())
-    // 2026-09-06 is a Sunday.
     val sunday = LocalDate(2026, 9, 6)
     tracker.recordReview(sunday)
 
@@ -201,7 +192,6 @@ class TestStreakTracker {
   fun weekActivityDoesNotBleedIntoTheAdjacentWeek() = runTest {
     val tracker = StreakTracker(InMemoryDailyActivityStore())
     val wednesday = LocalDate(2026, 9, 2)
-    // The Monday before and the Monday after this ISO week: both out of range.
     tracker.recordReview(wednesday.minus(7, DateTimeUnit.DAY))
     tracker.recordReview(wednesday.plus(7, DateTimeUnit.DAY))
 

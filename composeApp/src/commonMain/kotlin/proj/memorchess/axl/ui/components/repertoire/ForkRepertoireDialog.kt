@@ -25,14 +25,8 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.ui.components.popup.KineticDialog
 
 /**
- * Fork-repertoire dialog: duplicates [sourceName] under a new name, prefilled from
- * [Res.string.library_fork_default_name] so a plain submit already produces a sensible id. The side
- * picker defaults to [sourceColor] but stays editable, since the copy can be re-tagged for a
- * different side than the source repertoire. The new repertoire copies every one of the source's
- * tagged edges regardless of the side chosen here (see
- * [proj.memorchess.axl.core.graph.RepertoireTagStore.fork]).
- *
- * Fields reset to [sourceName]/[sourceColor]'s defaults every time [visible] turns true.
+ * Dialog forking [sourceName] under a new name and side, prefilled with a suggested name and
+ * [sourceColor]. The fields reset every time [visible] turns true.
  */
 @Composable
 fun ForkRepertoireDialog(

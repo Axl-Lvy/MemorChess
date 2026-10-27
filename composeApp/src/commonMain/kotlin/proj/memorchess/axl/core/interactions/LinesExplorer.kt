@@ -19,24 +19,8 @@ import proj.memorchess.axl.core.graph.TreeStore
 /**
  * Free exploration of stored openings backed by a [TreeStore].
  *
- * Under demand paging every graph read is a suspend [TreeStore.node] / [TreeStore.computeState]
- * lookup, so [back], [forward], [reset] and [getNextMoves] are `suspend`. [state] starts at
- * [NodeState.UNKNOWN] (the same value an unresolved position computes to, so the first frame is
- * consistent) and is filled by [initState] from the page's loading phase, then recomputed after
- * every navigation step.
- *
- * [state]/[NodeState] stay unscoped even in a scoped session: the board's good/bad indicator still
- * aggregates every incoming edge regardless of tag. Making that scope pure would need an async, tag
- * filtered variant of [proj.memorchess.axl.core.graph.Node.computeState], evaluated per incoming
- * edge; deferred as a follow up, since the feature's actual gate is which moves [getNextMoves]
- * offers and a scoped trainer accepts, not the color indicator.
- *
- * Saving holds the line manually: every move from the starting position to the saved one gets the
- * user's own marking, so a move an installed repertoire brought in becomes the user's own.
- *
- * @param repertoireScope When not `null`, [getNextMoves] narrows to edges tagged with this
- *   repertoire, and saving a line tags the genuinely new moves this session played on it with this
- *   repertoire. `null` behaves exactly as before this parameter existed.
+ * @param repertoireScope When not `null`, [getNextMoves] narrows to this repertoire and saving tags
+ *   the session's new moves with it.
  */
 open class LinesExplorer(
   position: PositionKey? = null,
@@ -52,17 +36,13 @@ open class LinesExplorer(
   /** Moves this scoped session created, tagged with [repertoireScope] once a save holds them. */
   private val newMoves = mutableSetOf<Pair<PositionKey, PositionKey>>()
 
+  // Unscoped even in a scoped session: the indicator aggregates every incoming edge.
   var state by mutableStateOf(NodeState.UNKNOWN)
     protected set
 
   /**
-   * Seeds the starting position into the cache and computes the initial [state] from it. Called
-   * once from the page's loading phase because both halves suspend (they go through the bounded
-   * cache, under its lock).
-   *
-   * The seed lives here rather than in an `init` block: the store's cache is shared across screens,
-   * so by construction time a load of the starting position may already be in flight, and an
-   * unguarded write would let that load's finalization drop the seeded node again.
+   * Seeds the starting position and computes the initial [state]. Not done in `init`: the shared
+   * cache may already be loading that position, and an unguarded write would be dropped.
    */
   suspend fun initState() {
     treeStore.ensurePosition(startPosition, 0)
@@ -100,11 +80,7 @@ open class LinesExplorer(
     callCallBacks(false)
   }
 
-  /**
-   * Sorted list of classified outgoing moves at the current position, narrowed to [repertoireScope]
-   * when this session is scoped (any [Edge.isGood] value passes, so a known trap the repertoire
-   * teaches to counter still shows).
-   */
+  /** Sorted classified moves from the current position, narrowed to [repertoireScope] if set. */
   suspend fun getNextMoves(): List<String> {
     val node = treeStore.node(navigation.current) ?: return emptyList()
     val classified = node.outgoing.values.filter { it.isGood != null }
@@ -154,11 +130,8 @@ open class LinesExplorer(
   }
 
   /**
-   * Classifies the current line and holds it manually. The walk back alternates: the move reaching
-   * the current position and every second move before it are good; the others keep the marking the
-   * user sees, or turn bad when unclassified. Off line moves into a position on the line turn good
-   * only when the user already holds them. The line above the session's root is held at the
-   * markings it shows, and a scoped session then tags the new moves of the saved line.
+   * Holds the current line manually: the last move and every second one before it turn good, the
+   * others keep their shown marking or turn bad when unclassified.
    */
   suspend fun save() {
     val path = navigation.getBackPath()
@@ -181,11 +154,7 @@ open class LinesExplorer(
     toastRenderer.info(Res.string.toast_saved)
   }
 
-  /**
-   * Holds the line above [root] manually so the saved line stays connected to the starting position
-   * through manual holds: while no move into the position is held, holds the one from the
-   * shallowest origin at the marking it shows.
-   */
+  /** Holds the shallowest move into each position above [root] until one is already held. */
   private suspend fun holdLineAbove(root: PositionKey) {
     var position = root
     val visited = mutableSetOf<PositionKey>()
@@ -221,14 +190,7 @@ open class LinesExplorer(
     callCallBacks()
   }
 
-  /**
-   * Recursively deletes a subtree rooted at [position] when the edge being removed was its only
-   * remaining incoming edge. Convergent positions reachable through other parents stay put.
-   *
-   * Each visited position is resolved through [TreeStore.node] so a paged out descendant is pulled
-   * in on demand before being walked. Bounded by the subtree size, the same row count the delete
-   * itself touches.
-   */
+  /** Deletes [viaEdge], then the subtree at [position] if that was its last incoming edge. */
   private suspend fun cascadeDeleteFromPrevious(position: PositionKey, viaEdge: Edge) {
     treeStore.deleteMove(viaEdge.from, viaEdge.move)
     val node = treeStore.node(position)
@@ -240,12 +202,7 @@ open class LinesExplorer(
     }
   }
 
-  /**
-   * Returns the count of positions that [delete] would remove starting at the current position,
-   * bounded by the backend's cap. A descendant is counted only when it is not convergent (the
-   * subtree being deleted is its sole set of parents), matching [delete]'s cascade rule. Delegates
-   * to the DB side capped count so it never pages the whole subtree through the cache.
-   */
+  /** Number of positions [delete] would remove, capped by [TreeStore.countDescendants]. */
   suspend fun calculateNumberOfNodeToDelete(): Int = treeStore.countDescendants(navigation.current)
 
   private enum class ClassifyMode {

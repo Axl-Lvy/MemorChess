@@ -4,15 +4,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Catalog manifest served by `:server` at `/v1/repertoires/manifest.json`.
+ * Catalog manifest served at `/v1/repertoires/manifest.json`. Only [schemaVersion] 2 is accepted,
+ * since a version bump may change field semantics.
  *
- * Decoded with `ignoreUnknownKeys` so future additive fields are tolerated. Only [schemaVersion] 2
- * is accepted; any other value is treated as malformed because a version bump may change field
- * semantics, and failing loudly (with the stale cache fallback) is safer than a best effort parse
- * of an unknown layout.
- *
- * @property schemaVersion Version of the manifest layout. The client accepts version 2 only.
- * @property repertoires The repertoires available for download, in catalog order.
+ * @property repertoires The downloadable repertoires, in catalog order.
  */
 @Serializable
 data class RepertoireManifest(val schemaVersion: Int, val repertoires: List<RepertoireDescriptor>)
@@ -20,16 +15,11 @@ data class RepertoireManifest(val schemaVersion: Int, val repertoires: List<Repe
 /**
  * One downloadable repertoire listed in the [RepertoireManifest].
  *
- * @property id Stable unique identifier, a slug such as `london-system-white`.
- * @property name Human readable name shown in the library.
- * @property color Side the repertoire is built for.
- * @property description Short marketing style description of the repertoire.
- * @property moveCount Number of moves in the repertoire, informational only. May be zero.
+ * @property id Stable slug such as `london-system-white`.
+ * @property moveCount Informational only; may be zero.
  * @property version Latest published version, which names the moves to download.
- * @property downloadCount Number of times this repertoire has been installed, across every user.
- *   Defaults to `0` so a manifest from before this field existed (or a stale cached one) still
- *   decodes. An anonymous, unauthenticated counter: spammable, treated as a popularity hint rather
- *   than an exact count.
+ * @property downloadCount Installs across every user; anonymous and spammable, so only a popularity
+ *   hint. Defaults to `0` so an older cached manifest still decodes.
  */
 @Serializable
 data class RepertoireDescriptor(

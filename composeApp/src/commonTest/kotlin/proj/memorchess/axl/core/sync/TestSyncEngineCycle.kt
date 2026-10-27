@@ -329,7 +329,7 @@ class TestSyncEngineCycle {
       )
 
     outcome shouldBe CycleOutcome.Success
-    pullCalls shouldBe 2 // the second page came back empty, which confirmed the first
+    pullCalls shouldBe 2
     database.getPosition(PositionKey("a")).shouldNotBeNull()
   }
 

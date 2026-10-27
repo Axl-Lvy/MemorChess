@@ -14,25 +14,12 @@ import proj.memorchess.axl.core.pgn.PgnParseException
 import proj.memorchess.axl.core.pgn.PgnParser
 
 /**
- * HTTP client that downloads a public Lichess study as parsed PGN games.
- *
- * Accepts either a full study URL (`https://lichess.org/study/{id}`, with an optional chapter
- * suffix, trailing slash or query string) or a bare 8 character study id, and fetches the PGN
- * export of every chapter through `https://lichess.org/api/study/{id}.pgn`. Public studies need no
- * authentication; a private study answers HTTP 404, which is reported as
- * [LichessStudyResult.NotFound].
- *
- * Every failure is reported as a typed [LichessStudyResult] so callers never have to inspect Ktor
- * exceptions.
+ * Downloads a public Lichess study as parsed PGN games. A private study answers HTTP 404 and is
+ * reported as [LichessStudyResult.NotFound].
  */
 class LichessStudyClient(private val httpClient: HttpClient) {
 
-  /**
-   * Downloads the study referenced by [input] and parses its PGN export.
-   *
-   * @param input A study URL or a bare study id. Surrounding whitespace is ignored.
-   * @return [LichessStudyResult.Ok] with one [PgnGame] per chapter, or a typed error.
-   */
+  /** Downloads and parses the study referenced by [input], a study URL or a bare study id. */
   suspend fun fetchStudy(input: String): LichessStudyResult {
     val studyId = parseStudyId(input) ?: return LichessStudyResult.InvalidUrl
     val url = "$BASE_URL/$studyId.pgn"
@@ -69,10 +56,7 @@ class LichessStudyClient(private val httpClient: HttpClient) {
       LichessStudyResult.MalformedPgn(e.message ?: "Malformed PGN")
     }
 
-  /**
-   * Extracts the study id from [input], which is either a bare id or a study URL. Returns `null`
-   * when [input] references neither.
-   */
+  /** Extracts the study id from a bare id or a study URL, or `null` when [input] is neither. */
   private fun parseStudyId(input: String): String? {
     val trimmed = input.trim()
     if (STUDY_ID_REGEX.matches(trimmed)) {
@@ -84,19 +68,11 @@ class LichessStudyClient(private val httpClient: HttpClient) {
   companion object {
     private const val BASE_URL = "https://lichess.org/api/study"
 
-    /**
-     * Identifies MemorChess to Lichess. The Lichess team asks every API client to set a descriptive
-     * User-Agent so they can contact maintainers if something goes wrong.
-     */
+    /** Lichess asks every API client to set a descriptive User-Agent. */
     private const val USER_AGENT = "MemorChess (https://github.com/Axl-Lvy/MemorChess)"
 
-    /** A bare study id: exactly 8 alphanumeric characters. */
     private val STUDY_ID_REGEX = Regex("^[a-zA-Z0-9]{8}$")
 
-    /**
-     * A study URL: optional scheme and `www.`, the study id, then an optional chapter id, trailing
-     * slash, query string or fragment.
-     */
     private val STUDY_URL_REGEX =
       Regex(
         "^(?:https?://)?(?:www\\.)?lichess\\.org/study/([a-zA-Z0-9]{8})" +

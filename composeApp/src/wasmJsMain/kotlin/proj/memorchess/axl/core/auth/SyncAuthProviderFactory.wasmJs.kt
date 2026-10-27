@@ -3,8 +3,7 @@ package proj.memorchess.axl.core.auth
 import kotlinx.browser.window
 import proj.memorchess.axl.core.config.getPlatformSpecificSettings
 
-// `launcher` is unused here (wasmJs never launches a popup) but kept to match the `expect fun`
-// signature shared with the nonJs actual, which does use it.
+// wasmJs never launches a popup, so `launcher` is unused.
 @Suppress("UNUSED_PARAMETER")
 internal actual fun getPlatformSpecificSyncAuthProvider(
   oidcClient: OidcClient,

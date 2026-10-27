@@ -29,12 +29,9 @@ import proj.memorchess.axl.ui.pages.navigation.routeFromHash
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalBrowserHistoryApi::class)
 fun main() {
-  // Must run before ComposeViewport/Koin: NavHost (inside App) always commits Route.TodayRoute as
-  // its first back-stack entry before bindToBrowserNavigation ever attaches (that happens later, in
-  // a LaunchedEffect), so by the time it binds, location.hash no longer seeds anything — the binder
-  // just syncs the already-wrong current route back into history. So the callback URL has to be
-  // cleaned up first (see the design spec's "critical ordering constraint"), and separately, App's
-  // startRoute below has to be computed from the hash itself rather than left to the binder.
+  // Must run before ComposeViewport: NavHost commits its start route before
+  // bindToBrowserNavigation attaches, so the callback URL is cleaned up first and startRoute is
+  // computed from the hash rather than left to the binder.
   val pendingStore = PendingOidcRedirectStore(getPlatformSpecificSettings())
   val decision =
     decideOidcRedirectExchange(
@@ -52,8 +49,7 @@ fun main() {
       }
       OidcRedirectDecision.NotACallback -> null
     }
-  // Read after the Callback branch above has already cleaned the URL, so a refresh mid OIDC
-  // redirect resolves against the restored pre-sign-in hash rather than the callback's own.
+  // Read after the callback cleanup, so a refresh mid redirect resolves the pre-sign-in hash.
   val startRoute = routeFromHash(window.location.hash)
 
   ComposeViewport(document.body ?: return) {

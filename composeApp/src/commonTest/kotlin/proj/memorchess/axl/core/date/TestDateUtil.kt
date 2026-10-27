@@ -15,8 +15,7 @@ class TestDateUtil {
 
   @Test
   fun todayWithAnExplicitZoneCanDifferFromTheSystemDefaultZone() {
-    // 26 hours apart, so their current local dates can never coincide. Proves today(zone) is
-    // actually keyed on the given zone rather than always returning the same value.
+    // 26 hours apart, so their current local dates can never coincide.
     val zoneAhead = UtcOffset(hours = 14).asTimeZone()
     val zoneBehind = UtcOffset(hours = -12).asTimeZone()
     (DateUtil.today(zoneAhead) == DateUtil.today(zoneBehind)) shouldBe false

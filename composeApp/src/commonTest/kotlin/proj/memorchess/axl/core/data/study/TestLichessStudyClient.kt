@@ -41,7 +41,6 @@ class TestLichessStudyClient {
 
   @Test
   fun studyUrlVariantsAllRequestTheSameExportEndpoint() = runTest {
-    // Arrange
     val acceptedInputs =
       listOf(
         "https://lichess.org/study/abcd1234",
@@ -59,10 +58,8 @@ class TestLichessStudyClient {
       val engine = engineRespondingPgn(singleChapterPgn)
       val client = LichessStudyClient(HttpClient(engine))
 
-      // Act
       val result = client.fetchStudy(input)
 
-      // Assert
       assertIs<LichessStudyResult.Ok>(result, "input: $input")
       assertEquals(
         "https://lichess.org/api/study/abcd1234.pgn",
@@ -74,7 +71,6 @@ class TestLichessStudyClient {
 
   @Test
   fun invalidInputsAreRejectedWithoutAnyRequest() = runTest {
-    // Arrange
     val rejectedInputs =
       listOf(
         "",
@@ -94,10 +90,8 @@ class TestLichessStudyClient {
       val engine = engineRespondingPgn(singleChapterPgn)
       val client = LichessStudyClient(HttpClient(engine))
 
-      // Act
       val result = client.fetchStudy(input)
 
-      // Assert
       assertEquals(LichessStudyResult.InvalidUrl, result, "input: $input")
       assertTrue(engine.requestHistory.isEmpty(), "input: $input")
     }
@@ -105,13 +99,10 @@ class TestLichessStudyClient {
 
   @Test
   fun singleChapterStudyIsParsedAsOneGame() = runTest {
-    // Arrange
     val client = LichessStudyClient(HttpClient(engineRespondingPgn(singleChapterPgn)))
 
-    // Act
     val result = client.fetchStudy("abcd1234")
 
-    // Assert
     val games = assertIs<LichessStudyResult.Ok>(result).games
     assertEquals(1, games.size)
     assertEquals("e4", games.single().moves.single().san)
@@ -119,13 +110,10 @@ class TestLichessStudyClient {
 
   @Test
   fun multiChapterStudyIsParsedAsOneGamePerChapter() = runTest {
-    // Arrange
     val client = LichessStudyClient(HttpClient(engineRespondingPgn(multiChapterPgn)))
 
-    // Act
     val result = client.fetchStudy("abcd1234")
 
-    // Assert
     val games = assertIs<LichessStudyResult.Ok>(result).games
     assertEquals(2, games.size)
     assertEquals(listOf("e4", "d4"), games.map { it.moves.single().san })
@@ -133,52 +121,40 @@ class TestLichessStudyClient {
 
   @Test
   fun missingStudyIsReportedAsNotFound() = runTest {
-    // Arrange
     val engine = MockEngine { respond(content = "", status = HttpStatusCode.NotFound) }
     val client = LichessStudyClient(HttpClient(engine))
 
-    // Act
     val result = client.fetchStudy("abcd1234")
 
-    // Assert
     assertEquals(LichessStudyResult.NotFound, result)
   }
 
   @Test
   fun unexpectedStatusIsReportedAsHttpError() = runTest {
-    // Arrange
     val engine = MockEngine { respond(content = "", status = HttpStatusCode.InternalServerError) }
     val client = LichessStudyClient(HttpClient(engine))
 
-    // Act
     val result = client.fetchStudy("abcd1234")
 
-    // Assert
     assertEquals(LichessStudyResult.HttpError(500), result)
   }
 
   @Test
   fun requestFailureIsReportedAsNetworkError() = runTest {
-    // Arrange
     val engine = MockEngine { error("Connection refused") }
     val client = LichessStudyClient(HttpClient(engine))
 
-    // Act
     val result = client.fetchStudy("abcd1234")
 
-    // Assert
     assertIs<LichessStudyResult.NetworkError>(result)
   }
 
   @Test
   fun unparseablePgnIsReportedAsMalformedPgn() = runTest {
-    // Arrange
     val client = LichessStudyClient(HttpClient(engineRespondingPgn("1. e4 (e5 *")))
 
-    // Act
     val result = client.fetchStudy("abcd1234")
 
-    // Assert
     assertIs<LichessStudyResult.MalformedPgn>(result)
   }
 }

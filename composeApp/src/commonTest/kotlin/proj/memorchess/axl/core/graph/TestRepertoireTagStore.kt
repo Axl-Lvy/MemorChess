@@ -11,10 +11,7 @@ import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
 
-/**
- * Tests for the repertoire registry and edge tagging maintained by [RepertoireTagStore]. Cases that
- * need a tagged edge to exist build the graph through a [TreeStore] over the same database.
- */
+/** Tests the repertoire registry and edge tagging of [RepertoireTagStore]. */
 class TestRepertoireTagStore {
 
   private val start = PositionKey.START_POSITION

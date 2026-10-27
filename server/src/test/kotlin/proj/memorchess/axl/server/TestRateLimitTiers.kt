@@ -9,14 +9,12 @@ class TestRateLimitTiers {
 
   @Test
   fun `carries each tier under the field it was given, not another one`() {
-    // ARRANGE: four distinct limits and four distinct refill periods, so a field swap between
-    // properties (for example syncRead getting admin's budget) would be caught.
+    // Distinct limits and refill periods, so a field swap between properties is caught.
     val syncWrite = RateLimitTier(1, 1.minutes)
     val syncRead = RateLimitTier(2, 2.minutes)
     val publicRead = RateLimitTier(3, 3.minutes)
     val admin = RateLimitTier(4, 4.minutes)
 
-    // ACT
     val tiers =
       RateLimitTiers(
         syncWrite = syncWrite,
@@ -25,7 +23,6 @@ class TestRateLimitTiers {
         admin = admin,
       )
 
-    // ASSERT
     tiers.syncWrite shouldBe syncWrite
     tiers.syncRead shouldBe syncRead
     tiers.publicRead shouldBe publicRead

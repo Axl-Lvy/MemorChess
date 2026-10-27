@@ -1,12 +1,8 @@
 package proj.memorchess.axl.core.scheduling
 
 /**
- * Lifecycle phase of a card in the FSRS state machine.
- *
- * Mirrors the four canonical FSRS states. The phase decides whether the next interval is sub-day
- * (driven by learning steps) or day grained (driven by stability), and is what
- * [proj.memorchess.axl.core.graph.TrainingScheduler] reads to decide if a card stays in the current
- * session or leaves it.
+ * Lifecycle phase of a card in the FSRS state machine. Decides whether the next interval is sub-day
+ * (learning steps) or day grained (stability).
  */
 enum class CardPhase {
   /** Brand new card that has never been reviewed. The next review starts the learning steps. */

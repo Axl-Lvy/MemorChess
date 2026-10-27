@@ -12,17 +12,10 @@ import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.routes.staticFrontendModule
 import proj.memorchess.axl.server.sync.SyncStore
 
-/**
- * Connection pool size. One per request in flight; Postgres is the scarce resource, not the JVM.
- */
+/** One connection per request in flight; Postgres is the scarce resource, not the JVM. */
 private const val POOL_SIZE = 10
 
-/**
- * Starts the sync server.
- *
- * Configuration comes from the environment and is validated before anything binds, so a
- * misconfigured deployment fails immediately rather than serving 500s.
- */
+/** Starts the sync server, failing on a misconfigured environment before anything binds. */
 fun main() {
   val config = serverConfigFromEnv()
   val dataSource = config.pool()

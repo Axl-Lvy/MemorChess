@@ -4,23 +4,18 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import proj.memorchess.axl.ui.components.navigation.NavigationBarItemContent
 
-/**
- * Coverage for [isTabToTabTransition], the route string classifier that Router.kt's transition
- * selection reads.
- */
+/** Coverage for [isTabToTabTransition] and [routeFromHash]. */
 internal class TestRouter {
 
   @Test
   fun `two bottom-nav tabs are a tab-to-tab transition`() {
-    // "today", not "training": the Training tab's destination is now Route.TodayRoute.
     isTabToTabTransition("today", "library") shouldBe true
     isTabToTabTransition("explore?position=abc&repertoireId=xyz", "settings") shouldBe true
   }
 
   @Test
   fun `every pair of bottom-nav destinations from the registry is a tab-to-tab transition`() {
-    // Derived from NavigationBarItemContent itself, rather than literal route strings, so a
-    // destination added to that registry (e.g. a future Today tab) is covered here for free.
+    // Derived from the registry rather than literal routes, so a new destination is covered too.
     val labels = NavigationBarItemContent.entries.map { it.destination.getLabel().lowercase() }
     for (from in labels) {
       for (to in labels) {
@@ -77,8 +72,7 @@ internal class TestRouter {
 
   @Test
   fun `a hash carrying arguments resolves to its tab with the default arguments`() {
-    // The tab's own arguments are dropped rather than reconstructed — still lands on the right
-    // screen instead of always falling back to Today.
+    // The tab's own arguments are dropped rather than reconstructed.
     routeFromHash("#explore?position=abc&repertoireId=xyz") shouldBe Route.ExploreRoute.DEFAULT
   }
 }

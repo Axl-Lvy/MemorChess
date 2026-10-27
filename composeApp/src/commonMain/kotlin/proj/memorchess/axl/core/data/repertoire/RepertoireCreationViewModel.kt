@@ -38,22 +38,8 @@ sealed interface CreationError {
 }
 
 /**
- * Drives the "create a new repertoire" and "fork an existing repertoire" dialogs.
- *
- * Both flows slugify the given name into an id (see [slugify]), rejecting a blank name or one that
- * collides with an id from [existingIds]. [create] registers the repertoire directly, or, when
- * [pgnText] is not blank, parses and imports it first and only registers once that succeeds — so a
- * malformed paste never leaves an empty repertoire behind. [fork] copies [forkRepertoire]'s tagged
- * edges from an existing repertoire, registering the new one as part of that call.
- *
- * The collaborators are injected as suspending functions, mirroring `RepertoireLibraryViewModel`
- * and `RepertoirePublishViewModel`, so tests can substitute trivial fakes. Production wiring binds
- * [proj.memorchess.axl.core.graph.RepertoireTagStore.repertoires] (mapped to ids),
- * [proj.memorchess.axl.core.graph.RepertoireTagStore.register],
- * [proj.memorchess.axl.core.pgn.PgnImporter.import], and
- * [proj.memorchess.axl.core.graph.RepertoireTagStore.fork].
- *
- * @param scope Scope tied to the dialog's lifecycle (use `rememberCoroutineScope` in Compose).
+ * Drives the create and fork repertoire dialogs. A pasted PGN is imported before registering, so a
+ * bad paste leaves no empty repertoire.
  */
 class RepertoireCreationViewModel(
   private val existingIds: suspend () -> Set<String>,
@@ -76,10 +62,7 @@ class RepertoireCreationViewModel(
     internalState.value = CreationState.Idle
   }
 
-  /**
-   * Creates a new repertoire named [name] in [color], optionally seeded from pasted PGN
-   * ([pgnText]). See this class's own KDoc for the order of operations.
-   */
+  /** Creates a repertoire named [name] in [color], seeded from [pgnText] when it is not blank. */
   fun create(name: String, color: RepertoireColor?, pgnText: String) {
     internalState.value = CreationState.Working
     scope.launch { runCreate(name, color, pgnText) }
@@ -123,10 +106,7 @@ class RepertoireCreationViewModel(
     internalState.value = CreationState.Failed(CreationError.InvalidPgn(reason.orEmpty()))
   }
 
-  /**
-   * Slugifies [name] into a fresh, unused id, or sets [internalState] to [CreationState.Failed] and
-   * returns `null` when [name] is blank, slugifies to nothing, or collides with [existingIds].
-   */
+  /** Slugifies [name] into an unused id, or publishes the failure and returns `null`. */
   private suspend fun validatedSlug(name: String): String? {
     val trimmed = name.trim()
     val id = slugify(trimmed)

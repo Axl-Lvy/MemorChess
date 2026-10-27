@@ -11,16 +11,10 @@ private val HTTP_SCHEMES = setOf("http", "https")
 /**
  * Everything the server needs from its environment, already validated.
  *
- * @property port TCP port to bind.
- * @property jdbcUrl Postgres JDBC URL.
- * @property dbUser Postgres role.
- * @property dbPassword Password for [dbUser].
  * @property jwtIssuer Expected `iss` claim, compared exactly.
  * @property jwtAudience Expected `aud` claim, compared exactly.
  * @property jwksUrl Where the issuer publishes its signing keys.
- * @property staticDir Directory holding the compiled wasmJs frontend bundle, served at "/". Null
- *   disables frontend serving (local `:server:run`, tests), since only the Docker image ships a
- *   bundle to serve.
+ * @property staticDir Compiled wasmJs frontend bundle served at "/", or `null` to serve none.
  */
 internal data class ServerConfig(
   val port: Int,
@@ -36,7 +30,6 @@ internal data class ServerConfig(
 /**
  * Builds the configuration, failing before anything binds or connects.
  *
- * @param getenv Environment reader, substituted in tests.
  * @throws IllegalStateException naming the offending variable.
  */
 internal fun serverConfigFromEnv(getenv: (String) -> String? = System::getenv): ServerConfig =

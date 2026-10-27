@@ -4,27 +4,27 @@ import androidx.room.TypeConverter
 import kotlin.time.Instant
 import kotlinx.datetime.*
 
-/** Type converters for to handle kotlinx.datetime.LocalDate type. */
+/** Room type converters for [LocalDate] and [Instant]. */
 class DateConverters {
-  /** Converts a LocalDate to a String for storage in the database. */
+  /** Stores a [LocalDate] as epoch days. */
   @TypeConverter
   fun fromLocalDate(date: LocalDate?): Long? {
     return date?.toEpochDays()
   }
 
-  /** Converts a String from the database back to a LocalDate. */
+  /** Reads a [LocalDate] from epoch days. */
   @TypeConverter
   fun toLocalDate(epochDays: Long?): LocalDate? {
     return if (epochDays == null) null else LocalDate.fromEpochDays(epochDays)
   }
 
-  /** Converts a LocalDateTime to a String for storage in the database. */
+  /** Stores an [Instant] as epoch seconds, dropping sub-second precision. */
   @TypeConverter
   fun fromLocalTime(date: Instant?): Long? {
     return date?.epochSeconds
   }
 
-  /** Converts a String from the database back to a LocalDateTime. */
+  /** Reads an [Instant] from epoch seconds. */
   @TypeConverter
   fun toLocalTime(dateLong: Long?): Instant? {
     if (dateLong == null) return null

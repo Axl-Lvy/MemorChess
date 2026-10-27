@@ -212,8 +212,8 @@ class TestRepertoireMoveExporter {
 
   @Test
   fun neverExportsAnUnsavedExplorationMove() = runTest {
-    // 1. Nf3 Nf6 2. d4 is saved and its last move tagged; 1. d4 Nf6 2. Nf3 is only explored, never
-    // saved, yet transposes into the origin of the tagged move.
+    // 1. Nf3 Nf6 2. d4 is saved and tagged; 1. d4 Nf6 2. Nf3 is only explored but transposes into
+    // it.
     val fixture = store()
     val afterNf3 = after(rootKey, "Nf3")
     val afterNf6 = after(rootKey, "Nf3", "Nf6")

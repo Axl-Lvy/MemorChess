@@ -20,14 +20,10 @@ internal class TestRepertoireStore {
 
   private val now = Instant.fromEpochSeconds(1_700_000_000)
 
-  // A random id, unique per call and unrelated (in sort order) to any other test's ids: the
-  // repertoire table is global with no per test user scoping, since the catalog is anonymous by
-  // design, so this is what keeps one test's rows from leaking into another's assertions.
+  // The repertoire table is global, so random ids keep tests from seeing each other's rows.
   private fun newId(): String = java.util.UUID.randomUUID().toString()
 
-  // Fresh per test method (a new instance is created for every @Test), so the per author quota
-  // counted against the shared table never accumulates across tests the way a literal
-  // "author-1" would.
+  // Random per test, so the per author quota never accumulates across tests.
   private fun newAuthor(): String = "author-${java.util.UUID.randomUUID()}"
 
   private val author1 = newAuthor()
@@ -432,8 +428,7 @@ internal class TestRepertoireStore {
       store.publish(author, removed, "T", "D", "white", moves("c4"), now)
       store.remove(author, removed)
 
-      // The table is global (no per test scoping, since the catalog is anonymous by design), so
-      // this checks containment rather than exact equality against the whole table's contents.
+      // The table is global, so check containment rather than equality.
       val allIds = store.allPublished().map { it.id }
 
       allIds shouldContain published
@@ -446,9 +441,7 @@ internal class TestRepertoireStore {
     kotlinx.coroutines.test.runTest {
       val store = store()
       val author = "author-page-${System.nanoTime()}"
-      // Same random prefix for all three ids, and every other test's id is an unrelated random
-      // UUID, so listing from cursor = prefix (which sorts just before "$prefix-1") lands exactly
-      // on these three ids with nothing else interleaved, regardless of what earlier tests wrote.
+      // A shared random prefix sorts these ids together, with no other test's id in between.
       val prefix = java.util.UUID.randomUUID().toString()
       val ids = listOf("$prefix-1", "$prefix-2", "$prefix-3")
       ids.forEach { store.publish(author, it, "T", "D", "white", moves("e4"), now) }
@@ -457,11 +450,7 @@ internal class TestRepertoireStore {
       firstPage.rows.map { it.id } shouldBe ids.take(2)
       firstPage.nextCursor shouldBe ids[1]
 
-      // A huge limit here (rather than 2) is deliberate: with only one of "my" ids left after the
-      // cursor, a limit of 2 would legitimately pick up whatever unrelated repertoire another test
-      // happened to publish next in the global, unscoped id order. A limit far beyond this whole
-      // suite's total row count instead guarantees the page comes back short, so nextCursor is null
-      // for a real reason (not full) rather than by luck.
+      // A limit beyond the suite's row count keeps the page short, so a null cursor is not luck.
       val secondPage = store.listPublished(cursor = firstPage.nextCursor, limit = 100_000)
       secondPage.rows.first().id shouldBe ids[2]
       secondPage.nextCursor.shouldBeNull()

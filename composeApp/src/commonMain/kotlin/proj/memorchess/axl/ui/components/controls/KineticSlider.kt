@@ -29,11 +29,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
 /**
  * Text and formatting configuration for a [KineticSlider].
  *
- * @property label descriptive label for the slider, shown top-left.
- * @property valueFormatter formats the value for the big readout and default min/max labels.
- * @property unit optional unit shown after the value (e.g. "ms"); rendered in `labelSm` `ink3`.
- * @property minLabel small label under the left edge; defaults to the formatted range start.
- * @property maxLabel small label under the right edge; defaults to the formatted range end.
+ * @property minLabel Left edge label; `null` shows the formatted range start.
+ * @property maxLabel Right edge label; `null` shows the formatted range end.
  */
 data class KineticSliderLabels(
   val label: String,
@@ -44,30 +41,10 @@ data class KineticSliderLabels(
 )
 
 /**
- * Kinetic slider control. Mirrors `.slider`, `.slider .track`, `.slider .fill`, `.slider .thumb`,
- * `.slider .label-min`, `.slider .label-max`, and `.slider-row .value` from
- * `design-proposals/kinetic-base.css`.
+ * Kinetic slider with a label, the formatted value and range edge labels. It skins the native M3
+ * [Slider], since overlaying a transparent one on a painted track breaks touch gesture pickup.
  *
- * Layout is a three-row [Column] with 8.dp spacing:
- * - Row 1: [label] on the left in `body` (`ink2`); formatted value on the right in `displayLg`
- *   (`actionText`). When [unit] is non empty it is appended in `labelSm` (`ink3`).
- * - Row 2: a Material 3 [Slider] with a custom track ([SliderDefaults.Track] re-colored with
- *   Kinetic tokens: `action` for the active fill, `panel3` for the inactive remainder) and a custom
- *   14×14.dp thumb (`ink` fill, 1.dp `action` border).
- * - Row 3: [minLabel] left and [maxLabel] right in `labelSm` (`ink3`).
- *
- * Earlier revisions tried to overlay a transparent Material Slider on top of a hand-painted track;
- * that broke gesture pickup on touch screens because the track lambda returned no composable
- * content for the gesture region to attach to. This implementation lets the M3 Slider own its
- * native gesture handling and skins it via [SliderDefaults.colors] instead.
- *
- * @param value current slider value, clamped into [range].
- * @param onValueChange called whenever the user drags the slider.
- * @param labels text and formatting configuration (label, value formatter, unit, edge labels).
- * @param modifier external modifier applied to the root column.
- * @param range valid value range, defaults to `0f..1f`.
- * @param enabled when false, dims the control and disables interaction.
- * @param sliderTestTag optional test tag attached to the slider input region.
+ * @param value Current value, clamped into [range].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

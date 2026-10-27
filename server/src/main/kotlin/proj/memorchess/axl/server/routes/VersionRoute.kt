@@ -10,10 +10,7 @@ import proj.memorchess.axl.server.BuildInfo
 /** Body of `GET /v1/version`. */
 @Serializable internal data class VersionResponse(val sha: String)
 
-/**
- * Mounts `GET /v1/version`, unauthenticated: which commit is currently deployed, for rollback
- * decisions and deploy verification.
- */
+/** Mounts the unauthenticated `GET /v1/version`, reporting the deployed commit. */
 internal fun Route.versionRoute() {
   get("/v1/version") { call.respond(VersionResponse(BuildInfo.sha)) }
 }

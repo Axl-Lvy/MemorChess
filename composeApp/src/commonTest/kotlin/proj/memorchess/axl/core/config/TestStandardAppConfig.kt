@@ -5,7 +5,7 @@ import kotlin.test.Test
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 
-/** Pins the out-of-the-box board style: on-brand violet, not a generic skin. */
+/** Pins the default board style to the on-brand violet. */
 class TestStandardAppConfig : TestWithKoin() {
 
   @Test

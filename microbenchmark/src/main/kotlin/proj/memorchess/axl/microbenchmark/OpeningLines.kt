@@ -4,12 +4,8 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 
 /**
- * Deterministic benchmark fixture: sixteen well known opening main lines, twenty plies each, given
- * in marker free SAN exactly as the app stores moves.
- *
- * The fixture is the single source of inputs for every benchmark in this module so that runs stay
- * comparable across machines and over time. Changing a line invalidates historical comparisons; add
- * new lines instead of editing existing ones.
+ * Deterministic benchmark fixture of well known opening main lines in marker free SAN. Editing a
+ * line breaks historical comparisons, so add new lines instead.
  */
 object OpeningLines {
 
@@ -54,10 +50,7 @@ object OpeningLines {
   /**
    * One graph edge produced by replaying the fixture lines.
    *
-   * @property from Position the move is played from.
-   * @property san The move in marker free SAN.
-   * @property to Position reached after the move.
-   * @property fromDepth Ply distance of [from] from the starting position.
+   * @property fromDepth ply distance of [from] from the starting position.
    */
   data class MoveEdge(
     val from: PositionKey,
@@ -67,9 +60,8 @@ object OpeningLines {
   )
 
   /**
-   * Replays every line through [GameEngine] and returns the deduplicated edge list, in first
-   * occurrence order. Lines share their early plies, so the result is a tree shaped graph of a few
-   * hundred positions, the realistic size of a personal opening repertoire.
+   * Replays every line and returns the deduplicated edges in first occurrence order: a tree of a
+   * few hundred positions, the size of a realistic personal repertoire.
    */
   fun replayToEdges(): List<MoveEdge> {
     val edges = LinkedHashMap<Pair<PositionKey, String>, MoveEdge>()

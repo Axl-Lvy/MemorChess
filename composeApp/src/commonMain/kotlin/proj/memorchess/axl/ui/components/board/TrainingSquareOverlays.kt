@@ -23,17 +23,8 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
- * Floating "+1" that rises above [square] on a correct answer, absolutely placed against
- * [BoardGrid]'s own [tileSize], the same row/col-to-pixel convention [BestMoveArrow] uses.
- *
- * Only composed while [BoardGrid] decides a correct move was just played. It is never a permanently
- * present, zero-alpha node, so its existence in the tree is itself meaningful.
- *
- * @param square The board square the floater rises above.
- * @param tileSize The board's per-tile size, used to convert [square] to a pixel offset.
- * @param inverted Whether the board is flipped (Black's perspective).
- * @param offsetY Vertical rise, read inside a layout-phase [Modifier.offset] lambda.
- * @param alpha Fade, read inside a draw-phase [Modifier.graphicsLayer] lambda.
+ * Floating "+1" that rises above [square] on a correct answer. Composed only while shown, never as
+ * a zero-alpha node, so its presence in the tree is meaningful.
  */
 @Composable
 internal fun PlusOneFloater(
@@ -47,11 +38,8 @@ internal fun PlusOneFloater(
   val typography = LocalKineticTypography.current
   val baseX = if (inverted) tileSize * (7 - square.col) else tileSize * square.col
   val baseY = if (inverted) tileSize * square.row else tileSize * (7 - square.row)
-  // The outer fillMaxSize Box is load-bearing: without it, Modifier.offset's own size(tileSize)
-  // box is what the parent BoxWithConstraints measures and centers before the offset applies, so
-  // the floater would anchor to (parent center + baseX/baseY) instead of (top-start +
-  // baseX/baseY), the convention every other board overlay (DrawTileGrid, DrawPieceGrid,
-  // BestMoveArrow) uses.
+  // Without the fillMaxSize Box, the parent centers the tile box before the offset applies, so the
+  // floater would anchor to the center instead of top-start like the other board overlays.
   Box(Modifier.fillMaxSize()) {
     Box(Modifier.offset(x = baseX, y = baseY).size(tileSize), contentAlignment = Alignment.Center) {
       Text(

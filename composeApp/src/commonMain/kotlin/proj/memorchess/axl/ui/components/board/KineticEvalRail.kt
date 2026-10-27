@@ -24,90 +24,36 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
 /**
- * Clamps [whiteRatio] into the rail's renderable range: every non-finite input (`NaN`, `±Infinity`)
- * falls back to the `0.5f` midpoint, anything else is coerced into `0f..1f`.
- *
- * The fallback is deliberately *not* the `0f` used by
- * [proj.memorchess.axl.ui.components.training.KineticProgressRail]: a missing evaluation reads as
- * "balanced", not as "black wins". Do not harmonise the two.
- *
- * A coerced `-0.0f` survives `coerceIn` untouched (IEEE says `-0.0f < 0.0f` is false), so the
- * result is normalised to a canonical `+0.0f`. Nothing on screen moves — `-0.0f * height` is still
- * zero and `whiteHeight > 0f` is false either way — but the boundary becomes assertable without
- * depending on how a matcher treats signed zero.
- *
- * @param whiteRatio Raw ratio supplied by the caller.
- * @return A finite ratio inside `0f..1f`, with zero in its canonical positive form.
+ * Clamps [whiteRatio] into `0f..1f` with zero as `+0.0f`. Non-finite input reads as balanced
+ * (`0.5f`), unlike [proj.memorchess.axl.ui.components.training.KineticProgressRail]'s `0f`.
  */
 internal fun evalRailSafeRatio(whiteRatio: Float): Float {
   if (whiteRatio.isNaN() || whiteRatio.isInfinite()) return 0.5f
   val coerced = whiteRatio.coerceIn(0f, 1f)
+  // coerceIn keeps -0.0f, so normalise it.
   return if (coerced == 0f) 0f else coerced
 }
 
-/**
- * Vertical span the crisp parity marker occupies, in pixels, guaranteed to satisfy `0f <= start <=
- * endInclusive <= railHeightPx` for every input — including a rail shorter than the marker itself,
- * where the half-thickness is shrunk to fit rather than fed to `coerceIn` with an inverted range
- * (`Float.coerceIn` throws on `min > max`, which a 0-height measure pass reaches).
- *
- * @param railHeightPx Measured rail height in pixels.
- * @param markerThicknessPx Desired marker thickness in pixels.
- * @param safeRatio Ratio already normalised by [evalRailSafeRatio].
- * @return The marker's `top..bottom` band, `0f..0f` for a zero-height rail.
- */
+/** Pixel band of the parity marker, always inside `0f..railHeightPx`, even for a shorter rail. */
 internal fun evalRailMarkerBand(
   railHeightPx: Float,
   markerThicknessPx: Float,
   safeRatio: Float,
 ): ClosedFloatingPointRange<Float> {
+  // Shrunk to fit: coerceIn throws on the inverted range a 0 height measure pass would give.
   val half = minOf(markerThicknessPx / 2f, railHeightPx / 2f)
   val centre = (safeRatio * railHeightPx).coerceIn(half, railHeightPx - half)
   return (centre - half)..(centre + half)
 }
 
-/**
- * Colour of the eval rail's parity marker: the `progress` role, lime in dark and violet in light.
- *
- * In light this deliberately coincides with `palette.action` — the documented light-palette role
- * collision — and the two separate by hue only in dark, which is the whole point of routing the
- * marker through `progress` rather than `action`.
- *
- * @param palette Palette to resolve the role against.
- * @return The marker colour for [palette].
- */
+/** Colour of the eval rail's parity marker, `progress` so it separates from `action` in dark. */
 internal fun kineticEvalMarkerColor(palette: KineticPalette): Color = palette.progress
 
 /**
- * Kinetic evaluation rail. Renders a vertical rail showing the balance between white (top,
- * `palette.sqLight`) and black (bottom, `palette.sqDark`), with a 2.dp marker and a soft glow at
- * the parity point and an optional [displayValue] text (e.g. `"+0.4"` or `"M3"`) below it.
+ * Vertical evaluation rail splitting white (top) from black (bottom) at a parity marker, with an
+ * optional [displayValue] such as `"+0.4"` or `"M3"` below it.
  *
- * The marker rides the `progress` role through its own seam ([kineticEvalMarkerColor]); its glow
- * (`palette.progressGlow`, drawn at half alpha) and the value text (`palette.progressText`) read
- * the role directly, so the tick is lime in dark and violet in light with no per-theme branching.
- *
- * Shape: the rail clips to `MaterialTheme.shapes.extraSmall` (12.dp, the chip / in-card bucket) so
- * the white and black section rects cannot paint over the corners, and carries a 1.5.dp
- * `palette.line` stroke on that same shape. At the rail's 14-18.dp width a 12.dp radius exceeds
- * half the width, so `RoundedCornerShape` clamps it to roughly half the rail's width (7-9.dp) and
- * the rail reads as a pill — which is what the artboards draw.
- *
- * Clamping behaviour lives in [evalRailSafeRatio] and the marker geometry in [evalRailMarkerBand]:
- * `NaN` and infinite ratios fall back to `0.5f`, everything else is coerced into `0f..1f` with
- * `-0.0f` normalised to `+0.0f`, and the marker always ends up fully inside the rail even when the
- * rail measures shorter than the marker. That guarantee is in layout coordinates only: at the
- * extremes (`whiteRatio` `0f`/`1f`) the marker centres on the pill's rounded cap rather than its
- * flat side, so it is mostly hidden behind the clip and reads as a thin sliver rather than a full
- * 2.dp tick. That is accepted as by-design — extreme evaluations still read (the tick is visible,
- * just capped), and the pill shape is what the artboards specify.
- *
- * @param whiteRatio Position of the parity marker. `0f` = black has the entire rail, `1f` = white
- *   has the entire rail. Values outside `0f..1f` are clamped; `NaN`/`Infinity` fall back to `0.5f`.
- * @param displayValue Optional evaluation text rendered beneath the rail (Baloo 2 700 12sp, in
- *   `palette.progressText`).
- * @param modifier External modifier applied to the rail column.
- * @param thin When `true`, the rail is 14.dp wide instead of the default 18.dp.
+ * @param whiteRatio White's share of the rail, clamped into `0f..1f`; non-finite reads as `0.5f`.
  */
 @Composable
 fun KineticEvalRail(
@@ -137,7 +83,7 @@ fun KineticEvalRail(
       modifier =
         Modifier.width(railWidth)
           .weight(1f)
-          // Clip before drawBehind — otherwise the section rects square off the 12.dp corners.
+          // Clip first, or the section rects square off the corners.
           .clip(railShape)
           .background(palette.panel, railShape)
           .drawBehind {
@@ -148,11 +94,9 @@ fun KineticEvalRail(
             val markerCenter = (markerBand.start + markerBand.endInclusive) / 2f
             val whiteHeight = safeRatio * h
 
-            // White section (top).
             if (whiteHeight > 0f) {
               drawRect(color = sqLight, topLeft = Offset.Zero, size = Size(w, whiteHeight))
             }
-            // Black section (bottom).
             val blackHeight = h - whiteHeight
             if (blackHeight > 0f) {
               drawRect(
@@ -161,7 +105,6 @@ fun KineticEvalRail(
                 size = Size(w, blackHeight),
               )
             }
-            // Soft glow — wider semi-transparent progress band behind the crisp marker.
             val glowThickness = 8.dp.toPx()
             val glowTop = (markerCenter - glowThickness / 2f).coerceAtLeast(0f)
             val glowBottom = (markerCenter + glowThickness / 2f).coerceAtMost(h)
@@ -170,7 +113,6 @@ fun KineticEvalRail(
               topLeft = Offset(0f, glowTop),
               size = Size(w, glowBottom - glowTop),
             )
-            // Crisp marker.
             drawRect(
               color = markerColor,
               topLeft = Offset(0f, markerBand.start),

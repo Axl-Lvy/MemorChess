@@ -1,15 +1,11 @@
 package proj.memorchess.axl.core.util
 
-/** Reloader. */
+/** Triggers reloads of whatever observes its key. */
 interface Reloader {
 
-  /** Reloads. */
+  /** Requests a reload, changing [getKey]. */
   fun reload()
 
-  /**
-   * Gets the key.
-   *
-   * @return the key
-   */
+  /** A key that changes on every [reload], for use as an effect key. */
   fun getKey(): Any
 }

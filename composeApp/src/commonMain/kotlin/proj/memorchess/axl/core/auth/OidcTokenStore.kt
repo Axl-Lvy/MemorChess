@@ -7,10 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Persists the sync session (access token, refresh token, expiry and the signed in account).
- *
- * Backed by [Settings], same as [OAuthTokenStore]: unencrypted at rest, acceptable for a token
- * scoped to this app's own API rather than a third party's broader account.
+ * Persists the sync session: tokens, expiry and the signed in account. Unencrypted at rest, which
+ * is acceptable for a token scoped to this app's own API.
  */
 class OidcTokenStore(private val settings: Settings) {
 
@@ -30,9 +28,8 @@ class OidcTokenStore(private val settings: Settings) {
     settings.getLongOrNull(KEY_EXPIRES_AT)?.let(Instant::fromEpochMilliseconds)
 
   /**
-   * Persists a token set. A `null` [refreshToken] clears any previously stored one (the issuer did
-   * not renew it, so the old value should not be treated as still valid). A `null` [account] leaves
-   * the previously known account untouched, since a refresh response typically carries no id token.
+   * Persists a token set. A `null` [refreshToken] clears the stored one; a `null` [account] keeps
+   * the previously known account.
    */
   fun save(accessToken: String, refreshToken: String?, expiresAt: Instant, account: Account?) {
     settings.putString(KEY_ACCESS_TOKEN, accessToken)

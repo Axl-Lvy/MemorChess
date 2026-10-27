@@ -8,33 +8,18 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardPhase
 
 /**
- * Entity representing a [DataNode] ready to be stored in the database.
+ * Room row for a [DataNode], carrying its full FSRS card state.
  *
- * Scheduling fields are owned by the active
- * [proj.memorchess.axl.core.scheduling.SchedulingAlgorithm]. Wave A persists the full FSRS card
- * state on every node so that scheduling decisions are stable across sessions.
- *
- * @property positionKey FEN string uniquely identifying the chess position.
- * @property dueDate Moment when the card is next due for review.
- * @property lastReview Moment of the most recent review, or `null` for a brand new card.
- * @property firstReview Moment of the very first review, or `null` for a never reviewed card.
+ * @property positionKey FEN string identifying the position.
+ * @property lastReview Most recent review, or `null` for a brand new card.
+ * @property firstReview First review, or `null` for a never reviewed card.
  * @property stability FSRS stability of the memory trace, in days.
- * @property difficulty FSRS card difficulty.
- * @property reps Total number of recorded reviews.
- * @property lapses Total number of times the card has been forgotten.
- * @property phase Name of the [proj.memorchess.axl.core.scheduling.CardPhase] in the FSRS state
- *   machine.
+ * @property phase Name of the [CardPhase].
  * @property step Index into the active learning or relearning step ladder.
- * @property depth Minimum graph depth at which this position can be reached from the root.
- * @property hasGoodOutgoing Derived projection owned by [proj.memorchess.axl.core.graph.TreeStore]:
- *   `true` iff this node has at least one non deleted outgoing edge marked good. Backs the bounded
- *   scheduling queries.
- * @property createdAt Derived projection owned by [proj.memorchess.axl.core.graph.TreeStore]: the
- *   moment the position was first added, used as the new card ordering tiebreak after [depth].
- * @property isDeleted Soft delete flag.
- * @property updatedAt Last modification timestamp.
- * @property originDevice Device that wrote this version. See
- *   [proj.memorchess.axl.core.sync.DeviceIdentity].
+ * @property depth Minimum graph depth at which this position is reached from the root.
+ * @property hasGoodOutgoing `true` iff at least one non deleted outgoing edge is marked good.
+ * @property createdAt When the position was first added; the new card tiebreak after [depth].
+ * @property originDevice Device that wrote this version.
  * @property deviceSeq That device's write counter at the time.
  */
 @Entity(

@@ -16,11 +16,7 @@ import kotlin.time.Duration.Companion.hours
 /** RSA key size. 2048 is the floor every OIDC issuer meets and is fast enough to generate. */
 private const val KEY_BITS = 2048
 
-/**
- * A real RSA signing key with a real JWK published for it.
- *
- * @property keyId The `kid` this key is published under.
- */
+/** A real RSA signing key with a JWK published under the `kid` [keyId]. */
 internal class TestSigningKey(internal val keyId: String) {
 
   private val pair =

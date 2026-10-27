@@ -51,7 +51,7 @@ import proj.memorchess.axl.ui.pages.navigation.Route
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/** Snapshot of the numbers the Today page renders; `null` until the first fetch resolves. */
+/** Snapshot of the numbers the Today page renders. */
 private data class TodayStats(
   val streak: Int,
   val done: Int,
@@ -61,12 +61,8 @@ private data class TodayStats(
 )
 
 /**
- * Resolution state of the "pick up where you left off" card.
- *
- * [mostRecentRepertoireMastery] is a legitimately nullable domain value (`null` means either zero
- * registered repertoires, or repertoires registered but none ever reviewed), so a bare
- * `RepertoireMastery?` in a `produceState` cannot tell "still loading" apart from "loaded, nothing
- * to show" — that would flash the empty-state copy before the query resolves.
+ * State of the "pick up where you left off" card, telling loading apart from a loaded `null`
+ * mastery so the empty card never flashes.
  */
 private sealed interface PickUpCardState {
   data object Loading : PickUpCardState
@@ -75,23 +71,8 @@ private sealed interface PickUpCardState {
 }
 
 /**
- * The Today landing page: the dashboard the bottom nav's Training tab now opens onto (see
- * [Route.TodayRoute]). Shows the current streak, this ISO week's activity, today's goal ring, a
- * "Start review" CTA that pushes the real training board ([Route.TrainingRoute]), and a "pick up
- * where you left off" card for the most recently trained repertoire.
- *
- * Stats (streak, done, target, pending count, week activity) are computed once per composition in a
- * `produceState` block, mirroring `KineticSideBar`'s `RailStats`; nothing renders until that first
- * resolves, so the page never flashes a `"0"` or an empty ring it is about to replace. The pick-up
- * card resolves separately, through [PickUpCardState], for the same reason.
- *
- * Returning from the pushed [Route.TrainingRoute] board re-triggers both `produceState` blocks
- * naturally: `NavHost` disposes and recomposes this entry on pop, so a just-finished session's
- * "done" count and pick-up progress are picked up with no explicit refresh key.
- *
- * @param streakTracker Source of the streak, today's completed count, and this week's activity.
- * @param scheduler Source of the still-due count (the goal target) and the pending count (the CTA).
- * @param tagStore Source of the most recently trained repertoire's mastery snapshot.
+ * Today landing page: streak, week activity, goal ring, review CTA and the last trained repertoire.
+ * Renders nothing until its stats resolve; returning from training recomposes it, refreshing them.
  */
 @Composable
 fun Today(
@@ -165,7 +146,7 @@ private fun TodayHeader(todayIsoIndex: Int) {
   }
 }
 
-/** The day-count badge, styled like `KineticSideBar`'s streak card. */
+/** The day-count streak badge. */
 @Composable
 private fun StreakBadge(streak: Int) {
   val typography = LocalKineticTypography.current
@@ -227,9 +208,7 @@ private fun StartReviewCta(pendingCount: Int, onClick: () -> Unit) {
   ) {
     Text(
       text = pluralStringResource(Res.plurals.today_start_review_cta, pendingCount, pendingCount),
-      // Tagged with the count itself, not just a static tag. This lets tests pin the plural
-      // boundary (1 vs 2+) without asserting on the localized text, which is not pinned to
-      // English on CI.
+      // Tagged with the count so tests can pin the plural boundary without the localized text.
       modifier = Modifier.testTag("today_cta_pending_count_$pendingCount"),
     )
   }
@@ -261,9 +240,7 @@ private fun PickUpCard(mastery: RepertoireMastery) {
   }
 }
 
-/**
- * Rendered instead of [PickUpCard] once nothing has been resolved to show — see [PickUpCardState].
- */
+/** Shown instead of [PickUpCard] when no repertoire has been trained. */
 @Composable
 private fun EmptyPickUpCard() {
   val typography = LocalKineticTypography.current

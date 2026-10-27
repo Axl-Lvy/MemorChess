@@ -13,9 +13,8 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
- * Unit tests for [Prefetcher]'s fan out policy. An [UnconfinedTestDispatcher] scope makes each warm
- * run to completion inside [Prefetcher.warmNeighbors], so the loads it fired are observable as soon
- * as it returns.
+ * Tests [Prefetcher]'s fan out policy. The unconfined scope makes every warm finish inside
+ * [Prefetcher.warmNeighbors].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestPrefetcher {
@@ -111,7 +110,6 @@ class TestPrefetcher {
 
     Prefetcher(cache, scope).warmNeighbors(node)
 
-    // One ply only: the child was warmed, its own child was not.
     requested shouldBe listOf(child)
   }
 }

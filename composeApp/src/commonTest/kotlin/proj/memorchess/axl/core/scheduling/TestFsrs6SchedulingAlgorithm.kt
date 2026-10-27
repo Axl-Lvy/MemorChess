@@ -14,11 +14,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /**
- * Unit tests for [Fsrs6SchedulingAlgorithm].
- *
- * Numeric checks recompute expected values from the same formulas as the TypeScript reference
- * (https://github.com/open-spaced-repetition/ts-fsrs); the tests therefore verify behavior, not
- * literal magic numbers.
+ * Tests [Fsrs6SchedulingAlgorithm]. Expected numbers derive from the formulas of the reference
+ * implementation, https://github.com/open-spaced-repetition/ts-fsrs.
  */
 class TestFsrs6SchedulingAlgorithm {
 
@@ -27,7 +24,7 @@ class TestFsrs6SchedulingAlgorithm {
   /** Default algorithm: short term scheduler on, fuzz off (matches the canonical FSRS defaults). */
   private val algorithm = Fsrs6SchedulingAlgorithm()
 
-  /** Long term only variant, used to assert day grained intervals and the pre-Phase-3 behavior. */
+  /** Long term only variant, for day grained intervals. */
   private val longTerm = Fsrs6SchedulingAlgorithm(enableShortTerm = { false })
 
   @Test
@@ -79,9 +76,7 @@ class TestFsrs6SchedulingAlgorithm {
 
   @Test
   fun firstReviewWithAgainCountsAsLapseInLongTermMode() {
-    // The long term path graduates the first review straight to REVIEW, so a fresh AGAIN there is a
-    // forgotten review and counts a lapse. The short term default instead opens learning and counts
-    // no lapse until a graduated card is forgotten — see newCardAgainStaysOnFirstStep.
+    // Long term graduates the first review to REVIEW, so AGAIN there is a forgotten review.
     val state = longTerm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
     state.lapses shouldBe 1
     state.reps shouldBe 1
@@ -89,8 +84,7 @@ class TestFsrs6SchedulingAlgorithm {
 
   @Test
   fun easyGivesLongerIntervalThanGoodThanHardThanAgain() {
-    // Day grained interval ordering is a long term concept (the monotonic clamp across grades), so
-    // assert it on the long term variant.
+    // The monotonic clamp across grades only exists on the long term path.
     val first = longTerm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
     val afterOneInterval = now + 10.days
     val again = longTerm.schedule(first, ReviewGrade.AGAIN, afterOneInterval)
@@ -137,22 +131,13 @@ class TestFsrs6SchedulingAlgorithm {
 
   @Test
   fun freshCardAgainProducesOneDayIntervalInLongTermMode() {
-    // With the short term scheduler off, AGAIN on a brand new card graduates straight to a day
-    // grained interval. weights[0] = 0.212 for AGAIN initial stability; with the default FACTOR
-    // this
-    // rounds to 1 day. (With the short term scheduler on, the same grade instead yields a sub-day
-    // learning step — see newCardAgainStaysOnFirstStep.)
+    // weights[0] = 0.212, the AGAIN initial stability, rounds to 1 day with the default FACTOR.
     val state = longTerm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
     state.phase shouldBe CardPhase.REVIEW
     (state.dueDate - now).inWholeDays shouldBe 1L
   }
 
-  /**
-   * A GOOD review with lower retrievability (more elapsed time) yields more stability, so stability
-   * is strictly monotonic in elapsed time. A half day review landing strictly between the zero day
-   * and one day reviews proves the elapsed count is fractional, not truncated to an integer
-   * (truncation would make the half day case identical to the zero day case).
-   */
+  /** Truncating elapsed days would make the half day case equal the zero day one. */
   @Test
   fun fractionalElapsedDaysSitBetweenTheBoundingIntegerDays() {
     val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
@@ -168,10 +153,7 @@ class TestFsrs6SchedulingAlgorithm {
     atOneYear.stability shouldBeGreaterThan atOneDay.stability
   }
 
-  /**
-   * Negative elapsed time (clock skew or a re-grade) must not blow up the forgetting curve; it is
-   * clamped to zero, so the result matches a same-instant review.
-   */
+  /** Clock skew or a re-grade can make elapsed time negative. */
   @Test
   fun reviewingBeforeLastReviewClampsElapsedDaysToZero() {
     val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
@@ -183,8 +165,7 @@ class TestFsrs6SchedulingAlgorithm {
     before.stability shouldBe atZero.stability
   }
 
-  // Fuzz on with a constant midpoint pick, so the fuzzed interval is deterministic and exercises
-  // the fuzz path without depending on a particular RNG draw.
+  // A constant midpoint pick keeps the fuzzed interval deterministic.
   private val fuzzy = Fsrs6SchedulingAlgorithm(enableFuzz = { true }, nextFuzz = { 0.5 })
 
   private val longTermFuzzy =
@@ -197,9 +178,6 @@ class TestFsrs6SchedulingAlgorithm {
     (state.dueDate - now).inWholeDays shouldBe 8L
   }
 
-  /**
-   * Two algorithms sharing the same RNG seed produce the same fuzzed interval: it is reproducible.
-   */
   @Test
   fun fuzzIsReproducibleUnderAFixedSeed() {
     val a = Fsrs6SchedulingAlgorithm(enableFuzz = { true }, nextFuzz = Random(42)::nextDouble)
@@ -209,12 +187,6 @@ class TestFsrs6SchedulingAlgorithm {
     stateA.dueDate shouldBe stateB.dueDate
   }
 
-  /**
-   * The whole point of fuzz: identical fresh cards graded the same way on the same day must not all
-   * land on one due day. Scheduling the same fresh EASY card repeatedly off a shared advancing RNG
-   * produces more than one distinct interval — the old per-card-state hash gave every fresh card
-   * the same value and so failed to de-bunch them.
-   */
   @Test
   fun fuzzSpreadsIdenticalFreshCardsAcrossDifferentDays() {
     val rng = Random(1)
@@ -229,7 +201,7 @@ class TestFsrs6SchedulingAlgorithm {
 
   /**
    * Raw EASY interval is 8.46 days. The 2.5-to-7 band at 15% and the 7-to-20 band at 10% give a
-   * delta of 1.82, so the fuzzed interval lands between 7 and 10 days inclusive.
+   * delta of 1.82, hence 7 to 10 days inclusive.
    */
   @Test
   fun fuzzKeepsTheIntervalInsideTheCanonicalBand() {
@@ -239,10 +211,7 @@ class TestFsrs6SchedulingAlgorithm {
     days shouldBeLessThanOrEqualTo 10L
   }
 
-  /**
-   * On the long term day grained path, AGAIN rounds to a 1 day interval, well below the 2.5 day
-   * fuzz threshold, so enabling fuzz changes nothing.
-   */
+  /** Long term AGAIN rounds to 1 day, below the 2.5 day fuzz threshold. */
   @Test
   fun fuzzLeavesSubThresholdIntervalsUntouched() {
     val unfuzzed = longTerm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
@@ -266,11 +235,6 @@ class TestFsrs6SchedulingAlgorithm {
     good.dueDate shouldBeLessThanOrEqualTo easy.dueDate
   }
 
-  // Phase 3: short term scheduler and CardPhase state machine (issue #134 gaps 1 and 2).
-
-  /**
-   * A new card answered GOOD advances onto the second learning step (ten minutes), not to review.
-   */
   @Test
   fun newCardGoodEntersLearning() {
     val state = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
@@ -279,10 +243,7 @@ class TestFsrs6SchedulingAlgorithm {
     (state.dueDate - now) shouldBe 10.minutes
   }
 
-  /**
-   * A new card answered AGAIN sits on the first learning step (one minute). Failing during initial
-   * learning is not a lapse — canonical FSRS counts a lapse only for a forgotten graduated card.
-   */
+  /** FSRS counts a lapse only for a forgotten graduated card. */
   @Test
   fun newCardAgainStaysOnFirstStep() {
     val state = algorithm.schedule(previous = null, grade = ReviewGrade.AGAIN, now = now)
@@ -292,7 +253,6 @@ class TestFsrs6SchedulingAlgorithm {
     state.lapses shouldBe 0
   }
 
-  /** EASY graduates a new card immediately to a day grained review interval. */
   @Test
   fun newCardEasyGraduatesImmediately() {
     val state = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
@@ -300,7 +260,6 @@ class TestFsrs6SchedulingAlgorithm {
     (state.dueDate - now).inWholeDays shouldBeGreaterThanOrEqualTo 1L
   }
 
-  /** Two correct answers walk a new card through both learning steps and graduate it to review. */
   @Test
   fun learningGraduatesAfterPassingAllSteps() {
     val first = algorithm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)
@@ -309,7 +268,6 @@ class TestFsrs6SchedulingAlgorithm {
     (second.dueDate - first.dueDate).inWholeDays shouldBeGreaterThanOrEqualTo 1L
   }
 
-  /** A lapse on a graduated card drops it into relearning on the ten minute step. */
   @Test
   fun reviewLapseEntersRelearning() {
     val graduated = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
@@ -320,7 +278,6 @@ class TestFsrs6SchedulingAlgorithm {
     lapsed.lapses shouldBe 1
   }
 
-  /** Failing again while already relearning does not add a second lapse. */
   @Test
   fun failingInRelearningDoesNotDoubleCountLapses() {
     val graduated = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
@@ -331,7 +288,6 @@ class TestFsrs6SchedulingAlgorithm {
     stillRelearning.lapses shouldBe 1
   }
 
-  /** Passing the single relearning step returns a lapsed card to a day grained review interval. */
   @Test
   fun relearningGoodReturnsToReview() {
     val graduated = algorithm.schedule(previous = null, grade = ReviewGrade.EASY, now = now)
@@ -341,7 +297,6 @@ class TestFsrs6SchedulingAlgorithm {
     (relearned.dueDate - lapsed.dueDate).inWholeDays shouldBeGreaterThanOrEqualTo 1L
   }
 
-  /** With the short term scheduler off, the first review graduates straight to review. */
   @Test
   fun shortTermDisabledGraduatesOnFirstReview() {
     val state = longTerm.schedule(previous = null, grade = ReviewGrade.GOOD, now = now)

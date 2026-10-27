@@ -13,12 +13,6 @@ import androidx.window.core.layout.WindowSizeClass
 import kotlin.test.Test
 import proj.memorchess.axl.ui.setKineticContent
 
-/**
- * Pins [MainLayout]'s three mutually exclusive chrome branches against the exact `WindowSizeClass`
- * breakpoints: compact height always wins (the [sideBar] slot), a wide-and-tall window gets the
- * [desktopRail] slot with neither [topBar] nor [bottomBar], and everything else gets
- * [topBar]/[bottomBar].
- */
 @OptIn(ExperimentalTestApi::class)
 internal class TestMainLayout {
 

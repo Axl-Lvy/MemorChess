@@ -29,9 +29,8 @@ android {
   buildTypes {
     getByName("release") { isMinifyEnabled = false }
     getByName("debug") { enableAndroidTestCoverage = true }
-    // Build measured by the :macrobenchmark module. Initialized from release so the numbers
-    // are representative, signed with the debug config so it installs on any device, and kept
-    // explicitly not debuggable because Macrobenchmark rejects debuggable targets.
+    // Measured by :macrobenchmark, which rejects debuggable targets. Debug signed so it installs
+    // on any device.
     create("benchmark") {
       initWith(getByName("release"))
       signingConfig = signingConfigs.getByName("debug")
@@ -50,8 +49,7 @@ kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_21) } }
 
 ktfmt { googleStyle() }
 
-// The ktfmt plugin does not detect source sets compiled by the Kotlin support built into
-// AGP 9, so the Kotlin sources of this module are wired up manually.
+// The ktfmt plugin does not detect source sets of AGP 9's built-in Kotlin support.
 val ktfmtFormatAndroidSources =
   tasks.register<KtfmtFormatTask>("ktfmtFormatAndroidSources") {
     source = fileTree("src") { include("**/*.kt") }
@@ -121,12 +119,10 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
   )
   classDirectories.setFrom(files(appClasses, libraryClasses, sharedClasses))
 
-  // Use both possible locations for coverage execution data
   executionData.setFrom(
     fileTree(layout.buildDirectory.get()) { include("outputs/code_coverage/**/*.ec") }
   )
 
-  // Only run if coverage data exists
   onlyIf { executionData.files.any { it.exists() } }
 }
 
@@ -138,14 +134,11 @@ dependencies {
   implementation(libs.androidx.activity.compose)
   implementation(libs.filekit.dialogs.compose)
 
-  // Makes the Compose runtime emit per composable trace sections in the benchmark build so
-  // the :macrobenchmark TraceSectionMetric can measure board composition. Benchmark variant
-  // only: release and debug builds are unaffected.
+  // Per composable trace sections for the :macrobenchmark TraceSectionMetric.
   "benchmarkImplementation"(libs.compose.runtime.tracing)
 
-  // Ships the Perfetto SDK native library inside the benchmark APK. Without it the
-  // benchmark library sideloads the (older) binary it bundles, which the app's
-  // tracing-perfetto runtime rejects with a checksum verification error.
+  // Without it the benchmark library sideloads an older Perfetto binary that the app's
+  // tracing-perfetto runtime rejects with a checksum error.
   "benchmarkImplementation"(libs.androidx.tracing.perfetto.binary)
 
   androidTestImplementation(libs.kotlin.test.junit)

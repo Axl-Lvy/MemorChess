@@ -20,14 +20,9 @@ import kotlinx.coroutines.sync.withLock
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * HTTP client for the Lichess Opening Explorer API.
- *
- * Serializes requests with a [Mutex] and enforces a [minGap] between consecutive calls to stay well
- * below Lichess's published rate limits. On HTTP 429 responses, retries up to [maxAttemptsOn429]
- * times with exponential backoff before giving up and returning [ExplorerResult.RateLimited].
- *
- * Returns [ExplorerResult.NetworkError] for any other failure so callers can show a friendly
- * message without inspecting Ktor exceptions.
+ * HTTP client for the Lichess Opening Explorer API, throttled to [minGap] between calls and
+ * retrying HTTP 429 with backoff. Failures come back as [ExplorerResult] variants, never as
+ * exceptions.
  */
 class LichessExplorerClient(
   private val httpClient: HttpClient,
@@ -75,8 +70,7 @@ class LichessExplorerClient(
           parameter("moves", plies)
           parameter("topGames", 0)
           if (source == ExplorerSource.LICHESS) {
-            // Restrict the Lichess online corpus to the strongest rating bucket. Masters does not
-            // accept this parameter.
+            // The Masters endpoint rejects this parameter.
             parameter("ratings", "2500")
           }
         }
@@ -138,11 +132,7 @@ class LichessExplorerClient(
     private const val BASE_URL = "https://explorer.lichess.ovh"
     private const val DEFAULT_PLIES = 12
 
-    /**
-     * Identifies MemorChess to the Lichess explorer service. The Lichess team asks every API client
-     * to set a descriptive User-Agent so they can contact maintainers if something goes wrong;
-     * their CDN rejects requests with a generic library User-Agent on the explorer host.
-     */
+    /** Descriptive User-Agent; the explorer host's CDN rejects generic library User-Agents. */
     internal const val USER_AGENT = "MemorChess (https://github.com/Axl-Lvy/MemorChess)"
 
     /** Minimum interval between consecutive requests. */
@@ -164,12 +154,7 @@ sealed class ExplorerResult {
   /** Lichess returned HTTP 429 and the retry budget was exhausted. */
   data object RateLimited : ExplorerResult()
 
-  /**
-   * No token available or token rejected by Lichess (HTTP 401).
-   *
-   * The explorer requires OAuth authentication since Lichess gated `explorer.lichess.ovh` behind
-   * sign in. Callers should prompt the user to sign in.
-   */
+  /** No token available or token rejected by Lichess (HTTP 401); the user must sign in. */
   data object Unauthorized : ExplorerResult()
 
   /** Any other failure (network, parse, server error). */

@@ -8,13 +8,8 @@ import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
 
 /**
- * Installs a published repertoire's moves into the user's opening graph as holds of the repertoire,
- * each with the author's marking. The effective marking follows own > good > bad, so an install
- * never overrides the user's own marking. A move whose effective marking the install would not
- * change counts as already present.
- *
- * @property treeStore Mutation chokepoint of the opening graph that receives the moves.
- * @property tagStore Registry and tags the installed moves are tagged through.
+ * Installs a published repertoire's moves into the opening graph as holds of that repertoire. The
+ * effective marking follows own > good > bad, so an install never overrides the user's own marking.
  */
 class RepertoireMoveImporter(
   private val treeStore: TreeStore,
@@ -22,8 +17,7 @@ class RepertoireMoveImporter(
 ) {
 
   /**
-   * Installs [moves] as holds of [repertoireId] in one batch. Reports `1f` through [onProgress]
-   * once the write is done.
+   * Installs [moves] as holds of [repertoireId] in one batch, reporting `1f` once written.
    *
    * @throws PgnImportException if a position key is malformed or a move is not connected to the
    *   starting position. Nothing is written in that case.

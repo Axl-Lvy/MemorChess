@@ -6,40 +6,22 @@ import proj.memorchess.axl.core.graph.TrainingEntry
 import proj.memorchess.axl.core.scheduling.CardPhase
 
 /**
- * In memory [DatabaseQueryManager] with no persistence at all.
- *
- * It backs throwaway [proj.memorchess.axl.core.graph.TreeStore] instances that exist only for the
- * lifetime of a single screen, such as the read only repertoire viewer which rebuilds an isolated
- * opening graph from a downloaded PGN every time it opens. Nothing here touches Room or IndexedDB,
- * so it works identically on every target and leaves the user's real graph untouched.
- *
- * Behaviour mirrors the platform implementations closely enough for [TreeStore]: deletes flip the
- * [DataNode.isDeleted] flag and cascade the tombstone to every incident move, exactly like Room's
- * `softDeleteNode` + `softDeleteMoveFrom` + `softDeleteMoveTo` and IndexedDB's per-store writes.
- * [insertNodes] merges into each row's existing move maps rather than replacing them outright, so a
- * tombstone written by a delete call is never clobbered by a node persist that runs moments later
- * without that edge in its own cache derived payload (the same reason a Room `INSERT ... REPLACE`
- * on the node row leaves unrelated `MoveEntity` rows untouched, and an IndexedDB `put` only touches
- * the row it names).
+ * Non persistent [DatabaseQueryManager] backing throwaway
+ * [proj.memorchess.axl.core.graph.TreeStore] instances that live for a single screen.
  */
 class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
-  /** Backing store, keyed by position. Soft-deleted nodes stay here with their flag set. */
+  /** Soft deleted nodes stay here with their flag set. */
   private val nodes: MutableMap<PositionKey, DataNode> = mutableMapOf()
 
-  /** Backing outbox, keyed by the dirty key itself so a repeat mark is a no-op collapse. */
+  /** Keyed by the dirty key itself so a repeat mark collapses. */
   private val outbox: LinkedHashMap<DirtyKey, Long> = linkedMapOf()
 
-  /** Backing store for the repertoire registry, keyed by id. */
   private val repertoires: MutableMap<String, DataRepertoire> = mutableMapOf()
 
-  /** Backing store for edge to repertoire tags, keyed by the edge's endpoints and repertoire. */
   private val tags: MutableMap<Triple<PositionKey, PositionKey, String>, DataEdgeRepertoireTag> =
     mutableMapOf()
 
-  /**
-   * Backing store for the `NodeRepertoireTrainable` projection, keyed by position and repertoire.
-   */
   private val trainable: MutableMap<Pair<PositionKey, String>, Instant?> = mutableMapOf()
 
   override suspend fun getPosition(positionKey: PositionKey): DataNode? =
@@ -48,7 +30,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode? =
     nodes[positionKey]
 
-  /** Mirrors [insertNodes]' move-merge trick for one node, minus the outbox mark. */
+  /** Upserts [node] with the same move merge as [insertNodes], minus the outbox mark. */
   override suspend fun applyRemoteNode(node: DataNode) {
     val existing = nodes[node.positionKey]
     nodes[node.positionKey] =
@@ -66,10 +48,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
         )
   }
 
-  /**
-   * Writes [move] into both endpoints' denormalized move maps, mirroring how this backend already
-   * denormalizes every other move write. A no-op when either endpoint does not exist yet.
-   */
+  /** Writes [move] into both endpoints' move maps; a no-op when either endpoint is missing. */
   override suspend fun applyRemoteMove(move: DataMove) {
     val origin = nodes[move.origin] ?: return
     val destination = nodes[move.destination] ?: return
@@ -91,10 +70,6 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
     require(limit > 0) { "Page limit must be strictly positive, was $limit" }
-    // Sorting and slicing the backing map is acceptable here precisely because this is the
-    // throwaway
-    // in memory store, not the disk backed path: the Room and IndexedDB backends express the same
-    // ordered, cursor bounded slice as a single bounded query.
     val page =
       live()
         .filter { cursor == null || it.positionKey.value > cursor }
@@ -105,11 +80,8 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * Replaces each node's scalar fields but merges its [DataNode.previousAndNextMoves]: an incoming
-   * move overrides the stored one with the same key, but a move present only in the stored row (for
-   * example a tombstone a delete call just wrote) survives. This mirrors the per-row upsert every
-   * other backend gets for free from a normalized move table. Also queues each node for the next
-   * sync push at its own [DataNode.deviceSeq], in the same call as the row write it names.
+   * Upserts each node and queues it in the outbox. Move maps are merged, so a stored move absent
+   * from the incoming row (such as a tombstone a delete just wrote) survives.
    */
   override suspend fun insertNodes(vararg positions: DataNode) {
     positions.forEach { incoming ->
@@ -142,11 +114,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     softDelete(position, node, originDevice, deviceSeq, updatedAt)
   }
 
-  /**
-   * Flips [node]'s [DataNode.isDeleted] flag and cascades the tombstone to the denormalized copy
-   * every neighbour holds of the same edge, exactly like Room's softDeleteMoveFrom/softDeleteMoveTo
-   * and IndexedDB's per-store writes.
-   */
+  /** Tombstones [node] and the copy every neighbour holds of each incident edge. */
   private fun softDelete(
     position: PositionKey,
     node: DataNode,
@@ -198,9 +166,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     )
 
   /**
-   * Flips the matching move to deleted inside [neighborKey]'s own denormalized copy. [isNext] is
-   * `true` when the edge lives in the neighbour's `nextMoves` (the neighbour is the edge's origin),
-   * `false` when it lives in its `previousMoves` (the neighbour is the edge's destination).
+   * Tombstones [move] in [neighborKey]'s `nextMoves` when [isNext], else in its `previousMoves`.
    */
   private fun tombstoneInNeighbor(
     neighborKey: PositionKey,
@@ -287,11 +253,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       }
       .maxOrNull()
 
-  /**
-   * Live (non soft deleted) rows. Iterating the backing map is acceptable here precisely because
-   * this is the throwaway in memory store, not the disk backed path: the same predicates are
-   * expressed as bounded indexed queries on the Room and IndexedDB backends.
-   */
+  /** Non soft deleted rows; a full scan is acceptable only because this store is throwaway. */
   private fun live(): List<DataNode> = nodes.values.filter { !it.isDeleted }
 
   private fun DataNode.isInSession(): Boolean =
@@ -375,12 +337,8 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * Capped breadth first descendant count over the in memory map. This is the cross backend
-   * reference implementation of the convergence rule: a child is counted and descended into only
-   * when its total non deleted incoming edge count is at most one, so a position reachable through
-   * an outside parent is left alone. Iterating the backing map is acceptable here because this is
-   * the throwaway in memory store; the Room and IndexedDB backends express the same walk with point
-   * queries.
+   * Reference implementation of the convergence rule: a child is counted and descended into only
+   * when it has at most one non deleted incoming edge.
    */
   override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
     if (nodes[key]?.takeIf { !it.isDeleted } == null) return 0
@@ -388,9 +346,8 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * Non-deleted children of [origin] whose only non-deleted incoming edge comes from within the
-   * subtree (incoming count at most one), i.e. the positions a recursive delete would remove. A
-   * convergent position reachable through an outside parent is excluded.
+   * Live children of [origin] with at most one live incoming edge, i.e. what a recursive delete
+   * removes.
    */
   private fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
     val node = nodes[origin]?.takeIf { !it.isDeleted } ?: return emptyList()
@@ -567,12 +524,9 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   override suspend fun getRepertoireMasterySnapshots(
     repertoireIds: List<String>
   ): Map<String, RepertoireMasterySnapshot> = repertoireIds.associateWith { id ->
-    // A tombstoned position's trainable row is stale until its own delete path clears it (see
-    // TreeStore); filtering it out here too is the correctness backstop, not merely an
-    // optimization. Mirrors the Room/IndexedDB backends' inner join against the node table: a
-    // trainable row whose position was never inserted at all does not count either, the same as
-    // one whose position was later deleted, since TreeStore itself never writes a trainable row
-    // for a position it cannot resolve.
+    // Correctness backstop, not an optimization: a deleted position's trainable row stays stale
+    // until its own delete path clears it. Mirrors the other backends' inner join on the node
+    // table.
     val live =
       trainable.entries.filter { it.key.second == id && nodes[it.key.first]?.isDeleted == false }
     val solid = live.count { nodes[it.key.first]?.cardState?.phase == CardPhase.REVIEW }

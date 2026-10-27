@@ -13,15 +13,12 @@ import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.scheduling.ReviewGrade
 
 /**
- * Trainer that drills a single position by asking the user to play one of its good outgoing moves.
+ * Drills a single position by asking the user to play one of its good outgoing moves.
  *
- * @property node The position being trained.
- * @property repertoireScope When not `null`, a move is only accepted when it is also tagged with
- *   this repertoire, even when it is otherwise a correct, classified move. `null` behaves exactly
- *   as before this parameter existed.
- * @property callBackOnCorrect Called after each move with the [Edge] for a correct move (or `null`
- *   for an incorrect or unknown move), the square the move was played to, and, only for a wrong
- *   attempt with an in-scope good edge, the square that move should have landed on.
+ * @property repertoireScope When not `null`, only moves also tagged with this repertoire are
+ *   accepted.
+ * @property callBackOnCorrect Called after each move with the correct [Edge] or `null`, the played
+ *   square, and, for a wrong attempt with an in-scope good edge, the square it should have reached.
  */
 class SingleMoveTrainer(
   private var node: Node,
@@ -33,15 +30,14 @@ class SingleMoveTrainer(
   private val treeStore: TreeStore by inject()
   private val tagStore: RepertoireTagStore by inject()
 
-  // Set once the card is graded AGAIN by a wrong move, a hint or a reveal, so nothing played or
-  // asked for afterwards grades it again.
+  // Set once the card is graded AGAIN, so nothing played or asked for afterwards grades it again.
   private var failed = false
   private var answered = false
 
   override suspend fun afterPlayMove(move: String) {
     answered = true
-    // Matched by resulting position, not SAN text: an edge imported as "Ngf3" before imports were
-    // normalized must still accept the "Nf3" the board plays.
+    // Matched by resulting position, not SAN text, so a stored over-disambiguated "Ngf3" still
+    // accepts the "Nf3" the board plays.
     val playedPosition = engine.toPositionKey()
     val matchingEdge =
       node.outgoing.values.firstOrNull {
@@ -76,9 +72,8 @@ class SingleMoveTrainer(
   suspend fun hint(): BoardLocation? = assist()?.let { (from, _) -> from }
 
   /**
-   * Returns the origin and destination squares of the expected move, or `null` when there is no
-   * expected move or it was already answered. Grades the card [ReviewGrade.AGAIN] unless it already
-   * failed.
+   * Returns the expected move's origin and destination squares, or `null` when there is none or it
+   * was already answered. Grades the card [ReviewGrade.AGAIN] unless it already failed.
    */
   suspend fun reveal(): Pair<BoardLocation, BoardLocation>? = assist()
 

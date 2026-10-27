@@ -15,15 +15,8 @@ import proj.memorchess.axl.ui.components.training.BoardContainer
 import proj.memorchess.axl.ui.setKineticContent
 
 /**
- * Pins that "no graded move yet" is carried in [BoardTrainingFeedback.isCorrect] itself, rather
- * than as a convention every reader of the flag has to reapply.
- *
- * Finding: [BoardTrainingFeedback] used to default `isCorrect` to `true`, so a consumer that read
- * the flag without ALSO checking [BoardTrainingFeedback.playedSquare] or
- * [BoardTrainingFeedback.attempt] would silently treat "nothing played yet" as "correct". Making
- * `isCorrect` nullable turns that omission into a compile error at every existing consumer, and
- * these tests pin the resulting behaviour at each one of [BoardGrid]'s consumers plus
- * [proj.memorchess.axl.ui.components.training.BoardContainer]'s.
+ * Pins that a `null` [BoardTrainingFeedback.isCorrect] means "no graded move yet" at every
+ * consumer.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestBoardTrainingFeedback : TestWithKoin() {
@@ -38,15 +31,10 @@ class TestBoardTrainingFeedback : TestWithKoin() {
     koinTearDown()
   }
 
-  // The core fix: absence must be readable straight off the default, not inferred by convention.
-
   @Test
   fun defaultFeedbackCarriesNoCorrectnessVerdict() {
     BoardTrainingFeedback().isCorrect shouldBe null
   }
-
-  // CONSUMER 1 — BoardGrid's plus-one LaunchedEffect + PlusOneFloater composition (isCorrect read
-  // twice: once to snap/animate the floater's alpha, once to decide whether to compose it at all).
 
   @Test
   fun plusOneFloaterIsAbsentWhenNothingHasBeenPlayedYet() = runComposeUiTest {
@@ -58,8 +46,6 @@ class TestBoardTrainingFeedback : TestWithKoin() {
 
   @Test
   fun plusOneFloaterStaysAbsentWhenAMoveLandedButGradingIsAbsent() = runComposeUiTest {
-    // A played square with no verdict: the exact shape the old `Boolean = true` default made
-    // indistinguishable from a genuine correct answer.
     setKineticContent {
       BoardGrid(
         state = testBoardGridState(),
@@ -97,10 +83,7 @@ class TestBoardTrainingFeedback : TestWithKoin() {
     onNodeWithTag(PLUS_ONE_TAG).assertDoesNotExist()
   }
 
-  // CONSUMERS 2 & 3 — DrawTileGrid's PlayedSquareOverlay dispatch and the animateTileFeedback
-  // correct/wrong branches. Neither exposes a semantics node, so these are composition smoke tests:
-  // they pin that a null isCorrect (with or without a played square) never throws, matching the
-  // repo's "smoke tests prove composition completes" precedent for draw-phase-only feedback.
+  // Draw phase feedback exposes no semantics node, so these only prove composition completes.
 
   @Test
   fun boardGridComposesWhenNoMoveHasBeenPlayedYet() = runComposeUiTest {
@@ -145,9 +128,6 @@ class TestBoardTrainingFeedback : TestWithKoin() {
     }
   }
 
-  // CONSUMER 4 — BoardContainer's registeredFlash border, which reduces isCorrect to a plain
-  // Boolean for its `success` parameter. Never throws regardless of the verdict, absent included.
-
   @Test
   fun boardContainerComposesWhenAMoveLandedButGradingIsAbsent() = runComposeUiTest {
     setKineticContent {
@@ -169,8 +149,6 @@ class TestBoardTrainingFeedback : TestWithKoin() {
       )
     }
   }
-
-  // Hint squares: a static outline painted by DrawTileGrid and carried through BoardContainer.
 
   @Test
   fun defaultFeedbackHasNoHintSquares() {

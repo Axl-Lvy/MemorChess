@@ -61,22 +61,9 @@ import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.components.popup.ConfirmationDialog
 import proj.memorchess.axl.ui.util.exportToFile
 
-/** Rows fetched per bounded page when streaming the export to disk. */
 private const val EXPORT_PAGE_SIZE = 256
 
-/**
- * Import / Export settings section content.
- *
- * Two large Kinetic buttons (Export, Import) stacked in a Row. The action is **local** — opening
- * trees are serialized to / loaded from `.memorchess` files on the device's filesystem. Below them,
- * a text field imports a public Lichess study by URL or id; this calls the Lichess API but needs no
- * account.
- *
- * Earlier revisions included a 4-cell placeholder meta grid (positions / lines / last backup /
- * size) but every cell rendered as `"—"` because the persistence layer doesn't expose those metrics
- * without touching `core/`. The grid was visual noise and was removed; surface it again once the
- * real metrics are available.
- */
+/** Import / Export settings section: local `.memorchess` file backup and Lichess study import. */
 @Composable
 fun ImportExportSection(
   database: DatabaseQueryManager = koinInject(),
@@ -92,7 +79,6 @@ fun ImportExportSection(
   }
 }
 
-/** The Export and Import file buttons of the Import / Export section. */
 @Composable
 private fun FileButtonsRow(
   database: DatabaseQueryManager,
@@ -101,8 +87,7 @@ private fun FileButtonsRow(
 ) {
   val coroutineScope = rememberCoroutineScope()
 
-  // IntrinsicSize.Min lets fillMaxHeight() below match the taller of the two buttons — the one
-  // whose label wrapped to two lines — instead of the other button stretching to its own height.
+  // IntrinsicSize.Min lets both buttons match the taller one when a label wraps.
   Row(
     modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -110,8 +95,7 @@ private fun FileButtonsRow(
     KineticButton(
       onClick = {
         coroutineScope.launch {
-          // Stream the export through bounded pages so the whole store is never held in memory at
-          // once; the serialized bytes are identical to an eager serialize of every node.
+          // Bounded pages keep the whole store out of memory.
           val content =
             GraphSerializer.serializeStreaming(EXPORT_PAGE_SIZE) { cursor, limit ->
               database.getNodesPage(cursor, limit)
@@ -136,9 +120,7 @@ private fun FileButtonsRow(
             dlg.show(getString(Res.string.settings_import_confirm, file.name)) {
               coroutineScope.launch {
                 val nodes = GraphSerializer.deserialize(content)
-                // Routed through TreeStore, the graph's single mutation chokepoint, so the import
-                // is stamped with this device's identity instead of the wire format's placeholder
-                // one and its moves are queued for sync like any other write.
+                // Through TreeStore so the import gets this device's stamps and is queued for sync.
                 treeStore.importNodes(nodes)
               }
             }
@@ -158,13 +140,8 @@ private fun FileButtonsRow(
 }
 
 /**
- * Text field and button that import a public Lichess study by URL or id, tagging every imported
- * move with the repertoire chosen from [RepertoirePicker].
- *
- * The button is disabled while the input is blank, an import is in flight, or "New repertoire" is
- * selected with a blank name, so a double tap cannot start two imports. The outcome of the last
- * import, success summary or typed error, is rendered below the button. Visible for tests; not
- * otherwise used outside this file.
+ * Imports a public Lichess study by URL or id, tagging its moves with the repertoire chosen in
+ * [RepertoirePicker].
  */
 @Composable
 internal fun LichessStudyImportField(
@@ -176,7 +153,7 @@ internal fun LichessStudyImportField(
   var importing by remember { mutableStateOf(false) }
   var resultMessage by remember { mutableStateOf<String?>(null) }
   var repertoires by remember { mutableStateOf<List<DataRepertoire>>(emptyList()) }
-  // null means "no repertoire": the import is not tagged at all, same as today's behavior.
+  // null means no repertoire: the import stays untagged.
   var selectedRepertoireId by remember { mutableStateOf<String?>(null) }
   var newRepertoireName by remember { mutableStateOf("") }
 
@@ -240,10 +217,8 @@ internal fun LichessStudyImportField(
 private const val NEW_REPERTOIRE_SENTINEL = "__new__"
 
 /**
- * Picker over "no repertoire" (the default, `null`), the user's existing repertoires, and "new
- * repertoire". A text field for [newName] only shows while [NEW_REPERTOIRE_SENTINEL] is selected.
- * There is no Untagged option: leaving the import untagged is exactly what selecting "no
- * repertoire" already does.
+ * Picker over no repertoire (`null`), the existing repertoires and a new one, whose [newName] field
+ * shows only while it is selected.
  */
 @Composable
 private fun RepertoirePicker(

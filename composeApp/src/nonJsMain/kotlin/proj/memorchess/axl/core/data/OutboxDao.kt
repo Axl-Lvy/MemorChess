@@ -4,14 +4,11 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 
-/** DAO for the sync outbox. See [OutboxEntryEntity]. */
+/** DAO for the sync outbox. */
 @Dao
 interface OutboxDao {
 
-  /**
-   * Queues one entry, keeping the higher of the stored and new `deviceSeq` on a repeat mark. See
-   * [DatabaseQueryManager.markDirty].
-   */
+  /** Queues one entry, keeping the higher of the stored and new `deviceSeq` on a repeat mark. */
   @Query(
     "INSERT INTO OutboxEntryEntity (kind, key1, key2, key3, deviceSeq) " +
       "VALUES (:kind, :key1, :key2, :key3, :deviceSeq) " +
@@ -30,9 +27,8 @@ interface OutboxDao {
   suspend fun getAll(): List<OutboxEntryEntity>
 
   /**
-   * Removes the entry keyed by [kind]/[key1]/[key2]/[key3], but only when its queued `deviceSeq`
-   * has not moved past [pushedSeq]: a mark that landed after the row was read for push survives.
-   * See [DatabaseQueryManager.clearDirty].
+   * Removes the entry unless its queued `deviceSeq` moved past [pushedSeq], so a mark that landed
+   * after the row was read for push survives.
    */
   @Query(
     "DELETE FROM OutboxEntryEntity WHERE kind = :kind AND key1 = :key1 AND key2 = :key2 " +
@@ -52,6 +48,6 @@ interface OutboxDao {
     entries.forEach { deleteIfNotNewer(it.kind, it.key1, it.key2, it.key3, it.deviceSeq) }
   }
 
-  /** Hard wipes every outbox entry. Used by [DatabaseQueryManager.eraseAll]. */
+  /** Hard wipes every outbox entry. */
   @Query("DELETE FROM OutboxEntryEntity") suspend fun eraseAll()
 }

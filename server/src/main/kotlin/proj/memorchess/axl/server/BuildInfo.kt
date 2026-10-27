@@ -15,12 +15,7 @@ internal object BuildInfo {
   /** Short git sha of the commit this build was produced from, baked in at Gradle build time. */
   val sha: String = shaFrom(BuildInfo::class.java.classLoader.getResourceAsStream(RESOURCE_NAME))
 
-  /**
-   * Reads `sha` out of the properties resource.
-   *
-   * A parameter rather than a direct classpath read, so the absent, blank and present cases are
-   * each reachable from a test without touching the actual build resource.
-   */
+  /** Reads `sha` out of the properties [resource], or [UNKNOWN_SHA] when absent or blank. */
   internal fun shaFrom(resource: InputStream?): String {
     val properties = Properties()
     resource?.use(properties::load)

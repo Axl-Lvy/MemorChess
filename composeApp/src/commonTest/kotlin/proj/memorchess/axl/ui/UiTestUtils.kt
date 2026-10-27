@@ -32,13 +32,9 @@ import proj.memorchess.axl.test_util.getTileDescription
 import proj.memorchess.axl.ui.theme.KineticTheme
 import proj.memorchess.axl.ui.util.hasClickLabel
 
-// CONTENT
-
 /**
  * Sets the test content and suspends until it has settled, resources included. Use it instead of
  * [ComposeUiTest.setContent], whose content may still be loading when it returns on wasmJs.
- *
- * @param content The composable under test.
  */
 suspend fun ComposeUiTest.setTestContent(content: @Composable () -> Unit) {
   setContent { ProvideTestResourceReader(content) }
@@ -49,41 +45,20 @@ suspend fun ComposeUiTest.setTestContent(content: @Composable () -> Unit) {
   }
 }
 
-// THEME
-
 /**
- * Sets the test content wrapped in [KineticTheme] so Composables that read the Kinetic theme locals
- * ([proj.memorchess.axl.ui.theme.LocalKineticPalette],
- * [proj.memorchess.axl.ui.theme.LocalKineticTypography]) resolve instead of crashing at their
- * `staticCompositionLocalOf` default.
- *
- * Unlike [proj.memorchess.axl.ui.theme.AppTheme], [KineticTheme] reads no config and needs no Koin,
- * so it is safe for tests that render fragments in isolation without a Koin container. A fixed
- * light theme keeps rendering deterministic across hosts.
- *
- * @param content The composable under test.
+ * Sets the test content inside a light [KineticTheme], which needs no Koin, so the Kinetic theme
+ * locals resolve in isolated tests.
  */
 suspend fun ComposeUiTest.setKineticContent(content: @Composable () -> Unit) {
   setTestContent { KineticTheme(darkTheme = false) { content() } }
 }
 
-// BOARD
-
-/**
- * Clicks on a chess board tile with the specified name.
- *
- * @param tileName The algebraic notation of the tile (e.g., "e4", "h8")
- */
+/** Clicks on the board tile [tileName], such as `e4`. */
 suspend fun ComposeUiTest.clickOnTile(tileName: String) {
   waitUntilTileAppears(tileName).performClick()
 }
 
-/**
- * Plays a chess move by clicking on the source tile and then the destination tile.
- *
- * @param fromTile The algebraic notation of the source tile (e.g., "e2")
- * @param toTile The algebraic notation of the destination tile (e.g., "e4")
- */
+/** Plays a move by clicking [fromTile] then [toTile]. */
 suspend fun ComposeUiTest.playMove(fromTile: String, toTile: String) {
   clickOnTile(fromTile)
   clickOnTile(toTile)
@@ -116,22 +91,12 @@ suspend fun ComposeUiTest.clickOnReset() {
   awaitIdle()
 }
 
-/**
- * Asserts that a specific tile on the chess board is empty (contains no piece).
- *
- * @param tileName The algebraic notation of the tile to check (e.g., "e4")
- */
+/** Asserts that the tile [tileName] holds no piece. */
 suspend fun ComposeUiTest.assertTileIsEmpty(tileName: String) {
   waitUntilTileAppears(tileName).assert(hasContentDescription("Piece", substring = true).not())
 }
 
-/**
- * Asserts that a specific tile on the chess board contains the specified piece.
- *
- * @param tileName The algebraic notation of the tile to check (e.g., "e4")
- * @param piece The chess piece that should be on the tile
- * @param timeOut The maximum time to wait for the tile to appear
- */
+/** Asserts that the tile [tileName] holds [piece]. */
 suspend fun ComposeUiTest.assertTileContainsPiece(
   tileName: String,
   piece: ChessPiece,
@@ -140,14 +105,7 @@ suspend fun ComposeUiTest.assertTileContainsPiece(
   waitUntilNodeExists(hasTestTag("Piece $piece at $tileName"), timeOut)
 }
 
-/**
- * Asserts that a piece has moved from one tile to another. This checks that the source tile is
- * empty and the destination tile contains the specified piece.
- *
- * @param fromTile The algebraic notation of the source tile (e.g., "e2")
- * @param toTile The algebraic notation of the destination tile (e.g., "e4")
- * @param piece The chess piece that should have moved
- */
+/** Asserts that [piece] moved from [fromTile] to [toTile]. */
 suspend fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, piece: ChessPiece) {
   waitUntilTileAppears(fromTile)
   assertTileIsEmpty(fromTile)
@@ -155,12 +113,7 @@ suspend fun ComposeUiTest.assertPieceMoved(fromTile: String, toTile: String, pie
   assertTileContainsPiece(toTile, piece)
 }
 
-/**
- * Asserts that a specific move exists in the next move suggestions and returns the node.
- *
- * @param move The algebraic notation of the move (e.g., "e4")
- * @return The SemanticsNodeInteraction representing the move suggestion
- */
+/** Asserts that [move] is among the next move suggestions and returns its node. */
 suspend fun ComposeUiTest.assertNextMoveExist(move: String): SemanticsNodeInteraction {
   waitUntilNodeExists(hasTestTag(getNextMoveDescription(move)))
   return onNodeWithTag(getNextMoveDescription(move)).assertExists()
@@ -173,12 +126,7 @@ suspend fun ComposeUiTest.isBoardReversed(): Boolean {
   return a1y < a8y
 }
 
-/**
- * Suspends until the board of an asynchronously loading page (e.g. the repertoire viewer, which
- * fetches a PGN in a `LaunchedEffect`) has rendered.
- *
- * @param timeOut The maximum time to wait for the board to render.
- */
+/** Suspends until the board of an asynchronously loading page has rendered. */
 suspend fun ComposeUiTest.waitUntilBoardAppears(timeOut: Duration = BOARD_LOAD_TIMEOUT) {
   waitUntilNodeExists(hasClickLabel(getTileDescription("a1")), timeOut)
 }
@@ -186,64 +134,32 @@ suspend fun ComposeUiTest.waitUntilBoardAppears(timeOut: Duration = BOARD_LOAD_T
 private suspend fun ComposeUiTest.waitUntilTileAppears(tileName: String): SemanticsNodeInteraction =
   waitUntilNodeExists(hasClickLabel(getTileDescription(tileName)))
 
-// GENERAL
-
-/**
- * Asserts that a UI element with the specified tag exists and returns it.
- *
- * @param tag The tag used to identify the UI element
- * @return The SemanticsNodeInteraction representing the found element
- * @throws AssertionError if no element with the specified tag exists
- */
+/** Asserts that a node tagged [tag] exists and returns it. */
 suspend fun ComposeUiTest.assertNodeWithTagExists(tag: String): SemanticsNodeInteraction {
   return waitUntilNodeExists(hasTestTag(tag)).assertExists()
 }
 
-/**
- * Asserts that no UI element with the specified tag exists.
- *
- * @param tag The tag that should not be present in the UI
- * @throws AssertionError if an element with the specified tag exists
- */
+/** Asserts that no node is tagged [tag]. */
 fun ComposeUiTest.assertNodeWithTagDoesNotExists(tag: String) {
   onNodeWithTag(tag).assertDoesNotExist()
 }
 
-/**
- * Asserts that a UI element with the specified text exists and returns it.
- *
- * @param text The text to search for in the UI
- * @return The SemanticsNodeInteraction representing the found element
- * @throws AssertionError if no element with the specified text exists
- */
+/** Asserts that a node with [text] exists and returns it. */
 suspend fun ComposeUiTest.assertNodeWithTextExists(text: String): SemanticsNodeInteraction {
   return waitUntilNodeExists(hasText(text)).assertExists()
 }
 
-/**
- * Asserts that no UI element with the specified text exists.
- *
- * @param text The text that should not be present in the UI
- * @throws AssertionError if an element with the specified text exists
- */
+/** Waits until no node has [text]. */
 suspend fun ComposeUiTest.assertNodeWithTextDoesNotExists(text: String) {
   waitUntilNodeDoesNotExist(hasText(text))
 }
 
-/**
- * Slides a slider far to right. Don't reaches the end, but almost.
- *
- * @param sliderTestTag The tag of the slider to slide
- */
+/** Slides the slider [sliderTestTag] to 80% of its width. */
 suspend fun ComposeUiTest.slideToRight(sliderTestTag: String) {
   slide(sliderTestTag, 0.80f)
 }
 
-/**
- * Slides a slider far to left. Don't reaches the end, but almost.
- *
- * @param sliderTestTag The tag of the slider to slide
- */
+/** Slides the slider [sliderTestTag] to 10% of its width. */
 suspend fun ComposeUiTest.slideToLeft(sliderTestTag: String) {
   slide(sliderTestTag, 0.10f)
 }
@@ -256,16 +172,8 @@ private suspend fun ComposeUiTest.slide(sliderTestTag: String, widthFactor: Floa
 }
 
 /**
- * Like [ComposeUiTest.waitUntil] but accepts a suspending condition.
- *
- * [ComposeUiTest.waitUntil] takes a plain lambda, which forces conditions that need suspend APIs
- * (such as the database) to spin up a nested `runTest`. That cannot work on wasmJs where nothing
- * can block: the nested test body runs asynchronously and the condition reads a stale value. Tests
- * running inside the suspending `runComposeUiTest` block call this instead and poll the suspend API
- * directly, pumping composition between polls.
- *
- * @param timeOut The maximum time to wait for the condition to become true
- * @param condition The suspending condition to poll
+ * Like [ComposeUiTest.waitUntil] but polls a suspending [condition], since a nested `runTest` reads
+ * stale values on wasmJs, where nothing can block.
  */
 suspend fun ComposeUiTest.waitUntilSuspending(
   timeOut: Duration = TEST_TIMEOUT,
@@ -274,13 +182,7 @@ suspend fun ComposeUiTest.waitUntilSuspending(
   pumpUntil(timeOut, "Condition", condition)
 }
 
-/**
- * Waits until a UI element with the specified matcher exists and returns it.
- *
- * @param matcher The matcher used to identify the UI element
- * @param timeOut The maximum time to wait for the element to appear
- * @return The SemanticsNodeInteraction representing the found element
- */
+/** Waits until a node matches [matcher] and returns it. */
 suspend fun ComposeUiTest.waitUntilNodeExists(
   matcher: SemanticsMatcher,
   timeOut: Duration = TEST_TIMEOUT,
@@ -291,12 +193,7 @@ suspend fun ComposeUiTest.waitUntilNodeExists(
   return onNode(matcher).assertExists()
 }
 
-/**
- * Waits until no UI element matches the specified matcher.
- *
- * @param matcher The matcher used to identify the UI element
- * @param timeOut The maximum time to wait for the element to disappear
- */
+/** Waits until no node matches [matcher]. */
 suspend fun ComposeUiTest.waitUntilNodeDoesNotExist(
   matcher: SemanticsMatcher,
   timeOut: Duration = TEST_TIMEOUT,
@@ -307,13 +204,8 @@ suspend fun ComposeUiTest.waitUntilNodeDoesNotExist(
 }
 
 /**
- * Advances the clock one frame at a time until a UI element matches [matcher], for tests that hold
- * [androidx.compose.ui.test.MainTestClock.autoAdvance] off yet need content that loads
- * asynchronously, such as a string resource on wasmJs.
- *
- * @param matcher The matcher used to identify the UI element
- * @param maxFrames The maximum number of frames to advance
- * @return The SemanticsNodeInteraction representing the found element
+ * Advances the clock frame by frame until a node matches [matcher], for tests with `autoAdvance`
+ * off that await asynchronous content such as a string resource on wasmJs.
  */
 suspend fun ComposeUiTest.advanceFramesUntilNodeExists(
   matcher: SemanticsMatcher,
@@ -328,13 +220,8 @@ suspend fun ComposeUiTest.advanceFramesUntilNodeExists(
 }
 
 /**
- * Pumps frames until [condition] holds.
- *
- * [ComposeUiTest.waitUntil] blocks, which on wasmJs starves both the Compose render loop and the
- * browser event loop (resource `fetch`, IndexedDB, Ktor's `MockEngine`), so the UI never updates
- * inside it. Each iteration here advances one frame, lets the event loop run, then awaits idleness.
- *
- * @throws AssertionError if [condition] still does not hold after [timeOut]
+ * Pumps frames until [condition] holds, since the blocking [ComposeUiTest.waitUntil] starves the
+ * Compose render loop and the browser event loop on wasmJs.
  */
 private suspend fun ComposeUiTest.pumpUntil(
   timeOut: Duration,
@@ -352,9 +239,7 @@ private suspend fun ComposeUiTest.pumpUntil(
   }
 }
 
-// DATABASE
-
-/** Clicks the "Save Good" button to mark the current position as a good move. */
+/** Clicks the save button to mark the current move good. */
 suspend fun ComposeUiTest.clickOnSave() {
   waitUntilNodeExists(hasContentDescription("Save", ignoreCase = true))
     .assertExists()

@@ -16,45 +16,27 @@ internal data class SettingSyncMetadata(
   val deviceSeq: Long,
 )
 
-/**
- * Sync metadata for setting keys, held as sibling keys in the same [Settings] store a setting's
- * value lives in. A setting has no row of its own the way a node or edge does, so this is the
- * closest equivalent: one [stamp] call per [ConfigItem] write.
- */
+/** Sync metadata for setting keys, stored as sibling keys in the same [Settings] store. */
 class SettingSyncMetadataStore(
   private val settings: Settings,
   private val deviceIdentity: DeviceIdentity,
 ) {
 
-  // Guards the whole stamp critical section (sequence allocation plus all four writes), not just
-  // the writes: without it, two concurrent stamp() calls for the same key can allocate seq 1 and
-  // seq 2, then race to write their four fields, and the seq-1 writer finishing last would leave
-  // stale metadata behind even though seq-2 is what is actually stored. A non-suspend spinlock
-  // (Mutex.tryLock/unlock) so stamp can be called inline from the non-suspend
-  // proj.memorchess.axl.core.config.ConfigItem.setValue and reset.
+  // Covers seq allocation and all four writes, so an older stamp cannot finish last and leave stale
+  // metadata. Spun with tryLock because stamp runs from non-suspend ConfigItem.setValue and reset.
   private val lock = Mutex()
 
-  /**
-   * Stamps [key] as written just now by this device, marking it deleted when [isDeleted].
-   *
-   * Sequence allocation and all four writes happen under one lock, so a concurrent stamp of the
-   * same key can never finish out of order and leave stale metadata behind. The four fields are
-   * written with `updatedAt` last: [read] gates on `updatedAt` alone, so a crash mid-stamp leaves a
-   * reader seeing the previous, fully consistent value instead of a half-updated one.
-   *
-   * @return The `deviceSeq` this call allocated, so a caller that also needs to enqueue an outbox
-   *   entry (see [proj.memorchess.axl.core.data.DatabaseQueryManager.markDirty]) stamps and queues
-   *   at the same sequence without allocating a second one.
-   */
+  /** Stamps [key] as written now by this device and returns the `deviceSeq` it allocated. */
   fun stamp(key: String, isDeleted: Boolean = false): Long {
     while (!lock.tryLock()) {
-      /* spin: the critical section is one deviceSeq allocation plus four Settings writes */
+      /* spin: the critical section is short */
     }
     try {
       val seq = deviceIdentity.nextDeviceSeq()
       settings.putBoolean(isDeletedKey(key), isDeleted)
       settings.putString(originDeviceKey(key), deviceIdentity.originDevice)
       settings.putLong(deviceSeqKey(key), seq)
+      // Last: read gates on updatedAt, so a crash mid-stamp leaves the previous metadata readable.
       settings.putLong(updatedAtKey(key), DateUtil.now().epochSeconds)
       return seq
     } finally {

@@ -12,36 +12,23 @@ sealed class RepertoireExportResult {
   data object Empty : RepertoireExportResult()
 
   /**
-   * The exported moves.
+   * The exported moves, each with its marking.
    *
-   * @property moves Every distinct exported move, with its marking.
-   * @property maxPlyDepth Deepest move origin, in plies along the shortest path from the start, the
-   *   unit `RepertoirePublishLimits.MAX_PLY_DEPTH` caps.
+   * @property maxPlyDepth Deepest move origin, in plies along the shortest path from the start.
    */
   data class Moves(val moves: List<RepertoireMove>, val maxPlyDepth: Int) : RepertoireExportResult()
 }
 
 /**
- * Turns a repertoire's tagged edges into the move list it is published as, the reverse of
- * [RepertoireMoveImporter].
- *
- * A line that transposes into already known theory can have one or more untagged edges between the
- * starting position and a tagged one further down (`LinesExplorer` only tags an edge the first time
- * it is newly played). Exporting tagged edges alone would leave such a tagged edge disconnected
- * from the start. This keeps an edge when it is itself tagged with the repertoire or leads to a
- * position some live tagged edge is reachable from, so every exported line stays whole and
- * playable. Those positions are found by walking back from the tagged edges, so only the
- * repertoire's own lines and their ancestors are loaded, never the rest of the graph. An untagged
- * move back into a position already on the current line is dropped, and a move only explored, never
- * saved, is never exported. Each move is exported in canonical SAN, so a legacy over-disambiguated
- * spelling still publishes.
+ * Turns a repertoire's tagged edges into the move list it is published as. Untagged edges leading
+ * to a tagged one are kept, so every exported line stays connected to the start.
  */
 class RepertoireMoveExporter(
   private val treeStore: TreeStore,
   private val tagStore: RepertoireTagStore,
 ) {
 
-  /** Exports every line reachable from a tagged edge of [repertoireId]. See the class doc. */
+  /** Exports every line leading to a tagged edge of [repertoireId]. */
   suspend fun export(repertoireId: String): RepertoireExportResult {
     val taggedEdges =
       tagStore.edgesTaggedWith(repertoireId).map { it.origin to it.destination }.toSet()

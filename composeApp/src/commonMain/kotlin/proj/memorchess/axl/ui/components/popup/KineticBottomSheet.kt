@@ -42,17 +42,12 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.KineticMotion
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
-/**
- * Scrim darkness, a fixed value independent of theme so it always reads as a dim, not a highlight.
- */
+/** Theme independent, so the scrim always reads as a dim. */
 private const val SCRIM_ALPHA: Float = 0.5f
 
 private val SCRIM_COLOR = Color.Black.copy(alpha = SCRIM_ALPHA)
 
-/**
- * Always anchors popup content at the window origin, so a scrim reaching edge to edge is possible
- * regardless of where [KineticBottomSheet] sits in the caller's own layout tree.
- */
+/** Anchors popup content at the window origin, so the scrim can reach edge to edge. */
 private object WindowOriginPopupPositionProvider : PopupPositionProvider {
   override fun calculatePosition(
     anchorBounds: IntRect,
@@ -63,25 +58,10 @@ private object WindowOriginPopupPositionProvider : PopupPositionProvider {
 }
 
 /**
- * Bottom sheet with its own animated scrim, registering in and out with
- * [KineticMotion.Routine.bottomSheet] instead of snapping. Built on [Popup] rather than
- * [Dialog][androidx.compose.ui.window.Dialog]: `DialogProperties.scrimColor` only exists on the
- * skiko target, so a `commonMain` dialog cannot suppress the platform's own instant scrim, which
- * would otherwise double up with this one.
+ * Bottom sheet with its own animated scrim. Built on [Popup] rather than a Dialog because
+ * `DialogProperties.scrimColor` is skiko only, so a common Dialog would double the scrim.
  *
- * The mount guard keeps the [Popup] alive for the whole exit animation (mirroring [KineticDialog]'s
- * own [AnimatedVisibility] placement inside its host window), so the scrim and sheet both finish
- * sliding or fading before the popup actually tears down.
- *
- * The scrim is drawn only up to the popup's own content area, not behind system bars or a notch,
- * because `PopupProperties.usePlatformInsets` is a skiko only parameter as well and this file stays
- * on the common expect surface throughout.
- *
- * @param visible Whether the sheet should be shown.
- * @param onDismissRequest Invoked when the user dismisses via scrim tap or system back.
- * @param modifier Modifier applied to the sheet panel (e.g. a `testTag`).
- * @param buttons Trailing action buttons, laid out aligned to the end beneath [content].
- * @param content The sheet body.
+ * @param buttons trailing action buttons, aligned to the end beneath [content].
  */
 @Composable
 internal fun KineticBottomSheet(
@@ -142,15 +122,11 @@ internal fun KineticBottomSheet(
               .fillMaxWidth()
               // Absorb taps so they don't fall through to the scrim behind the panel.
               .pointerInput(Unit) {}
-              // A plain border rather than kineticShadow: the offset shadow block that big=true
-              // draws sits 12.dp past the panel's own bounds. For a full-width, bottom-anchored
-              // sheet that falls outside the popup and gets clipped. KineticDialog can afford the
-              // offset because its Dialog window reserves shadow room around a content-wrapped
-              // panel. A sheet pinned to the screen edge has no room to give.
+              // A plain border, not kineticShadow: its offset shadow would fall outside the popup
+              // on an edge-pinned sheet and get clipped.
               .border(width = 1.dp, color = palette.line)
               .background(palette.panel)
           ) {
-            // HUD strip flush to the top edge, mirrors KineticDialog.
             Box(Modifier.fillMaxWidth().height(2.dp).background(palette.actionGlow))
             Column(Modifier.padding(20.dp)) {
               content()

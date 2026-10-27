@@ -10,12 +10,7 @@ enum class PieceKind {
   PAWN,
 }
 
-/**
- * A chess piece on the board, combining its [kind] and owning [player].
- *
- * [toString] returns the single-character FEN representation (uppercase for white, lowercase for
- * black).
- */
+/** A chess piece of [kind] owned by [player]; [toString] gives its FEN letter. */
 data class ChessPiece(val kind: PieceKind, val player: Player) {
   override fun toString(): String {
     val c =

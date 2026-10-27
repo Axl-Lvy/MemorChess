@@ -4,18 +4,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 
-/**
- * Maps a [KineticPalette] onto a Material 3 [ColorScheme] so M3 widgets that haven't been migrated
- * to bespoke Kinetic Composables still pick up the right colors.
- *
- * Mapping (from Kinetic token → M3 role):
- * - `action` → `primary`
- * - `streak` → `secondary`, `progress` → `tertiary`
- * - `bg` → `background`, `panel`/`panel2`/`panel3` → `surface` family
- * - `line` → `outline`, `lineBright` → `outlineVariant`
- * - `ink` → `onSurface`, `ink2` → `onSurfaceVariant`
- * - `destructive` → `error`
- */
+/** Maps a [KineticPalette] onto a Material 3 [ColorScheme] so plain M3 widgets match the theme. */
 internal fun kineticToM3(palette: KineticPalette): ColorScheme {
   val base = if (palette.isLight) lightColorScheme() else darkColorScheme()
   return base.copy(

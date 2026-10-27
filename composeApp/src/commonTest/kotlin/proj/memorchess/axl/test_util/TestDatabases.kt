@@ -8,13 +8,7 @@ import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
-/**
- * Factories for [InMemoryDatabaseQueryManager] instances prefilled with common openings.
- *
- * These are plain fixtures over the production [InMemoryDatabaseQueryManager]: they seed and read
- * the graph exclusively through the public [proj.memorchess.axl.core.data.DatabaseQueryManager]
- * API, so they exercise the same code path the app uses and never reach into the storage map.
- */
+/** Factories for [InMemoryDatabaseQueryManager] instances prefilled with common openings. */
 object TestDatabases {
 
   /** An empty database. */
@@ -29,12 +23,7 @@ object TestDatabases {
   /** A database with the Scandinavian opening. */
   suspend fun scandinavian(): InMemoryDatabaseQueryManager = fromMoves(getScandinavian())
 
-  /**
-   * Converts a list of SAN moves into the chain of [DataNode]s that represents that single line.
-   *
-   * @param moves The moves to convert.
-   * @return One [DataNode] per position along the line, in play order.
-   */
+  /** Converts SAN [moves] into one [DataNode] per position along that line, in play order. */
   fun convertStringMovesToNodes(moves: List<String>): List<DataNode> {
     val nodes = mutableListOf<DataNode>()
     val engine = GameEngine()
@@ -57,13 +46,7 @@ object TestDatabases {
     return nodes
   }
 
-  /**
-   * Merges multiple databases into one, unioning the moves of any position that appears in more
-   * than one of them.
-   *
-   * @param databases The databases to merge.
-   * @return A new database containing all positions and their moves.
-   */
+  /** Merges [databases] into a new one, unioning the moves of positions they share. */
   suspend fun merge(vararg databases: InMemoryDatabaseQueryManager): InMemoryDatabaseQueryManager {
     val mergedNodes = mutableMapOf<PositionKey, DataNode>()
     for (database in databases) {

@@ -19,7 +19,7 @@ internal class TestSyncStorePosition {
 
   private val store = SyncStore(PostgresTestDb.dataSource())
 
-  /** A fresh user with one registered device, which pushing now requires. */
+  /** A fresh user with one registered device, which pushing requires. */
   private suspend fun newUser(): String {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)

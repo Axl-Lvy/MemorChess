@@ -22,13 +22,7 @@ import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import proj.memorchess.axl.ui.setKineticContent
 
-/**
- * Verifies [kineticPressableEdgeColor] resolves to a solid, opaque edge in both palettes, and that
- * [kineticShadow]'s `shape`/`drawBorder` parameters behave as documented: a default (no `shape`
- * argument) call still reaches the exact old square offset, an explicit rounded [CircleShape]
- * genuinely reshapes the drawn outline, and `drawBorder = false` suppresses the modifier's own line
- * stroke.
- */
+/** Tests [kineticPressableEdgeColor] and [kineticShadow]'s `shape` and `drawBorder` parameters. */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticElevation {
 
@@ -65,11 +59,8 @@ internal class TestKineticElevation {
   }
 
   /**
-   * [kineticShadow]'s offset block is drawn *outside* the shadowed node's own bounds, so the parent
-   * here reserves 10.dp of room (mirroring
-   * [proj.memorchess.axl.ui.components.popup.KineticDialog]'s own `SHADOW_ROOM` pattern) — the
-   * parent, tagged [tag], is what gets captured, since capturing the child itself would clip the
-   * very overflow these tests are about.
+   * [kineticShadow] draws outside the child's bounds, so the parent reserves room for it and is the
+   * node captured under [tag]; capturing the child would clip the overflow.
    */
   @Composable
   private fun ReservedRoomBox(tag: String, shape: Shape?) {
@@ -92,21 +83,15 @@ internal class TestKineticElevation {
   @Test
   fun roundedShapeClipsTheOffsetCorner() = runComposeUiTest {
     setKineticContent { ReservedRoomBox(tag = SHADOW_PARENT_TAG, shape = CircleShape) }
-    // Sampled past the shadowed child's own bottom-right corner but still inside the parent's
-    // reserved room. A rounded shape's offset block never reaches this point, so the pixel here
-    // should still read the untouched background exactly.
+    // Past the child's corner but inside the reserved room, where a rounded offset never reaches.
     val corner = with(density) { 40.dp.roundToPx() } + 4
     val pixel = onNodeWithTag(SHADOW_PARENT_TAG).captureToImage().toPixelMap()[corner, corner]
     pixel shouldBe Color(0xFF000000)
   }
 
   /**
-   * A default (no `shape` argument) call still reaches the exact old square offset — the same
-   * corner point a rounded [CircleShape] clips out of, sampled from two siblings rendered in the
-   * same composition. Comparing the two rendered pixels directly, rather than asserting the default
-   * one merely differs from a hardcoded pure-black constant, does not depend on the 0.08-alpha
-   * shadow-over-black blend rounding to a channel value 8-bit precision can still tell apart from
-   * `0xFF000000`.
+   * Compares against a rendered rounded pixel rather than pure black, since the faint 0.08-alpha
+   * shadow blend may round to black in 8 bits.
    */
   @Test
   fun defaultShapeShadowDiffersFromRoundedShapeAtTheOffsetCorner() = runComposeUiTest {

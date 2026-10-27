@@ -7,9 +7,8 @@ import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 
 /**
- * Pins the best-move arrow's palette role. The engine suggestion rides `progress`, so it is lime in
- * dark and violet in light, while square selection keeps the interactive `action` role. The
- * user-chosen skins keep their own hues and must not be swept along.
+ * Pins the best-move arrow to `progress` on Kinetic schemes, apart from the `action` selection
+ * color, while the other skins keep their own hues.
  */
 internal class TestChessBoardColorScheme {
 

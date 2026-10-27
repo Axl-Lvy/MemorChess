@@ -9,15 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/**
- * Mobile / portrait Kinetic explore layout. Stacks moves trail, board (with thin eval rail),
- * control bar, and mobile info tabs vertically.
- *
- * The stat-badges row (eval / positions / retention) is intentionally NOT rendered here. Those
- * values are placeholders today and the row added visual noise without conveying information; it
- * stays in [ExploreLayoutContent] for the desktop layout, which surfaces the same values in the
- * top-bar pills instead.
- */
+/** Portrait explore layout stacking moves trail, board, control bar, and info tabs. */
 @Composable
 fun PortraitExploreLayout(modifier: Modifier = Modifier, content: ExploreLayoutContent) {
   Column(

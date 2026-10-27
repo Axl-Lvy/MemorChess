@@ -1,6 +1,4 @@
 plugins {
-  // this is necessary to avoid the plugins to be loaded multiple times
-  // in each subproject's classloader
   alias(libs.plugins.androidApplication) apply false
   alias(libs.plugins.androidKmpLibrary) apply false
   alias(libs.plugins.androidTest) apply false
@@ -15,7 +13,6 @@ plugins {
   alias(libs.plugins.sonar)
 }
 
-// Load properties from local.properties
 val localProperties = java.util.Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 
@@ -29,14 +26,12 @@ sonar {
     property("sonar.organization", "axl-lvy")
     property("sonar.host.url", "https://sonarcloud.io")
 
-    // Coverage configuration - using absolute path from project root
     property(
       "sonar.coverage.jacoco.xmlReportPaths",
       "${projectDir}/androidApp/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml," +
         "${projectDir}/composeApp/build/reports/kover/reportJvm.xml," +
-        // :shared is merged into composeApp's report through kover(project(":shared")). :server
-        // is not a dependency of composeApp, so it needs its own entry. The file name has no Jvm
-        // suffix: that suffix only exists on multiplatform modules.
+        // :shared is merged into composeApp's report; :server is not, and as a non-multiplatform
+        // module its report file has no Jvm suffix.
         "${projectDir}/server/build/reports/kover/report.xml",
     )
 
@@ -47,8 +42,6 @@ sonar {
 
     property("sonar.tests", "src/commonTest/kotlin,src/androidTest/kotlin")
 
-    // Exclusions for source files - exclude generated files but NOT test directories (already
-    // handled by sonar.tests)
     property(
       "sonar.exclusions",
       "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/main.kt",
@@ -56,21 +49,12 @@ sonar {
 
     property(
       "sonar.coverage.exclusions",
-      // wasmJsMain and iosMain are excluded from coverage because Kover does not support
-      // Kotlin/JS or Kotlin/Native instrumentation (kotlinx-kover#293). Files in these
-      // source sets are still analyzed for code quality (bugs, smells, vulnerabilities).
-      // ui/** is excluded because @Composable functions emit synthetic branches that
-      // JaCoCo can't filter, inflating uncovered-condition counts on otherwise covered code.
-      // macrobenchmark/microbenchmark are measurement harnesses verified by running them,
-      // not by unit tests; they stay analyzed for code quality but are exempt from coverage.
-      // **/Main.kt (capital M, distinct from composeApp's lowercase **/main.kt above) is
-      // :server's entrypoint: it wires a real Postgres/S3/Netty stack and is never invoked
-      // directly by a test, which always calls syncModule/repertoireModule/staticFrontendModule
-      // instead. Still analyzed for code quality, exempt from coverage only.
+      // Kover cannot instrument Kotlin/JS or Kotlin/Native (kotlinx-kover#293). ui/** @Composables
+      // emit synthetic branches JaCoCo can't filter. Benchmarks and :server's Main.kt entrypoint
+      // are exercised by running them, not by tests.
       "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/Main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt,**/core/auth/SyncClientId.*.kt,**/macrobenchmark/**,**/microbenchmark/**",
     )
 
-    // PL/SQL specific configuration for SQL files
     property("sonar.plsql.file.suffixes", ".sql")
   }
 }

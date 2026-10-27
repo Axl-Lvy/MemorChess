@@ -50,8 +50,6 @@ class TestInMemoryApplyRemote {
       DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now)
     )
 
-    // A remote node update (e.g. a scheduling change from another device) must not clobber the
-    // move just applied.
     db.applyRemoteNode(node("a", deviceSeq = 2L))
 
     db.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")

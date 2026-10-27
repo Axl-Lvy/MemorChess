@@ -12,10 +12,7 @@ import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
-/**
- * Room backed coverage of the `NodeRepertoireTrainable` projection's join/filter logic, mirroring
- * the in-memory reference against a real isolated SQLite database.
- */
+/** Covers the `NodeRepertoireTrainable` join and filter logic against a real SQLite database. */
 class TestRoomRepertoireMastery {
 
   private val database: CustomDatabase = freshDatabase()
@@ -34,8 +31,7 @@ class TestRoomRepertoireMastery {
   @Test
   fun replaceTrainableRepertoiresOverwritesThePreviousMembershipSet() = runTest {
     val position = PositionKey("k1")
-    // TreeStore never writes a trainable row for a position it cannot resolve, so the join against
-    // NodeEntity assumes the position exists.
+    // The trainable join assumes the position row exists.
     manager.insertNodes(DataNode(position, PreviousAndNextMoves(), CardStateFactory.new()))
 
     manager.replaceTrainableRepertoires(

@@ -48,8 +48,7 @@ class TestExplorerViewModel {
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
     vm.setFen("test fen")
-    // Wait until the view model has progressed past Idle. Cannot rely on
-    // testScheduler.advanceUntilIdle here because Ktor's MockEngine dispatches on a real thread.
+    // Not advanceUntilIdle: Ktor's MockEngine dispatches on a real thread.
     val loaded = vm.state.first { it is ExplorerState.Loaded } as ExplorerState.Loaded
 
     loaded.source shouldBe ExplorerSource.MASTERS

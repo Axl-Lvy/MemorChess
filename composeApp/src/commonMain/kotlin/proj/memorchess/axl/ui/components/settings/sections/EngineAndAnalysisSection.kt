@@ -26,14 +26,10 @@ import proj.memorchess.axl.ui.components.controls.KineticSliderLabels
 import proj.memorchess.axl.ui.components.controls.KineticToggleRow
 
 /**
- * Engine & Analysis settings section content. Renders two toggle rows (evaluation bar, best-move
- * arrow) and a slider for engine max depth.
+ * Engine and analysis settings: eval bar and best move arrow toggles, and an engine depth slider
+ * whose maximum means infinite depth, stored as `0` per [ENGINE_MAX_DEPTH_SETTING].
  *
- * The depth slider snaps to integer values; selecting the maximum (26) maps to "infinite" depth,
- * persisted as `0` and shown as "∞" to mirror the contract documented on
- * [ENGINE_MAX_DEPTH_SETTING].
- *
- * @param reloadKey value used to force re-reading the persisted settings on external reloads.
+ * @param reloadKey Changing it re-reads the persisted settings.
  */
 @Composable
 fun EngineAndAnalysisSection(reloadKey: Any) {

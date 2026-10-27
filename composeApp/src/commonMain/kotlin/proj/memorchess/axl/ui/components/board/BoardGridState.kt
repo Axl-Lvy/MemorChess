@@ -6,12 +6,7 @@ import proj.memorchess.axl.core.engine.ChessPiece
 import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.interactions.InteractionsManager
 
-/**
- * Holds and manages the state of the chess board grid for UI rendering and interactions.
- *
- * @property inverted Whether the board is displayed inverted.
- * @property interactionsManager The manager handling board interactions and game state.
- */
+/** State of the chess board grid for rendering and interactions. */
 class BoardGridState(val inverted: Boolean, val interactionsManager: InteractionsManager) {
   /** Maps each board location to its current piece, or null if empty. */
   val tileToPiece = mutableStateMapOf<BoardLocation, ChessPiece?>()
@@ -37,25 +32,16 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
     }
   }
 
-  /**
-   * Handles a tile click event and delegates to the interactions manager.
-   *
-   * @param coords The coordinates of the clicked tile.
-   */
+  /** Forwards a click on the tile at [coords] to the [interactionsManager]. */
   suspend fun onTileClick(coords: Pair<Int, Int>) {
     interactionsManager.clickOnTile(coords)
   }
 
-  /**
-   * Applies a promotion for the given piece kind via the interactions manager.
-   *
-   * @param pieceKind The piece kind to promote to.
-   */
+  /** Completes the pending promotion with [pieceKind]. */
   suspend fun applyPromotion(pieceKind: PieceKind) {
     interactionsManager.applyPromotion(pieceKind)
   }
 
-  /** Updates the board tiles without animation, syncing state with the game engine. */
   private fun updateTilesWithoutAnimation() {
     for (row in 0..7) {
       for (col in 0..7) {
@@ -68,7 +54,7 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
     }
   }
 
-  /** Updates the board tiles with animation, calculating piece movement between positions. */
+  /** Syncs tiles with the engine and records the moved pieces in [piecesToMove]. */
   private fun updateTilesWithAnimation() {
     piecesToMove.clear()
     val previousPiecePositions = mutableMapOf<ChessPiece, BoardLocation>()
@@ -96,23 +82,13 @@ class BoardGridState(val inverted: Boolean, val interactionsManager: Interaction
     }
   }
 
-  /**
-   * Retrieves the board location at the specified grid index.
-   *
-   * @param index The grid index.
-   * @return The board location at the given index.
-   */
+  /** Returns the board location at grid [index]. */
   fun getBoardLocationAt(index: Int): BoardLocation {
     val coords = squareIndexToBoardTile(index)
     return BoardLocation(coords.first, coords.second)
   }
 
-  /**
-   * Converts a square index to board tile coordinates.
-   *
-   * @param index The index to convert.
-   * @return The corresponding board tile coordinates.
-   */
+  /** Converts grid [index] to board coordinates, honoring [inverted]. */
   fun squareIndexToBoardTile(index: Int): Pair<Int, Int> {
     return if (inverted) {
       Pair(index / 8, (63 - index) % 8)

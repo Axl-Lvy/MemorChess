@@ -25,13 +25,8 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.ui.components.popup.KineticDialog
 
 /**
- * Create-repertoire dialog: a name, a side picker (white/black/mixed — `null` backs mixed), and an
- * optional PGN paste to seed it with moves immediately. Submit is disabled only while [name] is
- * blank; server-side style failures (a taken id, a malformed paste) are reported back through
- * [errorMessage] once the caller's submit attempt returns.
- *
- * Fields reset to blank every time [visible] turns true, so a dialog reopened after a cancel or a
- * completed create starts fresh rather than keeping a stale edit.
+ * Dialog creating a repertoire from a name, an optional side (`null` is mixed) and an optional PGN
+ * paste. Fields reset each time [visible] turns true; failures arrive through [errorMessage].
  */
 @Composable
 fun CreateRepertoireDialog(

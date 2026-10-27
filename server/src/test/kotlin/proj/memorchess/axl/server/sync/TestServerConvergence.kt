@@ -11,10 +11,8 @@ import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 /**
- * The same property `:shared` proves against fakes, re-run against real Postgres.
- *
- * A failure here means the SQL disagrees with the semantics `:shared` proved, which no cheaper test
- * can catch. Fifty seeds rather than two hundred: every operation is a real database round trip.
+ * The convergence property `:shared` proves against fakes, re-run against real Postgres. Fewer
+ * seeds, since every operation is a database round trip.
  */
 internal class TestServerConvergence {
 

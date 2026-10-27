@@ -16,15 +16,10 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 /**
- * HTTP client for `:server`'s `/v1/sync`. Every failure is mapped to a typed outcome so
- * [SyncEngine] never has to inspect a Ktor exception, mirroring
- * [proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient].
+ * HTTP client for `:server`'s `/v1/sync`. Every failure maps to a typed outcome, never a thrown
+ * exception.
  *
- * @param baseUrl Root URL, without a trailing slash. Koin wires the real deployed server here (see
- *   `SYNC_BASE_URL`); [DEFAULT_BASE_URL] is a deliberately unresolvable placeholder for callers
- *   that construct this client directly without one, same convention as
- *   `RepertoireCatalogClient.DEFAULT_BASE_URL`, so a forgotten override degrades to
- *   [SyncPullOutcome.Error]/[SyncPushOutcome.Error] rather than pretending to succeed.
+ * @param baseUrl Root URL, without a trailing slash.
  */
 class SyncApiClient(
   private val httpClient: HttpClient,
@@ -34,8 +29,8 @@ class SyncApiClient(
   /**
    * Registers [deviceId], which gates both push and pull.
    *
-   * @param afterReset Reports that this device has wiped its synced local state, which is the only
-   *   thing that lets one below the server's collection floor start over.
+   * @param afterReset Whether this device wiped its synced local state, the only way a device below
+   *   the server's collection floor can start over.
    */
   suspend fun registerDevice(
     accessToken: String,
@@ -48,7 +43,6 @@ class SyncApiClient(
         httpClient.put("$baseUrl/me/devices/$deviceId") {
           bearerAuth(accessToken)
           contentType(ContentType.Application.Json)
-          // The wire type keeps a plain string, so the enum is converted here and nowhere else.
           setBody(SyncDeviceRegisterRequest(platform.wireName, afterReset))
         }
       when {
@@ -72,8 +66,7 @@ class SyncApiClient(
    * Pulls the next page for [deviceId], capped at [limit].
    *
    * @param ack Token of the page this device has just written locally, or `null` when it has
-   *   committed none since its last failure. The server keeps the position, so this is the whole of
-   *   the caller's contribution to it.
+   *   committed none since its last failure.
    */
   suspend fun pull(
     accessToken: String,
@@ -138,8 +131,7 @@ class SyncApiClient(
   /**
    * Erases every synced row of the caller on the server.
    *
-   * @param deviceSeq The sequence number the erase is stamped with, from the same counter as the
-   *   pushed rows.
+   * @param deviceSeq Sequence number stamped on the erase, from the same counter as pushed rows.
    */
   suspend fun erase(accessToken: String, deviceId: String, deviceSeq: Long): SyncEraseOutcome {
     return try {
@@ -167,27 +159,16 @@ class SyncApiClient(
   }
 
   companion object {
-    /** Deliberately unresolvable; see the class doc. */
+    /** Deliberately unresolvable placeholder, so a missing override fails as an error outcome. */
     const val DEFAULT_BASE_URL = "https://chess.invalid/v1"
   }
 }
 
-/**
- * Whether this 403 response's body names [ApiErrorCode.QUOTA_EXCEEDED].
- *
- * A 403 is not unambiguous the way 401/413 are on this endpoint: [ApiError]'s own doc says a client
- * branches on [ApiError.code], never on status alone. A body that fails to decode as [ApiError] is
- * treated as not naming it, same as any other cause `push` cannot otherwise attribute.
- */
+/** Whether the body names [ApiErrorCode.QUOTA_EXCEEDED], `false` if it does not decode. */
 private suspend fun HttpResponse.namesQuotaExceeded(): Boolean =
   runCatching { body<ApiError>() }.getOrNull()?.code == ApiErrorCode.QUOTA_EXCEEDED
 
-/**
- * Whether this 410 response's body names [ApiErrorCode.RESYNC_REQUIRED].
- *
- * Same reasoning as [namesQuotaExceeded]: a client branches on [ApiError.code], never on status
- * alone, and a body that fails to decode is treated as not naming it.
- */
+/** Whether the body names [ApiErrorCode.RESYNC_REQUIRED], `false` if it does not decode. */
 private suspend fun HttpResponse.namesResyncRequired(): Boolean =
   runCatching { body<ApiError>() }.getOrNull()?.code == ApiErrorCode.RESYNC_REQUIRED
 
@@ -213,10 +194,7 @@ sealed class SyncRegisterOutcome {
 sealed class SyncPullOutcome {
   data class Ok(val response: SyncPullResponse) : SyncPullOutcome()
 
-  /**
-   * The access token was rejected. The caller ([SyncEngine]) does not retry here: a fresh
-   * [proj.memorchess.axl.core.auth.AuthProvider.accessToken] call already happened before this.
-   */
+  /** The access token was rejected even though it was freshly obtained, so it is not retried. */
   data object Unauthorized : SyncPullOutcome()
 
   /** The caller exceeded its request budget. Transient: the caller's own backoff will clear it. */
@@ -238,9 +216,8 @@ sealed class SyncPushOutcome {
   data object TooLarge : SyncPushOutcome()
 
   /**
-   * The batch would push the caller past a per user storage quota. Not transient: retrying the same
-   * batch can never succeed until the caller frees space, so [SyncEngine] pauses rather than
-   * backing off.
+   * The batch would exceed a per user storage quota. Not transient: retrying cannot succeed until
+   * the caller frees space.
    */
   data object QuotaExceeded : SyncPushOutcome()
 

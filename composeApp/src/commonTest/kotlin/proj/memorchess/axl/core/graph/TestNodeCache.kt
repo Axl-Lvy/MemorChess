@@ -18,13 +18,8 @@ import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
- * Unit tests for [NodeCache]: bounded LRU residency, single flight, and the stale read contract
- * documented on [NodeCache.resolve].
- *
- * Every case drives the cache against a plain [NodeLoader] lambda, so a gate is a
- * [kotlinx.coroutines.CompletableDeferred] the lambda awaits rather than a database decorator. The
- * load scope is an [UnconfinedTestDispatcher], so a released gate runs finalization and any retry
- * inline: after `gate.complete(Unit)` returns there is nothing left pending.
+ * Tests [NodeCache]'s LRU residency, single flight and stale read contract. The load scope is
+ * unconfined, so nothing is left pending once `gate.complete(Unit)` returns.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestNodeCache {
@@ -89,7 +84,6 @@ class TestNodeCache {
         CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
       )
 
-    // Zero resident: a miss must insert nothing, so the second resolve looks up again.
     assertNull(cache.resolve(key(0)).node)
     cache.residentCount() shouldBe 0
     assertNull(cache.resolve(key(0)).node)
@@ -173,7 +167,6 @@ class TestNodeCache {
 
   @Test
   fun aSyncApplyDuringALoadForcesARetryAndWinsIt() = runTest {
-    // Spec test 1. The first load returns the pre sync row; the retry returns the applied one.
     val gate = CompletableDeferred<Unit>()
     var calls = 0
     val preSync = row(key(0), outgoing = listOf(move(key(0), "e4", key(1))))
@@ -206,8 +199,6 @@ class TestNodeCache {
 
   @Test
   fun anEdgeUpsertedDuringALoadSurvivesTheLoad() = runTest {
-    // Spec test 2, cache half. The loaded row carries to -> child and a real card state; the edge
-    // under test is a genuinely new incoming one.
     val to = key(0)
     val child = key(1)
     val from = key(2)
@@ -238,7 +229,6 @@ class TestNodeCache {
 
   @Test
   fun twoConcurrentResolvesShareOneLoad() = runTest {
-    // Spec test 3.
     val gate = CompletableDeferred<Unit>()
     var calls = 0
     val cache =
@@ -268,7 +258,6 @@ class TestNodeCache {
 
   @Test
   fun aFailedLoadLeavesNoClaimBehind() = runTest {
-    // Spec test 4, first part.
     var calls = 0
     val cache =
       NodeCache(
@@ -280,14 +269,13 @@ class TestNodeCache {
       )
 
     assertFailsWith<IllegalStateException> { cache.resolve(key(0)) }
-    // No dead Deferred left in flight: the next resolve issues a fresh read rather than joining it.
+    // The next resolve reads afresh instead of joining a dead Deferred.
     assertNotNull(cache.resolve(key(0)).node)
     calls shouldBe 2
   }
 
   @Test
   fun aCancelledCallerDoesNotStopTheLoad() = runTest {
-    // Spec test 4, second part.
     val gate = CompletableDeferred<Unit>()
     var calls = 0
     val cache =
@@ -311,7 +299,6 @@ class TestNodeCache {
 
   @Test
   fun aFailingRetryLeavesTheKeyNotResident() = runTest {
-    // Spec test 4, third part: the superseded first round candidate must not survive.
     val gate = CompletableDeferred<Unit>()
     var calls = 0
     val cache =
@@ -340,7 +327,7 @@ class TestNodeCache {
 
   @Test
   fun ensureDuringALoadDoesNotLoseTheLoadedNode() = runTest {
-    // Spec test 5, first part: a create style ensure on a non resident key.
+    // A create style ensure on a non resident key.
     val gate = CompletableDeferred<Unit>()
     val loadedRow = row(key(0), outgoing = listOf(move(key(0), "e4", key(1))), depth = 3)
     val cache =
@@ -367,7 +354,6 @@ class TestNodeCache {
 
   @Test
   fun ensureDuringALoadLowersTheDepthAndKeepsTheEdges() = runTest {
-    // Spec test 5, second part: the mark fires and the depth drops.
     val gate = CompletableDeferred<Unit>()
     val loadedRow = row(key(0), outgoing = listOf(move(key(0), "e4", key(1))), depth = 9)
     val cache =
@@ -393,7 +379,6 @@ class TestNodeCache {
 
   @Test
   fun aRacedLoadDoesNotResurrectARemovedEdge() = runTest {
-    // Spec test 6, and the claim marked twice edge case.
     val to = key(0)
     val originA = key(1)
     val originB = key(2)
@@ -421,7 +406,7 @@ class TestNodeCache {
 
   @Test
   fun aRemovalIsReplayedWithNoCacheEntryAtAll() = runTest {
-    // Spec test 7: the plain deleteMove path, neither endpoint resident.
+    // Neither endpoint resident.
     val to = key(0)
     val originA = key(1)
     val originB = key(2)
@@ -446,8 +431,7 @@ class TestNodeCache {
 
   @Test
   fun anInvalidationDoesNotSwallowAConcurrentRemoval() = runTest {
-    // Spec test 8, and the stale then edited merge order. Both reads return the same rows, which is
-    // what a database write that has not yet committed looks like.
+    // Stale then edited merge order. Both reads return the same rows, like an uncommitted write.
     val to = key(0)
     val originA = key(1)
     val originB = key(2)
@@ -476,7 +460,7 @@ class TestNodeCache {
 
   @Test
   fun anInvalidationDoesNotPinAShell() = runTest {
-    // Spec test 9, and the edited then stale merge order.
+    // Edited then stale merge order.
     val to = key(0)
     val child = key(1)
     val from = key(2)
@@ -510,7 +494,6 @@ class TestNodeCache {
 
   @Test
   fun aMarkedDepthNeverRaisesTheLoadedDepth() = runTest {
-    // Spec test 10, plus the equal and below boundaries of the depth merge.
     val to = key(0)
     val from = key(1)
     suspend fun cachedDepthAfterUpsert(loadedDepth: Int, fromDepth: Int): Int {
@@ -539,7 +522,6 @@ class TestNodeCache {
 
   @Test
   fun theRetrySurvivesACancelledCaller() = runTest {
-    // Spec test 11, first part.
     val gate = CompletableDeferred<Unit>()
     var calls = 0
     val applied = row(key(0), outgoing = listOf(move(key(0), "d4", key(2))))
@@ -569,9 +551,7 @@ class TestNodeCache {
 
   @Test
   fun clearDuringALoadLeavesTheKeyNotResident() = runTest {
-    // Spec test 11, second part: the eraseAll trace. The first attempt puts its pre erase
-    // candidate,
-    // the retry's null load removes it.
+    // The first attempt puts its pre erase candidate; the retry's null load removes it.
     val gate = CompletableDeferred<Unit>()
     var calls = 0
     val cache =
@@ -600,7 +580,7 @@ class TestNodeCache {
 
   @Test
   fun aMarkWithNoClaimInFlightIsIgnored() = runTest {
-    // Edge case: no load in flight, so nothing is recorded and the next load is unreconciled.
+    // No load in flight, so nothing is recorded and the next load is unreconciled.
     val cache =
       NodeCache({ isolatedRow(0) }, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
 
@@ -613,7 +593,6 @@ class TestNodeCache {
 
   @Test
   fun theLaterOfTwoEditsOnOneKeyWins() = runTest {
-    // Edge case: edits union with the later winning per key.
     val to = key(0)
     val from = key(1)
     val gate = CompletableDeferred<Unit>()
@@ -636,7 +615,6 @@ class TestNodeCache {
 
   @Test
   fun removeEdgeMarksWithTheOriginResidentToo() = runTest {
-    // Edge case: the origin resident path, the mirror of the evicted one in test 7.
     val to = key(0)
     val originA = key(1)
     val gate = CompletableDeferred<Unit>()
@@ -664,8 +642,7 @@ class TestNodeCache {
 
   @Test
   fun aRemovalOnlyMarkOverAnAbsentRowLeavesNothingResident() = runTest {
-    // A removal is not evidence the node exists, so reconciling one against an absent row must not
-    // synthesize a shell: an empty resident Node reads as NodeState.FIRST, not UNKNOWN.
+    // A shell would be wrong: an empty resident Node reads as NodeState.FIRST, not UNKNOWN.
     val to = key(0)
     val originA = key(1)
     val gate = CompletableDeferred<Unit>()
@@ -689,9 +666,8 @@ class TestNodeCache {
 
   @Test
   fun aDeletedNodeDoesNotComeBackAsAShellThroughTheRetry() = runTest {
-    // The TreeStore.deleteNode shape: removeEdge per incident edge, then invalidate, with a load of
-    // the deleted key already in flight. The retry reads the tombstoned row as absent and carries
-    // only the removals, which must leave the key dropped rather than resident.
+    // TreeStore.deleteNode's shape: removeEdge per incident edge, then invalidate, mid load. The
+    // retry reads the tombstone as absent and carries only removals.
     val to = key(0)
     val originA = key(1)
     val gate = CompletableDeferred<Unit>()

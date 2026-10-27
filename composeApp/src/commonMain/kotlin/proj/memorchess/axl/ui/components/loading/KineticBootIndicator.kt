@@ -18,26 +18,17 @@ import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.theme.KineticMotion
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
-/** Width of the boot rail. */
 private val RAIL_WIDTH = 160.dp
 
-/** Thickness of the boot rail line. */
 private val RAIL_HEIGHT = 2.dp
 
 /** Fraction of the rail covered by the bright sweeping segment. */
 private const val SEGMENT_FRACTION = 0.28f
 
-/** One full traversal of the sweep, in milliseconds. */
 private const val SWEEP_PERIOD_MS = 900
 
 /**
- * Kinetic "power-on" loading indicator: a hard-edged action segment that sweeps along a thin rail,
- * replacing the generic circular spinner with something true to the instrument aesthetic.
- *
- * The sweep is an infinite transition whose value is read **inside the [Canvas] draw lambda**, so
- * it animates entirely in the draw phase without recomposing. Centered in the available space.
- *
- * @param modifier Modifier for the indicator; fills its space and centers the rail.
+ * Kinetic loading indicator: a bright segment sweeping along a thin rail, centered in its space.
  */
 @Composable
 fun KineticBootIndicator(modifier: Modifier = Modifier) {
@@ -64,7 +55,7 @@ fun KineticBootIndicator(modifier: Modifier = Modifier) {
         end = Offset(size.width, y),
         strokeWidth = stroke,
       )
-      // Bright segment travels left to right and wraps off the far edge.
+      // Read only in the draw phase, so the sweep animates without recomposing.
       val segWidth = size.width * SEGMENT_FRACTION
       val lead = sweep.value * (size.width + segWidth) - segWidth
       val start = lead.coerceIn(0f, size.width)

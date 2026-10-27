@@ -5,18 +5,14 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
-/**
- * Outcome of [decideOidcRedirectExchange]: what the caller's synchronous cleanup step should do.
- */
+/** Outcome of [decideOidcRedirectExchange]. */
 internal sealed class OidcRedirectDecision {
-  /** The current path is not the sync redirect callback at all; ordinary app boot. */
+  /** The current path is not the sync redirect callback; ordinary app boot. */
   data object NotACallback : OidcRedirectDecision()
 
   /**
-   * The path is the callback. [cleanedUrl] is what the browser's address bar should become, before
-   * Koin/App ever see the callback path. [exchange] is non-null only when a token exchange should
-   * follow; every other case (state mismatch, IdP `error`, no pending record, missing `code`) still
-   * cleans the URL but performs no exchange.
+   * The path is the callback; [cleanedUrl] must replace the address bar before Koin/App see it.
+   * [exchange] is `null` on a state mismatch, IdP `error`, missing `code` or no pending record.
    */
   data class Callback(val cleanedUrl: String, val exchange: PendingExchange?) :
     OidcRedirectDecision()
@@ -26,9 +22,8 @@ internal sealed class OidcRedirectDecision {
 internal data class PendingExchange(val code: String, val codeVerifier: String)
 
 /**
- * Pure decision for what to do with [currentPath]/[queryParams] against [redirectPath] and whatever
- * [pending] record was stored before navigating away. No I/O: [queryParams] must already be
- * URL-decoded by the caller.
+ * Decides how to resume a sign in redirect from [currentPath] and the [pending] record.
+ * [queryParams] must already be URL-decoded.
  */
 internal fun decideOidcRedirectExchange(
   currentPath: String,
@@ -52,11 +47,8 @@ internal fun decideOidcRedirectExchange(
 }
 
 /**
- * Exchanges [exchange]'s code for tokens and persists them via [tokenStore], calling [onSignedIn]
- * on success (wired to [proj.memorchess.axl.core.sync.SyncEngine.syncNow] so a redirect sign in
- * triggers a sync, matching the popup flow's own behavior in `SyncAccountSection`). Logs and does
- * nothing further on failure; the caller has already cleared the pending record regardless of
- * outcome.
+ * Exchanges [exchange]'s code for tokens, saves them to [tokenStore] and calls [onSignedIn]. Only
+ * logs on failure.
  */
 internal suspend fun exchangeOidcRedirectCode(
   oidcClient: OidcClient,

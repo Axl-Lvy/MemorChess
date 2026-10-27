@@ -6,12 +6,8 @@ import java.io.File
 import kotlin.test.Test
 
 /**
- * Verifies `values/strings.xml` and `values-fr/strings.xml` declare the exact same `<string>` and
- * `<plurals>` keys.
- *
- * `commonTest` cannot run this: reading the raw XML off disk needs `java.io.File`, which does not
- * exist on wasmJs or iOS. Modeled on [proj.memorchess.axl.ui.theme.TestBundledFontNaming]'s own
- * precedent for reading bundled resource files directly in a `jvmTest`.
+ * Checks the English and French `strings.xml` declare the same keys. JVM only, since reading the
+ * files needs `java.io.File`.
  */
 class TestTodayStringsParity {
 

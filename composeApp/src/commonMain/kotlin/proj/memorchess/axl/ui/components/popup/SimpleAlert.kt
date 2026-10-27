@@ -15,11 +15,7 @@ class SimpleAlert {
   private var show by mutableStateOf(false)
   private var text: String = ""
 
-  /**
-   * Show the alert dialog with the given text.
-   *
-   * @param text The message to display in the dialog.
-   */
+  /** Shows the dialog with [text]. */
   fun show(text: String) {
     this.text = text
     show = true

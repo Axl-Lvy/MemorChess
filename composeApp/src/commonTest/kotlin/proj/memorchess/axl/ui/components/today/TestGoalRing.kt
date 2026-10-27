@@ -13,12 +13,7 @@ import proj.memorchess.axl.ui.setKineticContent
 
 private const val RING_TAG = "goal_ring"
 
-/**
- * Pins [GoalRing]'s clamping contract: `progress` is coerced into `0f..1f` and every non-finite
- * input falls back to `0f`. Mirrors
- * [proj.memorchess.axl.ui.components.training.TestKineticProgressRail]'s exact matrix, since
- * [GoalRing] follows the same contract adapted from a bar to a ring.
- */
+/** Pins [GoalRing]'s clamping of `progress` into `0f..1f`, with non-finite input as `0f`. */
 @OptIn(ExperimentalTestApi::class)
 class TestGoalRing {
 

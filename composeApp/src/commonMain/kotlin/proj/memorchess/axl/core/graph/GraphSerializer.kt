@@ -9,18 +9,8 @@ import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * Serializes and deserializes an opening tree graph to or from a deterministic tab separated text
- * format.
- *
- * The format has two sections separated by a blank line:
- * - **Node lines**:
- *   `<index>\t<positionKey>\t<depth>\t<dueDate>\t<lastReview>\t<stability>\t<difficulty>\t<reps>\t<lapses>\t<phase>\t<step>\t<updatedAt>\t<firstReview>`
- *   where `<lastReview>` and `<firstReview>` are the literal string `null` for a card that has
- *   never been reviewed and `<phase>` is a [proj.memorchess.axl.core.scheduling.CardPhase] name.
- * - **Edge lines**: `<originIndex>\t<destIndex>\t<move>\t<isGood>\t<updatedAt>\t<createdAt>`
- *
- * Nodes are sorted by [PositionKey.value] and edges by `(originIndex, destIndex, move)` for
- * determinism.
+ * Converts an opening tree to and from a deterministic tab separated text format: sorted node
+ * lines, a blank line, then sorted edge lines.
  */
 object GraphSerializer {
 
@@ -33,12 +23,8 @@ object GraphSerializer {
   private const val NODE_FIELD_COUNT = 13
   private const val EDGE_FIELD_COUNT = 6
 
-  /** Placeholder identity for a [deserialize]d row before [TreeStore.importNodes] restamps it. */
+  // The format carries no device identity; TreeStore.importNodes restamps these placeholders.
   private const val PLACEHOLDER_ORIGIN_DEVICE = ""
-
-  /**
-   * Placeholder write sequence for a [deserialize]d row before [TreeStore.importNodes] restamps it.
-   */
   private const val PLACEHOLDER_DEVICE_SEQ = 0L
 
   /** Serializes nodes to a deterministic text string. Filters out deleted nodes and moves. */
@@ -60,24 +46,9 @@ object GraphSerializer {
   }
 
   /**
-   * Streams a deterministic serialization without ever holding all rows in memory.
+   * Produces the same text as [serialize] over the whole store, reading it through [pageProducer]
+   * in pages of [pageSize] instead of holding every row in memory.
    *
-   * Produces the exact same bytes as [serialize] called on the whole store, but sources the rows
-   * through two bounded paginated scans of [pageProducer] instead of one eager list. The first scan
-   * emits every node line page by page while building only a `positionKey -> index` map (keys and
-   * ints, not full rows). The second scan re-pages the store to collect and sort the edges. The two
-   * section (nodes then edges) on disk format is therefore byte stable and the deserializer is
-   * untouched.
-   *
-   * The position key ordering of [NodesPage] matches the `sortedBy { positionKey.value }` order
-   * [serialize] uses, so indices assigned by the incrementing page counter are identical to the
-   * eager path.
-   *
-   * @param pageSize Maximum rows per page; forwarded as the `limit` to [pageProducer]. Must be
-   *   strictly positive.
-   * @param pageProducer Bounded page source, typically
-   *   [proj.memorchess.axl.core.data.DatabaseQueryManager.getNodesPage]. Called with `null` for the
-   *   first page then the previous page's [NodesPage.nextCursor] until it is `null`.
    * @throws IllegalArgumentException when [pageSize] is not strictly positive.
    */
   suspend fun serializeStreaming(
@@ -110,9 +81,6 @@ object GraphSerializer {
     return nodeLines.toString() + SECTION_SEPARATOR + edgeLines
   }
 
-  /**
-   * Drains every page in order, invoking [block] on each, until [NodesPage.nextCursor] is `null`.
-   */
   private suspend inline fun forEachPage(
     pageSize: Int,
     pageProducer: suspend (cursor: String?, limit: Int) -> NodesPage,
@@ -126,7 +94,7 @@ object GraphSerializer {
     } while (cursor != null)
   }
 
-  /** Builds the deterministic node line for [node] at the one based serialization [index]. */
+  /** Node line for [node] at the one based [index]. */
   private fun nodeLine(index: Int, node: DataNode): String {
     val card = node.cardState
     return listOf(
@@ -147,10 +115,7 @@ object GraphSerializer {
       .joinToString(TAB)
   }
 
-  /**
-   * Appends [node]'s non deleted outgoing edges to the receiver, skipping any whose destination is
-   * absent from [indexByKey].
-   */
+  /** Appends [node]'s live outgoing edges whose destination is in [indexByKey]. */
   private fun MutableList<Edge>.addEdgesOf(
     node: DataNode,
     originIdx: Int,
@@ -171,18 +136,13 @@ object GraphSerializer {
     }
   }
 
-  /** Orders edges by `(originIndex, destIndex, move)` for a deterministic edge section. */
   private fun sortEdges(edges: List<Edge>): List<Edge> =
     edges.sortedWith(compareBy({ it.originIndex }, { it.destIndex }, { it.move }))
 
   /**
-   * Deserializes text back to a list of [DataNode]s. Throws [IllegalArgumentException] on bad
-   * input.
-   *
-   * The wire format carries no device identity, so every returned [DataNode] and [DataMove] holds
-   * the placeholder `originDevice`/`deviceSeq` ("" and 0L). Callers must persist the result through
-   * [TreeStore.importNodes] rather than [proj.memorchess.axl.core.data.DatabaseQueryManager]
-   * directly, so it is restamped with a real device identity before it reaches disk.
+   * Parses [serialize] output, throwing [IllegalArgumentException] on bad input. Rows carry
+   * placeholder device identity, so persist them through [TreeStore.importNodes], which restamps
+   * them.
    */
   fun deserialize(text: String): List<DataNode> {
     val sections = text.split(SECTION_SEPARATOR)

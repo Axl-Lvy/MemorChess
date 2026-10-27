@@ -29,38 +29,16 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/**
- * One entry inside a [SettingsSidebar] group — represents a single section the user can jump to.
- *
- * @property id stable identifier of the section, matched against the sidebar's `selectedId`.
- * @property label display label in the sidebar.
- * @property number two digit number shown on the right of the item.
- */
+/** One entry of a [SettingsSidebar] group: a section the user can jump to. */
 data class SettingsNavItem(val id: String, val label: StringResource, val number: String)
 
-/**
- * A logical group of [SettingsNavItem]s sharing a header in the sidebar (e.g. "Appearance",
- * "Practice").
- *
- * @property title small uppercase caption shown above the group.
- * @property sections nav items, in display order.
- */
+/** A group of [SettingsNavItem]s sharing a header in the sidebar. */
 data class SettingsNavGroup(val title: StringResource, val sections: List<SettingsNavItem>)
 
 /**
- * Desktop sidebar nav for the Settings page. Mirrors the `.sidebar`, `.side-head`, `.sn-label`, and
- * `.sn-item` blocks from `design-proposals/kinetic-settings-desktop.html`.
+ * Desktop sidebar of the Settings page listing [groups], highlighting the item with [selectedId].
  *
- * A 280.dp wide column listing [groups]. Each item is a clickable row carrying the section's number
- * and label. The currently selected item is highlighted with a filled 14.dp rounded row in a
- * `panel` background and an `ink` label color, rather than an accent border tick. Per the SHAPE
- * CONTRACT's edge-anchored chrome, the rail itself is bordered on its trailing (right) edge only —
- * a four-sided stroke on a full-height rail would double both the window edge and the content edge.
- *
- * @param groups Grouped nav items to render, in display order.
- * @param selectedId The id of the currently selected section, used for highlight.
- * @param onSelect Invoked with a nav item's id when the user clicks it.
- * @param modifier External modifier applied to the outer column.
+ * @param onSelect receives the clicked item's id.
  */
 @Composable
 fun SettingsSidebar(
@@ -80,7 +58,7 @@ fun SettingsSidebar(
         .fillMaxHeight()
         .background(palette.bg2)
         .drawBehind {
-          // Trailing-edge-only stroke (per the SHAPE CONTRACT), not a four-sided border.
+          // Trailing edge only: a four-sided stroke would double the window and content edges.
           val strokePx = 1.5.dp.toPx()
           drawRect(
             color = palette.line,

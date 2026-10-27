@@ -5,16 +5,8 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.TrainingEntry
 
 /**
- * Low level persistence seam for the opening tree.
- *
- * Only the graph units ([proj.memorchess.axl.core.graph.TreeStore],
- * [proj.memorchess.axl.core.sync.SyncApplier], [proj.memorchess.axl.core.graph.RepertoireTagStore],
- * [proj.memorchess.axl.core.graph.TrainableProjection]) and the platform specific implementations
- * are expected to touch the node and move surface of this interface; the rest of the application
- * talks to [proj.memorchess.axl.core.graph.TreeStore]. The outbox surface ([markDirty],
- * [getOutbox], [clearDirty]) is the exception: [proj.memorchess.axl.core.config.ConfigItem]
- * implementations call [markDirty] directly to queue a setting's [DirtyKey.SettingKey], since a
- * setting has no row of its own for [proj.memorchess.axl.core.graph.TreeStore] to write through.
+ * Low level persistence seam for the opening tree. Application code goes through
+ * [proj.memorchess.axl.core.graph.TreeStore] instead.
  */
 interface DatabaseQueryManager {
 
@@ -22,34 +14,14 @@ interface DatabaseQueryManager {
   suspend fun getPosition(positionKey: PositionKey): DataNode?
 
   /**
-   * Reads one bounded page of non deleted nodes ordered by position key ascending.
+   * Reads up to [limit] live nodes with their edges, ordered by position key, after [cursor]
+   * (exclusive), or from the start when [cursor] is `null`.
    *
-   * This is the only multi row read on the seam and it is bounded by [limit] plus an explicit
-   * [cursor], so no query ever pulls the whole store into memory. Each returned node carries its
-   * edges, exactly as a single read would reconstruct them.
-   *
-   * Paging contract: pass `null` as [cursor] for the first page; thereafter pass the previous
-   * page's [NodesPage.nextCursor]. The page contains the rows with `positionKey > cursor` ordered
-   * ascending, capped at [limit]. [NodesPage.nextCursor] is the last returned node's position key
-   * when a full [limit] sized page was returned (more rows may remain), and `null` once a partial
-   * page is returned, which terminates the loop. A store size that is an exact multiple of [limit]
-   * therefore ends with one trailing empty page whose cursor is `null`.
-   *
-   * @param cursor The position key of the last node of the previous page, or `null` for the first
-   *   page.
-   * @param limit The maximum number of nodes to return; must be strictly positive.
    * @throws IllegalArgumentException when [limit] is not strictly positive.
    */
   suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage
 
-  /**
-   * Soft deletes a single position and any incident moves, leaving tombstones for sync.
-   *
-   * @param position Position to remove.
-   * @param originDevice Device stamped on the tombstone.
-   * @param deviceSeq That device's write counter, stamped alongside [originDevice].
-   * @param updatedAt Moment the tombstone was written.
-   */
+  /** Soft deletes [position] and its incident moves, leaving tombstones for sync. */
   suspend fun deletePosition(
     position: PositionKey,
     originDevice: String = "",
@@ -57,15 +29,7 @@ interface DatabaseQueryManager {
     updatedAt: Instant = DateUtil.now(),
   )
 
-  /**
-   * Soft deletes a single move, leaving a tombstone for sync.
-   *
-   * @param origin Origin of the move.
-   * @param move Move in standard algebraic notation.
-   * @param originDevice Device stamped on the tombstone.
-   * @param deviceSeq That device's write counter, stamped alongside [originDevice].
-   * @param updatedAt Moment the tombstone was written.
-   */
+  /** Soft deletes the SAN [move] from [origin], leaving a tombstone for sync. */
   suspend fun deleteMove(
     origin: PositionKey,
     move: String,
@@ -77,56 +41,29 @@ interface DatabaseQueryManager {
   /** Hard wipe of every node, move, repertoire, and edge to repertoire tag. */
   suspend fun eraseAll()
 
-  /**
-   * Inserts new positions.
-   *
-   * @param positions The [DataNode] objects to insert.
-   */
+  /** Inserts new positions. */
   suspend fun insertNodes(vararg positions: DataNode)
 
   /** Retrieves the latest `updatedAt` across nodes and moves. */
   suspend fun getLastUpdate(): Instant?
 
   /**
-   * Bounded `LIMIT 1` lookup of the next ready in session card.
+   * The trainable learning or relearning card due at or before [now] (inclusive) with the earliest
+   * due date, or `null`.
    *
-   * Returns the trainable card currently mid learning whose due date has already arrived, ordered
-   * by the earliest due date, or `null` when none qualifies. Predicate: `hasGoodOutgoing AND phase
-   * IN (LEARNING, RELEARNING) AND dueDate <= now`, ordered by `dueDate ASC`. Soft deleted rows are
-   * excluded. No edges are loaded; only the columns a
-   * [proj.memorchess.axl.core.graph.TrainingEntry] needs are read.
-   *
-   * @param now Current instant. The due bound is inclusive, so a card due exactly at [now]
-   *   qualifies.
-   * @param repertoireId When not `null`, narrows to positions trainable within this repertoire (see
-   *   `NodeRepertoireTrainable`). `null` reproduces today's unscoped behavior exactly.
+   * @param repertoireId Narrows to positions trainable within this repertoire; `null` means all.
    */
   suspend fun nextReadyLearningCard(now: Instant, repertoireId: String? = null): TrainingEntry?
 
   /**
-   * Bounded `LIMIT 1` lookup of the next pending in session card.
-   *
-   * Returns the trainable card currently mid learning whose due date is still in the future,
-   * ordered by the earliest due date, or `null` when none qualifies. Predicate: `hasGoodOutgoing
-   * AND phase IN (LEARNING, RELEARNING) AND dueDate > now`, ordered by `dueDate ASC`. Soft deleted
-   * rows are excluded.
-   *
-   * @param now Current instant. The due bound is strict, so a card due exactly at [now] does not
-   *   qualify (it is ready, not pending).
-   * @param repertoireId See [nextReadyLearningCard].
+   * The trainable learning or relearning card due strictly after [now] with the earliest due date,
+   * or `null`. [repertoireId] narrows as in [nextReadyLearningCard].
    */
   suspend fun nextPendingLearningCard(now: Instant, repertoireId: String? = null): TrainingEntry?
 
   /**
-   * Bounded `LIMIT 1` lookup of the next due review card.
-   *
-   * Returns the trainable graduated card due on or before the day, shallowest first, or `null` when
-   * none qualifies. Predicate: `hasGoodOutgoing AND phase = REVIEW AND dueDate < dayEndExclusive`,
-   * ordered by `depth ASC`. Soft deleted rows are excluded.
-   *
-   * @param dayEndExclusive Start of the day after the target day. A card due exactly at this
-   *   instant belongs to the next day and is excluded.
-   * @param repertoireId See [nextReadyLearningCard].
+   * The shallowest trainable review card due before [dayEndExclusive], or `null`. [repertoireId]
+   * narrows as in [nextReadyLearningCard].
    */
   suspend fun nextDueReviewCard(
     dayEndExclusive: Instant,
@@ -134,42 +71,17 @@ interface DatabaseQueryManager {
   ): TrainingEntry?
 
   /**
-   * Bounded `LIMIT 1` lookup of the next due new card.
-   *
-   * Returns the trainable brand new card due on or before the day, shallowest first with ties
-   * broken by the earliest creation, or `null` when none qualifies. Predicate: `hasGoodOutgoing AND
-   * phase = NEW AND dueDate < dayEndExclusive`, ordered by `depth ASC, createdAt ASC`. Soft deleted
-   * rows are excluded.
-   *
-   * @param dayEndExclusive Start of the day after the target day. A card due exactly at this
-   *   instant belongs to the next day and is excluded.
-   * @param repertoireId See [nextReadyLearningCard].
+   * The shallowest, then oldest, trainable new card due before [dayEndExclusive], or `null`.
+   * [repertoireId] narrows as in [nextReadyLearningCard].
    */
   suspend fun nextDueNewCard(dayEndExclusive: Instant, repertoireId: String? = null): TrainingEntry?
 
-  /**
-   * Computes the day's bounded scheduling tallies as five `COUNT(*)` queries over indexed
-   * predicates. No row set crosses the seam. See [SchedulingCounts] for each field's predicate.
-   *
-   * @param dayStart Start of the target calendar day in the active time zone.
-   * @param dayEndExclusive Start of the following day, used as the exclusive upper bound for all
-   *   day windowed predicates.
-   */
+  /** Counts the [SchedulingCounts] of the day from [dayStart] to [dayEndExclusive] (exclusive). */
   suspend fun getSchedulingCounts(dayStart: Instant, dayEndExclusive: Instant): SchedulingCounts
 
   /**
-   * Bounded lookup of the first eligible card among an explicit, bounded set of positions.
-   *
-   * Used to find the next position to train after the current one without enumerating the graph:
-   * the caller supplies the current node's outgoing destinations (bounded by the branching factor).
-   * A position is eligible when it is trainable and either mid learning or due on or before the
-   * day: `positionKey IN (keys) AND hasGoodOutgoing AND (phase IN (LEARNING, RELEARNING) OR dueDate
-   * < dayEndExclusive)`. Soft deleted rows are excluded. Returns the first eligible entry, or
-   * `null` when [keys] is empty or none qualify.
-   *
-   * @param keys The bounded set of candidate positions to consider.
-   * @param dayEndExclusive Start of the day after the target day, the exclusive due bound.
-   * @param repertoireId See [nextReadyLearningCard].
+   * The first of [keys] that is trainable and either mid learning or due before [dayEndExclusive],
+   * or `null`. [repertoireId] narrows as in [nextReadyLearningCard].
    */
   suspend fun findEligibleAmong(
     keys: List<PositionKey>,
@@ -178,9 +90,8 @@ interface DatabaseQueryManager {
   ): TrainingEntry?
 
   /**
-   * The scoped counterpart of the three narrowable [SchedulingCounts] fields for [repertoireId].
-   * Backs [proj.memorchess.axl.core.graph.TrainingScheduler.pendingCount]'s scoped display; the
-   * daily cap fields have no scoped equivalent and stay read from [getSchedulingCounts].
+   * The [SchedulingCounts] fields narrowed to [repertoireId]. The daily caps have no scoped
+   * equivalent and stay in [getSchedulingCounts].
    */
   suspend fun getScopedCounts(
     dayEndExclusive: Instant,
@@ -188,31 +99,15 @@ interface DatabaseQueryManager {
   ): ScopedSchedulingCounts
 
   /**
-   * Counts the non-deleted positions in the subtree reachable from [key] that a recursive delete
-   * would remove, [key] itself included.
-   *
-   * A descendant is counted only when [key]'s subtree is its sole set of parents: a convergent
-   * position reachable through a parent outside the visited subtree is not counted (and not
-   * descended into), matching the cascade rule of
-   * [proj.memorchess.axl.core.interactions.LinesExplorer.delete]. The walk is a bounded breadth
-   * first traversal over the move edges, identical across every backend so the convergence rule
-   * cannot drift.
-   *
-   * Bounded by [cap]: the traversal stops enqueuing once [cap] positions have been counted, so a
-   * subtree at or above [cap] returns exactly [cap]. The UI renders that as a "cap or more"
-   * sentinel instead of paying for an unbounded walk. Returns `0` when [key] is not stored.
-   *
-   * @param key Root of the subtree to count.
-   * @param cap Upper bound on the returned count; the traversal never visits more than [cap]
-   *   positions.
+   * Counts the live positions a recursive delete of [key] would remove, [key] included, capped at
+   * [cap]. A position with a parent outside the subtree is not counted, as in
+   * [proj.memorchess.axl.core.interactions.LinesExplorer.delete]; `0` when [key] is not stored.
    */
   suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int
 
   /**
-   * Queues [key] for the next sync push at [deviceSeq], or refreshes it if already queued.
-   * Collapsing repeat edits into one entry is why the outbox stores keys rather than rows. A repeat
-   * mark keeps the higher of the stored and new [deviceSeq], so a mark that arrives late never
-   * regresses one already queued.
+   * Queues [key] for the next sync push at [deviceSeq]. A repeat mark keeps the higher of the
+   * stored and new [deviceSeq], so a late mark never regresses one already queued.
    */
   suspend fun markDirty(key: DirtyKey, deviceSeq: Long)
 
@@ -220,46 +115,30 @@ interface DatabaseQueryManager {
   suspend fun getOutbox(): List<OutboxEntry>
 
   /**
-   * Removes each of [entries] once it has been pushed, but only when the entry's queued
-   * [OutboxEntry.deviceSeq] has not moved past the one that was actually pushed: a [markDirty]
-   * landing between the read that produced [entries] and this call survives instead of being
-   * silently dropped.
+   * Removes each pushed entry of [entries], unless a later [markDirty] moved its queued
+   * [OutboxEntry.deviceSeq] past the pushed one.
    */
   suspend fun clearDirty(entries: Collection<OutboxEntry>)
 
-  /**
-   * Reads [positionKey] ignoring the soft-delete filter [getPosition] applies, so a caller can
-   * compare it against a pulled sync row even when the local copy is a tombstone. Used only by
-   * [proj.memorchess.axl.core.sync.SyncApplier], never by application code.
-   */
+  /** [getPosition] including tombstones. */
   suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode?
 
   /**
-   * Writes [node]'s scalar fields as the resolved winner of a sync conflict (see
-   * [proj.memorchess.axl.core.sync.SyncEngine]), merging rather than replacing
-   * [DataNode.previousAndNextMoves] exactly like [insertNodes], but **without** queuing an outbox
-   * entry: the row came from a peer's own push, so echoing it back would loop forever. The caller
-   * is responsible for having already run conflict resolution; this is an unconditional write.
+   * Unconditionally writes [node] as a resolved sync winner, merging its moves like [insertNodes],
+   * without queuing an outbox entry: echoing a peer's row back would loop forever.
    */
   suspend fun applyRemoteNode(node: DataNode)
 
   /**
-   * Writes [move] without queuing an outbox entry: a resolved sync winner, for the same reason as
-   * [applyRemoteNode], or a move whose derived effective marking changed. [move]'s origin and
-   * destination nodes must already exist locally (created by an earlier [applyRemoteNode] call in
-   * the same pull, or already present); a move whose endpoint does not yet exist is silently
-   * dropped, matching how a normal move write already assumes its endpoints are resolvable.
+   * Writes [move] without queuing an outbox entry. A move whose endpoints do not exist locally yet
+   * is silently dropped.
    */
   suspend fun applyRemoteMove(move: DataMove)
 
   /** Retrieves a repertoire registry row, or `null` when missing or soft deleted. */
   suspend fun getRepertoire(id: String): DataRepertoire?
 
-  /**
-   * [getRepertoire] ignoring the soft delete filter, so a caller can compare it against a pulled
-   * sync row even when the local copy is a tombstone. Used only by
-   * [proj.memorchess.axl.core.sync.SyncApplier].
-   */
+  /** [getRepertoire] including tombstones. */
   suspend fun getRepertoireIncludingDeleted(id: String): DataRepertoire?
 
   /** Every non deleted repertoire registry row. Unbounded: a user's own registry stays small. */
@@ -268,10 +147,7 @@ interface DatabaseQueryManager {
   /** Inserts or replaces a repertoire registry row, queuing its own outbox entry. */
   suspend fun insertRepertoire(repertoire: DataRepertoire)
 
-  /**
-   * Writes [repertoire] as the resolved winner of a sync conflict, without queuing an outbox entry,
-   * for the same reason as [applyRemoteNode].
-   */
+  /** Writes [repertoire] as a resolved sync winner without queuing an outbox entry. */
   suspend fun applyRemoteRepertoire(repertoire: DataRepertoire)
 
   /** Every live tag on the edge from [origin] to [destination], across every repertoire. */
@@ -280,11 +156,7 @@ interface DatabaseQueryManager {
   /** Every live tag on a move from or to [position], across every repertoire. */
   suspend fun getTagsTouching(position: PositionKey): List<DataEdgeRepertoireTag>
 
-  /**
-   * [getTags] ignoring the soft delete filter for one `(origin, destination, repertoireId)` triple,
-   * so a caller can compare it against a pulled sync row even when the local copy is a tombstone.
-   * Used only by [proj.memorchess.axl.core.sync.SyncApplier].
-   */
+  /** The tag of one `(origin, destination, repertoireId)` triple, including tombstones. */
   suspend fun getTagIncludingDeleted(
     origin: PositionKey,
     destination: PositionKey,
@@ -294,23 +166,15 @@ interface DatabaseQueryManager {
   /** Inserts or replaces one edge to repertoire tag row, queuing its own outbox entry. */
   suspend fun insertTag(tag: DataEdgeRepertoireTag)
 
-  /**
-   * Writes [tag] as the resolved winner of a sync conflict, without queuing an outbox entry, for
-   * the same reason as [applyRemoteNode].
-   */
+  /** Writes [tag] as a resolved sync winner without queuing an outbox entry. */
   suspend fun applyRemoteTag(tag: DataEdgeRepertoireTag)
 
-  /**
-   * Every live tagged edge of [repertoireId], the SAN move joined in from its [DataMove] row. A tag
-   * whose move is soft deleted, or a move whose tag is soft deleted, is excluded from either side
-   * of the join.
-   */
+  /** Every edge of [repertoireId] whose tag and move are both live, with its SAN move. */
   suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge>
 
   /**
-   * Replaces [positionKey]'s entire trainable membership row set with [repertoireIds], stamping
-   * [lastReview] on every surviving row. The derived counterpart of [DataNode.hasGoodOutgoing],
-   * owned by [proj.memorchess.axl.core.graph.TrainableProjection], never synced.
+   * Replaces [positionKey]'s trainable repertoire memberships with [repertoireIds], stamping
+   * [lastReview] on each. Derived data, never synced.
    */
   suspend fun replaceTrainableRepertoires(
     positionKey: PositionKey,
@@ -318,19 +182,11 @@ interface DatabaseQueryManager {
     lastReview: Instant?,
   )
 
-  /**
-   * One mastery snapshot per id in [repertoireIds], zero filled for an id with no trainable
-   * position. Bounded by the caller supplied id list (normally every id [getRepertoires] returns),
-   * never a distinct value scan.
-   */
+  /** One mastery snapshot per id in [repertoireIds], zero filled for a repertoire with none. */
   suspend fun getRepertoireMasterySnapshots(
     repertoireIds: List<String>
   ): Map<String, RepertoireMasterySnapshot>
 }
 
-/**
- * Default upper bound for [DatabaseQueryManager.countDescendants]. A delete confirmation that would
- * remove this many or more positions is shown as a "[DESCENDANT_COUNT_CAP] or more" sentinel rather
- * than paging the whole subtree to produce an exact number.
- */
+/** Default cap of [DatabaseQueryManager.countDescendants], shown as "or more" when reached. */
 const val DESCENDANT_COUNT_CAP: Int = 500

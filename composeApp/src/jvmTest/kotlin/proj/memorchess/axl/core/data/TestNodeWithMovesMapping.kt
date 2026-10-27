@@ -8,9 +8,8 @@ import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
 /**
- * Verifies that the Room entity mapping round-trips the FSRS [CardState], including the Phase 3
- * [CardPhase] and learning step. This is the persistence consumer of the state machine: a bug in
- * the column mapping would silently reset every card to [CardPhase.NEW] on reload.
+ * Verifies the Room entity mapping round-trips the FSRS [CardState]; a broken column would silently
+ * reset every card to [CardPhase.NEW] on reload.
  */
 class TestNodeWithMovesMapping {
 
@@ -106,14 +105,9 @@ class TestNodeWithMovesMapping {
     return NodeWithMoves.convertToEntity(dataNode).node.hasGoodOutgoing
   }
 
-  /**
-   * This is the regression covered by an imported repertoire: [GraphSerializer] never sets
-   * [DataNode.hasGoodOutgoing], relying on its default of `false`, even though the imported node
-   * carries a real good outgoing move. The entity mapping must derive the flag from the moves it
-   * already holds instead of trusting the caller's value verbatim.
-   */
   @Test
   fun aGoodNonDeletedNextMoveMakesTheFlagTrueEvenWhenTheCallerOmittedIt() {
+    // An imported repertoire leaves the flag at its default, so the mapping must derive it.
     hasGoodOutgoingAfterConversion(listOf(move(isGood = true))) shouldBe true
   }
 

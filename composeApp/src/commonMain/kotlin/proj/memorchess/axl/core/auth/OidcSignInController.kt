@@ -15,10 +15,7 @@ import memorchess.composeapp.generated.resources.sync_sign_in_failed
 import memorchess.composeapp.generated.resources.sync_state_mismatch
 import org.jetbrains.compose.resources.StringResource
 
-/**
- * Drives the end to end OIDC sign in and transparent token refresh, mirroring
- * [LichessSignInController]'s orchestration shape.
- */
+/** Drives OIDC sign in and transparent token refresh. */
 class OidcSignInController(
   private val launch:
     suspend (
@@ -100,7 +97,7 @@ class OidcSignInController(
       return TokenResult.Ok(stored)
     }
     return refreshMutex.withLock {
-      // Re-check: another caller may have already refreshed while this one waited for the lock.
+      // Another caller may have refreshed while this one waited for the lock.
       val current = tokenStore.getAccessToken() ?: return@withLock TokenResult.SignedOut
       val currentExpiry = tokenStore.getExpiresAt()
       if (currentExpiry != null && currentExpiry - now() > REFRESH_BUFFER) {

@@ -12,17 +12,10 @@ import kotlin.test.Test
 import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.ui.setKineticContent
-import proj.memorchess.axl.ui.theme.KineticMotion
 
 /**
- * Covers [KineticCounterBlock]'s KDoc promise that any [Int] renders through [Int.toString], plus
- * one case per [KineticCounterTone] arm.
- *
- * The eight value/tone tests below never pass `animateOnChange`, so they exercise only the default
- * `false` path (a plain `Text`), which short-circuits before
- * [KineticMotion.shouldAnimateBoardFeedback] (and therefore Koin) is ever reached. That is what
- * keeps them Koin-free, while the two `animateOnChange = true` tests at the bottom need
- * [TestWithKoin]'s lifecycle.
+ * Covers [KineticCounterBlock]'s rendering of any [Int] and of every [KineticCounterTone]. Only the
+ * `animateOnChange` tests reach Koin, so only they set it up.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestKineticCounterBlock : TestWithKoin() {

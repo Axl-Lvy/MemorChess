@@ -8,14 +8,7 @@ import kotlinx.benchmark.State
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.engine.GameEngine
 
-/**
- * Measures the conversions between board state and the FEN derived string forms: parsing a cropped
- * FEN back into a [GameEngine] and cropping a live position down to a [PositionKey].
- *
- * Guards against regressions in position identity handling. Every persisted node is keyed by its
- * cropped FEN, so parsing runs for each node when entering a stored position and cropping runs
- * after every move; both are also the backbone of database loading.
- */
+/** Measures parsing cropped FENs into a [GameEngine] and cropping positions to a [PositionKey]. */
 @State(Scope.Benchmark)
 class FenBenchmark {
 
@@ -31,12 +24,7 @@ class FenBenchmark {
     engines = positionKeys.map { GameEngine(it) }
   }
 
-  /**
-   * Rebuilds a [GameEngine] from every distinct cropped FEN of the fixture graph.
-   *
-   * Guards the cropped FEN completion and board parsing cost paid for every position opened from
-   * the database, for example when a training card is shown.
-   */
+  /** Rebuilds a [GameEngine] from every distinct cropped FEN of the fixture graph. */
   @Benchmark
   fun parseCroppedFens(bh: Blackhole) {
     for (key in positionKeys) {
@@ -44,12 +32,7 @@ class FenBenchmark {
     }
   }
 
-  /**
-   * Produces the [PositionKey] and the full FEN of every prebuilt position.
-   *
-   * Guards the FEN cropping path, including the en passant relevance check, which runs after every
-   * move played anywhere in the app.
-   */
+  /** Produces the [PositionKey] and the full FEN of every prebuilt position. */
   @Benchmark
   fun cropPositionsToKeys(bh: Blackhole) {
     for (engine in engines) {

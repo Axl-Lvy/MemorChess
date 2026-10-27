@@ -22,7 +22,7 @@ sealed interface Route {
   /**
    * Training route.
    *
-   * @property repertoireId Repertoire to train, or `null` for all (today's default, unchanged).
+   * @property repertoireId Repertoire to train, or `null` for all.
    */
   @Serializable
   @SerialName("training")
@@ -36,25 +36,20 @@ sealed interface Route {
     override fun displayNameRes() = Res.string.nav_training
   }
 
-  /**
-   * Today landing route (the dashboard the Training tab now opens onto). Carries no arguments. The
-   * board itself is still [TrainingRoute], reached by pushing it from Today's "Start review" CTA.
-   */
+  /** Today dashboard route; the training board itself is [TrainingRoute]. */
   @Serializable
   @SerialName("today")
   data object TodayRoute : Route {
     override fun getLabel(): String = "Today"
 
-    // Reuses the Training tab's own label. The tab is still conceptually "Training".
-    // It now opens onto a dashboard instead of the board directly.
+    // Today is the Training tab's landing page, so it shares its label.
     override fun displayNameRes() = Res.string.nav_training
   }
 
   /**
-   * Explore route
+   * Explore route.
    *
-   * @property position Optional starting position.
-   * @property repertoireId Repertoire to explore, or `null` for all (today's default, unchanged).
+   * @property repertoireId Repertoire to explore, or `null` for all.
    */
   @Serializable
   @SerialName("explore")
@@ -84,10 +79,9 @@ sealed interface Route {
   }
 
   /**
-   * Read-only viewer for a single catalog repertoire. Reached from the library; not part of the
-   * bottom navigation bar.
+   * Read-only viewer for a single catalog repertoire.
    *
-   * @property repertoireId Id of the repertoire to display, as listed in the catalog manifest.
+   * @property repertoireId Id of the repertoire, as listed in the catalog manifest.
    */
   @Serializable
   @SerialName("repertoireView")

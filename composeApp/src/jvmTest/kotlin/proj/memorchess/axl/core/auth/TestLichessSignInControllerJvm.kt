@@ -14,10 +14,7 @@ import kotlinx.serialization.json.Json
 import proj.memorchess.axl.test_util.TestSettings
 
 /**
- * JVM only coverage for the convenience constructor that binds to the platform [OAuthLauncher].
- *
- * The common tests all use the primary constructor with a `launch` lambda, so the launcher-backed
- * overload and its delegating lambda are only reachable here, where a real [OAuthLauncher] exists.
+ * Covers the [OAuthLauncher] convenience constructor, reachable only where a real launcher exists.
  */
 class TestLichessSignInControllerJvm {
 

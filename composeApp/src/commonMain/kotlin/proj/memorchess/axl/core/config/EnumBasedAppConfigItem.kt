@@ -13,12 +13,7 @@ import proj.memorchess.axl.SETTINGS_SYNC_SCOPE
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.util.CanDisplayName
 
-/**
- * Config item based on an enum. Use [from] to create one.
- *
- * @param T The enum type
- * @property getEntries A function that returns the entries of the enum
- */
+/** Config item holding an enum value. Use [from] to create one. */
 class EnumBasedAppConfigItem<T>(
   override val name: String,
   override val defaultValue: T,
@@ -57,10 +52,7 @@ class EnumBasedAppConfigItem<T>(
     stampAndMarkDirty(name, isDeleted = false, syncMetadata, database, syncScope)
   }
 
-  /**
-   * Resets the value to the default value and stamps a tombstone. See
-   * [ValueBasedAppConfigItem.reset].
-   */
+  /** Resets the value to the default and stamps a tombstone. */
   override fun reset() {
     settings.remove(name)
     localValue = defaultValue

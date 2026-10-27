@@ -88,8 +88,7 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
       put("/v1/me/devices/{deviceId}") {
         val deviceId = call.deviceId()
         val request = call.receive<SyncDeviceRegisterRequest>()
-        // The wire field is a plain string so decoding never throws on a value this build has not
-        // heard of. It becomes the enum here, at the boundary, and everything inland is typed.
+        // A plain string on the wire, so an unknown platform never fails decoding.
         val platform =
           DevicePlatform.fromWire(request.platform)
             ?: throw BadRequestException("unknown platform '${request.platform}'")
@@ -129,11 +128,8 @@ private suspend fun RoutingContext.erase(store: SyncStore, serverNow: Instant) {
 }
 
 /**
- * The device this call is about, validated as a canonical UUID.
- *
- * The validation is the point of the constraint, not the storage: an invented value would create a
- * `sync_device` row that never pulls, holding that user's watermark down with no way to tell it
- * from a real install.
+ * The device this call is about, validated as a canonical UUID: an invented one would create a
+ * device row that never pulls and holds the user's watermark down.
  */
 private fun ApplicationCall.deviceId(): String =
   requireCanonicalUuid(parameters["deviceId"].orEmpty(), "deviceId")
@@ -152,12 +148,7 @@ private fun requireCanonicalUuid(raw: String, field: String): String {
   return raw
 }
 
-/**
- * The calling device.
- *
- * Required, because the server keeps that device's position and has nothing to serve from without
- * it.
- */
+/** The calling device, required because the server serves from that device's position. */
 private fun RoutingContext.device(): String =
   call.request.queryParameters["device"] ?: throw BadRequestException("device is required")
 

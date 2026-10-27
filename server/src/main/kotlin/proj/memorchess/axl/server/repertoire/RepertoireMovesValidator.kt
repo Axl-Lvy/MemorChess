@@ -23,9 +23,9 @@ internal sealed class MoveListValidation {
 internal object RepertoireMovesValidator {
 
   /**
-   * Checks that [moves] is non empty, has at most [maxMoves] entries, has no duplicate origin and
-   * destination or origin and move, plays only legal canonical moves landing on their declared
-   * destination, and reaches every origin from the starting position within [maxPlyDepth] plies.
+   * Checks that [moves] is non empty, within [maxMoves], free of duplicates, made of legal
+   * canonical moves landing on their destination, and reachable from the start within [maxPlyDepth]
+   * plies.
    */
   fun validate(moves: List<RepertoireMove>, maxMoves: Int, maxPlyDepth: Int): MoveListValidation {
     if (moves.isEmpty()) return MoveListValidation.Rejected("the repertoire has no move")

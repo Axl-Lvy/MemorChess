@@ -130,8 +130,7 @@ internal class TestConflictResolver {
 
   @Test
   fun sameDeviceIgnoresTheClockEntirelyAndTrustsItsSequence() {
-    // The device's clock jumped backwards between the two writes. The newer write, identified by
-    // the greater sequence, must still win. Regression test for randomised seeds 5 and 43.
+    // The device's clock jumped backwards between the two writes.
     val older = row(tLarge, "device-a", deviceSeq = 1)
     val newer = row(t0, "device-a", deviceSeq = 2, value = "newer")
     resolve(older, newer) shouldBe Resolution(newer, ResolutionSource.REMOTE)
@@ -148,8 +147,7 @@ internal class TestConflictResolver {
 
   @Test
   fun theSequenceIsOnlyConsultedAfterTheDeviceId() {
-    // A high sequence on one device must not beat the device ordering, because sequences from
-    // different devices are unrelated counters.
+    // Sequences from different devices are unrelated counters.
     val local = row(t1, "device-b", deviceSeq = 0)
     val remote = row(t1, "device-a", deviceSeq = 99)
     resolve(local, remote) shouldBe Resolution(local, ResolutionSource.LOCAL)
@@ -157,9 +155,7 @@ internal class TestConflictResolver {
 
   @Test
   fun resolveIsCommutativeForEveryDistinctPair() {
-    // The property that actually guarantees convergence: both sides pick the same row whichever
-    // way round they ask. Regression test for randomised seed 10, where two versions tied on both
-    // updatedAt and originDevice and each side kept its own.
+    // Convergence rests on both sides picking the same row whichever way round they ask.
     val rows =
       listOf(
         row(t0, "device-a", deviceSeq = 0),

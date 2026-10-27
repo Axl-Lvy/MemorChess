@@ -11,10 +11,8 @@ import org.jetbrains.compose.resources.ResourceReader
 import org.w3c.xhr.XMLHttpRequest
 
 /**
- * Compose Multiplatform 1.12 loads web resources with an asynchronous `fetch`, which cannot resolve
- * while a test is between two event loop turns. A blocking read lets a resource load complete in
- * the single [kotlinx.coroutines.Dispatchers.Default] hop that `setTestContent` and the wait
- * helpers perform.
+ * Provides a blocking resource reader: Compose's async web `fetch` cannot resolve within the single
+ * [kotlinx.coroutines.Dispatchers.Default] hop that `setTestContent` and the wait helpers perform.
  */
 @Composable
 actual fun ProvideTestResourceReader(content: @Composable () -> Unit) {

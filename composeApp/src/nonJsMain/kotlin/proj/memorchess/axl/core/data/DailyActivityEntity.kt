@@ -4,10 +4,10 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Entity representing a [DailyActivityRecord] ready to be stored in the database.
+ * Room row for a [DailyActivityRecord].
  *
- * @property date Local date this row covers, in ISO-8601 form (e.g. `"2026-09-05"`).
- * @property cardsReviewed Number of distinct positions reviewed for the first time on [date].
+ * @property date Local date in ISO-8601 form, e.g. `"2026-09-05"`.
+ * @property cardsReviewed Distinct positions reviewed for the first time on [date].
  * @property isActive Whether [date] counts towards the streak.
  * @property streakLength Consecutive active days ending on [date], inclusive.
  */

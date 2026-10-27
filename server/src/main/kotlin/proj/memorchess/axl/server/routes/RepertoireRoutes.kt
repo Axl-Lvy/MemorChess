@@ -45,38 +45,23 @@ internal const val MAX_CATALOG_LIMIT: Int = 100
 /** Page size used when the caller states none. */
 private const val DEFAULT_CATALOG_LIMIT: Int = 50
 
-/** `schemaVersion` published in `manifest.json`. See spec 6.1: bumped only on a breaking change. */
+/** `schemaVersion` published in `manifest.json`, bumped only on a breaking change. */
 private const val MANIFEST_SCHEMA_VERSION: Int = 2
 
-/**
- * Short TTL for the anonymous, unpersonalized catalog responses, so Cloudflare's edge can cache
- * them without ever serving one caller's data to another (spec 5.7).
- */
+/** Short TTL for the anonymous, unpersonalized catalog responses, safe for an edge cache. */
 private const val CATALOG_CACHE_CONTROL = "public, max-age=60"
 
 /** Far future, immutable: a published version's moves never change once published. */
 private const val MOVES_CACHE_CONTROL = "public, max-age=31536000, immutable"
 
 /**
- * Mounts the published repertoire catalog: the anonymous, cacheable reads that migrate the existing
- * `manifest.json`/PGN static file contract onto `:server` (spec 6.1), the paginated
- * `/v1/repertoires` surface from spec 5.7, authenticated publish and delete, and the admin
- * moderation kill switch.
+ * Mounts the published repertoire catalog: anonymous cacheable reads, authenticated publish and
+ * delete, and the admin moderation kill switch.
  *
- * Additive to whatever routing an enclosing `syncModule` already installed: Ktor merges every
- * `routing {}` block on one `Application` into a single tree, so this never needs its own
- * `ContentNegotiation`/`StatusPages`/auth plugin installs.
+ * The admin route accepts any signed in caller, so Cloudflare Access at the edge is the real
+ * authorization boundary for moderation.
  *
- * The admin moderation route requires a valid bearer token, like every other mutating route. That
- * check only tells the app any signed in caller is making the request. It does not yet distinguish
- * a moderator from any other user, so Cloudflare Access at the edge remains the actual
- * authorization boundary until the app gains a real admin role. Its own rate limit tier is a second
- * layer, should that edge gate ever lapse.
- *
- * @param rateLimits The request budgets to enforce, substituted in tests that need to exhaust one.
- *   Installed here rather than assumed already installed by
- *   [proj.memorchess.axl.server.syncModule]: production always mounts both on the same
- *   `Application`, but a test may mount this module alone.
+ * @param rateLimits The request budgets to enforce, installed here so this module can run alone.
  */
 internal fun Application.repertoireModule(
   store: RepertoireStore,
@@ -239,7 +224,7 @@ private suspend fun ApplicationCall.respondNoSuchRepertoire() {
   respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, NO_SUCH_REPERTOIRE_MESSAGE))
 }
 
-/** The status values a repertoire row may hold. See spec 6.6. */
+/** The status values a repertoire row may hold. */
 private val VALID_STATUSES = setOf("published", "unlisted", "removed")
 
 private const val MISSING_ID_MESSAGE = "missing id"

@@ -1,9 +1,8 @@
 package proj.memorchess.axl.core.data.repertoire
 
 /**
- * Repertoire publish caps and shape rules shared by `:server` (which enforces them) and
- * `:composeApp` (which pre checks them before submitting, so a client side rejection can never
- * drift from what the server actually enforces).
+ * Repertoire publish caps and shape rules, shared so client pre checks match what the server
+ * enforces.
  */
 object RepertoirePublishLimits {
 
@@ -16,16 +15,13 @@ object RepertoirePublishLimits {
   /** Longest id accepted. */
   const val MAX_ID_LENGTH: Int = 64
 
-  /** Longest title accepted. Shown in the public catalog, so an unbounded one is a footgun. */
+  /** Longest title accepted. */
   const val MAX_TITLE_LENGTH: Int = 200
 
-  /** Longest description accepted, for the same reason as [MAX_TITLE_LENGTH]. */
+  /** Longest description accepted. */
   const val MAX_DESCRIPTION_LENGTH: Int = 2_000
 
-  /**
-   * Deepest position accepted, in plies along the shortest path from the starting position. A real
-   * opening repertoire never needs more than a few dozen plies down any line.
-   */
+  /** Deepest position accepted, in plies along the shortest path from the starting position. */
   const val MAX_PLY_DEPTH: Int = 200
 
   /** Shape a repertoire id (a catalog slug) must match. */

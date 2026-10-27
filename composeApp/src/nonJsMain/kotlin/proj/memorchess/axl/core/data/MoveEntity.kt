@@ -6,11 +6,9 @@ import kotlin.time.Instant
 import proj.memorchess.axl.core.date.DateUtil
 
 /**
- * Room entity representing an [DataMove].
+ * Room entity representing a [DataMove].
  *
- * @property origin FEN string of the origin position.
- * @property destination FEN string of the destination position.
- * @property move The move string (e.g., "e4").
+ * @property move The move in SAN.
  * @property isGood Effective marking: whether the move has to be learned.
  * @property ownIsGood The user's own marking, or `null` without a manual hold.
  */
@@ -32,24 +30,20 @@ data class MoveEntity(
   val move: String,
   val isGood: Boolean,
   val ownIsGood: Boolean? = null,
-
-  /** If true, the node is deleted. */
   val isDeleted: Boolean = false,
 
-  /** The date time at which the move was first added. */
+  /** When the move was first added. */
   val createdAt: Instant = DateUtil.now(),
-
-  /** The date time of the last update. */
   val updatedAt: Instant = DateUtil.now(),
 
-  /** Device that wrote this version. See [proj.memorchess.axl.core.sync.DeviceIdentity]. */
+  /** Device that wrote this version. */
   val originDevice: String = "",
 
   /** That device's write counter at the time. */
   val deviceSeq: Long = 0L,
 ) {
 
-  /** Converts to an [DataMove]. */
+  /** Converts to a [DataMove]. */
   fun toStoredMove(): DataMove {
     return DataMove(
       PositionKey(origin),
@@ -66,7 +60,7 @@ data class MoveEntity(
   }
 
   companion object {
-    /** Converts an [DataMove] to a [MoveEntity]. */
+    /** Converts a [DataMove] to a [MoveEntity]. */
     fun convertToEntity(dataMove: DataMove): MoveEntity {
       val isGood = dataMove.isGood
       checkNotNull(isGood) {

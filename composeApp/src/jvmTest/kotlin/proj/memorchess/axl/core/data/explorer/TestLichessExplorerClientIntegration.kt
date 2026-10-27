@@ -12,14 +12,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 
 /**
- * Live integration test that hits `https://explorer.lichess.ovh` for real.
- *
- * The token comes from the `LICHESS_API_TOKEN` environment variable. CI passes it from the GitHub
- * Actions secret of the same name. Locally, set `LICHESS_API_TOKEN=...` in the JVM run environment;
- * without one the test reports a passing no op so devs can still run the suite.
- *
- * Lichess requires authentication on the explorer endpoints since their February 2026 DDoS
- * mitigation; without a valid token the request returns 401.
+ * Live test against `https://explorer.lichess.ovh`, which answers 401 without a token. It reads
+ * `LICHESS_API_TOKEN` and passes as a no-op when that variable is unset.
  */
 class TestLichessExplorerClientIntegration {
 
@@ -30,7 +24,6 @@ class TestLichessExplorerClientIntegration {
       tokenProvider = { token },
     )
 
-  /** Smoke checks the live Lichess Opening Explorer masters endpoint with a real token. */
   @Test
   fun fetchStartingPositionFromLichessMastersEndpoint() = runTest {
     val token =
@@ -40,8 +33,7 @@ class TestLichessExplorerClientIntegration {
           return@runTest
         }
     val client = buildClient(token)
-    // After 1.e4: the response carries opening metadata so we can assert both the move list and
-    // the opening name. The bare starting position does not have a parent opening.
+    // After 1.e4, since the bare starting position has no opening name to assert on.
     val afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 
     val result = client.fetch(ExplorerSource.MASTERS, afterE4)

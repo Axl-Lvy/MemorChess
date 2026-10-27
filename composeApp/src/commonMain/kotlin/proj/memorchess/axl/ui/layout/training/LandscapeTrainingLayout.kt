@@ -12,13 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/**
- * Landscape Training layout — same single centered column as the portrait layout, with looser
- * padding and slightly larger gutter spacing. The board still dominates the central area.
- *
- * @param modifier Modifier applied to the outer [Column].
- * @param content Slot bag rendered into this layout.
- */
+/** Landscape training layout: the portrait single centered column with looser padding. */
 @Composable
 fun LandscapeTrainingLayout(modifier: Modifier = Modifier, content: TrainingLayoutContent) {
   Column(

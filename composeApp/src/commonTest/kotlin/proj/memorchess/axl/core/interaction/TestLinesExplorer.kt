@@ -60,7 +60,6 @@ class TestLinesExplorer : TestWithKoin() {
     clickOnTile("e4")
     interactionsManager.save()
 
-    // Verify the move was saved as good in the database
     val storedNode = database.getPosition(startPosition)
     val savedMove = storedNode?.previousAndNextMoves?.nextMoves?.values?.find { it.move == "e4" }
     assertEquals(true, savedMove?.isGood, "Move should be saved as good")
@@ -170,13 +169,12 @@ class TestLinesExplorer : TestWithKoin() {
 
   @Test
   fun testCalculateNumberOfNodeToDelete_ConvergingNodes() = test {
-    // Line 1, saved so its positions are persisted.
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("Nf3")
     interactionsManager.save()
     interactionsManager.reset()
-    // Line 2, transposing into the same position, also saved.
+    // Transposes into the same position.
     interactionsManager.playMove("Nf3")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("e4")
@@ -248,8 +246,6 @@ class TestLinesExplorer : TestWithKoin() {
     assertNotEquals(interactionsManager.engine.toPositionKey(), PositionKey.START_POSITION)
   }
 
-  // --- Repertoire scoped sessions ---------------------------------------------------------
-
   @Test
   fun aScopedSessionTagsAGenuinelyNewMoveWithItsScopeOnSave() = test {
     val origin = PositionKey.START_POSITION
@@ -282,8 +278,6 @@ class TestLinesExplorer : TestWithKoin() {
     assertEquals(emptySet(), tagStore.tagsFor(origin, abandoned))
     assertEquals(setOf("italian-game"), tagStore.tagsFor(origin, keyAfter("d4")))
   }
-
-  // --- Move holders -------------------------------------------------------------------------
 
   private fun keyAfter(vararg sans: String): PositionKey =
     GameEngine().apply { sans.forEach { playSanMove(it) } }.toPositionKey()
@@ -409,7 +403,7 @@ class TestLinesExplorer : TestWithKoin() {
       LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
-    explorer.playMove("e4") // replays the already-existing edge
+    explorer.playMove("e4")
 
     assertEquals(emptySet(), tagStore.tagsFor(origin, destination))
   }
@@ -432,8 +426,7 @@ class TestLinesExplorer : TestWithKoin() {
   fun playMoveOnAnIllegalSanDoesNotCrash() = test {
     val startPosition = interactionsManager.engine.toPositionKey()
 
-    // Simulates a move suggested by an external source (e.g. the Lichess opening explorer panel)
-    // that does not apply to the current position.
+    // As an external source such as the opening explorer might suggest.
     interactionsManager.playMove("Qxe4")
 
     assertEquals(
@@ -445,8 +438,7 @@ class TestLinesExplorer : TestWithKoin() {
 
   @Test
   fun playMoveStripsCheckMarkersBeforeStoringTheEdge() = test {
-    // Simulates a checking move suggested by an external source (e.g. the Lichess opening
-    // explorer panel), which includes the "+" marker chess-core itself does not persist.
+    // External sources such as the opening explorer send check markers chess-core does not store.
     interactionsManager.playMove("f3")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("g4")
@@ -498,8 +490,8 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.save()
     val destination = interactionsManager.engine.toPositionKey()
     tagStore.tag(origin, destination, "ruy-lopez")
-    interactionsManager.back() // save() left navigation at the destination; getNextMoves() below
-    // must read the origin's own outgoing moves.
+    // save() left navigation at the destination.
+    interactionsManager.back()
 
     assertEquals(listOf("e4"), interactionsManager.getNextMoves())
   }

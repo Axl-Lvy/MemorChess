@@ -14,22 +14,13 @@ import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.theme.KineticMotion
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
-/** Thickness of the flashed border. */
 private val FLASH_STROKE = 3.dp
 
 /**
- * Draws a one-shot "registered" feedback border around the content: a bright [progress][palette]
- * frame on a correct move, [destructive][palette] on a wrong one, that pulses on and decays.
- * Mirrors the Kinetic instrument metaphor — the board *registers* the verdict rather than fading a
- * banner in.
+ * Flashes a decaying border after each graded move, `progress` when [success] and `destructive`
+ * otherwise. The alpha is read in the draw phase, so the decay never recomposes.
  *
- * The pulse fires whenever [attempt] changes to a new positive value (each graded move bumps the
- * attempt counter), using [success] to pick the colour. The alpha is held in an [Animatable] read
- * **inside [drawWithContent]**, so the decay runs in the draw phase with no recomposition, and
- * nothing is drawn once it settles back to zero.
- *
- * @param attempt Monotonic counter of graded moves; a change triggers a flash.
- * @param success Whether the move that produced this [attempt] was correct.
+ * @param attempt Monotonic counter of graded moves; each new positive value triggers a flash.
  */
 fun Modifier.registeredFlash(attempt: Int, success: Boolean): Modifier = composed {
   val palette = LocalKineticPalette.current
@@ -37,7 +28,6 @@ fun Modifier.registeredFlash(attempt: Int, success: Boolean): Modifier = compose
   LaunchedEffect(attempt) {
     if (attempt > 0) {
       alpha.snapTo(1f)
-      // Fires instantly (snapTo) then decays steadily — a clean glow falloff, not a snap-out.
       alpha.animateTo(
         targetValue = 0f,
         animationSpec =

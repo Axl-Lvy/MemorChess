@@ -10,11 +10,7 @@ import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
-/**
- * Room backed coverage of [DatabaseQueryManager.countDescendants]. Mirrors the convergence rule and
- * cap boundary cases of the in-memory reference against a real isolated SQLite database, proving
- * the `childrenOf` / `incomingCount` point queries drive the same bounded breadth first walk.
- */
+/** Room backed coverage of [DatabaseQueryManager.countDescendants]'s convergence rule and cap. */
 class TestRoomCountDescendants {
 
   private val database: CustomDatabase = freshDatabase()
@@ -76,7 +72,6 @@ class TestRoomCountDescendants {
 
   @Test
   fun countIsCappedAtTheRequestedBound() = runTest {
-    // Linear chain of 10 nodes n0 -> n1 -> ... -> n9.
     val names = (0 until 10).map { "n$it" }
     for (index in names.indices) {
       val incoming = if (index == 0) emptyList() else listOf(move(names[index - 1], names[index]))

@@ -13,11 +13,8 @@ import proj.memorchess.axl.ui.theme.KineticMotion
 /**
  * Chess board with optional best-move arrow overlay.
  *
- * @param interactionsManager Handles piece interactions and move validation.
  * @param inverted Whether the board is shown from Black's perspective.
  * @param bestMoveArrow Arrow overlay data, or `null` to hide the arrow.
- * @param feedback Training feedback for the current attempt, or the default (nothing to show).
- * @param modifier Modifier for the board.
  */
 @Composable
 fun Board(

@@ -3,12 +3,8 @@ package proj.memorchess.axl.core.graph
 import proj.memorchess.axl.core.data.PositionKey
 
 /**
- * Tracks navigation through positions with full back and forward history.
- *
- * Holds [PositionKey]s and [Edge]s only. No live references to a tree; consumers ask
- * [TreeStore.current] when they need graph context.
- *
- * @param startPosition The initial position to start navigating from.
+ * Tracks navigation through positions with full back and forward history. Holds [PositionKey]s and
+ * [Edge]s only, never live references to a tree.
  */
 class NavigationHistory(startPosition: PositionKey) {
 
@@ -20,10 +16,10 @@ class NavigationHistory(startPosition: PositionKey) {
   var arrivedVia: Edge? = null
     private set
 
-  /** Back history: stack of (positionWeWereAt, edgeWePlayedToLeave). */
+  /** Stack of (position left, edge played to leave it). */
   private val backStack = ArrayDeque<Pair<PositionKey, Edge>>()
 
-  /** Forward history: stack of (edgeToReplay, positionItLeadsTo). Filled by [back]. */
+  /** Stack of (edge to replay, position it leads to), filled by [back]. */
   private val forwardStack = ArrayDeque<Pair<Edge, PositionKey>>()
 
   /** Walks forward to a new position by playing [edge]. */
@@ -59,7 +55,7 @@ class NavigationHistory(startPosition: PositionKey) {
   /** Returns the back stack as a list from root to current, excluding current. */
   fun getBackPath(): List<Pair<PositionKey, Edge>> = backStack.toList()
 
-  /** Clears forward history. Used after a delete invalidates descendants. */
+  /** Clears forward history. */
   fun clearForward() {
     forwardStack.clear()
   }

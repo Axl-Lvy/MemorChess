@@ -7,11 +7,8 @@ import kotlinx.coroutines.CompletableDeferred
 import proj.memorchess.axl.AndroidContextProvider
 
 /**
- * Android OAuth launcher.
- *
- * Opens [authorizationUrl] in a Chrome Custom Tab. When Lichess redirects back to
- * `memorchess://oauth?...`, [LichessOAuthRedirectActivity] catches the redirect and forwards the
- * URI through [PendingOAuth].
+ * Opens the authorization URL in a Chrome Custom Tab and awaits the redirect that
+ * [LichessOAuthRedirectActivity] forwards through [PendingOAuth].
  */
 actual class OAuthLauncher {
 
@@ -39,10 +36,7 @@ actual class OAuthLauncher {
   }
 }
 
-/**
- * Holds the in flight OAuth deferred so [LichessOAuthRedirectActivity] can complete it when the
- * browser bounces back.
- */
+/** Holds the in flight OAuth deferred until the browser redirect completes it. */
 internal object PendingOAuth {
   private var expectedState: String? = null
   private var deferred: CompletableDeferred<OAuthLaunchResult>? = null

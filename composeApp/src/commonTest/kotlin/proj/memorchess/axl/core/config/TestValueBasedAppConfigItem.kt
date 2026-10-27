@@ -6,10 +6,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.test_util.TestWithKoin
 
-/**
- * Coverage for [ValueBasedAppConfigItem]'s sync stamping: [BooleanBasedConfigItem] exercises it
- * through a concrete, non-sealed subtype.
- */
+/** Tests [ValueBasedAppConfigItem]'s sync stamping through [BooleanBasedConfigItem]. */
 class TestValueBasedAppConfigItem : TestWithKoin() {
   private lateinit var config: BooleanBasedConfigItem
   private val syncMetadata: SettingSyncMetadataStore by inject()
@@ -56,8 +53,7 @@ class TestValueBasedAppConfigItem : TestWithKoin() {
     config.setValue(true)
     config.setValue(false)
 
-    // A stamp that raced and lost would leave read() reporting a lower deviceSeq than the one
-    // actually written by the most recent setValue.
+    // A stamp that raced and lost would leave read() below the last written deviceSeq.
     val stored = syncMetadata.read("test_bool")!!.deviceSeq
     config.setValue(true)
     assertTrue(syncMetadata.read("test_bool")!!.deviceSeq > stored)

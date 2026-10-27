@@ -59,8 +59,6 @@ class TestLichessExplorerPanel {
         onClickMove = {},
       )
     }
-    // The bar must render without throwing IllegalArgumentException for zero weights. The rows
-    // themselves are still visible.
     onAllNodes(hasTestTag("lichess_explorer_move_row:e4")).assertCountEquals(1)
     onAllNodes(hasTestTag("lichess_explorer_move_row:d4")).assertCountEquals(1)
     onAllNodes(hasTestTag("lichess_explorer_move_row:Nf3")).assertCountEquals(1)

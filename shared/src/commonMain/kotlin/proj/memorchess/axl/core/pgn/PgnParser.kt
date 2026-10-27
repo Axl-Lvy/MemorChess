@@ -1,29 +1,13 @@
 package proj.memorchess.axl.core.pgn
 
-/**
- * Pure Kotlin parser for PGN documents.
- *
- * Supports tag pairs, SAN movetext with nested variations of arbitrary depth, brace comments
- * (anywhere, including inside variations), rest-of-line comments introduced by `;`, escape lines
- * starting with `%`, NAGs (`$1` style and annotation glyphs like `!?`), move numbers in any common
- * layout (`1.`, `1...`, glued or spaced), and result markers (`1-0`, `0-1`, `1/2-1/2`, `*`).
- *
- * The parser is liberal about whitespace and newline layout, so any standard export (for example a
- * lichess study chapter) parses without preprocessing. Malformed input is reported through
- * [PgnParseException] with line and column information.
- */
+/** PGN parser accepting any standard export, with variations, comments and NAGs. */
 object PgnParser {
 
   /**
-   * Parses a PGN document that may contain multiple games.
+   * Parses every game of [text] in document order; a headers-only section yields a game with no
+   * moves.
    *
-   * Games are separated by result markers or by a new tag pair section after movetext. A
-   * headers-only section (with or without a result marker) yields a game with empty
-   * [PgnGame.moves]. Empty input yields an empty list.
-   *
-   * @param text the full PGN document.
-   * @return the parsed games in document order.
-   * @throws PgnParseException if the document is malformed.
+   * @throws PgnParseException if the document is malformed, with its line and column.
    */
   fun parse(text: String): List<PgnGame> = Parser(text).parseAllGames()
 }

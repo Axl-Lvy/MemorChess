@@ -4,96 +4,61 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Canonical Kinetic design tokens: a gamified role palette of electric violet, hot pink, and lime.
- *
- * Two palette instances exist, [KineticDarkPalette] and [KineticLightPalette]. `action`, `streak`
- * and `destructive` keep the same hue in both. `progress` swaps hue per theme, using lime in dark
- * and violet in light. The light palette is violet-tinted throughout: a soft lavender-white base
- * under white panels, with violet-grey ink and violet-tinted lines. It is never warm, cream, or
- * neutral grey.
- *
- * Two role collisions are deliberate, taken straight from the mockup rather than worked around:
- * - In light, `progress` shares the `action` violet. The two roles separate by hue only in dark,
- *   where `progress` is lime.
- * - `streak` and `destructive` share one pink per theme (`#D6106B` light, `#FF4FA3` dark) and are
- *   told apart by context, not by base hue.
+ * Kinetic design tokens for one theme. Deliberately, `progress` shares the `action` violet in
+ * light, and `streak` and `destructive` share one pink per theme, told apart by context.
  */
 @Immutable
 data class KineticPalette(
-  // Surface ladder
   val bg: Color,
   val bg2: Color,
   val panel: Color,
   val panel2: Color,
   val panel3: Color,
-
-  // Lines
   val line: Color,
   val lineBright: Color,
-
-  // Ink (text) ladder
   val ink: Color,
   val ink2: Color,
   val ink3: Color,
   val ink4: Color,
-
-  // Action: the primary interactive role. Electric violet, same hue in both themes.
   val action: Color,
   val actionText: Color,
   val actionGlow: Color,
   val actionDim: Color,
   val actionSoft: Color,
   val onAction: Color,
-
-  // Progress: the completion and success role. Lime in dark, violet in light.
   val progress: Color,
   val progressText: Color,
   val progressGlow: Color,
   val progressDim: Color,
   val progressSoft: Color,
   val onProgress: Color,
-
-  // Streak: the secondary highlight role. Hot pink, same hue in both themes.
   val streak: Color,
   val streakText: Color,
   val streakGlow: Color,
-  /**
-   * Border tone of the streak container, mirroring [destructiveDim]. In light it is the same soft
-   * pink as [destructiveDim] — the light artboards hold exactly one soft pink container tone.
-   */
+  /** Border tone of the streak container, mirroring [destructiveDim]. */
   val streakDim: Color,
-  /**
-   * Hard bottom edge of a streak container — the mockup's `box-shadow: 0 3px 0`. The only token in
-   * the palette that is deliberately DARKER than its own fill in both themes; no existing token
-   * qualifies ([streakText] equals [streak] in dark, and [lineBright] is a lavender grey that reads
-   * as a highlight on pink).
-   */
+  /** Hard bottom edge of a streak container, deliberately darker than its fill in both themes. */
   val streakEdge: Color,
   val streakSoft: Color,
   val onStreak: Color,
-
-  // Destructive: the dangerous action role. Hot pink, never red, same hue in both themes.
   val destructive: Color,
   val destructiveText: Color,
   val destructiveGlow: Color,
   /**
-   * Border tone of the danger container, **not** its fill — the fill is [destructiveSoft]. Two of
-   * its consumers (the `DangerOutline` button style and a `danger = true` settings section) stroke
-   * it straight onto a panel, so it must stay at least as visible against [panel] as [line] is.
+   * Border tone of the danger container, not its fill ([destructiveSoft]). It is stroked straight
+   * onto panels, so it must stay at least as visible against [panel] as [line] is.
    */
   val destructiveDim: Color,
   val destructiveSoft: Color,
   val onDestructive: Color,
-
-  // Board squares (Kinetic-aligned defaults)
   val sqLight: Color,
   val sqDark: Color,
 
-  /** True when this palette describes the light theme. Used by shadow helpers and a few visuals. */
+  /** True when this palette describes the light theme. */
   val isLight: Boolean,
 )
 
-/** Dark Kinetic palette — primary mode of the app. */
+/** Dark Kinetic palette, the app's primary mode. */
 val KineticDarkPalette =
   KineticPalette(
     bg = Color(0xFF120A22),
@@ -137,15 +102,11 @@ val KineticDarkPalette =
     isLight = false,
   )
 
-/**
- * Light Kinetic palette. Violet-tinted throughout: a soft lavender-white base under white panels,
- * with violet-grey ink and violet-tinted lines. Never warm, cream, or neutral grey.
- */
+/** Light Kinetic palette, violet tinted throughout and never warm or neutral grey. */
 val KineticLightPalette =
   KineticPalette(
     bg = Color(0xFFF4F0FF),
-    // The one light token with no artboard of its own: bg2 is the mockup's canvas chrome, never a
-    // screen surface, so it is set by interpolation between bg #F4F0FF and panel3 #EDE4FF.
+    // Interpolated between bg and panel3.
     bg2 = Color(0xFFEEEAF6),
     panel = Color(0xFFFFFFFF),
     panel2 = Color(0xFFF4F0FF),

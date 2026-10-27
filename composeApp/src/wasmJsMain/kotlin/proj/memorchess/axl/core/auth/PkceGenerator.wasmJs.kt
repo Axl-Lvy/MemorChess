@@ -37,12 +37,7 @@ private fun cryptoGetRandomValues(buffer: Uint8Array) {
 private fun cryptoSubtleDigest(algorithm: String, data: Uint8Array): Promise<ArrayBuffer> =
   js("globalThis.crypto.subtle.digest(algorithm, data)")
 
-/**
- * Converts a Kotlin [ByteArray] into a Uint8Array view.
- *
- * The Uint8Array constructor accepts a JS array of numbers; we hand it the bytes one by one using a
- * loop because there is no direct ByteArray->Uint8Array cast in wasmJs.
- */
+/** Copies [bytes] into a new Uint8Array one by one, since wasmJs has no direct cast. */
 private fun byteArrayToUint8Array(bytes: ByteArray): Uint8Array {
   val array = Uint8Array(bytes.size)
   for (i in bytes.indices) {

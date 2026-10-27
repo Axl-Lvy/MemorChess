@@ -9,11 +9,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Measures frame timing (jank, dropped frames) while cycling through the three main screens via the
- * bottom navigation bar, the way a user would.
- *
- * App startup happens in the setup block, so the measured window contains only the screen
- * transitions themselves.
+ * Measures frame timing while cycling through the three main screens via the bottom navigation bar.
+ * Startup runs in the setup block, outside the measured window.
  */
 @RunWith(AndroidJUnit4::class)
 class ScreenNavigationBenchmark {

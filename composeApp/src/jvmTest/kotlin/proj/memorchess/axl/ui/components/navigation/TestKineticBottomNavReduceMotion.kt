@@ -18,12 +18,8 @@ import proj.memorchess.axl.core.config.REDUCE_MOTION_SETTING
 import proj.memorchess.axl.test_util.TestWithKoin
 
 /**
- * Pixel level coverage for [NavCellIcon]'s pop [androidx.compose.animation.core.Animatable], the
- * one thing [TestKineticBottomNav]'s semantics level assertions cannot observe (`graphicsLayer`
- * scale is a transform applied in the draw phase, invisible to the semantics tree). Composes
- * [NavCellIcon] directly, wrapped bare in a `Box` with no pill or label, so nothing else animating
- * under reduce motion (the pill's own colour fade) can change the captured pixels for a reason
- * unrelated to the icon's scale.
+ * Pixel level coverage of [NavCellIcon]'s pop, whose `graphicsLayer` scale semantics cannot see.
+ * The icon is composed bare so no other animation changes the captured pixels.
  */
 @OptIn(ExperimentalTestApi::class)
 internal class TestKineticBottomNavReduceMotion : TestWithKoin() {

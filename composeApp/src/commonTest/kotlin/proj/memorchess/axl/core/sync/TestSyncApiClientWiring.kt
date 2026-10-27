@@ -5,11 +5,7 @@ import kotlin.test.Test
 import org.koin.core.component.inject
 import proj.memorchess.axl.test_util.TestWithKoin
 
-/**
- * Verifies the DI graph actually resolves a [SyncApiClient] as a singleton, catching a broken Koin
- * binding (missing dependency, wrong `baseUrl` expression) that a unit test constructing it
- * directly, like [TestSyncApiClient], would never see.
- */
+/** Catches a broken Koin binding for [SyncApiClient] that direct construction would not. */
 class TestSyncApiClientWiring : TestWithKoin() {
 
   private val first: SyncApiClient by inject()

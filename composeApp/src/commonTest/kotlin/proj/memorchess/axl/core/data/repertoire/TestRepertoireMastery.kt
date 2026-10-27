@@ -127,9 +127,7 @@ class TestRepertoireMastery {
     store.addMove(PositionKey.START_POSITION, "d4", destinationB, isGood = true, fromDepth = 0)
     tagStore.tag(PositionKey.START_POSITION, destinationA, "ruy-lopez")
     tagStore.tag(PositionKey.START_POSITION, destinationB, "italian-game")
-    // The start position now has one good outgoing edge in each repertoire, so a single
-    // updateCardState stamps the exact same lastReview into both repertoires' trainable rows: a
-    // genuine tie, not merely two separately-timed writes that happen to match.
+    // One updateCardState stamps the same lastReview into both repertoires: a genuine tie.
     store.updateCardState(
       PositionKey.START_POSITION,
       CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = DateUtil.now()),
@@ -137,6 +135,6 @@ class TestRepertoireMastery {
 
     val mastery = mostRecentRepertoireMastery(tagStore)!!
 
-    mastery.repertoireName shouldBe "Italian Game" // "Italian Game" < "Ruy Lopez" ascending
+    mastery.repertoireName shouldBe "Italian Game"
   }
 }

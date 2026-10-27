@@ -30,12 +30,10 @@ import proj.memorchess.axl.ui.components.controls.KineticToggleRow
 import proj.memorchess.axl.ui.theme.AppThemeSetting
 
 /**
- * Display & Theme settings section content. Renders the app theme picker (LIGHT/DARK/SYSTEM), the
- * reduce motion toggle, and the move animation duration slider.
+ * Display & Theme settings content: app theme, reduce motion, and move animation duration.
  *
- * @param reloadKey value used to force re-reading the persisted settings on external reloads.
- * @param onReload called after the user changes the app theme so the parent can refresh dependent
- *   composables.
+ * @param reloadKey re-reads the persisted settings when it changes.
+ * @param onReload called after the user changes the app theme.
  */
 @Composable
 fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {

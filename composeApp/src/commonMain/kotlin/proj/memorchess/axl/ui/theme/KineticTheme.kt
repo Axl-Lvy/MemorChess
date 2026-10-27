@@ -7,21 +7,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import proj.memorchess.axl.ui.components.board.LocalPiecePainters
 import proj.memorchess.axl.ui.components.board.rememberPiecePainters
 
-/**
- * CompositionLocal exposing the active [KineticPalette]. Defaults to the dark palette so accidental
- * usage outside of [KineticTheme] still renders something sensible — callers should always wrap UI
- * in [KineticTheme] (or [AppTheme]) for the correct palette to be provided.
- */
+/** Exposes the active [KineticPalette]; falls back to the dark palette outside [KineticTheme]. */
 val LocalKineticPalette = staticCompositionLocalOf { KineticDarkPalette }
 
-/**
- * Provides the Kinetic design system to its content: palette via [LocalKineticPalette], typography
- * via [LocalKineticTypography], and a Material 3 [MaterialTheme] derived from the same tokens so
- * existing M3 widgets remain consistent until they are migrated to bespoke Kinetic Composables.
- *
- * Prefer [AppTheme] as the application entry point; [KineticTheme] is the lower-level building
- * block that can also be used in previews or tests.
- */
+/** Provides the Kinetic palette, typography and a matching Material 3 theme to [content]. */
 @Composable
 fun KineticTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
   val palette = if (darkTheme) KineticDarkPalette else KineticLightPalette

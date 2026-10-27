@@ -64,35 +64,20 @@ import proj.memorchess.axl.core.sync.SyncJobStore
 import proj.memorchess.axl.ui.components.popup.ToastRenderer
 import proj.memorchess.axl.ui.components.popup.getPlatformSpecificToastRenderer
 
-/**
- * Koin qualifier for the process lived background scope [NodeCache] loads on and [Prefetcher] warms
- * on. A [SupervisorJob] on [Dispatchers.Default] so a failed load never cancels siblings and never
- * blocks the UI. It lives as long as those two process wide singles, so no teardown is needed. The
- * name stays `prefetch` because prefetch still dominates its traffic.
- */
+/** Koin qualifier for the process lived background scope [NodeCache] and [Prefetcher] load on. */
 const val PREFETCH_SCOPE: String = "prefetch"
 
 /**
- * Koin qualifier for the process lived background scope on which a [ConfigItem] write queues its
- * outbox entry. [ConfigItem.setValue] and [ConfigItem.reset] are synchronous and stamp
- * [proj.memorchess.axl.core.config.SettingSyncMetadataStore] inline, but
- * [proj.memorchess.axl.core.data.DatabaseQueryManager.markDirty] is suspend, so only that call is
- * fired and forgotten on this scope rather than blocking the caller; a [SupervisorJob] on
- * [Dispatchers.Default] so one failed enqueue never cancels another.
+ * Koin qualifier for the process lived background scope on which a
+ * [proj.memorchess.axl.core.config.ConfigItem] write fires its suspend
+ * [DatabaseQueryManager.markDirty].
  */
 const val SETTINGS_SYNC_SCOPE: String = "settingsSync"
 
-/**
- * Koin qualifier for the process lived background scope [SyncEngine]'s driving loop runs on. A
- * [SupervisorJob] on [Dispatchers.Default] so one failed cycle never cancels the loop itself.
- */
+/** Koin qualifier for the process lived background scope [SyncEngine]'s driving loop runs on. */
 const val SYNC_ENGINE_SCOPE: String = "syncEngine"
 
-/**
- * Initializes koin modules.
- *
- * @return An array of all koin modules.
- */
+/** Builds every Koin module of the app. */
 fun initKoinModules(): Array<Module> {
 
   val dataModule = module {
@@ -107,9 +92,8 @@ fun initKoinModules(): Array<Module> {
     single { StreakTracker(get()) }
   }
 
-  // One process-wide generator seeded from the wall clock at app start. A shared advancing RNG (not
-  // a per-card hash) is what lets cards graded identically on the same day scatter across their
-  // fuzz band instead of bunching on one due day.
+  // Shared advancing RNG, not a per-card hash, so cards graded identically on the same day scatter
+  // across their fuzz band instead of bunching on one due day.
   val schedulingRandom = Random(DateUtil.now().toEpochMilliseconds())
 
   val schedulingModule = module {
@@ -137,11 +121,6 @@ fun initKoinModules(): Array<Module> {
       RepertoireTagStore(get(), get(), get(), notifyDirty = { get<SyncEngine>().notifyDirty() })
     }
     single {
-      // get<SyncEngine>() is resolved lazily, inside this lambda, only when a write actually
-      // happens. There is no construction cycle left to break: SyncEngine depends on SyncApplier,
-      // which reaches only NodeCache, TrainableProjection and the database, so nothing reaches back
-      // to TreeStore or RepertoireTagStore. The laziness stays because SyncEngine is still the
-      // right thing to notify and keeping it off both units' construction paths costs nothing.
       TreeStore(
         get(),
         get(),

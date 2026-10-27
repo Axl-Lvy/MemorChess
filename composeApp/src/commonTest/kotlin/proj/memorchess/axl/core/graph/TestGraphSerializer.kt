@@ -266,8 +266,7 @@ class TestGraphSerializer {
 
   @Test
   fun cardStateAndDepthSurviveRoundTrip() {
-    // Non-default phase and step so the round trip would catch a dropped column: a card mid
-    // relearning must not silently reset to NEW/0 on export then import.
+    // Non-default phase and step, so a dropped column shows up.
     val state =
       CardState(
         dueDate = instant3,
@@ -298,8 +297,6 @@ class TestGraphSerializer {
 
   @Test
   fun nullFirstReviewSurvivesRoundTrip() {
-    // A brand new card has a null firstReview; the round trip must keep it null rather than
-    // inventing a date.
     val state = cardState(instant3, lastReview = null)
     val node =
       DataNode(
@@ -430,12 +427,7 @@ class TestGraphSerializer {
     shouldThrow<IllegalArgumentException> { GraphSerializer.deserialize("") }
   }
 
-  /**
-   * Turns an in memory node list into a bounded page producer that mimics
-   * [proj.memorchess.axl.core.data.DatabaseQueryManager.getNodesPage]: live rows ordered by
-   * position key ascending, returning `positionKey > cursor` capped at the page size, with
-   * `nextCursor` set only when a full page was returned.
-   */
+  /** In memory stand-in for [proj.memorchess.axl.core.data.DatabaseQueryManager.getNodesPage]. */
   private fun pagedProducer(
     nodes: List<DataNode>
   ): suspend (cursor: String?, limit: Int) -> NodesPage {
@@ -489,9 +481,7 @@ class TestGraphSerializer {
     val nodes = complexGraphNodes
     val expected = GraphSerializer.serialize(nodes)
 
-    // Several page sizes, including one that splits the store across multiple pages, one that holds
-    // the whole store in a single page, an exact divisor that ends on a trailing empty page, and a
-    // limit larger than the store.
+    // Multiple pages, one page, an exact divisor ending on an empty page, and an oversized limit.
     for (pageSize in listOf(1, 2, nodes.size, nodes.size + 5)) {
       val streamed = GraphSerializer.serializeStreaming(pageSize, pagedProducer(nodes))
       streamed shouldBe expected

@@ -10,11 +10,8 @@ internal const val TARGET_PACKAGE = "proj.memorchess.axl"
 private const val UI_TIMEOUT_MS = 10_000L
 
 /**
- * Taps the bottom navigation item leading to the destination labeled [label] and waits for the UI
- * to settle.
- *
- * Relies on `testTagsAsResourceId` being enabled in `MainActivity`, which exposes the
- * `bottom_navigation_bar_item_*` Compose test tags as resource ids that UiAutomator can find.
+ * Taps the bottom navigation item for [label] and waits for the UI to settle. Needs
+ * `testTagsAsResourceId` in `MainActivity` so UiAutomator can find the test tags.
  */
 internal fun MacrobenchmarkScope.navigateTo(label: String) {
   val tag = "bottom_navigation_bar_item_$label"

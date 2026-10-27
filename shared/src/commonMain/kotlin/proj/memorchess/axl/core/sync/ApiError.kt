@@ -5,17 +5,14 @@ import kotlinx.serialization.Serializable
 /**
  * The body of every response the server does not answer with a success payload.
  *
- * @property code Machine readable cause, one of [ApiErrorCode]. Clients branch on this, never on
- *   [message].
+ * @property code One of [ApiErrorCode]; clients branch on it, never on [message].
  * @property message Human readable explanation, safe to log and to show.
  */
 @Serializable data class ApiError(val code: String, val message: String)
 
 /**
- * Causes a request can fail for.
- *
- * Plain strings for the same reason as [RejectionCode]: an older client must survive a newer server
- * sending a code it has never heard of, which an enum would turn into a decoding failure.
+ * Causes a request can fail for. Plain strings rather than an enum, so an older client survives a
+ * code it has never heard of.
  */
 object ApiErrorCode {
 

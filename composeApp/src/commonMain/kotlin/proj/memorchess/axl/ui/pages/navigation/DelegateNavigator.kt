@@ -6,11 +6,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
-/**
- * A navigator implementation that delegates navigation actions to a NavHostController.
- *
- * @property navController The NavHostController to delegate navigation actions to.
- */
+/** [Navigator] delegating to [navController]. */
 class DelegateNavigator(val navController: NavHostController) : Navigator {
   override fun navigateTo(route: Route) {
     navController.navigate(route)

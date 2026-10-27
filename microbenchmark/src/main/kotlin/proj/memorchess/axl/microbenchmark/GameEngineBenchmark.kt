@@ -7,22 +7,13 @@ import kotlinx.benchmark.State
 import proj.memorchess.axl.core.engine.GameEngine
 
 /**
- * Measures [GameEngine] on the hot path of both exploration and training: validating and applying
- * SAN moves, then producing the position identity used to key the opening graph.
- *
- * Guards against regressions in move validation and FEN production, the two operations executed on
- * every single move a user plays. A slowdown here multiplies across the whole app because every
- * interaction controller funnels moves through [GameEngine].
+ * Measures [GameEngine]'s SAN move validation and FEN production, which run on every move a user
+ * plays.
  */
 @State(Scope.Benchmark)
 class GameEngineBenchmark {
 
-  /**
-   * Plays all fixture lines move by move from the starting position and reads the final FEN.
-   *
-   * Guards the SAN parsing and legal move generation cost of [GameEngine.playSanMove], the exact
-   * work done when replaying stored lines.
-   */
+  /** Plays every fixture line from the starting position and reads the final FEN. */
   @Benchmark
   fun playSanLines(bh: Blackhole) {
     for (line in OpeningLines.SAN_LINES) {
@@ -35,11 +26,8 @@ class GameEngineBenchmark {
   }
 
   /**
-   * Plays all fixture lines and derives a [proj.memorchess.axl.core.data.PositionKey] after every
-   * ply, exactly as the explorer does to look up each reached position in the opening graph.
-   *
-   * Guards the combined cost of move application plus FEN cropping, including the en passant
-   * relevance check.
+   * Plays every fixture line, deriving a [proj.memorchess.axl.core.data.PositionKey] after each ply
+   * as the explorer does.
    */
   @Benchmark
   fun positionKeyAfterEveryMove(bh: Blackhole) {

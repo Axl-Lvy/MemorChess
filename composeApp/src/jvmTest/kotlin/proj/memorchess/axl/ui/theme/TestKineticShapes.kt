@@ -6,7 +6,6 @@ import androidx.compose.ui.unit.Density
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 
-/** Verifies each Material shape role in [kineticShapes] resolves to its intended corner radius. */
 internal class TestKineticShapes {
 
   private val density = Density(density = 1f)

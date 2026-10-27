@@ -68,9 +68,7 @@ class TestStockfishEvaluator {
       evaluator.evaluate(STARTING_FEN, isBlackToMove = false)
       evaluator.bestMove.first { it != null }.shouldNotBeNull()
 
-      // Starting a new evaluation should reset best move immediately.
       evaluator.evaluate(MATE_IN_ONE_FEN, isBlackToMove = false)
-      // After the second evaluate completes, we should have results for the new position.
       evaluator.evaluation.first { it != null }.shouldNotBeNull()
       evaluator.bestMove.first { it != null }.shouldNotBeNull()
     } finally {
@@ -84,7 +82,6 @@ class TestStockfishEvaluator {
     evaluator.evaluate(STARTING_FEN, isBlackToMove = false)
     evaluator.bestMove.first { it != null }
     evaluator.close()
-    // Second close should not throw.
     evaluator.close()
   }
 }

@@ -33,23 +33,10 @@ import proj.memorchess.axl.ui.components.controls.KineticSliderLabels
 import proj.memorchess.axl.ui.components.controls.KineticToggleRow
 
 /**
- * Training Behavior settings section content.
+ * Training behavior settings: auto-advance delay, learning steps, fuzz and daily limits. There is
+ * deliberately no scheduling algorithm picker, since FSRS 6 is the only algorithm.
  *
- * Exposes the auto-advance delay slider backed by [TRAINING_MOVE_DELAY_SETTING], the short-term
- * learning-steps toggle backed by [SHORT_TERM_ENABLED_SETTING], the scheduling fuzz toggle backed
- * by [FUZZ_ENABLED_SETTING], and the two daily training limits backed by
- * [MAX_NEW_MOVES_PER_DAY_SETTING] and [MAX_TOTAL_MOVES_PER_DAY_SETTING].
- *
- * **Deliberate omissions:**
- * - No scheduling-algorithm picker. The HTML proposal shows an SM-2 / FSRS 6 segmented control, but
- *   FSRS 6 is the only algorithm and the user has explicitly excluded surfacing this choice. Do not
- *   re-add it without removing this comment.
- * - No "Days in advance" slider. The HTML proposal shows one; that value is currently in-page state
- *   only and persisting it would require adding a new `ConfigItem` under `core/config/`, which is
- *   out of scope for the v1 settings page rebuild. Follow-up: thread a persisted setting in once
- *   the config layer is unlocked.
- *
- * @param reloadKey value used to force re-reading the persisted setting on external reloads.
+ * @param reloadKey Changing it re-reads the persisted settings.
  */
 @Composable
 fun TrainingBehaviorSection(reloadKey: Any) {

@@ -15,10 +15,8 @@ import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
- * Room backed coverage of the bounded scheduling query surface. Mirrors the predicate, ordering and
- * boundary cases of the in-memory reference against a real isolated SQLite database, proving the
- * `WHERE` / `ORDER BY` / `LIMIT` / `COUNT` clauses and the projection to
- * [proj.memorchess.axl.core.graph.TrainingEntry] match the reference semantics.
+ * Checks the Room scheduling queries against a real SQLite database, mirroring the in-memory
+ * reference's predicate, ordering and boundary cases.
  */
 class TestRoomSchedulingQueries {
 
@@ -50,8 +48,7 @@ class TestRoomSchedulingQueries {
     firstReview: Instant? = null,
     isDeleted: Boolean = false,
   ) {
-    // The persistence layer derives hasGoodOutgoing from the node's own next moves, so a node that
-    // must be trainable needs a real good outgoing move rather than a hand set flag.
+    // Persistence derives hasGoodOutgoing from next moves, so a trainable node needs a good move.
     val nextMoves =
       if (hasGoodOutgoing) {
         listOf(
@@ -161,10 +158,8 @@ class TestRoomSchedulingQueries {
       depth = 1_000_000,
       createdAt = Instant.fromEpochSeconds(100),
     )
-    // Built through the public DataNode constructor with depth omitted, so this exercises the
-    // real default rather than the insert() helper's own. Its createdAt is earlier than every
-    // other node here, so a passing test proves the sentinel wins on depth alone and is never
-    // rescued to the front by the createdAt tiebreak.
+    // Uses DataNode's real depth default and the earliest createdAt, so the sentinel must sort
+    // last on depth alone.
     manager.insertNodes(
       DataNode(
         positionKey = PositionKey("depthOmitted"),
@@ -275,8 +270,6 @@ class TestRoomSchedulingQueries {
     manager.getSchedulingCounts(dayStart, dayEnd) shouldBe SchedulingCounts(0, 0, 0, 0, 0)
   }
 
-  // --- getNodesPage -------------------------------------------------------------------------
-
   /** Drains the whole store one page of [limit] at a time, returning the visited keys in order. */
   private suspend fun pageAllKeys(limit: Int): List<PositionKey> {
     val visited = mutableListOf<PositionKey>()
@@ -338,7 +331,6 @@ class TestRoomSchedulingQueries {
 
   @Test
   fun getNodesPage_carriesEdgesLikeASingleRead() = runTest {
-    // A two move line start -e4-> mid -e5-> end with the incident edges persisted.
     val start = PositionKey("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq")
     val mid = PositionKey("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq")
     val end = PositionKey("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq")
@@ -390,8 +382,6 @@ class TestRoomSchedulingQueries {
     manager.findEligibleAmong(emptyList(), dayEnd) shouldBe null
     manager.findEligibleAmong(listOf(PositionKey("notDue")), dayEnd) shouldBe null
   }
-
-  // --- Scoped scheduling queries -----------------------------------------------------------
 
   @Test
   fun nextDueNewCard_scopedToARepertoireExcludesAnUntaggedCard() = runTest {

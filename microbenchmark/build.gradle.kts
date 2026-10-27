@@ -7,8 +7,7 @@ plugins {
   alias(libs.plugins.ktfmt)
 }
 
-// JMH requires benchmark state classes to be open; the Kotlin allopen plugin lifts the
-// restriction for every class annotated with JMH's @State.
+// JMH requires @State classes to be open.
 allOpen { annotation("org.openjdk.jmh.annotations.State") }
 
 kotlin {
@@ -29,14 +28,11 @@ benchmark {
 
   configurations {
     named("main") {
-      // Small but stable run: enough iterations for JMH to settle on the hot path while
-      // keeping the whole suite well under ten minutes.
       warmups = 3
       iterations = 5
       iterationTime = 500
       iterationTimeUnit = "ms"
-      // JSON keeps the results machine readable so CI can merge them with the
-      // macrobenchmark output into a single artifact.
+      // CI merges the JSON with the macrobenchmark output.
       reportFormat = "json"
       advanced("jvmForks", "1")
     }

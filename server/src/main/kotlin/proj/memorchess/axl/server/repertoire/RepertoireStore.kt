@@ -35,9 +35,7 @@ internal data class RepertoireRow(
   val publishedAt: Instant,
 )
 
-/**
- * The caller-supplied fields of a publish call, grouped so [RepertoireStore] can pass them as one.
- */
+/** The caller-supplied fields of a publish call. */
 private data class PublishInput(
   val id: String,
   val title: String,
@@ -83,24 +81,16 @@ internal sealed class SetStatusOutcome {
   data object NotFound : SetStatusOutcome()
 }
 
-/**
- * Result of a page read: the rows and the cursor to pass for the next page, or `null` when done.
- */
+/** One page of rows and the cursor for the next page, or `null` when done. */
 internal data class RepertoirePage(val rows: List<RepertoireRow>, val nextCursor: String?)
 
 /**
- * The server side of published repertoires, over a Postgres database.
+ * Published repertoires stored in Postgres. Every lookup reads only the latest version of an id and
+ * its status.
  *
- * A version is its `repertoire_version` row plus one `repertoire_edge` row per move, written in one
- * transaction. Every lookup reads the **latest version** of an id and its status. An older
- * version's status is never consulted once a newer one exists.
- *
- * @param dataSource Pooled connections. Each call takes one and returns it.
- * @param maxMoves Cap on one publish's move count.
  * @param maxPlyDepth Cap on how deep from the starting position a published move may start.
  * @param maxRepertoiresPerUser Cap on how many non removed repertoires one author may own.
  * @param maxTotalMovesPerUser Cap on the summed move count of one author's non removed repertoires.
- * @param ioDispatcher Where the blocking JDBC work runs. Injected so a caller can substitute one.
  */
 internal class RepertoireStore(
   private val dataSource: DataSource,
@@ -112,12 +102,8 @@ internal class RepertoireStore(
 ) {
 
   /**
-   * Validates and stores a new version of [id], authored by [authorId].
-   *
-   * The moves are validated with [RepertoireMovesValidator] before anything is written. A first
-   * publish of [id] creates version 1. A later publish by the same author creates the next version
-   * and never mutates an earlier one. A publish by a different author than the one who already owns
-   * [id] is refused, never silently reassigned.
+   * Validates and stores a new version of [id] authored by [authorId]. Earlier versions are never
+   * mutated, and an id owned by another author is refused.
    */
   suspend fun publish(
     authorId: String,
@@ -158,11 +144,8 @@ internal class RepertoireStore(
   }
 
   /**
-   * Inserts the version row and its moves in one transaction.
-   *
-   * The transaction holds [acquireRepertoireLock] on [input]'s id for its whole duration, so two
-   * concurrent publishes (or a double click) for the same id never compute the same next version
-   * number.
+   * Inserts the version row and its moves in one transaction, holding [acquireRepertoireLock] so
+   * concurrent publishes of one id never compute the same version number.
    */
   private suspend fun doPublish(
     authorId: String,
@@ -177,9 +160,7 @@ internal class RepertoireStore(
         return@inTransaction PublishOutcome.Forbidden
       }
 
-      // A removed id counts against the quota the same as a brand new one: without this, an
-      // author at the cap can free a slot by removing a repertoire and then republish the same id
-      // to occupy it again, over and over, never actually reducing their footprint.
+      // A removed id counts as new, or an author at the cap could cycle remove and republish.
       val republishingRemoved = existing != null && existing.status == STATUS_REMOVED
       val (otherCount, otherMoves) = connection.authorFootprint(authorId, excludingId = id)
       if ((existing == null || republishingRemoved) && otherCount >= maxRepertoiresPerUser) {
@@ -193,9 +174,7 @@ internal class RepertoireStore(
           "publishing would use $projectedMoves of your $maxTotalMovesPerUser move quota"
         )
       }
-      // A moderator's removal is a latch, not a mutable flag an author can clear by republishing.
-      // setStatus refuses the same reversal from the moderation side; this is its publish side
-      // counterpart.
+      // A removal is a latch an author cannot clear by republishing.
       if (republishingRemoved) {
         return@inTransaction PublishOutcome.Removed
       }
@@ -218,12 +197,7 @@ internal class RepertoireStore(
     }
   }
 
-  /**
-   * Marks every version of [id] as removed, so none of them is listed or downloadable any more.
-   *
-   * Every version, not only the latest: an old version's row would otherwise keep its original
-   * `published` status forever, and its moves would stay downloadable after the id is taken down.
-   */
+  /** Marks every version of [id] as removed, so none of them is listed or downloadable any more. */
   suspend fun remove(authorId: String, id: String): RemoveOutcome = inTransaction { connection ->
     connection.acquireRepertoireLock(id)
     val existing = connection.lockLatestVersion(id)
@@ -238,17 +212,14 @@ internal class RepertoireStore(
   }
 
   /**
-   * Moderation kill switch: sets [id]'s status to [status] regardless of author. When [status] is
-   * `removed`, this cascades to every version of [id], for the reason explained on [remove]'s KDoc.
-   * Any other status only ever touches the latest version, matching [get] and [listPublished],
-   * which never consult an older version's status once a newer one exists.
+   * Moderation kill switch setting [id]'s status regardless of author. `removed` applies to every
+   * version; any other status only to the latest.
    */
   suspend fun setStatus(id: String, status: String): SetStatusOutcome =
     inTransaction { connection ->
       connection.acquireRepertoireLock(id)
       val existing = connection.lockLatestVersion(id)
-      // Removal is a latch: moving a removed repertoire back to published or unlisted is treated
-      // the same as an unknown id rather than as a resurrection the moderator has to know to avoid.
+      // Removal is a latch: a removed id reads as unknown.
       if (existing == null || existing.status == STATUS_REMOVED) {
         return@inTransaction SetStatusOutcome.NotFound
       }
@@ -305,11 +276,8 @@ internal class RepertoireStore(
     }
 
   /**
-   * Records one more anonymous install of [id], for the popularity hint the catalog's
-   * `downloadCount` field carries. Keyed by [id] alone (not `(id, version)`), so a later republish
-   * under a new version does not reset the count. [id] need not be a currently published
-   * repertoire; recording one anyway is harmless (see the `repertoire_install_count` table's own
-   * comment in `schema.sql`).
+   * Records one more anonymous install of [id]. Keyed by id alone, so a republish does not reset
+   * the count.
    */
   suspend fun recordInstall(id: String) {
     withContext(ioDispatcher) {
@@ -317,11 +285,7 @@ internal class RepertoireStore(
     }
   }
 
-  /**
-   * The recorded install count of every id in [ids], defaulting to `0` for one with no
-   * [recordInstall] call yet. The returned map has exactly one entry per (distinct) id in [ids],
-   * regardless of order.
-   */
+  /** The install count of every distinct id in [ids], `0` for one never installed. */
   suspend fun countsFor(ids: List<String>): Map<String, Long> {
     if (ids.isEmpty()) return emptyMap()
     val distinctIds = ids.distinct()
@@ -347,13 +311,8 @@ internal class RepertoireStore(
 private const val STATUS_REMOVED = "removed"
 
 /**
- * Serializes every publish, remove and status change for [id] against each other for the rest of
- * the transaction, released on commit or rollback.
- *
- * Postgres's default READ COMMITTED isolation does not by itself stop two concurrent transactions
- * from both reading the same "current latest version" and computing the same next version number,
- * which then collides on the `(id, version)` primary key. Taking this lock first, before either
- * transaction reads anything, forces the second one to wait and see the first one's write.
+ * Serializes publish, remove and status changes for [id] until the transaction ends. READ COMMITTED
+ * alone would let two transactions compute the same next version.
  */
 private fun Connection.acquireRepertoireLock(id: String) {
   prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
@@ -405,11 +364,7 @@ private fun Connection.authorFootprint(authorId: String, excludingId: String): P
       }
     }
 
-/**
- * Upserts [id]'s row in `repertoire_install_count`, starting at 1 or incrementing an existing row.
- * The `ON CONFLICT` clause resolves entirely inside Postgres, so two concurrent calls for the same
- * [id] never race the way a separate read-then-write would.
- */
+/** Atomically increments [id]'s install count, starting at 1. */
 private fun Connection.incrementInstallCount(id: String) {
   prepareStatement(
       "INSERT INTO repertoire_install_count (id, count) VALUES (?, 1) " +
@@ -566,11 +521,7 @@ private fun ResultSet.toRow(): RepertoireRow =
     publishedAt = getTimestamp(9).toInstant().toKotlinInstant(),
   )
 
-/**
- * Converts without losing precision, duplicated from `sync/SyncStore.kt` rather than shared with
- * it: `kotlin.time.Instant` carries nanoseconds and `timestamptz` carries microseconds, so a
- * millisecond round trip would silently move a timestamp.
- */
+/** Converts at full precision; a millisecond round trip would shift a `timestamptz` value. */
 private fun Instant.toSqlTimestamp(): Timestamp =
   Timestamp.from(java.time.Instant.ofEpochSecond(epochSeconds, nanosecondsOfSecond.toLong()))
 

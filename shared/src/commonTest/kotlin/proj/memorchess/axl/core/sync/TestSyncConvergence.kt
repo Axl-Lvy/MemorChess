@@ -146,8 +146,7 @@ internal class TestSyncConvergence {
     a.sync(server, serverNow)
     a.sync(server, serverNow)
 
-    // The invariant the refusal exists to protect: what the server holds is exactly what the
-    // author holds. Clamping broke this, and the author's later value then won forever.
+    // The refusal exists so that the server holds exactly what the author holds.
     a.snapshot()["theme"] shouldBe server.snapshot()["theme"]
   }
 
@@ -208,15 +207,13 @@ internal class TestSyncConvergence {
     val a = FakeClient("device-a")
     val b = FakeClient("device-b")
 
-    // device-a writes with a badly fast clock, gets refused, and is re-stamped to server time.
+    // A badly fast clock gets refused, then re-stamped to server time.
     a.edit("sound", "on", at(40_000_000_000))
     a.sync(server, serverNow)
     a.sync(server, serverNow)
 
-    // Its clock is then corrected, so the next write's wall clock is far EARLIER than the row it
-    // already holds. Regression test for randomised seed 5: without a strictly increasing local
-    // stamp this delete carried an older timestamp than the live row, lost to it, and the row the
-    // user deleted came back.
+    // The corrected clock is far earlier than the held row, so only a strictly increasing local
+    // stamp keeps this delete from losing to it.
     a.delete("sound", at(22))
     a.sync(server, serverNow)
     b.sync(server, serverNow)
@@ -232,18 +229,15 @@ internal class TestSyncConvergence {
     val a = FakeClient("device-a")
     val b = FakeClient("device-b")
 
-    // device-a publishes a late write that everyone sees.
     a.edit("theme", "dark", at(500))
     a.sync(server, serverNow)
     b.sync(server, serverNow)
 
-    // device-b then pushes an OLDER write for the same key, which must lose on the server.
+    // An older write for the same key, which loses on the server.
     b.delete("theme", at(29))
     b.sync(server, serverNow)
 
-    // Regression test for randomised seed 6. The surviving row sat at a revision b's cursor had
-    // already passed, so before the revision bump b never received it again and kept a tombstone
-    // the rest of the world had rejected.
+    // The surviving row sits at a revision b's cursor already passed, yet b must still receive it.
     b.sync(server, serverNow)
 
     b.visible() shouldBe mapOf("theme" to "dark")
@@ -289,8 +283,7 @@ internal class TestSyncConvergence {
 
       repeat(30) {
         val client = if (random.nextBoolean()) a else b
-        // device-a's clock is badly wrong a third of the time. Without skewed timestamps in
-        // here, this generator cannot see the class of bug that clamping introduced.
+        // device-a's clock is badly wrong a third of the time, so broken clocks are covered.
         val skew = if (client === a && random.nextInt(3) == 0) 40_000_000_000L else 0L
         when (random.nextInt(4)) {
           0 -> client.edit(keys.random(random), "v$clock", at(clock + skew))

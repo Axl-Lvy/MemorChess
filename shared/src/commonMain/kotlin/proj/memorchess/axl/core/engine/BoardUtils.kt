@@ -17,10 +17,8 @@ object BoardUtils {
   }
 
   /**
-   * Returns the square a played [san] move lands on. [whiteToMove] resolves the two castling
-   * literals, which name no square directly; every other SAN shape (a plain move, a capture, a
-   * disambiguated move, a promotion) ends in the destination square token, optionally followed by a
-   * `=Q`/`=R`/etc. promotion suffix stripped before reading it.
+   * Returns the square a played [san] move lands on. [whiteToMove] resolves the castling literals,
+   * which name no square directly.
    */
   fun destinationSquare(san: String, whiteToMove: Boolean): BoardLocation {
     val kingRow = if (whiteToMove) 0 else 7

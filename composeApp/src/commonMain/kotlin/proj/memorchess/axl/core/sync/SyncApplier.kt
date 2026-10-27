@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.sync
 
 import proj.memorchess.axl.core.data.DataMove
-import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
@@ -12,23 +11,8 @@ import proj.memorchess.axl.core.graph.effectiveMarking
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
- * Applies rows pulled from `/v1/sync` to local storage, after resolving each against its local
- * copy.
- *
- * A remote win is written through the `applyRemote*` path, which queues no outbox entry, and the
- * touched positions are invalidated so the next resolve reads the applied row. The invalidation
- * follows the write, which is what stops a load already in flight from putting the pre sync row
- * back.
- *
- * A pulled manual hold or tag changes who holds a move, so both re-derive the move's effective
- * marking and existence from its holders (see [effectiveMarking]). A tag can arrive before its
- * endpoint positions (a later review re-pushes a position at a later revision): it is stored
- * without creating its move, and the position's arrival re-derives the moves its tags hold. A move
- * a holder keeps revives a deleted endpoint position with a fresh review state.
- *
- * @param database The persistence backend.
- * @param cache Cache the applied positions are invalidated in.
- * @param trainable Recomputed after every holder change.
+ * Applies rows pulled from `/v1/sync` to local storage when they win resolution against the local
+ * copy, without queuing outbox entries.
  */
 class SyncApplier(
   private val database: DatabaseQueryManager,
@@ -36,12 +20,7 @@ class SyncApplier(
   private val trainable: TrainableProjection,
 ) {
 
-  /**
-   * Applies a node pulled from `/v1/sync`, after resolving it against the local copy via [resolve].
-   * Returns which side won. On [ResolutionSource.REMOTE] the row is written through
-   * [DatabaseQueryManager.applyRemoteNode] (no outbox entry, per its own doc) and the position is
-   * invalidated so the next resolve reloads it. On [ResolutionSource.LOCAL] nothing is written.
-   */
+  /** Applies a pulled node if it wins resolution, and returns which side won. */
   suspend fun applyNode(remote: NodeSyncRow): ResolutionSource {
     val local = database.getPositionIncludingDeleted(PositionKey(remote.positionKey))
     val resolution = resolve(local?.toNodeSyncRow(), remote)
@@ -54,7 +33,9 @@ class SyncApplier(
           existingCreatedAt = local?.createdAt ?: remote.updatedAt,
         )
       database.applyRemoteNode(dataNode)
+      // After the write, so a load already in flight cannot put the pre sync row back.
       cache.invalidate(dataNode.positionKey)
+      // A tag can arrive before its endpoint positions, so their arrival re-derives its move.
       for (tag in database.getTagsTouching(dataNode.positionKey)) {
         if (tag.isGood != null) recomputeHolders(tag.origin, tag.destination, tag.move)
       }
@@ -63,10 +44,8 @@ class SyncApplier(
   }
 
   /**
-   * Applies a manual hold pulled from `/v1/sync`, after resolving it the same way [applyNode] does;
-   * a move this device never held manually counts as absent. On [ResolutionSource.REMOTE] the hold
-   * is written through [DatabaseQueryManager.applyRemoteMove] and the move's holders are
-   * re-derived.
+   * Applies a pulled manual hold the same way as [applyNode]; a move this device never held
+   * manually counts as absent.
    */
   suspend fun applyMove(remote: EdgeSyncRow): ResolutionSource {
     val originKey = PositionKey(remote.origin)
@@ -89,11 +68,7 @@ class SyncApplier(
     return resolution.source
   }
 
-  /**
-   * Applies a repertoire registry row pulled from `/v1/sync`, after resolving it against the local
-   * copy via [resolve]. No edge changes, so unlike [applyTag] there is nothing to recompute in
-   * `NodeRepertoireTrainable`.
-   */
+  /** Applies a pulled repertoire registry row the same way as [applyNode]. */
   suspend fun applyRepertoire(remote: RepertoireSyncRow): ResolutionSource {
     val local = database.getRepertoireIncludingDeleted(remote.id)
     val resolution = resolve(local?.toRepertoireSyncRow(), remote)
@@ -104,10 +79,8 @@ class SyncApplier(
   }
 
   /**
-   * Applies an edge to repertoire tag pulled from `/v1/sync`, after resolving it the same way. On
-   * [ResolutionSource.REMOTE] the tag is written through [DatabaseQueryManager.applyRemoteTag] and
-   * the move's holders are re-derived, creating the move from the tag when it is the move's first
-   * holder on this device.
+   * Applies a pulled edge to repertoire tag the same way as [applyNode], creating its move when the
+   * tag is the move's first holder on this device.
    */
   suspend fun applyTag(remote: EdgeRepertoireTagSyncRow): ResolutionSource {
     val originKey = PositionKey(remote.origin)
@@ -137,9 +110,8 @@ class SyncApplier(
       ?.firstOrNull { it.destination == destination }
 
   /**
-   * Re-derives the effective marking and existence of the move from [origin] to [destination] from
-   * its manual hold and its live tags, without an outbox entry, keeping the manual hold's stamps. A
-   * move with no stored row is created as [move] when it has a holder and both endpoints exist.
+   * Re-derives the move's effective marking and existence from its manual hold and live tags,
+   * keeping the hold's stamps. A missing move is created only when both endpoints exist.
    */
   private suspend fun recomputeHolders(
     origin: PositionKey,
@@ -180,19 +152,13 @@ class SyncApplier(
     trainable.recompute(origin)
   }
 
-  /**
-   * Brings back the deleted position [position] with a fresh review state, without an outbox entry.
-   */
+  /** Restores [position] with a fresh review state if it is deleted. */
   private suspend fun reviveIfDeleted(position: PositionKey) {
     val node = database.getPositionIncludingDeleted(position) ?: return
     if (!node.isDeleted) return
     database.applyRemoteNode(node.copy(isDeleted = false, cardState = CardStateFactory.new()))
   }
 
-  /**
-   * Re-derives [origin]'s [DataNode.hasGoodOutgoing] from its own move maps and re-persists it,
-   * without an outbox entry, only when the value actually changed.
-   */
   private suspend fun refreshHasGoodOutgoingIfChanged(origin: PositionKey) {
     val node = database.getPositionIncludingDeleted(origin) ?: return
     val recomputed =

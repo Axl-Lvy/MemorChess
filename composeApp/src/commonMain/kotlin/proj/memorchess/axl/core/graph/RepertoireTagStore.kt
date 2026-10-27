@@ -11,16 +11,9 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**
- * Repertoire registry and edge to repertoire tags.
+ * Repertoire registry and edge to repertoire tags; a repertoire is a set of tags over shared edges.
  *
- * Nodes and moves are shared across repertoires, so a repertoire is a set of tags over existing
- * edges rather than a copy of the graph.
- *
- * @param database The persistence backend.
- * @param deviceIdentity Stamped onto every registry and tag row written here.
- * @param trainable Recomputed after a tag write, so a tag on a live good edge takes effect at once.
- * @param notifyDirty Called after every write that queues an outbox entry, so
- *   [proj.memorchess.axl.core.sync.SyncEngine] can schedule a push.
+ * @param notifyDirty Called after every write that queues an outbox entry.
  */
 class RepertoireTagStore(
   private val database: DatabaseQueryManager,
@@ -29,13 +22,10 @@ class RepertoireTagStore(
   private val notifyDirty: () -> Unit = {},
 ) {
 
-  /** Every registered repertoire. Read through of [DatabaseQueryManager.getRepertoires]. */
+  /** Every registered repertoire. */
   suspend fun repertoires(): List<DataRepertoire> = database.getRepertoires()
 
-  /**
-   * Mastery snapshot per registered repertoire. See
-   * [DatabaseQueryManager.getRepertoireMasterySnapshots]; bounded by [repertoires]' own id list.
-   */
+  /** Mastery snapshot per registered repertoire. */
   suspend fun masterySnapshots(): Map<String, RepertoireMasterySnapshot> =
     database.getRepertoireMasterySnapshots(database.getRepertoires().map { it.id })
 
@@ -43,9 +33,7 @@ class RepertoireTagStore(
   suspend fun repertoire(id: String): DataRepertoire? = database.getRepertoire(id)
 
   /**
-   * Registers [id] in the repertoire registry with [name], [color] and [installedVersion] (`null`
-   * for a repertoire the user creates), or overwrites an existing entry (a catalog reinstall
-   * re-registering under the same id). Queues its own outbox entry.
+   * Registers or overwrites [id] in the registry; [installedVersion] is `null` for a user's own.
    *
    * @throws IllegalArgumentException if [id] is blank, or contains a comma.
    */
@@ -72,12 +60,9 @@ class RepertoireTagStore(
   }
 
   /**
-   * Registers [newId] as a new repertoire and tags it with every live edge currently tagged with
-   * [sourceId]. Nodes and moves are shared across repertoires, so this only duplicates the tag
-   * rows, never the underlying graph. [sourceId]'s own tags are left untouched, so the same edge
-   * ends up tagged with both repertoires.
+   * Registers [newId] and tags it on every live edge tagged with [sourceId], leaving those tags.
    *
-   * @throws IllegalArgumentException if [newId] is blank, or contains a comma (see [register]).
+   * @throws IllegalArgumentException if [newId] is blank, or contains a comma.
    */
   suspend fun fork(sourceId: String, newId: String, newName: String, color: RepertoireColor?) {
     register(newId, newName, color)
@@ -97,24 +82,13 @@ class RepertoireTagStore(
   suspend fun tagsFor(origin: PositionKey, destination: PositionKey): Set<String> =
     database.getTags(origin, destination).map { it.repertoireId }.toSet()
 
-  /**
-   * Every live tagged edge of [repertoireId]. Read through of
-   * [DatabaseQueryManager.edgesTaggedWith].
-   */
+  /** Every live tagged edge of [repertoireId]. */
   suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
     database.edgesTaggedWith(repertoireId)
 
   /**
-   * Tags the edge from [origin] to [destination] with [repertoireId], adding to any existing tags
-   * on that edge rather than replacing them: an edge can belong to more than one repertoire (see
-   * the design's many to many section). Idempotent: tagging an edge that already carries this
-   * repertoire is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so
-   * a tag on a live good edge takes effect immediately. Queues its own outbox entry.
-   *
-   * The tag records membership only: it carries no marking and so does not hold the move. Callers
-   * decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only for a
-   * genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for every
-   * edge an import describes, present or not.
+   * Idempotently adds a membership-only [repertoireId] tag, which does not hold the move, to the
+   * edge from [origin] to [destination], then recomputes [origin]'s trainable projection.
    *
    * @throws IllegalStateException if no move from [origin] to [destination] is stored.
    */
@@ -139,9 +113,8 @@ class RepertoireTagStore(
   }
 
   /**
-   * Tags [move] from [origin] to [destination] with [repertoireId] and the author's marking
-   * [isGood], which makes the repertoire a holder of the move. The caller derives the move's
-   * effective marking afterward.
+   * Tags [move] with [repertoireId] and the author's marking [isGood], making the repertoire a
+   * holder. The caller must derive the move's effective marking afterward.
    */
   internal suspend fun tagInstalled(
     origin: PositionKey,

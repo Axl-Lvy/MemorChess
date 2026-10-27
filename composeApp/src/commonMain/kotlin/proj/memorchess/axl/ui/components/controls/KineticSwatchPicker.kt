@@ -35,21 +35,7 @@ import androidx.compose.ui.unit.dp
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 
-/**
- * A single option in a [KineticSwatchPicker].
- *
- * Each swatch is rendered as a 2×2 checkered tile using [lightSquareColor] in the top-left and
- * bottom-right cells and [darkSquareColor] in the top-right and bottom-left cells. The [label] is
- * shown in uppercase beneath the tile.
- *
- * @param T value type backing the option — typically an enum or sealed subclass identifying a board
- *   style.
- * @property value the value this swatch represents; compared by equality against the picker's
- *   `selected`.
- * @property label short uppercase-ready name of the swatch (e.g. `"classic"`).
- * @property lightSquareColor the color used for the light squares in the 2×2 preview.
- * @property darkSquareColor the color used for the dark squares in the 2×2 preview.
- */
+/** A single option in a [KineticSwatchPicker], previewed as a 2×2 checkered tile. */
 data class KineticSwatch<T>(
   val value: T,
   val label: String,
@@ -57,28 +43,7 @@ data class KineticSwatch<T>(
   val darkSquareColor: Color,
 )
 
-/**
- * Kinetic swatch picker — a horizontal row of board-style previews. Mirrors `.swatches`, `.swatch`,
- * `.swatch.active`, and `.swatch .grid-bg` from `design-proposals/kinetic-base.css` and the Board
- * Style block in `design-proposals/kinetic-settings-desktop.html` (lines 207–243).
- *
- * Each [KineticSwatch] is drawn as a 48.dp square, rounded to 14.dp, showing a 2×2 checkered
- * preview of its `lightSquareColor` and `darkSquareColor`, with the swatch's [KineticSwatch.label]
- * rendered below in `labelSm` uppercase. Idle swatches carry a 1.dp `line` border. The active
- * swatch (where `swatch.value == selected`) gets a 2.dp `action` border, a small `action`
- * check-mark badge in the bottom-right of the preview, and an `ink` label color (idle labels use
- * `ink3`). When [enabled] is false the whole row dims to 0.5 alpha and clicks are suppressed.
- * Press/hover indication is taken from [LocalIndication] so each platform's Material theme controls
- * the ripple.
- *
- * @param T value type backing each option — typically an enum identifying a board style.
- * @param options the swatches to render, in display order.
- * @param selected the currently selected value; the swatch whose [KineticSwatch.value] equals this
- *   is highlighted.
- * @param onSelect invoked with the chosen value when the user taps a swatch.
- * @param modifier external modifier applied to the outer row.
- * @param enabled when false, clicks are disabled and the control is rendered at 0.5 alpha.
- */
+/** Horizontally scrolling row of board-style previews, highlighting the [selected] one. */
 @Composable
 fun <T> KineticSwatchPicker(
   options: List<KineticSwatch<T>>,
@@ -104,8 +69,6 @@ fun <T> KineticSwatchPicker(
       val borderWidth = if (isActive) 2.dp else 1.dp
       val labelColor = if (isActive) palette.ink else palette.ink3
       val interactionSource = remember(swatch.value) { MutableInteractionSource() }
-      // 1n literal: board swatches are `border-radius:14px` (not the SHAPE CONTRACT's "icon tiles"
-      // row, which the 1n artboard itself overrides for this specific control).
       val swatchShape = RoundedCornerShape(14.dp)
 
       Column(
@@ -129,10 +92,8 @@ fun <T> KineticSwatchPicker(
           Canvas(modifier = Modifier.size(48.dp)) {
             val half = size.width / 2f
             val cell = Size(half, half)
-            // Top-left and bottom-right: light squares.
             drawRect(color = swatch.lightSquareColor, topLeft = Offset(0f, 0f), size = cell)
             drawRect(color = swatch.lightSquareColor, topLeft = Offset(half, half), size = cell)
-            // Top-right and bottom-left: dark squares.
             drawRect(color = swatch.darkSquareColor, topLeft = Offset(half, 0f), size = cell)
             drawRect(color = swatch.darkSquareColor, topLeft = Offset(0f, half), size = cell)
           }
@@ -164,9 +125,5 @@ fun <T> KineticSwatchPicker(
   }
 }
 
-/**
- * Fixed width for each swatch column. Wider than the 48.dp tile so labels like "DEFAULT LIGHT" fit
- * on a single line, but constant across all options so the tile-to-tile gaps stay uniform
- * regardless of how long any one label is.
- */
+/** Wider than the tile so labels like "DEFAULT LIGHT" fit, and fixed so gaps stay uniform. */
 private val SWATCH_COLUMN_WIDTH = 84.dp

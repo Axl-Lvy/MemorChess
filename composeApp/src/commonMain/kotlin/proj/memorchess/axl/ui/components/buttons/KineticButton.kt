@@ -44,36 +44,28 @@ import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
 import proj.memorchess.axl.ui.theme.kineticPressableElevation
 
-/**
- * Scale a button settles to while held. Just short of 1, so the press registers without jumping.
- */
+/** Scale a held button settles to, just short of 1 so the press registers without a jump. */
 private const val PRESSED_SCALE = 0.972f
 
 /** Alpha applied to a disabled button. */
 private const val DISABLED_ALPHA = 0.5f
 
-/** Stroke width of the button outline, whoever draws it. */
+/** Stroke width of the button outline. */
 private val BORDER_WIDTH = 1.5.dp
 
 /** Visual variant of a [KineticButton]. */
 enum class KineticButtonStyle {
-  /** Default panel-2 background, line-bright border — the most common button. */
+  /** Panel fill with a bright border. */
   Default,
-  /** Action (violet) fill — primary CTAs (Save, Reveal). */
+  /** Action fill, for primary actions. */
   Primary,
-  /** Destructive (pink) filled — dangerous actions (Erase all data). */
+  /** Destructive fill, for dangerous actions. */
   Danger,
-  /** Destructive (pink) outline only — softer dangerous actions (Reset settings, Disconnect). */
+  /** Destructive outline, for softer dangerous actions. */
   DangerOutline,
-  /** Transparent — used inline (toolbar overflow, secondary links). */
+  /** Transparent, for inline actions. */
   Ghost,
-  /**
-   * Lime fill reserved for the Library hero card's CTA (and any future "picked for you" gamified
-   * accent). Not part of the Default/Primary/Danger/DangerOutline/Ghost ladder used elsewhere:
-   * light's `progress` role collapses onto `action` (see [KineticPalette]'s own KDoc), which reads
-   * as invisible against a violet fill, so this style needs a literal lime distinct from every
-   * existing role. See #282.
-   */
+  /** Lime fill for gamified accents, distinct from every palette role. */
   Accent,
 }
 
@@ -84,29 +76,18 @@ private data class ButtonColors(
   val hoverBackground: Color,
   val hoverBorder: Color,
   val hoverContent: Color,
-  /**
-   * Whether this style carries the chunky hard bottom edge. Only the filled styles do: the edge is
-   * an affordance of a solid button face, and giving a transparent style a 4.dp edge plus the
-   * elevation's own outline would draw a phantom box around an inline link.
-   */
+  /** Whether the style has the hard bottom edge; on a transparent style it draws a phantom box. */
   val elevated: Boolean,
 )
 
 /**
- * Literal lime fill for [KineticButtonStyle.Accent] and the Library re-skin's gamified badges
- * ("PICKED FOR YOU", "IN TRAINING"). In light theme `palette.progress` is violet (it collapses onto
- * `action`, documented on [KineticPalette]), which would vanish against the hero card's violet fill
- * — so light needs a genuinely distinct hue here. Dark's `progress` already is this lime, so dark
- * reuses it directly rather than duplicating the literal.
+ * Lime fill for [KineticButtonStyle.Accent] and gamified badges. Light needs a literal, since its
+ * `progress` collapses onto the violet `action`.
  */
 internal fun kineticAccentLimeColor(palette: KineticPalette): Color =
   if (palette.isLight) Color(0xFFA8F03A) else palette.progress
 
-/**
- * Fixed dark-green text color that reads on [kineticAccentLimeColor] in both themes. Not
- * `palette.onProgress`: that is white in light, tuned for `progress`'s violet fill there, not this
- * lime one.
- */
+/** Dark-green text color that reads on [kineticAccentLimeColor] in both themes. */
 internal val KineticOnAccentLime: Color = Color(0xFF24350A)
 
 private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): ButtonColors =
@@ -170,9 +151,6 @@ private fun resolveColors(style: KineticButtonStyle, palette: KineticPalette): B
         hoverBackground = fill,
         hoverBorder = fill,
         hoverContent = KineticOnAccentLime,
-        // Chunky edge; kineticPressableEdgeColor always returns palette.lineBright rather than a
-        // per-fill darker lime — a pre-existing, documented gap (see that function's own KDoc),
-        // out of scope for #282.
         elevated = true,
       )
     }
@@ -186,11 +164,11 @@ private fun ButtonColors.faceFor(active: Boolean): ButtonFace =
   if (active) ButtonFace(hoverBackground, hoverBorder, hoverContent)
   else ButtonFace(background, border, content)
 
-/** Whether the button reads as "active" — hovered or pressed, and not disabled either way. */
+/** Whether the button is enabled and hovered or pressed. */
 private fun isButtonActive(enabled: Boolean, hovered: Boolean, pressed: Boolean): Boolean =
   enabled && (hovered || pressed)
 
-/** A button's footprint: height and corner radius, keyed only by [large]. */
+/** A button's minimum height and shape. */
 private data class ButtonMetrics(val height: Dp, val shape: Shape)
 
 @Composable
@@ -198,22 +176,15 @@ private fun buttonMetrics(large: Boolean): ButtonMetrics =
   if (large) ButtonMetrics(44.dp, MaterialTheme.shapes.small)
   else ButtonMetrics(36.dp, MaterialTheme.shapes.extraSmall)
 
-/**
- * Animates [this] to the pressed scale (or back to 1f). The spec is built here, at press time,
- * rather than where the [Animatable] is created, so mounting a button costs no settings read.
- */
+/** Animates [this] to the pressed scale, or back to 1f. */
 private suspend fun Animatable<Float, AnimationVector1D>.settleForPress(pressed: Boolean) {
-  // Also runs on first composition with pressed == false. Returning before building the spec
-  // keeps the Koin-backed reduce-motion read a press-time cost, not a mount-time one.
+  // Returning before building the spec keeps the Koin-backed reduce-motion read off mount.
   if (!pressed && value == 1f) return
   val spec = KineticMotion.Routine.buttonPress<Float>()
   animateTo(if (pressed) PRESSED_SCALE else 1f, spec)
 }
 
-/**
- * Everything [Modifier.kineticButtonShell] needs, bundled into one parameter so the function itself
- * stays under Sonar's 7-parameter ceiling (kotlin:S107) rather than taking each field separately.
- */
+/** Inputs of [Modifier.kineticButtonShell], bundled to stay under Sonar's kotlin:S107 limit. */
 private class ButtonShellState(
   val iconOnly: Boolean,
   val enabled: Boolean,
@@ -228,29 +199,13 @@ private class ButtonShellState(
   val indication: Indication,
 )
 
-/**
- * Builds the pressable button's shell modifier: sizing, the click target, the press-scale layer,
- * the chunky pressable edge (filled styles only) or a plain stroke (transparent styles), the fill,
- * and finally the clipped indication layer.
- *
- * Order is load-bearing and kept exactly as authored: pointer input first, since the elevation's
- * press translate is a layout offset and a `clickable` chained after it would slide the touch
- * target out from under a finger held near the top edge; the indication is applied further down
- * instead, where it can be clipped to the shape. The elevated styles hand their outline to the
- * elevation, which draws it inside the press offset — a `border` chained after the elevation would
- * be painted over by its own stroke, so the plain `border` only runs for non-elevated styles. The
- * background is placed after the elevation, or the hard edge gets painted over. The final `clip`
- * covers only the state layer: the elevation's hard edge is drawn outside the node's bounds and a
- * clip chained above it would cut the edge off.
- *
- * [ButtonShellState.pressScale] is read as `.value` inside the `graphicsLayer` block (the draw
- * phase), never during composition, so animating it costs a redraw, not a recomposition.
- */
+/** Builds the button's sizing, click target, press scale, edge, fill and indication. */
 @Composable
 private fun Modifier.kineticButtonShell(state: ButtonShellState): Modifier =
   this.heightIn(min = state.metrics.height)
     .defaultMinSize(minWidth = state.metrics.height)
     .then(if (state.iconOnly) Modifier.width(state.metrics.height) else Modifier)
+    // Before the elevation, whose press offset would otherwise slide the touch target away.
     .clickable(
       interactionSource = state.interactionSource,
       indication = null,
@@ -263,39 +218,23 @@ private fun Modifier.kineticButtonShell(state: ButtonShellState): Modifier =
       scaleX = state.pressScale.value
       scaleY = state.pressScale.value
     }
+    // Elevated styles draw their outline inside the elevation, so they skip the plain border.
     .then(
       if (state.elevated) {
         Modifier.kineticPressableElevation(state.pressed, state.metrics.shape, state.outline)
       } else Modifier
     )
+    // After the elevation, or the hard edge gets painted over.
     .background(color = state.background, shape = state.metrics.shape)
     .then(if (state.elevated) Modifier else Modifier.border(state.outline, state.metrics.shape))
+    // Clips only the indication: the hard edge is drawn outside the bounds.
     .clip(state.metrics.shape)
     .indication(state.interactionSource, state.indication)
     .then(if (state.iconOnly) Modifier else Modifier.padding(horizontal = 14.dp))
 
 /**
- * Kinetic button. Mirrors `.btn`, `.btn.primary`, `.btn.danger`, `.btn.danger.outline`,
- * `.btn.icon-only`, and `.btn.lg` from `design-proposals/kinetic-base.css`.
- *
- * Buttons round to 12.dp at a minimum 36.dp height and to 16.dp when [large] (44.dp, the CTAs used
- * in Settings rows), carry a 1.5.dp border and a Baloo 2 600 12sp label. That height is a floor,
- * not a fixed value: a label too wide to fit its button on one line wraps, and the button grows
- * taller to fit both lines rather than clipping the second one. Set [iconOnly] for a square (height
- * × height) toolbar button with no horizontal padding and the same radius.
- *
- * The filled styles (Default, Primary, Danger, Accent) carry the chunky Kinetic pressable hard
- * bottom edge: 4.dp at rest, collapsing to a 1.dp sliver on press while the button translates 3.dp
- * down. The two transparent styles (DangerOutline, Ghost) do not — that edge is an affordance of a
- * solid button face. Every style animates a small press scale through
- * [KineticMotion.Routine.buttonPress], whose spec is built on the first real press rather than on
- * mount, so composing a button costs no settings read.
- *
- * The button uses [LocalIndication] for the ripple/highlight indication, so it picks up whatever
- * the surrounding Material theme provides on each target. The indication is applied behind a [clip]
- * to the button's shape rather than through `clickable`, so the state layer follows the rounded
- * face instead of the node's square bounds — the elevation's hard edge is drawn outside those
- * bounds and must stay unclipped.
+ * Kinetic button in the given [style]; [large] for a taller CTA, [iconOnly] for a square one. The
+ * height is a floor: a wrapping label grows the button instead of being clipped.
  */
 @Composable
 fun KineticButton(
@@ -355,7 +294,7 @@ fun KineticButton(
   }
 }
 
-/** Convenience helper for the common case of a label-only Kinetic button. */
+/** Uppercased label for a [KineticButton]. */
 @Composable
 fun KineticButtonLabel(text: String) {
   Text(text = text.uppercase())

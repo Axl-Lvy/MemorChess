@@ -23,7 +23,7 @@ import memorchess.composeapp.generated.resources.Nunito_SemiBold
 import memorchess.composeapp.generated.resources.Res
 import org.jetbrains.compose.resources.Font
 
-/** Baloo 2 — Kinetic display font (brand, headings, pill values, slider readout). */
+/** Kinetic display font. */
 @Composable
 private fun balooFamily(): FontFamily =
   FontFamily(
@@ -34,12 +34,8 @@ private fun balooFamily(): FontFamily =
   )
 
 /**
- * Nunito — Kinetic body font.
- *
- * ExtraBold (800) and Black (900) are registered even though no [KineticTypography] role defaults
- * to them: the nav labels ask for those weights per-call, and without a matching face Compose would
- * resolve both down to Bold (700) and synthesise nothing (synthesis only fakes bold below W600), so
- * the active/inactive weight contrast would silently vanish.
+ * Kinetic body font. ExtraBold and Black are registered for weights requested per call: without a
+ * matching face Compose resolves both to Bold and synthesises nothing.
  */
 @Composable
 private fun nunitoFamily(): FontFamily =
@@ -51,7 +47,7 @@ private fun nunitoFamily(): FontFamily =
     Font(Res.font.Nunito_Black, weight = FontWeight.Black),
   )
 
-/** JetBrains Mono — Kinetic mono font for chess notation. */
+/** Kinetic mono font for chess notation. */
 @Composable
 private fun jetbrainsMonoFamily(): FontFamily =
   FontFamily(
@@ -59,37 +55,32 @@ private fun jetbrainsMonoFamily(): FontFamily =
     Font(Res.font.JetBrainsMono_Medium, weight = FontWeight.Medium),
   )
 
-/**
- * Kinetic-specific text styles that don't fit cleanly into Material 3 type roles.
- *
- * The M3 [Typography] returned by [kineticM3Typography] covers Material widgets; this carries the
- * Kinetic-only roles used by custom Composables (brand mark, slider readouts, pill labels, etc.).
- */
+/** Kinetic-only text styles that Material 3 type roles do not cover. */
 @Immutable
 data class KineticTypography(
-  /** Brand wordmark — Baloo 2 700 20sp -0.03em. */
+  /** Brand wordmark. */
   val brand: TextStyle,
-  /** Section heading — Baloo 2 800 24sp -0.03em. */
+  /** Section heading. */
   val displayLg: TextStyle,
-  /** Inline display heading — Baloo 2 700 16sp -0.02em. */
+  /** Inline display heading. */
   val display: TextStyle,
-  /** Small display label — Baloo 2 700 12sp. */
+  /** Small display label. */
   val displaySm: TextStyle,
-  /** Body — Nunito 400 13sp, 1.45 line-height. */
+  /** Body text. */
   val body: TextStyle,
-  /** Small body — Nunito 400 11sp. */
+  /** Small body text. */
   val bodySm: TextStyle,
-  /** Label — Nunito 700 11sp, 0.02em tracking. */
+  /** Label text. */
   val label: TextStyle,
-  /** Small uppercase label — Nunito 700 9sp, 0.1em tracking. */
+  /** Small uppercase label. */
   val labelSm: TextStyle,
-  /** Mono — JetBrains Mono 500 11sp, 0.02em tracking. Chess notation only. */
+  /** Chess notation only. */
   val mono: TextStyle,
-  /** Small uppercase mono — JetBrains Mono 500 9sp, 0.1em tracking. Chess notation only. */
+  /** Small uppercase chess notation only. */
   val monoSm: TextStyle,
 )
 
-/** Builds the Kinetic typography set. Must be called inside a Composable scope. */
+/** Builds the Kinetic typography set. */
 @Composable
 internal fun kineticTypography(): KineticTypography {
   val display = balooFamily()
@@ -157,10 +148,7 @@ internal fun kineticTypography(): KineticTypography {
   )
 }
 
-/**
- * Derives a Material 3 [Typography] from the Kinetic styles so M3 widgets pick up Kinetic fonts
- * even before they are migrated to bespoke Composables.
- */
+/** Derives a Material 3 [Typography] from the Kinetic styles. */
 internal fun kineticM3Typography(kinetic: KineticTypography): Typography =
   Typography(
     displayLarge = kinetic.displayLg,
@@ -180,15 +168,11 @@ internal fun kineticM3Typography(kinetic: KineticTypography): Typography =
     labelSmall = kinetic.labelSm,
   )
 
-/**
- * The distinct custom [FontFamily]s [KineticTypography]'s styles draw from (Baloo 2, Nunito,
- * JetBrains Mono), for eagerly preloading all three ahead of first paint rather than one text style
- * at a time.
- */
+/** The distinct custom [FontFamily]s this typography's styles draw from. */
 fun KineticTypography.fontFamilies(): List<FontFamily> =
   listOfNotNull(brand.fontFamily, body.fontFamily, mono.fontFamily).distinct()
 
-/** CompositionLocal exposing Kinetic-only text styles to consumers. */
+/** Exposes the active [KineticTypography]. */
 val LocalKineticTypography =
   staticCompositionLocalOf<KineticTypography> {
     error("LocalKineticTypography not provided. Wrap your UI in AppTheme { … }.")

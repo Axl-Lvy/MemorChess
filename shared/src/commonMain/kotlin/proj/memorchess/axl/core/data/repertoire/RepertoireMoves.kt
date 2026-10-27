@@ -20,7 +20,6 @@ data class RepertoireMove(val from: String, val move: String, val to: String, va
 /**
  * Body of `POST /v1/repertoires`.
  *
- * @property id The catalog slug to publish or republish under.
  * @property side `"white"` or `"black"`.
  * @property moves Every move of the repertoire, connected to the starting position.
  */

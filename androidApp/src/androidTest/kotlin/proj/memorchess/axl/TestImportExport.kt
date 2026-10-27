@@ -18,20 +18,12 @@ import proj.memorchess.axl.test_util.TEST_TIMEOUT
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 /**
- * Tests the Import and Export buttons of the settings page on Android.
- *
- * Opening a native file dialog on Android requires FileKit to be initialized with the activity, so
- * these tests verify that tapping either button starts the picker flow instead of crashing the app.
- * The outgoing picker intent is stubbed with a cancelled result so no real system picker is shown
- * and the flow completes deterministically.
+ * Checks that the settings Import and Export buttons start the file picker without crashing. Picker
+ * intents are stubbed with a cancelled result so no real system picker is shown.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestImportExport {
 
-  /**
-   * The Compose test rule used to interact with the UI. This is automatically initialized by JUnit
-   * before tests are executed.
-   */
   @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
 
   @Before
@@ -56,12 +48,7 @@ class TestImportExport {
     clickImportExportButton("exportButton")
   }
 
-  /**
-   * Navigates to the settings page, scrolls the section list until the Import/Export section is
-   * composed, clicks the given button and checks that the app survives the picker flow.
-   *
-   * @param buttonTag The test tag of the button to click
-   */
+  /** Clicks the settings button tagged [buttonTag] and checks the app survives the picker flow. */
   private fun clickImportExportButton(buttonTag: String) {
     val settingsNavTag = "bottom_navigation_bar_item_${Route.SettingsRoute.getLabel()}"
     composeTestRule.waitUntilAtLeastOneExists(
@@ -77,8 +64,7 @@ class TestImportExport {
       .onNode(hasTestTag(SETTINGS_SECTION_LIST_TAG))
       .performScrollToNode(hasTestTag(buttonTag))
     composeTestRule.onNode(hasTestTag(buttonTag)).performClick()
-    // The picker runs in a coroutine on the UI dispatcher: a failure to open the dialog only
-    // surfaces once the test synchronizes with the UI again.
+    // The picker runs on the UI dispatcher, so a failure only surfaces once the test syncs again.
     composeTestRule.waitForIdle()
     composeTestRule.onNode(hasTestTag(buttonTag)).assertExists()
   }

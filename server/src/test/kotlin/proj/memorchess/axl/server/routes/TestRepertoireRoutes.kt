@@ -66,9 +66,7 @@ class TestRepertoireRoutes {
 
   private fun moves(vararg sans: String = arrayOf("e4")): List<RepertoireMove> = line(*sans)
 
-  // Fresh per test method (a new instance is created for every @Test), so the per author quota
-  // counted against the shared table never accumulates across tests the way a literal "author-1"
-  // would.
+  // Unique per test, so the per author quota on the shared table never accumulates across tests.
   private fun newAuthor(): String = "author-${java.util.UUID.randomUUID()}"
 
   private val author1 = newAuthor()
@@ -142,7 +140,6 @@ class TestRepertoireRoutes {
     runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
 
     app(store) { client ->
-      // No Authorization header at all, unlike the authenticated publish/delete routes below.
       client.post("/v1/repertoires/$id/installs").status shouldBe HttpStatusCode.NoContent
     }
   }
@@ -157,8 +154,7 @@ class TestRepertoireRoutes {
   @Test
   fun `install route rejects a malformed id with bad request, never recording it`() {
     app(newStore()) { client ->
-      // Contains an uppercase letter, which ID_PATTERN rejects; unlike the "unknown id" case above,
-      // this shape is invalid regardless of whether anything with it was ever published.
+      // ID_PATTERN rejects uppercase letters.
       client.post("/v1/repertoires/Not-A-Valid-Id/installs").status shouldBe
         HttpStatusCode.BadRequest
     }

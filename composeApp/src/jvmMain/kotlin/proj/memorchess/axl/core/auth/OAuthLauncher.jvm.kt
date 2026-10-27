@@ -14,15 +14,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 /**
- * Desktop OAuth launcher.
- *
- * Spins up a one shot HTTP server on `127.0.0.1:<random port>`, opens the system browser at the
- * Lichess authorize URL, and resumes with the authorization code as soon as Lichess redirects back
- * to `http://127.0.0.1:<port>/callback?code=...`.
- *
- * The caller must pass the loopback URL as the `redirect_uri` so Lichess sends the browser back
- * here. `[OAuthLauncher.launch]` ignores [redirectUri] for binding decisions and parses the port
- * out of it.
+ * Desktop OAuth launcher: opens the system browser and receives the code on a one shot loopback
+ * server bound to the port and path of `redirectUri`, which must be a `http://127.0.0.1` URL.
  */
 actual class OAuthLauncher {
 
@@ -85,11 +78,7 @@ actual class OAuthLauncher {
     }
   }
 
-  /**
-   * Falls back to the OS shell when AWT's [Desktop] integration is unavailable. Linux JDKs
-   * routinely return `false` from `Desktop.Action.BROWSE.isSupported()` outside of GNOME, so this
-   * path is the common one on Linux.
-   */
+  /** Browses through the OS shell, the common path on Linux where AWT rarely supports BROWSE. */
   private fun tryShellBrowse(url: String): Boolean {
     val os = System.getProperty("os.name")?.lowercase().orEmpty()
     val commands: List<Array<String>> =
@@ -101,7 +90,7 @@ actual class OAuthLauncher {
     for (cmd in commands) {
       try {
         val process = ProcessBuilder(*cmd).redirectErrorStream(true).start()
-        // Do not wait for the browser to exit; just confirm the launcher started.
+        // Only confirm the launcher started; never wait for the browser to exit.
         if (process.isAlive || process.exitValue() == 0) return true
       } catch (e: Exception) {
         LOGGER.i { "Browser command ${cmd.joinToString(" ")} failed: ${e.message}" }

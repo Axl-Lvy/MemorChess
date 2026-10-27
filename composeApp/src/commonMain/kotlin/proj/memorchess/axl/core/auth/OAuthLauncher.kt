@@ -1,12 +1,8 @@
 package proj.memorchess.axl.core.auth
 
 /**
- * Platform side of the OAuth flow: opens [authorizationUrl] in the system browser, waits for the
- * user to be redirected back to [redirectUri], and returns the captured authorization code.
- *
- * Implementations should also validate that the redirect carries the [expectedState] CSRF token.
- *
- * @return the authorization code on success, or a [OAuthLaunchError] describing the failure.
+ * Opens the OAuth authorization URL in the system browser and captures the code from the redirect.
+ * Implementations must reject a redirect whose `state` differs from the expected one.
  */
 expect class OAuthLauncher() {
   suspend fun launch(
@@ -40,17 +36,11 @@ enum class OAuthLaunchError {
   PLATFORM_ERROR,
 }
 
-/**
- * Lichess client identifier sent in the OAuth authorize request.
- *
- * Lichess accepts any descriptive id for public PKCE clients; no registration is required.
- */
+/** Lichess OAuth client id; Lichess accepts any descriptive id for public PKCE clients. */
 const val LICHESS_CLIENT_ID: String = "memorchess.app"
 
 /**
- * Platform specific redirect URI passed to Lichess.
- *
- * Native platforms use a custom scheme (`memorchess://oauth`). JVM uses a loopback URL. wasm uses
- * the current page origin with a callback path so the popup can navigate back to it.
+ * Platform specific OAuth redirect URI: a custom scheme on native, a loopback URL on JVM, and the
+ * page origin on wasm so the popup can navigate back to it.
  */
 expect val LICHESS_REDIRECT_URI: String

@@ -10,14 +10,8 @@ import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.coroutines.CompletableDeferred
 
 /**
- * Process wide IndexedDB singleton.
- *
- * Owns the object stores the app uses: the opening tree (`nodes` and `moves`) and the Lichess
- * explorer cache (`explorerCache`). Callers obtain the database with [getIndexedDb] and then
- * operate on the relevant object store directly.
- *
- * The app is not in production, so there are no migrations: any schema change is applied by bumping
- * [DB_VERSION], which drops every store and rebuilds it from scratch — see [recreate].
+ * Process wide IndexedDB singleton owning the app's object stores. A schema change is applied by
+ * bumping [DB_VERSION], which drops and rebuilds every store.
  */
 internal object IndexedDbInstance {
 
@@ -34,10 +28,8 @@ internal object IndexedDbInstance {
   }
 
   /**
-   * Drops every object store and rebuilds it from the current schema. Existing rows are discarded;
-   * this is the destructive-recreate counterpart to Room's `fallbackToDestructiveMigration` and the
-   * reason no per-version migration code is needed. The deletes are guarded because a store does
-   * not exist yet on a fresh install (the upgrade runs with no prior version).
+   * Drops every object store, discarding its rows, and rebuilds it from the current schema. Deletes
+   * are guarded because the stores do not exist on a fresh install.
    */
   private fun VersionChangeTransaction.recreate(database: Database) {
     listOf(
@@ -99,9 +91,7 @@ internal object IndexedDbInstance {
         NODE_REPERTOIRE_TRAINABLE_STORE,
         KeyPath("positionKey", "repertoireId"),
       )
-    // Single field index so replaceTrainableRepertoires can enumerate a position's existing rows
-    // without a compound key range scan, the same way MOVES_STORE's "origin"/"destination" indices
-    // already let a single-endpoint lookup avoid one.
+    // Enumerates a position's rows without a compound key range scan.
     trainableStore.createIndex("positionKey", KeyPath("positionKey"), unique = false)
     trainableStore.createIndex(
       "repertoireId_lastReview",

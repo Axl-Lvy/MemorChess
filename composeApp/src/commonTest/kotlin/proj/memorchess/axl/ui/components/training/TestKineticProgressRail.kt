@@ -16,9 +16,8 @@ import proj.memorchess.axl.ui.setKineticContent
 private const val RAIL_TAG = "progress_rail"
 
 /**
- * Pins [KineticProgressRail]'s clamping contract: `progress` is coerced into `0f..1f` and every
- * non-finite input falls back to `0f`. The clamped value is read back through the rail's reported
- * [ProgressBarRangeInfo], so nothing test-only is added to the production API.
+ * Tests that [KineticProgressRail] clamps `progress` into `0f..1f` and maps non-finite input to
+ * `0f`.
  */
 @OptIn(ExperimentalTestApi::class)
 class TestKineticProgressRail {

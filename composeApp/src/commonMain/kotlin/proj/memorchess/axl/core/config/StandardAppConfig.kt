@@ -30,24 +30,18 @@ val BEST_MOVE_ARROW_ENABLED_SETTING = BooleanBasedConfigItem("bestMoveArrowEnabl
  */
 val REDUCE_MOTION_SETTING = BooleanBasedConfigItem("reduceMotionEnabled", false)
 
-/**
- * Maximum search depth for the Stockfish engine.
- *
- * Values 5–25 are literal depths; 0 means infinite (pass `null` to the engine).
- */
+/** Maximum Stockfish search depth, from 5 to 25, or 0 for infinite. */
 val ENGINE_MAX_DEPTH_SETTING = IntBasedConfigItem("engineMaxDepth", 20)
 
 /**
- * Whether the FSRS scheduler applies interval fuzz, the small random spread that stops cards
- * reviewed together from bunching on the same future day. Off by default, matching canonical
- * FSRS 6.
+ * Whether the FSRS scheduler applies interval fuzz, so cards reviewed together do not bunch on the
+ * same future day. Off by default, matching canonical FSRS 6.
  */
 val FUZZ_ENABLED_SETTING = BooleanBasedConfigItem("schedulingFuzzEnabled", false)
 
 /**
- * Whether the FSRS scheduler runs its short-term (learning steps) path. When on, a freshly failed
- * or brand-new position keeps reappearing within the session on sub-day steps until it graduates to
- * a day grained interval. On by default, matching canonical FSRS 6.
+ * Whether the FSRS scheduler runs learning steps, re-showing new or failed positions within the
+ * session until they graduate to a day grained interval. On by default, matching canonical FSRS 6.
  */
 val SHORT_TERM_ENABLED_SETTING = BooleanBasedConfigItem("schedulingShortTermEnabled", true)
 
@@ -64,8 +58,8 @@ val MAX_NEW_MOVES_PER_DAY_SETTING = IntBasedConfigItem("maxNewMovesPerDay", 10)
 val MAX_TOTAL_MOVES_PER_DAY_SETTING = IntBasedConfigItem("maxTotalMovesPerDay", 100)
 
 /**
- * Cached repertoire catalog manifest, stored as its raw JSON string. Internal state written by the
- * repertoire catalog cache, never shown in the settings UI. Empty means no cached manifest.
+ * Cached repertoire catalog manifest as raw JSON, empty when none. Internal state, never shown in
+ * the settings UI.
  */
 val REPERTOIRE_MANIFEST_CACHE_SETTING = StringBasedConfig("repertoireManifestCache", "")
 

@@ -24,13 +24,7 @@ import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 
-/**
- * State indicator
- *
- * This shows an indication of the node state.
- *
- * @param state The state of the node.
- */
+/** Shows the icon and label of a node [state]. */
 @Composable
 fun StateIndicator(modifier: Modifier = Modifier, state: NodeState) {
   val palette = LocalKineticPalette.current

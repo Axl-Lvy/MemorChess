@@ -65,7 +65,7 @@ class TestMoveHoldersE2e {
       .shouldBeInstanceOf<SyncRegisterOutcome.Ok>()
   }
 
-  /** Pushes every queued row of [device], built from its outbox the way the app builds a push. */
+  /** Pushes [device]'s outbox the way the app does. */
   private suspend fun push(token: String, device: Device) {
     val database = device.database
     val outbox = database.getOutbox()

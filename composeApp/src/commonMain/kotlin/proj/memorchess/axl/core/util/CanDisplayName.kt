@@ -1,13 +1,6 @@
 package proj.memorchess.axl.core.util
 
-/**
- * Interface for objects that can provide a display name.
- *
- * @property displayName Name to display.
- *
- * Note that it is intentionally not called `name` to avoid confusion with the `name` property of
- * Kotlin enums.
- */
+/** An object with a name to display, not called `name` to avoid clashing with enums' `name`. */
 interface CanDisplayName {
   val displayName: String
 }

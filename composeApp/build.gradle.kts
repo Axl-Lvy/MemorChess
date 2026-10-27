@@ -27,21 +27,17 @@ plugins {
 jacoco { toolVersion = "0.8.15" }
 
 kotlin {
-  // Android configuration
   androidLibrary {
     namespace = "proj.memorchess.axl.library"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     minSdk = libs.versions.android.minSdk.get().toInt()
     compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
-    // Package Compose Multiplatform resources into the AAR (CMP-9547). Without this the
-    // resources are missing from the final APK and the app crashes at runtime.
+    // Without this, CMP resources are missing from the APK and the app crashes (CMP-9547).
     androidResources.enable = true
   }
 
-  // JVM/Desktop configuration
   jvm()
 
-  // iOS configuration
   listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
     iosTarget.binaries.framework {
       baseName = "ComposeApp"
@@ -49,7 +45,6 @@ kotlin {
     }
   }
 
-  // WebAssembly configuration
   @OptIn(ExperimentalWasmDsl::class)
   wasmJs {
     outputModuleName = "composeApp"
@@ -58,7 +53,6 @@ kotlin {
         outputFileName = "composeApp.js"
         devServer =
           (devServer ?: KotlinWebpackConfig.DevServer()).apply {
-            // Serve sources to debug inside browser
             static(project.rootDir.path)
             static(project.projectDir.path)
             open = false
@@ -69,9 +63,8 @@ kotlin {
     binaries.executable()
   }
 
-  // Hierarchy template configuration. withAndroidTarget() only matches the legacy
-  // KotlinAndroidTarget, so the new AGP provided androidLibrary target is matched by
-  // platform type instead.
+  // withAndroidTarget() only matches the legacy KotlinAndroidTarget, so androidLibrary is
+  // matched by platform type.
   @OptIn(ExperimentalKotlinGradlePluginApi::class)
   applyDefaultHierarchyTemplate {
     common {
@@ -87,16 +80,11 @@ kotlin {
     }
   }
 
-  // Source sets configuration
   sourceSets {
     commonMain.dependencies {
-      // Code shared with the server: chess engine core, PositionKey, PGN parsing.
-      // api, not implementation: these types appear in composeApp's own public signatures
-      // (TreeStore returns PositionKey), so androidApp and the test source sets need them
-      // transitively.
+      // api: shared types appear in composeApp's public signatures.
       api(projects.shared)
 
-      // Compose dependencies
       implementation(libs.compose.runtime)
       implementation(libs.compose.foundation)
       implementation(libs.compose.material3)
@@ -104,50 +92,36 @@ kotlin {
       implementation(libs.compose.components.resources)
       implementation(libs.compose.components.ui.tooling.preview)
 
-      // Lifecycle dependencies
       implementation(libs.androidx.lifecycle.viewmodel)
       implementation(libs.androidx.lifecycle.runtime.compose)
 
-      // Kotlin extensions
       implementation(libs.kotlinx.datetime)
       implementation(libs.kotlinx.serialization.json)
 
-      // Navigation and UI
       implementation(libs.navigation.compose)
       implementation(libs.material.icons)
       implementation(libs.xfeather.z)
       implementation(libs.material3.adaptive)
 
-      // Chess engine
       implementation(libs.chess.core)
       implementation(libs.stockfish.multiplatform)
 
-      // File picker
       implementation(libs.filekit.dialogs.compose)
 
-      // Utilities
       implementation(libs.multiplatform.settings)
       implementation(libs.kermit.logging)
 
-      // Dependency injection
       implementation(libs.koin.core)
       implementation(libs.koin.compose)
       implementation(libs.koin.compose.viewmodel)
       implementation(libs.koin.compose.viewmodel.navigation)
 
-      // Networking
       implementation(libs.ktor.client.core)
       implementation(libs.ktor.client.content.negotiation)
       implementation(libs.ktor.serialization.kotlinx.json)
     }
 
-    // Debug source set configuration
-    val debugMain by getting {
-      dependencies {
-        // Hot Preview
-        implementation(libs.hotpreview)
-      }
-    }
+    val debugMain by getting { dependencies { implementation(libs.hotpreview) } }
 
     @SuppressWarnings("unused")
     val nonJsMain by getting {
@@ -179,8 +153,7 @@ kotlin {
     wasmJsMain.dependencies {
       implementation(libs.indexeddb)
       implementation(libs.ktor.client.js)
-      // Satisfies the tslib@2 peer dependency declared by memfs (via webpack-dev-server),
-      // which yarn otherwise reports as unmet on every install.
+      // Satisfies memfs's tslib@2 peer dependency, which yarn otherwise reports as unmet.
       implementation(devNpm("tslib", "2.8.1"))
     }
 
@@ -200,40 +173,32 @@ kotlin {
   compilerOptions { freeCompilerArgs.add("-Xexpect-actual-classes") }
 }
 
-// Code formatting configuration
 ktfmt { googleStyle() }
 
 tasks.withType<KtfmtBaseTask> { exclude("**/generated/**") }
 
-// Room database configuration
 room { schemaDirectory("$projectDir/schemas") }
 
 dependencies {
-  // KSP processors for Room on different platforms
   add("kspAndroid", libs.androidx.room.compiler)
   add("kspIosSimulatorArm64", libs.androidx.room.compiler)
   add("kspIosArm64", libs.androidx.room.compiler)
   add("kspJvm", libs.androidx.room.compiler)
 
-  // Pull :shared into this module's Kover report. Most of the chess engine is exercised
-  // through composeApp's tests, and Kover only reports classes of the projects listed here,
-  // so without this the engine reads as uncovered.
+  // The engine in :shared is mostly tested from here; without this it reads as uncovered.
   kover(project(":shared"))
 }
 
 tasks.withType<ComposeHotRun>().configureEach { mainClass = "proj.memorchess.axl.MainKt" }
 
-// Disable the jacoco plugin agent on JVM tests — Kover attaches its own JaCoCo agent via
-// useJacoco(), and two JaCoCo agents on the same JVM crash at class definition time.
+// Kover attaches its own JaCoCo agent; two agents on one JVM crash at class definition time.
 tasks.named<Test>("jvmTest") { extensions.configure<JacocoTaskExtension> { isEnabled = false } }
 
-// Skiko loads its native library through java.lang.System::load, which JDK 24+ flags as
-// restricted and will block by default in a future release.
+// Skiko uses System::load, which JDK 24+ flags as restricted native access.
 tasks.withType<Test>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAMED") }
 
 tasks.withType<JavaExec>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAMED") }
 
-// Disable configuration cache for all tasks involving wasmJs
 tasks.withType<KotlinWebpack>().configureEach {
   notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")
 }
@@ -244,15 +209,9 @@ tasks.withType<KotlinJsTest>().configureEach {
   )
 }
 
-// Renames the production build's fixed-name entry files ("composeApp.js", see `outputFileName`
-// above, and "styles.css") to content-hashed names, the same trick already applied to the `.wasm`
-// binaries. Without this, an intermediary that ignores the server's `Cache-Control: no-cache` on
-// unhashed files (observed with Cloudflare's edge cache) can keep serving a previous deploy's file
-// for hours after a new one lands, paired with the new deploy's `.wasm`/resources. A content hash
-// sidesteps that: any change gets a brand new URL, so a cache still holding the old file is just
-// holding something nobody references anymore.
-// `StaticFrontendRoutes.HASHED_ASSET_PATTERN` (`:server`) must keep matching the names produced
-// here.
+// Content-hashes the fixed-name entry files, since edge caches (Cloudflare) ignore
+// `Cache-Control: no-cache` and would pair a stale JS with a new `.wasm`.
+// `StaticFrontendRoutes.HASHED_ASSET_PATTERN` (`:server`) must keep matching these names.
 val wasmJsProductionDist = layout.buildDirectory.dir("dist/wasmJs/productionExecutable")
 
 val hashWasmJsBundle by tasks.registering {
@@ -263,8 +222,6 @@ val hashWasmJsBundle by tasks.registering {
   doLast {
     val distDir = wasmJsProductionDist.get().asFile
 
-    // Hashes `distDir/fileName`, then rewrites its one reference in index.html (the
-    // `htmlAttribute="fileName"` occurrence) to the hashed name.
     fun hashEntryFile(fileName: String, htmlAttribute: String) {
       val asset = File(distDir, fileName)
       if (!asset.exists()) {
@@ -295,9 +252,7 @@ val hashWasmJsBundle by tasks.registering {
 
 tasks.named("wasmJsBrowserDistribution") { finalizedBy(hashWasmJsBundle) }
 
-// Listing the source sets explicitly disables the scanner's Kotlin Multiplatform
-// auto-detection, which keeps the indexed directories under our control after the
-// androidApp module split.
+// Explicit source sets disable the scanner's KMP auto-detection.
 extensions.configure<org.sonarqube.gradle.SonarExtension> {
   properties {
     property(

@@ -26,12 +26,8 @@ import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.ui.components.popup.KineticDialog
 
 /**
- * Publish or update dialog for one repertoire: an editable public id, title and description,
- * prefilled from [initialSlug]/[repertoireName] and always submitted under [side]. Submit is
- * disabled until every field passes the shared [RepertoirePublishLimits] bounds.
- *
- * Fields reset to their initial values every time [visible] turns true, so a dialog reopened after
- * a cancel starts fresh rather than keeping a stale edit.
+ * Dialog publishing a repertoire under [side] with an editable public id, title and description,
+ * each bounded by [RepertoirePublishLimits]. Fields reset each time [visible] turns true.
  */
 @Composable
 fun PublishRepertoireDialog(

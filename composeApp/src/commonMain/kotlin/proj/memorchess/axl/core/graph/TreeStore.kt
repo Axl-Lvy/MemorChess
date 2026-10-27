@@ -12,41 +12,17 @@ import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.sync.DeviceIdentity
-import proj.memorchess.axl.core.sync.resolve
 import proj.memorchess.axl.core.sync.toDataMove
 import proj.memorchess.axl.core.sync.toDataNode
 
 /**
- * Single chokepoint for local mutation of the opening tree. Remote writes land through
- * [proj.memorchess.axl.core.sync.SyncApplier] instead.
+ * Single chokepoint for local mutation of the opening tree, writing through a bounded [NodeCache]
+ * to authoritative persistence. Unclassified moves (`isGood == null`) live in the cache only.
  *
- * Persistence is authoritative. [NodeCache] holds only a bounded working set, never the whole
- * repertoire. [node] resolves a position through it, and on a miss also fires a one ply background
- * prefetch of the node's neighbours so the next navigation step is a cache hit.
+ * Holds no lock of its own: [NodeCache] owns the mutex, and a mutation survives an in flight load
+ * of the same key (see [NodeCache.resolve]).
  *
- * Mutations write through: they patch the touched cache entries in place and persist, never
- * swapping the whole cache. Exploration moves that have not yet been classified (`isGood == null`)
- * live in the cache only until a caller upserts them with a non null [Edge.isGood].
- *
- * ## Concurrency
- *
- * The facade holds no lock of its own. Every cache read and write goes through [NodeCache], which
- * owns the mutex and dedupes concurrent loads of the same key, and every background warm goes
- * through [Prefetcher]. A mutation's edits survive a load of the same key that is already in
- * flight; see the contract on [NodeCache.resolve].
- *
- * Callers from the UI, interactions and scheduling layers all go through this class.
- *
- * @param database The persistence backend.
- * @param cache Bounded cache every read and write of the graph goes through.
- * @param prefetcher Fires the one ply neighbour warm after a miss.
- * @param trainable Per repertoire trainable projection, recomputed after every edge write.
- * @param tagStore Used by the delete paths to tombstone a removed edge's repertoire tags.
- * @param deviceIdentity Stamped onto every persisted node and edge, and used to order this device's
- *   own writes against its earlier ones. See [DeviceIdentity].
- * @param notifyDirty Called after every local write that queues an outbox entry, so
- *   [proj.memorchess.axl.core.sync.SyncEngine] can schedule a push. Never called from
- *   [proj.memorchess.axl.core.sync.SyncApplier], whose writes are remote in origin.
+ * @param notifyDirty Called after every local write that queues an outbox entry.
  */
 class TreeStore(
   private val database: DatabaseQueryManager,
@@ -59,13 +35,8 @@ class TreeStore(
 ) {
 
   /**
-   * Resolves the node at [positionKey] through the bounded cache.
-   *
-   * Cache hit returns immediately and marks the entry most recently used. Miss loads the row via
-   * [DatabaseQueryManager.getPosition], builds a fully edged [Node] from its incoming and outgoing
-   * classified moves, inserts it into the bounded LRU (evicting the least recently used entries
-   * past the cap), kicks off one ply neighbour prefetch, and returns it. Returns `null` when the
-   * position is not persisted and is not a resident exploration only node.
+   * Resolves the node at [positionKey] through the cache, prefetching its neighbours on a miss.
+   * `null` when the position is neither persisted nor a resident exploration only node.
    */
   suspend fun node(positionKey: PositionKey): Node? {
     val (node, hit) = cache.resolve(positionKey)
@@ -74,55 +45,33 @@ class TreeStore(
   }
 
   /**
-   * Computes the [NodeState] for [positionKey] given which position we [arrivedFrom].
-   *
-   * Resolves the node through [node] then runs the pure incoming edge aggregation. Returns
-   * [NodeState.UNKNOWN] when the position cannot be resolved (matching "not in graph" semantics).
+   * The [NodeState] of [positionKey] reached from [arrivedFrom], or [NodeState.UNKNOWN] when it
+   * cannot be resolved.
    */
   suspend fun computeState(positionKey: PositionKey, arrivedFrom: PositionKey?): NodeState =
     node(positionKey)?.computeState(arrivedFrom) ?: NodeState.UNKNOWN
 
-  /**
-   * Depth of [positionKey] resolved through [node], or [Int.MAX_VALUE] when it cannot be resolved.
-   */
+  /** Depth of [positionKey], or [Int.MAX_VALUE] when it cannot be resolved. */
   suspend fun getDepth(positionKey: PositionKey): Int = node(positionKey)?.depth ?: Int.MAX_VALUE
 
   /**
-   * Counts the non deleted positions a recursive delete starting at [key] would remove, [key]
-   * included, bounded by [cap]. Delegates to the backend's bounded breadth first walk so the count
-   * never pages the whole subtree through the cache. See [DatabaseQueryManager.countDescendants].
+   * Counts the non deleted positions a recursive delete from [key] would remove, [key] included,
+   * capped at [cap].
    */
   suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int =
     database.countDescendants(key, cap)
 
-  /**
-   * Ensures [positionKey] exists in the cache at the given [depth], under the cache's own lock so
-   * it cannot race a concurrent load. No persistence side effect: exploration of a fresh position
-   * should not write a row until the user saves something.
-   */
+  /** Ensures [positionKey] is cached at [depth] without persisting it. */
   suspend fun ensurePosition(positionKey: PositionKey, depth: Int) {
     cache.ensure(positionKey, depth)
   }
 
   /**
-   * Adds or replaces an edge in the graph.
+   * Adds or replaces an edge, persisting it as a manual hold unless [isGood] is `null`. An existing
+   * edge keeps its [Edge.createdAt], so replaying a line never reshuffles new card order.
    *
-   * Always updates the cache. Persists when [isGood] is not `null`: a classified edge becomes a
-   * manual hold with [isGood] as the user's own marking, an exploration edge stays in the cache.
-   * The destination node is created on demand at depth [fromDepth] + 1.
-   *
-   * When the edge already exists its [Edge.createdAt] is preserved. This is load bearing:
-   * exploration replays a line by re-upserting every edge on the way, so a fresh stamp on each
-   * upsert would reshuffle the introduction order of new cards just by browsing. The prior edge is
-   * resolved through [node] so the persisted, stable [Edge.createdAt] is preserved even when the
-   * origin was evicted from the cache.
-   *
-   * @param from Position the move is played from.
    * @param move SAN of the move.
-   * @param to Position reached by playing [move].
-   * @param isGood Classification of the move. `null` means exploration only.
-   * @param fromDepth Depth of [from] used when the node has to be inserted.
-   * @return The [Edge] now present in the cache.
+   * @param fromDepth Depth of [from], used when the node has to be inserted.
    */
   suspend fun addMove(
     from: PositionKey,
@@ -132,9 +81,7 @@ class TreeStore(
     fromDepth: Int,
   ): Edge {
     val createdAt = node(from)?.outgoing?.get(move)?.createdAt ?: DateUtil.now()
-    // TODO: nextDeviceSeq is allocated here even for an exploration-only move (isGood == null,
-    // never persisted), one at a time. A block-allocation batching fix is a larger change; see the
-    // sync design doc.
+    // TODO: this allocates a deviceSeq even for an exploration only move that is never persisted.
     val edge =
       Edge(
         from = from,
@@ -151,12 +98,9 @@ class TreeStore(
     if (isGood != null) {
       persistNode(from)
       persistNode(to)
-      // The two persists above each queue their own row's outbox entry transactionally. The edge
-      // itself is not a row either of them can attribute a stamp to (it is a field inside each
-      // node's persisted move maps), so it is marked separately here, at the edge's own deviceSeq.
+      // The node persists queue their own outbox entries; the edge is not a row, so mark it here.
       database.markDirty(DirtyKey.EdgeKey(from, to), edge.deviceSeq)
-      // to's own trainable membership depends only on its outgoing edges, which this call did not
-      // change, so only from needs recomputing.
+      // Only from's outgoing edges changed, so to's trainable rows are unaffected.
       trainable.recompute(from)
       notifyDirty()
     }
@@ -164,25 +108,15 @@ class TreeStore(
   }
 
   /**
-   * Adds every move in [moves] to the cache, then persists all touched nodes in one batch.
-   *
-   * Behaves like calling [addMove] for each element, except that every node touched by a classified
-   * move is written to the database exactly once, through a single
-   * [DatabaseQueryManager.insertNodes] call. Existing nodes keep their [CardState]; only their edge
-   * maps and, when a shorter path is found, their depth are updated. Each distinct origin's prior
-   * edge is resolved through [node] so its [Edge.createdAt] stays stable across re-upserts even
-   * when the origin was evicted.
-   *
-   * @param moves Insertions to apply, in order.
+   * Like calling [addMove] for each of [moves] in order, but persists every touched node exactly
+   * once in a single [DatabaseQueryManager.insertNodes] call.
    */
   suspend fun addMoves(moves: List<MoveInsertion>) {
     if (moves.isEmpty()) return
     val now = DateUtil.now()
     val touched = linkedSetOf<PositionKey>()
     val dirtyEdges = mutableListOf<Pair<DirtyKey.EdgeKey, Long>>()
-    // TODO: nextDeviceSeq below is allocated per edge, one at a time, even for exploration-only
-    // moves (isGood == null, never persisted). A block-allocation batching fix is a larger change;
-    // see the sync design doc.
+    // TODO: this allocates a deviceSeq even for exploration only moves that are never persisted.
     for (insertion in moves) {
       val createdAt = node(insertion.from)?.outgoing?.get(insertion.move)?.createdAt ?: now
       val edge =
@@ -206,21 +140,17 @@ class TreeStore(
     }
     val nodesToPersist = touched.mapNotNull { cache.peek(it)?.toDataNode() }
     if (nodesToPersist.isNotEmpty()) {
-      // insertNodes queues each node's own outbox entry transactionally; only the edges themselves
-      // need marking here, same as addMove.
+      // insertNodes queues the nodes' outbox entries; edges are not rows, so mark them here.
       database.insertNodes(*nodesToPersist.toTypedArray())
       for ((edgeKey, seq) in dirtyEdges) database.markDirty(edgeKey, seq)
-      // A freshly created destination has no outgoing edges yet, so recomputing it too is a
-      // harmless no-op that resolves to an empty set.
       for (origin in touched) trainable.recompute(origin)
       notifyDirty()
     }
   }
 
   /**
-   * Installs [moves] as holds of [repertoireId]: tags each one with the author's marking, then
-   * writes it with the effective marking its holders give, creating no manual hold. The touched
-   * positions are persisted, but no move is queued for push: only the tags and positions travel.
+   * Installs [moves] as holds of [repertoireId] at their effective marking, creating no manual
+   * hold. Persists the touched positions but queues no move for push: only tags and positions sync.
    */
   suspend fun install(repertoireId: String, moves: List<InstalledMove>) {
     if (moves.isEmpty()) return
@@ -258,10 +188,7 @@ class TreeStore(
     notifyDirty()
   }
 
-  /**
-   * The persisted version of the move [move] from [from], live or a manual hold tombstone, whose
-   * stamps an install must keep. An exploration only edge has none.
-   */
+  /** The persisted move [move] from [from], live or tombstoned, whose stamps an install keeps. */
   private suspend fun priorManualHold(from: PositionKey, move: String): Edge? {
     val live = node(from)?.outgoing?.get(move)
     if (live != null && live.isGood != null) return live
@@ -296,8 +223,8 @@ class TreeStore(
   }
 
   /**
-   * Forks [sourceId] into [newId]: holds every move of the source manually, so the fork survives
-   * the source's uninstall, then registers and tags the fork. See [RepertoireTagStore.fork].
+   * Forks [sourceId] into [newId], holding every source move manually so the fork survives the
+   * source's uninstall.
    *
    * @throws IllegalArgumentException if [newId] is blank or contains a comma.
    */
@@ -307,23 +234,9 @@ class TreeStore(
   }
 
   /**
-   * Persists a full graph produced by [GraphSerializer.deserialize] as manual holds, stamping this
-   * device's identity and a fresh write sequence on every node and edge so an imported file can
-   * converge with the same file imported on another device instead of colliding on the wire
-   * format's placeholder `""`/`0L` identity. Every imported position is invalidated once its row is
-   * written, so a resident copy cannot keep serving the pre import edge set.
-   *
-   * Each edge appears twice in [nodes], once in its origin's [DataNode.previousAndNextMoves] and
-   * once in its destination's. Exactly one write sequence is allocated per distinct edge and reused
-   * for both copies, so the two never drift into different stamps for what is really one write.
-   * Every distinct edge is then marked dirty at its own stamp, since [DataMove] rows are not
-   * covered by the outbox entry [DatabaseQueryManager.insertNodes] queues for the node itself.
-   *
-   * Only [DataNode.originDevice] and [DataNode.deviceSeq] are restamped; [DataNode.updatedAt] and
-   * [DataMove.updatedAt] are kept as the file recorded them, so a restore still loses to a
-   * genuinely newer edit made anywhere in the meantime. Two devices importing the exact same file
-   * therefore still converge: [resolve] falls back to comparing [DataMove.originDevice] once the
-   * timestamps tie, and that comparison is commutative.
+   * Persists a graph from [GraphSerializer.deserialize] as manual holds, restamped with this
+   * device's identity. Each edge gets one sequence shared by both endpoint copies, and `updatedAt`
+   * is kept as recorded so a restore still loses to a newer edit.
    */
   suspend fun importNodes(nodes: List<DataNode>) {
     if (nodes.isEmpty()) return
@@ -354,18 +267,14 @@ class TreeStore(
     for (edge in edgeStamps.values) {
       database.markDirty(DirtyKey.EdgeKey(edge.origin, edge.destination), edge.deviceSeq)
     }
-    // Only the listed positions can have changed, since insertNodes merges into existing rows
-    // rather than replacing the graph, so an untouched working set survives the import. The
-    // invalidations follow the durable write, or a retry would read the same superseded row.
+    // Invalidate after the durable write, or a retry would read the superseded row.
     for (node in stampedNodes) cache.invalidate(node.positionKey)
     notifyDirty()
   }
 
   /**
-   * Stores [cardState] on the node at [positionKey] and persists it.
-   *
-   * Resolves the node through [node]; logs a warning and skips the write when the position cannot
-   * be resolved (it was deleted between a reader observing it and writing the result back).
+   * Stores [cardState] on the node at [positionKey] and persists it, skipping with a warning when
+   * the position no longer resolves.
    */
   suspend fun updateCardState(positionKey: PositionKey, cardState: CardState) {
     val existing = node(positionKey)
@@ -374,50 +283,32 @@ class TreeStore(
       return
     }
     cache.put(existing.copy(cardState = cardState))
-    // persistNode below queues the node's own outbox entry transactionally with the row write.
     persistNode(positionKey)
-    // The edge set does not change here, but NodeRepertoireTrainable.lastReview must still track
-    // the position's latest review.
+    // Trainable rows carry lastReview, so they change even though the edges did not.
     trainable.recompute(positionKey)
     notifyDirty()
   }
 
   /**
-   * Deletes the move [move] leaving [from] in both the cache and the underlying database.
-   *
-   * After the cache edge is gone, the surviving [from] node is re-persisted so its derived
-   * [DataNode.hasGoodOutgoing] cannot go stale: deleting the last good edge must flip the flag back
-   * to `false`. The edge and the surviving [from] node are each marked dirty by the
-   * [DatabaseQueryManager] call that writes their row, in the same transaction as that write.
+   * Deletes the move [move] leaving [from] from the cache and the database, re-persisting [from] so
+   * its [DataNode.hasGoodOutgoing] stays accurate.
    */
   suspend fun deleteMove(from: PositionKey, move: String) {
-    // Resolved through node() so from is resident even when it was evicted from the cache: the
-    // follow up persistNode(from) below is a documented no-op on a cache miss, so without this,
-    // an evicted from's hasGoodOutgoing would go stale and never get queued.
+    // Resolve through node() so from is resident: persistNode(from) is a no-op on a cache miss.
     val destination = node(from)?.outgoing?.get(move)?.to
     cache.removeEdge(from, move, destination)
     val seq = deviceIdentity.nextDeviceSeq()
-    // deleteMove queues the edge's own outbox entry transactionally with the tombstone;
-    // persistNode below queues the surviving from node's own entry transactionally with its
-    // re-derived hasGoodOutgoing.
     database.deleteMove(from, move, deviceIdentity.originDevice, seq, DateUtil.now())
     persistNode(from)
-    // Tombstoning the tags before recomputing means the now deleted edge's tags are excluded from
-    // the freshly recomputed set even though the row itself may still be resolvable for one more
-    // tick.
+    // Tombstone before recomputing so the deleted edge's tags are excluded.
     if (destination != null) tagStore.tombstoneTags(from, destination)
     trainable.recompute(from)
     notifyDirty()
   }
 
   /**
-   * Deletes the node at [positionKey] and every incident edge, in both the cache and the database.
-   *
-   * The target is resolved through [node] so its edge set is available for neighbour patching even
-   * when it was evicted from the cache. [DatabaseQueryManager.deletePosition] is authoritative for
-   * disk; the cache patches are best effort for resident neighbours. [positionKey], every incident
-   * edge it tombstones, and every surviving origin re-persisted below are each marked dirty by the
-   * [DatabaseQueryManager] call that writes their row, in the same transaction as that write.
+   * Deletes the node at [positionKey] and every incident edge from the cache and the database. The
+   * database write is authoritative; cache patches are best effort for resident neighbours.
    */
   suspend fun deleteNode(positionKey: PositionKey) {
     val node = node(positionKey)
@@ -427,9 +318,7 @@ class TreeStore(
       for (edge in node.incoming.values) tagStore.tombstoneTags(edge.from, positionKey)
     }
     val seq = deviceIdentity.nextDeviceSeq()
-    // The durable write sits ahead of the cache patching below, so the invalidate that drops
-    // positionKey reflects a row that is already gone. A stale mark set before its own write would
-    // have the retry read the same superseded row twice.
+    // Write before patching the cache, or a retry could read the superseded row.
     database.deletePosition(positionKey, deviceIdentity.originDevice, seq, DateUtil.now())
     trainable.clear(positionKey)
     if (node != null) {
@@ -442,8 +331,7 @@ class TreeStore(
       }
       cache.invalidate(positionKey)
     }
-    // Re-persist the origins that lost an outgoing edge so their derived hasGoodOutgoing flag
-    // reflects the deletion and cannot go stale.
+    // Refresh hasGoodOutgoing on origins that lost an edge.
     for (origin in survivingOrigins) {
       persistNode(origin)
       trainable.recompute(origin)
@@ -457,23 +345,13 @@ class TreeStore(
     cache.clear()
   }
 
-  /**
-   * Persists the cached node at [positionKey], if present. A no-op when the node is gone from the
-   * cache (e.g. it was itself just deleted), so it is safe to call after an edge removal to refresh
-   * a surviving endpoint's derived [DataNode.hasGoodOutgoing] flag.
-   */
+  /** Persists the cached node at [positionKey]; a no-op when it is not cached. */
   private suspend fun persistNode(positionKey: PositionKey) {
     val node = cache.peek(positionKey) ?: return
     database.insertNodes(node.toDataNode())
   }
 
-  /**
-   * Builds the [DataNode] to persist for this cached [Node], stamping a fresh [DeviceIdentity]
-   * sequence on every call. A member function (not top level like [DataMove.toEdge] and
-   * [Edge.toDataMove]) because, unlike [Edge], [Node] carries no `updatedAt`/`originDevice`
-   * /`deviceSeq` of its own: every persist derives them fresh from [deviceIdentity], the same way
-   * [updatedAt] already does.
-   */
+  /** Builds the [DataNode] to persist, stamping a fresh device sequence on every call. */
   private suspend fun Node.toDataNode(): DataNode =
     DataNode(
       positionKey = positionKey,
@@ -496,16 +374,9 @@ class TreeStore(
 }
 
 /**
- * One move to insert through [TreeStore.addMoves].
+ * One move to insert through [TreeStore.addMoves], mirroring [TreeStore.addMove]'s parameters.
  *
- * Mirrors the parameters of [TreeStore.addMove] so a batch element carries exactly the same
- * information as a single insertion.
- *
- * @property from Position the move is played from.
- * @property move SAN of the move.
- * @property to Position reached by playing [move].
- * @property isGood Classification of the move. `null` means exploration only.
- * @property fromDepth Depth of [from] used when the node has to be inserted.
+ * @property isGood Classification of the move; `null` means exploration only.
  */
 data class MoveInsertion(
   val from: PositionKey,
@@ -518,11 +389,7 @@ data class MoveInsertion(
 /**
  * One move to write through [TreeStore.install].
  *
- * @property from Position the move is played from.
- * @property move SAN of the move.
- * @property to Position reached by playing [move].
  * @property isGood The author's marking.
- * @property fromDepth Depth of [from] used when the node has to be inserted.
  */
 data class InstalledMove(
   val from: PositionKey,

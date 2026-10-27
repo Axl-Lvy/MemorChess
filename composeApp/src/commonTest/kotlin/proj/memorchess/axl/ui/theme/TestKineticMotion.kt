@@ -14,11 +14,9 @@ class TestKineticMotion : TestWithKoin() {
 
   @kotlin.test.Test
   fun `celebratory springs match the mockup's exact damping and stiffness`() = test {
-    // Act.
     val correctAnswer = KineticMotion.Celebratory.correctAnswer<Float>()
     val streakMilestone = KineticMotion.Celebratory.streakMilestone<Float>()
 
-    // Assert.
     val correctAnswerSpring = correctAnswer.shouldBeInstanceOf<SpringSpec<Float>>()
     correctAnswerSpring.dampingRatio shouldBe 0.4f
     correctAnswerSpring.stiffness shouldBe 500f
@@ -29,13 +27,11 @@ class TestKineticMotion : TestWithKoin() {
 
   @kotlin.test.Test
   fun `routine springs match the mockup's exact damping and stiffness`() = test {
-    // Act.
     val screenTransition = KineticMotion.Routine.screenTransition<Float>()
     val buttonPress = KineticMotion.Routine.buttonPress<Float>()
     val bottomSheet = KineticMotion.Routine.bottomSheet<Float>()
     val iconPop = KineticMotion.Routine.iconPop<Float>()
 
-    // Assert.
     val screenTransitionSpring = screenTransition.shouldBeInstanceOf<SpringSpec<Float>>()
     screenTransitionSpring.dampingRatio shouldBe 0.8f
     screenTransitionSpring.stiffness shouldBe 600f
@@ -45,7 +41,7 @@ class TestKineticMotion : TestWithKoin() {
     val bottomSheetSpring = bottomSheet.shouldBeInstanceOf<SpringSpec<Float>>()
     bottomSheetSpring.dampingRatio shouldBe 0.78f
     bottomSheetSpring.stiffness shouldBe 560f
-    // iconPop reuses screenTransition's exact spring: the mockup pins only the pop's amplitude.
+    // iconPop reuses screenTransition's spring.
     val iconPopSpring = iconPop.shouldBeInstanceOf<SpringSpec<Float>>()
     iconPopSpring.dampingRatio shouldBe 0.8f
     iconPopSpring.stiffness shouldBe 600f
@@ -53,45 +49,35 @@ class TestKineticMotion : TestWithKoin() {
 
   @kotlin.test.Test
   fun `routine tweens land within the mockup's 90 to 300 millisecond window`() = test {
-    // Act.
     val wrongAnswer = KineticMotion.Routine.wrongAnswer<Float>()
     val loadingSkeleton = KineticMotion.Routine.loadingSkeleton<Float>()
 
-    // Assert.
     wrongAnswer.shouldBeInstanceOf<TweenSpec<Float>>().durationMillis shouldBe 120
     loadingSkeleton.shouldBeInstanceOf<TweenSpec<Float>>().durationMillis shouldBe 300
   }
 
   @kotlin.test.Test
   fun `reduce motion collapses the correct answer spring to the flat tween`() = test {
-    // Arrange.
     REDUCE_MOTION_SETTING.setValue(true)
 
-    // Act.
     val spec = KineticMotion.Celebratory.correctAnswer<Float>()
 
-    // Assert.
     spec.shouldBeInstanceOf<TweenSpec<Float>>().durationMillis shouldBe 120
   }
 
   @kotlin.test.Test
   fun `reduce motion collapses the streak milestone spring to the flat tween`() = test {
-    // Arrange.
     REDUCE_MOTION_SETTING.setValue(true)
 
-    // Act.
     val spec = KineticMotion.Celebratory.streakMilestone<Float>()
 
-    // Assert.
     spec.shouldBeInstanceOf<TweenSpec<Float>>().durationMillis shouldBe 120
   }
 
   @kotlin.test.Test
   fun `reduce motion collapses every routine spring to the flat tween`() = test {
-    // Arrange.
     REDUCE_MOTION_SETTING.setValue(true)
 
-    // Act.
     val specs =
       listOf(
         KineticMotion.Routine.screenTransition<Float>(),
@@ -100,7 +86,6 @@ class TestKineticMotion : TestWithKoin() {
         KineticMotion.Routine.iconPop<Float>(),
       )
 
-    // Assert.
     for (spec in specs) {
       spec.shouldBeInstanceOf<TweenSpec<Float>>().durationMillis shouldBe 120
     }
@@ -108,102 +93,79 @@ class TestKineticMotion : TestWithKoin() {
 
   @kotlin.test.Test
   fun `routine tweens are unaffected by reduce motion because they are already flat`() = test {
-    // Arrange.
     val before = KineticMotion.Routine.wrongAnswer<Float>().shouldBeInstanceOf<TweenSpec<Float>>()
     REDUCE_MOTION_SETTING.setValue(true)
 
-    // Act.
     val after = KineticMotion.Routine.wrongAnswer<Float>().shouldBeInstanceOf<TweenSpec<Float>>()
 
-    // Assert.
     after.durationMillis shouldBe before.durationMillis
   }
 
   @kotlin.test.Test
   fun `celebratory spring resolves reduce motion fresh on every call rather than caching`() = test {
-    // Arrange.
     KineticMotion.Celebratory.correctAnswer<Float>().shouldBeInstanceOf<SpringSpec<Float>>()
 
-    // Act.
     REDUCE_MOTION_SETTING.setValue(true)
     val afterEnabling = KineticMotion.Celebratory.correctAnswer<Float>()
 
-    // Assert.
     afterEnabling.shouldBeInstanceOf<TweenSpec<Float>>().durationMillis shouldBe 120
   }
 
   @kotlin.test.Test
   fun `streak milestone overlay shows by default`() = test {
-    // Act & Assert.
     KineticMotion.shouldShowStreakMilestone() shouldBe true
   }
 
   @kotlin.test.Test
   fun `reduce motion skips the streak milestone overlay entirely`() = test {
-    // Arrange.
     REDUCE_MOTION_SETTING.setValue(true)
 
-    // Act & Assert.
     KineticMotion.shouldShowStreakMilestone() shouldBe false
   }
 
   @kotlin.test.Test
   fun `board training feedback animates by default`() = test {
-    // Act & Assert.
     KineticMotion.shouldAnimateBoardFeedback() shouldBe true
   }
 
   @kotlin.test.Test
   fun `reduce motion skips board training feedback animation`() = test {
-    // Arrange.
     REDUCE_MOTION_SETTING.setValue(true)
 
-    // Act & Assert.
     KineticMotion.shouldAnimateBoardFeedback() shouldBe false
   }
 
   @kotlin.test.Test
-  fun `iconPop plays by default`() = test {
-    // Act & Assert.
-    KineticMotion.shouldPlayIconPop() shouldBe true
-  }
+  fun `iconPop plays by default`() = test { KineticMotion.shouldPlayIconPop() shouldBe true }
 
   @kotlin.test.Test
   fun `reduce motion skips the icon pop entirely`() = test {
-    // Arrange.
     REDUCE_MOTION_SETTING.setValue(true)
 
-    // Act & Assert.
     KineticMotion.shouldPlayIconPop() shouldBe false
   }
 
   @kotlin.test.Test
   fun `reduce motion collapses tabEnter to the same plain fade regardless of direction`() = test {
-    // Arrange.
     REDUCE_MOTION_SETTING.setValue(true)
     val plainFade = fadeIn(animationSpec = KineticMotion.Routine.screenTransition())
 
-    // Act.
     val fromRight = KineticMotion.tabEnter(fromRight = true)
     val fromLeft = KineticMotion.tabEnter(fromRight = false)
 
-    // Assert.
     fromRight shouldBe plainFade
     fromLeft shouldBe plainFade
   }
 
   @kotlin.test.Test
   fun `full motion tabEnter also slides so it differs from the plain fade`() = test {
-    // Act.
     val enter = KineticMotion.tabEnter(fromRight = true)
 
-    // Assert.
     enter shouldNotBe fadeIn(animationSpec = KineticMotion.Routine.screenTransition())
   }
 
   @kotlin.test.Test
   fun `tabExit is always a plain fade with or without reduce motion`() = test {
-    // Act & Assert.
     KineticMotion.tabExit() shouldBe
       fadeOut(animationSpec = KineticMotion.Routine.screenTransition())
     REDUCE_MOTION_SETTING.setValue(true)

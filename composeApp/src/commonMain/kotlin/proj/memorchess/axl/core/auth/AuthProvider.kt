@@ -12,27 +12,24 @@ interface AuthProvider {
   val currentAccount: StateFlow<Account?>
 
   /**
-   * Runs the full sign in flow. Safe to invoke multiple times; the result reflects the latest. The
-   * wasmJs implementation never returns at all — see its own KDoc.
+   * Runs the full sign in flow; safe to call repeatedly, the result reflects the latest call. The
+   * wasmJs implementation never returns.
    */
   suspend fun signIn(): SignInResult
 
-  /** Clears the stored session locally. The issuer is not called; there is nothing to revoke. */
+  /** Clears the stored session locally without calling the issuer. */
   fun signOut()
 
   /**
-   * A valid access token, refreshing it first if it is close to expiry.
-   *
-   * On [TokenResult.Failed.Terminal] the session has already been cleared and [currentAccount] is
-   * now `null`; the caller does not need to call [signOut] itself.
+   * A valid access token, refreshed first when close to expiry. On [TokenResult.Failed.Terminal]
+   * the session is already cleared and [currentAccount] is `null`.
    */
   suspend fun accessToken(): TokenResult
 }
 
 /**
- * A signed in account. [sub] is the only stable identifier; [name] is decoded from the id token for
- * display only and is never a join key (see the parent spec, "`sub` is the identity, never the
- * email").
+ * A signed in account. [sub] is the only stable identifier; [name] is for display, never a join
+ * key.
  */
 data class Account(val sub: String, val name: String?)
 

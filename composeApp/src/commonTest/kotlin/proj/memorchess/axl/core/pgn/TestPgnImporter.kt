@@ -54,15 +54,12 @@ class TestPgnImporter {
 
   @Test
   fun doubleImportIsIdempotent() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 e5 2. Nf3 Nc6 *")
 
-    // Act
     val firstSummary = importer.import(games)
     val databaseAfterFirstImport = drainAllNodes(database).associateBy { it.positionKey }
     val secondSummary = importer.import(games)
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), firstSummary)
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 4), secondSummary)
     assertEquals(databaseAfterFirstImport, drainAllNodes(database).associateBy { it.positionKey })
@@ -70,7 +67,6 @@ class TestPgnImporter {
 
   @Test
   fun overlapPreservesCardStateAndAddsOnlyNewMoves() = runTest {
-    // Arrange
     val startKey = keyAfter()
     val afterE4Key = keyAfter("e4")
     store.addMove(from = startKey, move = "e4", to = afterE4Key, isGood = true, fromDepth = 0)
@@ -78,10 +74,8 @@ class TestPgnImporter {
     store.updateCardState(startKey, reviewedState)
     val games = PgnParser.parse("1. e4 e5 *")
 
-    // Act
     val summary = importer.import(games)
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 1), summary)
     val startNode = assertNotNull(database.getPosition(startKey))
     assertEquals(reviewedState, startNode.cardState)
@@ -92,13 +86,10 @@ class TestPgnImporter {
 
   @Test
   fun overDisambiguatedMoveIsStoredAsTheMoveTheBoardPlays() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. Ngf3 *")
 
-    // Act
     val summary = importer.import(games)
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0), summary)
     val startNode = assertNotNull(database.getPosition(PositionKey.START_POSITION))
     assertEquals(setOf("Nf3"), startNode.previousAndNextMoves.nextMoves.keys)
@@ -106,38 +97,29 @@ class TestPgnImporter {
 
   @Test
   fun overDisambiguatedMoveMatchesTheSameMoveAlreadyPresent() = runTest {
-    // Arrange
     importer.import(PgnParser.parse("1. Nf3 *"))
 
-    // Act
     val summary = importer.import(PgnParser.parse("1. Ngf3 *"))
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 1), summary)
   }
 
   @Test
   fun illegalMoveAbortsWithoutWriting() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 e5 2. Ke3 *")
 
-    // Act
     assertFailsWith<PgnImportException> { importer.import(games) }
 
-    // Assert
     assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
   }
 
   @Test
   fun variationsAreImportedWithCorrectDepths() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 e5 (1... c5 2. Nf3) 2. Nf3 Nc6 *")
 
-    // Act
     val summary = importer.import(games)
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 6, movesAlreadyPresent = 0), summary)
     val afterE4Node = assertNotNull(database.getPosition(keyAfter("e4")))
     assertEquals(setOf("e5", "c5"), afterE4Node.previousAndNextMoves.nextMoves.keys)
@@ -152,13 +134,10 @@ class TestPgnImporter {
 
   @Test
   fun multiGamePgnImportsAllGames() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 e5 *\n\n1. d4 d5 *")
 
-    // Act
     val summary = importer.import(games)
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), summary)
     val startNode = assertNotNull(database.getPosition(keyAfter()))
     assertEquals(setOf("e4", "d4"), startNode.previousAndNextMoves.nextMoves.keys)
@@ -168,65 +147,50 @@ class TestPgnImporter {
 
   @Test
   fun importReportsPerGameProgressReservingTheLastSliceForTheWrite() = runTest {
-    // Arrange: three single-move games, so planning advances in three equal, observable steps,
-    // with a fourth (the already-present lookups plus the write) reserved for after planning.
+    // Three planning steps, plus a fourth reserved for the write.
     val games = PgnParser.parse("1. e4 *\n\n1. d4 *\n\n1. c4 *")
     val reported = mutableListOf<Float>()
 
-    // Act
     importer.import(games, onProgress = reported::add)
 
-    // Assert: the write phase only ever reports the trailing 1f, never mid-planning.
     assertEquals(listOf(0.25f, 0.5f, 0.75f, 1f), reported)
   }
 
   @Test
   fun importOfOneGameReservesHalfForPlanningAndHalfForTheWrite() = runTest {
-    // Arrange: the lowest non-zero game count, the other boundary from the empty-list case.
     val games = PgnParser.parse("1. e4 e5 *")
     val reported = mutableListOf<Float>()
 
-    // Act
     importer.import(games, onProgress = reported::add)
 
-    // Assert
     assertEquals(listOf(0.5f, 1f), reported)
   }
 
   @Test
   fun importOfNoGamesReportsOnlyTheFinalWrite() = runTest {
-    // Arrange
     val reported = mutableListOf<Float>()
 
-    // Act
     val summary = importer.import(emptyList(), onProgress = reported::add)
 
-    // Assert: nothing to plan, so the only report is the write completing.
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 0), summary)
     assertEquals(listOf(1f), reported)
   }
 
   @Test
   fun importWithoutAProgressCallbackStillImports() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 e5 *")
 
-    // Act
     val summary = importer.import(games)
 
-    // Assert: the default no-op callback does not interfere with the import itself.
     assertEquals(PgnImportSummary(movesAdded = 2, movesAlreadyPresent = 0), summary)
   }
 
   @Test
   fun blackPerspectiveMarksOnlyBlackMovesAsGood() = runTest {
-    // Arrange: the Scandinavian, a black repertoire.
     val games = PgnParser.parse("1. e4 d5 2. exd5 Qxd5 *")
 
-    // Act
     val summary = importer.import(games, perspective = Player.BLACK)
 
-    // Assert: white's moves are stored but not trainable, black's are the repertoire.
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), summary)
     assertEquals(false, isGoodOf(keyAfter(), "e4"))
     assertEquals(true, isGoodOf(keyAfter("e4"), "d5"))
@@ -236,13 +200,10 @@ class TestPgnImporter {
 
   @Test
   fun whitePerspectiveMarksOnlyWhiteMovesAsGood() = runTest {
-    // Arrange: the London System, a white repertoire.
     val games = PgnParser.parse("1. d4 d5 2. Bf4 *")
 
-    // Act
     val summary = importer.import(games, perspective = Player.WHITE)
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 0), summary)
     assertEquals(true, isGoodOf(keyAfter(), "d4"))
     assertEquals(false, isGoodOf(keyAfter("d4"), "d5"))
@@ -251,91 +212,72 @@ class TestPgnImporter {
 
   @Test
   fun perspectiveImportIsIdempotent() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 d5 2. exd5 Qxd5 *")
 
-    // Act
     val firstSummary = importer.import(games, perspective = Player.BLACK)
     val secondSummary = importer.import(games, perspective = Player.BLACK)
 
-    // Assert: re-importing the same one sided repertoire adds nothing, including opponent moves.
     assertEquals(PgnImportSummary(movesAdded = 4, movesAlreadyPresent = 0), firstSummary)
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 4), secondSummary)
   }
 
   @Test
   fun previewOnEmptyGraphReportsNoOverlap() = runTest {
-    // Arrange: nothing imported yet, so none of the repertoire's moves are in common.
     val games = PgnParser.parse("1. e4 d5 2. exd5 Qxd5 *")
 
-    // Act
     val preview = importer.preview(games, perspective = Player.BLACK)
 
-    // Assert
     assertEquals(PgnImportPreview(totalMoves = 4, movesInCommon = 0), preview)
   }
 
   @Test
   fun previewReportsPartialOverlap() = runTest {
-    // Arrange: import the trunk, then preview a repertoire that extends it.
     importer.import(PgnParser.parse("1. e4 d5 *"), perspective = Player.BLACK)
     val games = PgnParser.parse("1. e4 d5 2. exd5 Qxd5 *")
 
-    // Act
     val preview = importer.preview(games, perspective = Player.BLACK)
 
-    // Assert: e4 and d5 already present, exd5 and Qxd5 are new.
+    // e4 and d5 are already present, exd5 and Qxd5 are new.
     assertEquals(PgnImportPreview(totalMoves = 4, movesInCommon = 2), preview)
   }
 
   @Test
   fun previewReportsFullOverlapAfterInstall() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 d5 2. exd5 Qxd5 *")
     importer.import(games, perspective = Player.BLACK)
 
-    // Act
     val preview = importer.preview(games, perspective = Player.BLACK)
 
-    // Assert: a fully installed repertoire has every move in common and writes nothing.
     assertEquals(PgnImportPreview(totalMoves = 4, movesInCommon = 4), preview)
   }
 
   @Test
   fun previewClassifiesByPerspectiveLikeImport() = runTest {
-    // Arrange: install for black, then preview the same PGN as a white repertoire.
     val games = PgnParser.parse("1. e4 d5 2. exd5 Qxd5 *")
     importer.import(games, perspective = Player.BLACK)
 
-    // Act: white's good moves (e4, exd5) are stored as not good, so none match.
+    // e4 and exd5 were stored as not good, so none match.
     val preview = importer.preview(games, perspective = Player.WHITE)
 
-    // Assert
     assertEquals(PgnImportPreview(totalMoves = 4, movesInCommon = 0), preview)
   }
 
   @Test
   fun previewDoesNotWriteAnything() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 d5 *")
 
-    // Act
     importer.preview(games, perspective = Player.BLACK)
 
-    // Assert
     assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
   }
 
   @Test
   fun emptyGameImportsNothing() = runTest {
-    // Arrange
     val games = PgnParser.parse("[Event \"Repertoire\"]\n\n*")
 
-    // Act
     val summary = importer.import(games)
 
-    // Assert
     assertEquals(PgnImportSummary(movesAdded = 0, movesAlreadyPresent = 0), summary)
     assertTrue(drainAllNodes(database).isEmpty())
     assertNull(store.node(PositionKey.START_POSITION))
@@ -343,26 +285,21 @@ class TestPgnImporter {
 
   @Test
   fun importTagsEveryPlannedEdgeIncludingOnesAlreadyPresentFromAnotherRepertoire() = runTest {
-    // Arrange
     val games = PgnParser.parse("1. e4 e5 *")
     val startKey = keyAfter()
     val afterE4Key = keyAfter("e4")
 
-    // Act
     importer.import(games, perspective = null, repertoireId = "ruy-lopez")
     importer.import(games, perspective = null, repertoireId = "italian-game")
 
-    // Assert
     assertEquals(setOf("ruy-lopez", "italian-game"), tagStore.tagsFor(startKey, afterE4Key))
   }
 
   @Test
   fun importRejectsExtendingARepertoireWhoseRegisteredColorConflicts() = runTest {
-    // Arrange
     tagStore.register("scandinavian-black", "Scandinavian", RepertoireColor.BLACK)
     val games = PgnParser.parse("1. e4 d5 *")
 
-    // Act & Assert
     assertFailsWith<PgnImportException> {
       importer.import(games, perspective = Player.WHITE, repertoireId = "scandinavian-black")
     }
