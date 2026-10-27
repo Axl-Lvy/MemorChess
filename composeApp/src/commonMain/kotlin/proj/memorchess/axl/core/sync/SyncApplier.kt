@@ -1,11 +1,14 @@
 package proj.memorchess.axl.core.sync
 
+import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.graph.TrainableProjection
+import proj.memorchess.axl.core.graph.effectiveMarking
 
 /**
  * Applies rows pulled from `/v1/sync` to local storage, after resolving each against its local
@@ -16,9 +19,14 @@ import proj.memorchess.axl.core.graph.TrainableProjection
  * follows the write, which is what stops a load already in flight from putting the pre sync row
  * back.
  *
+ * A pulled manual hold or tag changes who holds a move, so both re-derive the move's effective
+ * marking and existence from its holders (see [effectiveMarking]). The server assigns a push's tag
+ * revisions after its node revisions, so a tag's endpoint positions normally arrive first; a tag
+ * whose endpoint is still missing is stored without creating its move.
+ *
  * @param database The persistence backend.
  * @param cache Cache the applied positions are invalidated in.
- * @param trainable Recomputed after a tag apply.
+ * @param trainable Recomputed after every holder change.
  */
 class SyncApplier(
   private val database: DatabaseQueryManager,
@@ -50,22 +58,28 @@ class SyncApplier(
   }
 
   /**
-   * Applies a move pulled from `/v1/sync`, after resolving it the same way [applyNode] does. On
-   * [ResolutionSource.REMOTE] the move is written through [DatabaseQueryManager.applyRemoteMove],
-   * the origin's derived [DataNode.hasGoodOutgoing] is refreshed if the write changed it (a good
-   * edge appearing or disappearing must not leave the flag stale), and both endpoints are
-   * invalidated.
+   * Applies a manual hold pulled from `/v1/sync`, after resolving it the same way [applyNode] does;
+   * a move this device never held manually counts as absent. On [ResolutionSource.REMOTE] the hold
+   * is written through [DatabaseQueryManager.applyRemoteMove] and the move's holders are
+   * re-derived.
    */
   suspend fun applyMove(remote: EdgeSyncRow): ResolutionSource {
     val originKey = PositionKey(remote.origin)
     val destinationKey = PositionKey(remote.destination)
-    val local = localEdgeSyncRow(originKey, remote.move)
-    val resolution = resolve(local, remote)
+    val stored = storedMove(originKey, destinationKey)
+    val resolution = resolve(stored?.toEdgeSyncRow(), remote)
     if (resolution.source == ResolutionSource.REMOTE) {
-      database.applyRemoteMove(remote.toDataMove())
-      refreshHasGoodOutgoingIfChanged(originKey)
-      cache.invalidate(originKey)
-      cache.invalidate(destinationKey)
+      val pulled = remote.toDataMove()
+      database.applyRemoteMove(
+        stored?.copy(
+          ownIsGood = pulled.ownIsGood,
+          isDeleted = pulled.isDeleted,
+          updatedAt = pulled.updatedAt,
+          originDevice = pulled.originDevice,
+          deviceSeq = pulled.deviceSeq,
+        ) ?: pulled
+      )
+      recomputeHolders(originKey, destinationKey, remote.move)
     }
     return resolution.source
   }
@@ -87,8 +101,8 @@ class SyncApplier(
   /**
    * Applies an edge to repertoire tag pulled from `/v1/sync`, after resolving it the same way. On
    * [ResolutionSource.REMOTE] the tag is written through [DatabaseQueryManager.applyRemoteTag] and
-   * the origin's `NodeRepertoireTrainable` row set is recomputed, mirroring how [applyMove]
-   * refreshes [DataNode.hasGoodOutgoing].
+   * the move's holders are re-derived, creating the move from the tag when it is the move's first
+   * holder on this device.
    */
   suspend fun applyTag(remote: EdgeRepertoireTagSyncRow): ResolutionSource {
     val originKey = PositionKey(remote.origin)
@@ -97,7 +111,7 @@ class SyncApplier(
     val resolution = resolve(local?.toEdgeRepertoireTagSyncRow(), remote)
     if (resolution.source == ResolutionSource.REMOTE) {
       database.applyRemoteTag(remote.toDataEdgeRepertoireTag())
-      trainable.recompute(originKey)
+      recomputeHolders(originKey, destinationKey, remote.move)
     }
     return resolution.source
   }
@@ -108,16 +122,51 @@ class SyncApplier(
     cache.clear()
   }
 
-  /**
-   * The local counterpart of a pulled edge, as an [EdgeSyncRow], or `null` when unknown locally.
-   */
-  private suspend fun localEdgeSyncRow(origin: PositionKey, move: String): EdgeSyncRow? =
+  /** The stored move from [origin] to [destination], live or deleted, or `null` when unknown. */
+  private suspend fun storedMove(origin: PositionKey, destination: PositionKey): DataMove? =
     database
       .getPositionIncludingDeleted(origin)
       ?.previousAndNextMoves
       ?.nextMoves
-      ?.get(move)
-      ?.toEdgeSyncRow()
+      ?.values
+      ?.firstOrNull { it.destination == destination }
+
+  /**
+   * Re-derives the effective marking and existence of the move from [origin] to [destination] from
+   * its manual hold and its live tags, without an outbox entry, keeping the manual hold's stamps. A
+   * move with no stored row is created as [move] when it has a holder and both endpoints exist.
+   */
+  private suspend fun recomputeHolders(
+    origin: PositionKey,
+    destination: PositionKey,
+    move: String,
+  ) {
+    val stored = storedMove(origin, destination)
+    val effective =
+      effectiveMarking(stored?.ownIsGood, database.getTags(origin, destination).mapNotNull { it.isGood })
+    val updated =
+      when {
+        stored != null && effective == null -> stored.copy(isDeleted = true)
+        stored != null -> stored.copy(isGood = effective, isDeleted = false)
+        effective == null -> null
+        database.getPositionIncludingDeleted(destination) == null -> null
+        database.getPositionIncludingDeleted(origin) == null -> null
+        else ->
+          DataMove(
+            origin = origin,
+            destination = destination,
+            move = move,
+            isGood = effective,
+            createdAt = DateUtil.now(),
+            updatedAt = DateUtil.now(),
+          )
+      }
+    if (updated != null && updated != stored) database.applyRemoteMove(updated)
+    refreshHasGoodOutgoingIfChanged(origin)
+    cache.invalidate(origin)
+    cache.invalidate(destination)
+    trainable.recompute(origin)
+  }
 
   /**
    * Re-derives [origin]'s [DataNode.hasGoodOutgoing] from its own move maps and re-persists it,
