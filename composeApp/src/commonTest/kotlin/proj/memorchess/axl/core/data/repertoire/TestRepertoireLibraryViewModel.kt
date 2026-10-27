@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.data.repertoire
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -54,13 +55,16 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       { _, _, _ ->
         PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
       },
-    previewMoves: suspend (List<RepertoireMove>) -> PgnImportPreview = { _ ->
-      PgnImportPreview(totalMoves = 4, movesInCommon = 1)
-    },
+    previewMoves: suspend (RepertoireDescriptor, List<RepertoireMove>) -> PgnImportPreview =
+      { _, _ ->
+        PgnImportPreview(totalMoves = 4, movesInCommon = 1)
+      },
     reportInstall: suspend (String) -> Unit = {},
     store: FakeRegistry = FakeRegistry(),
     loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
     loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot> = { emptyMap() },
+    previewUninstall: suspend (String) -> Int = { 0 },
+    uninstallRepertoire: suspend (String) -> Unit = { store.rows.remove(it) },
   ) =
     RepertoireLibraryViewModel(
       loadManifest = loadManifest,
@@ -81,6 +85,8 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       },
       loadMyRepertoires = loadMyRepertoires,
       loadMasterySnapshots = loadMasterySnapshots,
+      previewUninstall = previewUninstall,
+      uninstallRepertoire = uninstallRepertoire,
       scope = backgroundScope,
     )
 
@@ -750,7 +756,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
         fetchMoves = { _, _ -> CatalogResult.Ok(emptyList()) },
-        previewMoves = { _ -> PgnImportPreview(totalMoves = 12, movesInCommon = 5) },
+        previewMoves = { _, _ -> PgnImportPreview(totalMoves = 12, movesInCommon = 5) },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
 
@@ -769,7 +775,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
         fetchMoves = { _, _ -> CatalogResult.Ok(downloaded) },
-        previewMoves = { moves ->
+        previewMoves = { _, moves ->
           previewed = moves
           PgnImportPreview(totalMoves = 1, movesInCommon = 0)
         },
@@ -845,7 +851,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
         fetchMoves = { _, _ -> CatalogResult.Ok(emptyList()) },
-        previewMoves = { _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
+        previewMoves = { _, _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
 
@@ -914,6 +920,222 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
     viewModel.installStates.value[london.id] shouldBe
       RepertoireInstallState.Installed(PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1))
+  }
+
+  private suspend fun RepertoireLibraryViewModel.loadedState() = catalogState.first {
+    it is LibraryCatalogState.Loaded
+  }
+
+  @Test
+  fun installIsIgnoredWhileAnUninstallIsInFlight() = test {
+    val gate = CompletableDeferred<Unit>()
+    var fetches = 0
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchMoves = { _, _ ->
+          fetches++
+          CatalogResult.Ok(emptyList())
+        },
+        store = store,
+        uninstallRepertoire = {
+          gate.await()
+          store.rows.remove(it)
+        },
+      )
+    viewModel.loadedState()
+    viewModel.uninstall(london.id)
+
+    viewModel.install(london)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
+
+    fetches shouldBe 0
+  }
+
+  @Test
+  fun anInstalledRepertoireMissingFromTheCatalogCanBeUninstalled() = test {
+    val done = CompletableDeferred<String>()
+    val store = FakeRegistry().apply { markInstalled(caroKann.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        uninstallRepertoire = { done.complete(it) },
+      )
+    viewModel.loadedState()
+
+    viewModel.uninstall(caroKann.id)
+
+    done.await() shouldBe caroKann.id
+  }
+
+  @Test
+  fun uninstallMarksTheRepertoireNotInstalled() = test {
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(london)) }, store = store)
+    viewModel.loadedState()
+
+    viewModel.uninstall(london.id)
+    viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
+
+    store.rows[london.id] shouldBe null
+  }
+
+  @Test
+  fun uninstallIsIgnoredWhileAnInstallIsInFlight() = test {
+    val gate = CompletableDeferred<Unit>()
+    val uninstalled = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        importMoves = { _, _, _ ->
+          gate.await()
+          PgnImportSummary(movesAdded = 1, movesAlreadyPresent = 0)
+        },
+        uninstallRepertoire = { uninstalled += it },
+      )
+    viewModel.loadedState()
+    viewModel.install(london)
+
+    viewModel.uninstall(london.id)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+
+    uninstalled shouldBe emptyList()
+  }
+
+  @Test
+  fun aSecondUninstallTapIsIgnored() = test {
+    val gate = CompletableDeferred<Unit>()
+    var calls = 0
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        uninstallRepertoire = {
+          calls++
+          gate.await()
+        },
+      )
+    viewModel.loadedState()
+
+    viewModel.uninstall(london.id)
+    viewModel.uninstall(london.id)
+    gate.complete(Unit)
+    viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
+
+    calls shouldBe 1
+  }
+
+  @Test
+  fun aFailedUninstallKeepsTheRepertoireInstalled() = test {
+    val attempted = CompletableDeferred<Unit>()
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        uninstallRepertoire = {
+          attempted.complete(Unit)
+          throw IllegalStateException("disk full")
+        },
+      )
+    viewModel.loadedState()
+
+    viewModel.uninstall(london.id)
+    attempted.await()
+
+    viewModel.installStates.value[london.id].shouldBeInstanceOf<RepertoireInstallState.Installed>()
+  }
+
+  @Test
+  fun aCancelledUninstallKeepsTheRepertoireInstalled() = test {
+    val attempted = CompletableDeferred<Unit>()
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        uninstallRepertoire = {
+          attempted.complete(Unit)
+          throw CancellationException("left the page")
+        },
+      )
+    viewModel.loadedState()
+
+    viewModel.uninstall(london.id)
+    attempted.await()
+
+    viewModel.installStates.value[london.id].shouldBeInstanceOf<RepertoireInstallState.Installed>()
+  }
+
+  @Test
+  fun requestUninstallPreviewPublishesTheCount() = test {
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        previewUninstall = { 3 },
+      )
+    viewModel.loadedState()
+
+    viewModel.requestUninstallPreview(london.id)
+
+    viewModel.uninstallPreviews.first { london.id in it }[london.id] shouldBe 3
+  }
+
+  @Test
+  fun anInstallBehindTheCatalogVersionIsOutdated() = test {
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london.copy(version = 2))) },
+        store = store,
+      )
+    viewModel.loadedState()
+
+    viewModel.installStates.value[london.id] shouldBe
+      RepertoireInstallState.Installed(summary = null, isOutdated = true)
+  }
+
+  @Test
+  fun installingTheCatalogVersionClearsOutdated() = test {
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val latest = london.copy(version = 2)
+    val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(latest)) }, store = store)
+    viewModel.loadedState()
+
+    viewModel.install(latest)
+    val states =
+      viewModel.installStates.first {
+        (it[london.id] as? RepertoireInstallState.Installed)?.summary != null
+      }
+
+    (states[london.id] as RepertoireInstallState.Installed).isOutdated shouldBe false
+  }
+
+  @Test
+  fun aReinstallAfterAnUninstallIsReportedAgain() = test {
+    val reported = mutableListOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        reportInstall = { reported += it },
+      )
+    viewModel.loadedState()
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+    viewModel.uninstall(london.id)
+    viewModel.installStates.first { it[london.id] == RepertoireInstallState.NotInstalled }
+
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Installed }
+
+    reported shouldBe listOf(london.id, london.id)
   }
 }
 

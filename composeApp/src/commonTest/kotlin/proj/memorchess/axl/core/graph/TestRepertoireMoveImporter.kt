@@ -40,6 +40,14 @@ class TestRepertoireMoveImporter {
       ?.get(move.move)
       ?.isGood
 
+  private suspend fun isLive(move: RepertoireMove): Boolean =
+    database
+      .getPositionIncludingDeleted(PositionKey(move.from))
+      ?.previousAndNextMoves
+      ?.nextMoves
+      ?.get(move.move)
+      ?.isDeleted == false
+
   @Test
   fun importWritesEveryMoveWithTheAuthorMarking() = runTest {
     val moves = line("e4", "e5", "Nf3")
@@ -150,7 +158,7 @@ class TestRepertoireMoveImporter {
     val e4 = line("e4").single()
     importer.import(listOf(e4), repertoireId = "a")
 
-    val preview = importer.preview(listOf(e4.copy(isGood = false)))
+    val preview = importer.preview(listOf(e4.copy(isGood = false)), repertoireId = "b")
 
     assertEquals(PgnImportPreview(totalMoves = 1, movesInCommon = 1), preview)
   }
@@ -160,7 +168,7 @@ class TestRepertoireMoveImporter {
     val e4 = line("e4").single()
     importer.import(listOf(e4.copy(isGood = false)), repertoireId = "a")
 
-    val preview = importer.preview(listOf(e4))
+    val preview = importer.preview(listOf(e4), repertoireId = "b")
 
     assertEquals(PgnImportPreview(totalMoves = 1, movesInCommon = 0), preview)
   }
@@ -169,7 +177,7 @@ class TestRepertoireMoveImporter {
   fun previewDoesNotWrite() = runTest {
     val e4 = line("e4").single()
 
-    importer.preview(listOf(e4))
+    importer.preview(listOf(e4), repertoireId = "b")
 
     assertNull(isGoodOf(e4))
   }
@@ -181,5 +189,35 @@ class TestRepertoireMoveImporter {
     importer.import(line("e4", "e5"), repertoireId = "a", onProgress = reported::add)
 
     assertEquals(1f, reported.last())
+  }
+
+  @Test
+  fun previewCountsTheMovesAnUpdateDeletes() = runTest {
+    val v1 = line("e4", "e5", "Nf3")
+    importer.import(v1, repertoireId = "x")
+    val v2 = v1.take(1)
+
+    val preview = importer.preview(v2, repertoireId = "x")
+    importer.import(v2, repertoireId = "x")
+
+    assertEquals(2, preview.movesToDelete)
+    assertEquals(listOf(true, false, false), v1.map { isLive(it) })
+  }
+
+  @Test
+  fun previewOfAnUpdateCountsAKeptMoveWithANewMarkingAsChanged() = runTest {
+    val e4 = line("e4").single()
+    importer.import(listOf(e4), repertoireId = "x")
+
+    val preview = importer.preview(listOf(e4.copy(isGood = false)), repertoireId = "x")
+
+    assertEquals(PgnImportPreview(totalMoves = 1, movesInCommon = 0, movesToDelete = 0), preview)
+  }
+
+  @Test
+  fun previewOfAFirstInstallDeletesNothing() = runTest {
+    val preview = importer.preview(line("e4", "e5"), repertoireId = "x")
+
+    assertEquals(0, preview.movesToDelete)
   }
 }
