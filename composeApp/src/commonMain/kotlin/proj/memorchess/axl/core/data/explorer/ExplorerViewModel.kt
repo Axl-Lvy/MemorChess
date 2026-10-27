@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.engine.Fen
 
 /**
  * Drives the Lichess explorer panel.
@@ -35,7 +36,7 @@ class ExplorerViewModel(
   debounce: Duration = DEFAULT_DEBOUNCE,
 ) {
 
-  private val fenFlow = MutableStateFlow<String?>(null)
+  private val fenFlow = MutableStateFlow<Fen?>(null)
   private val sourceFlow = MutableStateFlow(ExplorerSource.MASTERS)
   private val internalState = MutableStateFlow<ExplorerState>(ExplorerState.Idle)
 
@@ -55,7 +56,7 @@ class ExplorerViewModel(
   }
 
   /** Updates the FEN to query. Safe to call frequently; calls within [debounce] are coalesced. */
-  fun setFen(fen: String) {
+  fun setFen(fen: Fen) {
     fenFlow.value = fen
   }
 
@@ -64,7 +65,7 @@ class ExplorerViewModel(
     sourceFlow.value = source
   }
 
-  private suspend fun runFetch(fen: String, source: ExplorerSource) {
+  private suspend fun runFetch(fen: Fen, source: ExplorerSource) {
     internalState.value = ExplorerState.Loading(fen, source)
     val result = cachedExplorer.fetch(source, fen)
     internalState.value =
@@ -92,7 +93,7 @@ sealed class ExplorerState {
   data object Idle : ExplorerState()
 
   /** A fetch is in progress for [fen] under [source]. */
-  data class Loading(val fen: String, val source: ExplorerSource) : ExplorerState()
+  data class Loading(val fen: Fen, val source: ExplorerSource) : ExplorerState()
 
   /**
    * A response is available. [isStale] is `true` when the network refresh failed and the response

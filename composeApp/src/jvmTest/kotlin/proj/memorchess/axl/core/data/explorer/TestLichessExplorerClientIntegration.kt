@@ -10,6 +10,8 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.LichessToken
+import proj.memorchess.axl.core.engine.Fen
 
 /**
  * Live integration test that hits `https://explorer.lichess.ovh` for real.
@@ -27,7 +29,7 @@ class TestLichessExplorerClientIntegration {
     LichessExplorerClient(
       httpClient =
         HttpClient { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } },
-      tokenProvider = { token },
+      tokenProvider = { token?.let(::LichessToken) },
     )
 
   /** Smoke checks the live Lichess Opening Explorer masters endpoint with a real token. */
@@ -44,7 +46,7 @@ class TestLichessExplorerClientIntegration {
     // the opening name. The bare starting position does not have a parent opening.
     val afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 
-    val result = client.fetch(ExplorerSource.MASTERS, afterE4)
+    val result = client.fetch(ExplorerSource.MASTERS, Fen(afterE4))
 
     val ok =
       withClue("Lichess returned non Ok result: $result (token length=${token.length})") {

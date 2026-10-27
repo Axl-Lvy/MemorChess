@@ -145,7 +145,7 @@ class TreeStore(
         isGood = isGood,
         createdAt = createdAt,
         updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
         ownIsGood = isGood,
       )
@@ -195,7 +195,7 @@ class TreeStore(
           isGood = insertion.isGood,
           createdAt = createdAt,
           updatedAt = now,
-          originDevice = deviceIdentity.originDevice,
+          originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
           ownIsGood = insertion.isGood,
         )
@@ -374,7 +374,7 @@ class TreeStore(
         database.deleteMove(
           move.origin,
           move.move,
-          deviceIdentity.originDevice,
+          deviceIdentity.originDevice.value,
           deviceIdentity.nextDeviceSeq(),
           now,
         )
@@ -385,7 +385,7 @@ class TreeStore(
     for (position in plan.positions) {
       database.deletePosition(
         position,
-        deviceIdentity.originDevice,
+        deviceIdentity.originDevice.value,
         deviceIdentity.nextDeviceSeq(),
         now,
       )
@@ -445,7 +445,7 @@ class TreeStore(
       edgeStamps.getOrPut(EdgeIdentity(move.origin, move.destination, move.move)) {
         move.copy(
           ownIsGood = if (move.isDeleted) null else move.isGood,
-          originDevice = deviceIdentity.originDevice,
+          originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
         )
       }
@@ -457,7 +457,7 @@ class TreeStore(
             previousMoves = importedNode.previousAndNextMoves.previousMoves.values.map(::stamp),
             nextMoves = importedNode.previousAndNextMoves.nextMoves.values.map(::stamp),
           ),
-        originDevice = deviceIdentity.originDevice,
+        originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
       )
     }
@@ -512,7 +512,7 @@ class TreeStore(
     // deleteMove queues the edge's own outbox entry transactionally with the tombstone;
     // persistNode below queues the surviving from node's own entry transactionally with its
     // re-derived hasGoodOutgoing.
-    database.deleteMove(from, move, deviceIdentity.originDevice, seq, DateUtil.now())
+    database.deleteMove(from, move, deviceIdentity.originDevice.value, seq, DateUtil.now())
     persistNode(from)
     // Tombstoning the tags before recomputing means the now deleted edge's tags are excluded from
     // the freshly recomputed set even though the row itself may still be resolvable for one more
@@ -542,7 +542,7 @@ class TreeStore(
     // The durable write sits ahead of the cache patching below, so the invalidate that drops
     // positionKey reflects a row that is already gone. A stale mark set before its own write would
     // have the retry read the same superseded row twice.
-    database.deletePosition(positionKey, deviceIdentity.originDevice, seq, DateUtil.now())
+    database.deletePosition(positionKey, deviceIdentity.originDevice.value, seq, DateUtil.now())
     trainable.clear(positionKey)
     if (node != null) {
       for (edge in node.outgoing.values.toList()) {
@@ -602,7 +602,7 @@ class TreeStore(
       createdAt =
         incoming.values.filter { !it.isDeleted }.minOfOrNull { it.createdAt } ?: DateUtil.now(),
       updatedAt = DateUtil.now(),
-      originDevice = deviceIdentity.originDevice,
+      originDevice = deviceIdentity.originDevice.value,
       deviceSeq = deviceIdentity.nextDeviceSeq(),
     )
 }

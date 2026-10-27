@@ -7,10 +7,13 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.NodeSyncRow
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStorePull {
@@ -18,7 +21,7 @@ internal class TestSyncStorePull {
   private val store = SyncStore(PostgresTestDb.dataSource())
 
   /** A fresh user with one registered device, which pushing now requires. */
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -32,7 +35,7 @@ internal class TestSyncStorePull {
       value = value,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -50,13 +53,13 @@ internal class TestSyncStorePull {
       step = 0,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 1,
     )
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
-  private suspend fun pushSettings(user: String, vararg rows: SettingSyncRow) =
+  private suspend fun pushSettings(user: UserId, vararg rows: SettingSyncRow) =
     store.push(
       user,
       DEVICE,
@@ -65,14 +68,14 @@ internal class TestSyncStorePull {
     )
 
   /** A fresh user with one registered device, which pulling now requires. */
-  private suspend fun registeredUser(): String {
+  private suspend fun registeredUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
   }
 
   /** The device's next page, confirming [ack] first. */
-  private suspend fun pull(user: String, limit: Int = 10, ack: String? = null) =
+  private suspend fun pull(user: UserId, limit: Int = 10, ack: String? = null) =
     store.pull(user, DEVICE, ack, limit, serverNow)
 
   @Test
@@ -122,7 +125,12 @@ internal class TestSyncStorePull {
   fun aDevicePositionedAboveEveryRevisionIsServedNothing() = runTest {
     val user = registeredUser()
     pushSettings(user, setting("a", "1"))
-    store.setPositionForTest(user, DEVICE, lastAcked = Long.MAX_VALUE - 1, lastServed = 0)
+    store.setPositionForTest(
+      user,
+      DEVICE,
+      lastAcked = Revision(Long.MAX_VALUE - 1),
+      lastServed = Revision(0),
+    )
 
     pull(user).settings.shouldBeEmpty()
   }
@@ -246,6 +254,6 @@ internal class TestSyncStorePull {
   }
 
   private companion object {
-    const val DEVICE = "33333333-3333-4333-8333-333333333333"
+    val DEVICE = DeviceId("33333333-3333-4333-8333-333333333333")
   }
 }

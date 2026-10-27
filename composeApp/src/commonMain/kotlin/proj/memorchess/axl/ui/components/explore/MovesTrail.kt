@@ -51,6 +51,7 @@ import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.dialog_close
 import memorchess.composeapp.generated.resources.explore_pgn
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.ui.theme.KineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -59,17 +60,17 @@ import proj.memorchess.axl.ui.theme.LocalKineticTypography
  * One displayable move in the [MovesTrail].
  *
  * @property san Standard Algebraic Notation of the move (e.g. `"Nf3"`).
- * @property moveNumber 1-indexed full-move number. Combined with [isWhiteMove] to render `"1."` or
+ * @property moveNumber 1-indexed full-move number. Combined with [mover] to render `"1."` or
  *   `"1..."` before the SAN.
  * @property isGuess `true` when this move is the user's pending guess and should be rendered with a
  *   dashed border and a trailing `" ?"`.
- * @property isWhiteMove `true` for a white ply, `false` for a black ply.
+ * @property mover The player who made the move.
  */
 data class MoveDisplay(
   val san: String,
   val moveNumber: Int,
   val isGuess: Boolean = false,
-  val isWhiteMove: Boolean,
+  val mover: Player,
 )
 
 private val TrailHeight = 36.dp
@@ -323,7 +324,7 @@ private fun MoveChip(move: MoveDisplay, isCurrent: Boolean, onClick: () -> Unit)
       Modifier.border(width = 1.dp, color = borderColor)
     }
 
-  val prefix = if (move.isWhiteMove) "${move.moveNumber}." else "${move.moveNumber}..."
+  val prefix = if (move.mover == Player.WHITE) "${move.moveNumber}." else "${move.moveNumber}..."
   val suffix = if (move.isGuess) " ?" else ""
   val label = "$prefix ${move.san}$suffix"
 
@@ -384,8 +385,8 @@ private fun PgnDialog(
       grouped.entries
         .sortedBy { it.key }
         .map { (number, entries) ->
-          val white = entries.firstOrNull { it.value.isWhiteMove }
-          val black = entries.firstOrNull { !it.value.isWhiteMove }
+          val white = entries.firstOrNull { it.value.mover == Player.WHITE }
+          val black = entries.firstOrNull { it.value.mover == Player.BLACK }
           PgnRow(
             number = number,
             white = white?.value,

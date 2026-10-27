@@ -5,6 +5,8 @@ import kotlin.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import proj.memorchess.axl.core.config.getInstantOrNull
+import proj.memorchess.axl.core.config.putInstant
 
 /**
  * Persists the sync session (access token, refresh token, expiry and the signed in account).
@@ -20,28 +22,34 @@ class OidcTokenStore(private val settings: Settings) {
   val currentAccount: StateFlow<Account?> = _currentAccount.asStateFlow()
 
   /** The access token, or `null` if there is no stored session. */
-  fun getAccessToken(): String? = settings.getStringOrNull(KEY_ACCESS_TOKEN)
+  fun getAccessToken(): AccessToken? =
+    settings.getStringOrNull(KEY_ACCESS_TOKEN)?.let(::AccessToken)
 
   /** The refresh token, or `null` if there is no stored session or none was ever issued. */
-  fun getRefreshToken(): String? = settings.getStringOrNull(KEY_REFRESH_TOKEN)
+  fun getRefreshToken(): RefreshToken? =
+    settings.getStringOrNull(KEY_REFRESH_TOKEN)?.let(::RefreshToken)
 
   /** When [getAccessToken] expires, or `null` if there is no stored session. */
-  fun getExpiresAt(): Instant? =
-    settings.getLongOrNull(KEY_EXPIRES_AT)?.let(Instant::fromEpochMilliseconds)
+  fun getExpiresAt(): Instant? = settings.getInstantOrNull(KEY_EXPIRES_AT)
 
   /**
    * Persists a token set. A `null` [refreshToken] clears any previously stored one (the issuer did
    * not renew it, so the old value should not be treated as still valid). A `null` [account] leaves
    * the previously known account untouched, since a refresh response typically carries no id token.
    */
-  fun save(accessToken: String, refreshToken: String?, expiresAt: Instant, account: Account?) {
-    settings.putString(KEY_ACCESS_TOKEN, accessToken)
+  fun save(
+    accessToken: AccessToken,
+    refreshToken: RefreshToken?,
+    expiresAt: Instant,
+    account: Account?,
+  ) {
+    settings.putString(KEY_ACCESS_TOKEN, accessToken.value)
     if (refreshToken != null) {
-      settings.putString(KEY_REFRESH_TOKEN, refreshToken)
+      settings.putString(KEY_REFRESH_TOKEN, refreshToken.value)
     } else {
       settings.remove(KEY_REFRESH_TOKEN)
     }
-    settings.putLong(KEY_EXPIRES_AT, expiresAt.toEpochMilliseconds())
+    settings.putInstant(KEY_EXPIRES_AT, expiresAt)
     if (account != null) {
       settings.putString(KEY_SUB, account.sub)
       if (account.name != null) {

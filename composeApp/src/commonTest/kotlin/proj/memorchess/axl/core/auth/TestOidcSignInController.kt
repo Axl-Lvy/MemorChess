@@ -58,8 +58,8 @@ class TestOidcSignInController {
     val result = controller.signIn()
 
     result shouldBe SignInResult.Success
-    tokenStore.getAccessToken() shouldBe "tok-xyz"
-    tokenStore.getRefreshToken() shouldBe "ref-abc"
+    tokenStore.getAccessToken() shouldBe AccessToken("tok-xyz")
+    tokenStore.getRefreshToken() shouldBe RefreshToken("ref-abc")
   }
 
   @Test
@@ -101,8 +101,8 @@ class TestOidcSignInController {
   fun signOutClearsStore() {
     val tokenStore = OidcTokenStore(TestSettings())
     tokenStore.save(
-      "tok-1",
-      "ref-1",
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
       Instant.parse("2026-01-01T00:00:00Z"),
       Account("user-1", null),
     )
@@ -129,12 +129,17 @@ class TestOidcSignInController {
     }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    tokenStore.save("tok-1", "ref-1", fixedNow + 3600.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 3600.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     val result = controller.accessToken()
 
-    result shouldBe TokenResult.Ok("tok-1")
+    result shouldBe TokenResult.Ok(AccessToken("tok-1"))
     refreshCalls shouldBe 0
   }
 
@@ -153,14 +158,19 @@ class TestOidcSignInController {
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
     // 30s left, inside the 60s buffer.
-    tokenStore.save("tok-1", "ref-1", fixedNow + 30.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 30.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     val result = controller.accessToken()
 
-    result shouldBe TokenResult.Ok("tok-refreshed")
-    tokenStore.getAccessToken() shouldBe "tok-refreshed"
-    tokenStore.getRefreshToken() shouldBe "ref-new"
+    result shouldBe TokenResult.Ok(AccessToken("tok-refreshed"))
+    tokenStore.getAccessToken() shouldBe AccessToken("tok-refreshed")
+    tokenStore.getRefreshToken() shouldBe RefreshToken("ref-new")
   }
 
   @Test
@@ -175,10 +185,15 @@ class TestOidcSignInController {
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
     // Exactly 60s left: the buffer boundary itself must still refresh (not "more than" 60s).
-    tokenStore.save("tok-1", "ref-1", fixedNow + 60.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 60.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
-    controller.accessToken() shouldBe TokenResult.Ok("tok-refreshed")
+    controller.accessToken() shouldBe TokenResult.Ok(AccessToken("tok-refreshed"))
   }
 
   @Test
@@ -190,10 +205,15 @@ class TestOidcSignInController {
     }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    tokenStore.save("tok-1", "ref-1", fixedNow + 61.seconds, Account("user-1", null))
+    tokenStore.save(
+      AccessToken("tok-1"),
+      RefreshToken("ref-1"),
+      fixedNow + 61.seconds,
+      Account("user-1", null),
+    )
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
-    controller.accessToken() shouldBe TokenResult.Ok("tok-1")
+    controller.accessToken() shouldBe TokenResult.Ok(AccessToken("tok-1"))
     refreshCalls shouldBe 0
   }
 
@@ -204,13 +224,13 @@ class TestOidcSignInController {
     }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    tokenStore.save("tok-1", "ref-1", fixedNow, Account("user-1", null))
+    tokenStore.save(AccessToken("tok-1"), RefreshToken("ref-1"), fixedNow, Account("user-1", null))
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     val result = controller.accessToken()
 
     result shouldBe TokenResult.Failed.Transient
-    tokenStore.getRefreshToken() shouldBe "ref-1"
+    tokenStore.getRefreshToken() shouldBe RefreshToken("ref-1")
     tokenStore.currentAccount.value shouldBe Account("user-1", null)
   }
 
@@ -219,7 +239,7 @@ class TestOidcSignInController {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.BadRequest) }
     val tokenStore = OidcTokenStore(TestSettings())
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
-    tokenStore.save("tok-1", "ref-1", fixedNow, Account("user-1", null))
+    tokenStore.save(AccessToken("tok-1"), RefreshToken("ref-1"), fixedNow, Account("user-1", null))
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     val result = controller.accessToken()
@@ -240,7 +260,7 @@ class TestOidcSignInController {
     val fixedNow = Instant.parse("2026-01-01T00:00:00Z")
     // A stored access token but no refresh token at all (e.g. the issuer never granted offline
     // access): expired means there is nothing left to try.
-    tokenStore.save("tok-1", null, fixedNow, Account("user-1", null))
+    tokenStore.save(AccessToken("tok-1"), null, fixedNow, Account("user-1", null))
     val (controller, _) = controllerWith(engine, tokenStore = tokenStore, now = { fixedNow })
 
     val result = controller.accessToken()

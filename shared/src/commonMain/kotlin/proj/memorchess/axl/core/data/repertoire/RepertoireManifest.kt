@@ -49,5 +49,11 @@ enum class RepertoireColor {
   @SerialName("white") WHITE,
 
   /** The repertoire teaches lines from the black side. */
-  @SerialName("black") BLACK,
+  @SerialName("black") BLACK;
+
+  companion object {
+
+    /** The colour whose [name] is [name], or `null` when this build has never heard of it. */
+    fun fromNameOrNull(name: String): RepertoireColor? = entries.firstOrNull { it.name == name }
+  }
 }

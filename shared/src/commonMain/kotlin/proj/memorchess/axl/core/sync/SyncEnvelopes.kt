@@ -34,7 +34,7 @@ val SYNC_JSON: Json = Json {
 @Serializable
 data class SyncPullResponse(
   val serverTime: Instant,
-  val nextCursor: Long?,
+  val nextCursor: Revision?,
   val pageToken: String,
   val nodes: List<NodeSyncRow>,
   val edges: List<EdgeSyncRow>,
@@ -53,7 +53,7 @@ data class SyncPullResponse(
  * @property tags Edge to repertoire tags to write.
  * @property device The pushing device's origin id. Deliberately without a default, so that no call
  *   site and no wire payload can omit it: a push that names no device is refused, and a defaulted
- *   empty string would turn that refusal into a silent failure to sync at all.
+ *   empty id would turn that refusal into a silent failure to sync at all.
  */
 @Serializable
 data class SyncPushRequest(
@@ -62,7 +62,7 @@ data class SyncPushRequest(
   val settings: List<SettingSyncRow>,
   val repertoires: List<RepertoireSyncRow> = emptyList(),
   val tags: List<EdgeRepertoireTagSyncRow> = emptyList(),
-  val device: String,
+  val device: DeviceId,
 )
 
 /**
@@ -75,7 +75,7 @@ data class SyncPushRequest(
 @Serializable
 data class SyncPushResponse(
   val serverTime: Instant,
-  val revision: Long,
+  val revision: Revision,
   val rejected: List<RejectedRow>,
 )
 

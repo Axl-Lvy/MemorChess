@@ -35,6 +35,7 @@ import memorchess.composeapp.generated.resources.explore_black
 import memorchess.composeapp.generated.resources.explore_save
 import memorchess.composeapp.generated.resources.explore_white
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.ui.components.buttons.KineticButton
 import proj.memorchess.axl.ui.components.buttons.KineticButtonLabel
 import proj.memorchess.axl.ui.components.buttons.KineticButtonStyle
@@ -99,7 +100,7 @@ private val SAVE_LABEL_MIN_WIDTH = 500.dp
  *
  * @param actions Callbacks for each button.
  * @param evalEnabled `true` if the eval bar is currently enabled (drives Primary vs Default style).
- * @param playerTurnWhite `true` when it is white's move, used for the central player-turn pill.
+ * @param sideToMove The side to move, used for the central player-turn pill.
  * @param modifier External modifier applied to the bar.
  * @param showSaveDelete `true` to render the save and delete buttons; `false` hides them for read
  *   only contexts such as the repertoire viewer.
@@ -108,7 +109,7 @@ private val SAVE_LABEL_MIN_WIDTH = 500.dp
 fun ExploreCtrlBar(
   actions: ExploreCtrlBarActions,
   evalEnabled: Boolean,
-  playerTurnWhite: Boolean,
+  sideToMove: Player,
   modifier: Modifier = Modifier,
   showSaveDelete: Boolean = true,
 ) {
@@ -116,7 +117,7 @@ fun ExploreCtrlBar(
     ExploreCtrlBarRow(
       actions = actions,
       evalEnabled = evalEnabled,
-      playerTurnWhite = playerTurnWhite,
+      sideToMove = sideToMove,
       showSaveDelete = showSaveDelete,
       showSaveLabel = maxWidth >= SAVE_LABEL_MIN_WIDTH,
     )
@@ -128,7 +129,7 @@ fun ExploreCtrlBar(
 private fun ExploreCtrlBarRow(
   actions: ExploreCtrlBarActions,
   evalEnabled: Boolean,
-  playerTurnWhite: Boolean,
+  sideToMove: Player,
   showSaveDelete: Boolean,
   showSaveLabel: Boolean,
 ) {
@@ -170,7 +171,7 @@ private fun ExploreCtrlBarRow(
     ) {
       Text(
         text =
-          if (playerTurnWhite) stringResource(Res.string.explore_white)
+          if (sideToMove == Player.WHITE) stringResource(Res.string.explore_white)
           else stringResource(Res.string.explore_black),
         style = typography.labelSm.copy(color = palette.ink2),
       )

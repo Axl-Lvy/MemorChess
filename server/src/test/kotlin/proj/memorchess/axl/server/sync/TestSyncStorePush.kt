@@ -10,16 +10,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
 import proj.memorchess.axl.core.sync.RepertoireSyncRow
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SYNC_SKEW_TOLERANCE
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.resolve
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStorePush {
@@ -27,7 +31,7 @@ internal class TestSyncStorePush {
   private val store = SyncStore(PostgresTestDb.dataSource())
 
   /** A fresh user with one registered device, which pushing now requires. */
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -39,7 +43,7 @@ internal class TestSyncStorePush {
     key: String,
     value: String,
     at: Instant,
-    device: String = "device-a",
+    device: DeviceId = DeviceId("device-a"),
     seq: Long = 1,
     deleted: Boolean = false,
   ) =
@@ -64,7 +68,7 @@ internal class TestSyncStorePush {
     key: String,
     reps: Int,
     at: Instant,
-    device: String = "device-a",
+    device: DeviceId = DeviceId("device-a"),
     seq: Long = 1,
   ) =
     NodeSyncRow(
@@ -89,7 +93,7 @@ internal class TestSyncStorePush {
     destination: String,
     isGood: Boolean,
     at: Instant,
-    device: String = "device-a",
+    device: DeviceId = DeviceId("device-a"),
     seq: Long = 1,
   ) =
     EdgeSyncRow(
@@ -106,15 +110,15 @@ internal class TestSyncStorePush {
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   /** Everything [user] has stored, as [DEVICE] would be served it from scratch. */
-  private suspend fun stored(user: String) = store.pull(user, DEVICE, null, PULL_LIMIT, serverNow)
+  private suspend fun stored(user: UserId) = store.pull(user, DEVICE, null, PULL_LIMIT, serverNow)
 
-  private suspend fun storedSetting(user: String, key: String) =
+  private suspend fun storedSetting(user: UserId, key: String) =
     stored(user).settings.singleOrNull { it.key == key }
 
-  private suspend fun storedNode(user: String, key: String) =
+  private suspend fun storedNode(user: UserId, key: String) =
     stored(user).nodes.singleOrNull { it.positionKey == key }
 
-  private suspend fun storedEdge(user: String, edge: EdgeSyncRow) =
+  private suspend fun storedEdge(user: UserId, edge: EdgeSyncRow) =
     stored(user).edges.singleOrNull {
       it.origin == edge.origin && it.destination == edge.destination
     }
@@ -131,7 +135,7 @@ internal class TestSyncStorePush {
     val user = newUser()
     val response = store.push(user, DEVICE, request(setting("theme", "dark", serverNow)), serverNow)
     response.rejected.shouldBeEmpty()
-    (response.revision > 0) shouldBe true
+    (response.revision > Revision.ZERO) shouldBe true
   }
 
   @Test
@@ -162,7 +166,9 @@ internal class TestSyncStorePush {
     store.push(
       user,
       DEVICE,
-      request(setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")),
+      request(
+        setting("theme", "light", Instant.fromEpochMilliseconds(20), device = DeviceId("device-b"))
+      ),
       serverNow,
     )
     storedSetting(user, "theme")?.value shouldBe "light"
@@ -179,9 +185,9 @@ internal class TestSyncStorePush {
     // inside `applySetting`, from two coroutines that genuinely run at the same time.
     val user = newUser()
     val fromDeviceA =
-      setting("theme", "dark", Instant.fromEpochMilliseconds(10), device = "device-a")
+      setting("theme", "dark", Instant.fromEpochMilliseconds(10), device = DeviceId("device-a"))
     val fromDeviceB =
-      setting("theme", "light", Instant.fromEpochMilliseconds(20), device = "device-b")
+      setting("theme", "light", Instant.fromEpochMilliseconds(20), device = DeviceId("device-b"))
     val expectedWinner = resolve(local = fromDeviceA, remote = fromDeviceB).row
 
     coroutineScope {
@@ -210,7 +216,14 @@ internal class TestSyncStorePush {
       store.push(
         user,
         DEVICE,
-        request(setting("theme", "light", Instant.fromEpochMilliseconds(10), device = "device-b")),
+        request(
+          setting(
+            "theme",
+            "light",
+            Instant.fromEpochMilliseconds(10),
+            device = DeviceId("device-b"),
+          )
+        ),
         serverNow,
       )
     // The pushed row lost, yet the revision must move, or the pusher never learns and diverges.
@@ -223,7 +236,7 @@ internal class TestSyncStorePush {
     val user = newUser()
     val row = setting("theme", "dark", serverNow)
     store.push(user, DEVICE, request(row), serverNow)
-    store.push(user, DEVICE, request(row), serverNow).revision shouldBe 0L
+    store.push(user, DEVICE, request(row), serverNow).revision shouldBe Revision(0)
   }
 
   @Test
@@ -453,10 +466,10 @@ internal class TestSyncStorePush {
       RepertoireSyncRow(
         id = "italian-game",
         name = "Italian Game",
-        color = "WHITE",
+        color = RepertoireColor.WHITE,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
 
@@ -492,7 +505,7 @@ internal class TestSyncStorePush {
         move = "e4",
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
 
@@ -528,7 +541,7 @@ internal class TestSyncStorePush {
         isGood = true,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
 
@@ -558,11 +571,11 @@ internal class TestSyncStorePush {
       RepertoireSyncRow(
         id = "london",
         name = "London",
-        color = "WHITE",
+        color = RepertoireColor.WHITE,
         installedVersion = 2,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
     val tag =
@@ -574,7 +587,7 @@ internal class TestSyncStorePush {
         isGood = true,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 2L,
       )
 
@@ -597,7 +610,7 @@ internal class TestSyncStorePush {
         isGood = true,
         isDeleted = false,
         updatedAt = serverNow,
-        originDevice = "device-a",
+        originDevice = DeviceId("device-a"),
         deviceSeq = 1L,
       )
     val bad = good.copy(isGood = false, deviceSeq = 2L)
@@ -635,7 +648,7 @@ internal class TestSyncStorePush {
   }
 
   private companion object {
-    const val DEVICE = "77777777-7777-4777-8777-777777777777"
+    val DEVICE = DeviceId("77777777-7777-4777-8777-777777777777")
     const val PULL_LIMIT = 500
   }
 }

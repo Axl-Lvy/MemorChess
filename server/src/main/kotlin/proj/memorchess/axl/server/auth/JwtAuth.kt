@@ -40,7 +40,7 @@ private const val JWKS_FETCHES_PER_MINUTE = 10L
  * @property userId The token's `sub`. Every per user row is keyed by this and by nothing the caller
  *   sent in a body or a query parameter.
  */
-internal data class Caller(val userId: String)
+internal data class Caller(val userId: UserId)
 
 /**
  * Installs bearer token authentication under [SYNC_AUTH].
@@ -57,7 +57,7 @@ internal fun Application.installJwtAuth(config: ServerConfig, jwkProvider: JwkPr
       validate { credential ->
         credential.subject
           ?.takeIf { it.isNotBlank() && it.length <= MAX_SUBJECT_LENGTH }
-          ?.let(::Caller)
+          ?.let { Caller(UserId(it)) }
       }
       challenge { _, _ ->
         call.respond(
@@ -74,7 +74,7 @@ internal fun Application.installJwtAuth(config: ServerConfig, jwkProvider: JwkPr
  *
  * @throws IllegalArgumentException when read outside a route wrapped in [SYNC_AUTH].
  */
-internal val ApplicationCall.callerId: String
+internal val ApplicationCall.callerId: UserId
   get() =
     requireNotNull(principal<Caller>()) {
         "callerId is only available inside an authenticated route"

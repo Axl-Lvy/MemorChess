@@ -4,6 +4,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlin.test.Test
 import kotlin.time.Instant
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 
 internal class TestSyncCodec {
 
@@ -21,7 +22,7 @@ internal class TestSyncCodec {
       step = 0,
       isDeleted = false,
       updatedAt = Instant.parse("2026-09-03T10:15:30Z"),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 0,
     )
 
@@ -33,7 +34,7 @@ internal class TestSyncCodec {
       isGood = true,
       isDeleted = false,
       updatedAt = Instant.fromEpochMilliseconds(1),
-      originDevice = "device-b",
+      originDevice = DeviceId("device-b"),
       deviceSeq = 0,
     )
 
@@ -43,7 +44,7 @@ internal class TestSyncCodec {
       value = "london-system-white",
       isDeleted = false,
       updatedAt = Instant.parse("2100-01-01T00:00:00Z"),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 0,
     )
 
@@ -51,11 +52,11 @@ internal class TestSyncCodec {
     RepertoireSyncRow(
       id = "italian-game",
       name = "Italian Game",
-      color = "WHITE",
+      color = RepertoireColor.WHITE,
       installedVersion = 3,
       isDeleted = false,
       updatedAt = Instant.fromEpochSeconds(1_000),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 1L,
     )
 
@@ -68,7 +69,7 @@ internal class TestSyncCodec {
       isGood = false,
       isDeleted = false,
       updatedAt = Instant.fromEpochSeconds(1_000),
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = 1L,
     )
 
@@ -119,7 +120,7 @@ internal class TestSyncCodec {
     val response =
       SyncPullResponse(
         serverTime = Instant.parse("2026-09-03T10:16:00Z"),
-        nextCursor = 42L,
+        nextCursor = Revision(42L),
         pageToken = "tok-42",
         nodes = listOf(node),
         edges = listOf(edge),
@@ -147,13 +148,14 @@ internal class TestSyncCodec {
 
   @Test
   fun pushRequestAndResponseRoundTrip() {
-    val request = SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = "device-a")
+    val request =
+      SyncPushRequest(listOf(node), listOf(edge), listOf(setting), device = DeviceId("device-a"))
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
 
     val response =
       SyncPushResponse(
         serverTime = Instant.fromEpochMilliseconds(1),
-        revision = 0L,
+        revision = Revision.ZERO,
         rejected =
           listOf(
             RejectedRow(
@@ -172,6 +174,26 @@ internal class TestSyncCodec {
   fun repertoireRoundTrips() {
     val text = SYNC_JSON.encodeToString(repertoire)
     SYNC_JSON.decodeFromString<RepertoireSyncRow>(text) shouldBe repertoire
+  }
+
+  @Test
+  fun aRepertoireColorTravelsAsItsEnumName() {
+    val white = SYNC_JSON.encodeToString(repertoire)
+    val black = SYNC_JSON.encodeToString(repertoire.copy(color = RepertoireColor.BLACK))
+    val mixed = SYNC_JSON.encodeToString(repertoire.copy(color = null))
+
+    white shouldContain """"color":"WHITE""""
+    black shouldContain """"color":"BLACK""""
+    mixed shouldContain """"color":null"""
+    SYNC_JSON.decodeFromString<RepertoireSyncRow>(mixed).color shouldBe null
+  }
+
+  @Test
+  fun aRepertoireColorThisBuildHasNeverHeardOfDecodesAsMixed() {
+    val text =
+      SYNC_JSON.encodeToString(repertoire).replace(""""color":"WHITE"""", """"color":"PURPLE"""")
+
+    SYNC_JSON.decodeFromString<RepertoireSyncRow>(text).color shouldBe null
   }
 
   @Test
@@ -196,7 +218,7 @@ internal class TestSyncCodec {
         settings = emptyList(),
         repertoires = listOf(repertoire),
         tags = listOf(tag),
-        device = "device-a",
+        device = DeviceId("device-a"),
       )
     SYNC_JSON.decodeFromString<SyncPushRequest>(SYNC_JSON.encodeToString(request)) shouldBe request
   }

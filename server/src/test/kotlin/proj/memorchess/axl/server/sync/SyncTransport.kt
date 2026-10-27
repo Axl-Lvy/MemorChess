@@ -1,9 +1,11 @@
 package proj.memorchess.axl.server.sync
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.SyncPullResponse
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.SyncPushResponse
+import proj.memorchess.axl.server.auth.UserId
 
 /**
  * How a [TestDevice] reaches the server.
@@ -21,8 +23,8 @@ internal interface SyncTransport {
 /** Calls the store directly, skipping HTTP. */
 internal class StoreTransport(
   private val store: SyncStore,
-  private val userId: String,
-  private val deviceId: String,
+  private val userId: UserId,
+  private val deviceId: DeviceId,
 ) : SyncTransport {
 
   override suspend fun push(request: SyncPushRequest, serverNow: Instant) =

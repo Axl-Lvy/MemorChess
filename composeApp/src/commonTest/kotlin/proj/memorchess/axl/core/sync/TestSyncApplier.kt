@@ -45,7 +45,7 @@ class TestSyncApplier {
       step = 0,
       isDeleted = false,
       updatedAt = now,
-      originDevice = originDevice,
+      originDevice = DeviceId(originDevice),
       deviceSeq = deviceSeq,
     )
 
@@ -103,7 +103,7 @@ class TestSyncApplier {
           isGood = true,
           isDeleted = false,
           updatedAt = now,
-          originDevice = "remote",
+          originDevice = DeviceId("remote"),
           deviceSeq = 1L,
         )
       )

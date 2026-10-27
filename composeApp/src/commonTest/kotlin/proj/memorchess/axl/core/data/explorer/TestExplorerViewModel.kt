@@ -14,6 +14,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.LichessToken
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.test_util.InMemoryExplorerCache
 
 class TestExplorerViewModel {
@@ -26,7 +28,7 @@ class TestExplorerViewModel {
 
   private fun buildClient() =
     LichessExplorerClient(
-      tokenProvider = { "test-token" },
+      tokenProvider = { LichessToken("test-token") },
       httpClient =
         HttpClient(
           MockEngine { _ ->
@@ -47,7 +49,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(buildClient(), InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("test fen")
+    vm.setFen(Fen("test fen"))
     // Wait until the view model has progressed past Idle. Cannot rely on
     // testScheduler.advanceUntilIdle here because Ktor's MockEngine dispatches on a real thread.
     val loaded = vm.state.first { it is ExplorerState.Loaded } as ExplorerState.Loaded
@@ -70,7 +72,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(buildClient(), InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("fen for switch")
+    vm.setFen(Fen("fen for switch"))
     val firstLoaded = vm.state.first { it is ExplorerState.Loaded } as ExplorerState.Loaded
     firstLoaded.source shouldBe ExplorerSource.MASTERS
 
@@ -85,7 +87,7 @@ class TestExplorerViewModel {
   fun networkFailureLeadsToErrorState() = runTest {
     val errClient =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -97,7 +99,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(errClient, InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("fen with error")
+    vm.setFen(Fen("fen with error"))
     val err = vm.state.first { it is ExplorerState.Error } as ExplorerState.Error
     err.source shouldBe ExplorerSource.MASTERS
   }
@@ -106,7 +108,7 @@ class TestExplorerViewModel {
   fun unauthorizedLeadsToUnauthorizedState() = runTest {
     val unauthClient =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
@@ -118,7 +120,7 @@ class TestExplorerViewModel {
     val cached = CachedExplorer(unauthClient, InMemoryExplorerCache())
     val vm = ExplorerViewModel(cached, scope = backgroundScope, debounce = 0.milliseconds)
 
-    vm.setFen("fen with no auth")
+    vm.setFen(Fen("fen with no auth"))
     val unauth = vm.state.first { it is ExplorerState.Unauthorized } as ExplorerState.Unauthorized
     unauth.source shouldBe ExplorerSource.MASTERS
   }

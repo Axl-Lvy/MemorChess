@@ -69,13 +69,13 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
    */
   suspend fun refresh(
     clientId: String,
-    refreshToken: String,
+    refreshToken: RefreshToken,
     audience: String = SYNC_AUDIENCE,
   ): OidcTokenExchangeResult =
     tokenRequest(
       Parameters.build {
         append("grant_type", "refresh_token")
-        append("refresh_token", refreshToken)
+        append("refresh_token", refreshToken.value)
         append("client_id", clientId)
         append("resource", audience)
       }
@@ -89,8 +89,8 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
         response.status.isSuccess() -> {
           val payload: OidcTokenResponse = response.body()
           OidcTokenExchangeResult.Ok(
-            accessToken = payload.accessToken,
-            refreshToken = payload.refreshToken,
+            accessToken = AccessToken(payload.accessToken),
+            refreshToken = payload.refreshToken?.let(::RefreshToken),
             expiresInSeconds = payload.expiresIn,
             account = payload.idToken?.let(::decodeIdToken),
           )
@@ -117,8 +117,8 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
 sealed class OidcTokenExchangeResult {
   /** Exchange succeeded. [refreshToken] is `null` only if the request did not ask for one. */
   data class Ok(
-    val accessToken: String,
-    val refreshToken: String?,
+    val accessToken: AccessToken,
+    val refreshToken: RefreshToken?,
     val expiresInSeconds: Long,
     val account: Account?,
   ) : OidcTokenExchangeResult()

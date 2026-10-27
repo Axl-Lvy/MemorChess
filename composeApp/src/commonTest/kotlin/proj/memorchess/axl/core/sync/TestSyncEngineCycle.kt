@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.auth.Account
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.SignInResult
@@ -80,7 +81,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        authProvider = FakeAuthProvider(TokenResult.Ok("tok")),
+        authProvider = FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database = database,
         applier = syncApplier(database),
         apiClient =
@@ -159,7 +160,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -198,7 +199,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -240,7 +241,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -272,7 +273,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -290,7 +291,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -320,7 +321,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -357,7 +358,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -394,7 +395,7 @@ class TestSyncEngineCycle {
     }
 
     runSyncCycle(
-      FakeAuthProvider(TokenResult.Ok("tok")),
+      FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
       database,
       syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -435,7 +436,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -462,7 +463,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -494,7 +495,7 @@ class TestSyncEngineCycle {
     }
 
     runSyncCycle(
-      FakeAuthProvider(TokenResult.Ok("tok")),
+      FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
       database,
       syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -524,7 +525,7 @@ class TestSyncEngineCycle {
     }
     val apiClient = SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1")
     val identity = DeviceIdentity.ephemeral()
-    val auth = FakeAuthProvider(TokenResult.Ok("tok"))
+    val auth = FakeAuthProvider(TokenResult.Ok(AccessToken("tok")))
 
     runSyncCycle(auth, database, syncApplier(database), apiClient, identity, jobStore)
     val pendingAfterFirst = jobStore.resetPending
@@ -549,7 +550,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -595,7 +596,7 @@ class TestSyncEngineCycle {
 
     val outcome =
       runSyncCycle(
-        FakeAuthProvider(TokenResult.Ok("tok")),
+        FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
         database,
         syncApplier(database),
         SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -639,7 +640,7 @@ class TestSyncEngineCycle {
     }
 
     runSyncCycle(
-      FakeAuthProvider(TokenResult.Ok("tok")),
+      FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
       database,
       syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),
@@ -681,7 +682,7 @@ class TestSyncEngineCycle {
     }
 
     runSyncCycle(
-      FakeAuthProvider(TokenResult.Ok("tok")),
+      FakeAuthProvider(TokenResult.Ok(AccessToken("tok"))),
       database,
       syncApplier(database),
       SyncApiClient(jsonClient(engine), baseUrl = "https://issuer.example/v1"),

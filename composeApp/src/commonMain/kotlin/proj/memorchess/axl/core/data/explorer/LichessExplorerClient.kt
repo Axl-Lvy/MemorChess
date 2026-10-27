@@ -17,7 +17,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import proj.memorchess.axl.core.auth.LichessToken
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.Fen
 
 /**
  * HTTP client for the Lichess Opening Explorer API.
@@ -31,7 +33,7 @@ import proj.memorchess.axl.core.date.DateUtil
  */
 class LichessExplorerClient(
   private val httpClient: HttpClient,
-  private val tokenProvider: () -> String? = { null },
+  private val tokenProvider: () -> LichessToken? = { null },
   private val userAgentProvider: () -> String? = ::explorerUserAgent,
   private val minGap: Duration = DEFAULT_MIN_GAP,
   private val maxAttemptsOn429: Int = DEFAULT_MAX_ATTEMPTS_ON_429,
@@ -47,7 +49,7 @@ class LichessExplorerClient(
    */
   suspend fun fetch(
     source: ExplorerSource,
-    fen: String,
+    fen: Fen,
     plies: Int = DEFAULT_PLIES,
   ): ExplorerResult = mutex.withLock {
     throttle()
@@ -56,7 +58,7 @@ class LichessExplorerClient(
 
   private suspend fun runRequest(
     source: ExplorerSource,
-    fen: String,
+    fen: Fen,
     plies: Int,
     attempt: Int,
   ): ExplorerResult {
@@ -70,8 +72,8 @@ class LichessExplorerClient(
       val response: HttpResponse =
         httpClient.get(url) {
           userAgentProvider()?.let { header(HttpHeaders.UserAgent, it) }
-          bearerAuth(token)
-          parameter("fen", fen)
+          bearerAuth(token.value)
+          parameter("fen", fen.value)
           parameter("moves", plies)
           parameter("topGames", 0)
           if (source == ExplorerSource.LICHESS) {
@@ -85,11 +87,11 @@ class LichessExplorerClient(
         response.status.isSuccess() -> ExplorerResult.Ok(response.body())
         response.status == HttpStatusCode.TooManyRequests -> retryOn429(source, fen, plies, attempt)
         response.status == HttpStatusCode.Unauthorized -> {
-          LOGGER.w { "Lichess explorer returned 401 for $url fen=$fen" }
+          LOGGER.w { "Lichess explorer returned 401 for $url fen=${fen.value}" }
           ExplorerResult.Unauthorized
         }
         else -> {
-          LOGGER.w { "Lichess explorer returned ${response.status} for $url fen=$fen" }
+          LOGGER.w { "Lichess explorer returned ${response.status} for $url fen=${fen.value}" }
           ExplorerResult.NetworkError("HTTP ${response.status.value}")
         }
       }
@@ -98,24 +100,24 @@ class LichessExplorerClient(
         HttpStatusCode.TooManyRequests -> retryOn429(source, fen, plies, attempt)
         HttpStatusCode.Unauthorized -> ExplorerResult.Unauthorized
         else -> {
-          LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
+          LOGGER.w(e) { "Lichess explorer request failed for $url fen=${fen.value}" }
           ExplorerResult.NetworkError(e.message ?: "Request failed")
         }
       }
     } catch (e: Exception) {
-      LOGGER.w(e) { "Lichess explorer request failed for $url fen=$fen" }
+      LOGGER.w(e) { "Lichess explorer request failed for $url fen=${fen.value}" }
       ExplorerResult.NetworkError(e.message ?: "Request failed")
     }
   }
 
   private suspend fun retryOn429(
     source: ExplorerSource,
-    fen: String,
+    fen: Fen,
     plies: Int,
     attempt: Int,
   ): ExplorerResult {
     if (attempt >= maxAttemptsOn429) {
-      LOGGER.w { "Giving up after $attempt rate limited attempts for $fen" }
+      LOGGER.w { "Giving up after $attempt rate limited attempts for ${fen.value}" }
       return ExplorerResult.RateLimited
     }
     val backoff = INITIAL_BACKOFF * (1 shl (attempt - 1))

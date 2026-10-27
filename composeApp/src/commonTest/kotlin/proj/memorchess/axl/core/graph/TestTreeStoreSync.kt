@@ -94,7 +94,7 @@ class TestTreeStoreSync {
     store.addMove(PositionKey("start"), "e4", PositionKey("k2"), isGood = true, fromDepth = 0)
 
     val persisted = database.getPosition(PositionKey("start"))!!
-    assertTrue(persisted.originDevice == identity.originDevice)
+    assertTrue(persisted.originDevice == identity.originDevice.value)
     assertTrue(persisted.deviceSeq > 0L)
   }
 

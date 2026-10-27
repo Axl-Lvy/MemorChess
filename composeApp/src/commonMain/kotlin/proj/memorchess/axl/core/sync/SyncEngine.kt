@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.TokenResult
 import proj.memorchess.axl.core.data.DataMove
@@ -368,8 +369,8 @@ internal suspend fun runSyncCycle(
  * `null` on success, a [CycleOutcome] to stop the cycle otherwise.
  */
 private suspend fun registerDevice(
-  token: String,
-  deviceId: String,
+  token: AccessToken,
+  deviceId: DeviceId,
   apiClient: SyncApiClient,
   jobStore: SyncJobStore,
 ): CycleOutcome? {
@@ -399,8 +400,8 @@ private suspend fun registerDevice(
  * whose tombstone is already gone would survive that merge and could be pushed back.
  */
 private suspend fun resync(
-  token: String,
-  deviceId: String,
+  token: AccessToken,
+  deviceId: DeviceId,
   database: DatabaseQueryManager,
   applier: SyncApplier,
   apiClient: SyncApiClient,
@@ -419,8 +420,8 @@ private suspend fun resync(
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pushOutbox(
-  token: String,
-  deviceId: String,
+  token: AccessToken,
+  deviceId: DeviceId,
   database: DatabaseQueryManager,
   apiClient: SyncApiClient,
 ): CycleOutcome? {
@@ -457,7 +458,7 @@ private suspend fun pushOutbox(
  * disappeared from the outbox's own view of the world (nothing left to push).
  */
 private suspend fun buildPushRequest(
-  deviceId: String,
+  deviceId: DeviceId,
   database: DatabaseQueryManager,
   batch: List<OutboxEntry>,
 ): SyncPushRequest {
@@ -519,10 +520,10 @@ private suspend fun applyPulledPage(page: SyncPullResponse, applier: SyncApplier
 
 /** `null` on success; a [CycleOutcome] to stop the whole cycle on failure. */
 private suspend fun pullAll(
-  token: String,
+  token: AccessToken,
   applier: SyncApplier,
   apiClient: SyncApiClient,
-  deviceId: String,
+  deviceId: DeviceId,
 ): CycleOutcome? {
   // The token of the page this device has written, sent back so the server may confirm it. Null on
   // the first request of a cycle, because nothing has been committed in it yet.

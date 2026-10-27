@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import proj.memorchess.axl.core.data.EXPLORER_CACHE_STORE
 import proj.memorchess.axl.core.data.getIndexedDb
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.Fen
 
 private external interface JsExplorerCacheEntity : JsAny {
   var key: String
@@ -24,7 +25,7 @@ private fun <T : JsAny> emptyObject(): T = js("({})")
 /** IndexedDB backed [ExplorerCache] for the wasmJs target. */
 internal class JsExplorerCache(private val json: Json) : ExplorerCache {
 
-  override suspend fun get(fen: String, source: ExplorerSource): CachedExplorerEntry? {
+  override suspend fun get(fen: Fen, source: ExplorerSource): CachedExplorerEntry? {
     val database = getIndexedDb()
     return database.transaction(EXPLORER_CACHE_STORE) {
       val row =
@@ -39,7 +40,7 @@ internal class JsExplorerCache(private val json: Json) : ExplorerCache {
     }
   }
 
-  override suspend fun put(fen: String, source: ExplorerSource, response: LichessExplorerResponse) {
+  override suspend fun put(fen: Fen, source: ExplorerSource, response: LichessExplorerResponse) {
     val database = getIndexedDb()
     val entry =
       emptyObject<JsExplorerCacheEntity>().apply {
@@ -56,5 +57,5 @@ internal class JsExplorerCache(private val json: Json) : ExplorerCache {
     database.writeTransaction(EXPLORER_CACHE_STORE) { objectStore(EXPLORER_CACHE_STORE).clear() }
   }
 
-  private fun buildKey(fen: String, source: ExplorerSource): String = "${source.path}:$fen"
+  private fun buildKey(fen: Fen, source: ExplorerSource): String = "${source.path}:${fen.value}"
 }

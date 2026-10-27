@@ -39,7 +39,7 @@ data class Account(val sub: String, val name: String?)
 /** Outcome of [AuthProvider.accessToken]. */
 sealed class TokenResult {
   /** A valid access token. */
-  data class Ok(val accessToken: String) : TokenResult()
+  data class Ok(val accessToken: AccessToken) : TokenResult()
 
   /** No session is stored at all; the caller was never signed in or has been signed out. */
   data object SignedOut : TokenResult()

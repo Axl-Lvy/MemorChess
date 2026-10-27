@@ -23,10 +23,10 @@ class TestOidcTokenStore {
     val store = OidcTokenStore(TestSettings())
     val account = Account(sub = "user-1", name = "Alice")
 
-    store.save("tok-1", "ref-1", expiry, account)
+    store.save(AccessToken("tok-1"), RefreshToken("ref-1"), expiry, account)
 
-    store.getAccessToken() shouldBe "tok-1"
-    store.getRefreshToken() shouldBe "ref-1"
+    store.getAccessToken() shouldBe AccessToken("tok-1")
+    store.getRefreshToken() shouldBe RefreshToken("ref-1")
     store.getExpiresAt() shouldBe expiry
     store.currentAccount.value shouldBe account
   }
@@ -34,9 +34,9 @@ class TestOidcTokenStore {
   @Test
   fun saveWithNullRefreshTokenClearsAPreviouslyStoredOne() {
     val store = OidcTokenStore(TestSettings())
-    store.save("tok-1", "ref-1", expiry, Account("user-1", null))
+    store.save(AccessToken("tok-1"), RefreshToken("ref-1"), expiry, Account("user-1", null))
 
-    store.save("tok-2", null, expiry, Account("user-1", null))
+    store.save(AccessToken("tok-2"), null, expiry, Account("user-1", null))
 
     store.getRefreshToken() shouldBe null
   }
@@ -46,9 +46,9 @@ class TestOidcTokenStore {
     // A refresh response typically carries no id token; the display identity must survive it.
     val store = OidcTokenStore(TestSettings())
     val account = Account(sub = "user-1", name = "Alice")
-    store.save("tok-1", "ref-1", expiry, account)
+    store.save(AccessToken("tok-1"), RefreshToken("ref-1"), expiry, account)
 
-    store.save("tok-2", "ref-2", expiry, null)
+    store.save(AccessToken("tok-2"), RefreshToken("ref-2"), expiry, null)
 
     store.currentAccount.value shouldBe account
   }
@@ -56,7 +56,7 @@ class TestOidcTokenStore {
   @Test
   fun clearRemovesEverything() {
     val store = OidcTokenStore(TestSettings())
-    store.save("tok-1", "ref-1", expiry, Account("user-1", "Alice"))
+    store.save(AccessToken("tok-1"), RefreshToken("ref-1"), expiry, Account("user-1", "Alice"))
 
     store.clear()
 

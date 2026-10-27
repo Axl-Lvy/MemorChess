@@ -16,17 +16,17 @@ class TestOAuthTokenStore {
   @Test
   fun saveAndReadToken() {
     val store = OAuthTokenStore(TestSettings())
-    store.save("tok123", username = "alice")
-    store.getToken() shouldBe "tok123"
-    store.account.value shouldBe LichessAccount(token = "tok123", username = "alice")
+    store.save(LichessToken("tok123"), username = "alice")
+    store.getToken() shouldBe LichessToken("tok123")
+    store.account.value shouldBe LichessAccount(token = LichessToken("tok123"), username = "alice")
   }
 
   @Test
   fun setUsernamePreservesToken() {
     val store = OAuthTokenStore(TestSettings())
-    store.save("tok123", username = null)
+    store.save(LichessToken("tok123"), username = null)
     store.setUsername("alice")
-    store.getToken() shouldBe "tok123"
+    store.getToken() shouldBe LichessToken("tok123")
     store.account.value?.username shouldBe "alice"
   }
 
@@ -41,7 +41,7 @@ class TestOAuthTokenStore {
   @Test
   fun clearRemovesEverything() {
     val store = OAuthTokenStore(TestSettings())
-    store.save("tok123", username = "alice")
+    store.save(LichessToken("tok123"), username = "alice")
     store.clear()
     store.getToken() shouldBe null
     store.account.value shouldBe null
@@ -50,9 +50,9 @@ class TestOAuthTokenStore {
   @Test
   fun reloadsExistingValuesFromSettings() {
     val settings = TestSettings()
-    OAuthTokenStore(settings).save("tok123", username = "alice")
+    OAuthTokenStore(settings).save(LichessToken("tok123"), username = "alice")
     val reopened = OAuthTokenStore(settings)
-    reopened.getToken() shouldBe "tok123"
-    reopened.account.value shouldBe LichessAccount("tok123", "alice")
+    reopened.getToken() shouldBe LichessToken("tok123")
+    reopened.account.value shouldBe LichessAccount(LichessToken("tok123"), "alice")
   }
 }

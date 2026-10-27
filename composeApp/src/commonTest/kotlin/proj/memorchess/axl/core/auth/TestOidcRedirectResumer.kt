@@ -141,7 +141,7 @@ class TestOidcRedirectResumer {
       onSignedIn = { signedInCalls++ },
     )
 
-    tokenStore.getAccessToken() shouldBe "tok-xyz"
+    tokenStore.getAccessToken() shouldBe AccessToken("tok-xyz")
     signedInCalls shouldBe 1
   }
 

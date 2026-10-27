@@ -53,9 +53,9 @@ class SettingSyncMetadataStore(
     try {
       val seq = deviceIdentity.nextDeviceSeq()
       settings.putBoolean(isDeletedKey(key), isDeleted)
-      settings.putString(originDeviceKey(key), deviceIdentity.originDevice)
+      settings.putString(originDeviceKey(key), deviceIdentity.originDevice.value)
       settings.putLong(deviceSeqKey(key), seq)
-      settings.putLong(updatedAtKey(key), DateUtil.now().epochSeconds)
+      settings.putInstant(updatedAtKey(key), DateUtil.now())
       return seq
     } finally {
       lock.unlock()
@@ -64,10 +64,10 @@ class SettingSyncMetadataStore(
 
   /** Reads [key]'s sync metadata, or `null` when it has never been [stamp]ed. */
   internal fun read(key: String): SettingSyncMetadata? {
-    val updatedAtSeconds = settings.getLongOrNull(updatedAtKey(key)) ?: return null
+    val updatedAt = settings.getInstantOrNull(updatedAtKey(key)) ?: return null
     return SettingSyncMetadata(
       isDeleted = settings.getBoolean(isDeletedKey(key), false),
-      updatedAt = Instant.fromEpochSeconds(updatedAtSeconds),
+      updatedAt = updatedAt,
       originDevice = settings.getString(originDeviceKey(key), ""),
       deviceSeq = settings.getLong(deviceSeqKey(key), 0L),
     )

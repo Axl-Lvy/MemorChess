@@ -27,7 +27,7 @@ data class RepertoireEntity(
     DataRepertoire(
       id = repertoireId,
       name = name,
-      color = color?.let { RepertoireColor.valueOf(it) },
+      color = color?.let(RepertoireColor::fromNameOrNull),
       installedVersion = installedVersion,
       isDeleted = isDeleted,
       updatedAt = updatedAt,
