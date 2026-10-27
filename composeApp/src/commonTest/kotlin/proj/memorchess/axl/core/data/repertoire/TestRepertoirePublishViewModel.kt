@@ -38,7 +38,12 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
     accessToken: suspend () -> TokenResult = { TokenResult.Ok(AccessToken("token")) },
     publish:
       suspend (
-        AccessToken, String, String, String, RepertoireColor, List<RepertoireMove>,
+        AccessToken,
+        String,
+        String,
+        String,
+        RepertoireColor,
+        List<RepertoireMove>,
       ) -> PublishOutcome =
       { _, _, _, _, _, _ ->
         PublishOutcome.Published(descriptor)
