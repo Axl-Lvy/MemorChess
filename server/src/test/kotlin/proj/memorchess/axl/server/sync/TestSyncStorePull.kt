@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -19,7 +20,7 @@ internal class TestSyncStorePull {
   private val store = SyncStore(PostgresTestDb.dataSource())
 
   /** A fresh user with one registered device, which pushing requires. */
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -57,7 +58,7 @@ internal class TestSyncStorePull {
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
-  private suspend fun pushSettings(user: String, vararg rows: SettingSyncRow) =
+  private suspend fun pushSettings(user: UserId, vararg rows: SettingSyncRow) =
     store.push(
       user,
       DEVICE,
@@ -66,14 +67,14 @@ internal class TestSyncStorePull {
     )
 
   /** A fresh user with one registered device, which pulling requires. */
-  private suspend fun registeredUser(): String {
+  private suspend fun registeredUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
   }
 
   /** The device's next page, confirming [ack] first. */
-  private suspend fun pull(user: String, limit: Int = 10, ack: String? = null) =
+  private suspend fun pull(user: UserId, limit: Int = 10, ack: String? = null) =
     store.pull(user, DEVICE, ack, limit, serverNow)
 
   @Test

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -47,13 +48,13 @@ internal class TestSyncStoreGc {
       deviceSeq = 1,
     )
 
-  private suspend fun register(user: String, devices: List<DeviceId>) {
+  private suspend fun register(user: UserId, devices: List<DeviceId>) {
     for (device in devices) {
       store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, now)
     }
   }
 
-  private suspend fun push(user: String, device: DeviceId, vararg rows: SettingSyncRow) =
+  private suspend fun push(user: UserId, device: DeviceId, vararg rows: SettingSyncRow) =
     store.push(
       user,
       device,
@@ -62,7 +63,7 @@ internal class TestSyncStoreGc {
     )
 
   /** Pulls and confirms until [device] has committed everything, the way a real cycle does. */
-  private suspend fun catchUp(user: String, device: DeviceId) {
+  private suspend fun catchUp(user: UserId, device: DeviceId) {
     var ack: String? = null
     repeat(10) {
       val page = store.pull(user, device, ack, 500, now)
@@ -71,14 +72,14 @@ internal class TestSyncStoreGc {
     }
   }
 
-  private suspend fun settingsOf(user: String, device: DeviceId) =
+  private suspend fun settingsOf(user: UserId, device: DeviceId) =
     store.pull(user, device, null, 500, now).settings
 
   /**
    * The setting [user] still stores under [key], as a fresh device sees it. Registers that device,
    * pinning the watermark at `0`, so call it only after collection.
    */
-  private suspend fun storedSetting(user: String, key: String): SettingSyncRow? {
+  private suspend fun storedSetting(user: UserId, key: String): SettingSyncRow? {
     register(user, listOf(OBSERVER))
     return settingsOf(user, OBSERVER).singleOrNull { it.key == key }
   }

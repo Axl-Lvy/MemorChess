@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
@@ -23,7 +24,7 @@ internal class TestSyncStorePushBatching {
   private val store = SyncStore(counting)
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user

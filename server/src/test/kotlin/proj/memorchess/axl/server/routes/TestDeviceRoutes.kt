@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -54,7 +55,7 @@ class TestDeviceRoutes {
     )
 
   /** Runs [block] against the real module, real store and real Postgres, as one fresh caller. */
-  private fun withServer(block: suspend (HttpClient, String, String) -> Unit) = testApplication {
+  private fun withServer(block: suspend (HttpClient, String, UserId) -> Unit) = testApplication {
     val user = PostgresTestDb.newUserId()
     application {
       syncModule(
@@ -66,7 +67,7 @@ class TestDeviceRoutes {
       )
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
-    block(client, key.token(subject = user), user)
+    block(client, key.token(subject = user.value), user)
   }
 
   private suspend fun HttpClient.register(

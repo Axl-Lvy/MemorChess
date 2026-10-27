@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -44,7 +45,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Pulls and confirms page after page until [device] has been served everything. */
-  private suspend fun catchUp(user: String, device: DeviceId): Caught {
+  private suspend fun catchUp(user: UserId, device: DeviceId): Caught {
     val nodes = mutableListOf<NodeSyncRow>()
     val edges = mutableListOf<EdgeSyncRow>()
     val settings = mutableListOf<SettingSyncRow>()
@@ -68,7 +69,7 @@ internal class TestSyncStoreErase {
     error("catch up did not terminate")
   }
 
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     for (device in listOf(ERASER, OTHER)) {
       store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, now)
@@ -159,7 +160,7 @@ internal class TestSyncStoreErase {
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   /** Pushes 2 nodes, 2 edges, 1 repertoire, 1 tag and 1 setting from [OTHER]. */
-  private suspend fun populate(user: String): SyncPushRequest {
+  private suspend fun populate(user: UserId): SyncPushRequest {
     val a = fen("a")
     val b = fen("b")
     val c = fen("c")
@@ -178,7 +179,7 @@ internal class TestSyncStoreErase {
 
   /** Pushes one node, edge, repertoire and tag from [device], all stamped [updatedAt]. */
   private suspend fun pushStamped(
-    user: String,
+    user: UserId,
     updatedAt: Instant,
     serverNow: Instant = now,
     device: DeviceId = OTHER,
@@ -199,7 +200,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Pushes one live node from [OTHER], so an erase has something to tombstone. */
-  private suspend fun seedOneNode(user: String) {
+  private suspend fun seedOneNode(user: UserId) {
     store.push(
       user,
       OTHER,
@@ -214,7 +215,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Every erasable row [device] is served next, the seed node's tombstone left out. */
-  private suspend fun freshRowsFor(user: String, device: DeviceId): List<SyncRow> =
+  private suspend fun freshRowsFor(user: UserId, device: DeviceId): List<SyncRow> =
     catchUp(user, device).erasable.filterNot {
       it is NodeSyncRow && it.positionKey.endsWith("-seed")
     }

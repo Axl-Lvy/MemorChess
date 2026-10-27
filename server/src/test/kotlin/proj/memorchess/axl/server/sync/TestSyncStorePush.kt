@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
@@ -28,7 +29,7 @@ internal class TestSyncStorePush {
   private val store = SyncStore(PostgresTestDb.dataSource())
 
   /** A fresh user with one registered device, which pushing requires. */
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -107,15 +108,15 @@ internal class TestSyncStorePush {
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   /** Everything [user] has stored, as [DEVICE] would be served it from scratch. */
-  private suspend fun stored(user: String) = store.pull(user, DEVICE, null, PULL_LIMIT, serverNow)
+  private suspend fun stored(user: UserId) = store.pull(user, DEVICE, null, PULL_LIMIT, serverNow)
 
-  private suspend fun storedSetting(user: String, key: String) =
+  private suspend fun storedSetting(user: UserId, key: String) =
     stored(user).settings.singleOrNull { it.key == key }
 
-  private suspend fun storedNode(user: String, key: String) =
+  private suspend fun storedNode(user: UserId, key: String) =
     stored(user).nodes.singleOrNull { it.positionKey == key }
 
-  private suspend fun storedEdge(user: String, edge: EdgeSyncRow) =
+  private suspend fun storedEdge(user: UserId, edge: EdgeSyncRow) =
     stored(user).edges.singleOrNull {
       it.origin == edge.origin && it.destination == edge.destination
     }

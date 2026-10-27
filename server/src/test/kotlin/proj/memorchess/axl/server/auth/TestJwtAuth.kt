@@ -44,7 +44,7 @@ class TestJwtAuth {
   /** Mounts one authenticated route echoing the caller id. */
   private fun Application.echoCaller(provider: com.auth0.jwk.JwkProvider) {
     installJwtAuth(config, provider)
-    routing { authenticate(SYNC_AUTH) { get("/whoami") { call.respondText(call.callerId) } } }
+    routing { authenticate(SYNC_AUTH) { get("/whoami") { call.respondText(call.callerId.value) } } }
   }
 
   private fun withAuth(

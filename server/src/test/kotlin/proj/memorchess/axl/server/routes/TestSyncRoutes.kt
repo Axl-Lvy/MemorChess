@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -71,7 +72,7 @@ class TestSyncRoutes {
       afterReset = false,
       serverNow,
     )
-    return key.token(subject = subject)
+    return key.token(subject = subject.value)
   }
 
   /** Runs [block] against the real module, real store and real Postgres, as one caller. */
@@ -95,7 +96,7 @@ class TestSyncRoutes {
     for (device in devices) {
       store.registerDevice(user, DeviceId(device), DevicePlatform.JVM, afterReset = false, serverNow)
     }
-    block(client, key.token(subject = user))
+    block(client, key.token(subject = user.value))
   }
 
   private fun setting(key: String, value: String, at: Instant = serverNow) =

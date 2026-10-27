@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -21,7 +22,7 @@ internal class TestSyncStorePosition {
   private val store = SyncStore(PostgresTestDb.dataSource())
 
   /** A fresh user with one registered device, which pushing requires. */
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
     return user
@@ -58,7 +59,7 @@ internal class TestSyncStorePosition {
     )
 
   /** A fresh user with one registered device and [rows] already pushed. */
-  private suspend fun registeredUserWith(vararg rows: SettingSyncRow): String {
+  private suspend fun registeredUserWith(vararg rows: SettingSyncRow): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
     if (rows.isNotEmpty()) {

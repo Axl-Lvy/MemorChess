@@ -4,6 +4,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.server.auth.UserId
 
 internal class TestRepertoireWire {
 
@@ -11,7 +12,7 @@ internal class TestRepertoireWire {
     RepertoireRow(
       id = "london-system-white",
       version = 1,
-      authorId = "author-1",
+      authorId = UserId("author-1"),
       title = "London System",
       description = "Solid.",
       side = "white",

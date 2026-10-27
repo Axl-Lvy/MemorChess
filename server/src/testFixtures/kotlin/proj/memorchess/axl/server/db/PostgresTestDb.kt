@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import javax.sql.DataSource
 import org.testcontainers.containers.PostgreSQLContainer
+import proj.memorchess.axl.server.auth.UserId
 
 /**
  * One Postgres container shared by the whole test run. Tests isolate themselves by user id, since
@@ -35,5 +36,5 @@ internal object PostgresTestDb {
   internal fun dataSource(): DataSource = pool
 
   /** A fresh user id, so tests never see each other's rows. */
-  internal fun newUserId(): String = "user-${counter++}"
+  internal fun newUserId(): UserId = UserId("user-${counter++}")
 }

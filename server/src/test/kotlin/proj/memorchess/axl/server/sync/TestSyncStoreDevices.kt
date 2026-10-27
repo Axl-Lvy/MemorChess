@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -58,7 +59,7 @@ internal class TestSyncStoreDevices {
       PostgresTestDb.dataSource().connection.use { holder ->
         holder.autoCommit = false
         holder.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
-          statement.setString(1, "sync-user:$user")
+          statement.setString(1, "sync-user:${user.value}")
           statement.executeQuery().use { it.next() }
         }
         val registration =
@@ -76,7 +77,7 @@ internal class TestSyncStoreDevices {
 
   /** Registers, positions and removes a device, then registers it again. */
   private suspend fun returningRemovedDevice(
-    user: String,
+    user: UserId,
     ack: Long,
     floor: Long?,
     afterReset: Boolean = false,
@@ -278,7 +279,7 @@ internal class TestSyncStoreDevices {
       deviceSeq = seq,
     )
 
-  private suspend fun userWithOneSetting(): String {
+  private suspend fun userWithOneSetting(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
     store.push(
@@ -290,7 +291,7 @@ internal class TestSyncStoreDevices {
     return user
   }
 
-  private suspend fun highestRevision(user: String): Long =
+  private suspend fun highestRevision(user: UserId): Long =
     store
       .push(
         user,

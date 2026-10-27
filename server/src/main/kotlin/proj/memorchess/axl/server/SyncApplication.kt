@@ -154,7 +154,7 @@ internal fun Application.installRateLimiting(tiers: RateLimitTiers = PRODUCTION_
 }
 
 /** The authenticated caller's user id, or its IP on a route with no principal. */
-private fun ApplicationCall.callerKey(): String = principal<Caller>()?.userId ?: clientIp()
+private fun ApplicationCall.callerKey(): String = principal<Caller>()?.userId?.value ?: clientIp()
 
 /**
  * The caller's IP from Cloudflare's header, since the socket address is Cloudflare's edge.

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server
 
+import proj.memorchess.axl.server.auth.UserId
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -71,7 +72,7 @@ class TestRateLimiting {
   @Test
   fun `refuses a caller past its write budget with a rate limited api error`() =
     withServer { client ->
-      val token = key.token(subject = PostgresTestDb.newUserId())
+      val token = key.token(subject = PostgresTestDb.newUserId().value)
       repeat(tiers.syncWrite.limit) { client.deleteMe(token) }
 
       val response = client.deleteMe(token)
@@ -83,8 +84,8 @@ class TestRateLimiting {
 
   @Test
   fun `gives each caller its own write budget`() = withServer { client ->
-    val exhausted = key.token(subject = PostgresTestDb.newUserId())
-    val fresh = key.token(subject = PostgresTestDb.newUserId())
+    val exhausted = key.token(subject = PostgresTestDb.newUserId().value)
+    val fresh = key.token(subject = PostgresTestDb.newUserId().value)
     repeat(tiers.syncWrite.limit + 1) { client.deleteMe(exhausted) }
 
     client.deleteMe(fresh).status shouldBe HttpStatusCode.NoContent
@@ -94,7 +95,7 @@ class TestRateLimiting {
   fun `keeps the read budget independent from the write budget`() = withServer { client ->
     val subject = PostgresTestDb.newUserId()
     val device = "66666666-6666-4666-8666-666666666666"
-    val token = key.token(subject = subject)
+    val token = key.token(subject = subject.value)
     repeat(tiers.syncWrite.limit + 1) { client.deleteMe(token) }
     // Account deletion clears device rows, so registration comes after it here.
     SyncStore(PostgresTestDb.dataSource())
@@ -127,7 +128,7 @@ class TestRateLimiting {
 
   @Test
   fun `rate limits the admin route by ip`() = withServer { client ->
-    val token = key.token(subject = PostgresTestDb.newUserId())
+    val token = key.token(subject = PostgresTestDb.newUserId().value)
     repeat(tiers.admin.limit) { client.adminStatus(token, "9.9.9.9") }
 
     client.adminStatus(token, "9.9.9.9").status shouldBe HttpStatusCode.TooManyRequests

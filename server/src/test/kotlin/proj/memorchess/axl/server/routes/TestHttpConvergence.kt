@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.maps.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -100,7 +101,7 @@ class TestHttpConvergence {
       )
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
-    val token = key.token(subject = user)
+    val token = key.token(subject = user.value)
     // Registration is a prerequisite for pulling, so the store is primed directly.
     for (device in listOf(DEVICE_A, DEVICE_B)) {
       store.registerDevice(

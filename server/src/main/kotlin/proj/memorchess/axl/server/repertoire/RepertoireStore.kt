@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.EdgeIdentity
 import proj.memorchess.axl.server.db.resolveEdgeIds
 
@@ -26,7 +27,7 @@ private const val MAX_MANIFEST_ROWS: Int = 10_000
 internal data class RepertoireRow(
   val id: String,
   val version: Int,
-  val authorId: String,
+  val authorId: UserId,
   val title: String,
   val description: String,
   val side: String,
@@ -106,7 +107,7 @@ internal class RepertoireStore(
    * mutated, and an id owned by another author is refused.
    */
   suspend fun publish(
-    authorId: String,
+    authorId: UserId,
     id: String,
     title: String,
     description: String,
@@ -148,7 +149,7 @@ internal class RepertoireStore(
    * concurrent publishes of one id never compute the same version number.
    */
   private suspend fun doPublish(
-    authorId: String,
+    authorId: UserId,
     input: PublishInput,
     now: Instant,
   ): PublishOutcome {
@@ -198,7 +199,7 @@ internal class RepertoireStore(
   }
 
   /** Marks every version of [id] as removed, so none of them is listed or downloadable any more. */
-  suspend fun remove(authorId: String, id: String): RemoveOutcome = inTransaction { connection ->
+  suspend fun remove(authorId: UserId, id: String): RemoveOutcome = inTransaction { connection ->
     connection.acquireRepertoireLock(id)
     val existing = connection.lockLatestVersion(id)
     when {
@@ -347,7 +348,7 @@ private fun Connection.latestVersion(id: String): RepertoireRow? =
  * The count and summed move count of [authorId]'s non removed repertoires, one per id (its latest
  * version), excluding [excludingId].
  */
-private fun Connection.authorFootprint(authorId: String, excludingId: String): Pair<Int, Int> =
+private fun Connection.authorFootprint(authorId: UserId, excludingId: String): Pair<Int, Int> =
   prepareStatement(
       "SELECT count(*), COALESCE(sum(move_count), 0) FROM (" +
         "SELECT DISTINCT ON (id) id, move_count, status FROM repertoire_version " +
@@ -355,7 +356,7 @@ private fun Connection.authorFootprint(authorId: String, excludingId: String): P
         ") latest WHERE status != ? AND id != ?"
     )
     .use { statement ->
-      statement.setString(1, authorId)
+      statement.setString(1, authorId.value)
       statement.setString(2, STATUS_REMOVED)
       statement.setString(3, excludingId)
       statement.executeQuery().use { rows ->
@@ -409,7 +410,7 @@ private fun Connection.insertVersion(row: RepertoireRow) {
     .use { statement ->
       statement.setString(1, row.id)
       statement.setInt(2, row.version)
-      statement.setString(3, row.authorId)
+      statement.setString(3, row.authorId.value)
       statement.setString(4, row.title)
       statement.setString(5, row.description)
       statement.setString(6, row.side)
@@ -512,7 +513,7 @@ private fun ResultSet.toRow(): RepertoireRow =
   RepertoireRow(
     id = getString(1),
     version = getInt(2),
-    authorId = getString(3),
+    authorId = UserId(getString(3)),
     title = getString(4),
     description = getString(5),
     side = getString(6),

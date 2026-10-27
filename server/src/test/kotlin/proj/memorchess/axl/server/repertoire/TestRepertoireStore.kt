@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.repertoire
 
+import proj.memorchess.axl.server.auth.UserId
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.nulls.shouldBeNull
@@ -24,7 +25,7 @@ internal class TestRepertoireStore {
   private fun newId(): String = java.util.UUID.randomUUID().toString()
 
   // Random per test, so the per author quota never accumulates across tests.
-  private fun newAuthor(): String = "author-${java.util.UUID.randomUUID()}"
+  private fun newAuthor(): UserId = UserId("author-${java.util.UUID.randomUUID()}")
 
   private val author1 = newAuthor()
   private val author2 = newAuthor()
@@ -214,7 +215,7 @@ internal class TestRepertoireStore {
   fun `publishing refused by the quota writes no version`() =
     kotlinx.coroutines.test.runTest {
       val store = store(maxRepertoiresPerUser = 1)
-      val author = "author-orphan-${System.nanoTime()}"
+      val author = UserId("author-orphan-${System.nanoTime()}")
       store.publish(author, newId(), "T", "D", "white", moves("e4"), now)
       val rejectedId = newId()
 
@@ -228,7 +229,7 @@ internal class TestRepertoireStore {
   fun `publishing the one over the repertoire count quota is refused`() =
     kotlinx.coroutines.test.runTest {
       val store = store(maxRepertoiresPerUser = 2)
-      val author = "author-quota-${System.nanoTime()}"
+      val author = UserId("author-quota-${System.nanoTime()}")
       store.publish(author, newId(), "T", "D", "white", moves("e4"), now)
       store.publish(author, newId(), "T", "D", "white", moves("d4"), now)
 
@@ -241,7 +242,7 @@ internal class TestRepertoireStore {
   fun `publishing accepts exactly maxRepertoiresPerUser repertoires`() =
     kotlinx.coroutines.test.runTest {
       val store = store(maxRepertoiresPerUser = 2)
-      val author = "author-quota-ok-${System.nanoTime()}"
+      val author = UserId("author-quota-ok-${System.nanoTime()}")
       store.publish(author, newId(), "T", "D", "white", moves("e4"), now)
 
       val outcome = store.publish(author, newId(), "T", "D", "white", moves("d4"), now)
@@ -253,7 +254,7 @@ internal class TestRepertoireStore {
   fun `the move quota counts the author's other non removed repertoires`() =
     kotlinx.coroutines.test.runTest {
       val store = store(maxTotalMovesPerUser = 4)
-      val author = "author-moves-${System.nanoTime()}"
+      val author = UserId("author-moves-${System.nanoTime()}")
       store.publish(author, newId(), "T", "D", "white", moves("e4", "e5", "Nf3"), now)
 
       val fits = store.publish(author, newId(), "T", "D", "white", moves("d4"), now)
@@ -267,7 +268,7 @@ internal class TestRepertoireStore {
   fun `republishing the same id does not count its own prior version against the move quota`() =
     kotlinx.coroutines.test.runTest {
       val store = store(maxTotalMovesPerUser = 2)
-      val author = "author-republish-${System.nanoTime()}"
+      val author = UserId("author-republish-${System.nanoTime()}")
       val id = newId()
       store.publish(author, id, "T", "D", "white", moves("e4", "e5"), now)
 
@@ -281,7 +282,7 @@ internal class TestRepertoireStore {
   fun `a removed repertoire's moves no longer count against the move quota`() =
     kotlinx.coroutines.test.runTest {
       val store = store(maxTotalMovesPerUser = 2)
-      val author = "author-removed-moves-${System.nanoTime()}"
+      val author = UserId("author-removed-moves-${System.nanoTime()}")
       val removed = newId()
       store.publish(author, removed, "T", "D", "white", moves("e4", "e5"), now)
       store.remove(author, removed)
@@ -418,7 +419,7 @@ internal class TestRepertoireStore {
   fun `listPublished only returns published repertoires, not unlisted or removed`() =
     kotlinx.coroutines.test.runTest {
       val store = store()
-      val author = "author-list-${System.nanoTime()}"
+      val author = UserId("author-list-${System.nanoTime()}")
       val published = newId()
       val unlisted = newId()
       val removed = newId()
@@ -440,7 +441,7 @@ internal class TestRepertoireStore {
   fun `listPublished pages with a cursor and nextCursor is present only when the page is full`() =
     kotlinx.coroutines.test.runTest {
       val store = store()
-      val author = "author-page-${System.nanoTime()}"
+      val author = UserId("author-page-${System.nanoTime()}")
       // A shared random prefix sorts these ids together, with no other test's id in between.
       val prefix = java.util.UUID.randomUUID().toString()
       val ids = listOf("$prefix-1", "$prefix-2", "$prefix-3")
@@ -460,7 +461,7 @@ internal class TestRepertoireStore {
   fun `listPublished returns each id once even when it has multiple versions`() =
     kotlinx.coroutines.test.runTest {
       val store = store()
-      val author = "author-versions-${System.nanoTime()}"
+      val author = UserId("author-versions-${System.nanoTime()}")
       val id = newId()
       store.publish(author, id, "T1", "D", "white", moves("e4"), now)
       store.publish(author, id, "T2", "D", "white", moves("d4"), now)
@@ -475,7 +476,7 @@ internal class TestRepertoireStore {
   fun `allPublished returns every published repertoire unpaginated`() =
     kotlinx.coroutines.test.runTest {
       val store = store()
-      val author = "author-all-${System.nanoTime()}"
+      val author = UserId("author-all-${System.nanoTime()}")
       val ids = (1..5).map { newId() }
       ids.forEach { store.publish(author, it, "T", "D", "white", moves("e4"), now) }
 
@@ -525,7 +526,7 @@ internal class TestRepertoireStore {
   fun `republishing a removed id still counts against the repertoire count quota`() =
     kotlinx.coroutines.test.runTest {
       val store = store(maxRepertoiresPerUser = 1)
-      val author = "author-quota-removed-${System.nanoTime()}"
+      val author = UserId("author-quota-removed-${System.nanoTime()}")
       val removedId = newId()
       store.publish(author, removedId, "T", "D", "white", moves("e4"), now)
       store.remove(author, removedId)

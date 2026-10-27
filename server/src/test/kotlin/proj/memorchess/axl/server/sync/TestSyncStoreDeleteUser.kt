@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
@@ -21,7 +22,7 @@ internal class TestSyncStoreDeleteUser {
   private val store = SyncStore(PostgresTestDb.dataSource())
 
   /** A fresh user with one registered device, which pushing requires. */
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -31,7 +32,7 @@ internal class TestSyncStoreDeleteUser {
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
-  private suspend fun populate(user: String, origin: String, destination: String) {
+  private suspend fun populate(user: UserId, origin: String, destination: String) {
     store.push(
       user,
       DEVICE,

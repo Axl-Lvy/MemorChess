@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.SyncPullResponse
@@ -20,7 +21,7 @@ internal interface SyncTransport {
 /** Calls the store directly, skipping HTTP. */
 internal class StoreTransport(
   private val store: SyncStore,
-  private val userId: String,
+  private val userId: UserId,
   private val deviceId: DeviceId,
 ) : SyncTransport {
 

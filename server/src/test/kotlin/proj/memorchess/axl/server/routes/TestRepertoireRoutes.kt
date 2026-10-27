@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.server.auth.UserId
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -67,7 +68,7 @@ class TestRepertoireRoutes {
   private fun moves(vararg sans: String = arrayOf("e4")): List<RepertoireMove> = line(*sans)
 
   // Unique per test, so the per author quota on the shared table never accumulates across tests.
-  private fun newAuthor(): String = "author-${java.util.UUID.randomUUID()}"
+  private fun newAuthor(): UserId = UserId("author-${java.util.UUID.randomUUID()}")
 
   private val author1 = newAuthor()
   private val author2 = newAuthor()
@@ -228,7 +229,7 @@ class TestRepertoireRoutes {
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
-        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         contentType(ContentType.Application.Json)
         setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
       }
@@ -386,7 +387,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(id, title = "My Title"))
         }
@@ -403,7 +404,7 @@ class TestRepertoireRoutes {
     val id = newId()
 
     app(newStore()) { client ->
-      val token = key.token(subject = author1)
+      val token = key.token(subject = author1.value)
       client.post("/v1/repertoires") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
@@ -428,14 +429,14 @@ class TestRepertoireRoutes {
 
     app(newStore()) { client ->
       client.post("/v1/repertoires") {
-        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         contentType(ContentType.Application.Json)
         setBody(publishBody(id))
       }
 
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(id))
         }
@@ -456,7 +457,7 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(id))
         }
@@ -471,7 +472,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(newId(), moves = emptyList()))
         }
@@ -489,7 +490,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(newId(), moves = illegal))
         }
@@ -507,7 +508,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(newId(), moves = garbage))
         }
@@ -534,7 +535,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(newId(), side = "purple"))
         }
@@ -552,7 +553,7 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val response =
         client.delete("/v1/repertoires/$id") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         }
 
       response.status shouldBe HttpStatusCode.NoContent
@@ -568,7 +569,7 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val response =
         client.delete("/v1/repertoires/$id") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2.value)}")
         }
 
       response.status shouldBe HttpStatusCode.Forbidden
@@ -580,7 +581,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.delete("/v1/repertoires/${newId()}") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         }
 
       response.status shouldBe HttpStatusCode.NotFound
@@ -603,7 +604,7 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val response =
         client.post("/admin/repertoires/$id/status") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
         }
@@ -634,7 +635,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/admin/repertoires/${newId()}/status") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
         }
@@ -651,7 +652,7 @@ class TestRepertoireRoutes {
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
-        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         contentType(ContentType.Application.Json)
         setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
       }

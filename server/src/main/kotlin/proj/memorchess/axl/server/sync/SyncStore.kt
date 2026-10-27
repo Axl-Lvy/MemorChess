@@ -29,6 +29,7 @@ import proj.memorchess.axl.core.sync.SyncPushResponse
 import proj.memorchess.axl.core.sync.SyncRow
 import proj.memorchess.axl.core.sync.isTooFarAhead
 import proj.memorchess.axl.core.sync.resolve
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.EdgeIdentity
 import proj.memorchess.axl.server.db.resolveEdgeIds
 import proj.memorchess.axl.server.db.resolvePositionIds
@@ -67,7 +68,7 @@ internal class SyncStore(
    *   their per user cap; nothing is stored.
    */
   internal suspend fun push(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     request: SyncPushRequest,
     serverNow: Instant,
@@ -113,7 +114,7 @@ internal class SyncStore(
    *   floor.
    */
   private fun Connection.applyBatch(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     sentNodes: List<NodeSyncRow>,
     sentEdges: List<EdgeSyncRow>,
@@ -192,7 +193,7 @@ internal class SyncStore(
    * @throws ResyncRequiredException when [deviceId] was removed and has fallen below the floor.
    */
   internal suspend fun pull(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     ack: String?,
     limit: Int,
@@ -257,7 +258,7 @@ internal class SyncStore(
    * @throws UnknownDeviceException when there is no row, since serving from `0` would hand a full
    *   dataset to a device the watermark cannot see.
    */
-  private fun Connection.requireSyncableDevice(userId: String, deviceId: DeviceId): DeviceRow {
+  private fun Connection.requireSyncableDevice(userId: UserId, deviceId: DeviceId): DeviceRow {
     val device = readDevice(userId, deviceId) ?: throw UnknownDeviceException(deviceId)
     if (device.removedAt != null && device.lastAcked < gcFloor(userId)) {
       throw ResyncRequiredException(deviceId)
@@ -265,20 +266,20 @@ internal class SyncStore(
     return device
   }
 
-  private fun Connection.setAcked(userId: String, deviceId: DeviceId, acked: Long) {
+  private fun Connection.setAcked(userId: UserId, deviceId: DeviceId, acked: Long) {
     prepareStatement(
         "UPDATE sync_device SET last_acked_revision = ? WHERE user_id = ? AND device_id = ?"
       )
       .use { statement ->
         statement.setLong(1, acked)
-        statement.setString(2, userId)
+        statement.setString(2, userId.value)
         statement.setString(3, deviceId.value)
         statement.executeUpdate()
       }
   }
 
   private fun Connection.setServed(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     served: Long,
     pageToken: String,
@@ -290,14 +291,14 @@ internal class SyncStore(
       .use { statement ->
         statement.setLong(1, served)
         statement.setString(2, pageToken)
-        statement.setString(3, userId)
+        statement.setString(3, userId.value)
         statement.setString(4, deviceId.value)
         statement.executeUpdate()
       }
   }
 
   private fun Connection.pullNodes(
-    userId: String,
+    userId: UserId,
     since: Long,
     limit: Int,
   ): List<Pair<Long, NodeSyncRow>> =
@@ -309,7 +310,7 @@ internal class SyncStore(
           "WHERE n.user_id = ? AND n.revision > ? ORDER BY n.revision ASC LIMIT ?"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setLong(2, since)
         statement.setInt(3, limit)
         statement.executeQuery().use { rows ->
@@ -340,7 +341,7 @@ internal class SyncStore(
       }
 
   private fun Connection.pullEdges(
-    userId: String,
+    userId: UserId,
     since: Long,
     limit: Int,
   ): List<Pair<Long, EdgeSyncRow>> =
@@ -352,7 +353,7 @@ internal class SyncStore(
           "WHERE ue.user_id = ? AND ue.revision > ? ORDER BY ue.revision ASC LIMIT ?"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setLong(2, since)
         statement.setInt(3, limit)
         statement.executeQuery().use { rows ->
@@ -377,7 +378,7 @@ internal class SyncStore(
       }
 
   private fun Connection.pullSettings(
-    userId: String,
+    userId: UserId,
     since: Long,
     limit: Int,
   ): List<Pair<Long, SettingSyncRow>> =
@@ -386,7 +387,7 @@ internal class SyncStore(
           "FROM user_setting WHERE user_id = ? AND revision > ? ORDER BY revision ASC LIMIT ?"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setLong(2, since)
         statement.setInt(3, limit)
         statement.executeQuery().use { rows ->
@@ -417,7 +418,7 @@ internal class SyncStore(
    *   floor can start over.
    */
   internal suspend fun registerDevice(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     platform: DevicePlatform,
     afterReset: Boolean,
@@ -442,7 +443,7 @@ internal class SyncStore(
 
   /** Clears the removal and starts the device over at nothing seen. */
   private fun Connection.reinstateAndZero(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     platform: DevicePlatform,
     serverNow: Instant,
@@ -454,7 +455,7 @@ internal class SyncStore(
           "WHERE user_id = ? AND device_id = ?"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setString(2, deviceId.value)
         statement.executeUpdate()
       }
@@ -462,7 +463,7 @@ internal class SyncStore(
 
   /** Clears the removal, keeping the position, for a device that is missing nothing. */
   private fun Connection.reinstate(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     platform: DevicePlatform,
     serverNow: Instant,
@@ -470,25 +471,25 @@ internal class SyncStore(
     upsertDevice(userId, deviceId, platform, serverNow)
     prepareStatement("UPDATE sync_device SET removed_at = NULL WHERE user_id = ? AND device_id = ?")
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setString(2, deviceId.value)
         statement.executeUpdate()
       }
   }
 
   /** The revision below which a tombstone of [userId] may be gone, or `0` when never collected. */
-  private fun Connection.gcFloor(userId: String): Long =
+  private fun Connection.gcFloor(userId: UserId): Long =
     prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use { statement
       ->
-      statement.setString(1, userId)
+      statement.setString(1, userId.value)
       statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else 0L }
     }
 
-  private fun Connection.readDevice(userId: String, deviceId: DeviceId): DeviceRow? =
+  private fun Connection.readDevice(userId: UserId, deviceId: DeviceId): DeviceRow? =
     readDevices(userId).firstOrNull { it.deviceId == deviceId }
 
   /** Marks a device removed, so the watermark stops waiting on it. Test only. */
-  internal suspend fun removeDeviceForTest(userId: String, deviceId: DeviceId, at: Instant) {
+  internal suspend fun removeDeviceForTest(userId: UserId, deviceId: DeviceId, at: Instant) {
     inTransaction { connection ->
       connection
         .prepareStatement(
@@ -496,7 +497,7 @@ internal class SyncStore(
         )
         .use { statement ->
           statement.setTimestamp(1, at.toTimestamp())
-          statement.setString(2, userId)
+          statement.setString(2, userId.value)
           statement.setString(3, deviceId.value)
           statement.executeUpdate()
         }
@@ -504,17 +505,17 @@ internal class SyncStore(
   }
 
   /** Forces a user's garbage collection floor. Test only. */
-  internal suspend fun setGcFloorForTest(userId: String, floor: Long) {
+  internal suspend fun setGcFloorForTest(userId: UserId, floor: Long) {
     inTransaction { connection -> connection.setGcFloor(userId, floor) }
   }
 
-  private fun Connection.setGcFloor(userId: String, floor: Long) {
+  private fun Connection.setGcFloor(userId: UserId, floor: Long) {
     prepareStatement(
         "INSERT INTO sync_gc_floor (user_id, floor_revision) VALUES (?, ?) " +
           "ON CONFLICT (user_id) DO UPDATE SET floor_revision = EXCLUDED.floor_revision"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setLong(2, floor)
         statement.executeUpdate()
       }
@@ -522,7 +523,7 @@ internal class SyncStore(
 
   /** Inserts the row, or refreshes the platform and last seen time of the one already there. */
   private fun Connection.upsertDevice(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     platform: DevicePlatform,
     serverNow: Instant,
@@ -533,7 +534,7 @@ internal class SyncStore(
           "platform = EXCLUDED.platform, last_seen_at = EXCLUDED.last_seen_at"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setString(2, deviceId.value)
         // The column is text, so the enum becomes its wire name here and nowhere else.
         statement.setString(3, platform.wireName)
@@ -547,7 +548,7 @@ internal class SyncStore(
    * live row. Uses `>=` because collecting the newest tombstone can drop the maximum below
    * acknowledgements.
    */
-  internal suspend fun deviceStatus(userId: String, deviceId: DeviceId): Boolean? =
+  internal suspend fun deviceStatus(userId: UserId, deviceId: DeviceId): Boolean? =
     inTransaction { connection ->
       val device =
         connection.readDevice(userId, deviceId)?.takeIf { it.removedAt == null }
@@ -559,14 +560,14 @@ internal class SyncStore(
    * The highest revision [userId] owns, or `0`. Never the global `sync_revision` sequence, which
    * would report every device as behind forever.
    */
-  private fun Connection.highestRevision(userId: String): Long {
+  private fun Connection.highestRevision(userId: UserId): Long {
     val union =
       PER_USER_TABLES.joinToString(" UNION ALL ") {
         "SELECT max(revision) AS revision FROM $it WHERE user_id = ?"
       }
     return prepareStatement("SELECT COALESCE(max(revision), 0) FROM ($union) AS revisions").use {
       statement ->
-      PER_USER_TABLES.forEachIndexed { index, _ -> statement.setString(index + 1, userId) }
+      PER_USER_TABLES.forEachIndexed { index, _ -> statement.setString(index + 1, userId.value) }
       statement.executeQuery().use { rows ->
         rows.next()
         rows.getLong(1)
@@ -576,7 +577,7 @@ internal class SyncStore(
 
   /** Forces a device's position, so floor boundaries are reachable without paging. Test only. */
   internal suspend fun setPositionForTest(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     lastAcked: Long,
     lastServed: Long,
@@ -590,7 +591,7 @@ internal class SyncStore(
         .use { statement ->
           statement.setLong(1, lastAcked)
           statement.setLong(2, lastServed)
-          statement.setString(3, userId)
+          statement.setString(3, userId.value)
           statement.setString(4, deviceId.value)
           statement.executeUpdate()
         }
@@ -598,18 +599,18 @@ internal class SyncStore(
   }
 
   /** Every device row [userId] owns, removed ones included. Test only. */
-  internal suspend fun listDevicesForTest(userId: String): List<DeviceRow> =
+  internal suspend fun listDevicesForTest(userId: UserId): List<DeviceRow> =
     inTransaction { connection ->
       connection.readDevices(userId)
     }
 
-  private fun Connection.readDevices(userId: String): List<DeviceRow> =
+  private fun Connection.readDevices(userId: UserId): List<DeviceRow> =
     prepareStatement(
         "SELECT device_id, platform, last_acked_revision, last_served_revision, " +
           "last_page_token, removed_at FROM sync_device WHERE user_id = ? ORDER BY device_id"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.executeQuery().use { rows ->
           buildList {
             while (rows.next()) {
@@ -643,13 +644,13 @@ internal class SyncStore(
       } catch (e: Exception) {
         // One user's failure must not cost every later user in this run its collection, and the
         // scheduled job must survive to run again tomorrow.
-        logger.error("Tombstone collection failed for user '{}', continuing", userId, e)
+        logger.error("Tombstone collection failed for user '{}', continuing", userId.value, e)
       }
     }
   }
 
   /** Collects one user's tombstones, in a single transaction under their lock. */
-  private suspend fun collectTombstonesOf(userId: String) {
+  private suspend fun collectTombstonesOf(userId: UserId) {
     inTransaction { connection ->
       connection.acquireUserLock(userId)
       // Read under the lock guarding the delete, or a concurrent registration could reinstate a
@@ -661,7 +662,7 @@ internal class SyncStore(
         connection
           .prepareStatement("DELETE FROM $table WHERE user_id = ? AND is_deleted AND revision <= ?")
           .use { statement ->
-            statement.setString(1, userId)
+            statement.setString(1, userId.value)
             statement.setLong(2, watermark)
             statement.executeUpdate()
           }
@@ -671,10 +672,10 @@ internal class SyncStore(
   }
 
   /** Every user with at least one device row, which is the per user gate on collection. */
-  private suspend fun usersWithDevices(): List<String> = inTransaction { connection ->
+  private suspend fun usersWithDevices(): List<UserId> = inTransaction { connection ->
     connection.prepareStatement("SELECT DISTINCT user_id FROM sync_device").use { statement ->
       statement.executeQuery().use { rows ->
-        buildList { while (rows.next()) add(rows.getString(1)) }
+        buildList { while (rows.next()) add(UserId(rows.getString(1))) }
       }
     }
   }
@@ -684,13 +685,13 @@ internal class SyncStore(
    * removed. Removed devices are excluded so one lost install cannot hold the watermark down
    * forever.
    */
-  private fun Connection.watermarkOf(userId: String): Long? =
+  private fun Connection.watermarkOf(userId: UserId): Long? =
     prepareStatement(
         "SELECT min(last_acked_revision) FROM sync_device " +
           "WHERE user_id = ? AND removed_at IS NULL"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.executeQuery().use { rows ->
           rows.next()
           val value = rows.getLong(1)
@@ -699,10 +700,10 @@ internal class SyncStore(
       }
 
   /** The user's collection floor, or `null` when they have never been collected. Test only. */
-  internal suspend fun gcFloorForTest(userId: String): Long? = inTransaction { connection ->
+  internal suspend fun gcFloorForTest(userId: UserId): Long? = inTransaction { connection ->
     connection.prepareStatement("SELECT floor_revision FROM sync_gc_floor WHERE user_id = ?").use {
       statement ->
-      statement.setString(1, userId)
+      statement.setString(1, userId.value)
       statement.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
     }
   }
@@ -711,11 +712,11 @@ internal class SyncStore(
    * Removes every per user row of [userId], leaving the shared `position` and `move_edge` rows.
    * Only half of account deletion: the identity must also be removed at the auth provider.
    */
-  internal suspend fun deleteUser(userId: String) {
+  internal suspend fun deleteUser(userId: UserId) {
     inTransaction { connection ->
       for (table in PER_USER_TABLES + "sync_device" + "sync_gc_floor" + "sync_erase_cutoff") {
         connection.prepareStatement("DELETE FROM $table WHERE user_id = ?").use { statement ->
-          statement.setString(1, userId)
+          statement.setString(1, userId.value)
           statement.executeUpdate()
         }
       }
@@ -732,7 +733,7 @@ internal class SyncStore(
    *   collection floor.
    */
   internal suspend fun erase(
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     deviceSeq: Long,
     serverNow: Instant,
@@ -766,7 +767,7 @@ internal class SyncStore(
   /** Tombstones every live row [userId] owns in [table], returning the revisions assigned. */
   private fun Connection.tombstoneAll(
     table: String,
-    userId: String,
+    userId: UserId,
     deviceId: DeviceId,
     deviceSeq: Long,
     serverNow: Instant,
@@ -783,13 +784,13 @@ internal class SyncStore(
         statement.setTimestamp(2, serverNow.toTimestamp())
         statement.setString(3, deviceId.value)
         statement.setLong(4, deviceSeq)
-        statement.setString(5, userId)
+        statement.setString(5, userId.value)
         statement.executeQuery().use { rows ->
           buildList { while (rows.next()) add(rows.getLong(1)) }
         }
       }
 
-  private fun Connection.setEraseCutoff(userId: String, cutoff: EraseCutoff) {
+  private fun Connection.setEraseCutoff(userId: UserId, cutoff: EraseCutoff) {
     prepareStatement(
         "INSERT INTO sync_erase_cutoff " +
           "(user_id, erased_at, erased_revision, erased_by, erase_device_seq) " +
@@ -798,7 +799,7 @@ internal class SyncStore(
           "erased_by = EXCLUDED.erased_by, erase_device_seq = EXCLUDED.erase_device_seq"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setTimestamp(2, cutoff.erasedAt.toTimestamp())
         statement.setLong(3, cutoff.erasedRevision)
         statement.setString(4, cutoff.erasedBy.value)
@@ -808,13 +809,13 @@ internal class SyncStore(
   }
 
   /** [userId]'s last erase, or `null` when they never erased. */
-  private fun Connection.eraseCutoffOf(userId: String): EraseCutoff? =
+  private fun Connection.eraseCutoffOf(userId: UserId): EraseCutoff? =
     prepareStatement(
         "SELECT erased_at, erased_revision, erased_by, erase_device_seq " +
           "FROM sync_erase_cutoff WHERE user_id = ?"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.executeQuery().use { rows ->
           if (!rows.next()) return@use null
           EraseCutoff(
@@ -827,7 +828,7 @@ internal class SyncStore(
       }
 
   private fun Connection.pullRepertoires(
-    userId: String,
+    userId: UserId,
     since: Long,
     limit: Int,
   ): List<Pair<Long, RepertoireSyncRow>> =
@@ -837,7 +838,7 @@ internal class SyncStore(
           "ORDER BY revision ASC LIMIT ?"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setLong(2, since)
         statement.setInt(3, limit)
         statement.executeQuery().use { rows ->
@@ -862,7 +863,7 @@ internal class SyncStore(
       }
 
   private fun Connection.pullTags(
-    userId: String,
+    userId: UserId,
     since: Long,
     limit: Int,
   ): List<Pair<Long, EdgeRepertoireTagSyncRow>> =
@@ -875,7 +876,7 @@ internal class SyncStore(
           "WHERE t.user_id = ? AND t.revision > ? ORDER BY t.revision ASC LIMIT ?"
       )
       .use { statement ->
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         statement.setLong(2, since)
         statement.setInt(3, limit)
         statement.executeQuery().use { rows ->
@@ -905,7 +906,7 @@ internal class SyncStore(
    * replays. A losing row still advances the survivor's revision, so the pusher is served it again.
    */
   private fun <R : SyncRow, K> Connection.applyAll(
-    userId: String,
+    userId: UserId,
     table: SyncTable<R, K>,
     rows: List<R>,
     keyOf: (R) -> K,
@@ -930,7 +931,7 @@ internal class SyncStore(
 
   /** The stored rows of the keys in [keyed], by key, locked for the rest of the transaction. */
   private fun <R : SyncRow, K> Connection.readAllLocked(
-    userId: String,
+    userId: UserId,
     table: SyncTable<R, K>,
     keyed: List<Pair<K, R>>,
   ): Map<K, R> {
@@ -945,7 +946,7 @@ internal class SyncStore(
           createArrayOf(type, keys.map { table.keyParts(it)[column] }.toTypedArray()),
         )
       }
-      statement.setString(table.keyTypes.size + 1, userId)
+      statement.setString(table.keyTypes.size + 1, userId.value)
       statement.executeQuery().use { rows ->
         val versionStart = table.payloadColumns.size + 1
         val keyStart = versionStart + STORED_VERSION_COLUMNS.size
@@ -967,14 +968,14 @@ internal class SyncStore(
 
   /** Inserts or overwrites every row in [writes] under its key, each stamped with its revision. */
   private fun <R : SyncRow, K> Connection.upsertAll(
-    userId: String,
+    userId: UserId,
     table: SyncTable<R, K>,
     writes: Map<K, Pair<R, Long>>,
   ) {
     prepareStatement(table.upsertSql).use { statement ->
       for ((key, versioned) in writes) {
         val (row, revision) = versioned
-        statement.setString(1, userId)
+        statement.setString(1, userId.value)
         table.keyParts(key).forEachIndexed { index, part -> statement.setObject(2 + index, part) }
         val first = 2 + table.keyColumns.size
         table.bindPayload(statement, first, row)
@@ -1005,17 +1006,17 @@ internal class SyncStore(
    * Serializes [userId]'s pushes for the rest of the transaction, so two concurrent quota checks
    * cannot both pass against the same stale count.
    */
-  private fun Connection.acquireUserLock(userId: String) {
+  private fun Connection.acquireUserLock(userId: UserId) {
     prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
-      statement.setString(1, "sync-user:$userId")
+      statement.setString(1, "sync-user:${userId.value}")
       statement.executeQuery().use { it.next() }
     }
   }
 
   /** Rows [userId] already owns in [table]. [table] is always one of this file's own literals. */
-  private fun Connection.countUserRows(table: String, userId: String): Int =
+  private fun Connection.countUserRows(table: String, userId: UserId): Int =
     prepareStatement("SELECT count(*) FROM $table WHERE user_id = ?").use { statement ->
-      statement.setString(1, userId)
+      statement.setString(1, userId.value)
       statement.executeQuery().use { rows ->
         rows.next()
         rows.getInt(1)
@@ -1024,7 +1025,7 @@ internal class SyncStore(
 
   /** @throws QuotaExceededException [incoming] would push [userId] past [cap] rows of [rule]. */
   private fun <R, I> Connection.checkQuota(
-    userId: String,
+    userId: UserId,
     rule: QuotaRule<R, I>,
     incoming: List<R>,
     cap: Int,
@@ -1269,7 +1270,7 @@ private class QuotaRule<R, I>(
   val noun: String,
   val table: String,
   val identity: (R) -> I,
-  val countStored: (Connection, String, List<I>) -> Int,
+  val countStored: (Connection, UserId, List<I>) -> Int,
 )
 
 private val NODE_QUOTA =
@@ -1332,10 +1333,10 @@ private val TAG_QUOTA =
   )
 
 /** Counts in one query, [sql] taking the user id then the text keys as an array. */
-private fun countStoredAmong(sql: String): (Connection, String, List<String>) -> Int =
+private fun countStoredAmong(sql: String): (Connection, UserId, List<String>) -> Int =
   { connection, userId, keys ->
     connection.prepareStatement(sql).use { statement ->
-      statement.setString(1, userId)
+      statement.setString(1, userId.value)
       statement.setArray(2, connection.createArrayOf("text", keys.toTypedArray()))
       statement.executeQuery().use { rows ->
         rows.next()
@@ -1351,7 +1352,7 @@ private fun countStoredAmong(sql: String): (Connection, String, List<String>) ->
 private fun <I> countStoredAmongTuples(
   sql: String,
   partsOf: (I) -> List<String>,
-): (Connection, String, List<I>) -> Int = { connection, userId, identities ->
+): (Connection, UserId, List<I>) -> Int = { connection, userId, identities ->
   val parts = identities.map(partsOf)
   connection.prepareStatement(sql).use { statement ->
     val width = parts.first().size
@@ -1361,7 +1362,7 @@ private fun <I> countStoredAmongTuples(
         connection.createArrayOf("text", parts.map { it[column] }.toTypedArray()),
       )
     }
-    statement.setString(width + 1, userId)
+    statement.setString(width + 1, userId.value)
     statement.executeQuery().use { rows ->
       rows.next()
       rows.getInt(1)

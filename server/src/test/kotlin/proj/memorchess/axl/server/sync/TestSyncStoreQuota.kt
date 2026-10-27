@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -87,7 +88,7 @@ internal class TestSyncStoreQuota {
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   /** A fresh user with one registered device, which pushing requires. */
-  private suspend fun newUser(store: SyncStore): String {
+  private suspend fun newUser(store: SyncStore): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
