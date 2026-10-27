@@ -51,7 +51,7 @@ class TestHolderCleanup {
   }
 
   @Test
-  fun aMoveAnotherInstallHoldsIsKept() = runTest {
+  fun aMoveAnotherInstallHoldsIsKeptWithItsMarking() = runTest {
     val database = TestDatabases.empty()
     val store = testTreeStore(database)
     store.install("x", listOf(e4.installed(true, 0)))
@@ -59,7 +59,9 @@ class TestHolderCleanup {
 
     val plan = HolderCleanup(database).plan(listOf(e4), HoldOverlay("x", setOf(e4), emptySet()))
 
-    plan shouldBe CleanupPlan(emptyList(), emptyList())
+    plan.moves shouldBe emptyList()
+    plan.positions shouldBe emptyList()
+    plan.remarked.map { it.move to it.isGood } shouldBe listOf("e4" to false)
   }
 
   @Test
@@ -116,6 +118,33 @@ class TestHolderCleanup {
   @Test
   fun anEmptyCandidateListPlansNothing() = runTest {
     val plan = HolderCleanup(TestDatabases.empty()).plan(emptyList())
+
+    plan shouldBe CleanupPlan(emptyList(), emptyList())
+  }
+
+  @Test
+  fun aCandidateWithNoLiveStoredMoveIsSkipped() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    store.install("x", listOf(e4.installed(true, 0)))
+    store.deleteMove(start, "e4")
+    val unknownOrigin = TaggedEdge(posC, posA, "Kf2")
+    val unknownMove = TaggedEdge(start, posA, "d4")
+
+    val plan = HolderCleanup(database).plan(listOf(e4, unknownOrigin, unknownMove))
+
+    plan shouldBe CleanupPlan(emptyList(), emptyList())
+  }
+
+  @Test
+  fun aCandidateNamingAnotherDestinationIsSkipped() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    store.install("x", listOf(e4.installed(true, 0)))
+
+    val plan =
+      HolderCleanup(database)
+        .plan(listOf(TaggedEdge(start, posA, "e4")), HoldOverlay("x", setOf(e4), emptySet()))
 
     plan shouldBe CleanupPlan(emptyList(), emptyList())
   }

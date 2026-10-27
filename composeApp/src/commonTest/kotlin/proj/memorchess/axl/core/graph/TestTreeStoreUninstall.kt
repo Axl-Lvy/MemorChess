@@ -307,4 +307,18 @@ class TestTreeStoreUninstall {
     val lastTagSeq = outbox.filter { it.key is DirtyKey.TagKey }.maxOf { it.deviceSeq }
     (registrySeq > lastTagSeq) shouldBe true
   }
+
+  @Test
+  fun uninstallRemovesAManualHoldTheCascadeCutsOff() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    installed(database, store, "x", e4.installed(true, 0), e5.installed(true, 1))
+    store.addMove(posB, "e5", posC, isGood = true, fromDepth = 1)
+    database.clearDirty(database.getOutbox())
+
+    store.uninstall("x")
+
+    database.isLive(e5) shouldBe false
+    database.getOutbox().map { it.key } shouldContainAll listOf(DirtyKey.EdgeKey(posB, posC))
+  }
 }

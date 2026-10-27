@@ -269,4 +269,26 @@ class TestSyncApplierHolders {
     database.getPosition(PositionKey(destination))!!.cardState.reps shouldBe 0
     database.move()!!.isDeleted shouldBe false
   }
+
+  @Test
+  fun aPulledTombstoneOfAnUnknownPositionIsStoredDeleted() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val applier = testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined))
+
+    applier.applyNode(node(destination, deleted = true))
+
+    database.getPositionIncludingDeleted(PositionKey(destination))!!.isDeleted shouldBe true
+  }
+
+  @Test
+  fun aPulledNodeTombstoneOverMovesThatAreAllDeletedStaysDeleted() = runTest {
+    val (database, applier) = withBothNodes()
+    applier.applyMove(edge(isGood = true))
+    applier.applyMove(edge(isGood = true, deleted = true, seq = 2L))
+
+    applier.applyNode(node(destination, deleted = true, seq = 3L))
+
+    database.getPosition(PositionKey(destination)) shouldBe null
+    database.move()!!.isDeleted shouldBe true
+  }
 }

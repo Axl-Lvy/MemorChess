@@ -57,16 +57,7 @@ class SyncApplier(
         )
       database.applyRemoteNode(dataNode)
       cache.invalidate(dataNode.positionKey)
-      for (tag in database.getTagsTouching(dataNode.positionKey)) {
-        if (tag.isGood != null) recomputeHolders(tag.origin, tag.destination, tag.move)
-      }
-      // A tombstone does not delete a position a live move still reaches: its holders revive it.
-      if (remote.isDeleted && local != null) {
-        val moves = local.previousAndNextMoves
-        for (move in moves.previousMoves.values + moves.nextMoves.values) {
-          if (!move.isDeleted) recomputeHolders(move.origin, move.destination, move.move)
-        }
-      }
+      rederiveHoldersAround(dataNode)
     }
     return resolution.source
   }
@@ -130,6 +121,21 @@ class SyncApplier(
     return resolution.source
   }
 
+  /**
+   * Re-derives every move touching the just applied [node]: the ones its marked tags hold, and, for
+   * a tombstone, its live moves, so a position a holder still reaches comes back.
+   */
+  private suspend fun rederiveHoldersAround(node: DataNode) {
+    for (tag in database.getTagsTouching(node.positionKey)) {
+      if (tag.isGood != null) recomputeHolders(tag.origin, tag.destination, tag.move)
+    }
+    if (!node.isDeleted) return
+    val moves = node.previousAndNextMoves
+    for (move in moves.previousMoves.values + moves.nextMoves.values) {
+      if (!move.isDeleted) recomputeHolders(move.origin, move.destination, move.move)
+    }
+  }
+
   /** Hard wipes every synced row, in the cache and on disk, and the outbox with them. */
   suspend fun eraseAll() {
     database.eraseAll()
@@ -183,7 +189,7 @@ class SyncApplier(
       reviveIfDeleted(destination)
     }
     if (updated != null && updated != stored) database.applyRemoteMove(updated)
-    if (stored != null && !stored.isDeleted && updated?.isDeleted == true) {
+    if (stored?.isDeleted == false && updated?.isDeleted == true) {
       pruneIfOrphaned(origin)
       pruneIfOrphaned(destination)
     }
@@ -199,8 +205,7 @@ class SyncApplier(
    */
   private suspend fun pruneIfOrphaned(position: PositionKey) {
     if (position == PositionKey.START_POSITION) return
-    val node = database.getPositionIncludingDeleted(position) ?: return
-    if (node.isDeleted) return
+    val node = database.getPosition(position) ?: return
     val moves = node.previousAndNextMoves
     if ((moves.previousMoves.values + moves.nextMoves.values).any { !it.isDeleted }) return
     database.applyRemoteNode(node.copy(isDeleted = true))

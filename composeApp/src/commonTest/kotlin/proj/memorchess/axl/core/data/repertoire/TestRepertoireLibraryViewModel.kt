@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.data.repertoire
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -1040,6 +1041,27 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
         uninstallRepertoire = {
           attempted.complete(Unit)
           throw IllegalStateException("disk full")
+        },
+      )
+    viewModel.loadedState()
+
+    viewModel.uninstall(london.id)
+    attempted.await()
+
+    viewModel.installStates.value[london.id].shouldBeInstanceOf<RepertoireInstallState.Installed>()
+  }
+
+  @Test
+  fun aCancelledUninstallKeepsTheRepertoireInstalled() = test {
+    val attempted = CompletableDeferred<Unit>()
+    val store = FakeRegistry().apply { markInstalled(london.id) }
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        uninstallRepertoire = {
+          attempted.complete(Unit)
+          throw CancellationException("left the page")
         },
       )
     viewModel.loadedState()

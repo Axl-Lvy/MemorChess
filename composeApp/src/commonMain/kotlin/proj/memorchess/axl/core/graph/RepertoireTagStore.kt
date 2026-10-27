@@ -132,8 +132,8 @@ class RepertoireTagStore(
         move = move,
         isGood =
           database
-            .getTagIncludingDeleted(origin, destination, repertoireId)
-            ?.takeIf { !it.isDeleted }
+            .getTags(origin, destination)
+            .firstOrNull { it.repertoireId == repertoireId }
             ?.isGood,
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice,
@@ -171,11 +171,8 @@ class RepertoireTagStore(
     notifyDirty()
   }
 
-  /**
-   * Tombstones the registry row of [id]. Queues its own outbox entry; a no-op when none is live.
-   */
-  internal suspend fun unregister(id: String) {
-    val live = database.getRepertoire(id) ?: return
+  /** Tombstones the registry row [live]. Queues its own outbox entry. */
+  internal suspend fun unregister(live: DataRepertoire) {
     database.insertRepertoire(
       live.copy(
         isDeleted = true,
@@ -191,17 +188,17 @@ class RepertoireTagStore(
    * Tombstones the live tag of [repertoireId] on the edge from [origin] to [destination], if any.
    */
   internal suspend fun untag(origin: PositionKey, destination: PositionKey, repertoireId: String) {
-    val live =
-      database.getTagIncludingDeleted(origin, destination, repertoireId)?.takeIf { !it.isDeleted }
-        ?: return
-    database.insertTag(
-      live.copy(
-        isDeleted = true,
-        updatedAt = DateUtil.now(),
-        originDevice = deviceIdentity.originDevice,
-        deviceSeq = deviceIdentity.nextDeviceSeq(),
+    for (live in database.getTags(origin, destination)) {
+      if (live.repertoireId != repertoireId) continue
+      database.insertTag(
+        live.copy(
+          isDeleted = true,
+          updatedAt = DateUtil.now(),
+          originDevice = deviceIdentity.originDevice,
+          deviceSeq = deviceIdentity.nextDeviceSeq(),
+        )
       )
-    )
+    }
   }
 
   /** Tombstones every live tag on the edge from [origin] to [destination]. */

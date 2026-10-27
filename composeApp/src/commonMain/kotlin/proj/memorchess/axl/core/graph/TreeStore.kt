@@ -348,12 +348,11 @@ class TreeStore(
    * @throws IllegalArgumentException if [repertoireId] is not an installed repertoire.
    */
   suspend fun uninstall(repertoireId: String) {
-    require(tagStore.repertoire(repertoireId)?.installedVersion != null) {
-      "$repertoireId is not an installed repertoire"
-    }
+    val registered = tagStore.repertoire(repertoireId)
+    require(registered?.installedVersion != null) { "$repertoireId is not an installed repertoire" }
     // The registry row goes last, so an interrupted uninstall stays installed and can be retried.
     releaseHolds(repertoireId, tagStore.edgesTaggedWith(repertoireId))
-    tagStore.unregister(repertoireId)
+    tagStore.unregister(registered)
   }
 
   /**
@@ -367,9 +366,7 @@ class TreeStore(
     for (edge in edges) tagStore.untag(edge.origin, edge.destination, repertoireId)
     val plan = cleanup.plan(edges)
     val deleted = plan.moves.map { TaggedEdge(it.origin, it.destination, it.move) }.toSet()
-    for (edge in edges) {
-      if (edge !in deleted) rederiveMarking(edge)
-    }
+    for (move in plan.remarked) database.applyRemoteMove(move)
     val now = DateUtil.now()
     for (move in plan.moves) {
       tagStore.tombstoneTags(move.origin, move.destination)
@@ -400,8 +397,9 @@ class TreeStore(
       touched += edge.destination
     }
     for (position in touched) cache.invalidate(position)
-    for (origin in edges.map { it.origin } + deleted.map { it.origin }) {
-      if (origin in plan.positions) continue
+    val survivingOrigins =
+      (edges.map { it.origin } + deleted.map { it.origin }).toSet() - plan.positions.toSet()
+    for (origin in survivingOrigins) {
       refreshHasGoodOutgoing(origin)
       trainable.recompute(origin)
     }
@@ -409,28 +407,10 @@ class TreeStore(
   }
 
   /**
-   * Writes the effective marking of the live move [edge] from its holders, without outbox entry.
+   * Re-derives the stored [DataNode.hasGoodOutgoing] of the live [origin], without outbox entry.
    */
-  private suspend fun rederiveMarking(edge: TaggedEdge) {
-    val stored =
-      database
-        .getPositionIncludingDeleted(edge.origin)
-        ?.previousAndNextMoves
-        ?.nextMoves
-        ?.get(edge.move) ?: return
-    if (stored.isDeleted) return
-    val effective =
-      effectiveMarking(
-        stored.ownIsGood,
-        database.getTags(edge.origin, edge.destination).mapNotNull { it.isGood },
-      ) ?: return
-    if (effective != stored.isGood) database.applyRemoteMove(stored.copy(isGood = effective))
-  }
-
-  /** Re-derives the stored [DataNode.hasGoodOutgoing] of [origin], without outbox entry. */
   private suspend fun refreshHasGoodOutgoing(origin: PositionKey) {
-    val node = database.getPositionIncludingDeleted(origin) ?: return
-    if (node.isDeleted) return
+    val node = database.getPosition(origin) ?: return
     val recomputed =
       node.previousAndNextMoves.nextMoves.values.any { it.isGood == true && !it.isDeleted }
     if (recomputed != node.hasGoodOutgoing) {
