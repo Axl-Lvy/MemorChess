@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.graph
 
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.TaggedEdge
 import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.depthsFromStart
 import proj.memorchess.axl.core.pgn.PgnImportException
@@ -27,7 +28,7 @@ class RepertoireMoveImporter(
     repertoireId: String,
     onProgress: (Float) -> Unit = {},
   ): PgnImportSummary {
-    val planned = plan(moves)
+    val planned = plan(moves, repertoireId)
     treeStore.install(repertoireId, planned.map { it.insertion })
     onProgress(1f)
     val alreadyPresent = planned.count { it.unchanged }
@@ -38,19 +39,25 @@ class RepertoireMoveImporter(
   }
 
   /**
-   * Computes, without writing anything, how many of [moves] an [import] would leave unchanged.
+   * Computes, without writing anything, how many of [moves] an [import] as [repertoireId] would
+   * leave unchanged, and how many moves it would delete.
    *
    * @throws PgnImportException under the same conditions as [import].
    */
-  suspend fun preview(moves: List<RepertoireMove>): PgnImportPreview {
-    val planned = plan(moves)
+  suspend fun preview(moves: List<RepertoireMove>, repertoireId: String): PgnImportPreview {
+    val planned = plan(moves, repertoireId)
     return PgnImportPreview(
       totalMoves = planned.size,
       movesInCommon = planned.count { it.unchanged },
+      movesToDelete =
+        treeStore.previewInstall(
+          repertoireId,
+          planned.map { TaggedEdge(it.insertion.from, it.insertion.to, it.insertion.move) },
+        ),
     )
   }
 
-  private suspend fun plan(moves: List<RepertoireMove>): List<PlannedMove> {
+  private suspend fun plan(moves: List<RepertoireMove>, repertoireId: String): List<PlannedMove> {
     val depths = moves.depthsFromStart()
     return moves.map { move ->
       val from = keyOf(move.from)
@@ -59,7 +66,7 @@ class RepertoireMoveImporter(
         depths[move.from]
           ?: throw PgnImportException("Move ${move.move} from ${move.from} is not connected")
       val existing = treeStore.node(from)?.outgoing?.get(move.move)
-      val markings = tagStore.markings(from, to).values.filterNotNull()
+      val markings = (tagStore.markings(from, to) - repertoireId).values.filterNotNull()
       val effective = effectiveMarking(existing?.ownIsGood, markings + move.isGood)
       PlannedMove(
         InstalledMove(

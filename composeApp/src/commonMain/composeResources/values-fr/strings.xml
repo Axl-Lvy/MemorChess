@@ -224,6 +224,7 @@
   <string name="library_retry">RÉESSAYER</string>
   <string name="library_install">Installer</string>
   <string name="library_reinstall">Réinstaller</string>
+  <string name="library_uninstall">Désinstaller</string>
   <string name="library_color_white">BLANCS</string>
   <string name="library_color_black">NOIRS</string>
   <string name="library_fetching">Téléchargement…</string>
@@ -270,6 +271,10 @@
   <string name="library_filter_empty">Aucun pack ne correspond à ce filtre pour l'instant.</string>
   <string name="library_badge_in_training">EN ENTRAÎNEMENT</string>
   <string name="library_badge_new">NOUVEAU</string>
+  <plurals name="library_moves_to_delete">
+    <item quantity="one">%1$d coup et sa progression de révision seront supprimés.</item>
+    <item quantity="other">%1$d coups et leur progression de révision seront supprimés.</item>
+  </plurals>
   <plurals name="library_move_count">
     <item quantity="one">%1$d coup</item>
     <item quantity="other">%1$d coups</item>

@@ -27,7 +27,12 @@ Read the `:macrobenchmark` and `:microbenchmark` READMEs before running benchmar
 ## Code
 
 - **Comments**: prefer names and small functions that make a comment unnecessary. Every public declaration gets a one or two line KDoc saying what it does, not how; `@param`/`@return` only when they add something the name does not. Inline comments only for a non-obvious why (an invariant, a workaround). No history, issue, PR, or mockup references, no section dividers, no list of callers.
-- **Types**: a domain concept gets its own type (`@JvmInline value class`, enum, sealed type) rather than a raw `String`/`Int`/`Long`/`Double`/`Boolean`, including in wire DTOs and server routes. Ids, moves, sequences, and durations (`kotlin.time.Duration`, `Instant`) are never bare primitives.
+- **Types**: a domain concept gets its own type (`@JvmInline value class`, enum, sealed type) rather than a raw `String`/`Int`/`Long`/`Double`/`Boolean`, including in wire DTOs and server routes. Ids, positions, moves, tokens, revisions, and durations (`kotlin.time.Duration`, `Instant`) are never bare primitives; a tri-state is an enum, not a `Boolean?`, and the side to move is a `Player`, not a Boolean.
+  - Validate once, at the boundary: a type whose values are constrained (e.g. a canonical UUID) has a `parse` factory, and every route or decoder goes through it.
+  - `@Serializable` value classes encode as their bare value, so they are safe on the wire. Enums on the wire carry `@SerialName` values matching the existing strings; decoding a value that may grow (e.g. `CardPhase`) falls back to a default instead of throwing.
+  - Room entities, Exposed columns, and IndexedDB `external interface : JsAny` fields stay primitive; convert in the mappers, as `MoveEntity` does for `PositionKey`. SQL never hard-codes an enum's name as a string literal.
+  - Secrets (OAuth access and refresh tokens) get their own type with a redacted `toString()`, so a data class holding one cannot log it.
+  - Not worth a type: values used inside one algorithm (FSRS `stability`/`difficulty`), UI ratios, plain counts and depths.
 - **Visibility**: work down the ladder (`private` → `internal` → `public`). A data class with a restricted constructor needs `@ConsistentCopyVisibility`.
 - **Database**: the app is not in production. Change Room/IndexedDB schemas freely without migrations. Never re-enable Room schema export.
 - **Secrets**: read from `System.getenv`; CI injects them from GitHub Actions secrets. There is no generation flow.

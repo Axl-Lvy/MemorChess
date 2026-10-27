@@ -34,6 +34,8 @@ class TreeStore(
   private val notifyDirty: () -> Unit = {},
 ) {
 
+  private val cleanup = HolderCleanup(database)
+
   /**
    * Resolves the node at [positionKey] through the cache, prefetching its neighbours on a miss.
    * `null` when the position is neither persisted nor a resident exploration only node.
@@ -150,10 +152,12 @@ class TreeStore(
 
   /**
    * Installs [moves] as holds of [repertoireId] at their effective marking, creating no manual
-   * hold. Persists the touched positions but queues no move for push: only tags and positions sync.
+   * hold, and replaces the repertoire's earlier holds as [uninstall] does. Persists the touched
+   * positions but queues no move for push: only tags and positions sync.
    */
   suspend fun install(repertoireId: String, moves: List<InstalledMove>) {
     if (moves.isEmpty()) return
+    val dropped = droppedBy(repertoireId, moves.map { TaggedEdge(it.from, it.to, it.move) })
     for (move in moves) {
       tagStore.tagInstalled(move.from, move.to, repertoireId, move.move, move.isGood)
     }
@@ -186,6 +190,29 @@ class TreeStore(
     database.insertNodes(*nodesToPersist.toTypedArray())
     for (origin in touched) trainable.recompute(origin)
     notifyDirty()
+    releaseHolds(repertoireId, dropped)
+  }
+
+  /** Number of moves an [install] of [edges] as [repertoireId] would delete. */
+  suspend fun previewInstall(repertoireId: String, edges: List<TaggedEdge>): Int {
+    val dropped = droppedBy(repertoireId, edges)
+    if (dropped.isEmpty()) return 0
+    return cleanup
+      .plan(dropped, HoldOverlay(repertoireId, dropped.toSet(), edges.toSet()))
+      .moves
+      .size
+  }
+
+  /**
+   * The edges [repertoireId] holds that [edges] no longer contains. Membership tags the user added
+   * by saving while scoped to the repertoire are not holds, so they stay.
+   */
+  private suspend fun droppedBy(repertoireId: String, edges: List<TaggedEdge>): List<TaggedEdge> {
+    val kept = edges.map { it.origin to it.destination }.toSet()
+    return tagStore.edgesTaggedWith(repertoireId).filter {
+      (it.origin to it.destination) !in kept &&
+        tagStore.markings(it.origin, it.destination)[repertoireId] != null
+    }
   }
 
   /** The persisted move [move] from [from], live or tombstoned, whose stamps an install keeps. */
@@ -231,6 +258,90 @@ class TreeStore(
   suspend fun fork(sourceId: String, newId: String, newName: String, color: RepertoireColor?) {
     holdManually(tagStore.edgesTaggedWith(sourceId))
     tagStore.fork(sourceId, newId, newName, color)
+  }
+
+  /** Number of moves [uninstall] of [repertoireId] would delete. */
+  suspend fun previewUninstall(repertoireId: String): Int {
+    val edges = tagStore.edgesTaggedWith(repertoireId)
+    return cleanup.plan(edges, HoldOverlay(repertoireId, edges.toSet(), emptySet())).moves.size
+  }
+
+  /**
+   * Uninstalls [repertoireId]: tombstones its registry row and tags, then deletes every move no
+   * holder keeps and every position the deletion cuts off, with their review progress. Moves the
+   * user holds or another installed repertoire holds stay, with their re-derived marking.
+   *
+   * @throws IllegalArgumentException if [repertoireId] is not an installed repertoire.
+   */
+  suspend fun uninstall(repertoireId: String) {
+    val registered = tagStore.repertoire(repertoireId)
+    require(registered?.installedVersion != null) { "$repertoireId is not an installed repertoire" }
+    // The registry row goes last, so an interrupted uninstall stays installed and can be retried.
+    releaseHolds(repertoireId, tagStore.edgesTaggedWith(repertoireId))
+    tagStore.unregister(registered)
+  }
+
+  /**
+   * Removes [repertoireId]'s holds on [edges], re-derives the marking of the moves something still
+   * holds, and applies the [HolderCleanup] plan. An unheld move is deleted without an outbox entry,
+   * since every device derives move existence from the holders; a removed manual hold, a tag and a
+   * deleted position are queued for push.
+   */
+  private suspend fun releaseHolds(repertoireId: String, edges: List<TaggedEdge>) {
+    if (edges.isEmpty()) return
+    for (edge in edges) tagStore.untag(edge.origin, edge.destination, repertoireId)
+    val plan = cleanup.plan(edges)
+    val deleted = plan.moves.map { TaggedEdge(it.origin, it.destination, it.move) }.toSet()
+    for (move in plan.remarked) database.applyRemoteMove(move)
+    val now = DateUtil.now()
+    for (move in plan.moves) {
+      tagStore.tombstoneTags(move.origin, move.destination)
+      if (move.ownIsGood != null) {
+        database.deleteMove(
+          move.origin,
+          move.move,
+          deviceIdentity.originDevice,
+          deviceIdentity.nextDeviceSeq(),
+          now,
+        )
+      } else {
+        database.applyRemoteMove(move.copy(isDeleted = true))
+      }
+    }
+    for (position in plan.positions) {
+      database.deletePosition(
+        position,
+        deviceIdentity.originDevice,
+        deviceIdentity.nextDeviceSeq(),
+        now,
+      )
+      trainable.clear(position)
+    }
+    val touched = linkedSetOf<PositionKey>()
+    for (edge in edges + deleted) {
+      touched += edge.origin
+      touched += edge.destination
+    }
+    for (position in touched) cache.invalidate(position)
+    val survivingOrigins =
+      (edges.map { it.origin } + deleted.map { it.origin }).toSet() - plan.positions.toSet()
+    for (origin in survivingOrigins) {
+      refreshHasGoodOutgoing(origin)
+      trainable.recompute(origin)
+    }
+    notifyDirty()
+  }
+
+  /**
+   * Re-derives the stored [DataNode.hasGoodOutgoing] of the live [origin], without outbox entry.
+   */
+  private suspend fun refreshHasGoodOutgoing(origin: PositionKey) {
+    val node = database.getPosition(origin) ?: return
+    val recomputed =
+      node.previousAndNextMoves.nextMoves.values.any { it.isGood == true && !it.isDeleted }
+    if (recomputed != node.hasGoodOutgoing) {
+      database.applyRemoteNode(node.copy(hasGoodOutgoing = recomputed))
+    }
   }
 
   /**

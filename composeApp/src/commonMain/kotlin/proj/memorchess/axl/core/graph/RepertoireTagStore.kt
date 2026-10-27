@@ -89,6 +89,7 @@ class RepertoireTagStore(
   /**
    * Idempotently adds a membership-only [repertoireId] tag, which does not hold the move, to the
    * edge from [origin] to [destination], then recomputes [origin]'s trainable projection.
+   * Re-tagging a move the repertoire already holds keeps its marking.
    *
    * @throws IllegalStateException if no move from [origin] to [destination] is stored.
    */
@@ -103,6 +104,11 @@ class RepertoireTagStore(
         destination = destination,
         repertoireId = repertoireId,
         move = move,
+        isGood =
+          database
+            .getTags(origin, destination)
+            .firstOrNull { it.repertoireId == repertoireId }
+            ?.isGood,
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
@@ -136,6 +142,36 @@ class RepertoireTagStore(
       )
     )
     notifyDirty()
+  }
+
+  /** Tombstones the registry row [live]. Queues its own outbox entry. */
+  internal suspend fun unregister(live: DataRepertoire) {
+    database.insertRepertoire(
+      live.copy(
+        isDeleted = true,
+        updatedAt = DateUtil.now(),
+        originDevice = deviceIdentity.originDevice,
+        deviceSeq = deviceIdentity.nextDeviceSeq(),
+      )
+    )
+    notifyDirty()
+  }
+
+  /**
+   * Tombstones the live tag of [repertoireId] on the edge from [origin] to [destination], if any.
+   */
+  internal suspend fun untag(origin: PositionKey, destination: PositionKey, repertoireId: String) {
+    for (live in database.getTags(origin, destination)) {
+      if (live.repertoireId != repertoireId) continue
+      database.insertTag(
+        live.copy(
+          isDeleted = true,
+          updatedAt = DateUtil.now(),
+          originDevice = deviceIdentity.originDevice,
+          deviceSeq = deviceIdentity.nextDeviceSeq(),
+        )
+      )
+    }
   }
 
   /** Tombstones every live tag on the edge from [origin] to [destination]. */
