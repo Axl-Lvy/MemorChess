@@ -251,6 +251,30 @@ class TestSyncRoutes {
   }
 
   @Test
+  fun `refuses a pull from a device that is not a canonical UUID`() =
+    withServer(devices = listOf(DEVICE, "not-a-uuid")) { client, token ->
+      val response =
+        client.get("/v1/sync?device=not-a-uuid") {
+          header(HttpHeaders.Authorization, "Bearer $token")
+        }
+
+      response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+    }
+
+  @Test
+  fun `refuses a pull from the nil UUID reserved for erase tombstones`() =
+    withServer(devices = listOf(DEVICE, NIL_UUID)) { client, token ->
+      val response =
+        client.get("/v1/sync?device=$NIL_UUID") {
+          header(HttpHeaders.Authorization, "Bearer $token")
+        }
+
+      response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+    }
+
+  @Test
   fun `an unacknowledged token confirms nothing and re serves the page`() =
     withServer { client, token ->
       client.push(token, setting("a", "1"))
