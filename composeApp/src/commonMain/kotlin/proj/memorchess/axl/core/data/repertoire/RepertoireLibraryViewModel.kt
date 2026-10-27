@@ -21,6 +21,7 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * @param reportInstall Must never throw.
  * @param loadRepertoire `null` when the id is unregistered; a row without an installed version is
  *   the user's own repertoire.
+ * @param uninstallRepertoire Deletes the moves nothing else holds.
  */
 class RepertoireLibraryViewModel(
   private val loadManifest: suspend () -> CachedManifestResult,
@@ -36,12 +37,15 @@ class RepertoireLibraryViewModel(
       moves: List<RepertoireMove>,
       onProgress: (Float) -> Unit,
     ) -> PgnImportSummary,
-  private val previewMoves: suspend (moves: List<RepertoireMove>) -> PgnImportPreview,
+  private val previewMoves:
+    suspend (descriptor: RepertoireDescriptor, moves: List<RepertoireMove>) -> PgnImportPreview,
   private val reportInstall: suspend (id: String) -> Unit,
   private val loadRepertoire: suspend (id: String) -> DataRepertoire?,
   private val registerInstall: suspend (descriptor: RepertoireDescriptor) -> Unit,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot>,
+  private val previewUninstall: suspend (id: String) -> Int,
+  private val uninstallRepertoire: suspend (id: String) -> Unit,
   private val scope: CoroutineScope,
 ) {
 
@@ -54,6 +58,8 @@ class RepertoireLibraryViewModel(
   private val internalMyRepertoires = MutableStateFlow<List<DataRepertoire>>(emptyList())
   private val internalMasterySnapshots =
     MutableStateFlow<Map<String, RepertoireMasterySnapshot>>(emptyMap())
+  private val internalUninstallPreviews = MutableStateFlow<Map<String, Int>>(emptyMap())
+  private val uninstallsInFlight = mutableSetOf<String>()
   private var loadInFlight = false
 
   /** Current state of the catalog list. */
@@ -72,6 +78,12 @@ class RepertoireLibraryViewModel(
    */
   val previewStates: StateFlow<Map<String, RepertoirePreviewState>> =
     internalPreviewStates.asStateFlow()
+
+  /**
+   * How many moves uninstalling each repertoire would delete, keyed by [RepertoireDescriptor.id]. A
+   * missing key means the count has not been computed yet.
+   */
+  val uninstallPreviews: StateFlow<Map<String, Int>> = internalUninstallPreviews.asStateFlow()
 
   /** The user's own registered repertoires, for the "My Repertoires" list. */
   val myRepertoires: StateFlow<List<DataRepertoire>> = internalMyRepertoires.asStateFlow()
@@ -132,6 +144,7 @@ class RepertoireLibraryViewModel(
    * repertoire owns the id. Ignored while the same repertoire is fetching or importing.
    */
   fun install(descriptor: RepertoireDescriptor) {
+    if (descriptor.id in uninstallsInFlight) return
     when (internalInstallStates.value[descriptor.id]) {
       is RepertoireInstallState.Fetching,
       is RepertoireInstallState.Importing -> return
@@ -154,6 +167,44 @@ class RepertoireLibraryViewModel(
     }
     setPreviewState(descriptor.id, RepertoirePreviewState.Loading)
     scope.launch { runPreview(descriptor) }
+  }
+
+  /** Computes how many moves uninstalling the installed repertoire [id] would delete. */
+  fun requestUninstallPreview(id: String) {
+    internalUninstallPreviews.value -= id
+    scope.launch { internalUninstallPreviews.value += id to previewUninstall(id) }
+  }
+
+  /**
+   * Uninstalls the installed repertoire [id], listed in the catalog or not, then marks it not
+   * installed. Ignored while an install or an uninstall of it is running; a failed uninstall leaves
+   * it installed.
+   */
+  fun uninstall(id: String) {
+    when (internalInstallStates.value[id]) {
+      is RepertoireInstallState.Fetching,
+      is RepertoireInstallState.Importing -> return
+      is RepertoireInstallState.Installed,
+      is RepertoireInstallState.Failed,
+      is RepertoireInstallState.NotInstalled,
+      null -> Unit
+    }
+    if (!uninstallsInFlight.add(id)) return
+    scope.launch {
+      try {
+        uninstallRepertoire(id)
+        setInstallState(id, RepertoireInstallState.NotInstalled)
+        internalPreviewStates.value -= id
+        internalUninstallPreviews.value -= id
+        refreshMyRepertoires()
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        LOGGER.w(e) { "Uninstall of repertoire $id failed" }
+      } finally {
+        uninstallsInFlight -= id
+      }
+    }
   }
 
   private suspend fun runLoad(load: suspend () -> CachedManifestResult) {
@@ -180,9 +231,15 @@ class RepertoireLibraryViewModel(
         descriptor.id to
           when {
             prior != null && prior !is RepertoireInstallState.NotInstalled -> prior
-            loadRepertoire(descriptor.id)?.installedVersion != null ->
-              RepertoireInstallState.Installed(summary = null)
-            else -> RepertoireInstallState.NotInstalled
+            else ->
+              when (val version = loadRepertoire(descriptor.id)?.installedVersion) {
+                null -> RepertoireInstallState.NotInstalled
+                else ->
+                  RepertoireInstallState.Installed(
+                    summary = null,
+                    isOutdated = version < descriptor.version,
+                  )
+              }
           }
       }
     return LibraryCatalogState.Loaded(manifest.repertoires, isStale)
@@ -234,7 +291,7 @@ class RepertoireLibraryViewModel(
       } ?: return
     val preview =
       try {
-        previewMoves(moves)
+        previewMoves(descriptor, moves)
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
@@ -321,9 +378,11 @@ sealed class RepertoireInstallState {
 
   /**
    * The repertoire is installed. [summary] is available when the install happened in this session
-   * and `null` when the installed flag was restored from persistence.
+   * and `null` when the installed flag was restored from persistence. [isOutdated] is `true` when
+   * the catalog lists a newer version than the installed one.
    */
-  data class Installed(val summary: PgnImportSummary?) : RepertoireInstallState()
+  data class Installed(val summary: PgnImportSummary?, val isOutdated: Boolean = false) :
+    RepertoireInstallState()
 
   /** The last install attempt failed with [error]. The install may be retried. */
   data class Failed(val error: InstallError) : RepertoireInstallState()

@@ -12,7 +12,8 @@ import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
  * Applies rows pulled from `/v1/sync` to local storage when they win resolution against the local
- * copy, without queuing outbox entries.
+ * copy, without queuing outbox entries. Touched positions are invalidated after the write, so a
+ * load already in flight cannot put the pre-sync row back.
  */
 class SyncApplier(
   private val database: DatabaseQueryManager,
@@ -35,10 +36,7 @@ class SyncApplier(
       database.applyRemoteNode(dataNode)
       // After the write, so a load already in flight cannot put the pre sync row back.
       cache.invalidate(dataNode.positionKey)
-      // A tag can arrive before its endpoint positions, so their arrival re-derives its move.
-      for (tag in database.getTagsTouching(dataNode.positionKey)) {
-        if (tag.isGood != null) recomputeHolders(tag.origin, tag.destination, tag.move)
-      }
+      rederiveHoldersAround(dataNode)
     }
     return resolution.source
   }
@@ -94,6 +92,21 @@ class SyncApplier(
     return resolution.source
   }
 
+  /**
+   * Re-derives every move touching the just applied [node]: the ones its marked tags hold, and, for
+   * a tombstone, its live moves, so a position a holder still reaches comes back.
+   */
+  private suspend fun rederiveHoldersAround(node: DataNode) {
+    for (tag in database.getTagsTouching(node.positionKey)) {
+      if (tag.isGood != null) recomputeHolders(tag.origin, tag.destination, tag.move)
+    }
+    if (!node.isDeleted) return
+    val moves = node.previousAndNextMoves
+    for (move in moves.previousMoves.values + moves.nextMoves.values) {
+      if (!move.isDeleted) recomputeHolders(move.origin, move.destination, move.move)
+    }
+  }
+
   /** Hard wipes every synced row, in the cache and on disk, and the outbox with them. */
   suspend fun eraseAll() {
     database.eraseAll()
@@ -146,10 +159,25 @@ class SyncApplier(
       reviveIfDeleted(destination)
     }
     if (updated != null && updated != stored) database.applyRemoteMove(updated)
+    if (stored?.isDeleted == false && updated?.isDeleted == true) {
+      pruneIfOrphaned(origin)
+      pruneIfOrphaned(destination)
+    }
     refreshHasGoodOutgoingIfChanged(origin)
     cache.invalidate(origin)
     cache.invalidate(destination)
     trainable.recompute(origin)
+  }
+
+  /** Deletes [position] locally when it is live, not the start, and has no live move left. */
+  private suspend fun pruneIfOrphaned(position: PositionKey) {
+    if (position == PositionKey.START_POSITION) return
+    val node = database.getPosition(position) ?: return
+    val moves = node.previousAndNextMoves
+    if ((moves.previousMoves.values + moves.nextMoves.values).any { !it.isDeleted }) return
+    database.applyRemoteNode(node.copy(isDeleted = true))
+    trainable.clear(position)
+    cache.invalidate(position)
   }
 
   /** Restores [position] with a fresh review state if it is deleted. */

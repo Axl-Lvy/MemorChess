@@ -149,4 +149,16 @@ class TestRepertoireTagStore {
       tagStore.fork("italian-game", "", "Copy", RepertoireColor.WHITE)
     }
   }
+
+  @Test
+  fun taggingAnInstalledMoveKeepsTheAuthorsMarking() = runTest {
+    val database = TestDatabases.empty()
+    val tagStore = testRepertoireTagStore(database)
+    testTreeStore(database)
+      .install("x", listOf(InstalledMove(start, "e4", posA, isGood = true, fromDepth = 0)))
+
+    tagStore.tag(start, posA, "x")
+
+    assertEquals(mapOf<String, Boolean?>("x" to true), tagStore.markings(start, posA))
+  }
 }

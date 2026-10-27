@@ -161,8 +161,9 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   ): PreviousAndNextMoves =
     PreviousAndNextMoves(
       previousMoves =
-        moves.previousMoves.values.map { it.tombstone(originDevice, deviceSeq, updatedAt) },
-      nextMoves = moves.nextMoves.values.map { it.tombstone(originDevice, deviceSeq, updatedAt) },
+        moves.previousMoves.values.map { it.tombstoneIfLive(originDevice, deviceSeq, updatedAt) },
+      nextMoves =
+        moves.nextMoves.values.map { it.tombstoneIfLive(originDevice, deviceSeq, updatedAt) },
     )
 
   /**
@@ -193,6 +194,13 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       }
     nodes[neighborKey] = neighbor.copy(previousAndNextMoves = updated)
   }
+
+  /** [tombstone], leaving an already deleted move with its own stamps, as Room and IndexedDB do. */
+  private fun DataMove.tombstoneIfLive(
+    originDevice: String,
+    deviceSeq: Long,
+    updatedAt: Instant,
+  ): DataMove = if (isDeleted) this else tombstone(originDevice, deviceSeq, updatedAt)
 
   private fun DataMove.tombstone(
     originDevice: String,
