@@ -16,10 +16,6 @@ class TestServerConfig {
       "SYNC_JWT_ISSUER" to "https://issuer.example/",
       "SYNC_JWT_AUDIENCE" to "memorchess",
       "SYNC_JWKS_URL" to "https://issuer.example/.well-known/jwks.json",
-      "SYNC_R2_ENDPOINT" to "https://accountid.r2.cloudflarestorage.com",
-      "SYNC_R2_BUCKET" to "memorchess-repertoires",
-      "SYNC_R2_ACCESS_KEY_ID" to "test-key",
-      "SYNC_R2_SECRET_ACCESS_KEY" to "test-secret",
     )
 
   private fun config(overrides: Map<String, String?> = emptyMap()) =
@@ -35,24 +31,6 @@ class TestServerConfig {
     result.jwtIssuer shouldBe "https://issuer.example/"
     result.jwtAudience shouldBe "memorchess"
     result.jwksUrl.toString() shouldBe "https://issuer.example/.well-known/jwks.json"
-  }
-
-  @Test
-  fun `reads the r2 configuration`() {
-    val result = config()
-
-    result.r2Endpoint.toString() shouldBe "https://accountid.r2.cloudflarestorage.com"
-    result.r2Bucket shouldBe "memorchess-repertoires"
-    result.r2AccessKeyId shouldBe "test-key"
-    result.r2SecretAccessKey shouldBe "test-secret"
-  }
-
-  @Test
-  fun `refuses a non absolute r2 endpoint`() {
-    val failure =
-      shouldThrow<IllegalStateException> { config(mapOf("SYNC_R2_ENDPOINT" to "not-a-url")) }
-
-    failure.message!! shouldContain "SYNC_R2_ENDPOINT"
   }
 
   @Test

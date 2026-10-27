@@ -4,22 +4,6 @@ import kotlinx.serialization.Serializable
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 
-/**
- * Body of `POST /v1/repertoires`.
- *
- * @property id The catalog slug to publish or republish under.
- * @property side `"white"` or `"black"`.
- * @property pgn The repertoire payload, validated by [RepertoirePgnValidator] before it is stored.
- */
-@Serializable
-internal data class PublishRepertoireRequest(
-  val id: String,
-  val title: String,
-  val description: String,
-  val side: String,
-  val pgn: String,
-)
-
 /** Body of `POST /admin/repertoires/{id}/status`. */
 @Serializable internal data class RepertoireStatusRequest(val status: String)
 
@@ -33,9 +17,6 @@ internal data class RepertoireCatalogPage(
 /**
  * Maps a stored version to the public catalog contract.
  *
- * The PGN path is content addressed by [RepertoireRow.payloadSha256] rather than by id and version,
- * so it never changes for an already published version and can be cached immutably.
- *
  * @param downloadCount The id's recorded install count (see [RepertoireStore.countsFor]), `0` when
  *   the caller has none to report.
  */
@@ -46,6 +27,6 @@ internal fun RepertoireRow.toDescriptor(downloadCount: Long = 0): RepertoireDesc
     color = if (side == "white") RepertoireColor.WHITE else RepertoireColor.BLACK,
     description = description,
     moveCount = moveCount,
-    file = "pgn/$payloadSha256.pgn",
+    file = "$id/versions/$version/moves",
     downloadCount = downloadCount.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
   )

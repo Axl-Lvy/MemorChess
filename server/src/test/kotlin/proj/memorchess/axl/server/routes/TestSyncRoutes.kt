@@ -55,10 +55,6 @@ class TestSyncRoutes {
       jwtIssuer = TEST_ISSUER,
       jwtAudience = TEST_AUDIENCE,
       jwksUrl = URI("https://issuer.test/jwks.json"),
-      r2Endpoint = URI("https://r2.test/"),
-      r2Bucket = "unused",
-      r2AccessKeyId = "unused",
-      r2SecretAccessKey = "unused",
     )
 
   /** Primes device rows for callers the harness did not create. Same pool, same rows. */

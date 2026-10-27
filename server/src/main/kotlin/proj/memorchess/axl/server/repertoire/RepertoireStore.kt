@@ -1,6 +1,5 @@
 package proj.memorchess.axl.server.repertoire
 
-import java.security.MessageDigest
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Timestamp
@@ -9,23 +8,19 @@ import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
+import proj.memorchess.axl.server.db.EdgeIdentity
+import proj.memorchess.axl.server.db.resolveEdgeIds
 
 /** Largest number of non removed repertoires one author may own at once. */
 internal const val MAX_REPERTOIRES_PER_USER: Int = 20
 
-/** Largest total payload size, summed across an author's non removed repertoires. */
-internal const val MAX_TOTAL_PAYLOAD_BYTES_PER_USER: Long = 5L * 1024 * 1024
+/** Largest total move count, summed across an author's non removed repertoires. */
+internal const val MAX_TOTAL_MOVES_PER_USER: Int = 50_000
 
 /** Largest number of rows [RepertoireStore.allPublished] will ever return. */
 private const val MAX_MANIFEST_ROWS: Int = 10_000
-
-/**
- * Shape a stored payload's sha256 must match: 64 lowercase hex characters. Checked before the hash
- * is used in a database lookup or an S3 key, so a path segment carrying something else (for example
- * a decoded `/` aimed at another key in the bucket) is rejected outright rather than looked up.
- */
-private val SHA256_PATTERN = Regex("^[0-9a-f]{64}$")
 
 /** One stored version of a repertoire: exactly one row of `repertoire_version`. */
 internal data class RepertoireRow(
@@ -35,8 +30,6 @@ internal data class RepertoireRow(
   val title: String,
   val description: String,
   val side: String,
-  val payloadSha256: String,
-  val payloadBytes: Int,
   val moveCount: Int,
   val status: String,
   val publishedAt: Instant,
@@ -50,7 +43,7 @@ private data class PublishInput(
   val title: String,
   val description: String,
   val side: String,
-  val pgn: String,
+  val moves: List<RepertoireMove>,
 )
 
 /** Outcome of [RepertoireStore.publish]. */
@@ -58,13 +51,10 @@ internal sealed class PublishOutcome {
   /** The version was stored. */
   data class Published(val row: RepertoireRow) : PublishOutcome()
 
-  /**
-   * The payload does not parse, has no playable move, plays an illegal move, or the id/side is
-   * malformed.
-   */
+  /** The moves are empty, illegal or disconnected, or the id, side, title or description is bad. */
   data class InvalidPayload(val reason: String) : PublishOutcome()
 
-  /** The payload or its move count exceeds a server side cap. */
+  /** The move count or ply depth exceeds a server side cap. */
   data class PayloadTooLarge(val reason: String) : PublishOutcome()
 
   /** The id already belongs to a different author. */
@@ -75,9 +65,6 @@ internal sealed class PublishOutcome {
 
   /** Publishing would exceed a per author quota. */
   data class QuotaExceeded(val reason: String) : PublishOutcome()
-
-  /** Validation failed for a reason that was not the caller's fault. Logged on the server side. */
-  data class Failed(val reason: String) : PublishOutcome()
 }
 
 /** Outcome of [RepertoireStore.remove]. */
@@ -102,41 +89,32 @@ internal sealed class SetStatusOutcome {
 internal data class RepertoirePage(val rows: List<RepertoireRow>, val nextCursor: String?)
 
 /**
- * The server side of published repertoires, over a Postgres database and a [RepertoireBlobStore].
+ * The server side of published repertoires, over a Postgres database.
  *
- * A repertoire is content addressed: the metadata row commits first, then [RepertoireBlobStore.put]
- * stores the payload it references. A publish rejected by validation or a quota never reaches
- * either write. A blob write that fails after the row commits is compensated by deleting that row
- * again, so a repertoire never outlives its payload. Every lookup reads the **latest version** of
- * an id and its status. An older version's status is never consulted once a newer one exists.
+ * A version is its `repertoire_version` row plus one `repertoire_edge` row per move, written in one
+ * transaction. Every lookup reads the **latest version** of an id and its status. An older
+ * version's status is never consulted once a newer one exists.
  *
  * @param dataSource Pooled connections. Each call takes one and returns it.
- * @param blobs Payload storage, keyed by sha256.
- * @param maxPayloadBytes Cap on one publish's payload size.
- * @param maxMoves Cap on one publish's distinct move count.
+ * @param maxMoves Cap on one publish's move count.
+ * @param maxPlyDepth Cap on how deep from the starting position a published move may start.
  * @param maxRepertoiresPerUser Cap on how many non removed repertoires one author may own.
- * @param maxTotalPayloadBytesPerUser Cap on the summed payload size of one author's non removed
- *   repertoires.
+ * @param maxTotalMovesPerUser Cap on the summed move count of one author's non removed repertoires.
  * @param ioDispatcher Where the blocking JDBC work runs. Injected so a caller can substitute one.
- * @param validate Validates a payload before it is stored. Injected so a test can substitute one
- *   without going through the real parser, the same way [ioDispatcher] is substituted.
  */
 internal class RepertoireStore(
   private val dataSource: DataSource,
-  private val blobs: RepertoireBlobStore,
-  private val maxPayloadBytes: Int = RepertoirePublishLimits.MAX_REPERTOIRE_PAYLOAD_BYTES,
   private val maxMoves: Int = RepertoirePublishLimits.MAX_REPERTOIRE_MOVES,
+  private val maxPlyDepth: Int = RepertoirePublishLimits.MAX_PLY_DEPTH,
   private val maxRepertoiresPerUser: Int = MAX_REPERTOIRES_PER_USER,
-  private val maxTotalPayloadBytesPerUser: Long = MAX_TOTAL_PAYLOAD_BYTES_PER_USER,
+  private val maxTotalMovesPerUser: Int = MAX_TOTAL_MOVES_PER_USER,
   private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-  private val validate: (String, Int, Int) -> RepertoireValidation =
-    RepertoirePgnValidator::validate,
 ) {
 
   /**
    * Validates and stores a new version of [id], authored by [authorId].
    *
-   * The payload is validated with [RepertoirePgnValidator] before anything is written. A first
+   * The moves are validated with [RepertoireMovesValidator] before anything is written. A first
    * publish of [id] creates version 1. A later publish by the same author creates the next version
    * and never mutates an earlier one. A publish by a different author than the one who already owns
    * [id] is refused, never silently reassigned.
@@ -147,7 +125,7 @@ internal class RepertoireStore(
     title: String,
     description: String,
     side: String,
-    pgn: String,
+    moves: List<RepertoireMove>,
     now: Instant,
   ): PublishOutcome {
     RepertoirePublishLimits.idProblem(id)?.let {
@@ -169,43 +147,26 @@ internal class RepertoireStore(
       )
     }
 
-    // RepertoirePgnValidator blocks its caller on a worker thread it manages itself (see its own
-    // KDoc), so this runs on ioDispatcher rather than whatever dispatcher the route handler is on.
-    val validation = withContext(ioDispatcher) { validate(pgn, maxPayloadBytes, maxMoves) }
+    val validation =
+      withContext(ioDispatcher) { RepertoireMovesValidator.validate(moves, maxMoves, maxPlyDepth) }
     return when (validation) {
-      is RepertoireValidation.Rejected -> PublishOutcome.InvalidPayload(validation.reason)
-      is RepertoireValidation.TooLarge -> PublishOutcome.PayloadTooLarge(validation.reason)
-      is RepertoireValidation.Failed -> PublishOutcome.Failed(validation.reason)
-      is RepertoireValidation.Valid ->
-        doPublish(
-          authorId,
-          PublishInput(id, title, description, side, pgn),
-          validation.moveCount,
-          now,
-        )
+      is MoveListValidation.Rejected -> PublishOutcome.InvalidPayload(validation.reason)
+      is MoveListValidation.TooLarge -> PublishOutcome.PayloadTooLarge(validation.reason)
+      is MoveListValidation.Valid ->
+        doPublish(authorId, PublishInput(id, title, description, side, moves), now)
     }
   }
 
   /**
-   * Inserts the row, then stores the blob. Row first so a caller can never observe a committed
-   * version whose blob might still be missing because of a rejection below it. If [blobs].put fails
-   * after the row commits, the row is deleted again so a repertoire never outlives its payload.
+   * Inserts the version row and its moves in one transaction.
    *
    * The transaction holds [acquireRepertoireLock] on [input]'s id for its whole duration, so two
    * concurrent publishes (or a double click) for the same id never compute the same next version
    * number.
    */
-  private suspend fun doPublish(
-    authorId: String,
-    input: PublishInput,
-    moveCount: Int,
-    now: Instant,
-  ): PublishOutcome {
-    val (id, title, description, side, pgn) = input
-    val payloadBytes = pgn.encodeToByteArray()
-    val sha256 = payloadBytes.sha256Hex()
-
-    val outcome = inTransaction { connection ->
+  private suspend fun doPublish(authorId: String, input: PublishInput, now: Instant): PublishOutcome {
+    val (id, title, description, side, moves) = input
+    return inTransaction { connection ->
       connection.acquireRepertoireLock(id)
       val existing = connection.lockLatestVersion(id)
       if (existing != null && existing.authorId != authorId) {
@@ -216,16 +177,16 @@ internal class RepertoireStore(
       // author at the cap can free a slot by removing a repertoire and then republish the same id
       // to occupy it again, over and over, never actually reducing their footprint.
       val republishingRemoved = existing != null && existing.status == STATUS_REMOVED
-      val (otherCount, otherBytes) = connection.authorFootprint(authorId, excludingId = id)
+      val (otherCount, otherMoves) = connection.authorFootprint(authorId, excludingId = id)
       if ((existing == null || republishingRemoved) && otherCount >= maxRepertoiresPerUser) {
         return@inTransaction PublishOutcome.QuotaExceeded(
           "you already own $otherCount repertoires, the cap is $maxRepertoiresPerUser"
         )
       }
-      val projectedBytes = otherBytes + payloadBytes.size
-      if (projectedBytes > maxTotalPayloadBytesPerUser) {
+      val projectedMoves = otherMoves + moves.size
+      if (projectedMoves > maxTotalMovesPerUser) {
         return@inTransaction PublishOutcome.QuotaExceeded(
-          "publishing would use $projectedBytes of your $maxTotalPayloadBytesPerUser byte quota"
+          "publishing would use $projectedMoves of your $maxTotalMovesPerUser move quota"
         )
       }
       // A moderator's removal is a latch, not a mutable flag an author can clear by republishing.
@@ -235,120 +196,65 @@ internal class RepertoireStore(
         return@inTransaction PublishOutcome.Removed
       }
 
-      val version = (existing?.version ?: 0) + 1
       val row =
         RepertoireRow(
           id = id,
-          version = version,
+          version = (existing?.version ?: 0) + 1,
           authorId = authorId,
           title = title,
           description = description,
           side = side,
-          payloadSha256 = sha256,
-          payloadBytes = payloadBytes.size,
-          moveCount = moveCount,
+          moveCount = moves.size,
           status = "published",
           publishedAt = now,
         )
       connection.insertVersion(row)
+      connection.insertMoves(row, moves)
       PublishOutcome.Published(row)
     }
-
-    if (outcome is PublishOutcome.Published) {
-      // TODO: this compensates a blob write failure on a best effort basis, but a process death
-      // between the row commit above and the delete below still leaves an orphan row with no
-      // blob. A three phase publish (insert as pending, put the blob, then flip to published)
-      // would close that gap. Tracked as a follow up, not done here.
-      try {
-        blobs.put(sha256, payloadBytes)
-      } catch (e: Exception) {
-        deleteVersion(outcome.row.id, outcome.row.version)
-        throw e
-      }
-    }
-    return outcome
   }
 
   /**
-   * Removes one exact version row. Used only to compensate a blob write that failed after commit.
-   */
-  private suspend fun deleteVersion(id: String, version: Int) {
-    withContext(ioDispatcher) {
-      dataSource.connection.use { connection ->
-        connection
-          .prepareStatement("DELETE FROM repertoire_version WHERE id = ? AND version = ?")
-          .use { statement ->
-            statement.setString(1, id)
-            statement.setInt(2, version)
-            statement.executeUpdate()
-          }
-      }
-    }
-  }
-
-  /**
-   * Marks every version of [id] as removed, deleting each one's blob that no surviving version of
-   * any id still references.
+   * Marks every version of [id] as removed, so none of them is listed or downloadable any more.
    *
-   * Every version, not only the latest, so a hash [readPayload] used to serve stops being "live" by
-   * the same definition it checks: a hash is live only while some non removed row references it.
-   * Without cascading to superseded versions, an old version's row would keep its original
-   * `published` status forever and its blob would never be reclaimed, nor would its direct download
-   * link ever stop working, even after the id it belongs to is fully taken down.
+   * Every version, not only the latest: an old version's row would otherwise keep its original
+   * `published` status forever, and its moves would stay downloadable after the id is taken down.
    */
-  suspend fun remove(authorId: String, id: String): RemoveOutcome {
-    val outcome = inTransaction { connection ->
-      connection.acquireRepertoireLock(id)
-      val existing = connection.lockLatestVersion(id)
-      when {
-        existing == null || existing.status == STATUS_REMOVED -> RemoveTxOutcome.NotFound
-        existing.authorId != authorId -> RemoveTxOutcome.Forbidden
-        else -> RemoveTxOutcome.Removed(connection.removeAllVersions(id))
-      }
-    }
-    return when (outcome) {
-      is RemoveTxOutcome.Removed -> {
-        outcome.orphanedHashes.forEach { blobs.delete(it) }
+  suspend fun remove(authorId: String, id: String): RemoveOutcome = inTransaction { connection ->
+    connection.acquireRepertoireLock(id)
+    val existing = connection.lockLatestVersion(id)
+    when {
+      existing == null || existing.status == STATUS_REMOVED -> RemoveOutcome.NotFound
+      existing.authorId != authorId -> RemoveOutcome.Forbidden
+      else -> {
+        connection.updateStatusForEveryVersion(id, STATUS_REMOVED)
         RemoveOutcome.Removed
       }
-      RemoveTxOutcome.Forbidden -> RemoveOutcome.Forbidden
-      RemoveTxOutcome.NotFound -> RemoveOutcome.NotFound
     }
   }
 
   /**
    * Moderation kill switch: sets [id]'s status to [status] regardless of author. When [status] is
-   * `removed`, this cascades to every version of [id] and deletes each one's blob under the same
-   * reference counting rule as [remove], for the reason explained on [remove]'s KDoc. Any other
-   * status only ever touches the latest version, matching [get] and [listPublished], which never
-   * consult an older version's status once a newer one exists.
+   * `removed`, this cascades to every version of [id], for the reason explained on [remove]'s KDoc.
+   * Any other status only ever touches the latest version, matching [get] and [listPublished],
+   * which never consult an older version's status once a newer one exists.
    */
-  suspend fun setStatus(id: String, status: String): SetStatusOutcome {
-    val outcome = inTransaction { connection ->
+  suspend fun setStatus(id: String, status: String): SetStatusOutcome =
+    inTransaction { connection ->
       connection.acquireRepertoireLock(id)
       val existing = connection.lockLatestVersion(id)
-      // A removed repertoire's blob is already gone, so moving it back to published or unlisted
-      // would publish a broken pgn link. Treated the same as an unknown id rather than as a
-      // resurrection the moderator has to know to avoid.
+      // Removal is a latch: moving a removed repertoire back to published or unlisted is treated
+      // the same as an unknown id rather than as a resurrection the moderator has to know to avoid.
       if (existing == null || existing.status == STATUS_REMOVED) {
-        return@inTransaction SetStatusTxOutcome.NotFound
+        return@inTransaction SetStatusOutcome.NotFound
       }
       if (status == STATUS_REMOVED) {
-        val orphanedHashes = connection.removeAllVersions(id)
-        SetStatusTxOutcome.Updated(existing.copy(status = status), orphanedHashes)
+        connection.updateStatusForEveryVersion(id, STATUS_REMOVED)
       } else {
         connection.updateStatus(id, existing.version, status)
-        SetStatusTxOutcome.Updated(existing.copy(status = status), emptyList())
       }
+      SetStatusOutcome.Updated(existing.copy(status = status))
     }
-    return when (outcome) {
-      is SetStatusTxOutcome.Updated -> {
-        outcome.orphanedHashes.forEach { blobs.delete(it) }
-        SetStatusOutcome.Updated(outcome.row)
-      }
-      SetStatusTxOutcome.NotFound -> SetStatusOutcome.NotFound
-    }
-  }
 
   /** The latest version of [id], or `null` when unknown or its latest version was removed. */
   suspend fun get(id: String): RepertoireRow? =
@@ -383,21 +289,16 @@ internal class RepertoireStore(
     }
 
   /**
-   * The stored payload bytes for [sha256], or `null` when [sha256] is not a well formed sha256
-   * digest, nothing is stored there, or no non removed version currently references it.
-   *
-   * The last case is what makes moderation ([setStatus], [remove]) actually revoke access to the
-   * bytes rather than only hiding the id from listings: without it, the content stays downloadable
-   * by anyone who already has the link.
+   * The moves of [id]'s [version] with their markings, or `null` when that version does not exist
+   * or was removed.
    */
-  suspend fun readPayload(sha256: String): ByteArray? {
-    if (!SHA256_PATTERN.matches(sha256)) return null
-    val referenced =
-      withContext(ioDispatcher) {
-        dataSource.connection.use { connection -> connection.blobStillReferenced(sha256) }
+  suspend fun moves(id: String, version: Int): List<RepertoireMove>? =
+    withContext(ioDispatcher) {
+      dataSource.connection.use { connection ->
+        val status = connection.statusOf(id, version)
+        if (status == null || status == STATUS_REMOVED) null else connection.movesOf(id, version)
       }
-    return if (referenced) blobs[sha256] else null
-  }
+    }
 
   /**
    * Records one more anonymous install of [id], for the popularity hint the catalog's
@@ -441,25 +342,6 @@ internal class RepertoireStore(
 
 private const val STATUS_REMOVED = "removed"
 
-/** Outcome of the [RepertoireStore.remove] transaction, before the orphaned blobs are deleted. */
-private sealed class RemoveTxOutcome {
-  data class Removed(val orphanedHashes: List<String>) : RemoveTxOutcome()
-
-  data object NotFound : RemoveTxOutcome()
-
-  data object Forbidden : RemoveTxOutcome()
-}
-
-/**
- * Outcome of the [RepertoireStore.setStatus] transaction, before the orphaned blobs are deleted.
- */
-private sealed class SetStatusTxOutcome {
-  data class Updated(val row: RepertoireRow, val orphanedHashes: List<String>) :
-    SetStatusTxOutcome()
-
-  data object NotFound : SetStatusTxOutcome()
-}
-
 /**
  * Serializes every publish, remove and status change for [id] against each other for the rest of
  * the transaction, released on commit or rollback.
@@ -499,13 +381,13 @@ private fun Connection.latestVersion(id: String): RepertoireRow? =
     }
 
 /**
- * The count and summed payload bytes of [authorId]'s non removed repertoires, one per id (its
- * latest version), excluding [excludingId].
+ * The count and summed move count of [authorId]'s non removed repertoires, one per id (its latest
+ * version), excluding [excludingId].
  */
-private fun Connection.authorFootprint(authorId: String, excludingId: String): Pair<Int, Long> =
+private fun Connection.authorFootprint(authorId: String, excludingId: String): Pair<Int, Int> =
   prepareStatement(
-      "SELECT count(*), COALESCE(sum(payload_bytes), 0) FROM (" +
-        "SELECT DISTINCT ON (id) id, payload_bytes, status FROM repertoire_version " +
+      "SELECT count(*), COALESCE(sum(move_count), 0) FROM (" +
+        "SELECT DISTINCT ON (id) id, move_count, status FROM repertoire_version " +
         "WHERE author_id = ? ORDER BY id, version DESC" +
         ") latest WHERE status != ? AND id != ?"
     )
@@ -515,21 +397,7 @@ private fun Connection.authorFootprint(authorId: String, excludingId: String): P
       statement.setString(3, excludingId)
       statement.executeQuery().use { rows ->
         rows.next()
-        rows.getInt(1) to rows.getLong(2)
-      }
-    }
-
-/** Whether any non removed version still references [sha256]. */
-private fun Connection.blobStillReferenced(sha256: String): Boolean =
-  prepareStatement(
-      "SELECT count(*) FROM repertoire_version WHERE payload_sha256 = ? AND status != ?"
-    )
-    .use { statement ->
-      statement.setString(1, sha256)
-      statement.setString(2, STATUS_REMOVED)
-      statement.executeQuery().use { rows ->
-        rows.next()
-        rows.getLong(1) > 0
+        rows.getInt(1) to rows.getInt(2)
       }
     }
 
@@ -565,27 +433,6 @@ private fun Connection.installCountsFor(ids: List<String>): Map<String, Long> {
   return counts
 }
 
-/**
- * Sets every version of [id], not only its latest, to [STATUS_REMOVED], then returns the distinct
- * payload hashes among them that no other non removed row (of [id] or any other id) still
- * references, and so are safe to delete from [RepertoireBlobStore].
- */
-private fun Connection.removeAllVersions(id: String): List<String> {
-  val hashes = distinctHashesOf(id)
-  updateStatusForEveryVersion(id, STATUS_REMOVED)
-  return hashes.filterNot { blobStillReferenced(it) }
-}
-
-/** Every distinct payload hash across all of [id]'s versions. */
-private fun Connection.distinctHashesOf(id: String): List<String> =
-  prepareStatement("SELECT DISTINCT payload_sha256 FROM repertoire_version WHERE id = ?").use {
-    statement ->
-    statement.setString(1, id)
-    statement.executeQuery().use { rows ->
-      buildList { while (rows.next()) add(rows.getString(1)) }
-    }
-  }
-
 /** Sets [status] on every version row of [id], not only its latest. */
 private fun Connection.updateStatusForEveryVersion(id: String, status: String) {
   prepareStatement("UPDATE repertoire_version SET status = ? WHERE id = ?").use { statement ->
@@ -598,8 +445,7 @@ private fun Connection.updateStatusForEveryVersion(id: String, status: String) {
 private fun Connection.insertVersion(row: RepertoireRow) {
   prepareStatement(
       "INSERT INTO repertoire_version (id, version, author_id, title, description, side, " +
-        "payload_sha256, payload_bytes, move_count, status, published_at) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "move_count, status, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .use { statement ->
       statement.setString(1, row.id)
@@ -608,14 +454,60 @@ private fun Connection.insertVersion(row: RepertoireRow) {
       statement.setString(4, row.title)
       statement.setString(5, row.description)
       statement.setString(6, row.side)
-      statement.setString(7, row.payloadSha256)
-      statement.setInt(8, row.payloadBytes)
-      statement.setInt(9, row.moveCount)
-      statement.setString(10, row.status)
-      statement.setTimestamp(11, row.publishedAt.toSqlTimestamp())
+      statement.setInt(7, row.moveCount)
+      statement.setString(8, row.status)
+      statement.setTimestamp(9, row.publishedAt.toSqlTimestamp())
       statement.executeUpdate()
     }
 }
+
+/** Interns [moves] into `move_edge` and records each one, with its marking, as part of [row]. */
+private fun Connection.insertMoves(row: RepertoireRow, moves: List<RepertoireMove>) {
+  val edgeIds = resolveEdgeIds(moves.map { EdgeIdentity(it.from, it.to, it.move) })
+  prepareStatement(
+      "INSERT INTO repertoire_edge (repertoire_id, version, edge_id, is_good) VALUES (?, ?, ?, ?)"
+    )
+    .use { statement ->
+      for (move in moves) {
+        statement.setString(1, row.id)
+        statement.setInt(2, row.version)
+        statement.setLong(3, edgeIds.getValue(EdgeIdentity(move.from, move.to, move.move)))
+        statement.setBoolean(4, move.isGood)
+        statement.addBatch()
+      }
+      statement.executeBatch()
+    }
+}
+
+/** The status of [id]'s [version], or `null` when that version does not exist. */
+private fun Connection.statusOf(id: String, version: Int): String? =
+  prepareStatement("SELECT status FROM repertoire_version WHERE id = ? AND version = ?").use {
+    statement ->
+    statement.setString(1, id)
+    statement.setInt(2, version)
+    statement.executeQuery().use { rows -> if (rows.next()) rows.getString(1) else null }
+  }
+
+/** Every move of [id]'s [version], in a stable order. */
+private fun Connection.movesOf(id: String, version: Int): List<RepertoireMove> =
+  prepareStatement(
+      "SELECT o.position_key, e.move, d.position_key, r.is_good FROM repertoire_edge r " +
+        "JOIN move_edge e ON e.id = r.edge_id " +
+        "JOIN position o ON o.id = e.origin_id " +
+        "JOIN position d ON d.id = e.destination_id " +
+        "WHERE r.repertoire_id = ? AND r.version = ? ORDER BY e.id"
+    )
+    .use { statement ->
+      statement.setString(1, id)
+      statement.setInt(2, version)
+      statement.executeQuery().use { rows ->
+        buildList {
+          while (rows.next()) {
+            add(RepertoireMove(rows.getString(1), rows.getString(2), rows.getString(3), rows.getBoolean(4)))
+          }
+        }
+      }
+    }
 
 private fun Connection.updateStatus(id: String, version: Int, status: String) {
   prepareStatement("UPDATE repertoire_version SET status = ? WHERE id = ? AND version = ?").use {
@@ -646,8 +538,7 @@ private fun Connection.publishedLatestVersions(cursor: String?, limit: Int): Lis
 }
 
 private const val ROW_COLUMNS =
-  "id, version, author_id, title, description, side, payload_sha256, payload_bytes, " +
-    "move_count, status, published_at"
+  "id, version, author_id, title, description, side, move_count, status, published_at"
 
 private fun ResultSet.toRow(): RepertoireRow =
   RepertoireRow(
@@ -657,15 +548,10 @@ private fun ResultSet.toRow(): RepertoireRow =
     title = getString(4),
     description = getString(5),
     side = getString(6),
-    payloadSha256 = getString(7),
-    payloadBytes = getInt(8),
-    moveCount = getInt(9),
-    status = getString(10),
-    publishedAt = getTimestamp(11).toInstant().toKotlinInstant(),
+    moveCount = getInt(7),
+    status = getString(8),
+    publishedAt = getTimestamp(9).toInstant().toKotlinInstant(),
   )
-
-private fun ByteArray.sha256Hex(): String =
-  MessageDigest.getInstance("SHA-256").digest(this).joinToString("") { "%02x".format(it) }
 
 /**
  * Converts without losing precision, duplicated from `sync/SyncStore.kt` rather than shared with

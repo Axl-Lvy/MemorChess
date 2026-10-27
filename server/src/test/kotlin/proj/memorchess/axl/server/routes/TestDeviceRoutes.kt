@@ -50,10 +50,6 @@ class TestDeviceRoutes {
       jwtIssuer = TEST_ISSUER,
       jwtAudience = TEST_AUDIENCE,
       jwksUrl = URI("https://jwks.test/keys"),
-      r2Endpoint = URI("https://r2.test/"),
-      r2Bucket = "unused",
-      r2AccessKeyId = "unused",
-      r2SecretAccessKey = "unused",
     )
 
   /** Runs [block] against the real module, real store and real Postgres, as one fresh caller. */

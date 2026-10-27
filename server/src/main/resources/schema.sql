@@ -104,10 +104,8 @@ CREATE TABLE IF NOT EXISTS user_edge_repertoire_tag (
 CREATE INDEX IF NOT EXISTS user_edge_repertoire_tag_cursor
   ON user_edge_repertoire_tag (user_id, revision);
 
--- One row per published version, content addressed by the payload's sha256. Publishing again
--- inserts a new version rather than mutating one. The row for a given (id, version) never
--- changes after insert. There is no membership table: nothing needs "which repertoires contain
--- this position".
+-- One row per published version. Publishing again inserts a new version rather than mutating
+-- one, and a version's moves never change after insert; only its status does.
 CREATE TABLE IF NOT EXISTS repertoire_version (
   id text NOT NULL,
   version int NOT NULL,
@@ -115,8 +113,6 @@ CREATE TABLE IF NOT EXISTS repertoire_version (
   title text NOT NULL,
   description text NOT NULL,
   side text NOT NULL,
-  payload_sha256 text NOT NULL,
-  payload_bytes int NOT NULL,
   move_count int NOT NULL,
   status text NOT NULL,
   published_at timestamptz NOT NULL,
@@ -126,6 +122,17 @@ CREATE TABLE IF NOT EXISTS repertoire_version (
 -- The only multi row read paths are "the latest version per id with this status" and "every
 -- non removed repertoire this author currently owns", for quota accounting.
 CREATE INDEX IF NOT EXISTS repertoire_version_status ON repertoire_version (status, id);
+
+-- The moves of one published version, each with its author's marking. Shares position and
+-- move_edge with sync, so a move played by many repertoires and users is stored once.
+CREATE TABLE IF NOT EXISTS repertoire_edge (
+  repertoire_id text NOT NULL,
+  version int NOT NULL,
+  edge_id bigint NOT NULL REFERENCES move_edge(id),
+  is_good boolean NOT NULL,
+  PRIMARY KEY (repertoire_id, version, edge_id),
+  FOREIGN KEY (repertoire_id, version) REFERENCES repertoire_version(id, version)
+);
 
 -- Anonymous install-popularity counter, keyed by id alone so it survives a republish under a new
 -- version (repertoire_version's primary key includes version). A row here with no matching

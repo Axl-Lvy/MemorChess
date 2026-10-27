@@ -25,7 +25,6 @@ import proj.memorchess.axl.server.auth.TEST_ISSUER
 import proj.memorchess.axl.server.auth.TestJwkProvider
 import proj.memorchess.axl.server.auth.TestSigningKey
 import proj.memorchess.axl.server.db.PostgresTestDb
-import proj.memorchess.axl.server.repertoire.InMemoryRepertoireBlobStore
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.sync.SyncStore
 
@@ -43,10 +42,6 @@ class TestRateLimiting {
       jwtIssuer = TEST_ISSUER,
       jwtAudience = TEST_AUDIENCE,
       jwksUrl = URI("https://issuer.test/jwks.json"),
-      r2Endpoint = URI("https://r2.test/"),
-      r2Bucket = "unused",
-      r2AccessKeyId = "unused",
-      r2SecretAccessKey = "unused",
     )
 
   private val tiers =
@@ -64,7 +59,7 @@ class TestRateLimiting {
         jwkProvider = TestJwkProvider(key),
         syncStore = SyncStore(PostgresTestDb.dataSource()),
         repertoireStore =
-          RepertoireStore(PostgresTestDb.dataSource(), InMemoryRepertoireBlobStore()),
+          RepertoireStore(PostgresTestDb.dataSource()),
         readiness = { true },
         clock = { Instant.fromEpochSeconds(1_700_000_000) },
         rateLimits = tiers,

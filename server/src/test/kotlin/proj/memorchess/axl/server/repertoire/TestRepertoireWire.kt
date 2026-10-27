@@ -15,8 +15,6 @@ internal class TestRepertoireWire {
       title = "London System",
       description = "Solid.",
       side = "white",
-      payloadSha256 = "a".repeat(64),
-      payloadBytes = 42,
       moveCount = 73,
       status = "published",
       publishedAt = Instant.fromEpochSeconds(1_700_000_000),
@@ -31,7 +29,7 @@ internal class TestRepertoireWire {
     descriptor.color shouldBe RepertoireColor.WHITE
     descriptor.description shouldBe "Solid."
     descriptor.moveCount shouldBe 73
-    descriptor.file shouldBe "pgn/${"a".repeat(64)}.pgn"
+    descriptor.file shouldBe "london-system-white/versions/1/moves"
   }
 
   @Test
