@@ -62,7 +62,7 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
         call.respond(SyncDeviceStatusResponse(synced))
       }
 
-      get("/v1/sync") { call.respond(store.pull(call.callerId, device(), ack(), limit(), clock())) }
+      get("/v1/sync") { call.respond(store.pull(call.callerId, device(), ack(), pageLimit(DEFAULT_PULL_LIMIT, MAX_PULL_LIMIT), clock())) }
     }
 
     rateLimit(RATE_LIMIT_SYNC_WRITE) {
@@ -149,12 +149,3 @@ private fun RoutingContext.device(): DeviceId =
 /** Token of the page the caller has just written locally, absent when it has committed none. */
 private fun RoutingContext.ack(): String? = call.request.queryParameters["ack"]
 
-/** The caller's requested page size, clamped to [MAX_PULL_LIMIT]. */
-private fun RoutingContext.limit(): Int {
-  val raw = call.request.queryParameters["limit"] ?: return DEFAULT_PULL_LIMIT
-  val limit = raw.toIntOrNull()
-  if (limit == null || limit <= 0) {
-    throw BadRequestException("limit must be a positive integer, was '$raw'")
-  }
-  return minOf(limit, MAX_PULL_LIMIT)
-}

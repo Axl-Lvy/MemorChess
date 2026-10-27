@@ -126,7 +126,7 @@ private suspend fun RoutingContext.getMoves(store: RepertoireStore) {
 }
 
 private suspend fun RoutingContext.getCatalogPage(store: RepertoireStore) {
-  val page = store.listPublished(cursor(), limit())
+  val page = store.listPublished(cursor(), pageLimit(DEFAULT_CATALOG_LIMIT, MAX_CATALOG_LIMIT))
   val counts = store.countsFor(page.rows.map { it.id })
   call.cacheControl(CATALOG_CACHE_CONTROL)
   call.respond(
@@ -228,12 +228,3 @@ private fun ApplicationCall.cacheControl(value: String) {
 /** The caller's requested page cursor, the last id of the previous page. */
 private fun RoutingContext.cursor(): String? = call.request.queryParameters["cursor"]
 
-/** The caller's requested page size, clamped to [MAX_CATALOG_LIMIT]. */
-private fun RoutingContext.limit(): Int {
-  val raw = call.request.queryParameters["limit"] ?: return DEFAULT_CATALOG_LIMIT
-  val limit = raw.toIntOrNull()
-  if (limit == null || limit <= 0) {
-    throw BadRequestException("limit must be a positive integer, was '$raw'")
-  }
-  return minOf(limit, MAX_CATALOG_LIMIT)
-}
