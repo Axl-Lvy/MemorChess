@@ -23,8 +23,8 @@ data class DataMove(
   val isGood: Boolean? = null,
 
   /**
-   * The user's own marking, or `null` when the user does not hold the move manually. The sync stamps
-   * below version this manual hold.
+   * The user's own marking, or `null` when the user does not hold the move manually. The sync
+   * stamps below version this manual hold.
    */
   val ownIsGood: Boolean? = null,
 

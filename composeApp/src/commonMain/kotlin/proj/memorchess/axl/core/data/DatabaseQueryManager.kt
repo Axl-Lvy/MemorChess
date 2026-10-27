@@ -245,10 +245,10 @@ interface DatabaseQueryManager {
 
   /**
    * Writes [move] without queuing an outbox entry: a resolved sync winner, for the same reason as
-   * [applyRemoteNode], or a move whose derived effective marking changed. [move]'s origin and destination nodes must already exist
-   * locally (created by an earlier [applyRemoteNode] call in the same pull, or already present); a
-   * move whose endpoint does not yet exist is silently dropped, matching how a normal move write
-   * already assumes its endpoints are resolvable.
+   * [applyRemoteNode], or a move whose derived effective marking changed. [move]'s origin and
+   * destination nodes must already exist locally (created by an earlier [applyRemoteNode] call in
+   * the same pull, or already present); a move whose endpoint does not yet exist is silently
+   * dropped, matching how a normal move write already assumes its endpoints are resolvable.
    */
   suspend fun applyRemoteMove(move: DataMove)
 

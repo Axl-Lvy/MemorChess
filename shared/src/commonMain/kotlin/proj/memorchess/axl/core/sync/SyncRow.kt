@@ -132,8 +132,8 @@ data class RepertoireSyncRow(
  * @property origin Cropped FEN of the origin position.
  * @property destination Cropped FEN of the destination position.
  * @property repertoireId The repertoire this edge belongs to.
- * @property move The tagged move in standard algebraic notation, so a device that has never seen the
- *   move can create it.
+ * @property move The tagged move in standard algebraic notation, so a device that has never seen
+ *   the move can create it.
  * @property isGood The author's marking for a tag written by an install, which makes the repertoire
  *   a holder of the move, or `null` for a tag that only records membership.
  */

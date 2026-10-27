@@ -129,9 +129,11 @@ class TestRoomApplyRemote {
     db.deleteMove(PositionKey("a"), "e4", "d", 2L, now)
 
     val stored =
-      db.getPositionIncludingDeleted(PositionKey("a"))!!.previousAndNextMoves.nextMoves.getValue(
-        "e4"
-      )
+      db
+        .getPositionIncludingDeleted(PositionKey("a"))!!
+        .previousAndNextMoves
+        .nextMoves
+        .getValue("e4")
     stored.isDeleted shouldBe true
     stored.ownIsGood shouldBe null
   }
@@ -158,7 +160,13 @@ class TestRoomApplyRemote {
   fun aRepertoireKeepsItsInstalledVersion() = runTest {
     val db = manager
     val repertoire =
-      DataRepertoire(id = "london", name = "London", color = null, installedVersion = 4, updatedAt = now)
+      DataRepertoire(
+        id = "london",
+        name = "London",
+        color = null,
+        installedVersion = 4,
+        updatedAt = now,
+      )
 
     db.applyRemoteRepertoire(repertoire)
 

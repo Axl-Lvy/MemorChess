@@ -90,7 +90,12 @@ class TestRepertoireMoveImporter {
     importer.import(listOf(e4), repertoireId = "a")
 
     assertNull(
-      database.getPosition(PositionKey(e4.from))!!.previousAndNextMoves.nextMoves.getValue("e4").ownIsGood
+      database
+        .getPosition(PositionKey(e4.from))!!
+        .previousAndNextMoves
+        .nextMoves
+        .getValue("e4")
+        .ownIsGood
     )
   }
 

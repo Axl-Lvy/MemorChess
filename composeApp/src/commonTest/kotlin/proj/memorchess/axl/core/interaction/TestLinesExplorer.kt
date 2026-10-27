@@ -320,7 +320,11 @@ class TestLinesExplorer : TestWithKoin() {
   fun savingThroughAnInstalledLineHoldsTheWholePath() = test {
     treeStore.install(
       "london",
-      listOf(installed(true, "e4"), installed(true, "e4", "e5"), installed(true, "e4", "e5", "Nf3")),
+      listOf(
+        installed(true, "e4"),
+        installed(true, "e4", "e5"),
+        installed(true, "e4", "e5", "Nf3"),
+      ),
     )
     interactionsManager.initState()
     interactionsManager.playMove("e4")
@@ -341,7 +345,11 @@ class TestLinesExplorer : TestWithKoin() {
     // 1. Nf3 d5 2. d4 and 1. d4 d5 2. Nf3 reach the same position.
     treeStore.install(
       "london",
-      listOf(installed(true, "d4"), installed(false, "d4", "d5"), installed(false, "d4", "d5", "Nf3")),
+      listOf(
+        installed(true, "d4"),
+        installed(false, "d4", "d5"),
+        installed(false, "d4", "d5", "Nf3"),
+      ),
     )
     interactionsManager.initState()
     interactionsManager.playMove("Nf3")

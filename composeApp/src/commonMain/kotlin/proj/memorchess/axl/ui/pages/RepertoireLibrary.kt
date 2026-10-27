@@ -840,9 +840,9 @@ private fun pickHeroRepertoire(
 /**
  * Filter chip selection.
  *
- * [MINE] is backed by [installStates][RepertoireInstallState], not the registry: the "installed" flag
- * already flows into installStates from the view model, so no new dependency is needed to answer
- * "is this cheap" from the #282 brainstorming notes.
+ * [MINE] is backed by [installStates][RepertoireInstallState], not the registry: the "installed"
+ * flag already flows into installStates from the view model, so no new dependency is needed to
+ * answer "is this cheap" from the #282 brainstorming notes.
  */
 private enum class LibraryColorFilter {
   ALL,

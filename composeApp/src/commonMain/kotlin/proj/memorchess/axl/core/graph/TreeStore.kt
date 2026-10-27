@@ -108,8 +108,8 @@ class TreeStore(
    * Adds or replaces an edge in the graph.
    *
    * Always updates the cache. Persists when [isGood] is not `null`: a classified edge becomes a
-   * manual hold with [isGood] as the user's own marking, an exploration edge stays in the cache. The destination node is created on demand at depth
-   * [fromDepth] + 1.
+   * manual hold with [isGood] as the user's own marking, an exploration edge stays in the cache.
+   * The destination node is created on demand at depth [fromDepth] + 1.
    *
    * When the edge already exists its [Edge.createdAt] is preserved. This is load bearing:
    * exploration replays a line by re-upserting every edge on the way, so a fresh stamp on each
@@ -218,9 +218,9 @@ class TreeStore(
   }
 
   /**
-   * Installs [moves] as holds of [repertoireId]: tags each one with the author's marking, then writes
-   * it with the effective marking its holders give, creating no manual hold. The touched positions
-   * are persisted, but no move is queued for push: only the tags and positions travel.
+   * Installs [moves] as holds of [repertoireId]: tags each one with the author's marking, then
+   * writes it with the effective marking its holders give, creating no manual hold. The touched
+   * positions are persisted, but no move is queued for push: only the tags and positions travel.
    */
   suspend fun install(repertoireId: String, moves: List<InstalledMove>) {
     if (moves.isEmpty()) return
@@ -282,7 +282,9 @@ class TreeStore(
     )
   }
 
-  /** Gives every move of [edges] the user does not hold yet a manual hold at its effective marking. */
+  /**
+   * Gives every move of [edges] the user does not hold yet a manual hold at its effective marking.
+   */
   suspend fun holdManually(edges: List<TaggedEdge>) {
     for (tagged in edges) {
       val origin = node(tagged.origin) ?: continue
@@ -306,11 +308,10 @@ class TreeStore(
 
   /**
    * Persists a full graph produced by [GraphSerializer.deserialize] as manual holds, stamping this
-   * device's
-   * identity and a fresh write sequence on every node and edge so an imported file can converge
-   * with the same file imported on another device instead of colliding on the wire format's
-   * placeholder `""`/`0L` identity. Every imported position is invalidated once its row is written,
-   * so a resident copy cannot keep serving the pre import edge set.
+   * device's identity and a fresh write sequence on every node and edge so an imported file can
+   * converge with the same file imported on another device instead of colliding on the wire
+   * format's placeholder `""`/`0L` identity. Every imported position is invalidated once its row is
+   * written, so a resident copy cannot keep serving the pre import edge set.
    *
    * Each edge appears twice in [nodes], once in its origin's [DataNode.previousAndNextMoves] and
    * once in its destination's. Exactly one write sequence is allocated per distinct edge and reused

@@ -38,7 +38,9 @@ class TestPgnImporter {
   fun anInstalledMoveIsNotAlreadyPresentForAPgnImport() = runTest {
     store.install(
       "london",
-      listOf(proj.memorchess.axl.core.graph.InstalledMove(keyAfter(), "e4", keyAfter("e4"), true, 0)),
+      listOf(
+        proj.memorchess.axl.core.graph.InstalledMove(keyAfter(), "e4", keyAfter("e4"), true, 0)
+      ),
     )
 
     val summary = importer.import(PgnParser.parse("1. e4 *"), perspective = Player.WHITE)

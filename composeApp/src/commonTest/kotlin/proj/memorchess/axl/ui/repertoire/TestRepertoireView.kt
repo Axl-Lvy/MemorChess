@@ -576,9 +576,7 @@ class TestRepertoireView : TestWithKoin() {
       installStates =
         mapOf(secondDescriptor.id to RepertoireInstallState.Failed(InstallError.IdTaken)),
     )
-    onNodeWithText(
-        "You already have a repertoire with this id. Rename it to install this one."
-      )
+    onNodeWithText("You already have a repertoire with this id. Rename it to install this one.")
       .assertExists()
     onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
       .assertExists()

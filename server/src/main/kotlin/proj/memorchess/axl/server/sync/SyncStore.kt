@@ -109,28 +109,23 @@ internal class SyncStore(
         clockRefusal("tag", "${it.origin}|${it.destination}|${it.repertoireId}")
       }
 
-    val revision =
-      inTransaction { connection ->
-        connection.applyBatch(
-          userId,
-          deviceId,
-          nodes.accepted,
-          edges.accepted,
-          settings.accepted,
-          repertoires.accepted,
-          tags.accepted,
-        )
-      }
+    val revision = inTransaction { connection ->
+      connection.applyBatch(
+        userId,
+        deviceId,
+        nodes.accepted,
+        edges.accepted,
+        settings.accepted,
+        repertoires.accepted,
+        tags.accepted,
+      )
+    }
 
     return SyncPushResponse(
       serverTime = serverNow,
       revision = revision,
       rejected =
-        nodes.refused +
-          edges.refused +
-          settings.refused +
-          repertoires.refused +
-          tags.refused,
+        nodes.refused + edges.refused + settings.refused + repertoires.refused + tags.refused,
     )
   }
 
@@ -1358,7 +1353,9 @@ private val TAGS =
     keyTypes = listOf("bigint", "text"),
     keyParts = { (edgeId, repertoireId) -> listOf(edgeId, repertoireId) },
     readKey = { rows, index -> rows.getLong(index) to rows.getString(index + 1) },
-    bindPayload = { statement, first, row -> statement.setObject(first, row.isGood, Types.BOOLEAN) },
+    bindPayload = { statement, first, row ->
+      statement.setObject(first, row.isGood, Types.BOOLEAN)
+    },
     readPayload = { rows, incoming, version ->
       EdgeRepertoireTagSyncRow(
         origin = incoming.origin,

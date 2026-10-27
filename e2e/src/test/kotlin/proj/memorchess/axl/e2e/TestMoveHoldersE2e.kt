@@ -151,7 +151,8 @@ class TestMoveHoldersE2e {
       register(token, deviceB)
       val start = PositionKey.START_POSITION
       val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
-      val afterE5 = GameEngine().apply { playSanMove("e4") }.apply { playSanMove("e5") }.toPositionKey()
+      val afterE5 =
+        GameEngine().apply { playSanMove("e4") }.apply { playSanMove("e5") }.toPositionKey()
 
       deviceA.treeStore.install(
         "london",

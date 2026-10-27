@@ -96,7 +96,14 @@ class TestSyncRowMappers {
   @Test
   fun aMoveNeverHeldManuallyHasNoEdgeSyncRow() {
     val move =
-      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, originDevice = "", deviceSeq = 0L)
+      DataMove(
+        PositionKey("a"),
+        PositionKey("b"),
+        "e4",
+        isGood = true,
+        originDevice = "",
+        deviceSeq = 0L,
+      )
 
     move.toEdgeSyncRow() shouldBe null
   }
@@ -138,8 +145,7 @@ class TestSyncRowMappers {
 
   @Test
   fun aPulledManualHoldBecomesTheOwnMarking() {
-    val row =
-      EdgeSyncRow("a", "b", "e4", isGood = false, isDeleted = false, now, "device-1", 3L)
+    val row = EdgeSyncRow("a", "b", "e4", isGood = false, isDeleted = false, now, "device-1", 3L)
 
     row.toDataMove().ownIsGood shouldBe false
     row.copy(isDeleted = true).toDataMove().ownIsGood shouldBe null

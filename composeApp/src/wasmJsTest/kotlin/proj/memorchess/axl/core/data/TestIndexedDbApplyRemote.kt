@@ -76,7 +76,9 @@ class TestIndexedDbApplyRemote {
     db.applyRemoteNode(node("a"))
     db.applyRemoteNode(node("b"))
     db.applyRemoteMove(DataMove(origin, destination, "e4", isGood = true, updatedAt = now))
-    db.insertTag(DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4"))
+    db.insertTag(
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4")
+    )
 
     db.edgesTaggedWith("italian-game") shouldBe listOf(TaggedEdge(origin, destination, "e4"))
   }
@@ -91,7 +93,13 @@ class TestIndexedDbApplyRemote {
     db.applyRemoteNode(node("b"))
     db.applyRemoteMove(DataMove(origin, destination, "e4", isGood = true, updatedAt = now))
     db.insertTag(
-      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4", isDeleted = true)
+      DataEdgeRepertoireTag(
+        origin,
+        destination,
+        repertoireId = "italian-game",
+        move = "e4",
+        isDeleted = true,
+      )
     )
 
     db.edgesTaggedWith("italian-game") shouldBe emptyList()
@@ -140,9 +148,11 @@ class TestIndexedDbApplyRemote {
     db.deleteMove(PositionKey("a"), "e4", "d", 2L, now)
 
     val stored =
-      db.getPositionIncludingDeleted(PositionKey("a"))!!.previousAndNextMoves.nextMoves.getValue(
-        "e4"
-      )
+      db
+        .getPositionIncludingDeleted(PositionKey("a"))!!
+        .previousAndNextMoves
+        .nextMoves
+        .getValue("e4")
     stored.isDeleted shouldBe true
     stored.ownIsGood shouldBe null
   }
@@ -171,7 +181,13 @@ class TestIndexedDbApplyRemote {
     val db = manager()
     db.eraseAll()
     val repertoire =
-      DataRepertoire(id = "london", name = "London", color = null, installedVersion = 4, updatedAt = now)
+      DataRepertoire(
+        id = "london",
+        name = "London",
+        color = null,
+        installedVersion = 4,
+        updatedAt = now,
+      )
 
     db.applyRemoteRepertoire(repertoire)
 

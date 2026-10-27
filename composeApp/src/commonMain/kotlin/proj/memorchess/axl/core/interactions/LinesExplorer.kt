@@ -140,7 +140,13 @@ open class LinesExplorer(
     val edge =
       treeStore.node(origin)?.outgoing?.get(move)
         ?: treeStore
-          .addMove(from = origin, move = move, to = destination, isGood = null, fromDepth = originDepth)
+          .addMove(
+            from = origin,
+            move = move,
+            to = destination,
+            isGood = null,
+            fromDepth = originDepth,
+          )
           .also { if (repertoireScope != null) newMoves += origin to destination }
     navigation.push(edge, destination)
     state = treeStore.computeState(navigation.current, navigation.arrivedVia?.from)
@@ -176,8 +182,8 @@ open class LinesExplorer(
   }
 
   /**
-   * Holds the line above [root] manually so the saved line stays connected to the starting
-   * position through manual holds: while no move into the position is held, holds the one from the
+   * Holds the line above [root] manually so the saved line stays connected to the starting position
+   * through manual holds: while no move into the position is held, holds the one from the
    * shallowest origin at the marking it shows.
    */
   private suspend fun holdLineAbove(root: PositionKey) {
@@ -250,8 +256,8 @@ open class LinesExplorer(
   }
 
   /**
-   * Holds the move into [position] that lies on the saved line, at the marking [mode] gives it. Other
-   * moves into [position] change only when the user already holds them.
+   * Holds the move into [position] that lies on the saved line, at the marking [mode] gives it.
+   * Other moves into [position] change only when the user already holds them.
    */
   private suspend fun classifyIncoming(
     position: PositionKey,

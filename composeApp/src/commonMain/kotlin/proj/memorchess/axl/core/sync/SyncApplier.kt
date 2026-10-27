@@ -143,7 +143,10 @@ class SyncApplier(
   ) {
     val stored = storedMove(origin, destination)
     val effective =
-      effectiveMarking(stored?.ownIsGood, database.getTags(origin, destination).mapNotNull { it.isGood })
+      effectiveMarking(
+        stored?.ownIsGood,
+        database.getTags(origin, destination).mapNotNull { it.isGood },
+      )
     val updated =
       when {
         stored != null && effective == null -> stored.copy(isDeleted = true)

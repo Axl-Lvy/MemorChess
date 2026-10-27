@@ -40,11 +40,11 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *   download progress (`0f`..`1f`) through its second parameter as
  *   [RepertoireInstallState.Fetching] is updated. May never call it at all, see
  *   [RepertoireCatalogClient.fetchMoves]'s own KDoc.
- * @param importMoves Installs the downloaded moves into the opening graph as holds of the repertoire
- *   named by `descriptor`, and reports the summary. Any exception it throws is surfaced as
- *   [InstallError.ImportFailed] and the repertoire is not registered as installed. Reports import
- *   progress (`0f`..`1f`) through its third parameter as [RepertoireInstallState.Importing] is
- *   updated.
+ * @param importMoves Installs the downloaded moves into the opening graph as holds of the
+ *   repertoire named by `descriptor`, and reports the summary. Any exception it throws is surfaced
+ *   as [InstallError.ImportFailed] and the repertoire is not registered as installed. Reports
+ *   import progress (`0f`..`1f`) through its third parameter as [RepertoireInstallState.Importing]
+ *   is updated.
  * @param previewMoves Computes, without writing anything, how much of the repertoire the user
  *   already has.
  * @param reportInstall Reports one completed first install of the given repertoire id, feeding the
@@ -54,8 +54,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  * @param loadRepertoire Returns the synced registry row of the given id, or `null` when none
  *   exists; a row with an installed version is an installed repertoire, one without is the user's
  *   own.
- * @param registerInstall Registers the given repertoire as installed at its listed version, after
- *   a successful import.
+ * @param registerInstall Registers the given repertoire as installed at its listed version, after a
+ *   successful import.
  * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
  *   normally through [proj.memorchess.axl.core.graph.RepertoireTagStore.repertoires].
  * @param loadMasterySnapshots Returns the mastery snapshot of every registered repertoire, keyed by

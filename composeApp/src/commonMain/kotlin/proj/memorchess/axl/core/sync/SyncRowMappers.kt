@@ -89,12 +89,12 @@ fun DataMove.toEdgeSyncRow(): EdgeSyncRow? {
 }
 
 /**
- * Rebuilds a [DataMove] from a pulled [EdgeSyncRow]: [DataMove.ownIsGood] is the pulled manual hold,
- * while [DataMove.isGood] keeps the wire value as a placeholder until the caller derives the
- * effective marking. [DataMove.createdAt] is not part of the wire
- * shape (see [DataMove.createdAt]'s own doc: excluded from equality, "the same move regardless of
- * when it was recorded") and defaults to [EdgeSyncRow.updatedAt] here, the same as a freshly
- * created local move whose real creation time predates this device's knowledge of it.
+ * Rebuilds a [DataMove] from a pulled [EdgeSyncRow]: [DataMove.ownIsGood] is the pulled manual
+ * hold, while [DataMove.isGood] keeps the wire value as a placeholder until the caller derives the
+ * effective marking. [DataMove.createdAt] is not part of the wire shape (see [DataMove.createdAt]'s
+ * own doc: excluded from equality, "the same move regardless of when it was recorded") and defaults
+ * to [EdgeSyncRow.updatedAt] here, the same as a freshly created local move whose real creation
+ * time predates this device's knowledge of it.
  */
 fun EdgeSyncRow.toDataMove(): DataMove =
   DataMove(

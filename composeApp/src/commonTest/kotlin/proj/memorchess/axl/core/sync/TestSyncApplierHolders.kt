@@ -13,7 +13,9 @@ import proj.memorchess.axl.core.graph.InstalledMove
 import proj.memorchess.axl.test_util.testSyncApplier
 import proj.memorchess.axl.test_util.testTreeStore
 
-/** How [SyncApplier] derives a move's effective marking and existence from pulled holds and tags. */
+/**
+ * How [SyncApplier] derives a move's effective marking and existence from pulled holds and tags.
+ */
 class TestSyncApplierHolders {
 
   private val now = Instant.parse("2026-01-01T00:00:00Z")
@@ -38,7 +40,12 @@ class TestSyncApplierHolders {
       deviceSeq = 1L,
     )
 
-  private fun tag(repertoireId: String, isGood: Boolean?, deleted: Boolean = false, seq: Long = 1L) =
+  private fun tag(
+    repertoireId: String,
+    isGood: Boolean?,
+    deleted: Boolean = false,
+    seq: Long = 1L,
+  ) =
     EdgeRepertoireTagSyncRow(
       origin = origin,
       destination = destination,
