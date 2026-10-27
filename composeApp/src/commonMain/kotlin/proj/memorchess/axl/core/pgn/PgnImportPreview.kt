@@ -7,5 +7,7 @@ package proj.memorchess.axl.core.pgn
  * @property totalMoves Number of distinct moves the repertoire would import.
  * @property movesInCommon How many of those moves are already part of the user's graph with the
  *   same classification, and would therefore be left untouched by an install.
+ * @property movesToDelete How many moves an update would delete because the new version dropped
+ *   them and nothing else holds them; `0` for a first install.
  */
-data class PgnImportPreview(val totalMoves: Int, val movesInCommon: Int)
+data class PgnImportPreview(val totalMoves: Int, val movesInCommon: Int, val movesToDelete: Int = 0)

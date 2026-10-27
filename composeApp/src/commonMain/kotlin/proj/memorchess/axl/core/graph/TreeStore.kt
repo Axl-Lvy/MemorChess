@@ -223,9 +223,12 @@ class TreeStore(
    * Installs [moves] as holds of [repertoireId]: tags each one with the author's marking, then
    * writes it with the effective marking its holders give, creating no manual hold. The touched
    * positions are persisted, but no move is queued for push: only the tags and positions travel.
+   * Replaces the repertoire's earlier holds: its tags on moves absent from [moves] are tombstoned and
+   * the moves nothing else holds are deleted, as [uninstall] does.
    */
   suspend fun install(repertoireId: String, moves: List<InstalledMove>) {
     if (moves.isEmpty()) return
+    val dropped = droppedBy(repertoireId, moves.map { TaggedEdge(it.from, it.to, it.move) })
     for (move in moves) {
       tagStore.tagInstalled(move.from, move.to, repertoireId, move.move, move.isGood)
     }
@@ -258,6 +261,20 @@ class TreeStore(
     database.insertNodes(*nodesToPersist.toTypedArray())
     for (origin in touched) trainable.recompute(origin)
     notifyDirty()
+    releaseHolds(repertoireId, dropped)
+  }
+
+  /** Number of moves an [install] of [edges] as [repertoireId] would delete. */
+  suspend fun previewInstall(repertoireId: String, edges: List<TaggedEdge>): Int {
+    val dropped = droppedBy(repertoireId, edges)
+    if (dropped.isEmpty()) return 0
+    return cleanup.plan(dropped, HoldOverlay(repertoireId, dropped.toSet(), edges.toSet())).moves.size
+  }
+
+  /** The live tagged edges of [repertoireId] that [edges] no longer contains. */
+  private suspend fun droppedBy(repertoireId: String, edges: List<TaggedEdge>): List<TaggedEdge> {
+    val kept = edges.map { it.origin to it.destination }.toSet()
+    return tagStore.edgesTaggedWith(repertoireId).filter { (it.origin to it.destination) !in kept }
   }
 
   /**

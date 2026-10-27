@@ -54,7 +54,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       { _, _, _ ->
         PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
       },
-    previewMoves: suspend (List<RepertoireMove>) -> PgnImportPreview = { _ ->
+    previewMoves: suspend (RepertoireDescriptor, List<RepertoireMove>) -> PgnImportPreview = { _, _ ->
       PgnImportPreview(totalMoves = 4, movesInCommon = 1)
     },
     reportInstall: suspend (String) -> Unit = {},
@@ -750,7 +750,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
         fetchMoves = { _, _ -> CatalogResult.Ok(emptyList()) },
-        previewMoves = { _ -> PgnImportPreview(totalMoves = 12, movesInCommon = 5) },
+        previewMoves = { _, _ -> PgnImportPreview(totalMoves = 12, movesInCommon = 5) },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
 
@@ -769,7 +769,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(caroKann)) },
         fetchMoves = { _, _ -> CatalogResult.Ok(downloaded) },
-        previewMoves = { moves ->
+        previewMoves = { _, moves ->
           previewed = moves
           PgnImportPreview(totalMoves = 1, movesInCommon = 0)
         },
@@ -845,7 +845,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       buildViewModel(
         { CachedManifestResult.Fresh(manifest(london)) },
         fetchMoves = { _, _ -> CatalogResult.Ok(emptyList()) },
-        previewMoves = { _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
+        previewMoves = { _, _ -> throw PgnImportException("Illegal move Qx9 at ply 4 in game 1") },
       )
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
 

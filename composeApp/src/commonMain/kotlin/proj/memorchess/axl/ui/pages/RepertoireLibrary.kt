@@ -197,9 +197,9 @@ fun RepertoireLibrary(
           // The importer reads the persisted graph on demand through the bounded cache.
           RepertoireMoveImporter(treeStore, tagStore).import(moves, descriptor.id, onProgress)
         },
-        previewMoves = { moves ->
+        previewMoves = { descriptor, moves ->
           // The overlap is read against the persisted graph on demand through the bounded cache.
-          RepertoireMoveImporter(treeStore, tagStore).preview(moves)
+          RepertoireMoveImporter(treeStore, tagStore).preview(moves, descriptor.id)
         },
         reportInstall = client::reportInstall,
         loadRepertoire = tagStore::repertoire,

@@ -111,7 +111,8 @@ class RepertoireTagStore(
    * repertoire is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so
    * a tag on a live good edge takes effect immediately. Queues its own outbox entry.
    *
-   * The tag records membership only: it carries no marking and so does not hold the move. Callers
+   * The tag records membership only: it carries no marking and so does not hold the move, except that
+   * re-tagging a move the repertoire already holds keeps the existing marking. Callers
    * decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only for a
    * genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for every
    * edge an import describes, present or not.
@@ -129,6 +130,11 @@ class RepertoireTagStore(
         destination = destination,
         repertoireId = repertoireId,
         move = move,
+        isGood =
+          database
+            .getTagIncludingDeleted(origin, destination, repertoireId)
+            ?.takeIf { !it.isDeleted }
+            ?.isGood,
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice,
         deviceSeq = deviceIdentity.nextDeviceSeq(),

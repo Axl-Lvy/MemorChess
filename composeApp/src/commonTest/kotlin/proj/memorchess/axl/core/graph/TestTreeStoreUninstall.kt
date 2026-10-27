@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.graph
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import proj.memorchess.axl.core.data.DataMove
@@ -212,5 +213,64 @@ class TestTreeStoreUninstall {
 
     database.getTags(start, posB).map { it.repertoireId } shouldBe listOf("y")
     database.isLive(e4) shouldBe true
+  }
+
+  @Test
+  fun anUpdateDeletesTheMovesTheNewVersionDropped() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    installed(database, store, "x", e4.installed(true, 0), e5.installed(true, 1))
+
+    store.install("x", listOf(e4.installed(true, 0)))
+
+    database.isLive(e4) shouldBe true
+    database.isLive(e5) shouldBe false
+    database.getPositionIncludingDeleted(posC)!!.isDeleted shouldBe true
+    database.getTags(posB, posC) shouldBe emptyList()
+  }
+
+  @Test
+  fun anUpdateGivesKeptMovesTheNewMarkingUnlessTheUserMarkedThem() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    store.addMove(start, "d4", posA, isGood = true, fromDepth = 0)
+    installed(database, store, "x", e4.installed(true, 0), d4.installed(true, 0))
+
+    store.install("x", listOf(e4.installed(false, 0), d4.installed(false, 0)))
+
+    database.move(e4)!!.isGood shouldBe false
+    database.move(d4)!!.isGood shouldBe true
+  }
+
+  @Test
+  fun anUpdateKeepsAPositionTheNewVersionReachesThroughANewMove() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    installed(database, store, "x", e4.installed(true, 0), e5.installed(true, 1))
+    val v2 = listOf(d4.installed(true, 0), nf3.installed(true, 1), e5.installed(true, 1))
+
+    val preview = store.previewInstall("x", v2.map { TaggedEdge(it.from, it.to, it.move) })
+    store.install("x", v2)
+
+    preview shouldBe 1
+    database.isLive(e4) shouldBe false
+    database.isLive(e5) shouldBe true
+    database.getPosition(posB) shouldNotBe null
+  }
+
+  @Test
+  fun aSameVersionReinstallRestoresADeletedMoveAndDeletesNothing() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    val v1 = listOf(e4.installed(true, 0), e5.installed(true, 1))
+    installed(database, store, "x", *v1.toTypedArray())
+    store.deleteMove(posB, "e5")
+
+    val preview = store.previewInstall("x", v1.map { TaggedEdge(it.from, it.to, it.move) })
+    store.install("x", v1)
+
+    preview shouldBe 0
+    database.isLive(e4) shouldBe true
+    database.isLive(e5) shouldBe true
   }
 }

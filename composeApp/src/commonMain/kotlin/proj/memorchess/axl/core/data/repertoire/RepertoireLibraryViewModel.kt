@@ -45,7 +45,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *   as [InstallError.ImportFailed] and the repertoire is not registered as installed. Reports
  *   import progress (`0f`..`1f`) through its third parameter as [RepertoireInstallState.Importing]
  *   is updated.
- * @param previewMoves Computes, without writing anything, how much of the repertoire the user
+ * @param previewMoves Computes, without writing anything, how much of the repertoire named by
+ *   `descriptor` the user
  *   already has.
  * @param reportInstall Reports one completed first install of the given repertoire id, feeding the
  *   catalog's anonymous popularity counter (see [RepertoireDescriptor.downloadCount]'s KDoc). Must
@@ -77,7 +78,8 @@ class RepertoireLibraryViewModel(
       moves: List<RepertoireMove>,
       onProgress: (Float) -> Unit,
     ) -> PgnImportSummary,
-  private val previewMoves: suspend (moves: List<RepertoireMove>) -> PgnImportPreview,
+  private val previewMoves:
+    suspend (descriptor: RepertoireDescriptor, moves: List<RepertoireMove>) -> PgnImportPreview,
   private val reportInstall: suspend (id: String) -> Unit,
   private val loadRepertoire: suspend (id: String) -> DataRepertoire?,
   private val registerInstall: suspend (descriptor: RepertoireDescriptor) -> Unit,
@@ -290,7 +292,7 @@ class RepertoireLibraryViewModel(
       } ?: return
     val preview =
       try {
-        previewMoves(moves)
+        previewMoves(descriptor, moves)
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
