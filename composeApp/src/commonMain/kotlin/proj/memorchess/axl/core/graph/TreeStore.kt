@@ -7,6 +7,8 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.TaggedEdge
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.sync.DeviceIdentity
@@ -105,8 +107,8 @@ class TreeStore(
   /**
    * Adds or replaces an edge in the graph.
    *
-   * Always updates the cache. Persists when [isGood] is not `null`: a classified edge becomes
-   * durable, an exploration edge does not. The destination node is created on demand at depth
+   * Always updates the cache. Persists when [isGood] is not `null`: a classified edge becomes a
+   * manual hold with [isGood] as the user's own marking, an exploration edge stays in the cache. The destination node is created on demand at depth
    * [fromDepth] + 1.
    *
    * When the edge already exists its [Edge.createdAt] is preserved. This is load bearing:
@@ -143,6 +145,7 @@ class TreeStore(
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
+        ownIsGood = isGood,
       )
     cache.upsertEdge(edge, fromDepth)
     if (isGood != null) {
@@ -192,6 +195,7 @@ class TreeStore(
           updatedAt = now,
           originDevice = deviceIdentity.originDevice,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
+          ownIsGood = insertion.isGood,
         )
       cache.upsertEdge(edge, insertion.fromDepth)
       if (insertion.isGood != null) {
@@ -211,6 +215,93 @@ class TreeStore(
       for (origin in touched) trainable.recompute(origin)
       notifyDirty()
     }
+  }
+
+  /**
+   * Installs [moves] as holds of [repertoireId]: tags each one with the author's marking, then writes
+   * it with the effective marking its holders give, creating no manual hold. The touched positions
+   * are persisted, but no move is queued for push: only the tags and positions travel.
+   */
+  suspend fun install(repertoireId: String, moves: List<InstalledMove>) {
+    if (moves.isEmpty()) return
+    for (move in moves) {
+      tagStore.tagInstalled(move.from, move.to, repertoireId, move.move, move.isGood)
+    }
+    val now = DateUtil.now()
+    val touched = linkedSetOf<PositionKey>()
+    for (move in moves) {
+      val prior = priorManualHold(move.from, move.move)
+      val effective =
+        effectiveMarking(
+          prior?.ownIsGood,
+          database.getTags(move.from, move.to).mapNotNull { it.isGood },
+        ) ?: continue
+      val edge =
+        Edge(
+          from = move.from,
+          move = move.move,
+          to = move.to,
+          isGood = effective,
+          createdAt = prior?.createdAt ?: now,
+          updatedAt = prior?.updatedAt ?: now,
+          originDevice = prior?.originDevice.orEmpty(),
+          deviceSeq = prior?.deviceSeq ?: 0L,
+          ownIsGood = prior?.ownIsGood,
+        )
+      cache.upsertEdge(edge, move.fromDepth)
+      touched += move.from
+      touched += move.to
+    }
+    val nodesToPersist = touched.mapNotNull { cache.peek(it)?.toDataNode() }
+    database.insertNodes(*nodesToPersist.toTypedArray())
+    for (origin in touched) trainable.recompute(origin)
+    notifyDirty()
+  }
+
+  /**
+   * The persisted version of the move [move] from [from], live or a manual hold tombstone, whose
+   * stamps an install must keep. An exploration only edge has none.
+   */
+  private suspend fun priorManualHold(from: PositionKey, move: String): Edge? {
+    val live = node(from)?.outgoing?.get(move)
+    if (live != null && live.isGood != null) return live
+    val stored =
+      database.getPositionIncludingDeleted(from)?.previousAndNextMoves?.nextMoves?.get(move)
+        ?: return null
+    return Edge(
+      from = stored.origin,
+      move = stored.move,
+      to = stored.destination,
+      isGood = stored.isGood,
+      createdAt = stored.createdAt,
+      updatedAt = stored.updatedAt,
+      isDeleted = stored.isDeleted,
+      originDevice = stored.originDevice,
+      deviceSeq = stored.deviceSeq,
+      ownIsGood = stored.ownIsGood,
+    )
+  }
+
+  /** Gives every move of [edges] the user does not hold yet a manual hold at its effective marking. */
+  suspend fun holdManually(edges: List<TaggedEdge>) {
+    for (tagged in edges) {
+      val origin = node(tagged.origin) ?: continue
+      val edge = origin.outgoing[tagged.move] ?: continue
+      val marking = edge.isGood ?: continue
+      if (edge.ownIsGood != null) continue
+      addMove(edge.from, edge.move, edge.to, marking, origin.depth)
+    }
+  }
+
+  /**
+   * Forks [sourceId] into [newId]: holds every move of the source manually, so the fork survives
+   * the source's uninstall, then registers and tags the fork. See [RepertoireTagStore.fork].
+   *
+   * @throws IllegalArgumentException if [newId] is blank or contains a comma.
+   */
+  suspend fun fork(sourceId: String, newId: String, newName: String, color: RepertoireColor?) {
+    holdManually(tagStore.edgesTaggedWith(sourceId))
+    tagStore.fork(sourceId, newId, newName, color)
   }
 
   /**
@@ -418,6 +509,23 @@ data class MoveInsertion(
   val move: String,
   val to: PositionKey,
   val isGood: Boolean?,
+  val fromDepth: Int,
+)
+
+/**
+ * One move to write through [TreeStore.install].
+ *
+ * @property from Position the move is played from.
+ * @property move SAN of the move.
+ * @property to Position reached by playing [move].
+ * @property isGood The author's marking.
+ * @property fromDepth Depth of [from] used when the node has to be inserted.
+ */
+data class InstalledMove(
+  val from: PositionKey,
+  val move: String,
+  val to: PositionKey,
+  val isGood: Boolean,
   val fromDepth: Int,
 )
 

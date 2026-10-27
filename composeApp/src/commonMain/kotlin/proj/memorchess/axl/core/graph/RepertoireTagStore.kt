@@ -39,15 +39,23 @@ class RepertoireTagStore(
   suspend fun masterySnapshots(): Map<String, RepertoireMasterySnapshot> =
     database.getRepertoireMasterySnapshots(database.getRepertoires().map { it.id })
 
+  /** The registry row of [id], or `null` when missing or deleted. */
+  suspend fun repertoire(id: String): DataRepertoire? = database.getRepertoire(id)
+
   /**
-   * Registers [id] in the repertoire registry with [name] and [color], or overwrites an existing
-   * entry's name/color (a catalog reinstall re-registering under the same id). Queues its own
-   * outbox entry.
+   * Registers [id] in the repertoire registry with [name], [color] and [installedVersion] (`null`
+   * for a repertoire the user creates), or overwrites an existing entry (a catalog reinstall
+   * re-registering under the same id). Queues its own outbox entry.
    *
    * @throws IllegalArgumentException if [id] is blank, or contains a comma (mirrors
    *   [proj.memorchess.axl.core.data.repertoire.InstalledRepertoireStore]'s own separator rule).
    */
-  suspend fun register(id: String, name: String, color: RepertoireColor?) {
+  suspend fun register(
+    id: String,
+    name: String,
+    color: RepertoireColor?,
+    installedVersion: Int? = null,
+  ) {
     require(id.isNotBlank()) { "Repertoire id must not be blank" }
     require(',' !in id) { "Repertoire id must not contain ',': $id" }
     database.insertRepertoire(
@@ -55,6 +63,7 @@ class RepertoireTagStore(
         id = id,
         name = name,
         color = color,
+        installedVersion = installedVersion,
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
@@ -120,6 +129,33 @@ class RepertoireTagStore(
       )
     )
     trainable.recompute(origin)
+    notifyDirty()
+  }
+
+  /**
+   * Tags [move] from [origin] to [destination] with [repertoireId] and the author's marking
+   * [isGood], which makes the repertoire a holder of the move. The caller derives the move's
+   * effective marking afterward.
+   */
+  internal suspend fun tagInstalled(
+    origin: PositionKey,
+    destination: PositionKey,
+    repertoireId: String,
+    move: String,
+    isGood: Boolean,
+  ) {
+    database.insertTag(
+      DataEdgeRepertoireTag(
+        origin = origin,
+        destination = destination,
+        repertoireId = repertoireId,
+        move = move,
+        isGood = isGood,
+        updatedAt = DateUtil.now(),
+        originDevice = deviceIdentity.originDevice,
+        deviceSeq = deviceIdentity.nextDeviceSeq(),
+      )
+    )
     notifyDirty()
   }
 
