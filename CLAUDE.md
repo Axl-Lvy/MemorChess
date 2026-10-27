@@ -1,59 +1,47 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working in this repository.
+MemorChess is a Kotlin Multiplatform app for memorizing chess openings with spaced repetition. Targets Android, iOS, JVM desktop, and wasmJs.
 
-## Project Overview
-
-MemorChess (Anki Chess) is a Kotlin Multiplatform app for memorizing chess openings using spaced repetition. Targets Android, iOS, JVM desktop, and WebAssembly (wasmJs).
-
-## Build & Test Commands
+## Commands
 
 ```sh
-./gradlew build                                                              # build
-./gradlew :composeApp:jvmRun                                                 # run desktop
-./gradlew jvmTest                                                            # JVM/desktop tests
-./gradlew jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache"  # single test class
-./gradlew :androidApp:connectedCheck                                        # Android instrumented tests
-./gradlew :server:test                                                      # server tests (needs Docker)
-./gradlew :e2e:test                                                         # client/server end to end tests (needs Docker)
-./gradlew ktfmtCheck                                                        # check formatting
-./gradlew ktfmtFormat                                                       # auto-format (ktfmt, Google style)
+./gradlew ktfmtFormat                                                                   # format (ktfmt, Google style); a pre-commit hook checks it on master
+./gradlew jvmTest                                                                       # composeApp + shared tests
+./gradlew :composeApp:jvmTest --tests "proj.memorchess.axl.core.engine.graph.TestCache" # one class
+./gradlew :composeApp:wasmJsTest                                                        # wasm UI tests
+./gradlew :server:test                                                                  # needs Docker
+./gradlew :e2e:test                                                                     # client against a real server, needs Docker
+./gradlew :androidApp:connectedCheck                                                    # Android instrumented tests
+./gradlew :composeApp:jvmRun                                                            # run desktop
 ```
 
-Android/JVM/iOS macro- and micro-benchmarks live in `:macrobenchmark` and `:microbenchmark`; see their READMEs before running them.
+Read the `:macrobenchmark` and `:microbenchmark` READMEs before running benchmarks.
 
-## Architecture
+## Modules
 
-Seven Gradle modules:
+- `shared` is pure KMP (no Compose, no Room) and shared with `:server`. `internal` does not cross module boundaries, so anything `composeApp` uses from it must be `public`.
+- `composeApp`'s Android target uses `com.android.kotlin.multiplatform.library`: configure it in `kotlin.androidLibrary {}`, there is no `android {}` block.
+- `server` is configured only from the environment, validated at boot: `SYNC_DB_URL`, `SYNC_DB_USER`, `SYNC_DB_PASSWORD`, `SYNC_JWT_ISSUER`, `SYNC_JWT_AUDIENCE`, `SYNC_JWKS_URL`, optional `SYNC_PORT`. No vendor is named in code.
+- The Gradle wrapper is held below 9.7.0. Read `docs/adr/0002-toolchain-version-holds.md` before touching that pin.
 
-- **`shared`** — pure Kotlin Multiplatform code with no Compose and no Room, shared with `:server`: chess engine core, `PositionKey`, PGN parsing, sync wire types. `composeApp` depends on it with `api`, so its types stay visible to `androidApp` transitively.
-- **`composeApp`** — the KMP library holding all app code (`core/` logic, `ui/` Compose UI). Its Android target uses the `com.android.kotlin.multiplatform.library` plugin (`kotlin.androidLibrary {}` DSL, no `android {}` block).
-- **`server`** — JVM-only Ktor server (sync, JWKS-backed auth, REST routes). Configured entirely from the environment (`ServerConfig`); no vendor named in code.
-- **`androidApp`** — thin Android shell (`MainActivity`, manifest, instrumented tests). Has a `benchmark` build type for `:macrobenchmark`.
-- **`e2e`**: JVM tests that drive `composeApp`'s real HTTP clients against a real `:server` started by `startE2eServer()`, which lives in `:server`'s `testFixtures`. Needs Docker.
+## Code
 
-Layer maps load automatically when you work in those directories:
+- **Comments**: prefer names and small functions that make a comment unnecessary. Every public declaration gets a one or two line KDoc saying what it does, not how; `@param`/`@return` only when they add something the name does not. Inline comments only for a non-obvious why (an invariant, a workaround). No history, issue, PR, or mockup references, no section dividers, no list of callers.
+- **Types**: a domain concept gets its own type (`@JvmInline value class`, enum, sealed type) rather than a raw `String`/`Int`/`Long`/`Double`/`Boolean`, including in wire DTOs and server routes. Ids, moves, sequences, and durations (`kotlin.time.Duration`, `Instant`) are never bare primitives.
+- **Visibility**: work down the ladder (`private` → `internal` → `public`). A data class with a restricted constructor needs `@ConsistentCopyVisibility`.
+- **Database**: the app is not in production. Change Room/IndexedDB schemas freely without migrations. Never re-enable Room schema export.
+- **Secrets**: read from `System.getenv`; CI injects them from GitHub Actions secrets. There is no generation flow.
 
-- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/core/CLAUDE.md`
-- `composeApp/src/commonMain/kotlin/proj/memorchess/axl/ui/CLAUDE.md`
+## Tests
 
-The Gradle wrapper is held below 9.7.0. Read `docs/adr/0002-toolchain-version-holds.md` before touching that pin.
+- Kotest assertions, no mocking. Arrange/act/assert sections are separated by blank lines, without `// Arrange` markers.
+- Never add `public`/`internal` members only for tests; test through the public API.
+- Arithmetic/formatting on external data is tested at `0`, the lowest non-zero value, both sides of every boundary, and a large value. A new state, branch, or sealed subclass needs a propagation test through every consumer in the same PR.
+- Testcontainers needs `systemProperty("api.version", "1.40")` on the test task (set in `server/build.gradle.kts`), otherwise every container test fails with "no valid Docker environment". `DOCKER_API_VERSION` does not work.
+- Adding `wasmJs` to a module fails the first build on `:kotlinWasmStoreYarnLock`. Run `./gradlew kotlinWasmUpgradeYarnLock` once, then rebuild.
 
-## Key Conventions
+## Git
 
-- **Formatting**: run `./gradlew ktfmtFormat` before building or testing; a pre-commit hook checks it on `master`.
-- **Testing**: Kotest assertions, no mocking, AAA pattern.
-- **Edge cases**: arithmetic/formatting on external data must be tested at `0`, the lowest non-zero value, both sides of every boundary, and a large value. A new state/branch/sealed subclass needs a propagation test through every consumer in the same PR.
-- **Database migrations**: the app isn't in production — change Room/IndexedDB schemas freely, no migrations needed. Never re-enable Room schema export.
-- **Adding `wasmJs` to a new module**: the first build fails on `:kotlinWasmStoreYarnLock` ("Lock file was changed"). Run `./gradlew kotlinWasmUpgradeYarnLock` once, then rebuild.
-- **Testcontainers**: needs `systemProperty("api.version", "1.40")` on the test task (already set in `server/build.gradle.kts`), or every container test fails with a useless "no valid Docker environment" message. `DOCKER_API_VERSION` does not work here.
-- **DI**: Koin; modules defined in `Koin.kt`.
-- **Visibility**: work down the ladder (`private` → `internal` → `public`). `internal` does not cross Gradle module boundaries, so anything `shared` exposes to `composeApp` must be `public` there. A data class with a restricted constructor needs `@ConsistentCopyVisibility`.
-- **Test-only code**: never add `public`/`internal` members solely for testing; test through the public API.
-- **KDoc**: on all public declarations and every non-trivial `@Composable`.
-- **Secrets**: no generation flow. Runtime credentials come from `System.getenv`; CI injects them from GitHub Actions secrets.
-- **Server env vars**: `SYNC_DB_URL`, `SYNC_DB_USER`, `SYNC_DB_PASSWORD`, `SYNC_JWT_ISSUER`, `SYNC_JWT_AUDIENCE`, `SYNC_JWKS_URL`, optional `SYNC_PORT`. Validated at boot, so a missing one fails the boot rather than the first request.
-- **PR titles**: Conventional Commits (`feat(module): ...`).
-- **PR descriptions**: base every PR body on `@.github/pull_request_template.md`.
-- **No force pushes**: never force-push or rewrite pushed history (`rebase`, `commit --amend`, `reset --hard`). Add commits on top; ask first if a force push seems genuinely necessary.
-- **Worktrees**: always develop in a dedicated git worktree, never the main checkout — see the `using-git-worktrees` skill.
+- Develop in a dedicated worktree, never the main checkout (`using-git-worktrees` skill).
+- PR titles follow Conventional Commits (`feat(module): ...`); PR bodies use `.github/pull_request_template.md`.
+- Never force-push or rewrite pushed history. Add commits on top, and ask first if a force push seems necessary.
