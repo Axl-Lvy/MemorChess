@@ -140,6 +140,8 @@
   <string name="training_hint">INDICE</string>
   <string name="training_reveal">RÉVÉLER</string>
   <string name="training_failed">ÉCHOUÉ</string>
+  <string name="training_hint_confirm">Utiliser un indice marque ce coup comme échoué.</string>
+  <string name="training_reveal_confirm">Révéler le coup le marque comme échoué.</string>
   <string name="training_white_to_move">AUX BLANCS DE JOUER</string>
   <string name="training_black_to_move">AUX NOIRS DE JOUER</string>
   <string name="training_finished_title">Bravo !</string>
