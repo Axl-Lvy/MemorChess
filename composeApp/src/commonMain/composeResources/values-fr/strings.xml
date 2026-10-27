@@ -139,6 +139,7 @@
   <string name="training_skip">PASSER</string>
   <string name="training_hint">INDICE</string>
   <string name="training_reveal">RÉVÉLER</string>
+  <string name="training_failed">ÉCHOUÉ</string>
   <string name="training_white_to_move">AUX BLANCS DE JOUER</string>
   <string name="training_black_to_move">AUX NOIRS DE JOUER</string>
   <string name="training_finished_title">Bravo !</string>

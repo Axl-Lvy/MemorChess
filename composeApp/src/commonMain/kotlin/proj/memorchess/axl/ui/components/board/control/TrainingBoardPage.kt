@@ -83,10 +83,13 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
   private val localReloader = BasicReloader()
   private val trainerReloader = BasicReloader()
   private var chosenNode by mutableStateOf<Node?>(null)
-  // Squares outlined by HINT / REVEAL for the current card. Using either grades the card AGAIN, so
-  // the move that follows counts as a fail even when it is correct.
+  // Squares outlined by HINT / REVEAL for the current card.
   private var hintSquares by mutableStateOf(emptySet<BoardLocation>())
-  private var assisted = false
+  // Whether the current card was failed by a wrong move, a hint or a reveal. A failed card counts
+  // once as a fail and is retried until the right move is played, which then counts nothing.
+  private var failed by mutableStateOf(false)
+  // Monotonic count of graded moves, driving the board feedback animations once per move.
+  private var attempt by mutableStateOf(0)
 
   // Session counters — live for the lifetime of this `TrainingBoard` instance (i.e. the lifetime
   // of the page). When the user leaves Training and comes back, the page is recreated and these
@@ -100,25 +103,10 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
       produceState(0, localReloader.getKey(), daysInAdvance) {
         value = trainingScheduler.pendingCount(dayOffset(daysInAdvance), repertoireId)
       }
-    // Count each attempt exactly once: increment on the transition into a SHOW_* state. Using
-    // LaunchedEffect(state) means we react only when `state` actually changes value, and the
-    // `isShowing` guard ensures FROM_* → FROM_* transitions are ignored. After incrementing we
-    // continue the existing "auto-advance on correct" behavior.
-    LaunchedEffect(state) {
-      if (state.isShowing) {
-        if (state.isCorrect && !assisted) {
-          successCount += 1
-        } else {
-          failCount += 1
-        }
-      }
-    }
-    // Anki-style auto-advance: after the user plays — correct or not — we wait moveDelay then move
-    // on to the next entry. The wrong card has already been graded AGAIN by the trainer's
-    // afterPlayMove, so the scheduler will re-surface it on its own schedule; no need for a manual
-    // "Next" button. Auto-advance fires for both SHOW_CORRECT_MOVE and SHOW_WRONG_MOVE states.
+    // Auto-advance after a correct move: wait moveDelay then move on to the next entry. A wrong
+    // move is retried on the same card instead, see NodeToTrain.
     LaunchedEffect(reloader.getKey()) {
-      if (state.isShowing) {
+      if (state == TrainingBoardState.SHOW_CORRECT_MOVE) {
         delay(moveDelay)
         choseNextNode()
       }
@@ -133,7 +121,14 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
 
   private fun showHint(squares: Set<BoardLocation>) {
     hintSquares = hintSquares + squares
-    assisted = true
+    markFailed()
+  }
+
+  private fun markFailed() {
+    if (!failed) {
+      failed = true
+      failCount += 1
+    }
   }
 
   /**
@@ -142,10 +137,10 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
    * every move or skip.
    */
   suspend fun choseNextNode() {
-    // An assisted card was graded AGAIN, so it collapses the days-in-advance window like a fail.
-    state = if (assisted) TrainingBoardState.FROM_WRONG_MOVE else state.toPlayableState()
+    // A failed card was graded AGAIN, so it collapses the days-in-advance window.
+    state = if (failed) TrainingBoardState.FROM_WRONG_MOVE else state.toPlayableState()
     hintSquares = emptySet()
-    assisted = false
+    failed = false
     localReloader.reload()
     trainerReloader.reload()
     val day = dayOffset(daysInAdvance)
@@ -235,6 +230,12 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
           edge,
           playedSquare,
           correctSquare ->
+          attempt += 1
+          if (edge == null) {
+            markFailed()
+          } else if (!failed) {
+            successCount += 1
+          }
           state =
             if (edge != null) TrainingBoardState.SHOW_CORRECT_MOVE
             else TrainingBoardState.SHOW_WRONG_MOVE
@@ -253,6 +254,14 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
     // from the reset, and the combined animation came from the next entry's updateNode diffing the
     // pre-move position against the next training position.
     LaunchedEffect(nodeToLearn) { trainer.updateNode(nodeToLearn) }
+    // A wrong move stays on screen for moveDelay, then the same position comes back for a retry.
+    LaunchedEffect(state) {
+      if (state == TrainingBoardState.SHOW_WRONG_MOVE) {
+        delay(moveDelay)
+        state = TrainingBoardState.FROM_WRONG_MOVE
+        trainer.retry()
+      }
+    }
     // Derive board orientation from nodeToLearn directly, not from `trainer.engine`. The trainer's
     // engine has not yet been swapped to the new entry at this point in composition (updateNode
     // runs in the LaunchedEffect, after composition), so reading trainer.engine.playerTurn here
@@ -277,7 +286,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
         playedSquare = previousPlayedSquare.takeIf { state.isShowing },
         correctSquare = previousCorrectSquare.takeIf { state.isShowing && !state.isCorrect },
         isCorrect = state.isCorrect.takeIf { state.isShowing },
-        attempt = totalAttempts,
+        attempt = attempt,
         hintSquares = if (state.isShowing) emptySet() else hintSquares,
       )
 
@@ -324,6 +333,7 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
                 }
               },
               feedbackActive = state == TrainingBoardState.SHOW_WRONG_MOVE,
+              failed = failed,
               modifier = mod,
             )
           },
