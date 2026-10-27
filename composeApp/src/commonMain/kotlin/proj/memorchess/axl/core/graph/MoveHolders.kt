@@ -7,10 +7,10 @@ package proj.memorchess.axl.core.graph
  */
 fun effectiveMarking(ownIsGood: Boolean?, installMarkings: Iterable<Boolean>): Boolean? {
   if (ownIsGood != null) return ownIsGood
-  var held = false
+  var effective: Boolean? = null
   for (marking in installMarkings) {
     if (marking) return true
-    held = true
+    effective = false
   }
-  return if (held) false else null
+  return effective
 }
