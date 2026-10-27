@@ -12,6 +12,7 @@ import proj.memorchess.axl.core.date.DateUtil
   indices =
     [
       Index(value = ["origin", "destination"]),
+      Index(value = ["destination"]),
       Index(value = ["isDeleted"]),
       Index(value = ["updatedAt"]),
     ],

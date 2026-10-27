@@ -9,6 +9,7 @@ import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.effectiveMarking
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 
 /**
  * Applies rows pulled from `/v1/sync` to local storage, after resolving each against its local
@@ -20,9 +21,10 @@ import proj.memorchess.axl.core.graph.effectiveMarking
  * back.
  *
  * A pulled manual hold or tag changes who holds a move, so both re-derive the move's effective
- * marking and existence from its holders (see [effectiveMarking]). The server assigns a push's tag
- * revisions after its node revisions, so a tag's endpoint positions normally arrive first; a tag
- * whose endpoint is still missing is stored without creating its move.
+ * marking and existence from its holders (see [effectiveMarking]). A tag can arrive before its
+ * endpoint positions (a later review re-pushes a position at a later revision): it is stored
+ * without creating its move, and the position's arrival re-derives the moves its tags hold. A move
+ * a holder keeps revives a deleted endpoint position with a fresh review state.
  *
  * @param database The persistence backend.
  * @param cache Cache the applied positions are invalidated in.
@@ -53,6 +55,9 @@ class SyncApplier(
         )
       database.applyRemoteNode(dataNode)
       cache.invalidate(dataNode.positionKey)
+      for (tag in database.getTagsTouching(dataNode.positionKey)) {
+        if (tag.isGood != null) recomputeHolders(tag.origin, tag.destination, tag.move)
+      }
     }
     return resolution.source
   }
@@ -164,11 +169,24 @@ class SyncApplier(
             updatedAt = DateUtil.now(),
           )
       }
+    if (updated != null && !updated.isDeleted) {
+      reviveIfDeleted(origin)
+      reviveIfDeleted(destination)
+    }
     if (updated != null && updated != stored) database.applyRemoteMove(updated)
     refreshHasGoodOutgoingIfChanged(origin)
     cache.invalidate(origin)
     cache.invalidate(destination)
     trainable.recompute(origin)
+  }
+
+  /**
+   * Brings back the deleted position [position] with a fresh review state, without an outbox entry.
+   */
+  private suspend fun reviveIfDeleted(position: PositionKey) {
+    val node = database.getPositionIncludingDeleted(position) ?: return
+    if (!node.isDeleted) return
+    database.applyRemoteNode(node.copy(isDeleted = false, cardState = CardStateFactory.new()))
   }
 
   /**

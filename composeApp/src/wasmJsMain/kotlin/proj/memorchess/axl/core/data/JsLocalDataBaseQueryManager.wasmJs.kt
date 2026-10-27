@@ -1075,6 +1075,18 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
+  override suspend fun getTagsTouching(position: PositionKey): List<DataEdgeRepertoireTag> {
+    val database = db()
+    return database.transaction(TAGS_STORE) {
+      val store = objectStore(TAGS_STORE)
+      val key = Key(position.value.toJsString())
+      val rows: List<JsEdgeRepertoireTagEntity> =
+        store.index("origin").getAll(key).toList<JsEdgeRepertoireTagEntity>() +
+          store.index("destination").getAll(key).toList<JsEdgeRepertoireTagEntity>()
+      rows.filter { !it.isDeleted }.map { it.toDataEdgeRepertoireTag() }.distinct()
+    }
+  }
+
   override suspend fun getTagIncludingDeleted(
     origin: PositionKey,
     destination: PositionKey,

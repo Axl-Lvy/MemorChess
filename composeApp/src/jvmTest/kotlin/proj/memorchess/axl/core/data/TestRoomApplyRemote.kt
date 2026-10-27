@@ -172,4 +172,27 @@ class TestRoomApplyRemote {
 
     db.getRepertoire("london") shouldBe repertoire
   }
+
+  @Test
+  fun getTagsTouchingReturnsLiveTagsFromOrToAPosition() = runTest {
+    val db = manager
+    val a = PositionKey("a")
+    val b = PositionKey("b")
+    val c = PositionKey("c")
+    db.applyRemoteTag(DataEdgeRepertoireTag(a, b, repertoireId = "r", move = "e4", updatedAt = now))
+    db.applyRemoteTag(DataEdgeRepertoireTag(c, a, repertoireId = "r", move = "d4", updatedAt = now))
+    db.applyRemoteTag(DataEdgeRepertoireTag(b, c, repertoireId = "r", move = "c4", updatedAt = now))
+    db.applyRemoteTag(
+      DataEdgeRepertoireTag(
+        a,
+        c,
+        repertoireId = "r",
+        move = "f4",
+        isDeleted = true,
+        updatedAt = now,
+      )
+    )
+
+    db.getTagsTouching(a).map { it.move }.toSet() shouldBe setOf("e4", "d4")
+  }
 }

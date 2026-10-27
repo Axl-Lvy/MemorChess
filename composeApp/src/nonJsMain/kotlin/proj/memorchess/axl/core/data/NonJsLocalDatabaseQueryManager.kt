@@ -216,6 +216,9 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
       it.toDataEdgeRepertoireTag()
     }
 
+  override suspend fun getTagsTouching(position: PositionKey): List<DataEdgeRepertoireTag> =
+    database.getRepertoireDao().getTagsTouching(position.value).map { it.toDataEdgeRepertoireTag() }
+
   override suspend fun getTagIncludingDeleted(
     origin: PositionKey,
     destination: PositionKey,

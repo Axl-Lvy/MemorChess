@@ -22,7 +22,7 @@ class TestSyncApplierHolders {
   private val origin = "origin w K"
   private val destination = "destination b K"
 
-  private fun node(key: String) =
+  private fun node(key: String, deleted: Boolean = false, seq: Long = 1L) =
     NodeSyncRow(
       positionKey = key,
       dueDate = now,
@@ -34,10 +34,10 @@ class TestSyncApplierHolders {
       lapses = 0,
       phase = "NEW",
       step = 0,
-      isDeleted = false,
+      isDeleted = deleted,
       updatedAt = now,
       originDevice = "remote",
-      deviceSeq = 1L,
+      deviceSeq = seq,
     )
 
   private fun tag(
@@ -178,5 +178,30 @@ class TestSyncApplierHolders {
     applier.applyMove(edge(isGood = true, deleted = true, seq = 2L))
 
     database.move()!!.isDeleted shouldBe true
+  }
+
+  @Test
+  fun aTagPulledBeforeItsOriginCreatesTheMoveOnceTheOriginArrives() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val applier = testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined))
+    applier.applyNode(node(destination))
+    applier.applyTag(tag("a", isGood = true))
+
+    applier.applyNode(node(origin))
+
+    database.move()!!.isGood shouldBe true
+    database.getPosition(PositionKey(origin))!!.hasGoodOutgoing shouldBe true
+  }
+
+  @Test
+  fun aPulledHolderRevivesADeletedEndpointWithAFreshReviewState() = runTest {
+    val (database, applier) = withBothNodes()
+    applier.applyNode(node(destination, deleted = true, seq = 2L))
+
+    applier.applyTag(tag("a", isGood = true))
+
+    database.move()!!.isDeleted shouldBe false
+    val revived = database.getPosition(PositionKey(destination))!!
+    revived.cardState.reps shouldBe 0
   }
 }

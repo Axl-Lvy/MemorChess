@@ -115,12 +115,12 @@ class TestMoveHoldersE2e {
   }
 
   /** Pulls every page for [device] and applies it in the app's order. */
-  private suspend fun pull(token: String, device: Device) {
+  private suspend fun pull(token: String, device: Device, limit: Int = PAGE_LIMIT) {
     var ack: String? = null
-    repeat(MAX_PAGES) {
+    repeat(MAX_PAGES * PAGE_LIMIT) {
       val page =
         client
-          .pull(token, device.identity.originDevice, ack, PAGE_LIMIT)
+          .pull(token, device.identity.originDevice, ack, limit)
           .shouldBeInstanceOf<SyncPullOutcome.Ok>()
           .response
       if (
@@ -175,6 +175,37 @@ class TestMoveHoldersE2e {
 
       deviceA.move(start, "e4")!!.ownIsGood shouldBe true
       deviceA.move(afterE4, "e5")!!.ownIsGood shouldBe null
+    }
+
+  @Test
+  fun `an install reaches a device whose pull serves the moves before their positions`() =
+    runBlocking<Unit> {
+      val token = server.tokenFor(server.newUserId())
+      val deviceA = Device()
+      val deviceB = Device()
+      register(token, deviceA)
+      register(token, deviceB)
+      val start = PositionKey.START_POSITION
+      val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
+      val afterE5 =
+        GameEngine().apply { playSanMove("e4") }.apply { playSanMove("e5") }.toPositionKey()
+      deviceA.treeStore.install(
+        "london",
+        listOf(
+          InstalledMove(start, "e4", afterE4, isGood = true, fromDepth = 0),
+          InstalledMove(afterE4, "e5", afterE5, isGood = false, fromDepth = 1),
+        ),
+      )
+      push(token, deviceA)
+      // A review re-pushes the position at a later revision than the tags that reach it.
+      val reviewed = deviceA.treeStore.node(afterE4)!!.cardState.copy(reps = 1)
+      deviceA.treeStore.updateCardState(afterE4, reviewed)
+      push(token, deviceA)
+
+      pull(token, deviceB, limit = 1)
+
+      deviceB.move(start, "e4")!!.isGood shouldBe true
+      deviceB.move(afterE4, "e5")!!.isGood shouldBe false
     }
 
   private companion object {

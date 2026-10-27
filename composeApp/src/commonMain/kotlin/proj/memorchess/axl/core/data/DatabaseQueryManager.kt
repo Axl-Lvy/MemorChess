@@ -277,6 +277,9 @@ interface DatabaseQueryManager {
   /** Every live tag on the edge from [origin] to [destination], across every repertoire. */
   suspend fun getTags(origin: PositionKey, destination: PositionKey): List<DataEdgeRepertoireTag>
 
+  /** Every live tag on a move from or to [position], across every repertoire. */
+  suspend fun getTagsTouching(position: PositionKey): List<DataEdgeRepertoireTag>
+
   /**
    * [getTags] ignoring the soft delete filter for one `(origin, destination, repertoireId)` triple,
    * so a caller can compare it against a pulled sync row even when the local copy is a tombstone.

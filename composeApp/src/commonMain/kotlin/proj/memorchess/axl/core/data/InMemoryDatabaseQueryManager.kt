@@ -526,6 +526,9 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   ): List<DataEdgeRepertoireTag> =
     tags.values.filter { it.origin == origin && it.destination == destination && !it.isDeleted }
 
+  override suspend fun getTagsTouching(position: PositionKey): List<DataEdgeRepertoireTag> =
+    tags.values.filter { (it.origin == position || it.destination == position) && !it.isDeleted }
+
   override suspend fun getTagIncludingDeleted(
     origin: PositionKey,
     destination: PositionKey,

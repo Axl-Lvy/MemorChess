@@ -57,6 +57,12 @@ interface RepertoireDao {
   )
   suspend fun getTags(origin: String, destination: String): List<EdgeRepertoireTagEntity>
 
+  @Query(
+    "SELECT * FROM EdgeRepertoireTagEntity WHERE isDeleted IS FALSE " +
+      "AND (origin = :position OR destination = :position)"
+  )
+  suspend fun getTagsTouching(position: String): List<EdgeRepertoireTagEntity>
+
   /** [getTags] narrowed to one repertoire, without the `isDeleted IS FALSE` filter. */
   @Query(
     "SELECT * FROM EdgeRepertoireTagEntity " +
