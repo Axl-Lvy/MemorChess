@@ -111,10 +111,11 @@ class RepertoireTagStore(
    * repertoire is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so
    * a tag on a live good edge takes effect immediately. Queues its own outbox entry.
    *
-   * The tag records membership only: it carries no marking and so does not hold the move. Callers
-   * decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only for a
-   * genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for every
-   * edge an import describes, present or not.
+   * The tag records membership only: it carries no marking and so does not hold the move, except
+   * that re-tagging a move the repertoire already holds keeps the existing marking. Callers decide
+   * *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only for a genuinely
+   * new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for every edge an
+   * import describes, present or not.
    *
    * @throws IllegalStateException if no move from [origin] to [destination] is stored.
    */
@@ -129,6 +130,11 @@ class RepertoireTagStore(
         destination = destination,
         repertoireId = repertoireId,
         move = move,
+        isGood =
+          database
+            .getTags(origin, destination)
+            .firstOrNull { it.repertoireId == repertoireId }
+            ?.isGood,
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
@@ -163,6 +169,36 @@ class RepertoireTagStore(
       )
     )
     notifyDirty()
+  }
+
+  /** Tombstones the registry row [live]. Queues its own outbox entry. */
+  internal suspend fun unregister(live: DataRepertoire) {
+    database.insertRepertoire(
+      live.copy(
+        isDeleted = true,
+        updatedAt = DateUtil.now(),
+        originDevice = deviceIdentity.originDevice,
+        deviceSeq = deviceIdentity.nextDeviceSeq(),
+      )
+    )
+    notifyDirty()
+  }
+
+  /**
+   * Tombstones the live tag of [repertoireId] on the edge from [origin] to [destination], if any.
+   */
+  internal suspend fun untag(origin: PositionKey, destination: PositionKey, repertoireId: String) {
+    for (live in database.getTags(origin, destination)) {
+      if (live.repertoireId != repertoireId) continue
+      database.insertTag(
+        live.copy(
+          isDeleted = true,
+          updatedAt = DateUtil.now(),
+          originDevice = deviceIdentity.originDevice,
+          deviceSeq = deviceIdentity.nextDeviceSeq(),
+        )
+      )
+    }
   }
 
   /** Tombstones every live tag on the edge from [origin] to [destination]. */

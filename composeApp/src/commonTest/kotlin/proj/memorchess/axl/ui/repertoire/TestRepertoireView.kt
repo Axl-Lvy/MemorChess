@@ -27,6 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.koin.core.component.inject
+import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
@@ -165,6 +166,10 @@ class TestRepertoireView : TestWithKoin() {
     onRetry: () -> Unit = {},
     onRefresh: () -> Unit = {},
     onView: (RepertoireDescriptor) -> Unit = {},
+    uninstallPreviews: Map<String, Int> = emptyMap(),
+    onUninstallRequest: (String) -> Unit = {},
+    onUninstall: (String) -> Unit = {},
+    myRepertoires: List<DataRepertoire> = emptyList(),
   ) {
     setTestContent {
       InitializeApp {
@@ -172,8 +177,10 @@ class TestRepertoireView : TestWithKoin() {
           catalogState = catalogState,
           installStates = installStates,
           previewStates = previewStates,
-          myRepertoires = emptyList(),
+          myRepertoires = myRepertoires,
           masterySnapshots = masterySnapshots,
+          installedIds = myRepertoires.filter { it.installedVersion != null }.map { it.id }.toSet(),
+          uninstallPreviews = uninstallPreviews,
           actions =
             RepertoireLibraryActions(
               onInstall = onInstall,
@@ -181,6 +188,8 @@ class TestRepertoireView : TestWithKoin() {
               onRetry = onRetry,
               onRefresh = onRefresh,
               onView = onView,
+              onUninstallRequest = onUninstallRequest,
+              onUninstall = onUninstall,
             ),
         )
       }
@@ -465,6 +474,103 @@ class TestRepertoireView : TestWithKoin() {
       .assertExists()
     onNodeWithTag(progressTag(secondDescriptor))
       .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
+  }
+
+  @Test
+  fun anInstalledCardOffersUninstall() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+    )
+    onNodeWithTag("${cardTag(secondDescriptor)}:uninstall").assertExists()
+    onNodeWithTag("${cardTag(descriptor)}:uninstall").assertDoesNotExist()
+  }
+
+  @Test
+  fun uninstallAsksForConfirmationWithTheCount() = runLibraryTest {
+    val requested = mutableListOf<String>()
+    val uninstalled = mutableListOf<String>()
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(secondDescriptor.id to RepertoireInstallState.Installed(summary = null)),
+      uninstallPreviews = mapOf(secondDescriptor.id to 3),
+      onUninstallRequest = { requested += it },
+      onUninstall = { uninstalled += it },
+    )
+
+    onNodeWithTag("${cardTag(secondDescriptor)}:uninstall").performClick()
+
+    waitUntilNodeExists(hasText("3 moves and their review progress will be deleted."))
+    assertEquals(listOf(secondDescriptor.id), requested)
+    assertEquals(emptyList<String>(), uninstalled)
+    onNodeWithTag("confirmDialogOkButton").performClick()
+    assertEquals(listOf(secondDescriptor.id), uninstalled)
+  }
+
+  @Test
+  fun anInstalledRepertoireInMyRepertoiresOffersUninstall() = runLibraryTest {
+    val uninstalled = mutableListOf<String>()
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
+      myRepertoires =
+        listOf(
+          DataRepertoire("gone", "Gone", color = null, installedVersion = 1),
+          DataRepertoire("mine", "Mine", color = RepertoireColor.WHITE),
+        ),
+      uninstallPreviews = mapOf("gone" to 2),
+      onUninstall = { uninstalled += it },
+    )
+    onNodeWithTag("library_my_repertoire_row:mine:uninstall").assertDoesNotExist()
+
+    onNodeWithTag("library_my_repertoire_row:gone:uninstall").performClick()
+    waitUntilNodeExists(hasText("2 moves and their review progress will be deleted."))
+    onNodeWithTag("confirmDialogOkButton").performClick()
+
+    assertEquals(listOf("gone"), uninstalled)
+  }
+
+  @Test
+  fun anOutdatedInstallOffersUpdate() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to RepertoireInstallState.Installed(summary = null, isOutdated = true)
+        ),
+    )
+    onNode(hasText("UPDATE").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNode(hasText("REINSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertDoesNotExist()
+  }
+
+  @Test
+  fun theInstallDialogStatesTheMovesAnUpdateDeletes() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates =
+        mapOf(
+          secondDescriptor.id to RepertoireInstallState.Installed(summary = null, isOutdated = true)
+        ),
+      previewStates =
+        mapOf(
+          secondDescriptor.id to
+            RepertoirePreviewState.Ready(
+              PgnImportPreview(totalMoves = 5, movesInCommon = 4, movesToDelete = 1)
+            )
+        ),
+    )
+
+    onNode(hasText("UPDATE").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .performClick()
+
+    waitUntilNodeExists(hasText("1 move and its review progress will be deleted."))
   }
 
   @Test

@@ -50,7 +50,7 @@ class TestMoveHoldersE2e {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
     private val cache = NodeCache({ database.getPosition(it) }, scope)
     private val trainable = TrainableProjection(database, cache)
-    private val tagStore = RepertoireTagStore(database, identity, trainable)
+    val tagStore = RepertoireTagStore(database, identity, trainable)
     val treeStore =
       TreeStore(database, cache, Prefetcher(cache, scope), trainable, tagStore, identity)
     val applier = SyncApplier(database, cache, trainable)
@@ -208,11 +208,78 @@ class TestMoveHoldersE2e {
       deviceB.move(afterE4, "e5")!!.isGood shouldBe false
     }
 
+  /** Registers and installs `london` (1.e4 good, 1...e5 bad) on [device]. */
+  private suspend fun installLondon(device: Device, start: PositionKey) {
+    device.tagStore.register("london", "London", color = null, installedVersion = 1)
+    device.treeStore.install(
+      "london",
+      listOf(
+        InstalledMove(start, "e4", afterE4, isGood = true, fromDepth = 0),
+        InstalledMove(afterE4, "e5", afterE5, isGood = false, fromDepth = 1),
+      ),
+    )
+  }
+
+  @Test
+  fun `an uninstall reaches another device and deletes the moves there`() =
+    runBlocking<Unit> {
+      val token = server.tokenFor(server.newUserId())
+      val deviceA = Device()
+      val deviceB = Device()
+      register(token, deviceA)
+      register(token, deviceB)
+      val start = PositionKey.START_POSITION
+      installLondon(deviceA, start)
+      push(token, deviceA)
+      pull(token, deviceB)
+
+      deviceA.treeStore.uninstall("london")
+      push(token, deviceA)
+      pull(token, deviceB, limit = 1)
+
+      deviceB.move(start, "e4")!!.isDeleted shouldBe true
+      deviceB.move(afterE4, "e5")!!.isDeleted shouldBe true
+      deviceB.database.getPosition(afterE4) shouldBe null
+      deviceB.database.getPosition(afterE5) shouldBe null
+      deviceB.database.getRepertoire("london") shouldBe null
+    }
+
+  @Test
+  fun `a manual hold pushed after an uninstall brings the move back`() =
+    runBlocking<Unit> {
+      val token = server.tokenFor(server.newUserId())
+      val deviceA = Device()
+      val deviceB = Device()
+      register(token, deviceA)
+      register(token, deviceB)
+      val start = PositionKey.START_POSITION
+      installLondon(deviceA, start)
+      push(token, deviceA)
+      pull(token, deviceB)
+      val reviewed = deviceA.treeStore.node(afterE4)!!.cardState.copy(reps = 2)
+      deviceA.treeStore.updateCardState(afterE4, reviewed)
+      deviceB.treeStore.addMove(start, "e4", afterE4, isGood = true, fromDepth = 0)
+
+      deviceA.treeStore.uninstall("london")
+      push(token, deviceA)
+      push(token, deviceB)
+      pull(token, deviceA)
+
+      deviceA.move(start, "e4")!!.isDeleted shouldBe false
+      deviceA.move(start, "e4")!!.ownIsGood shouldBe true
+      deviceA.database.getPosition(afterE4)!!.cardState.reps shouldBe 0
+      deviceA.move(afterE4, "e5")!!.isDeleted shouldBe true
+    }
+
   private companion object {
     val server = startE2eServer()
 
     val httpClient =
       HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
+
+    val afterE4 = GameEngine().apply { playSanMove("e4") }.toPositionKey()
+    val afterE5 =
+      GameEngine().apply { playSanMove("e4") }.apply { playSanMove("e5") }.toPositionKey()
 
     const val PAGE_LIMIT = 500
     const val MAX_PAGES = 20
