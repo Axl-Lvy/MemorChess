@@ -489,6 +489,7 @@ internal class TestSyncStorePush {
         origin = origin,
         destination = destination,
         repertoireId = "italian-game",
+        move = "e4",
         isDeleted = false,
         updatedAt = serverNow,
         originDevice = "device-a",
@@ -514,7 +515,7 @@ internal class TestSyncStorePush {
   }
 
   @Test
-  fun pushingATagForAnEdgeTheServerHasNeverSeenIsRefusedAndNotStored() = runTest {
+  fun aTagNamingAnEdgeTheServerHasNeverSeenInternsIt() = runTest {
     val user = newUser()
     val origin = fen("orphan-o")
     val destination = fen("orphan-d")
@@ -523,6 +524,8 @@ internal class TestSyncStorePush {
         origin = origin,
         destination = destination,
         repertoireId = "italian-game",
+        move = "Nf3",
+        isGood = true,
         isDeleted = false,
         updatedAt = serverNow,
         originDevice = "device-a",
@@ -544,10 +547,79 @@ internal class TestSyncStorePush {
         serverNow,
       )
 
-    response.rejected shouldHaveSize 1
-    response.rejected.single().code shouldBe RejectionCode.EDGE_NOT_FOUND
-    stored(user).tags.shouldBeEmpty()
+    response.rejected.shouldBeEmpty()
+    stored(user).tags shouldBe listOf(tag)
   }
+
+  @Test
+  fun aTagMarkingAndARepertoireInstalledVersionSurvivePushAndPull() = runTest {
+    val user = newUser()
+    val repertoire =
+      RepertoireSyncRow(
+        id = "london",
+        name = "London",
+        color = "WHITE",
+        installedVersion = 2,
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+    val tag =
+      EdgeRepertoireTagSyncRow(
+        origin = fen("mark-o"),
+        destination = fen("mark-d"),
+        repertoireId = "london",
+        move = "d4",
+        isGood = true,
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 2L,
+      )
+
+    store.push(user, DEVICE, tagsRequest(listOf(repertoire), listOf(tag)), serverNow)
+    val pulled = stored(user)
+
+    pulled.repertoires shouldBe listOf(repertoire)
+    pulled.tags shouldBe listOf(tag)
+  }
+
+  @Test
+  fun aLaterTagPushReplacesTheStoredMarking() = runTest {
+    val user = newUser()
+    val good =
+      EdgeRepertoireTagSyncRow(
+        origin = fen("remark-o"),
+        destination = fen("remark-d"),
+        repertoireId = "london",
+        move = "d4",
+        isGood = true,
+        isDeleted = false,
+        updatedAt = serverNow,
+        originDevice = "device-a",
+        deviceSeq = 1L,
+      )
+    val bad = good.copy(isGood = false, deviceSeq = 2L)
+
+    store.push(user, DEVICE, tagsRequest(emptyList(), listOf(good)), serverNow)
+    store.push(user, DEVICE, tagsRequest(emptyList(), listOf(bad)), serverNow)
+
+    stored(user).tags.single().isGood shouldBe false
+  }
+
+  private fun tagsRequest(
+    repertoires: List<RepertoireSyncRow>,
+    tags: List<EdgeRepertoireTagSyncRow>,
+  ) =
+    SyncPushRequest(
+      nodes = emptyList(),
+      edges = emptyList(),
+      settings = emptyList(),
+      repertoires = repertoires,
+      tags = tags,
+      device = DEVICE,
+    )
 
   @Test
   fun aTombstoneIsStoredLikeAnyOtherWrite() = runTest {

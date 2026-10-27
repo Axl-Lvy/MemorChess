@@ -52,6 +52,7 @@ internal class TestSyncCodec {
       id = "italian-game",
       name = "Italian Game",
       color = "WHITE",
+      installedVersion = 3,
       isDeleted = false,
       updatedAt = Instant.fromEpochSeconds(1_000),
       originDevice = "device-a",
@@ -63,6 +64,8 @@ internal class TestSyncCodec {
       origin = "startpos",
       destination = "posA",
       repertoireId = "italian-game",
+      move = "Nf3",
+      isGood = false,
       isDeleted = false,
       updatedAt = Instant.fromEpochSeconds(1_000),
       originDevice = "device-a",
@@ -175,6 +178,13 @@ internal class TestSyncCodec {
   fun edgeRepertoireTagRoundTrips() {
     val text = SYNC_JSON.encodeToString(tag)
     SYNC_JSON.decodeFromString<EdgeRepertoireTagSyncRow>(text) shouldBe tag
+  }
+
+  @Test
+  fun edgeRepertoireTagWithoutMarkingRoundTrips() {
+    val membership = tag.copy(isGood = null)
+    val text = SYNC_JSON.encodeToString(membership)
+    SYNC_JSON.decodeFromString<EdgeRepertoireTagSyncRow>(text) shouldBe membership
   }
 
   @Test
