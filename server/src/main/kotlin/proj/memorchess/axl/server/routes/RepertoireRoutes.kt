@@ -151,9 +151,6 @@ private suspend fun RoutingContext.getById(store: RepertoireStore) {
 
 private suspend fun RoutingContext.publish(store: RepertoireStore, clock: () -> Instant) {
   val request = call.receive<PublishRepertoireRequest>()
-  if (request.side != "white" && request.side != "black") {
-    throw BadRequestException("side must be 'white' or 'black', was '${request.side}'")
-  }
   val outcome =
     store.publish(
       authorId = call.callerId,
@@ -211,9 +208,6 @@ private suspend fun RoutingContext.removeRepertoire(store: RepertoireStore) {
 private suspend fun RoutingContext.setStatus(store: RepertoireStore) {
   val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
   val request = call.receive<RepertoireStatusRequest>()
-  if (request.status !in VALID_STATUSES) {
-    throw BadRequestException("status must be one of $VALID_STATUSES, was '${request.status}'")
-  }
   when (val outcome = store.setStatus(id, request.status)) {
     is SetStatusOutcome.Updated -> call.respond(outcome.row.toDescriptor())
     SetStatusOutcome.NotFound -> call.respondNoSuchRepertoire()
@@ -223,9 +217,6 @@ private suspend fun RoutingContext.setStatus(store: RepertoireStore) {
 private suspend fun ApplicationCall.respondNoSuchRepertoire() {
   respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, NO_SUCH_REPERTOIRE_MESSAGE))
 }
-
-/** The status values a repertoire row may hold. */
-private val VALID_STATUSES = setOf("published", "unlisted", "removed")
 
 private const val MISSING_ID_MESSAGE = "missing id"
 private const val NO_SUCH_REPERTOIRE_MESSAGE = "no such repertoire"

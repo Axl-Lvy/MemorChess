@@ -1,5 +1,6 @@
 package proj.memorchess.axl.ui.components.repertoire
 
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
@@ -34,8 +35,8 @@ fun PublishRepertoireDialog(
   visible: Boolean,
   repertoireName: String,
   initialSlug: String,
-  side: String,
-  onSubmit: (slug: String, title: String, description: String, side: String) -> Unit,
+  side: RepertoireColor,
+  onSubmit: (slug: String, title: String, description: String, side: RepertoireColor) -> Unit,
   onDismiss: () -> Unit,
 ) {
   var slug by remember { mutableStateOf(initialSlug) }

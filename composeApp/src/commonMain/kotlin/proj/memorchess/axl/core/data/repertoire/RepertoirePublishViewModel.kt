@@ -24,7 +24,7 @@ class RepertoirePublishViewModel(
       slug: String,
       title: String,
       description: String,
-      side: String,
+      side: RepertoireColor,
       moves: List<RepertoireMove>,
     ) -> PublishOutcome,
   private val remove: suspend (accessToken: String, slug: String) -> RemoveOutcome,
@@ -42,7 +42,7 @@ class RepertoirePublishViewModel(
   val state: StateFlow<PublishState> = internalState.asStateFlow()
 
   /** Publishes (or republishes, reusing [slug] as an update) [localId] under [slug]. */
-  fun publish(slug: String, title: String, description: String, side: String) {
+  fun publish(slug: String, title: String, description: String, side: RepertoireColor) {
     internalState.value = PublishState.Publishing
     scope.launch { runPublish(slug, title, description, side) }
   }
@@ -54,7 +54,12 @@ class RepertoirePublishViewModel(
     scope.launch { runRemove(slug) }
   }
 
-  private suspend fun runPublish(slug: String, title: String, description: String, side: String) {
+  private suspend fun runPublish(
+    slug: String,
+    title: String,
+    description: String,
+    side: RepertoireColor,
+  ) {
     val token = resolveToken() ?: return
     val export = exportRepertoire(localId)
     if (export !is RepertoireExportResult.Moves) {

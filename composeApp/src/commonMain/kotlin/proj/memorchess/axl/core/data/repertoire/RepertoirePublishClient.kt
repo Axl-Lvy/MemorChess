@@ -31,7 +31,7 @@ class RepertoirePublishClient(
     id: String,
     title: String,
     description: String,
-    side: String,
+    side: RepertoireColor,
     moves: List<RepertoireMove>,
   ): PublishOutcome =
     try {

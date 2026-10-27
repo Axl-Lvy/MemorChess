@@ -20,7 +20,7 @@ data class RepertoireMove(val from: String, val move: String, val to: String, va
 /**
  * Body of `POST /v1/repertoires`.
  *
- * @property side `"white"` or `"black"`.
+ * @property side The side the repertoire is built for.
  * @property moves Every move of the repertoire, connected to the starting position.
  */
 @Serializable
@@ -28,7 +28,7 @@ data class PublishRepertoireRequest(
   val id: String,
   val title: String,
   val description: String,
-  val side: String,
+  val side: RepertoireColor,
   val moves: List<RepertoireMove>,
 )
 

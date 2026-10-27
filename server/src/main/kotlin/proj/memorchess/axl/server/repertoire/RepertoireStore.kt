@@ -8,6 +8,7 @@ import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.server.auth.UserId
@@ -30,9 +31,9 @@ internal data class RepertoireRow(
   val authorId: UserId,
   val title: String,
   val description: String,
-  val side: String,
+  val side: RepertoireColor,
   val moveCount: Int,
-  val status: String,
+  val status: RepertoireStatus,
   val publishedAt: Instant,
 )
 
@@ -41,7 +42,7 @@ private data class PublishInput(
   val id: String,
   val title: String,
   val description: String,
-  val side: String,
+  val side: RepertoireColor,
   val moves: List<RepertoireMove>,
 )
 
@@ -111,15 +112,12 @@ internal class RepertoireStore(
     id: String,
     title: String,
     description: String,
-    side: String,
+    side: RepertoireColor,
     moves: List<RepertoireMove>,
     now: Instant,
   ): PublishOutcome {
     RepertoirePublishLimits.idProblem(id)?.let {
       return PublishOutcome.InvalidPayload(it)
-    }
-    if (side != "white" && side != "black") {
-      return PublishOutcome.InvalidPayload("side must be 'white' or 'black', was '$side'")
     }
     if (title.length > RepertoirePublishLimits.MAX_TITLE_LENGTH) {
       return PublishOutcome.InvalidPayload(
@@ -162,7 +160,7 @@ internal class RepertoireStore(
       }
 
       // A removed id counts as new, or an author at the cap could cycle remove and republish.
-      val republishingRemoved = existing != null && existing.status == STATUS_REMOVED
+      val republishingRemoved = existing != null && existing.status == RepertoireStatus.REMOVED
       val (otherCount, otherMoves) = connection.authorFootprint(authorId, excludingId = id)
       if ((existing == null || republishingRemoved) && otherCount >= maxRepertoiresPerUser) {
         return@inTransaction PublishOutcome.QuotaExceeded(
@@ -189,7 +187,7 @@ internal class RepertoireStore(
           description = description,
           side = side,
           moveCount = moves.size,
-          status = "published",
+          status = RepertoireStatus.PUBLISHED,
           publishedAt = now,
         )
       connection.insertVersion(row)
@@ -203,10 +201,10 @@ internal class RepertoireStore(
     connection.acquireRepertoireLock(id)
     val existing = connection.lockLatestVersion(id)
     when {
-      existing == null || existing.status == STATUS_REMOVED -> RemoveOutcome.NotFound
+      existing == null || existing.status == RepertoireStatus.REMOVED -> RemoveOutcome.NotFound
       existing.authorId != authorId -> RemoveOutcome.Forbidden
       else -> {
-        connection.updateStatusForEveryVersion(id, STATUS_REMOVED)
+        connection.updateStatusForEveryVersion(id, RepertoireStatus.REMOVED)
         RemoveOutcome.Removed
       }
     }
@@ -216,16 +214,16 @@ internal class RepertoireStore(
    * Moderation kill switch setting [id]'s status regardless of author. `removed` applies to every
    * version; any other status only to the latest.
    */
-  suspend fun setStatus(id: String, status: String): SetStatusOutcome =
+  suspend fun setStatus(id: String, status: RepertoireStatus): SetStatusOutcome =
     inTransaction { connection ->
       connection.acquireRepertoireLock(id)
       val existing = connection.lockLatestVersion(id)
       // Removal is a latch: a removed id reads as unknown.
-      if (existing == null || existing.status == STATUS_REMOVED) {
+      if (existing == null || existing.status == RepertoireStatus.REMOVED) {
         return@inTransaction SetStatusOutcome.NotFound
       }
-      if (status == STATUS_REMOVED) {
-        connection.updateStatusForEveryVersion(id, STATUS_REMOVED)
+      if (status == RepertoireStatus.REMOVED) {
+        connection.updateStatusForEveryVersion(id, RepertoireStatus.REMOVED)
       } else {
         connection.updateStatus(id, existing.version, status)
       }
@@ -236,7 +234,7 @@ internal class RepertoireStore(
   suspend fun get(id: String): RepertoireRow? =
     withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
-        connection.latestVersion(id)?.takeUnless { it.status == STATUS_REMOVED }
+        connection.latestVersion(id)?.takeUnless { it.status == RepertoireStatus.REMOVED }
       }
     }
 
@@ -272,7 +270,7 @@ internal class RepertoireStore(
     withContext(ioDispatcher) {
       dataSource.connection.use { connection ->
         val status = connection.statusOf(id, version)
-        if (status == null || status == STATUS_REMOVED) null else connection.movesOf(id, version)
+        if (status == null || status == RepertoireStatus.REMOVED) null else connection.movesOf(id, version)
       }
     }
 
@@ -308,8 +306,6 @@ internal class RepertoireStore(
       }
     }
 }
-
-private const val STATUS_REMOVED = "removed"
 
 /**
  * Serializes publish, remove and status changes for [id] until the transaction ends. READ COMMITTED
@@ -357,7 +353,7 @@ private fun Connection.authorFootprint(authorId: UserId, excludingId: String): P
     )
     .use { statement ->
       statement.setString(1, authorId.value)
-      statement.setString(2, STATUS_REMOVED)
+      statement.setString(2, RepertoireStatus.REMOVED.dbValue)
       statement.setString(3, excludingId)
       statement.executeQuery().use { rows ->
         rows.next()
@@ -394,9 +390,9 @@ private fun Connection.installCountsFor(ids: List<String>): Map<String, Long> {
 }
 
 /** Sets [status] on every version row of [id], not only its latest. */
-private fun Connection.updateStatusForEveryVersion(id: String, status: String) {
+private fun Connection.updateStatusForEveryVersion(id: String, status: RepertoireStatus) {
   prepareStatement("UPDATE repertoire_version SET status = ? WHERE id = ?").use { statement ->
-    statement.setString(1, status)
+    statement.setString(1, status.dbValue)
     statement.setString(2, id)
     statement.executeUpdate()
   }
@@ -413,9 +409,9 @@ private fun Connection.insertVersion(row: RepertoireRow) {
       statement.setString(3, row.authorId.value)
       statement.setString(4, row.title)
       statement.setString(5, row.description)
-      statement.setString(6, row.side)
+      statement.setString(6, row.side.dbValue())
       statement.setInt(7, row.moveCount)
-      statement.setString(8, row.status)
+      statement.setString(8, row.status.dbValue)
       statement.setTimestamp(9, row.publishedAt.toSqlTimestamp())
       statement.executeUpdate()
     }
@@ -442,12 +438,12 @@ private fun Connection.insertMoves(row: RepertoireRow, moves: List<RepertoireMov
 }
 
 /** The status of [id]'s [version], or `null` when that version does not exist. */
-private fun Connection.statusOf(id: String, version: Int): String? =
+private fun Connection.statusOf(id: String, version: Int): RepertoireStatus? =
   prepareStatement("SELECT status FROM repertoire_version WHERE id = ? AND version = ?").use {
     statement ->
     statement.setString(1, id)
     statement.setInt(2, version)
-    statement.executeQuery().use { rows -> if (rows.next()) rows.getString(1) else null }
+    statement.executeQuery().use { rows -> if (rows.next()) RepertoireStatus.fromDb(rows.getString(1)) else null }
   }
 
 /** Every move of [id]'s [version], in a stable order. */
@@ -478,10 +474,10 @@ private fun Connection.movesOf(id: String, version: Int): List<RepertoireMove> =
       }
     }
 
-private fun Connection.updateStatus(id: String, version: Int, status: String) {
+private fun Connection.updateStatus(id: String, version: Int, status: RepertoireStatus) {
   prepareStatement("UPDATE repertoire_version SET status = ? WHERE id = ? AND version = ?").use {
     statement ->
-    statement.setString(1, status)
+    statement.setString(1, status.dbValue)
     statement.setString(2, id)
     statement.setInt(3, version)
     statement.executeUpdate()
@@ -499,7 +495,7 @@ private fun Connection.publishedLatestVersions(cursor: String?, limit: Int): Lis
   }
   return prepareStatement(sql).use { statement ->
     var index = 1
-    statement.setString(index++, "published")
+    statement.setString(index++, RepertoireStatus.PUBLISHED.dbValue)
     if (cursor != null) statement.setString(index++, cursor)
     statement.setInt(index, limit)
     statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.toRow()) } }
@@ -516,11 +512,26 @@ private fun ResultSet.toRow(): RepertoireRow =
     authorId = UserId(getString(3)),
     title = getString(4),
     description = getString(5),
-    side = getString(6),
+    side = sideFromDb(getString(6)),
     moveCount = getInt(7),
-    status = getString(8),
+    status = RepertoireStatus.fromDb(getString(8)),
     publishedAt = getTimestamp(9).toInstant().toKotlinInstant(),
   )
+
+/** How [this] side is spelled in `repertoire_version.side`. */
+private fun RepertoireColor.dbValue(): String =
+  when (this) {
+    RepertoireColor.WHITE -> "white"
+    RepertoireColor.BLACK -> "black"
+  }
+
+/**
+ * The side [dbValue] names.
+ *
+ * @throws IllegalStateException for any other spelling.
+ */
+private fun sideFromDb(dbValue: String): RepertoireColor =
+  RepertoireColor.entries.firstOrNull { it.dbValue() == dbValue } ?: error("unknown side '$dbValue'")
 
 /** Converts at full precision; a millisecond round trip would shift a `timestamptz` value. */
 private fun Instant.toSqlTimestamp(): Timestamp =

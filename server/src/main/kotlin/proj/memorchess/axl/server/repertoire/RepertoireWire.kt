@@ -1,11 +1,10 @@
 package proj.memorchess.axl.server.repertoire
 
 import kotlinx.serialization.Serializable
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 
 /** Body of `POST /admin/repertoires/{id}/status`. */
-@Serializable internal data class RepertoireStatusRequest(val status: String)
+@Serializable internal data class RepertoireStatusRequest(val status: RepertoireStatus)
 
 /** Body of `GET /v1/repertoires`. */
 @Serializable
@@ -19,7 +18,7 @@ internal fun RepertoireRow.toDescriptor(downloadCount: Long = 0): RepertoireDesc
   RepertoireDescriptor(
     id = id,
     name = title,
-    color = if (side == "white") RepertoireColor.WHITE else RepertoireColor.BLACK,
+    color = side,
     description = description,
     moveCount = moveCount,
     version = version,
