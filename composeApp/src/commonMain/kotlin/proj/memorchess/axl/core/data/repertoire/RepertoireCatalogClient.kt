@@ -16,15 +16,15 @@ import kotlinx.serialization.json.Json
 /**
  * HTTP client for the remote repertoire catalog.
  *
- * Served by `:server` at [DEFAULT_BASE_URL] (`manifest.json`, `<id>/versions/<version>/moves`); the catalog is
- * populated by users publishing their own repertoires (see `RepertoirePublishClient`), not by any
- * static file source.
+ * Served by `:server` at [DEFAULT_BASE_URL] (`manifest.json`, `<id>/versions/<version>/moves`); the
+ * catalog is populated by users publishing their own repertoires (see `RepertoirePublishClient`),
+ * not by any static file source.
  *
  * Responses are read as plain text, then decoded here: the manifest with kotlinx.serialization
- * (unknown fields tolerated) and move lists, both with kotlinx.serialization. Every failure is mapped to a typed
- * [CatalogResult] so callers never have to inspect Ktor exceptions — except [reportInstall], a fire
- * and forget write with no result to map, since a caller's own install outcome must never depend on
- * this telemetry succeeding.
+ * (unknown fields tolerated) and move lists, both with kotlinx.serialization. Every failure is
+ * mapped to a typed [CatalogResult] so callers never have to inspect Ktor exceptions — except
+ * [reportInstall], a fire and forget write with no result to map, since a caller's own install
+ * outcome must never depend on this telemetry succeeding.
  *
  * @param httpClient The Ktor client used for requests.
  * @param baseUrl Root URL of the catalog, without a trailing slash. Injectable for tests.

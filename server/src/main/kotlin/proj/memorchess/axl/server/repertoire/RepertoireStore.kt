@@ -164,7 +164,11 @@ internal class RepertoireStore(
    * concurrent publishes (or a double click) for the same id never compute the same next version
    * number.
    */
-  private suspend fun doPublish(authorId: String, input: PublishInput, now: Instant): PublishOutcome {
+  private suspend fun doPublish(
+    authorId: String,
+    input: PublishInput,
+    now: Instant,
+  ): PublishOutcome {
     val (id, title, description, side, moves) = input
     return inTransaction { connection ->
       connection.acquireRepertoireLock(id)
@@ -503,7 +507,14 @@ private fun Connection.movesOf(id: String, version: Int): List<RepertoireMove> =
       statement.executeQuery().use { rows ->
         buildList {
           while (rows.next()) {
-            add(RepertoireMove(rows.getString(1), rows.getString(2), rows.getString(3), rows.getBoolean(4)))
+            add(
+              RepertoireMove(
+                rows.getString(1),
+                rows.getString(2),
+                rows.getString(3),
+                rows.getBoolean(4),
+              )
+            )
           }
         }
       }

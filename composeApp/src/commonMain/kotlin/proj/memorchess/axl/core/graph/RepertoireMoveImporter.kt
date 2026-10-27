@@ -50,7 +50,10 @@ class RepertoireMoveImporter(
    */
   suspend fun preview(moves: List<RepertoireMove>): PgnImportPreview {
     val planned = plan(moves)
-    return PgnImportPreview(totalMoves = planned.size, movesInCommon = planned.count { it.unchanged })
+    return PgnImportPreview(
+      totalMoves = planned.size,
+      movesInCommon = planned.count { it.unchanged },
+    )
   }
 
   private suspend fun plan(moves: List<RepertoireMove>): List<PlannedMove> {

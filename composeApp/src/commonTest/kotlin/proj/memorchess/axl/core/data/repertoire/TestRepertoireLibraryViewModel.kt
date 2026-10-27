@@ -450,7 +450,8 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     viewModel.install(london)
     val state = viewModel.installStates.first { it[london.id] is RepertoireInstallState.Failed }
 
-    state[london.id] shouldBe RepertoireInstallState.Failed(InstallError.MalformedRepertoire("no moves"))
+    state[london.id] shouldBe
+      RepertoireInstallState.Failed(InstallError.MalformedRepertoire("no moves"))
     store.isInstalled(london.id) shouldBe false
   }
 

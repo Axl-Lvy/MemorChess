@@ -58,8 +58,7 @@ class TestRateLimiting {
         config = config,
         jwkProvider = TestJwkProvider(key),
         syncStore = SyncStore(PostgresTestDb.dataSource()),
-        repertoireStore =
-          RepertoireStore(PostgresTestDb.dataSource()),
+        repertoireStore = RepertoireStore(PostgresTestDb.dataSource()),
         readiness = { true },
         clock = { Instant.fromEpochSeconds(1_700_000_000) },
         rateLimits = tiers,

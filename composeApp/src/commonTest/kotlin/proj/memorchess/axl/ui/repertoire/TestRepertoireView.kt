@@ -558,7 +558,8 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
       installStates =
         mapOf(
-          secondDescriptor.id to RepertoireInstallState.Failed(InstallError.MalformedRepertoire("bad pgn"))
+          secondDescriptor.id to
+            RepertoireInstallState.Failed(InstallError.MalformedRepertoire("bad pgn"))
         ),
     )
     onNodeWithText("This repertoire could not be read: bad pgn").assertExists()

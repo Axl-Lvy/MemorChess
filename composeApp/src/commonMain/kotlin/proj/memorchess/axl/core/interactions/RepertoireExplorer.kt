@@ -6,14 +6,14 @@ import kotlinx.coroutines.SupervisorJob
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.toast_not_in_repertoire
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
+import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.NodeCache
 import proj.memorchess.axl.core.graph.Prefetcher
+import proj.memorchess.axl.core.graph.RepertoireMoveImporter
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TrainableProjection
 import proj.memorchess.axl.core.graph.TreeStore
-import proj.memorchess.axl.core.data.repertoire.RepertoireMove
-import proj.memorchess.axl.core.graph.RepertoireMoveImporter
 import proj.memorchess.axl.core.sync.DeviceIdentity
 
 /**

@@ -22,12 +22,12 @@ import java.net.URI
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.runBlocking
+import proj.memorchess.axl.core.data.repertoire.PublishRepertoireRequest
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireDescriptor
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
 import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.RepertoireMoveList
-import proj.memorchess.axl.core.data.repertoire.PublishRepertoireRequest
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 import proj.memorchess.axl.core.sync.SYNC_JSON
@@ -39,11 +39,11 @@ import proj.memorchess.axl.server.auth.TestSigningKey
 import proj.memorchess.axl.server.auth.installJwtAuth
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.repertoire.PublishOutcome
-import proj.memorchess.axl.server.repertoire.line
 import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireRow
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
+import proj.memorchess.axl.server.repertoire.line
 
 class TestRepertoireRoutes {
 

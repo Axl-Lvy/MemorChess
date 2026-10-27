@@ -14,8 +14,8 @@ import proj.memorchess.axl.core.graph.RepertoireExportResult
  * unpublish. Mirrors `RepertoireLibraryViewModel`'s shape: the collaborators are injected as
  * suspending functions so tests can substitute trivial fakes, production wiring binds
  * [proj.memorchess.axl.core.graph.RepertoireMoveExporter.export],
- * [proj.memorchess.axl.core.auth.AuthProvider.accessToken],
- * [RepertoirePublishClient.publish] and [RepertoirePublishClient.remove].
+ * [proj.memorchess.axl.core.auth.AuthProvider.accessToken], [RepertoirePublishClient.publish] and
+ * [RepertoirePublishClient.remove].
  *
  * @param localId The repertoire's local id (`DataRepertoire.id`), distinct from its public slug.
  * @param scope Scope tied to the screen's lifecycle (use `rememberCoroutineScope` in Compose).

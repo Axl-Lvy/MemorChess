@@ -33,7 +33,12 @@ class TestRepertoireMoveImporter {
   }
 
   private suspend fun isGoodOf(move: RepertoireMove): Boolean? =
-    database.getPosition(PositionKey(move.from))?.previousAndNextMoves?.nextMoves?.get(move.move)?.isGood
+    database
+      .getPosition(PositionKey(move.from))
+      ?.previousAndNextMoves
+      ?.nextMoves
+      ?.get(move.move)
+      ?.isGood
 
   @Test
   fun importWritesEveryMoveWithTheAuthorMarking() = runTest {

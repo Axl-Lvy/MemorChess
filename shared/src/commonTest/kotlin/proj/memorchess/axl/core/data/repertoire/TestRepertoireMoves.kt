@@ -67,8 +67,7 @@ class TestRepertoireMoves {
         moves = line("e4"),
       )
 
-    val decoded =
-      Json.decodeFromString<PublishRepertoireRequest>(Json.encodeToString(request))
+    val decoded = Json.decodeFromString<PublishRepertoireRequest>(Json.encodeToString(request))
 
     decoded shouldBe request
   }

@@ -20,7 +20,8 @@ import proj.memorchess.axl.core.sync.SYNC_JSON
 
 class TestRepertoirePublishClient {
 
-  private val moves = listOf(RepertoireMove(from = "start", move = "e4", to = "after-e4", isGood = true))
+  private val moves =
+    listOf(RepertoireMove(from = "start", move = "e4", to = "after-e4", isGood = true))
 
   @Test
   fun publishSendsTheMovesInTheRequestBody() = runTest {
@@ -30,7 +31,8 @@ class TestRepertoirePublishClient {
       respond(content = "", status = HttpStatusCode.BadRequest)
     }
     val httpClient = HttpClient(engine) { install(ContentNegotiation) { json(SYNC_JSON) } }
-    val client = RepertoirePublishClient(httpClient, baseUrl = "https://test.invalid/v1/repertoires")
+    val client =
+      RepertoirePublishClient(httpClient, baseUrl = "https://test.invalid/v1/repertoires")
 
     client.publish("token", "italian-game", "Italian Game", "d", "white", moves)
 

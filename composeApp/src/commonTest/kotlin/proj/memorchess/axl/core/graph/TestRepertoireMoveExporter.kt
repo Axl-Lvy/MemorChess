@@ -201,8 +201,10 @@ class TestRepertoireMoveExporter {
 
   @Test
   fun exportThenImportReproducesTheSameMovesAndMarkings() = runTest {
-    val authored = repertoireMovesOf("1. e4 e5 (1... c5 2. Nf3 d6) 2. Nf3 Nc6 *")
-      .mapIndexed { index, move -> move.copy(isGood = index % 3 != 0) }
+    val authored =
+      repertoireMovesOf("1. e4 e5 (1... c5 2. Nf3 d6) 2. Nf3 Nc6 *").mapIndexed { index, move ->
+        move.copy(isGood = index % 3 != 0)
+      }
     val author = TestDatabases.empty()
     val authorTree = testTreeStore(author)
     val authorTags = testRepertoireTagStore(author)

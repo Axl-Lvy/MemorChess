@@ -18,8 +18,7 @@ sealed class RepertoireExportResult {
    * @property maxPlyDepth Deepest move origin, in plies along the shortest path from the start, the
    *   unit `RepertoirePublishLimits.MAX_PLY_DEPTH` caps.
    */
-  data class Moves(val moves: List<RepertoireMove>, val maxPlyDepth: Int) :
-    RepertoireExportResult()
+  data class Moves(val moves: List<RepertoireMove>, val maxPlyDepth: Int) : RepertoireExportResult()
 }
 
 /**
@@ -28,12 +27,12 @@ sealed class RepertoireExportResult {
  *
  * A line that transposes into already known theory can have one or more untagged edges between the
  * starting position and a tagged one further down (`LinesExplorer` only tags an edge the first time
- * it is newly played). Exporting tagged edges alone would leave such a tagged edge disconnected from
- * the start. This keeps an edge when it is itself tagged with the repertoire or leads to a position
- * some live tagged edge is reachable from, so every exported line stays whole and playable. Those
- * positions are found by walking back from the tagged edges, so only the repertoire's own lines and
- * their ancestors are loaded, never the rest of the graph. A move back into a position already on
- * the current line is dropped.
+ * it is newly played). Exporting tagged edges alone would leave such a tagged edge disconnected
+ * from the start. This keeps an edge when it is itself tagged with the repertoire or leads to a
+ * position some live tagged edge is reachable from, so every exported line stays whole and
+ * playable. Those positions are found by walking back from the tagged edges, so only the
+ * repertoire's own lines and their ancestors are loaded, never the rest of the graph. A move back
+ * into a position already on the current line is dropped.
  */
 class RepertoireMoveExporter(
   private val treeStore: TreeStore,

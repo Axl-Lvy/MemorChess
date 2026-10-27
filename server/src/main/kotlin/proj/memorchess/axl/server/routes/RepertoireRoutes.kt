@@ -129,7 +129,8 @@ private suspend fun RoutingContext.getMoves(store: RepertoireStore) {
   val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
   val rawVersion = call.parameters["version"]
   val version =
-    rawVersion?.toIntOrNull() ?: throw BadRequestException("version must be an integer, was '$rawVersion'")
+    rawVersion?.toIntOrNull()
+      ?: throw BadRequestException("version must be an integer, was '$rawVersion'")
   val moves = store.moves(id, version)
   if (moves == null) {
     call.respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, "no such version"))
@@ -185,7 +186,10 @@ private suspend fun RoutingContext.respondToPublishOutcome(outcome: PublishOutco
   when (outcome) {
     is PublishOutcome.Published -> call.respond(HttpStatusCode.Created, outcome.row.toDescriptor())
     is PublishOutcome.InvalidPayload ->
-      call.respond(HttpStatusCode.BadRequest, ApiError(ApiErrorCode.INVALID_REPERTOIRE, outcome.reason))
+      call.respond(
+        HttpStatusCode.BadRequest,
+        ApiError(ApiErrorCode.INVALID_REPERTOIRE, outcome.reason),
+      )
     is PublishOutcome.PayloadTooLarge ->
       call.respond(HttpStatusCode.PayloadTooLarge, ApiError(ApiErrorCode.TOO_LARGE, outcome.reason))
     PublishOutcome.Forbidden ->

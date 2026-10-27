@@ -44,7 +44,9 @@ internal object RepertoireMovesValidator {
       return MoveListValidation.Rejected(it)
     }
     val depths = moves.depthsFromStart()
-    val deepest = moves.maxOf { depths[it.from] ?: return MoveListValidation.Rejected(detached(it)) }
+    val deepest = moves.maxOf {
+      depths[it.from] ?: return MoveListValidation.Rejected(detached(it))
+    }
     if (deepest > maxPlyDepth) {
       return MoveListValidation.TooLarge("a move is $deepest plies deep, the cap is $maxPlyDepth")
     }
