@@ -90,6 +90,7 @@ import memorchess.composeapp.generated.resources.library_install_error_malformed
 import memorchess.composeapp.generated.resources.library_install_error_network
 import memorchess.composeapp.generated.resources.library_install_summary
 import memorchess.composeapp.generated.resources.library_move_count
+import memorchess.composeapp.generated.resources.library_moves_to_delete
 import memorchess.composeapp.generated.resources.library_my_repertoires_title
 import memorchess.composeapp.generated.resources.library_preview_checking
 import memorchess.composeapp.generated.resources.library_preview_in_common
@@ -106,14 +107,13 @@ import memorchess.composeapp.generated.resources.library_publish_error_server
 import memorchess.composeapp.generated.resources.library_publish_error_signed_out
 import memorchess.composeapp.generated.resources.library_publish_error_too_large
 import memorchess.composeapp.generated.resources.library_refresh
-import memorchess.composeapp.generated.resources.library_moves_to_delete
 import memorchess.composeapp.generated.resources.library_reinstall
-import memorchess.composeapp.generated.resources.library_uninstall
 import memorchess.composeapp.generated.resources.library_retry
 import memorchess.composeapp.generated.resources.library_stale_hint
 import memorchess.composeapp.generated.resources.library_subtitle
 import memorchess.composeapp.generated.resources.library_title
 import memorchess.composeapp.generated.resources.library_train
+import memorchess.composeapp.generated.resources.library_uninstall
 import memorchess.composeapp.generated.resources.library_unpublish
 import memorchess.composeapp.generated.resources.library_unpublish_confirm_message
 import memorchess.composeapp.generated.resources.library_unpublish_confirm_title

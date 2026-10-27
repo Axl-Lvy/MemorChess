@@ -54,9 +54,10 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       { _, _, _ ->
         PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1)
       },
-    previewMoves: suspend (RepertoireDescriptor, List<RepertoireMove>) -> PgnImportPreview = { _, _ ->
-      PgnImportPreview(totalMoves = 4, movesInCommon = 1)
-    },
+    previewMoves: suspend (RepertoireDescriptor, List<RepertoireMove>) -> PgnImportPreview =
+      { _, _ ->
+        PgnImportPreview(totalMoves = 4, movesInCommon = 1)
+      },
     reportInstall: suspend (String) -> Unit = {},
     store: FakeRegistry = FakeRegistry(),
     loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
@@ -920,14 +921,14 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       RepertoireInstallState.Installed(PgnImportSummary(movesAdded = 3, movesAlreadyPresent = 1))
   }
 
-  private suspend fun RepertoireLibraryViewModel.loadedState() =
-    catalogState.first { it is LibraryCatalogState.Loaded }
+  private suspend fun RepertoireLibraryViewModel.loadedState() = catalogState.first {
+    it is LibraryCatalogState.Loaded
+  }
 
   @Test
   fun uninstallMarksTheRepertoireNotInstalled() = test {
     val store = FakeRegistry().apply { markInstalled(london.id) }
-    val viewModel =
-      buildViewModel({ CachedManifestResult.Fresh(manifest(london)) }, store = store)
+    val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(london)) }, store = store)
     viewModel.loadedState()
 
     viewModel.uninstall(london)
@@ -1038,8 +1039,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
   fun installingTheCatalogVersionClearsOutdated() = test {
     val store = FakeRegistry().apply { markInstalled(london.id) }
     val latest = london.copy(version = 2)
-    val viewModel =
-      buildViewModel({ CachedManifestResult.Fresh(manifest(latest)) }, store = store)
+    val viewModel = buildViewModel({ CachedManifestResult.Fresh(manifest(latest)) }, store = store)
     viewModel.loadedState()
 
     viewModel.install(latest)
@@ -1071,7 +1071,6 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     reported shouldBe listOf(london.id, london.id)
   }
 }
-
 
 /** In memory stand in for the synced repertoire registry. */
 private class FakeRegistry {

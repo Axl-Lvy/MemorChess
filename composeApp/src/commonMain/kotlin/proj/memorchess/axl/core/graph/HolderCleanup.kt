@@ -8,8 +8,8 @@ import proj.memorchess.axl.core.data.TaggedEdge
 
 /**
  * Plans what removing holds deletes: every candidate move left with no holder, then, from each
- * position other than the start left with no live incoming move, every outgoing move whatever
- * holds it, recursively, together with the position. Reads storage only and writes nothing.
+ * position other than the start left with no live incoming move, every outgoing move whatever holds
+ * it, recursively, together with the position. Reads storage only and writes nothing.
  *
  * @param database The persistence backend the holders and moves are read from.
  */

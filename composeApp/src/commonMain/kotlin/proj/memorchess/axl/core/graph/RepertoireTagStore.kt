@@ -111,11 +111,11 @@ class RepertoireTagStore(
    * repertoire is a harmless repeat write. Recomputes [origin]'s trainable projection afterward, so
    * a tag on a live good edge takes effect immediately. Queues its own outbox entry.
    *
-   * The tag records membership only: it carries no marking and so does not hold the move, except that
-   * re-tagging a move the repertoire already holds keeps the existing marking. Callers
-   * decide *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only for a
-   * genuinely new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for every
-   * edge an import describes, present or not.
+   * The tag records membership only: it carries no marking and so does not hold the move, except
+   * that re-tagging a move the repertoire already holds keeps the existing marking. Callers decide
+   * *when* to call this: [proj.memorchess.axl.core.interactions.LinesExplorer] only for a genuinely
+   * new edge in a scoped session, [proj.memorchess.axl.core.pgn.PgnImporter] for every edge an
+   * import describes, present or not.
    *
    * @throws IllegalStateException if no move from [origin] to [destination] is stored.
    */
@@ -171,7 +171,9 @@ class RepertoireTagStore(
     notifyDirty()
   }
 
-  /** Tombstones the registry row of [id]. Queues its own outbox entry; a no-op when none is live. */
+  /**
+   * Tombstones the registry row of [id]. Queues its own outbox entry; a no-op when none is live.
+   */
   internal suspend fun unregister(id: String) {
     val live = database.getRepertoire(id) ?: return
     database.insertRepertoire(
@@ -185,7 +187,9 @@ class RepertoireTagStore(
     notifyDirty()
   }
 
-  /** Tombstones the live tag of [repertoireId] on the edge from [origin] to [destination], if any. */
+  /**
+   * Tombstones the live tag of [repertoireId] on the edge from [origin] to [destination], if any.
+   */
   internal suspend fun untag(origin: PositionKey, destination: PositionKey, repertoireId: String) {
     val live =
       database.getTagIncludingDeleted(origin, destination, repertoireId)?.takeIf { !it.isDeleted }

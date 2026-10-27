@@ -223,8 +223,8 @@ class TreeStore(
    * Installs [moves] as holds of [repertoireId]: tags each one with the author's marking, then
    * writes it with the effective marking its holders give, creating no manual hold. The touched
    * positions are persisted, but no move is queued for push: only the tags and positions travel.
-   * Replaces the repertoire's earlier holds: its tags on moves absent from [moves] are tombstoned and
-   * the moves nothing else holds are deleted, as [uninstall] does.
+   * Replaces the repertoire's earlier holds: its tags on moves absent from [moves] are tombstoned
+   * and the moves nothing else holds are deleted, as [uninstall] does.
    */
   suspend fun install(repertoireId: String, moves: List<InstalledMove>) {
     if (moves.isEmpty()) return
@@ -268,7 +268,10 @@ class TreeStore(
   suspend fun previewInstall(repertoireId: String, edges: List<TaggedEdge>): Int {
     val dropped = droppedBy(repertoireId, edges)
     if (dropped.isEmpty()) return 0
-    return cleanup.plan(dropped, HoldOverlay(repertoireId, dropped.toSet(), edges.toSet())).moves.size
+    return cleanup
+      .plan(dropped, HoldOverlay(repertoireId, dropped.toSet(), edges.toSet()))
+      .moves
+      .size
   }
 
   /** The live tagged edges of [repertoireId] that [edges] no longer contains. */
@@ -399,12 +402,16 @@ class TreeStore(
     notifyDirty()
   }
 
-  /** Writes the effective marking of the live move [edge] from its holders, without outbox entry. */
+  /**
+   * Writes the effective marking of the live move [edge] from its holders, without outbox entry.
+   */
   private suspend fun rederiveMarking(edge: TaggedEdge) {
     val stored =
-      database.getPositionIncludingDeleted(edge.origin)?.previousAndNextMoves?.nextMoves?.get(
-        edge.move
-      ) ?: return
+      database
+        .getPositionIncludingDeleted(edge.origin)
+        ?.previousAndNextMoves
+        ?.nextMoves
+        ?.get(edge.move) ?: return
     if (stored.isDeleted) return
     val effective =
       effectiveMarking(

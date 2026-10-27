@@ -46,8 +46,7 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *   import progress (`0f`..`1f`) through its third parameter as [RepertoireInstallState.Importing]
  *   is updated.
  * @param previewMoves Computes, without writing anything, how much of the repertoire named by
- *   `descriptor` the user
- *   already has.
+ *   `descriptor` the user already has.
  * @param reportInstall Reports one completed first install of the given repertoire id, feeding the
  *   catalog's anonymous popularity counter (see [RepertoireDescriptor.downloadCount]'s KDoc). Must
  *   never throw; production wiring binds [RepertoireCatalogClient.reportInstall], which satisfies

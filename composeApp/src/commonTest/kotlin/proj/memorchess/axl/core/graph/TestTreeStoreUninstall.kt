@@ -119,7 +119,12 @@ class TestTreeStoreUninstall {
     val keys = database.getOutbox().map { it.key }
     keys.filterIsInstance<DirtyKey.EdgeKey>() shouldBe emptyList()
     val deletedCopy =
-      database.getPositionIncludingDeleted(posB)!!.previousAndNextMoves.previousMoves.values.single()
+      database
+        .getPositionIncludingDeleted(posB)!!
+        .previousAndNextMoves
+        .previousMoves
+        .values
+        .single()
     deletedCopy.toEdgeSyncRow() shouldBe null
     keys shouldContainAll
       listOf(
