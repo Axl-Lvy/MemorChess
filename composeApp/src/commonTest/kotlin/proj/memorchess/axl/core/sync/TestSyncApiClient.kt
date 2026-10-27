@@ -94,7 +94,7 @@ class TestSyncApiClient {
         )
 
     result.shouldBeInstanceOf<SyncPushOutcome.Ok>()
-    result.response.revision shouldBe 5L
+    result.response.revision shouldBe Revision(5)
   }
 
   @Test
@@ -274,7 +274,7 @@ class TestSyncApiClient {
     val result = client(engine).erase("tok", DEVICE, deviceSeq = 7L)
 
     result shouldBe
-      SyncEraseOutcome.Ok(SyncEraseResponse(Instant.parse("2026-01-01T00:00:00Z"), revision = 9L))
+      SyncEraseOutcome.Ok(SyncEraseResponse(Instant.parse("2026-01-01T00:00:00Z"), revision = Revision(9L)))
   }
 
   @Test

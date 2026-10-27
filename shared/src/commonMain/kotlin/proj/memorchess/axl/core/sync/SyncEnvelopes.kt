@@ -24,7 +24,7 @@ val SYNC_JSON: Json = Json {
 @Serializable
 data class SyncPullResponse(
   val serverTime: Instant,
-  val nextCursor: Long?,
+  val nextCursor: Revision?,
   val pageToken: String,
   val nodes: List<NodeSyncRow>,
   val edges: List<EdgeSyncRow>,
@@ -58,7 +58,7 @@ data class SyncPushRequest(
 @Serializable
 data class SyncPushResponse(
   val serverTime: Instant,
-  val revision: Long,
+  val revision: Revision,
   val rejected: List<RejectedRow>,
 )
 

@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -133,7 +134,7 @@ internal class TestSyncStorePush {
     val user = newUser()
     val response = store.push(user, DEVICE, request(setting("theme", "dark", serverNow)), serverNow)
     response.rejected.shouldBeEmpty()
-    (response.revision > 0) shouldBe true
+    (response.revision > Revision.ZERO) shouldBe true
   }
 
   @Test
@@ -220,7 +221,7 @@ internal class TestSyncStorePush {
     val user = newUser()
     val row = setting("theme", "dark", serverNow)
     store.push(user, DEVICE, request(row), serverNow)
-    store.push(user, DEVICE, request(row), serverNow).revision shouldBe 0L
+    store.push(user, DEVICE, request(row), serverNow).revision shouldBe Revision(0)
   }
 
   @Test

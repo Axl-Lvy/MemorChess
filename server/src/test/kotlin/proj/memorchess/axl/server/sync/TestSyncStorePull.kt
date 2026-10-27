@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
@@ -124,7 +125,7 @@ internal class TestSyncStorePull {
   fun aDevicePositionedAboveEveryRevisionIsServedNothing() = runTest {
     val user = registeredUser()
     pushSettings(user, setting("a", "1"))
-    store.setPositionForTest(user, DEVICE, lastAcked = Long.MAX_VALUE - 1, lastServed = 0)
+    store.setPositionForTest(user, DEVICE, lastAcked = Revision(Long.MAX_VALUE - 1), lastServed = Revision(0))
 
     pull(user).settings.shouldBeEmpty()
   }

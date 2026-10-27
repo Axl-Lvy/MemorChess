@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
@@ -449,7 +450,7 @@ internal class TestSyncStoreErase {
       it.originDevice shouldBe ERASER
       it.deviceSeq shouldBe 42L
     }
-    (revision > 0L) shouldBe true
+    (revision > Revision.ZERO) shouldBe true
   }
 
   @Test
@@ -558,14 +559,14 @@ internal class TestSyncStoreErase {
     store.erase(user, ERASER, 42L, now)
     catchUp(user, OTHER)
 
-    store.erase(user, ERASER, 43L, now) shouldBe 0L
+    store.erase(user, ERASER, 43L, now) shouldBe Revision.ZERO
 
     catchUp(user, OTHER).erasable.shouldBeEmpty()
   }
 
   @Test
   fun erasingAUserWithNoRowsReturnsZero() = runTest {
-    store.erase(newUser(), ERASER, 42L, now) shouldBe 0L
+    store.erase(newUser(), ERASER, 42L, now) shouldBe Revision.ZERO
   }
 
   @Test

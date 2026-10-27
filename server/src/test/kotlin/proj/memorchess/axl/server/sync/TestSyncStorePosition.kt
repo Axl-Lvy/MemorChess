@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.sync
 
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.assertions.throwables.shouldThrow
@@ -82,8 +83,8 @@ internal class TestSyncStorePosition {
     page.settings shouldHaveSize 1
     page.pageToken shouldNotBe ""
     val device = store.listDevicesForTest(user).single()
-    device.lastAcked shouldBe 0L
-    device.lastServed shouldBeGreaterThan 0L
+    device.lastAcked shouldBe Revision(0)
+    (device.lastServed > Revision.ZERO) shouldBe true
   }
 
   @Test
@@ -116,7 +117,7 @@ internal class TestSyncStorePosition {
 
     store.pull(user, DEVICE, ack = "not-a-token", limit = 100, now).settings shouldHaveSize 1
 
-    store.listDevicesForTest(user).single().lastAcked shouldBe 0L
+    store.listDevicesForTest(user).single().lastAcked shouldBe Revision(0)
   }
 
   @Test
@@ -167,9 +168,9 @@ internal class TestSyncStorePosition {
   @Test
   fun aRemovedDeviceBelowTheFloorIsRefused() = runTest {
     val user = registeredUserWith(setting("a", "1"))
-    store.setPositionForTest(user, DEVICE, lastAcked = 99, lastServed = 99)
+    store.setPositionForTest(user, DEVICE, lastAcked = Revision(99), lastServed = Revision(99))
     store.removeDeviceForTest(user, DEVICE, now)
-    store.setGcFloorForTest(user, 100)
+    store.setGcFloorForTest(user, Revision(100))
 
     shouldThrow<ResyncRequiredException> { store.pull(user, DEVICE, ack = null, limit = 100, now) }
   }
@@ -190,9 +191,9 @@ internal class TestSyncStorePosition {
   fun aPushFromARemovedDeviceBelowTheFloorIsRefused() = runTest {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
-    store.setPositionForTest(user, DEVICE, lastAcked = 99, lastServed = 99)
+    store.setPositionForTest(user, DEVICE, lastAcked = Revision(99), lastServed = Revision(99))
     store.removeDeviceForTest(user, DEVICE, now)
-    store.setGcFloorForTest(user, 100)
+    store.setGcFloorForTest(user, Revision(100))
 
     shouldThrow<ResyncRequiredException> {
       store.push(
@@ -217,8 +218,8 @@ internal class TestSyncStorePosition {
     )
 
     val device = store.listDevicesForTest(user).single()
-    device.lastAcked shouldBe 0L
-    device.lastServed shouldBe 0L
+    device.lastAcked shouldBe Revision(0)
+    device.lastServed shouldBe Revision(0)
   }
 
   private companion object {

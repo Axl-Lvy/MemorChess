@@ -119,7 +119,7 @@ internal class TestSyncCodec {
     val response =
       SyncPullResponse(
         serverTime = Instant.parse("2026-09-03T10:16:00Z"),
-        nextCursor = 42L,
+        nextCursor = Revision(42L),
         pageToken = "tok-42",
         nodes = listOf(node),
         edges = listOf(edge),
@@ -153,7 +153,7 @@ internal class TestSyncCodec {
     val response =
       SyncPushResponse(
         serverTime = Instant.fromEpochMilliseconds(1),
-        revision = 0L,
+        revision = Revision.ZERO,
         rejected =
           listOf(
             RejectedRow(

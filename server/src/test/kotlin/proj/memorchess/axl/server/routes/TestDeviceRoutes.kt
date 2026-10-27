@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.shouldBe
@@ -131,9 +132,9 @@ class TestDeviceRoutes {
   @Test
   fun `a removed device below the floor is told to resync`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = 99, lastServed = 99)
+    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = Revision(99), lastServed = Revision(99))
     store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
-    store.setGcFloorForTest(user, 100)
+    store.setGcFloorForTest(user, Revision(100))
 
     val response = client.register(token)
 
@@ -145,13 +146,13 @@ class TestDeviceRoutes {
   @Test
   fun `reporting the wipe reinstates the device`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = 99, lastServed = 99)
+    store.setPositionForTest(user, DeviceId(DEVICE), lastAcked = Revision(99), lastServed = Revision(99))
     store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
-    store.setGcFloorForTest(user, 100)
+    store.setGcFloorForTest(user, Revision(100))
 
     client.register(token, afterReset = true).status shouldBe HttpStatusCode.NoContent
 
-    store.listDevicesForTest(user).single().lastAcked shouldBe 0L
+    store.listDevicesForTest(user).single().lastAcked shouldBe Revision(0)
   }
 
   @Test

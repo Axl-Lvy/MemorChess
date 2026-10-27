@@ -1,5 +1,6 @@
 package proj.memorchess.axl.server.routes
 
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.core.sync.DeviceId
 import io.kotest.matchers.collections.shouldHaveSize
@@ -152,7 +153,7 @@ class TestSyncRoutes {
     val response = SYNC_JSON.decodeFromString<SyncPushResponse>(body)
 
     response.serverTime shouldBe serverNow
-    (response.revision > 0) shouldBe true
+    (response.revision > Revision.ZERO) shouldBe true
     response.rejected shouldHaveSize 0
   }
 
@@ -512,7 +513,7 @@ class TestSyncRoutes {
       response.status shouldBe HttpStatusCode.OK
       val erased = SYNC_JSON.decodeFromString<SyncEraseResponse>(response.bodyAsText())
       erased.serverTime shouldBe serverNow
-      (erased.revision > 0) shouldBe true
+      (erased.revision > Revision.ZERO) shouldBe true
       val page = SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token).bodyAsText())
       page.nodes shouldHaveSize 1
       page.nodes.single().positionKey shouldBe "fen-1"
