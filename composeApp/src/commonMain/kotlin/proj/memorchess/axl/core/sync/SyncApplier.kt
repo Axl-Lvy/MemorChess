@@ -24,7 +24,9 @@ import proj.memorchess.axl.core.scheduling.CardStateFactory
  * marking and existence from its holders (see [effectiveMarking]). A tag can arrive before its
  * endpoint positions (a later review re-pushes a position at a later revision): it is stored
  * without creating its move, and the position's arrival re-derives the moves its tags hold. A move
- * a holder keeps revives a deleted endpoint position with a fresh review state.
+ * a holder keeps revives a deleted endpoint position with a fresh review state, and an endpoint
+ * other than the start left with no live move once a move is deleted is deleted too, so a position
+ * revived ahead of the tombstones of an uninstall does not stay behind.
  *
  * @param database The persistence backend.
  * @param cache Cache the applied positions are invalidated in.
@@ -174,10 +176,29 @@ class SyncApplier(
       reviveIfDeleted(destination)
     }
     if (updated != null && updated != stored) database.applyRemoteMove(updated)
+    if (stored != null && !stored.isDeleted && updated?.isDeleted == true) {
+      pruneIfOrphaned(origin)
+      pruneIfOrphaned(destination)
+    }
     refreshHasGoodOutgoingIfChanged(origin)
     cache.invalidate(origin)
     cache.invalidate(destination)
     trainable.recompute(origin)
+  }
+
+  /**
+   * Deletes [position], without an outbox entry, when it is live, is not the start, and has no live
+   * move left.
+   */
+  private suspend fun pruneIfOrphaned(position: PositionKey) {
+    if (position == PositionKey.START_POSITION) return
+    val node = database.getPositionIncludingDeleted(position) ?: return
+    if (node.isDeleted) return
+    val moves = node.previousAndNextMoves
+    if ((moves.previousMoves.values + moves.nextMoves.values).any { !it.isDeleted }) return
+    database.applyRemoteNode(node.copy(isDeleted = true))
+    trainable.clear(position)
+    cache.invalidate(position)
   }
 
   /**

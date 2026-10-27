@@ -1,6 +1,7 @@
 package proj.memorchess.axl.core.sync
 
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
@@ -203,5 +204,55 @@ class TestSyncApplierHolders {
     database.move()!!.isDeleted shouldBe false
     val revived = database.getPosition(PositionKey(destination))!!
     revived.cardState.reps shouldBe 0
+  }
+
+  @Test
+  fun aPulledTagTombstoneDeletesAPositionLeftWithoutMoves() = runTest {
+    val (database, applier) = withBothNodes()
+    applier.applyTag(tag("a", isGood = true))
+
+    applier.applyTag(tag("a", isGood = true, deleted = true, seq = 2L))
+
+    database.getPosition(PositionKey(destination)) shouldBe null
+    database.getPosition(PositionKey(origin)) shouldBe null
+  }
+
+  @Test
+  fun aNodeTombstonePulledBeforeTheTagTombstoneLeavesNoOrphan() = runTest {
+    val (database, applier) = withBothNodes()
+    applier.applyTag(tag("a", isGood = true))
+    applier.applyNode(node(destination, deleted = true, seq = 2L))
+
+    applier.applyTag(tag("a", isGood = true, deleted = true, seq = 2L))
+
+    database.getPosition(PositionKey(destination)) shouldBe null
+  }
+
+  @Test
+  fun aPositionWithAnotherLiveMoveIsNotPruned() = runTest {
+    val (database, applier) = withBothNodes()
+    val third = "third w K"
+    applier.applyNode(node(third))
+    applier.applyMove(edge(isGood = true).copy(destination = third, move = "Nf3"))
+    applier.applyTag(tag("a", isGood = true))
+
+    applier.applyTag(tag("a", isGood = true, deleted = true, seq = 2L))
+
+    database.getPosition(PositionKey(origin)) shouldNotBe null
+    database.getPosition(PositionKey(destination)) shouldBe null
+  }
+
+  @Test
+  fun theStartPositionIsNeverPruned() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val applier = testSyncApplier(database, CoroutineScope(Dispatchers.Unconfined))
+    val start = PositionKey.START_POSITION.value
+    applier.applyNode(node(start))
+    applier.applyNode(node(destination))
+    applier.applyTag(tag("a", isGood = true).copy(origin = start))
+
+    applier.applyTag(tag("a", isGood = true, deleted = true, seq = 2L).copy(origin = start))
+
+    database.getPosition(PositionKey.START_POSITION) shouldNotBe null
   }
 }
