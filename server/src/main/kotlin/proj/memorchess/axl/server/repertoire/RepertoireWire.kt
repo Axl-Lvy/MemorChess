@@ -27,6 +27,6 @@ internal fun RepertoireRow.toDescriptor(downloadCount: Long = 0): RepertoireDesc
     color = if (side == "white") RepertoireColor.WHITE else RepertoireColor.BLACK,
     description = description,
     moveCount = moveCount,
-    file = "$id/versions/$version/moves",
+    version = version,
     downloadCount = downloadCount.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
   )

@@ -85,7 +85,7 @@ import memorchess.composeapp.generated.resources.library_importing
 import memorchess.composeapp.generated.resources.library_install
 import memorchess.composeapp.generated.resources.library_install_error_http
 import memorchess.composeapp.generated.resources.library_install_error_import
-import memorchess.composeapp.generated.resources.library_install_error_malformed_pgn
+import memorchess.composeapp.generated.resources.library_install_error_malformed_repertoire
 import memorchess.composeapp.generated.resources.library_install_error_network
 import memorchess.composeapp.generated.resources.library_install_summary
 import memorchess.composeapp.generated.resources.library_move_count
@@ -143,6 +143,7 @@ import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishViewModel
 import proj.memorchess.axl.core.data.repertoire.slugify
 import proj.memorchess.axl.core.engine.Player
+import proj.memorchess.axl.core.graph.RepertoireMoveImporter
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImporter
@@ -190,16 +191,17 @@ fun RepertoireLibrary(
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
         reloadManifest = catalog::refresh,
-        fetchPgn = client::fetchPgn,
-        importGames = { descriptor, games, onProgress ->
+        fetchMoves = { descriptor, onProgress ->
+          client.fetchMoves(descriptor.id, descriptor.version, onProgress)
+        },
+        importMoves = { descriptor, moves, onProgress ->
           tagStore.register(descriptor.id, descriptor.name, descriptor.color)
           // The importer reads the persisted graph on demand through the bounded cache.
-          PgnImporter(treeStore, tagStore)
-            .import(games, descriptor.color.toPlayer(), descriptor.id, onProgress)
+          RepertoireMoveImporter(treeStore, tagStore).import(moves, descriptor.id, onProgress)
         },
-        previewGames = { color, games ->
+        previewMoves = { moves ->
           // The overlap is read against the persisted graph on demand through the bounded cache.
-          PgnImporter(treeStore, tagStore).preview(games, color.toPlayer())
+          RepertoireMoveImporter(treeStore, tagStore).preview(moves)
         },
         reportInstall = client::reportInstall,
         installedStore = installedStore,
@@ -1465,8 +1467,8 @@ private fun installErrorText(error: InstallError): String =
     is InstallError.Network ->
       stringResource(Res.string.library_install_error_network, error.message)
     is InstallError.Http -> stringResource(Res.string.library_install_error_http, error.status)
-    is InstallError.MalformedPgn ->
-      stringResource(Res.string.library_install_error_malformed_pgn, error.message)
+    is InstallError.MalformedRepertoire ->
+      stringResource(Res.string.library_install_error_malformed_repertoire, error.message)
     is InstallError.ImportFailed ->
       stringResource(Res.string.library_install_error_import, error.message)
   }

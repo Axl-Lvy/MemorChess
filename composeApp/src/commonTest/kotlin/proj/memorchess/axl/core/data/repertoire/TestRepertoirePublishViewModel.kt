@@ -24,7 +24,7 @@ class TestRepertoirePublishViewModel : TestWithKoin() {
       color = RepertoireColor.WHITE,
       description = "d",
       moveCount = 1,
-      file = "pgn/abc.pgn",
+      version = 1,
     )
 
   private fun viewModel(

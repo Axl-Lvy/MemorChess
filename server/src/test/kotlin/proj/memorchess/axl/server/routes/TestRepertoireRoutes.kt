@@ -86,7 +86,7 @@ class TestRepertoireRoutes {
   private fun newStore() = RepertoireStore(PostgresTestDb.dataSource())
 
   @Test
-  fun `manifest json lists only published repertoires with schemaVersion 1`() {
+  fun `manifest json lists only published repertoires with schemaVersion 2`() {
     val store = newStore()
     val id = newId()
     runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
@@ -96,7 +96,7 @@ class TestRepertoireRoutes {
 
       response.status shouldBe HttpStatusCode.OK
       val manifest = SYNC_JSON.decodeFromString<RepertoireManifest>(response.bodyAsText())
-      manifest.schemaVersion shouldBe 1
+      manifest.schemaVersion shouldBe 2
       manifest.repertoires.map { it.id } shouldContain id
     }
   }
@@ -257,7 +257,7 @@ class TestRepertoireRoutes {
   }
 
   @Test
-  fun `manifest lists the moves path of the latest version`() {
+  fun `manifest lists the latest version`() {
     val store = newStore()
     val id = newId()
     runBlocking {
@@ -271,7 +271,7 @@ class TestRepertoireRoutes {
           client.get("/v1/repertoires/manifest.json").bodyAsText()
         )
 
-      manifest.repertoires.single { it.id == id }.file shouldBe "$id/versions/2/moves"
+      manifest.repertoires.single { it.id == id }.version shouldBe 2
     }
   }
 

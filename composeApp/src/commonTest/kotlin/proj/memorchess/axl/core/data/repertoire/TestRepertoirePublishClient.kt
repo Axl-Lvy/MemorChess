@@ -47,7 +47,7 @@ class TestRepertoirePublishClient {
         color = RepertoireColor.WHITE,
         description = "d",
         moveCount = 2,
-        file = "pgn/abc.pgn",
+        version = 1,
       )
     val client = clientAnswering(HttpStatusCode.Created, SYNC_JSON.encodeToString(descriptor))
 

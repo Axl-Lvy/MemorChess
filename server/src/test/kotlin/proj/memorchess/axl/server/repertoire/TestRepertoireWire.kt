@@ -21,7 +21,7 @@ internal class TestRepertoireWire {
     )
 
   @Test
-  fun `toDescriptor maps the side, file path and every plain field`() {
+  fun `toDescriptor maps the side, version and every plain field`() {
     val descriptor = row.toDescriptor(downloadCount = 5)
 
     descriptor.id shouldBe "london-system-white"
@@ -29,7 +29,7 @@ internal class TestRepertoireWire {
     descriptor.color shouldBe RepertoireColor.WHITE
     descriptor.description shouldBe "Solid."
     descriptor.moveCount shouldBe 73
-    descriptor.file shouldBe "london-system-white/versions/1/moves"
+    descriptor.version shouldBe 1
   }
 
   @Test

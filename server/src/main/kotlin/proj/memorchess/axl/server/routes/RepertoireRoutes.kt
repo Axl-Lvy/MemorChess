@@ -46,7 +46,7 @@ internal const val MAX_CATALOG_LIMIT: Int = 100
 private const val DEFAULT_CATALOG_LIMIT: Int = 50
 
 /** `schemaVersion` published in `manifest.json`. See spec 6.1: bumped only on a breaking change. */
-private const val MANIFEST_SCHEMA_VERSION: Int = 1
+private const val MANIFEST_SCHEMA_VERSION: Int = 2
 
 /**
  * Short TTL for the anonymous, unpersonalized catalog responses, so Cloudflare's edge can cache

@@ -231,7 +231,7 @@
   <string name="library_install_summary">Moves added: %1$d · Already present: %2$d</string>
   <string name="library_install_error_network">Download failed: %1$s</string>
   <string name="library_install_error_http">Download failed with HTTP error %1$d.</string>
-  <string name="library_install_error_malformed_pgn">This repertoire file could not be read: %1$s</string>
+  <string name="library_install_error_malformed_repertoire">This repertoire could not be read: %1$s</string>
   <string name="library_install_error_import">Import failed: %1$s</string>
   <string name="library_preview_checking">Checking your repertoire…</string>
   <string name="library_preview_in_common">%1$d of %2$d moves already in your repertoire.</string>

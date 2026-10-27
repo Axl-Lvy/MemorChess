@@ -12,14 +12,14 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
-import proj.memorchess.axl.core.pgn.PgnGame
+import proj.memorchess.axl.core.engine.GameEngine
 
 class TestRepertoireCatalogClient {
 
   private val manifestJson =
     """
     {
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "repertoires": [
         {
           "id": "london-system-white",
@@ -27,7 +27,7 @@ class TestRepertoireCatalogClient {
           "color": "white",
           "description": "A solid system for White.",
           "moveCount": 73,
-          "file": "pgn/london-system-white.pgn",
+          "version": 1,
           "futureField": "ignored"
         },
         {
@@ -36,7 +36,7 @@ class TestRepertoireCatalogClient {
           "color": "black",
           "description": "A rock solid defense for Black.",
           "moveCount": 74,
-          "file": "pgn/caro-kann-black.pgn"
+          "version": 3
         }
       ],
       "futureTopLevelField": {"nested": true}
@@ -44,14 +44,15 @@ class TestRepertoireCatalogClient {
     """
       .trimIndent()
 
-  private val validPgn =
-    """
-    [Event "MemorChess Repertoire"]
-    [Result "*"]
+  private val e4 =
+    GameEngine().let { engine ->
+      val from = engine.toPositionKey().value
+      engine.playSanMove("e4")
+      RepertoireMove(from, "e4", engine.toPositionKey().value, isGood = true)
+    }
 
-    1. e4 e5 (1... c5 2. Nf3 d6) 2. Nf3 Nc6 3. Bb5 *
-    """
-      .trimIndent()
+  private val validMoves =
+    """{"moves":[{"from":"${e4.from}","move":"e4","to":"${e4.to}","isGood":true}]}"""
 
   private fun clientRespondingWith(
     content: String,
@@ -80,13 +81,13 @@ class TestRepertoireCatalogClient {
 
     result.shouldBeInstanceOf<CatalogResult.Ok<RepertoireManifest>>()
     val manifest = result.value
-    manifest.schemaVersion shouldBe 1
+    manifest.schemaVersion shouldBe 2
     manifest.repertoires shouldHaveSize 2
     manifest.repertoires[0].id shouldBe "london-system-white"
     manifest.repertoires[0].color shouldBe RepertoireColor.WHITE
     manifest.repertoires[0].moveCount shouldBe 73
     manifest.repertoires[1].color shouldBe RepertoireColor.BLACK
-    manifest.repertoires[1].file shouldBe "pgn/caro-kann-black.pgn"
+    manifest.repertoires[1].version shouldBe 3
   }
 
   @Test
@@ -94,12 +95,12 @@ class TestRepertoireCatalogClient {
     val edgeManifest =
       """
       {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "repertoires": [
           {"id": "empty", "name": "Empty", "color": "white", "description": "",
-           "moveCount": 0, "file": "pgn/empty.pgn"},
+           "moveCount": 0, "version": 1},
           {"id": "huge", "name": "Huge", "color": "black", "description": "",
-           "moveCount": 2147483647, "file": "pgn/huge.pgn"}
+           "moveCount": 2147483647, "version": 1}
         ]
       }
       """
@@ -145,10 +146,10 @@ class TestRepertoireCatalogClient {
     val badColor =
       """
       {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "repertoires": [
           {"id": "x", "name": "X", "color": "purple", "description": "",
-           "moveCount": 1, "file": "pgn/x.pgn"}
+           "moveCount": 1, "version": 1}
         ]
       }
       """
@@ -162,7 +163,7 @@ class TestRepertoireCatalogClient {
 
   @Test
   fun fetchManifestUnsupportedSchemaVersionReturnsMalformedManifest() = runTest {
-    val client = clientRespondingWith("{\"schemaVersion\": 2, \"repertoires\": []}")
+    val client = clientRespondingWith("{\"schemaVersion\": 1, \"repertoires\": []}")
 
     val result = client.fetchManifest()
 
@@ -170,98 +171,100 @@ class TestRepertoireCatalogClient {
   }
 
   @Test
-  fun fetchPgnParsesValidDocument() = runTest {
-    val client = clientRespondingWith(validPgn)
+  fun fetchMovesDecodesTheMoveList() = runTest {
+    val client = clientRespondingWith(validMoves)
 
-    val result = client.fetchPgn("pgn/test.pgn")
+    val result = client.fetchMoves("london-system-white", 3)
 
-    result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
-    val games = result.value
-    games shouldHaveSize 1
-    games[0].moves[0].san shouldBe "e4"
+    result shouldBe CatalogResult.Ok(listOf(e4))
   }
 
   @Test
-  fun fetchPgnNotFoundReturnsHttpError() = runTest {
+  fun fetchMovesRequestsTheVersionsMovesPath() = runTest {
+    var requestedUrl: String? = null
+    val engine = MockEngine { request ->
+      requestedUrl = request.url.toString()
+      respond(content = validMoves, status = HttpStatusCode.OK)
+    }
+    val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
+
+    client.fetchMoves("london-system-white", 3)
+
+    requestedUrl shouldBe "$TEST_BASE_URL/london-system-white/versions/3/moves"
+  }
+
+  @Test
+  fun fetchMovesNotFoundReturnsHttpError() = runTest {
     val client = clientRespondingWith("Not Found", HttpStatusCode.NotFound)
 
-    val result = client.fetchPgn("pgn/missing.pgn")
+    val result = client.fetchMoves("missing", 1)
 
     result shouldBe CatalogResult.HttpError(404)
   }
 
   @Test
-  fun fetchPgnNetworkFailureReturnsNetworkError() = runTest {
+  fun fetchMovesNetworkFailureReturnsNetworkError() = runTest {
     val client = clientThrowing()
 
-    val result = client.fetchPgn("pgn/test.pgn")
+    val result = client.fetchMoves("london-system-white", 1)
 
     result.shouldBeInstanceOf<CatalogResult.NetworkError>()
   }
 
   @Test
-  fun fetchPgnMalformedDocumentReturnsMalformedPgn() = runTest {
-    val client = clientRespondingWith("1. e4 (1... e5")
+  fun fetchMovesUndecodableBodyReturnsMalformedRepertoire() = runTest {
+    val client = clientRespondingWith("1. e4 e5 *")
 
-    val result = client.fetchPgn("pgn/broken.pgn")
+    val result = client.fetchMoves("london-system-white", 1)
 
-    result.shouldBeInstanceOf<CatalogResult.MalformedPgn>()
+    result.shouldBeInstanceOf<CatalogResult.MalformedRepertoire>()
   }
 
   @Test
-  fun fetchPgnWithoutAnyMoveReturnsMalformedPgn() = runTest {
-    val client = clientRespondingWith("[Event \"Empty\"]\n[Result \"*\"]\n\n*")
+  fun fetchMovesWithoutAnyMoveReturnsMalformedRepertoire() = runTest {
+    val client = clientRespondingWith("{\"moves\":[]}")
 
-    val result = client.fetchPgn("pgn/empty.pgn")
+    val result = client.fetchMoves("london-system-white", 1)
 
-    result.shouldBeInstanceOf<CatalogResult.MalformedPgn>()
+    result.shouldBeInstanceOf<CatalogResult.MalformedRepertoire>()
   }
 
   @Test
-  fun fetchPgnReportsDownloadProgressEndingAtOne() = runTest {
+  fun fetchMovesReportsDownloadProgressEndingAtOne() = runTest {
     val engine = MockEngine { _ ->
       respond(
-        content = validPgn,
+        content = validMoves,
         status = HttpStatusCode.OK,
         headers =
           headersOf(
-            "Content-Type" to listOf("text/plain; charset=utf-8"),
-            "Content-Length" to listOf(validPgn.encodeToByteArray().size.toString()),
+            "Content-Type" to listOf("application/json"),
+            "Content-Length" to listOf(validMoves.encodeToByteArray().size.toString()),
           ),
       )
     }
     val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
     val reported = mutableListOf<Float>()
 
-    val result = client.fetchPgn("pgn/test.pgn", onProgress = reported::add)
+    val result = client.fetchMoves("london-system-white", 1, onProgress = reported::add)
 
-    result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+    result.shouldBeInstanceOf<CatalogResult.Ok<List<RepertoireMove>>>()
     reported shouldHaveSize 1
     reported.last() shouldBe 1f
   }
 
   @Test
-  fun fetchPgnWithoutAProgressCallbackStillParses() = runTest {
-    val client = clientRespondingWith(validPgn)
-
-    val result = client.fetchPgn("pgn/test.pgn")
-
-    result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
-  }
-
-  @Test
-  fun fetchPgnWithoutContentLengthReportsNoProgress() = runTest {
-    val client = clientRespondingWith(validPgn)
+  fun fetchMovesWithoutContentLengthReportsNoProgress() = runTest {
+    val client = clientRespondingWith(validMoves)
     val reported = mutableListOf<Float>()
 
-    val result = client.fetchPgn("pgn/test.pgn", onProgress = reported::add)
+    val result = client.fetchMoves("london-system-white", 1, onProgress = reported::add)
 
-    result.shouldBeInstanceOf<CatalogResult.Ok<List<PgnGame>>>()
+    result.shouldBeInstanceOf<CatalogResult.Ok<List<RepertoireMove>>>()
     reported shouldBe emptyList()
   }
 
   @Test
-  fun fetchPgnWithZeroContentLengthReportsNoProgress() = runTest {
+  fun fetchMovesWithZeroContentLengthReportsNoProgress() = runTest {
     // An honestly empty body, Content-Length included, is the boundary case that would otherwise
     // divide by zero when computing bytesSentTotal / contentLength.
     val engine = MockEngine { _ ->
@@ -270,7 +273,7 @@ class TestRepertoireCatalogClient {
         status = HttpStatusCode.OK,
         headers =
           headersOf(
-            "Content-Type" to listOf("text/plain; charset=utf-8"),
+            "Content-Type" to listOf("application/json"),
             "Content-Length" to listOf("0"),
           ),
       )
@@ -278,7 +281,7 @@ class TestRepertoireCatalogClient {
     val client = RepertoireCatalogClient(httpClient = HttpClient(engine), baseUrl = TEST_BASE_URL)
     val reported = mutableListOf<Float>()
 
-    client.fetchPgn("pgn/test.pgn", onProgress = reported::add)
+    client.fetchMoves("london-system-white", 1, onProgress = reported::add)
 
     // Nothing to divide by: guarded rather than reporting a NaN or infinite fraction.
     reported shouldBe emptyList()
