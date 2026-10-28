@@ -7,7 +7,9 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 /**
@@ -25,9 +27,15 @@ internal class TestServerConvergence {
   private val serverNow = at(1_000_000)
 
   /** Registers [deviceId] under [user] and returns the transport that reaches the store as it. */
-  private suspend fun transportFor(user: String, deviceId: String): StoreTransport {
-    store.registerDevice(user, deviceId, DevicePlatform.JVM, afterReset = false, serverNow)
-    return StoreTransport(store, user, deviceId)
+  private suspend fun transportFor(user: UserId, deviceId: String): StoreTransport {
+    store.registerDevice(
+      user,
+      DeviceId(deviceId),
+      DevicePlatform.JVM,
+      afterReset = false,
+      serverNow,
+    )
+    return StoreTransport(store, user, DeviceId(deviceId))
   }
 
   @Test

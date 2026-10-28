@@ -20,6 +20,7 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.core.sync.SyncPullResponse
@@ -99,23 +100,23 @@ class TestHttpConvergence {
       )
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
-    val token = key.token(subject = user)
+    val token = key.token(subject = user.value)
     // Registration is a prerequisite for pulling, and its own route arrives with the device
     // endpoints. Until then the store is primed directly, which is what the client does over HTTP.
-    for (device in listOf("device-a", "device-b")) {
+    for (device in listOf(DEVICE_A, DEVICE_B)) {
       store.registerDevice(
         user,
-        device,
+        DeviceId(device),
         DevicePlatform.JVM,
         afterReset = false,
         clock.now(),
       )
     }
     block(
-      TestDevice("device-a"),
-      HttpTransport(client, token, "device-a"),
-      TestDevice("device-b"),
-      HttpTransport(client, token, "device-b"),
+      TestDevice(DEVICE_A),
+      HttpTransport(client, token, DEVICE_A),
+      TestDevice(DEVICE_B),
+      HttpTransport(client, token, DEVICE_B),
       clock,
     )
   }
@@ -204,5 +205,10 @@ class TestHttpConvergence {
     }
 
     a.snapshot() shouldBe b.snapshot()
+  }
+
+  private companion object {
+    const val DEVICE_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    const val DEVICE_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
   }
 }

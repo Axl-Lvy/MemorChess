@@ -63,7 +63,7 @@ class TestRepertoireMoves {
         id = "italian",
         title = "Italian",
         description = "A classic",
-        side = "white",
+        side = RepertoireColor.WHITE,
         moves = line("e4"),
       )
 

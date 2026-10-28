@@ -6,6 +6,8 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
@@ -13,6 +15,7 @@ import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.CountingDataSource
 import proj.memorchess.axl.server.db.PostgresTestDb
 
@@ -22,7 +25,7 @@ internal class TestSyncStorePushBatching {
   private val store = SyncStore(counting)
   private val serverNow = Instant.fromEpochMilliseconds(1_000_000)
 
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -54,7 +57,7 @@ internal class TestSyncStorePushBatching {
             step = 0,
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -67,7 +70,7 @@ internal class TestSyncStorePushBatching {
             isGood = true,
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -78,7 +81,7 @@ internal class TestSyncStorePushBatching {
             value = "v$reps",
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -87,10 +90,10 @@ internal class TestSyncStorePushBatching {
           RepertoireSyncRow(
             id = "$prefix-rep-$it",
             name = "name-$reps",
-            color = "WHITE",
+            color = RepertoireColor.WHITE,
             isDeleted = false,
             updatedAt = at,
-            originDevice = "device-a",
+            originDevice = DeviceId("device-a"),
             deviceSeq = seq,
           )
         },
@@ -105,7 +108,7 @@ internal class TestSyncStorePushBatching {
               move = "e4",
               isDeleted = false,
               updatedAt = at,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = seq,
             )
           },
@@ -154,9 +157,23 @@ internal class TestSyncStorePushBatching {
   @Test
   fun aKeyRepeatedWithinOnePushResolvesToTheSameWinnerAsTwoSeparatePushes() = runTest {
     val older =
-      SettingSyncRow("theme", "dark", false, serverNow, originDevice = "device-a", deviceSeq = 1)
+      SettingSyncRow(
+        "theme",
+        "dark",
+        false,
+        serverNow,
+        originDevice = DeviceId("device-a"),
+        deviceSeq = 1,
+      )
     val newer =
-      SettingSyncRow("theme", "light", false, serverNow, originDevice = "device-a", deviceSeq = 2)
+      SettingSyncRow(
+        "theme",
+        "light",
+        false,
+        serverNow,
+        originDevice = DeviceId("device-a"),
+        deviceSeq = 2,
+      )
     val together = newUser()
     val apart = newUser()
     fun request(vararg settings: SettingSyncRow) =
@@ -177,7 +194,7 @@ internal class TestSyncStorePushBatching {
   }
 
   private companion object {
-    const val DEVICE = "device-a"
+    val DEVICE = DeviceId("device-a")
 
     /** Kept under the per user repertoire cap, unlike the other resources. */
     const val REPERTOIRES = 100

@@ -1,7 +1,14 @@
 package proj.memorchess.axl.core.sync
 
 import kotlin.time.Instant
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 
 /**
  * One synchronized row, in the shape it travels over the wire.
@@ -16,7 +23,7 @@ sealed interface SyncRow {
   val updatedAt: Instant
 
   /** Opaque id of the device that wrote this version. Breaks [updatedAt] ties. */
-  val originDevice: String
+  val originDevice: DeviceId
 
   /**
    * Per device counter, strictly increasing with every local write that device makes.
@@ -62,7 +69,7 @@ data class NodeSyncRow(
   val step: Int,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -83,7 +90,7 @@ data class EdgeSyncRow(
   val isGood: Boolean,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -99,7 +106,7 @@ data class SettingSyncRow(
   val value: String,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -108,8 +115,9 @@ data class SettingSyncRow(
  *
  * @property id Slug: a catalog descriptor id, or a slugified user chosen name.
  * @property name Display name shown in the library and picker.
- * @property color Serialized [proj.memorchess.axl.core.data.repertoire.RepertoireColor] name, or
- *   `null` when the repertoire mixes both sides (a two sided import such as a Lichess study).
+ * @property color Perspective, or `null` when the repertoire mixes both sides (a two sided import
+ *   such as a Lichess study). Travels as the [RepertoireColor.name], and a name this build has
+ *   never heard of decodes as `null`.
  * @property installedVersion Catalog version installed under this id, or `null` for a repertoire
  *   the user created.
  */
@@ -117,11 +125,11 @@ data class SettingSyncRow(
 data class RepertoireSyncRow(
   val id: String,
   val name: String,
-  val color: String?,
+  @Serializable(with = RepertoireColorNameSerializer::class) val color: RepertoireColor?,
   val installedVersion: Int? = null,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
 
@@ -146,6 +154,21 @@ data class EdgeRepertoireTagSyncRow(
   val isGood: Boolean? = null,
   override val isDeleted: Boolean,
   override val updatedAt: Instant,
-  override val originDevice: String,
+  override val originDevice: DeviceId,
   override val deviceSeq: Long,
 ) : SyncRow
+
+/** Encodes a [RepertoireColor] as its enum name, decoding an unknown name as `null`. */
+internal object RepertoireColorNameSerializer : KSerializer<RepertoireColor?> {
+
+  override val descriptor: SerialDescriptor =
+    PrimitiveSerialDescriptor("proj.memorchess.axl.RepertoireColorName", PrimitiveKind.STRING)
+
+  override fun serialize(encoder: Encoder, value: RepertoireColor?) {
+    if (value == null) encoder.encodeNull() else encoder.encodeString(value.name)
+  }
+
+  override fun deserialize(decoder: Decoder): RepertoireColor? =
+    if (decoder.decodeNotNullMark()) RepertoireColor.fromNameOrNull(decoder.decodeString())
+    else decoder.decodeNull()
+}

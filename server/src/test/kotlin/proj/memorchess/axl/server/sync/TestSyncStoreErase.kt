@@ -11,17 +11,21 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.ResolutionSource
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
 import proj.memorchess.axl.core.sync.SyncPushResponse
 import proj.memorchess.axl.core.sync.SyncRow
 import proj.memorchess.axl.core.sync.resolve
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStoreErase {
@@ -43,7 +47,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Pulls and confirms page after page until [device] has been served everything. */
-  private suspend fun catchUp(user: String, device: String): Caught {
+  private suspend fun catchUp(user: UserId, device: DeviceId): Caught {
     val nodes = mutableListOf<NodeSyncRow>()
     val edges = mutableListOf<EdgeSyncRow>()
     val settings = mutableListOf<SettingSyncRow>()
@@ -67,7 +71,7 @@ internal class TestSyncStoreErase {
     error("catch up did not terminate")
   }
 
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     for (device in listOf(ERASER, OTHER)) {
       store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, now)
@@ -78,7 +82,7 @@ internal class TestSyncStoreErase {
   private fun node(
     key: String,
     updatedAt: Instant = now,
-    origin: String = OTHER,
+    origin: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ) =
     NodeSyncRow(
@@ -102,7 +106,7 @@ internal class TestSyncStoreErase {
     origin: String,
     destination: String,
     updatedAt: Instant = now,
-    device: String = OTHER,
+    device: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ) =
     EdgeSyncRow(
@@ -126,11 +130,11 @@ internal class TestSyncStoreErase {
       deviceSeq = 1,
     )
 
-  private fun repertoire(updatedAt: Instant = now, origin: String = OTHER, deviceSeq: Long = 1) =
+  private fun repertoire(updatedAt: Instant = now, origin: DeviceId = OTHER, deviceSeq: Long = 1) =
     RepertoireSyncRow(
       id = "italian-game",
       name = "Italian Game",
-      color = "WHITE",
+      color = RepertoireColor.WHITE,
       isDeleted = false,
       updatedAt = updatedAt,
       originDevice = origin,
@@ -141,7 +145,7 @@ internal class TestSyncStoreErase {
     origin: String,
     destination: String,
     updatedAt: Instant = now,
-    device: String = OTHER,
+    device: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ) =
     EdgeRepertoireTagSyncRow(
@@ -158,7 +162,7 @@ internal class TestSyncStoreErase {
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   /** Pushes 2 nodes, 2 edges, 1 repertoire, 1 tag and 1 setting from [OTHER]. */
-  private suspend fun populate(user: String): SyncPushRequest {
+  private suspend fun populate(user: UserId): SyncPushRequest {
     val a = fen("a")
     val b = fen("b")
     val c = fen("c")
@@ -177,10 +181,10 @@ internal class TestSyncStoreErase {
 
   /** Pushes one node, edge, repertoire and tag from [device], all stamped [updatedAt]. */
   private suspend fun pushStamped(
-    user: String,
+    user: UserId,
     updatedAt: Instant,
     serverNow: Instant = now,
-    device: String = OTHER,
+    device: DeviceId = OTHER,
     deviceSeq: Long = 1,
   ): Pair<SyncPushRequest, SyncPushResponse> {
     val a = fen("a")
@@ -198,7 +202,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Pushes one live node from [OTHER], so an erase has something to tombstone. */
-  private suspend fun seedOneNode(user: String) {
+  private suspend fun seedOneNode(user: UserId) {
     store.push(
       user,
       OTHER,
@@ -213,7 +217,7 @@ internal class TestSyncStoreErase {
   }
 
   /** Every erasable row [device] is served next, the seed node's tombstone left out. */
-  private suspend fun freshRowsFor(user: String, device: String): List<SyncRow> =
+  private suspend fun freshRowsFor(user: UserId, device: DeviceId): List<SyncRow> =
     catchUp(user, device).erasable.filterNot {
       it is NodeSyncRow && it.positionKey.endsWith("-seed")
     }
@@ -244,7 +248,7 @@ internal class TestSyncStoreErase {
     caught.shouldAllBe(true)
     caught.erasable.forEach {
       it.updatedAt shouldBe now
-      it.originDevice shouldBe ERASE_ORIGIN
+      it.originDevice shouldBe DeviceId.ERASE_ORIGIN
       it.deviceSeq shouldBe 0L
     }
     caught.pusherConvergesOn(pushed)
@@ -447,7 +451,7 @@ internal class TestSyncStoreErase {
       it.originDevice shouldBe ERASER
       it.deviceSeq shouldBe 42L
     }
-    (revision > 0L) shouldBe true
+    (revision > Revision.ZERO) shouldBe true
   }
 
   @Test
@@ -556,14 +560,14 @@ internal class TestSyncStoreErase {
     store.erase(user, ERASER, 42L, now)
     catchUp(user, OTHER)
 
-    store.erase(user, ERASER, 43L, now) shouldBe 0L
+    store.erase(user, ERASER, 43L, now) shouldBe Revision.ZERO
 
     catchUp(user, OTHER).erasable.shouldBeEmpty()
   }
 
   @Test
   fun erasingAUserWithNoRowsReturnsZero() = runTest {
-    store.erase(newUser(), ERASER, 42L, now) shouldBe 0L
+    store.erase(newUser(), ERASER, 42L, now) shouldBe Revision.ZERO
   }
 
   @Test
@@ -591,10 +595,9 @@ internal class TestSyncStoreErase {
   }
 
   private companion object {
-    const val ERASER = "77777777-7777-4777-8777-777777777777"
-    const val OTHER = "88888888-8888-4888-8888-888888888888"
-    const val ERASE_ORIGIN = "00000000-0000-0000-0000-000000000000"
-    const val FRESH = "55555555-5555-4555-8555-555555555555"
-    const val UNREGISTERED = "66666666-6666-4666-8666-666666666666"
+    val ERASER = DeviceId("77777777-7777-4777-8777-777777777777")
+    val OTHER = DeviceId("88888888-8888-4888-8888-888888888888")
+    val FRESH = DeviceId("55555555-5555-4555-8555-555555555555")
+    val UNREGISTERED = DeviceId("66666666-6666-4666-8666-666666666666")
   }
 }

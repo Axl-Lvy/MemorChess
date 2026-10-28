@@ -3,6 +3,7 @@ package proj.memorchess.axl.core.data.explorer
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.engine.Fen
 
 /**
  * Combines a network [LichessExplorerClient] with a persistent [ExplorerCache].
@@ -21,7 +22,7 @@ class CachedExplorer(
 ) {
 
   /** Fetches the explorer response for [fen] from [source], using the cache when possible. */
-  suspend fun fetch(source: ExplorerSource, fen: String): CachedExplorerResult {
+  suspend fun fetch(source: ExplorerSource, fen: Fen): CachedExplorerResult {
     val cached = cache.get(fen, source)
     if (cached != null && isFresh(source, cached)) {
       return CachedExplorerResult.Fresh(cached.response)

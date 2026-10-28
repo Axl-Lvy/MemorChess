@@ -7,10 +7,12 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStoreGc {
@@ -46,13 +48,13 @@ internal class TestSyncStoreGc {
       deviceSeq = 1,
     )
 
-  private suspend fun register(user: String, vararg devices: String) {
+  private suspend fun register(user: UserId, devices: List<DeviceId>) {
     for (device in devices) {
       store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, now)
     }
   }
 
-  private suspend fun push(user: String, device: String, vararg rows: SettingSyncRow) =
+  private suspend fun push(user: UserId, device: DeviceId, vararg rows: SettingSyncRow) =
     store.push(
       user,
       device,
@@ -61,7 +63,7 @@ internal class TestSyncStoreGc {
     )
 
   /** Pulls and confirms until [device] has committed everything, the way a real cycle does. */
-  private suspend fun catchUp(user: String, device: String) {
+  private suspend fun catchUp(user: UserId, device: DeviceId) {
     var ack: String? = null
     repeat(10) {
       val page = store.pull(user, device, ack, 500, now)
@@ -70,7 +72,7 @@ internal class TestSyncStoreGc {
     }
   }
 
-  private suspend fun settingsOf(user: String, device: String) =
+  private suspend fun settingsOf(user: UserId, device: DeviceId) =
     store.pull(user, device, null, 500, now).settings
 
   /**
@@ -78,15 +80,15 @@ internal class TestSyncStoreGc {
    *
    * Registers that device, which pins the watermark at `0`, so call it only after collection.
    */
-  private suspend fun storedSetting(user: String, key: String): SettingSyncRow? {
-    register(user, OBSERVER)
+  private suspend fun storedSetting(user: UserId, key: String): SettingSyncRow? {
+    register(user, listOf(OBSERVER))
     return settingsOf(user, OBSERVER).singleOrNull { it.key == key }
   }
 
   @Test
   fun aUserWithNoRegisteredDeviceIsNeverScanned() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A)
+    register(user, listOf(DEVICE_A))
     push(user, DEVICE_A, setting("a", "1"))
     catchUp(user, DEVICE_A)
     push(user, DEVICE_A, setting("a", "1", seq = 2, deleted = true))
@@ -101,7 +103,7 @@ internal class TestSyncStoreGc {
   @Test
   fun aDeviceStillAtZeroBlocksTheWholeUser() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A, DEVICE_B)
+    register(user, listOf(DEVICE_A, DEVICE_B))
     push(user, DEVICE_A, setting("a", "1"))
     push(user, DEVICE_A, setting("a", "1", seq = 2, deleted = true))
     catchUp(user, DEVICE_A)
@@ -115,7 +117,7 @@ internal class TestSyncStoreGc {
   @Test
   fun everyDeviceCaughtUpPurgesTheTombstone() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A, DEVICE_B)
+    register(user, listOf(DEVICE_A, DEVICE_B))
     push(user, DEVICE_A, setting("a", "1"))
     push(user, DEVICE_A, setting("a", "1", seq = 2, deleted = true))
     catchUp(user, DEVICE_A)
@@ -129,7 +131,7 @@ internal class TestSyncStoreGc {
   @Test
   fun aRemovedDeviceIsExcludedFromTheMinimum() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A, DEVICE_B)
+    register(user, listOf(DEVICE_A, DEVICE_B))
     push(user, DEVICE_A, setting("a", "1"))
     push(user, DEVICE_A, setting("a", "1", seq = 2, deleted = true))
     catchUp(user, DEVICE_A)
@@ -143,7 +145,7 @@ internal class TestSyncStoreGc {
   @Test
   fun aLiveRowBelowTheWatermarkIsUntouched() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A)
+    register(user, listOf(DEVICE_A))
     push(user, DEVICE_A, setting("keep", "1"))
     push(user, DEVICE_A, setting("gone", "1"))
     push(user, DEVICE_A, setting("gone", "1", seq = 2, deleted = true))
@@ -158,7 +160,7 @@ internal class TestSyncStoreGc {
   @Test
   fun aTombstoneAboveTheWatermarkIsKept() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A, DEVICE_B)
+    register(user, listOf(DEVICE_A, DEVICE_B))
     push(user, DEVICE_A, setting("a", "1"))
     catchUp(user, DEVICE_A)
     catchUp(user, DEVICE_B)
@@ -174,8 +176,8 @@ internal class TestSyncStoreGc {
   fun oneUsersWatermarkNeverPurgesAnothersRow() = runTest {
     val mine = PostgresTestDb.newUserId()
     val theirs = PostgresTestDb.newUserId()
-    register(mine, DEVICE_A)
-    register(theirs, DEVICE_A)
+    register(mine, listOf(DEVICE_A))
+    register(theirs, listOf(DEVICE_A))
     push(theirs, DEVICE_A, setting("a", "1"))
     push(theirs, DEVICE_A, setting("a", "1", seq = 2, deleted = true))
     push(mine, DEVICE_A, setting("b", "1"))
@@ -189,7 +191,7 @@ internal class TestSyncStoreGc {
   @Test
   fun collectingRecordsTheWatermarkAsTheFloor() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A)
+    register(user, listOf(DEVICE_A))
     push(user, DEVICE_A, setting("a", "1"))
     catchUp(user, DEVICE_A)
     val watermark = store.listDevicesForTest(user).single().lastAcked
@@ -202,7 +204,7 @@ internal class TestSyncStoreGc {
   @Test
   fun aSecondTickWithAnUnchangedWatermarkRewritesTheSameFloor() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A)
+    register(user, listOf(DEVICE_A))
     push(user, DEVICE_A, setting("a", "1"))
     catchUp(user, DEVICE_A)
     store.collectTombstones()
@@ -265,7 +267,7 @@ internal class TestSyncStoreGc {
   @Test
   fun deletingAUserClearsItsDevicesAndItsFloor() = runTest {
     val user = PostgresTestDb.newUserId()
-    register(user, DEVICE_A)
+    register(user, listOf(DEVICE_A))
     push(user, DEVICE_A, setting("a", "1"))
     catchUp(user, DEVICE_A)
     store.collectTombstones()
@@ -277,8 +279,8 @@ internal class TestSyncStoreGc {
   }
 
   private companion object {
-    const val DEVICE_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-    const val DEVICE_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-    const val OBSERVER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    val DEVICE_A = DeviceId("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+    val DEVICE_B = DeviceId("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+    val OBSERVER = DeviceId("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
   }
 }

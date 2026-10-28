@@ -5,6 +5,8 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
@@ -12,6 +14,7 @@ import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.db.resolvePositionIds
 
@@ -20,7 +23,7 @@ internal class TestSyncStoreDeleteUser {
   private val store = SyncStore(PostgresTestDb.dataSource())
 
   /** A fresh user with one registered device, which pushing now requires. */
-  private suspend fun newUser(): String {
+  private suspend fun newUser(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -30,7 +33,7 @@ internal class TestSyncStoreDeleteUser {
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
-  private suspend fun populate(user: String, origin: String, destination: String) {
+  private suspend fun populate(user: UserId, origin: String, destination: String) {
     store.push(
       user,
       DEVICE,
@@ -50,7 +53,7 @@ internal class TestSyncStoreDeleteUser {
               step = 0,
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -63,7 +66,7 @@ internal class TestSyncStoreDeleteUser {
               isGood = true,
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -74,7 +77,7 @@ internal class TestSyncStoreDeleteUser {
               value = "dark",
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -83,10 +86,10 @@ internal class TestSyncStoreDeleteUser {
             RepertoireSyncRow(
               id = "italian-game",
               name = "Italian Game",
-              color = "WHITE",
+              color = RepertoireColor.WHITE,
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -99,7 +102,7 @@ internal class TestSyncStoreDeleteUser {
               move = "e4",
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = "device-a",
+              originDevice = DeviceId("device-a"),
               deviceSeq = 1,
             )
           ),
@@ -165,6 +168,6 @@ internal class TestSyncStoreDeleteUser {
   }
 
   private companion object {
-    const val DEVICE = "44444444-4444-4444-8444-444444444444"
+    val DEVICE = DeviceId("44444444-4444-4444-8444-444444444444")
   }
 }

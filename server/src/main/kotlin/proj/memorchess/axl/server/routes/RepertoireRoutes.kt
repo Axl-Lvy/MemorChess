@@ -141,7 +141,7 @@ private suspend fun RoutingContext.getMoves(store: RepertoireStore) {
 }
 
 private suspend fun RoutingContext.getCatalogPage(store: RepertoireStore) {
-  val page = store.listPublished(cursor(), limit())
+  val page = store.listPublished(cursor(), pageLimit(DEFAULT_CATALOG_LIMIT, MAX_CATALOG_LIMIT))
   val counts = store.countsFor(page.rows.map { it.id })
   call.cacheControl(CATALOG_CACHE_CONTROL)
   call.respond(
@@ -166,9 +166,6 @@ private suspend fun RoutingContext.getById(store: RepertoireStore) {
 
 private suspend fun RoutingContext.publish(store: RepertoireStore, clock: () -> Instant) {
   val request = call.receive<PublishRepertoireRequest>()
-  if (request.side != "white" && request.side != "black") {
-    throw BadRequestException("side must be 'white' or 'black', was '${request.side}'")
-  }
   val outcome =
     store.publish(
       authorId = call.callerId,
@@ -226,9 +223,6 @@ private suspend fun RoutingContext.removeRepertoire(store: RepertoireStore) {
 private suspend fun RoutingContext.setStatus(store: RepertoireStore) {
   val id = call.parameters["id"] ?: throw BadRequestException(MISSING_ID_MESSAGE)
   val request = call.receive<RepertoireStatusRequest>()
-  if (request.status !in VALID_STATUSES) {
-    throw BadRequestException("status must be one of $VALID_STATUSES, was '${request.status}'")
-  }
   when (val outcome = store.setStatus(id, request.status)) {
     is SetStatusOutcome.Updated -> call.respond(outcome.row.toDescriptor())
     SetStatusOutcome.NotFound -> call.respondNoSuchRepertoire()
@@ -239,9 +233,6 @@ private suspend fun ApplicationCall.respondNoSuchRepertoire() {
   respond(HttpStatusCode.NotFound, ApiError(ApiErrorCode.NOT_FOUND, NO_SUCH_REPERTOIRE_MESSAGE))
 }
 
-/** The status values a repertoire row may hold. See spec 6.6. */
-private val VALID_STATUSES = setOf("published", "unlisted", "removed")
-
 private const val MISSING_ID_MESSAGE = "missing id"
 private const val NO_SUCH_REPERTOIRE_MESSAGE = "no such repertoire"
 
@@ -251,13 +242,3 @@ private fun ApplicationCall.cacheControl(value: String) {
 
 /** The caller's requested page cursor, the last id of the previous page. */
 private fun RoutingContext.cursor(): String? = call.request.queryParameters["cursor"]
-
-/** The caller's requested page size, clamped to [MAX_CATALOG_LIMIT]. */
-private fun RoutingContext.limit(): Int {
-  val raw = call.request.queryParameters["limit"] ?: return DEFAULT_CATALOG_LIMIT
-  val limit = raw.toIntOrNull()
-  if (limit == null || limit <= 0) {
-    throw BadRequestException("limit must be a positive integer, was '$raw'")
-  }
-  return minOf(limit, MAX_CATALOG_LIMIT)
-}

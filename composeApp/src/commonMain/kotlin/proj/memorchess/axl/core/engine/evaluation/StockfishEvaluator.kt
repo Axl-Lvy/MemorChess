@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import proj.memorchess.axl.core.engine.Fen
+import proj.memorchess.axl.core.engine.Player
 
 /**
  * Wraps the Stockfish engine and exposes position evaluation as a [StateFlow].
@@ -59,10 +61,9 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
    * Evaluates the given FEN position. Cancels any in-progress search.
    *
    * @param fen Full 6-part FEN string.
-   * @param isBlackToMove `true` when it is Black's turn, used to flip the score to White's
-   *   perspective.
+   * @param sideToMove The side to move, used to flip the score to White's perspective.
    */
-  suspend fun evaluate(fen: String, isBlackToMove: Boolean) {
+  suspend fun evaluate(fen: Fen, sideToMove: Player) {
     val currentEngine = awaitEngine() ?: return
 
     // Cancel previous search and wait for it to fully finish before touching the engine again.
@@ -76,13 +77,13 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
 
     searchJob = scope.launch {
       try {
-        currentEngine.setPosition(fen = fen)
+        currentEngine.setPosition(fen = fen.value)
         val depthArg = if (maxDepth == 0) null else maxDepth
         val result =
           currentEngine.search(depth = depthArg) { info ->
             info.depth?.let { _currentDepth.value = it }
             val score = info.score ?: return@search
-            _evaluation.value = toEvaluationScore(score, isBlackToMove)
+            _evaluation.value = toEvaluationScore(score, sideToMove)
             if (info.pv.isNotEmpty()) {
               _bestMove.value = BestMove.fromUci(info.pv.first())
             }
@@ -119,8 +120,8 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
      * The library reports scores from the side-to-move's perspective, so we flip when Black is to
      * move.
      */
-    private fun toEvaluationScore(score: Score, isBlackToMove: Boolean): EvaluationScore {
-      val flip = if (isBlackToMove) -1 else 1
+    private fun toEvaluationScore(score: Score, sideToMove: Player): EvaluationScore {
+      val flip = if (sideToMove == Player.BLACK) -1 else 1
       return when (score) {
         is Score.Cp -> EvaluationScore.Centipawns(score.centipawns * flip)
         is Score.Mate -> EvaluationScore.Mate(score.moves * flip)

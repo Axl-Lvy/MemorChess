@@ -21,10 +21,12 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeSyncRow
 import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RejectionCode
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncEraseRequest
@@ -65,12 +67,12 @@ class TestSyncRoutes {
     val subject = PostgresTestDb.newUserId()
     registrar.registerDevice(
       subject,
-      DEVICE,
+      DeviceId(DEVICE),
       DevicePlatform.JVM,
       afterReset = false,
       serverNow,
     )
-    return key.token(subject = subject)
+    return key.token(subject = subject.value)
   }
 
   /** Runs [block] against the real module, real store and real Postgres, as one caller. */
@@ -93,9 +95,15 @@ class TestSyncRoutes {
     // Registration gates pulling, and its own route arrives with the device endpoints. Until then
     // the store is primed directly, which is what a real client does over HTTP.
     for (device in devices) {
-      store.registerDevice(user, device, DevicePlatform.JVM, afterReset = false, serverNow)
+      store.registerDevice(
+        user,
+        DeviceId(device),
+        DevicePlatform.JVM,
+        afterReset = false,
+        serverNow,
+      )
     }
-    block(client, key.token(subject = user))
+    block(client, key.token(subject = user.value))
   }
 
   private fun setting(key: String, value: String, at: Instant = serverNow) =
@@ -104,7 +112,7 @@ class TestSyncRoutes {
       value = value,
       isDeleted = false,
       updatedAt = at,
-      originDevice = DEVICE,
+      originDevice = DeviceId(DEVICE),
       deviceSeq = 1,
     )
 
@@ -114,7 +122,7 @@ class TestSyncRoutes {
       contentType(ContentType.Application.Json)
       setBody(
         SYNC_JSON.encodeToString(
-          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DEVICE)
+          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DeviceId(DEVICE))
         )
       )
     }
@@ -151,7 +159,7 @@ class TestSyncRoutes {
     val response = SYNC_JSON.decodeFromString<SyncPushResponse>(body)
 
     response.serverTime shouldBe serverNow
-    (response.revision > 0) shouldBe true
+    (response.revision > Revision.ZERO) shouldBe true
     response.rejected shouldHaveSize 0
   }
 
@@ -252,6 +260,30 @@ class TestSyncRoutes {
   }
 
   @Test
+  fun `refuses a pull from a device that is not a canonical UUID`() =
+    withServer(devices = listOf(DEVICE, "not-a-uuid")) { client, token ->
+      val response =
+        client.get("/v1/sync?device=not-a-uuid") {
+          header(HttpHeaders.Authorization, "Bearer $token")
+        }
+
+      response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+    }
+
+  @Test
+  fun `refuses a pull from the nil UUID reserved for erase tombstones`() =
+    withServer(devices = listOf(DEVICE, NIL_UUID)) { client, token ->
+      val response =
+        client.get("/v1/sync?device=$NIL_UUID") {
+          header(HttpHeaders.Authorization, "Bearer $token")
+        }
+
+      response.status shouldBe HttpStatusCode.BadRequest
+      SYNC_JSON.decodeFromString<ApiError>(response.bodyAsText()).code shouldBe "bad_request"
+    }
+
+  @Test
   fun `an unacknowledged token confirms nothing and re serves the page`() =
     withServer { client, token ->
       client.push(token, setting("a", "1"))
@@ -281,7 +313,9 @@ class TestSyncRoutes {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
         setBody(
-          SYNC_JSON.encodeToString(SyncPushRequest(emptyList(), emptyList(), rows, device = DEVICE))
+          SYNC_JSON.encodeToString(
+            SyncPushRequest(emptyList(), emptyList(), rows, device = DeviceId(DEVICE))
+          )
         )
       }
 
@@ -304,7 +338,7 @@ class TestSyncRoutes {
           isGood = true,
           isDeleted = false,
           updatedAt = serverNow,
-          originDevice = "device-a",
+          originDevice = DeviceId("device-a"),
           deviceSeq = 1,
         )
       }
@@ -313,7 +347,11 @@ class TestSyncRoutes {
       client.post("/v1/sync") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(SyncPushRequest(nodes, edges, settings, device = DEVICE)))
+        setBody(
+          SYNC_JSON.encodeToString(
+            SyncPushRequest(nodes, edges, settings, device = DeviceId(DEVICE))
+          )
+        )
       }
 
     response.status shouldBe HttpStatusCode.PayloadTooLarge
@@ -386,13 +424,13 @@ class TestSyncRoutes {
                       step = 0,
                       isDeleted = false,
                       updatedAt = serverNow,
-                      originDevice = "device-a",
+                      originDevice = DeviceId("device-a"),
                       deviceSeq = 1,
                     )
                   ),
                 edges = emptyList(),
                 settings = emptyList(),
-                device = DEVICE,
+                device = DeviceId(DEVICE),
               )
             )
           )
@@ -416,7 +454,7 @@ class TestSyncRoutes {
       step = 0,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = DEVICE,
+      originDevice = DeviceId(DEVICE),
       deviceSeq = 1,
     )
 
@@ -428,7 +466,7 @@ class TestSyncRoutes {
     }
 
   private fun eraseBody(device: String, deviceSeq: Long = 1) =
-    SYNC_JSON.encodeToString(SyncEraseRequest(device, deviceSeq))
+    SYNC_JSON.encodeToString(SyncEraseRequest(DeviceId(device), deviceSeq))
 
   @Test
   fun `erase requires authentication`() = withServer { client, _ ->
@@ -478,7 +516,12 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(listOf(node("fen-1")), emptyList(), emptyList(), device = DEVICE)
+            SyncPushRequest(
+              listOf(node("fen-1")),
+              emptyList(),
+              emptyList(),
+              device = DeviceId(DEVICE),
+            )
           )
         )
       }
@@ -488,7 +531,7 @@ class TestSyncRoutes {
       response.status shouldBe HttpStatusCode.OK
       val erased = SYNC_JSON.decodeFromString<SyncEraseResponse>(response.bodyAsText())
       erased.serverTime shouldBe serverNow
-      (erased.revision > 0) shouldBe true
+      (erased.revision > Revision.ZERO) shouldBe true
       val page = SYNC_JSON.decodeFromString<SyncPullResponse>(client.pull(token).bodyAsText())
       page.nodes shouldHaveSize 1
       page.nodes.single().positionKey shouldBe "fen-1"
@@ -504,7 +547,7 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(emptyList(), emptyList(), emptyList(), device = stranger)
+            SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DeviceId(stranger))
           )
         )
       }

@@ -59,7 +59,7 @@ class TestLichessOAuthClient {
       )
 
     result.shouldBeInstanceOf<TokenExchangeResult.Ok>()
-    result.accessToken shouldBe "tok-xyz"
+    result.accessToken shouldBe LichessToken("tok-xyz")
   }
 
   @Test
@@ -77,7 +77,7 @@ class TestLichessOAuthClient {
     val engine = MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
     val client = LichessOAuthClient(jsonClient(engine))
 
-    client.fetchAccount("bad-token") shouldBe AccountResult.Unauthorized
+    client.fetchAccount(LichessToken("bad-token")) shouldBe AccountResult.Unauthorized
   }
 
   @Test
@@ -91,7 +91,7 @@ class TestLichessOAuthClient {
     }
     val client = LichessOAuthClient(jsonClient(engine))
 
-    val result = client.fetchAccount("tok-xyz")
+    val result = client.fetchAccount(LichessToken("tok-xyz"))
 
     result.shouldBeInstanceOf<AccountResult.Ok>()
     result.username shouldBe "alice"

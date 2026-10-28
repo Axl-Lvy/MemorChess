@@ -11,6 +11,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
 
@@ -31,17 +32,17 @@ class RepertoirePublishClient(
 
   /** Publishes or republishes [id] as the caller's own repertoire. */
   suspend fun publish(
-    accessToken: String,
+    accessToken: AccessToken,
     id: String,
     title: String,
     description: String,
-    side: String,
+    side: RepertoireColor,
     moves: List<RepertoireMove>,
   ): PublishOutcome =
     try {
       val response: HttpResponse =
         httpClient.post(baseUrl) {
-          bearerAuth(accessToken)
+          bearerAuth(accessToken.value)
           contentType(ContentType.Application.Json)
           setBody(PublishRepertoireRequest(id, title, description, side, moves))
         }
@@ -70,9 +71,10 @@ class RepertoirePublishClient(
     }
 
   /** Removes [id], the caller's own repertoire. */
-  suspend fun remove(accessToken: String, id: String): RemoveOutcome =
+  suspend fun remove(accessToken: AccessToken, id: String): RemoveOutcome =
     try {
-      val response: HttpResponse = httpClient.delete("$baseUrl/$id") { bearerAuth(accessToken) }
+      val response: HttpResponse =
+        httpClient.delete("$baseUrl/$id") { bearerAuth(accessToken.value) }
       when {
         response.status == HttpStatusCode.NoContent -> RemoveOutcome.Removed
         response.status == HttpStatusCode.NotFound -> RemoveOutcome.NotFound

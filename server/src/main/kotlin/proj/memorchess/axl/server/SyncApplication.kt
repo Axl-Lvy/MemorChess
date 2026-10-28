@@ -185,7 +185,7 @@ internal fun Application.installRateLimiting(tiers: RateLimitTiers = PRODUCTION_
  * call never reaches a nested rate limiter, since the authentication challenge answers first. It
  * exists so this never throws if a route is ever rewired without that wrapping.
  */
-private fun ApplicationCall.callerKey(): String = principal<Caller>()?.userId ?: clientIp()
+private fun ApplicationCall.callerKey(): String = principal<Caller>()?.userId?.value ?: clientIp()
 
 /**
  * The caller's IP, trusting Cloudflare's own header over the socket address.

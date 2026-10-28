@@ -1,6 +1,7 @@
 package proj.memorchess.axl.server.sync
 
 import kotlin.time.Instant
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.RejectionCode
 import proj.memorchess.axl.core.sync.ResolutionSource
 import proj.memorchess.axl.core.sync.SettingSyncRow
@@ -19,7 +20,9 @@ import proj.memorchess.axl.core.sync.resolve
  *
  * @property deviceId Opaque device id, which also breaks conflict ties.
  */
-internal class TestDevice(private val deviceId: String) {
+internal class TestDevice(deviceId: String) {
+
+  private val deviceId = DeviceId(deviceId)
 
   private val rows = mutableMapOf<String, SettingSyncRow>()
   private val dirty = mutableSetOf<String>()

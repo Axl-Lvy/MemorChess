@@ -731,7 +731,7 @@ private fun PublishAction(localId: String, name: String, color: RepertoireColor)
     visible = showDialog,
     repertoireName = name,
     initialSlug = initialSlug,
-    side = if (color == RepertoireColor.WHITE) "white" else "black",
+    side = color,
     onSubmit = { slug, title, description, side ->
       showDialog = false
       viewModel.publish(slug, title, description, side)

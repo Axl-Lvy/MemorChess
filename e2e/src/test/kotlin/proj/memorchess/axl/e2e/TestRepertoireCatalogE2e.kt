@@ -10,9 +10,11 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.data.repertoire.CatalogResult
 import proj.memorchess.axl.core.data.repertoire.PublishOutcome
 import proj.memorchess.axl.core.data.repertoire.RepertoireCatalogClient
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoireManifest
 import proj.memorchess.axl.core.data.repertoire.RepertoireMove
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishClient
@@ -34,11 +36,11 @@ class TestRepertoireCatalogE2e {
 
       val published =
         publishClient.publish(
-          accessToken = server.tokenFor(author),
+          accessToken = AccessToken(server.tokenFor(author)),
           id = id,
           title = "E2E round trip",
           description = "Published by TestRepertoireCatalogE2e",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
       val manifest =
@@ -63,11 +65,11 @@ class TestRepertoireCatalogE2e {
     runBlocking<Unit> {
       val outcome =
         publishClient.publish(
-          accessToken = "not-a-jwt",
+          accessToken = AccessToken("not-a-jwt"),
           id = UUID.randomUUID().toString(),
           title = "E2E unauthorized",
           description = "Must never be stored",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
 
@@ -80,11 +82,11 @@ class TestRepertoireCatalogE2e {
       val id = UUID.randomUUID().toString()
       publishClient
         .publish(
-          accessToken = server.tokenFor(server.newUserId()),
+          accessToken = AccessToken(server.tokenFor(server.newUserId())),
           id = id,
           title = "E2E shared state",
           description = "Published on the first server",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
         .shouldBeInstanceOf<PublishOutcome.Published>()
@@ -109,11 +111,11 @@ class TestRepertoireCatalogE2e {
       val id = UUID.randomUUID().toString()
       publishClient
         .publish(
-          accessToken = server.tokenFor(server.newUserId()),
+          accessToken = AccessToken(server.tokenFor(server.newUserId())),
           id = id,
           title = "E2E missing version",
           description = "Only version 1 exists",
-          side = "white",
+          side = RepertoireColor.WHITE,
           moves = MOVES,
         )
         .shouldBeInstanceOf<PublishOutcome.Published>()

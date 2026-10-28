@@ -14,6 +14,8 @@ import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.LichessToken
+import proj.memorchess.axl.core.engine.Fen
 
 class TestLichessExplorerClient {
 
@@ -35,7 +37,7 @@ class TestLichessExplorerClient {
     userAgentProvider: () -> String? = { null },
   ) =
     LichessExplorerClient(
-      tokenProvider = { "test-token" },
+      tokenProvider = { LichessToken("test-token") },
       userAgentProvider = userAgentProvider,
       httpClient =
         HttpClient(engine) {
@@ -55,7 +57,7 @@ class TestLichessExplorerClient {
     }
     val client = buildClient(engine)
 
-    val result = client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+    val result = client.fetch(ExplorerSource.MASTERS, fen = Fen("rnb fen"))
 
     result.shouldBeInstanceOf<ExplorerResult.Ok>()
     result.response.opening?.eco shouldBe "B00"
@@ -69,7 +71,7 @@ class TestLichessExplorerClient {
     }
     val client = buildClient(engine)
 
-    val result = client.fetch(ExplorerSource.LICHESS, fen = "f")
+    val result = client.fetch(ExplorerSource.LICHESS, fen = Fen("f"))
 
     result.shouldBeInstanceOf<ExplorerResult.NetworkError>()
   }
@@ -87,7 +89,7 @@ class TestLichessExplorerClient {
     }
     val client = buildClient(engine, userAgentProvider = { "test-agent" })
 
-    client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+    client.fetch(ExplorerSource.MASTERS, fen = Fen("rnb fen"))
 
     sentUserAgent shouldBe "test-agent"
   }
@@ -107,7 +109,7 @@ class TestLichessExplorerClient {
     // fails explorer.lichess.ovh's CORS preflight on Firefox.
     val client = buildClient(engine, userAgentProvider = { null })
 
-    client.fetch(ExplorerSource.MASTERS, fen = "rnb fen")
+    client.fetch(ExplorerSource.MASTERS, fen = Fen("rnb fen"))
 
     sentUserAgent shouldBe null
   }
@@ -121,7 +123,7 @@ class TestLichessExplorerClient {
     }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(engine) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
@@ -130,7 +132,7 @@ class TestLichessExplorerClient {
         maxAttemptsOn429 = 2,
       )
 
-    val result = client.fetch(ExplorerSource.LICHESS, fen = "f")
+    val result = client.fetch(ExplorerSource.LICHESS, fen = Fen("f"))
 
     result shouldBe ExplorerResult.RateLimited
     // Two attempts because maxAttemptsOn429 = 2 means we make 2 calls total.

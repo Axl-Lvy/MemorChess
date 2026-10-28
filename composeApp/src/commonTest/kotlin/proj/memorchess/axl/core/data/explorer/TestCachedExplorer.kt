@@ -16,6 +16,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import proj.memorchess.axl.core.auth.LichessToken
+import proj.memorchess.axl.core.engine.Fen
 import proj.memorchess.axl.test_util.InMemoryExplorerCache
 
 class TestCachedExplorer {
@@ -40,11 +42,12 @@ class TestCachedExplorer {
 
   @Test
   fun freshCacheHitDoesNotCallNetworkForMasters() = runTest {
-    val cache = InMemoryExplorerCache().also { it.seed("fen1", ExplorerSource.MASTERS, sample) }
+    val cache =
+      InMemoryExplorerCache().also { it.seed(Fen("fen1"), ExplorerSource.MASTERS, sample) }
     var networkCalls = 0
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ ->
@@ -62,7 +65,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.MASTERS, "fen1")
+    val result = explorer.fetch(ExplorerSource.MASTERS, Fen("fen1"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Fresh>()
     networkCalls shouldBe 0
@@ -73,7 +76,7 @@ class TestCachedExplorer {
     val cache =
       InMemoryExplorerCache().also {
         it.seed(
-          "fen2",
+          Fen("fen2"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -82,7 +85,7 @@ class TestCachedExplorer {
     var networkCalls = 0
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ ->
@@ -100,7 +103,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fen2")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fen2"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Fresh>()
     networkCalls shouldBe 1
@@ -111,7 +114,7 @@ class TestCachedExplorer {
     val cache =
       InMemoryExplorerCache().also {
         it.seed(
-          "fen3",
+          Fen("fen3"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -119,7 +122,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -130,7 +133,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fen3")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fen3"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
   }
@@ -140,7 +143,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
@@ -151,7 +154,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.MASTERS, "fenX")
+    val result = explorer.fetch(ExplorerSource.MASTERS, Fen("fenX"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.NetworkError>()
   }
@@ -161,7 +164,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
@@ -172,7 +175,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenNoAuth")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenNoAuth"))
 
     result shouldBe CachedExplorerResult.Unauthorized
   }
@@ -182,7 +185,7 @@ class TestCachedExplorer {
     val cache =
       InMemoryExplorerCache().also {
         it.seed(
-          "fenAuthStale",
+          Fen("fenAuthStale"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -190,7 +193,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
@@ -201,7 +204,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenAuthStale")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenAuthStale"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
   }
@@ -211,7 +214,7 @@ class TestCachedExplorer {
     val cache = InMemoryExplorerCache()
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
@@ -223,7 +226,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenY")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenY"))
 
     result shouldBe CachedExplorerResult.RateLimited
   }
@@ -233,7 +236,7 @@ class TestCachedExplorer {
     val cache =
       InMemoryExplorerCache().also {
         it.seed(
-          "fenZ",
+          Fen("fenZ"),
           ExplorerSource.LICHESS,
           sample,
           fetchedAt = Instant.parse("2020-01-01T00:00:00Z"),
@@ -241,7 +244,7 @@ class TestCachedExplorer {
       }
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
@@ -253,7 +256,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenZ")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenZ"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Stale>()
   }
@@ -262,11 +265,13 @@ class TestCachedExplorer {
   fun lichessCacheWithinTtlSkipsNetwork() = runTest {
     val recent = proj.memorchess.axl.core.date.DateUtil.now()
     val cache =
-      InMemoryExplorerCache().also { it.seed("fenFresh", ExplorerSource.LICHESS, sample, recent) }
+      InMemoryExplorerCache().also {
+        it.seed(Fen("fenFresh"), ExplorerSource.LICHESS, sample, recent)
+      }
     var networkCalls = 0
     val client =
       LichessExplorerClient(
-        tokenProvider = { "test-token" },
+        tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
             MockEngine { _ ->
@@ -280,7 +285,7 @@ class TestCachedExplorer {
       )
     val explorer = CachedExplorer(client, cache, lichessTtl = 7.days)
 
-    val result = explorer.fetch(ExplorerSource.LICHESS, "fenFresh")
+    val result = explorer.fetch(ExplorerSource.LICHESS, Fen("fenFresh"))
 
     result.shouldBeInstanceOf<CachedExplorerResult.Fresh>()
     networkCalls shouldBe 0

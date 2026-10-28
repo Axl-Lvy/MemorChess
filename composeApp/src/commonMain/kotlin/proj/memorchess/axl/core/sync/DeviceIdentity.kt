@@ -1,7 +1,6 @@
 package proj.memorchess.axl.core.sync
 
 import com.russhwolf.settings.Settings
-import kotlin.uuid.Uuid
 import kotlinx.coroutines.sync.Mutex
 
 /**
@@ -18,11 +17,11 @@ import kotlinx.coroutines.sync.Mutex
 class DeviceIdentity private constructor(private val settings: Settings?) {
 
   /** Opaque id of this install. Never displayed, never an identity. */
-  val originDevice: String =
+  val originDevice: DeviceId =
     settings?.let { s ->
-      s.getStringOrNull(KEY_ORIGIN_DEVICE)
-        ?: generateId().also { s.putString(KEY_ORIGIN_DEVICE, it) }
-    } ?: generateId()
+      s.getStringOrNull(KEY_ORIGIN_DEVICE)?.let(DeviceId::parseOrNull)
+        ?: DeviceId.random().also { s.putString(KEY_ORIGIN_DEVICE, it.value) }
+    } ?: DeviceId.random()
 
   // A non-suspend spinlock (Mutex.tryLock/unlock, not the suspend lock()/withLock() API) so
   // nextDeviceSeq can be called from non-suspend call sites such as
@@ -77,7 +76,5 @@ class DeviceIdentity private constructor(private val settings: Settings?) {
      * cross session identity.
      */
     fun ephemeral(): DeviceIdentity = DeviceIdentity(null)
-
-    private fun generateId(): String = Uuid.random().toString()
   }
 }

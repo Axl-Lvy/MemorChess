@@ -36,11 +36,13 @@ import proj.memorchess.axl.server.auth.TEST_AUDIENCE
 import proj.memorchess.axl.server.auth.TEST_ISSUER
 import proj.memorchess.axl.server.auth.TestJwkProvider
 import proj.memorchess.axl.server.auth.TestSigningKey
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.auth.installJwtAuth
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.repertoire.PublishOutcome
 import proj.memorchess.axl.server.repertoire.RepertoireCatalogPage
 import proj.memorchess.axl.server.repertoire.RepertoireRow
+import proj.memorchess.axl.server.repertoire.RepertoireStatus
 import proj.memorchess.axl.server.repertoire.RepertoireStatusRequest
 import proj.memorchess.axl.server.repertoire.RepertoireStore
 import proj.memorchess.axl.server.repertoire.line
@@ -69,7 +71,7 @@ class TestRepertoireRoutes {
   // Fresh per test method (a new instance is created for every @Test), so the per author quota
   // counted against the shared table never accumulates across tests the way a literal "author-1"
   // would.
-  private fun newAuthor(): String = "author-${java.util.UUID.randomUUID()}"
+  private fun newAuthor(): UserId = UserId("author-${java.util.UUID.randomUUID()}")
 
   private val author1 = newAuthor()
   private val author2 = newAuthor()
@@ -89,7 +91,7 @@ class TestRepertoireRoutes {
   fun `manifest json lists only published repertoires with schemaVersion 2`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/manifest.json")
@@ -105,7 +107,7 @@ class TestRepertoireRoutes {
   fun `manifest json reports zero downloadCount for a repertoire with no recorded installs`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/manifest.json")
@@ -119,7 +121,7 @@ class TestRepertoireRoutes {
   fun `install route increments downloadCount and reports it back in the manifest`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val first = client.post("/v1/repertoires/$id/installs")
@@ -139,7 +141,7 @@ class TestRepertoireRoutes {
   fun `install route requires no authentication`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       // No Authorization header at all, unlike the authenticated publish/delete routes below.
@@ -170,9 +172,9 @@ class TestRepertoireRoutes {
     val unlisted = newId()
     val removed = newId()
     runBlocking {
-      store.publish(author1, unlisted, "T", "D", "white", moves(), now)
-      store.setStatus(unlisted, "unlisted")
-      store.publish(author1, removed, "T", "D", "white", moves(), now)
+      store.publish(author1, unlisted, "T", "D", RepertoireColor.WHITE, moves(), now)
+      store.setStatus(unlisted, RepertoireStatus.UNLISTED)
+      store.publish(author1, removed, "T", "D", RepertoireColor.WHITE, moves(), now)
       store.remove(author1, removed)
     }
 
@@ -191,7 +193,9 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     val published =
-      runBlocking { store.publish(author1, id, "T", "D", "white", moves("e4", "e5"), now) }
+      runBlocking {
+        store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves("e4", "e5"), now)
+      }
         as PublishOutcome.Published
 
     app(store) { client ->
@@ -207,7 +211,7 @@ class TestRepertoireRoutes {
   fun `moves route answers 404 for an unknown version`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       client.get("/v1/repertoires/$id/versions/2/moves").status shouldBe HttpStatusCode.NotFound
@@ -227,14 +231,14 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     val published =
-      runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+      runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
         as PublishOutcome.Published
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
-        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
+        setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest(RepertoireStatus.REMOVED)))
       }
 
       client.get("/v1/repertoires/${published.row.file()}").status shouldBe HttpStatusCode.NotFound
@@ -242,11 +246,38 @@ class TestRepertoireRoutes {
   }
 
   @Test
+  fun `admin status rejects an unknown status with bad_request`() {
+    val store = newStore()
+    val id = newId()
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
+
+    app(store) { client ->
+      val response =
+        client.post("/admin/repertoires/$id/status") {
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
+          contentType(ContentType.Application.Json)
+          setBody("""{"status":"archived"}""")
+        }
+
+      response.status shouldBe HttpStatusCode.BadRequest
+    }
+  }
+
+  @Test
+  fun `the admin status request spells each status as before`() {
+    val encoded =
+      RepertoireStatus.entries.map { SYNC_JSON.encodeToString(RepertoireStatusRequest(it)) }
+
+    encoded shouldBe
+      listOf("""{"status":"published"}""", """{"status":"unlisted"}""", """{"status":"removed"}""")
+  }
+
+  @Test
   fun `moves route sets a far future immutable cache header`() {
     val store = newStore()
     val id = newId()
     val published =
-      runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+      runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
         as PublishOutcome.Published
 
     app(store) { client ->
@@ -261,8 +292,8 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     runBlocking {
-      store.publish(author1, id, "T", "D", "white", moves("e4"), now)
-      store.publish(author1, id, "T", "D", "white", moves("d4"), now)
+      store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves("e4"), now)
+      store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves("d4"), now)
     }
 
     app(store) { client ->
@@ -289,7 +320,9 @@ class TestRepertoireRoutes {
     val store = newStore()
     val prefix = newId()
     val ids = listOf("$prefix-1", "$prefix-2", "$prefix-3")
-    runBlocking { ids.forEach { store.publish(author1, it, "T", "D", "white", moves(), now) } }
+    runBlocking {
+      ids.forEach { store.publish(author1, it, "T", "D", RepertoireColor.WHITE, moves(), now) }
+    }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires?cursor=$prefix&limit=2")
@@ -316,7 +349,7 @@ class TestRepertoireRoutes {
   fun `get by id returns the repertoire metadata`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "Title", "Desc", "black", moves(), now) }
+    runBlocking { store.publish(author1, id, "Title", "Desc", RepertoireColor.BLACK, moves(), now) }
 
     app(store) { client ->
       val response = client.get("/v1/repertoires/$id")
@@ -333,7 +366,7 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     runBlocking {
-      store.publish(author1, id, "T", "D", "white", moves(), now)
+      store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now)
       store.remove(author1, id)
     }
 
@@ -353,7 +386,7 @@ class TestRepertoireRoutes {
   fun `anonymous responses are byte identical with and without a bearer token present`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val withoutToken = client.get("/v1/repertoires/$id").bodyAsText()
@@ -370,7 +403,7 @@ class TestRepertoireRoutes {
     id: String,
     title: String = "T",
     description: String = "D",
-    side: String = "white",
+    side: RepertoireColor = RepertoireColor.WHITE,
     moves: List<RepertoireMove> = moves(),
   ) =
     SYNC_JSON.encodeToString(
@@ -390,7 +423,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(id, title = "My Title"))
         }
@@ -407,7 +440,7 @@ class TestRepertoireRoutes {
     val id = newId()
 
     app(newStore()) { client ->
-      val token = key.token(subject = author1)
+      val token = key.token(subject = author1.value)
       client.post("/v1/repertoires") {
         header(HttpHeaders.Authorization, "Bearer $token")
         contentType(ContentType.Application.Json)
@@ -432,14 +465,14 @@ class TestRepertoireRoutes {
 
     app(newStore()) { client ->
       client.post("/v1/repertoires") {
-        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         contentType(ContentType.Application.Json)
         setBody(publishBody(id))
       }
 
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(id))
         }
@@ -453,14 +486,14 @@ class TestRepertoireRoutes {
     val store = newStore()
     val id = newId()
     runBlocking {
-      store.publish(author1, id, "T", "D", "white", moves(), now)
-      store.setStatus(id, "removed")
+      store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now)
+      store.setStatus(id, RepertoireStatus.REMOVED)
     }
 
     app(store) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(id))
         }
@@ -475,7 +508,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(newId(), moves = emptyList()))
         }
@@ -493,7 +526,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(newId(), moves = illegal))
         }
@@ -511,7 +544,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
           setBody(publishBody(newId(), moves = garbage))
         }
@@ -538,9 +571,9 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/v1/repertoires") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
-          setBody(publishBody(newId(), side = "purple"))
+          setBody(publishBody(newId()).replace(""""side":"white"""", """"side":"purple""""))
         }
 
       response.status shouldBe HttpStatusCode.BadRequest
@@ -551,12 +584,12 @@ class TestRepertoireRoutes {
   fun `delete removes a repertoire the caller authored`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val response =
         client.delete("/v1/repertoires/$id") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         }
 
       response.status shouldBe HttpStatusCode.NoContent
@@ -567,12 +600,12 @@ class TestRepertoireRoutes {
   fun `delete by a non author is forbidden`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val response =
         client.delete("/v1/repertoires/$id") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author2.value)}")
         }
 
       response.status shouldBe HttpStatusCode.Forbidden
@@ -584,7 +617,7 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.delete("/v1/repertoires/${newId()}") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         }
 
       response.status shouldBe HttpStatusCode.NotFound
@@ -602,14 +635,14 @@ class TestRepertoireRoutes {
   fun `admin status change succeeds`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val response =
         client.post("/admin/repertoires/$id/status") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
-          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
+          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest(RepertoireStatus.UNLISTED)))
         }
 
       response.status shouldBe HttpStatusCode.OK
@@ -620,13 +653,13 @@ class TestRepertoireRoutes {
   fun `admin status change without a bearer token is unauthorized`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       val response =
         client.post("/admin/repertoires/$id/status") {
           contentType(ContentType.Application.Json)
-          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
+          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest(RepertoireStatus.UNLISTED)))
         }
 
       response.status shouldBe HttpStatusCode.Unauthorized
@@ -638,9 +671,9 @@ class TestRepertoireRoutes {
     app(newStore()) { client ->
       val response =
         client.post("/admin/repertoires/${newId()}/status") {
-          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+          header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
           contentType(ContentType.Application.Json)
-          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("unlisted")))
+          setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest(RepertoireStatus.UNLISTED)))
         }
 
       response.status shouldBe HttpStatusCode.NotFound
@@ -651,13 +684,13 @@ class TestRepertoireRoutes {
   fun `removing via admin status makes the repertoire disappear from the public list`() {
     val store = newStore()
     val id = newId()
-    runBlocking { store.publish(author1, id, "T", "D", "white", moves(), now) }
+    runBlocking { store.publish(author1, id, "T", "D", RepertoireColor.WHITE, moves(), now) }
 
     app(store) { client ->
       client.post("/admin/repertoires/$id/status") {
-        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1)}")
+        header(HttpHeaders.Authorization, "Bearer ${key.token(subject = author1.value)}")
         contentType(ContentType.Application.Json)
-        setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest("removed")))
+        setBody(SYNC_JSON.encodeToString(RepertoireStatusRequest(RepertoireStatus.REMOVED)))
       }
 
       client.get("/v1/repertoires/$id").status shouldBe HttpStatusCode.NotFound

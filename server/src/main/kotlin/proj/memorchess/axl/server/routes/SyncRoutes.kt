@@ -15,7 +15,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import kotlin.time.Instant
-import kotlin.uuid.Uuid
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
 import proj.memorchess.axl.core.sync.SyncDeviceStatusResponse
@@ -62,7 +62,17 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
         call.respond(SyncDeviceStatusResponse(synced))
       }
 
-      get("/v1/sync") { call.respond(store.pull(call.callerId, device(), ack(), limit(), clock())) }
+      get("/v1/sync") {
+        call.respond(
+          store.pull(
+            call.callerId,
+            device(),
+            ack(),
+            pageLimit(DEFAULT_PULL_LIMIT, MAX_PULL_LIMIT),
+            clock(),
+          )
+        )
+      }
     }
 
     rateLimit(RATE_LIMIT_SYNC_WRITE) {
@@ -79,10 +89,8 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
             "a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows"
           )
         }
-        if (request.device.isEmpty()) {
-          throw BadRequestException("device is required")
-        }
-        call.respond(store.push(call.callerId, request.device, request, clock()))
+        val device = requireDevice(request.device.value, "device")
+        call.respond(store.push(call.callerId, device, request, clock()))
       }
 
       put("/v1/me/devices/{deviceId}") {
@@ -120,7 +128,7 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
 /** Erases the caller's synced data as of [serverNow] and answers with the highest revision. */
 private suspend fun RoutingContext.erase(store: SyncStore, serverNow: Instant) {
   val request = call.receive<SyncEraseRequest>()
-  val device = requireCanonicalUuid(request.device, "device")
+  val device = requireDevice(request.device.value, "device")
   if (request.deviceSeq < 1) {
     throw BadRequestException("deviceSeq must be at least 1, was ${request.deviceSeq}")
   }
@@ -135,22 +143,19 @@ private suspend fun RoutingContext.erase(store: SyncStore, serverNow: Instant) {
  * `sync_device` row that never pulls, holding that user's watermark down with no way to tell it
  * from a real install.
  */
-private fun ApplicationCall.deviceId(): String =
-  requireCanonicalUuid(parameters["deviceId"].orEmpty(), "deviceId")
+private fun ApplicationCall.deviceId(): DeviceId =
+  requireDevice(parameters["deviceId"].orEmpty(), "deviceId")
 
 /**
- * [raw] when it is a canonical UUID other than the nil one, otherwise a `400` naming [field]. The
- * nil UUID is the origin the server stamps on erase tombstones, so no device may claim it.
+ * The device [raw] names when it is a canonical UUID other than the nil one, otherwise a `400`
+ * naming [field]. The nil UUID is the origin the server stamps on erase tombstones, so no device
+ * may claim it.
  */
-private fun requireCanonicalUuid(raw: String, field: String): String {
-  val uuid =
-    Uuid.parseOrNull(raw)
-      ?: throw BadRequestException("$field must be a canonical UUID, was '$raw'")
-  if (uuid == Uuid.NIL) {
-    throw BadRequestException("$field must not be the nil UUID, which is reserved")
-  }
-  return raw
-}
+private fun requireDevice(raw: String, field: String): DeviceId =
+  DeviceId.parseOrNull(raw)
+    ?: throw BadRequestException(
+      "$field must be a canonical UUID other than the nil one, was '$raw'"
+    )
 
 /**
  * The calling device.
@@ -158,18 +163,11 @@ private fun requireCanonicalUuid(raw: String, field: String): String {
  * Required, because the server keeps that device's position and has nothing to serve from without
  * it.
  */
-private fun RoutingContext.device(): String =
-  call.request.queryParameters["device"] ?: throw BadRequestException("device is required")
+private fun RoutingContext.device(): DeviceId =
+  requireDevice(
+    call.request.queryParameters["device"] ?: throw BadRequestException("device is required"),
+    "device",
+  )
 
 /** Token of the page the caller has just written locally, absent when it has committed none. */
 private fun RoutingContext.ack(): String? = call.request.queryParameters["ack"]
-
-/** The caller's requested page size, clamped to [MAX_PULL_LIMIT]. */
-private fun RoutingContext.limit(): Int {
-  val raw = call.request.queryParameters["limit"] ?: return DEFAULT_PULL_LIMIT
-  val limit = raw.toIntOrNull()
-  if (limit == null || limit <= 0) {
-    throw BadRequestException("limit must be a positive integer, was '$raw'")
-  }
-  return minOf(limit, MAX_PULL_LIMIT)
-}

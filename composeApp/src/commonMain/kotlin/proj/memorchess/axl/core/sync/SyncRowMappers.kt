@@ -6,7 +6,6 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.PositionKey
-import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
@@ -29,7 +28,7 @@ fun DataNode.toNodeSyncRow(): NodeSyncRow =
     step = cardState.step,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 
@@ -65,7 +64,7 @@ fun NodeSyncRow.toDataNode(
     isDeleted = isDeleted,
     hasGoodOutgoing = existingHasGoodOutgoing,
     createdAt = existingCreatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )
 
@@ -83,7 +82,7 @@ fun DataMove.toEdgeSyncRow(): EdgeSyncRow? {
     isGood = ownIsGood ?: false,
     isDeleted = isDeleted || ownIsGood == null,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 }
@@ -106,7 +105,7 @@ fun EdgeSyncRow.toDataMove(): DataMove =
     isDeleted = isDeleted,
     createdAt = updatedAt,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )
 
@@ -115,11 +114,11 @@ fun DataRepertoire.toRepertoireSyncRow(): RepertoireSyncRow =
   RepertoireSyncRow(
     id = id,
     name = name,
-    color = color?.name,
+    color = color,
     installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 
@@ -128,11 +127,11 @@ fun RepertoireSyncRow.toDataRepertoire(): DataRepertoire =
   DataRepertoire(
     id = id,
     name = name,
-    color = color?.let { RepertoireColor.valueOf(it) },
+    color = color,
     installedVersion = installedVersion,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )
 
@@ -146,7 +145,7 @@ fun DataEdgeRepertoireTag.toEdgeRepertoireTagSyncRow(): EdgeRepertoireTagSyncRow
     isGood = isGood,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = DeviceId(originDevice),
     deviceSeq = deviceSeq,
   )
 
@@ -160,6 +159,6 @@ fun EdgeRepertoireTagSyncRow.toDataEdgeRepertoireTag(): DataEdgeRepertoireTag =
     isGood = isGood,
     isDeleted = isDeleted,
     updatedAt = updatedAt,
-    originDevice = originDevice,
+    originDevice = originDevice.value,
     deviceSeq = deviceSeq,
   )

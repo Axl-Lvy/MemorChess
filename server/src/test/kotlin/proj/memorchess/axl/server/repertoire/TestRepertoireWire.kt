@@ -4,6 +4,7 @@ import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.server.auth.UserId
 
 internal class TestRepertoireWire {
 
@@ -11,12 +12,12 @@ internal class TestRepertoireWire {
     RepertoireRow(
       id = "london-system-white",
       version = 1,
-      authorId = "author-1",
+      authorId = UserId("author-1"),
       title = "London System",
       description = "Solid.",
-      side = "white",
+      side = RepertoireColor.WHITE,
       moveCount = 73,
-      status = "published",
+      status = RepertoireStatus.PUBLISHED,
       publishedAt = Instant.fromEpochSeconds(1_700_000_000),
     )
 
@@ -34,7 +35,7 @@ internal class TestRepertoireWire {
 
   @Test
   fun `toDescriptor maps side black`() {
-    row.copy(side = "black").toDescriptor().color shouldBe RepertoireColor.BLACK
+    row.copy(side = RepertoireColor.BLACK).toDescriptor().color shouldBe RepertoireColor.BLACK
   }
 
   @Test

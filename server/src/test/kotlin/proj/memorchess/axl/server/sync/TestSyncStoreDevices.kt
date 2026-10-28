@@ -11,9 +11,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 internal class TestSyncStoreDevices {
@@ -29,8 +32,8 @@ internal class TestSyncStoreDevices {
 
     val devices = store.listDevicesForTest(user)
     devices shouldHaveSize 1
-    devices.single().lastAcked shouldBe 0L
-    devices.single().lastServed shouldBe 0L
+    devices.single().lastAcked shouldBe Revision(0)
+    devices.single().lastServed shouldBe Revision(0)
     devices.single().platform shouldBe DevicePlatform.JVM
     devices.single().removedAt shouldBe null
   }
@@ -39,14 +42,14 @@ internal class TestSyncStoreDevices {
   fun aSecondRegistrationOverwritesPlatformAndKeepsThePosition() = runTest {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
-    store.setPositionForTest(user, DEVICE, lastAcked = 40, lastServed = 40)
+    store.setPositionForTest(user, DEVICE, lastAcked = Revision(40), lastServed = Revision(40))
 
     store.registerDevice(user, DEVICE, DevicePlatform.ANDROID, afterReset = false, now)
 
     val device = store.listDevicesForTest(user).single()
     device.platform shouldBe DevicePlatform.ANDROID
-    device.lastAcked shouldBe 40L
-    device.lastServed shouldBe 40L
+    device.lastAcked shouldBe Revision(40)
+    device.lastServed shouldBe Revision(40)
   }
 
   @Test
@@ -57,7 +60,7 @@ internal class TestSyncStoreDevices {
       PostgresTestDb.dataSource().connection.use { holder ->
         holder.autoCommit = false
         holder.prepareStatement("SELECT pg_advisory_xact_lock(hashtext(?))").use { statement ->
-          statement.setString(1, "sync-user:$user")
+          statement.setString(1, "sync-user:${user.value}")
           statement.executeQuery().use { it.next() }
         }
         val registration =
@@ -75,15 +78,15 @@ internal class TestSyncStoreDevices {
 
   /** Registers, positions and removes a device, then registers it again. */
   private suspend fun returningRemovedDevice(
-    user: String,
+    user: UserId,
     ack: Long,
     floor: Long?,
     afterReset: Boolean = false,
   ): RegisterOutcome {
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
-    store.setPositionForTest(user, DEVICE, lastAcked = ack, lastServed = ack)
+    store.setPositionForTest(user, DEVICE, lastAcked = Revision(ack), lastServed = Revision(ack))
     store.removeDeviceForTest(user, DEVICE, now)
-    if (floor != null) store.setGcFloorForTest(user, floor)
+    if (floor != null) store.setGcFloorForTest(user, Revision(floor))
     return store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset, now)
   }
 
@@ -101,7 +104,7 @@ internal class TestSyncStoreDevices {
 
     val device = store.listDevicesForTest(user).single()
     device.removedAt shouldBe null
-    device.lastAcked shouldBe 100L
+    device.lastAcked shouldBe Revision(100)
   }
 
   @Test
@@ -135,8 +138,8 @@ internal class TestSyncStoreDevices {
   fun aDeviceThatWasNeverRemovedIsNeverCheckedAgainstTheFloor() = runTest {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
-    store.setPositionForTest(user, DEVICE, lastAcked = 1, lastServed = 1)
-    store.setGcFloorForTest(user, 5_000)
+    store.setPositionForTest(user, DEVICE, lastAcked = Revision(1), lastServed = Revision(1))
+    store.setGcFloorForTest(user, Revision(5_000))
 
     store.registerDevice(
       user,
@@ -160,7 +163,7 @@ internal class TestSyncStoreDevices {
       now,
     ) shouldBe RegisterOutcome.ResyncRequired
 
-    store.listDevicesForTest(user).single().lastAcked shouldBe 99L
+    store.listDevicesForTest(user).single().lastAcked shouldBe Revision(99)
   }
 
   @Test
@@ -172,8 +175,8 @@ internal class TestSyncStoreDevices {
       RegisterOutcome.Ok
 
     val device = store.listDevicesForTest(user).single()
-    device.lastAcked shouldBe 0L
-    device.lastServed shouldBe 0L
+    device.lastAcked shouldBe Revision(0)
+    device.lastServed shouldBe Revision(0)
     device.removedAt shouldBe null
   }
 
@@ -181,12 +184,12 @@ internal class TestSyncStoreDevices {
   fun reportingTheWipeOnAnAlreadyReinstatedRowStillZeroesIt() = runTest {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
-    store.setPositionForTest(user, DEVICE, lastAcked = 40, lastServed = 40)
+    store.setPositionForTest(user, DEVICE, lastAcked = Revision(40), lastServed = Revision(40))
 
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = true, now) shouldBe
       RegisterOutcome.Ok
 
-    store.listDevicesForTest(user).single().lastAcked shouldBe 0L
+    store.listDevicesForTest(user).single().lastAcked shouldBe Revision(0)
   }
 
   @Test
@@ -217,7 +220,12 @@ internal class TestSyncStoreDevices {
   fun aDeviceOneRevisionBehindIsNotSynced() = runTest {
     val user = userWithOneSetting()
     val highest = store.listDevicesForTest(user).single().let { _ -> highestRevision(user) }
-    store.setPositionForTest(user, DEVICE, lastAcked = highest - 1, lastServed = highest)
+    store.setPositionForTest(
+      user,
+      DEVICE,
+      lastAcked = Revision(highest.value - 1),
+      lastServed = highest,
+    )
 
     store.deviceStatus(user, DEVICE) shouldBe false
   }
@@ -277,7 +285,7 @@ internal class TestSyncStoreDevices {
       deviceSeq = seq,
     )
 
-  private suspend fun userWithOneSetting(): String {
+  private suspend fun userWithOneSetting(): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, now)
     store.push(
@@ -289,7 +297,7 @@ internal class TestSyncStoreDevices {
     return user
   }
 
-  private suspend fun highestRevision(user: String): Long =
+  private suspend fun highestRevision(user: UserId): Revision =
     store
       .push(
         user,
@@ -297,9 +305,9 @@ internal class TestSyncStoreDevices {
         SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DEVICE),
         now,
       )
-      .let { store.listDevicesForTest(user).single().lastServed.coerceAtLeast(1) }
+      .let { store.listDevicesForTest(user).single().lastServed.coerceAtLeast(Revision(1)) }
 
   private companion object {
-    const val DEVICE = "11111111-1111-4111-8111-111111111111"
+    val DEVICE = DeviceId("11111111-1111-4111-8111-111111111111")
   }
 }

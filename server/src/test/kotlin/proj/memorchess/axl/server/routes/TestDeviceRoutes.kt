@@ -20,7 +20,9 @@ import kotlin.test.Test
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
+import proj.memorchess.axl.core.sync.Revision
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncDeviceRegisterRequest
@@ -31,6 +33,7 @@ import proj.memorchess.axl.server.auth.TEST_AUDIENCE
 import proj.memorchess.axl.server.auth.TEST_ISSUER
 import proj.memorchess.axl.server.auth.TestJwkProvider
 import proj.memorchess.axl.server.auth.TestSigningKey
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 import proj.memorchess.axl.server.sync.SyncStore
 import proj.memorchess.axl.server.syncModule
@@ -53,7 +56,7 @@ class TestDeviceRoutes {
     )
 
   /** Runs [block] against the real module, real store and real Postgres, as one fresh caller. */
-  private fun withServer(block: suspend (HttpClient, String, String) -> Unit) = testApplication {
+  private fun withServer(block: suspend (HttpClient, String, UserId) -> Unit) = testApplication {
     val user = PostgresTestDb.newUserId()
     application {
       syncModule(
@@ -65,7 +68,7 @@ class TestDeviceRoutes {
       )
     }
     val client = createClient { install(ContentNegotiation) { json(SYNC_JSON) } }
-    block(client, key.token(subject = user), user)
+    block(client, key.token(subject = user.value), user)
   }
 
   private suspend fun HttpClient.register(
@@ -129,9 +132,14 @@ class TestDeviceRoutes {
   @Test
   fun `a removed device below the floor is told to resync`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DEVICE, lastAcked = 99, lastServed = 99)
-    store.removeDeviceForTest(user, DEVICE, serverNow)
-    store.setGcFloorForTest(user, 100)
+    store.setPositionForTest(
+      user,
+      DeviceId(DEVICE),
+      lastAcked = Revision(99),
+      lastServed = Revision(99),
+    )
+    store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
+    store.setGcFloorForTest(user, Revision(100))
 
     val response = client.register(token)
 
@@ -143,13 +151,18 @@ class TestDeviceRoutes {
   @Test
   fun `reporting the wipe reinstates the device`() = withServer { client, token, user ->
     client.register(token)
-    store.setPositionForTest(user, DEVICE, lastAcked = 99, lastServed = 99)
-    store.removeDeviceForTest(user, DEVICE, serverNow)
-    store.setGcFloorForTest(user, 100)
+    store.setPositionForTest(
+      user,
+      DeviceId(DEVICE),
+      lastAcked = Revision(99),
+      lastServed = Revision(99),
+    )
+    store.removeDeviceForTest(user, DeviceId(DEVICE), serverNow)
+    store.setGcFloorForTest(user, Revision(100))
 
     client.register(token, afterReset = true).status shouldBe HttpStatusCode.NoContent
 
-    store.listDevicesForTest(user).single().lastAcked shouldBe 0L
+    store.listDevicesForTest(user).single().lastAcked shouldBe Revision(0)
   }
 
   @Test
@@ -170,7 +183,7 @@ class TestDeviceRoutes {
       client.register(token)
       store.push(
         user,
-        DEVICE,
+        DeviceId(DEVICE),
         SyncPushRequest(
           emptyList(),
           emptyList(),
@@ -180,11 +193,11 @@ class TestDeviceRoutes {
               value = "dark",
               isDeleted = false,
               updatedAt = serverNow,
-              originDevice = DEVICE,
+              originDevice = DeviceId(DEVICE),
               deviceSeq = 1,
             )
           ),
-          device = DEVICE,
+          device = DeviceId(DEVICE),
         ),
         serverNow,
       )

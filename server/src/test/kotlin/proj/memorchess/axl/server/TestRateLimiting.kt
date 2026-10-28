@@ -18,6 +18,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import proj.memorchess.axl.core.sync.ApiError
 import proj.memorchess.axl.core.sync.ApiErrorCode
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.SYNC_JSON
 import proj.memorchess.axl.server.auth.TEST_AUDIENCE
@@ -70,7 +71,7 @@ class TestRateLimiting {
   @Test
   fun `refuses a caller past its write budget with a rate limited api error`() =
     withServer { client ->
-      val token = key.token(subject = PostgresTestDb.newUserId())
+      val token = key.token(subject = PostgresTestDb.newUserId().value)
       repeat(tiers.syncWrite.limit) { client.deleteMe(token) }
 
       val response = client.deleteMe(token)
@@ -82,8 +83,8 @@ class TestRateLimiting {
 
   @Test
   fun `gives each caller its own write budget`() = withServer { client ->
-    val exhausted = key.token(subject = PostgresTestDb.newUserId())
-    val fresh = key.token(subject = PostgresTestDb.newUserId())
+    val exhausted = key.token(subject = PostgresTestDb.newUserId().value)
+    val fresh = key.token(subject = PostgresTestDb.newUserId().value)
     repeat(tiers.syncWrite.limit + 1) { client.deleteMe(exhausted) }
 
     client.deleteMe(fresh).status shouldBe HttpStatusCode.NoContent
@@ -93,13 +94,13 @@ class TestRateLimiting {
   fun `keeps the read budget independent from the write budget`() = withServer { client ->
     val subject = PostgresTestDb.newUserId()
     val device = "66666666-6666-4666-8666-666666666666"
-    val token = key.token(subject = subject)
+    val token = key.token(subject = subject.value)
     repeat(tiers.syncWrite.limit + 1) { client.deleteMe(token) }
     // Account deletion clears device rows, so registration comes after it here.
     SyncStore(PostgresTestDb.dataSource())
       .registerDevice(
         subject,
-        device,
+        DeviceId(device),
         DevicePlatform.JVM,
         afterReset = false,
         Instant.fromEpochSeconds(1_700_000_000),
@@ -126,7 +127,7 @@ class TestRateLimiting {
 
   @Test
   fun `rate limits the admin route by ip`() = withServer { client ->
-    val token = key.token(subject = PostgresTestDb.newUserId())
+    val token = key.token(subject = PostgresTestDb.newUserId().value)
     repeat(tiers.admin.limit) { client.adminStatus(token, "9.9.9.9") }
 
     client.adminStatus(token, "9.9.9.9").status shouldBe HttpStatusCode.TooManyRequests

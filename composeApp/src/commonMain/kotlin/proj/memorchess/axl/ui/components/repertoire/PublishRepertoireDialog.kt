@@ -22,6 +22,7 @@ import memorchess.composeapp.generated.resources.library_publish_dialog_title
 import memorchess.composeapp.generated.resources.library_publish_id_label
 import memorchess.composeapp.generated.resources.library_publish_title_label
 import org.jetbrains.compose.resources.stringResource
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.data.repertoire.RepertoirePublishLimits
 import proj.memorchess.axl.ui.components.popup.KineticDialog
 
@@ -38,8 +39,8 @@ fun PublishRepertoireDialog(
   visible: Boolean,
   repertoireName: String,
   initialSlug: String,
-  side: String,
-  onSubmit: (slug: String, title: String, description: String, side: String) -> Unit,
+  side: RepertoireColor,
+  onSubmit: (slug: String, title: String, description: String, side: RepertoireColor) -> Unit,
   onDismiss: () -> Unit,
 ) {
   var slug by remember { mutableStateOf(initialSlug) }

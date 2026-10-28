@@ -6,6 +6,8 @@ import io.kotest.matchers.string.shouldContain
 import kotlin.test.Test
 import kotlin.time.Instant
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.data.repertoire.RepertoireColor
+import proj.memorchess.axl.core.sync.DeviceId
 import proj.memorchess.axl.core.sync.DevicePlatform
 import proj.memorchess.axl.core.sync.EdgeRepertoireTagSyncRow
 import proj.memorchess.axl.core.sync.EdgeSyncRow
@@ -13,6 +15,7 @@ import proj.memorchess.axl.core.sync.NodeSyncRow
 import proj.memorchess.axl.core.sync.RepertoireSyncRow
 import proj.memorchess.axl.core.sync.SettingSyncRow
 import proj.memorchess.axl.core.sync.SyncPushRequest
+import proj.memorchess.axl.server.auth.UserId
 import proj.memorchess.axl.server.db.PostgresTestDb
 
 /**
@@ -36,7 +39,7 @@ internal class TestSyncStoreQuota {
       step = 0,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -48,7 +51,7 @@ internal class TestSyncStoreQuota {
       isGood = true,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -56,10 +59,10 @@ internal class TestSyncStoreQuota {
     RepertoireSyncRow(
       id = id,
       name = id,
-      color = "WHITE",
+      color = RepertoireColor.WHITE,
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -71,7 +74,7 @@ internal class TestSyncStoreQuota {
       move = "e4",
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
@@ -81,14 +84,14 @@ internal class TestSyncStoreQuota {
       value = "v",
       isDeleted = false,
       updatedAt = serverNow,
-      originDevice = "device-a",
+      originDevice = DeviceId("device-a"),
       deviceSeq = seq,
     )
 
   private fun fen(suffix: String) = "fen-${System.nanoTime()}-$suffix"
 
   /** A fresh user with one registered device, which pushing now requires. */
-  private suspend fun newUser(store: SyncStore): String {
+  private suspend fun newUser(store: SyncStore): UserId {
     val user = PostgresTestDb.newUserId()
     store.registerDevice(user, DEVICE, DevicePlatform.JVM, afterReset = false, serverNow)
     return user
@@ -298,6 +301,6 @@ internal class TestSyncStoreQuota {
   }
 
   private companion object {
-    const val DEVICE = "88888888-8888-4888-8888-888888888888"
+    val DEVICE = DeviceId("88888888-8888-4888-8888-888888888888")
   }
 }

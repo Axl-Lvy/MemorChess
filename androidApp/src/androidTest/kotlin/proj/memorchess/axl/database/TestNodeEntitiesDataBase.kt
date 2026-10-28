@@ -103,7 +103,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.softDeleteNode(
         childNode.positionKey.value,
         now,
-        identity.originDevice,
+        identity.originDevice.value,
         identity.nextDeviceSeq(),
       )
       retrievedNodes = nodeEntityDao.getNodesPage(PAGE_LIMIT)
