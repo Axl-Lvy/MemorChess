@@ -271,6 +271,7 @@
   <string name="library_filter_empty">No packs match this filter yet.</string>
   <string name="library_badge_in_training">IN TRAINING</string>
   <string name="library_badge_new">NEW</string>
+  <string name="library_badge_yours">YOURS</string>
   <plurals name="library_moves_to_delete">
     <item quantity="one">%1$d move and its review progress will be deleted.</item>
     <item quantity="other">%1$d moves and their review progress will be deleted.</item>
