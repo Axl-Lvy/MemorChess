@@ -52,6 +52,20 @@ class NavigationHistory(startPosition: PositionKey) {
     return edge to destination
   }
 
+  /** Walks backward to the root, keeping the walked moves as forward history. `false` at root. */
+  fun backToRoot(): Boolean {
+    if (backStack.isEmpty()) return false
+    while (back() != null) Unit
+    return true
+  }
+
+  /** Replays the whole forward history. `false` when there is none. */
+  fun forwardToEnd(): Boolean {
+    if (forwardStack.isEmpty()) return false
+    while (forward() != null) Unit
+    return true
+  }
+
   /** Plies played from root to [current]. */
   val depth: Int
     get() = backStack.size

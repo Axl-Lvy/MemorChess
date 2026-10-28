@@ -215,6 +215,70 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
+  fun testFirstThenLastRestoresLine() = test {
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("Nf3")
+    val end = interactionsManager.engine.toPositionKey()
+
+    interactionsManager.first()
+
+    assertEquals(PositionKey.START_POSITION, interactionsManager.engine.toPositionKey())
+    assertEquals(0, interactionsManager.depth)
+
+    interactionsManager.last()
+
+    assertEquals(end, interactionsManager.engine.toPositionKey())
+    assertEquals(listOf("e4", "e5", "Nf3"), interactionsManager.playedMoves())
+  }
+
+  @Test
+  fun testFirstStaysOnCustomRoot() = test {
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.save()
+    val customPosition = interactionsManager.engine.toPositionKey()
+    val explorerFromCustom = LinesExplorer(customPosition, treeStore, tagStore)
+    explorerFromCustom.playMove("Nf3")
+
+    explorerFromCustom.first()
+    explorerFromCustom.first()
+
+    assertEquals(customPosition, explorerFromCustom.engine.toPositionKey())
+  }
+
+  @Test
+  fun testFirstAtRootAndLastAtEndDoNothing() = test {
+    interactionsManager.playMove("e4")
+    var callbacks = 0
+    interactionsManager.registerCallBack { callbacks++ }
+
+    interactionsManager.last()
+
+    assertEquals(0, callbacks)
+    assertPawnOnE4()
+
+    interactionsManager.first()
+    interactionsManager.first()
+
+    assertEquals(1, callbacks)
+    assertEquals(PositionKey.START_POSITION, interactionsManager.engine.toPositionKey())
+  }
+
+  @Test
+  fun testLastAfterNewMoveDoesNothing() = test {
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.back()
+    interactionsManager.playMove("c5")
+    val afterNewMove = interactionsManager.engine.toPositionKey()
+
+    interactionsManager.last()
+
+    assertEquals(afterNewMove, interactionsManager.engine.toPositionKey())
+  }
+
+  @Test
   fun testNoPreviousMove() = test {
     interactionsManager.back()
     assertEquals(PositionKey.START_POSITION, interactionsManager.engine.toPositionKey())
