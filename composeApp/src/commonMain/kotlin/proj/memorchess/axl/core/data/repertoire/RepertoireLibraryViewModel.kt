@@ -56,6 +56,8 @@ import proj.memorchess.axl.core.pgn.PgnImportSummary
  *   own.
  * @param registerInstall Registers the given repertoire as installed at its listed version, after a
  *   successful import.
+ * @param loadAuthoredIds Returns the catalog ids the user published from this device, normally
+ *   through [PublishedRepertoireStore.publishedSlugs].
  * @param loadMyRepertoires Returns the user's own registered repertoires (the tagging registry),
  *   normally through [proj.memorchess.axl.core.graph.RepertoireTagStore.repertoires].
  * @param loadMasterySnapshots Returns the mastery snapshot of every registered repertoire, keyed by
@@ -85,6 +87,7 @@ class RepertoireLibraryViewModel(
   private val reportInstall: suspend (id: String) -> Unit,
   private val loadRepertoire: suspend (id: String) -> DataRepertoire?,
   private val registerInstall: suspend (descriptor: RepertoireDescriptor) -> Unit,
+  private val loadAuthoredIds: () -> Set<String>,
   private val loadMyRepertoires: suspend () -> List<DataRepertoire>,
   private val loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot>,
   private val previewUninstall: suspend (id: String) -> Int,
@@ -188,16 +191,17 @@ class RepertoireLibraryViewModel(
   /**
    * Starts installing [descriptor]: fetches its moves, installs them into the opening graph, and
    * registers it as installed on success only. Fails with [InstallError.IdTaken] when one of the
-   * user's own repertoires already uses the id. Ignored only while a fetch or import for the same
-   * repertoire is already in flight. An already installed repertoire may be reinstalled, which
-   * restores any moves the user has since removed (the import skips the moves still present), and a
-   * previously failed install may be retried.
+   * user's own repertoires already uses the id. Ignored for a repertoire the user authored, and
+   * while a fetch or import for the same repertoire is already in flight. An already installed
+   * repertoire may be reinstalled, which restores any moves the user has since removed (the import
+   * skips the moves still present), and a previously failed install may be retried.
    */
   fun install(descriptor: RepertoireDescriptor) {
     if (descriptor.id in uninstallsInFlight) return
     when (internalInstallStates.value[descriptor.id]) {
       is RepertoireInstallState.Fetching,
-      is RepertoireInstallState.Importing -> return
+      is RepertoireInstallState.Importing,
+      is RepertoireInstallState.Authored -> return
       is RepertoireInstallState.Installed,
       is RepertoireInstallState.Failed,
       is RepertoireInstallState.NotInstalled,
@@ -229,13 +233,14 @@ class RepertoireLibraryViewModel(
 
   /**
    * Uninstalls the installed repertoire [id], listed in the catalog or not, then marks it not
-   * installed. Ignored while an install or an uninstall of it is running; a failed uninstall leaves
-   * it installed.
+   * installed. Ignored for a repertoire the user authored, and while an install or an uninstall of
+   * it is running; a failed uninstall leaves it installed.
    */
   fun uninstall(id: String) {
     when (internalInstallStates.value[id]) {
       is RepertoireInstallState.Fetching,
-      is RepertoireInstallState.Importing -> return
+      is RepertoireInstallState.Importing,
+      is RepertoireInstallState.Authored -> return
       is RepertoireInstallState.Installed,
       is RepertoireInstallState.Failed,
       is RepertoireInstallState.NotInstalled,
@@ -272,21 +277,26 @@ class RepertoireLibraryViewModel(
   }
 
   /**
-   * Builds the loaded state and seeds [installStates] for every listed repertoire: states of an
-   * ongoing session (in flight installs, summaries, failures) are preserved, otherwise the
-   * persisted installed set decides between installed and not installed.
+   * Builds the loaded state and seeds [installStates] for every listed repertoire: one the user
+   * authored is always [RepertoireInstallState.Authored]; otherwise states of an ongoing session
+   * (in flight installs, summaries, failures) are preserved, and the persisted installed set
+   * decides between installed and not installed.
    */
   private suspend fun loaded(
     manifest: RepertoireManifest,
     isStale: Boolean,
   ): LibraryCatalogState.Loaded {
     val previous = internalInstallStates.value
+    val authoredIds = loadAuthoredIds()
     internalInstallStates.value =
       manifest.repertoires.associate { descriptor ->
         val prior = previous[descriptor.id]
         descriptor.id to
           when {
-            prior != null && prior !is RepertoireInstallState.NotInstalled -> prior
+            descriptor.id in authoredIds -> RepertoireInstallState.Authored
+            prior != null &&
+              prior !is RepertoireInstallState.NotInstalled &&
+              prior !is RepertoireInstallState.Authored -> prior
             else ->
               when (val version = loadRepertoire(descriptor.id)?.installedVersion) {
                 null -> RepertoireInstallState.NotInstalled
@@ -452,6 +462,9 @@ sealed class RepertoireInstallState {
 
   /** The last install attempt failed with [error]. The install may be retried. */
   data class Failed(val error: InstallError) : RepertoireInstallState()
+
+  /** The user published this repertoire from one of their own, so there is nothing to install. */
+  data object Authored : RepertoireInstallState()
 }
 
 /** On demand overlap of one catalog repertoire against the user's graph. Consumed by Compose. */

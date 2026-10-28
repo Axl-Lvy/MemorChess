@@ -395,6 +395,21 @@ class TestRepertoireView : TestWithKoin() {
   }
 
   @Test
+  fun authoredShowsYoursBadgeWithoutInstallOrUninstall() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Authored),
+    )
+    onNode(hasText("YOURS").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertExists()
+    onNode(hasText("INSTALL").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
+      .assertDoesNotExist()
+    onNodeWithTag("${cardTag(secondDescriptor)}:uninstall").assertDoesNotExist()
+    onNodeWithTag(progressTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
   fun fetchingAtFullByteProgressShowsThirtyPercent() = runLibraryTest {
     setLibraryContent(
       catalogState =
@@ -751,6 +766,44 @@ class TestRepertoireView : TestWithKoin() {
     )
     onNode(hasText(mostDownloaded.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
       .assertExists()
+  }
+
+  @Test
+  fun heroSkipsAnAuthoredRepertoire() = runLibraryTest {
+    val mostDownloaded = descriptor.copy(downloadCount = 100)
+    val runnerUp = secondDescriptor.copy(downloadCount = 10)
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(mostDownloaded, runnerUp), isStale = false),
+      installStates = mapOf(mostDownloaded.id to RepertoireInstallState.Authored),
+    )
+    onNode(hasText(runnerUp.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+  }
+
+  @Test
+  fun heroFallbackSkipsAnAuthoredRepertoire() = runLibraryTest {
+    val authored = descriptor.copy(downloadCount = 100)
+    val installed = secondDescriptor.copy(downloadCount = 10)
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(authored, installed), isStale = false),
+      installStates =
+        mapOf(
+          authored.id to RepertoireInstallState.Authored,
+          installed.id to RepertoireInstallState.Installed(summary = null),
+        ),
+    )
+    onNode(hasText(installed.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
+      .assertExists()
+  }
+
+  @Test
+  fun heroIsHiddenWhenEveryRepertoireIsAuthored() = runLibraryTest {
+    setLibraryContent(
+      catalogState = LibraryCatalogState.Loaded(listOf(descriptor), isStale = false),
+      installStates = mapOf(descriptor.id to RepertoireInstallState.Authored),
+    )
+    onNodeWithTag(cardTag(descriptor)).assertExists()
+    onNodeWithTag("library_hero_card").assertDoesNotExist()
   }
 
   @Test
@@ -1125,6 +1178,19 @@ class TestRepertoireView : TestWithKoin() {
     onNodeWithTag("library_filter_empty").assertExists()
     onNodeWithTag(cardTag(descriptor)).assertDoesNotExist()
     onNodeWithTag(cardTag(secondDescriptor)).assertDoesNotExist()
+  }
+
+  @Test
+  fun selectingMineChipIncludesAnAuthoredRepertoire() = runLibraryTest {
+    setLibraryContent(
+      catalogState =
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
+      installStates = mapOf(secondDescriptor.id to RepertoireInstallState.Authored),
+    )
+    onNodeWithText("Mine 1").assertExists()
+    onNodeWithTag("library_filter_chip:mine").performClick()
+    onNodeWithTag(cardTag(secondDescriptor)).assertExists()
+    onNodeWithTag(cardTag(descriptor)).assertDoesNotExist()
   }
 
   @Test

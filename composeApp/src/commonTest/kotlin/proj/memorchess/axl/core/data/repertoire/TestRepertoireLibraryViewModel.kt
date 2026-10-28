@@ -9,6 +9,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.pgn.PgnImportException
@@ -61,6 +62,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
       },
     reportInstall: suspend (String) -> Unit = {},
     store: FakeRegistry = FakeRegistry(),
+    authoredIds: () -> Set<String> = { emptySet() },
     loadMyRepertoires: suspend () -> List<DataRepertoire> = { emptyList() },
     loadMasterySnapshots: suspend () -> Map<String, RepertoireMasterySnapshot> = { emptyMap() },
     previewUninstall: suspend (String) -> Int = { 0 },
@@ -83,6 +85,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
             installedVersion = descriptor.version,
           )
       },
+      loadAuthoredIds = authoredIds,
       loadMyRepertoires = loadMyRepertoires,
       loadMasterySnapshots = loadMasterySnapshots,
       previewUninstall = previewUninstall,
@@ -381,6 +384,101 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
 
     viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.NotInstalled
+  }
+
+  @Test
+  fun aRepertoirePublishedFromThisDeviceIsAuthored() = test {
+    val store = FakeRegistry()
+    store.markOwn(london.id)
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london, caroKann)) },
+        store = store,
+        authoredIds = { setOf(london.id) },
+      )
+
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.Authored
+    viewModel.installStates.value[caroKann.id] shouldBe RepertoireInstallState.NotInstalled
+  }
+
+  @Test
+  fun aRefreshAfterPublishingReplacesAFailedInstallWithAuthored() = test {
+    val store = FakeRegistry()
+    store.markOwn(london.id)
+    val authored = mutableSetOf<String>()
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        store = store,
+        authoredIds = { authored.toSet() },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+    viewModel.install(london)
+    viewModel.installStates.first { it[london.id] is RepertoireInstallState.Failed }
+    authored += london.id
+
+    viewModel.forceRefresh()
+    viewModel.loadedState()
+
+    viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.Authored
+  }
+
+  @Test
+  fun anUnpublishedRepertoireIsNoLongerAuthoredAfterARefresh() = test {
+    val authored = mutableSetOf(london.id)
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        authoredIds = { authored.toSet() },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+    authored -= london.id
+
+    viewModel.forceRefresh()
+    viewModel.loadedState()
+
+    viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.NotInstalled
+  }
+
+  @Test
+  fun installIsIgnoredForAnAuthoredRepertoire() = test {
+    var fetched = false
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        fetchMoves = { _, _ ->
+          fetched = true
+          CatalogResult.Ok(emptyList())
+        },
+        authoredIds = { setOf(london.id) },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.install(london)
+    runCurrent()
+
+    viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.Authored
+    fetched shouldBe false
+  }
+
+  @Test
+  fun uninstallIsIgnoredForAnAuthoredRepertoire() = test {
+    var uninstalled = false
+    val viewModel =
+      buildViewModel(
+        { CachedManifestResult.Fresh(manifest(london)) },
+        authoredIds = { setOf(london.id) },
+        uninstallRepertoire = { uninstalled = true },
+      )
+    viewModel.catalogState.first { it is LibraryCatalogState.Loaded }
+
+    viewModel.uninstall(london.id)
+    runCurrent()
+
+    viewModel.installStates.value[london.id] shouldBe RepertoireInstallState.Authored
+    uninstalled shouldBe false
   }
 
   @Test
