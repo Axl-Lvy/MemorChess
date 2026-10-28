@@ -273,15 +273,12 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
         trainer.retry()
       }
     }
-    // Derive board orientation from nodeToLearn directly, not from `trainer.engine`. The trainer's
-    // engine has not yet been swapped to the new entry at this point in composition (updateNode
-    // runs in the LaunchedEffect, after composition), so reading trainer.engine.playerTurn here
-    // returns the player-to-move of the OLD engine — i.e. the opponent's color after the user's
-    // last move. That mis-derivation was causing the board to flip whenever a new entry loaded.
-    val inverted =
-      remember(nodeToLearn.positionKey) {
-        GameEngine(nodeToLearn.positionKey).playerTurn == Player.BLACK
-      }
+    // Derive the side to move from nodeToLearn, not from `trainer.engine`: the engine is swapped to
+    // the new entry only in the LaunchedEffect above, after composition, and is not snapshot state,
+    // so reading it here would keep the previous card's turn until something else recomposes.
+    val playerTurn =
+      remember(nodeToLearn.positionKey) { GameEngine(nodeToLearn.positionKey).playerTurn }
+    val inverted = playerTurn == Player.BLACK
 
     val totalAttempts = successCount + failCount
     val denominator = totalAttempts + numberOfNodesToTrain
@@ -291,7 +288,6 @@ private class TrainingBoard(private val repertoireId: String? = null) : KoinComp
       } else {
         0f
       }
-    val playerTurn = trainer.engine.playerTurn
     val feedback =
       BoardTrainingFeedback(
         playedSquare = previousPlayedSquare.takeIf { state.isShowing },
