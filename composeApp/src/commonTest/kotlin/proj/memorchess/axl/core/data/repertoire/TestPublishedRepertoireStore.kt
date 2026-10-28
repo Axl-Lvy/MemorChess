@@ -84,6 +84,25 @@ class TestPublishedRepertoireStore : TestWithKoin() {
   }
 
   @Test
+  fun publishedSlugsIsEmptyWhenNothingWasPublished() = test {
+    val store = PublishedRepertoireStore()
+
+    store.publishedSlugs() shouldBe emptySet()
+  }
+
+  @Test
+  fun publishedSlugsListsEveryCurrentSlug() = test {
+    val store = PublishedRepertoireStore()
+    store.recordPublished("italian-game", "my-italian-game")
+    store.recordPublished("caro-kann", "my-caro-kann")
+    store.recordPublished("caro-kann", "my-caro-kann-v2")
+    store.recordPublished("london", "my-london")
+    store.clearPublished("london")
+
+    store.publishedSlugs() shouldBe setOf("my-italian-game", "my-caro-kann-v2")
+  }
+
+  @Test
   fun recordPublishedRejectsABlankLocalId() = test {
     val store = PublishedRepertoireStore()
 

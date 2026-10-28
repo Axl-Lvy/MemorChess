@@ -38,6 +38,8 @@ import proj.memorchess.axl.ui.util.hasClickLabel
 
 private const val BRAVO_TEXT = "Bravo !"
 private const val FAILED_TEXT = "FAILED"
+private const val WHITE_TO_MOVE_TEXT = "WHITE TO MOVE"
+private const val BLACK_TO_MOVE_TEXT = "BLACK TO MOVE"
 
 @OptIn(ExperimentalTestApi::class)
 class TestTraining : TestWithKoin() {
@@ -355,6 +357,44 @@ class TestTraining : TestWithKoin() {
         playMove("e2", "e4")
       }
       assertNodeWithTextExists(BRAVO_TEXT)
+    } finally {
+      koinTearDown()
+    }
+  }
+
+  @Test
+  fun testTurnPillFollowsTheNextCardAfterACorrectMove() = runComposeUiTest {
+    // Short-term scheduling keeps the answered card due today, so the pending count does not change
+    // and nothing else recomposes the page when the next card loads.
+    koinSetUp()
+    try {
+      TRAINING_MOVE_DELAY_SETTING.setValue(Duration.ZERO)
+      val engine = GameEngine()
+      engine.playSanMove("e4")
+      val e4Pos = engine.toPositionKey()
+      engine.playSanMove("e5")
+      val e5Pos = engine.toPositionKey()
+      val e5Move = DataMove(e4Pos, e5Pos, "e5", isGood = true)
+      engine.playSanMove("Nf3")
+      val nf3Move = DataMove(e5Pos, engine.toPositionKey(), "Nf3", isGood = true)
+      val whiteToMoveNode =
+        DataNode(
+          positionKey = e5Pos,
+          PreviousAndNextMoves(listOf(e5Move), listOf(nf3Move)),
+          dueNowFromLastWeek(),
+          depth = 2,
+          hasGoodOutgoing = true,
+        )
+      resetDatabase()
+      database.insertNodes(whiteToMoveNode)
+      setTestContent { InitializeApp { Training() } }
+      assertNodeWithTextExists(WHITE_TO_MOVE_TEXT)
+
+      playMove("e2", "e4")
+
+      assertTileContainsPiece("e5", ChessPiece(PieceKind.PAWN, Player.BLACK))
+      assertNodeWithTextExists(WHITE_TO_MOVE_TEXT)
+      assertNodeWithTextDoesNotExists(BLACK_TO_MOVE_TEXT)
     } finally {
       koinTearDown()
     }

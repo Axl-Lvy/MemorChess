@@ -60,6 +60,7 @@ import kotlinx.coroutines.CoroutineScope
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.library_badge_in_training
 import memorchess.composeapp.generated.resources.library_badge_new
+import memorchess.composeapp.generated.resources.library_badge_yours
 import memorchess.composeapp.generated.resources.library_color_black
 import memorchess.composeapp.generated.resources.library_color_white
 import memorchess.composeapp.generated.resources.library_create
@@ -185,10 +186,11 @@ fun RepertoireLibrary(
   client: RepertoireCatalogClient = koinInject(),
   treeStore: TreeStore = koinInject(),
   tagStore: RepertoireTagStore = koinInject(),
+  publishedStore: PublishedRepertoireStore = koinInject(),
 ) {
   val coroutineScope = rememberCoroutineScope()
   val viewModel =
-    remember(catalog, client, treeStore, tagStore, coroutineScope) {
+    remember(catalog, client, treeStore, tagStore, publishedStore, coroutineScope) {
       RepertoireLibraryViewModel(
         loadManifest = catalog::getManifest,
         reloadManifest = catalog::refresh,
@@ -213,6 +215,7 @@ fun RepertoireLibrary(
             installedVersion = descriptor.version,
           )
         },
+        loadAuthoredIds = publishedStore::publishedSlugs,
         loadMyRepertoires = tagStore::repertoires,
         loadMasterySnapshots = tagStore::masterySnapshots,
         previewUninstall = treeStore::previewUninstall,
@@ -857,10 +860,10 @@ private fun CatalogList(
 /**
  * Picks the "picked for you" hero repertoire: the most downloaded one (#309's real recommendation
  * signal) among the ones the user has not installed yet, so the hero never recommends something
- * already trained. Falls back to the overall most downloaded repertoire when every one of them is
+ * already trained. Falls back to the most downloaded installed repertoire when every one of them is
  * already installed — there is then no better recommendation to make, and [HeroPackCard] renders
  * that fallback the same as any other pick (see its own KDoc on why it never special-cases install
- * state itself).
+ * state itself). A repertoire the user authored is never picked, so `null` when every one is.
  *
  * [List.maxByOrNull] keeps the first element on a tie, so a catalog whose entries all carry the
  * same [RepertoireDescriptor.downloadCount] (every manifest predating this field, `0` for all)
@@ -870,10 +873,13 @@ private fun pickHeroRepertoire(
   repertoires: List<RepertoireDescriptor>,
   installStates: Map<String, RepertoireInstallState>,
 ): RepertoireDescriptor? {
-  val notInstalled = repertoires.filterNot {
+  val notAuthored = repertoires.filterNot {
+    installStates[it.id] is RepertoireInstallState.Authored
+  }
+  val notInstalled = notAuthored.filterNot {
     installStates[it.id] is RepertoireInstallState.Installed
   }
-  val candidates = notInstalled.ifEmpty { repertoires }
+  val candidates = notInstalled.ifEmpty { notAuthored }
   return candidates.maxByOrNull { it.downloadCount }
 }
 
@@ -904,9 +910,14 @@ private fun filterRepertoires(
     LibraryColorFilter.ALL -> repertoires
     LibraryColorFilter.WHITE -> repertoires.filter { it.color == RepertoireColor.WHITE }
     LibraryColorFilter.BLACK -> repertoires.filter { it.color == RepertoireColor.BLACK }
-    LibraryColorFilter.MINE ->
-      repertoires.filter { installStates[it.id] is RepertoireInstallState.Installed }
+    LibraryColorFilter.MINE -> repertoires.filter { isMine(installStates[it.id]) }
   }
+
+/**
+ * Whether [state] puts a repertoire under [MINE][LibraryColorFilter.MINE]: installed or authored.
+ */
+private fun isMine(state: RepertoireInstallState?): Boolean =
+  state is RepertoireInstallState.Installed || state is RepertoireInstallState.Authored
 
 /**
  * 8dp-tall, 5dp-radius progress bar shared by the hero card, the per-pack mastery bar and the
@@ -1008,7 +1019,8 @@ private fun installProgressFraction(state: RepertoireInstallState): Float? =
     is RepertoireInstallState.Importing -> 0.30f + 0.70f * state.fraction.coerceIn(0f, 1f)
     is RepertoireInstallState.Installed,
     is RepertoireInstallState.NotInstalled,
-    is RepertoireInstallState.Failed -> null
+    is RepertoireInstallState.Failed,
+    is RepertoireInstallState.Authored -> null
   }
 
 /**
@@ -1068,9 +1080,9 @@ private fun heroCardTheme(palette: KineticPalette, shape: Shape): HeroCardTheme 
  *
  * Does NOT look at [descriptor]'s own [RepertoireInstallState] itself: the badge and CTA render the
  * same whether or not this exact repertoire happens to be installed. That never matters in practice
- * — [pickHeroRepertoire] already excludes an installed repertoire whenever a not-yet- installed one
- * exists, falling back to an installed one only once the whole catalog is — so this composable
- * stays free of install-state branching by construction rather than needing its own.
+ * — [pickHeroRepertoire] never picks an authored repertoire, and excludes an installed one whenever
+ * a not-yet-installed one exists — so this composable stays free of install-state branching by
+ * construction rather than needing its own.
  */
 @Composable
 private fun HeroPackCard(
@@ -1217,8 +1229,7 @@ private fun FilterChipRow(
         LibraryColorFilter.ALL to repertoires.size,
         LibraryColorFilter.WHITE to repertoires.count { it.color == RepertoireColor.WHITE },
         LibraryColorFilter.BLACK to repertoires.count { it.color == RepertoireColor.BLACK },
-        LibraryColorFilter.MINE to
-          repertoires.count { installStates[it.id] is RepertoireInstallState.Installed },
+        LibraryColorFilter.MINE to repertoires.count { isMine(installStates[it.id]) },
       )
     }
   Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -1326,18 +1337,7 @@ private fun RepertoireCard(
         modifier = Modifier.weight(1f),
       )
       ColorTag(descriptor.color)
-      LibraryBadge(
-        text =
-          if (installState is RepertoireInstallState.Installed)
-            stringResource(Res.string.library_badge_in_training)
-          else stringResource(Res.string.library_badge_new),
-        background =
-          if (installState is RepertoireInstallState.Installed) kineticAccentLimeColor(palette)
-          else palette.panel2,
-        content =
-          if (installState is RepertoireInstallState.Installed) KineticOnAccentLime
-          else palette.ink3,
-      )
+      StatusBadge(installState)
       KineticButton(
         onClick = onView,
         iconOnly = true,
@@ -1369,6 +1369,35 @@ private fun RepertoireCard(
   }
 }
 
+/** A card's badge: IN TRAINING once installed, YOURS when authored, NEW otherwise. */
+@Composable
+private fun StatusBadge(installState: RepertoireInstallState) {
+  val palette = LocalKineticPalette.current
+  when (installState) {
+    is RepertoireInstallState.Installed ->
+      LibraryBadge(
+        text = stringResource(Res.string.library_badge_in_training),
+        background = kineticAccentLimeColor(palette),
+        content = KineticOnAccentLime,
+      )
+    is RepertoireInstallState.Authored ->
+      LibraryBadge(
+        text = stringResource(Res.string.library_badge_yours),
+        background = palette.actionDim,
+        content = palette.actionText,
+      )
+    is RepertoireInstallState.NotInstalled,
+    is RepertoireInstallState.Fetching,
+    is RepertoireInstallState.Importing,
+    is RepertoireInstallState.Failed ->
+      LibraryBadge(
+        text = stringResource(Res.string.library_badge_new),
+        background = palette.panel2,
+        content = palette.ink3,
+      )
+  }
+}
+
 /** Small bordered tag naming the side the repertoire is built for. */
 @Composable
 private fun ColorTag(color: RepertoireColor) {
@@ -1396,7 +1425,8 @@ private fun ColorTag(color: RepertoireColor) {
  * happened yet, the determinate install-progress bar ([installProgressFraction]) plus a status line
  * while fetching or importing, the [mastery] bar (solid over trainable positions, hidden when
  * nothing is trainable yet) plus the import summary once installed in this session (no summary when
- * restored from persistence), and the failure message plus a retry button after a failed attempt.
+ * restored from persistence), the failure message plus a retry button after a failed attempt, and
+ * nothing for a repertoire the user authored.
  *
  * The install-progress bar is one [Animatable] hoisted for the whole row, not per branch, so a new
  * [installProgressFraction] target — whether from the next real progress tick or the Fetching ->
@@ -1503,6 +1533,7 @@ private fun InstallStatusRow(
           KineticButtonLabel(stringResource(Res.string.library_install))
         }
       }
+    is RepertoireInstallState.Authored -> Unit
   }
 }
 

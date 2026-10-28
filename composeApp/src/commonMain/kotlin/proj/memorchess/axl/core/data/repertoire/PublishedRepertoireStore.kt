@@ -15,6 +15,9 @@ class PublishedRepertoireStore {
   /** The public slug [localId] was last published under, or `null` if never published. */
   fun publishedSlug(localId: String): String? = entries()[localId]
 
+  /** Every public slug a local repertoire is currently recorded as published under. */
+  fun publishedSlugs(): Set<String> = entries().values.toSet()
+
   /** Records that [localId] is now published under [slug]. */
   fun recordPublished(localId: String, slug: String) {
     require(localId.isNotBlank()) { "Repertoire id must not be blank" }

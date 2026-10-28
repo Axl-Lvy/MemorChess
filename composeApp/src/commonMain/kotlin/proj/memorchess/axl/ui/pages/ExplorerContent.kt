@@ -1,6 +1,7 @@
 package proj.memorchess.axl.ui.pages
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -22,11 +23,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BarChart2
 import fr.axl_lvy.stockfish_multiplatform.EngineDownload
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
@@ -330,13 +340,43 @@ fun ExplorerContent(
       cornerTagText = cornerTagLabel,
     )
 
-  Column(modifier = Modifier.fillMaxSize()) {
+  val focusRequester = remember { FocusRequester() }
+  LaunchedEffect(focusRequester) { focusRequester.requestFocus() }
+
+  Column(
+    modifier =
+      Modifier.fillMaxSize().focusRequester(focusRequester).focusable().onPreviewKeyEvent {
+        handleNavigationKey(it, explorer, coroutineScope)
+      }
+  ) {
     header()
     BoxWithConstraints(modifier = Modifier.weight(1f)) {
       if (maxHeight > maxWidth) PortraitExploreLayout(Modifier.fillMaxSize(), content)
       else LandscapeExploreLayout(Modifier.fillMaxSize(), content)
     }
   }
+}
+
+/**
+ * Navigates [explorer] on an arrow key press: left and right step back and forward, down and up
+ * jump to the first and last position. Returns `true` when the event was consumed.
+ */
+private fun handleNavigationKey(
+  event: KeyEvent,
+  explorer: LinesExplorer,
+  coroutineScope: CoroutineScope,
+): Boolean {
+  if (event.type != KeyEventType.KeyDown) return false
+  val navigate: suspend () -> Unit =
+    when (event.key) {
+      Key.DirectionLeft -> explorer::back
+      Key.DirectionRight -> explorer::forward
+      Key.DirectionDown -> explorer::first
+      Key.DirectionUp -> explorer::last
+      else -> return false
+    }
+  coroutineScope.launch { navigate() }
+  return true
 }
 
 /**

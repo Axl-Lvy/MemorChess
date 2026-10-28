@@ -2,8 +2,10 @@ package proj.memorchess.axl.core.graph
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 import proj.memorchess.axl.core.data.PositionKey
 
@@ -124,6 +126,48 @@ class TestNavigationHistory {
     assertEquals(moveToA, nav.arrivedVia)
     nav.back()
     assertNull(nav.arrivedVia)
+  }
+
+  @Test
+  fun backToRootThenForwardToEndRestoresLine() {
+    val nav = NavigationHistory(startPos)
+    nav.push(moveToA, posA)
+    nav.push(moveToB, posB)
+
+    val wentBack = nav.backToRoot()
+
+    assertTrue(wentBack)
+    assertEquals(startPos, nav.current)
+    assertEquals(0, nav.depth)
+    assertNull(nav.arrivedVia)
+
+    val wentForward = nav.forwardToEnd()
+
+    assertTrue(wentForward)
+    assertEquals(posB, nav.current)
+    assertEquals(2, nav.depth)
+    assertEquals(moveToB, nav.arrivedVia)
+  }
+
+  @Test
+  fun backToRootAtRootReturnsFalse() {
+    val nav = NavigationHistory(startPos)
+
+    val moved = nav.backToRoot()
+
+    assertFalse(moved)
+    assertEquals(startPos, nav.current)
+  }
+
+  @Test
+  fun forwardToEndWithoutForwardHistoryReturnsFalse() {
+    val nav = NavigationHistory(startPos)
+    nav.push(moveToA, posA)
+
+    val moved = nav.forwardToEnd()
+
+    assertFalse(moved)
+    assertEquals(posA, nav.current)
   }
 
   @Test
