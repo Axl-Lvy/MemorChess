@@ -1,6 +1,8 @@
 package proj.memorchess.axl.core.engine.evaluation
 
+import fr.axl_lvy.stockfish_multiplatform.EngineDownload
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.test.Test
 import kotlin.test.assertNull
@@ -75,6 +77,19 @@ class TestStockfishEvaluator {
       // After the second evaluate completes, we should have results for the new position.
       evaluator.evaluation.first { it != null }.shouldNotBeNull()
       evaluator.bestMove.first { it != null }.shouldNotBeNull()
+    } finally {
+      evaluator.close()
+    }
+  }
+
+  @Test
+  fun downloadIsDoneOnceTheEngineEvaluates() = runTest {
+    val evaluator = StockfishEvaluator(maxDepth = 10)
+    try {
+      evaluator.evaluate(Fen(STARTING_FEN), sideToMove = Player.WHITE)
+      evaluator.bestMove.first { it != null }
+
+      evaluator.download.value shouldBe EngineDownload.Done
     } finally {
       evaluator.close()
     }

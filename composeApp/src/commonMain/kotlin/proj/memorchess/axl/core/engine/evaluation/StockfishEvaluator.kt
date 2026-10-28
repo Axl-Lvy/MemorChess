@@ -1,9 +1,11 @@
 package proj.memorchess.axl.core.engine.evaluation
 
 import co.touchlab.kermit.Logger
+import fr.axl_lvy.stockfish_multiplatform.EngineDownload
 import fr.axl_lvy.stockfish_multiplatform.Score
 import fr.axl_lvy.stockfish_multiplatform.StockfishEngine
 import fr.axl_lvy.stockfish_multiplatform.getStockfish
+import fr.axl_lvy.stockfish_multiplatform.stockfishDownload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,6 +46,9 @@ class StockfishEvaluator(private val maxDepth: Int = DEFAULT_SEARCH_DEPTH) {
 
   /** The engine's recommended best move, or `null` while searching or unavailable. */
   val bestMove: StateFlow<BestMove?> = _bestMove.asStateFlow()
+
+  /** Progress of the engine download, which only the web build performs before its first search. */
+  val download: StateFlow<EngineDownload> = stockfishDownload
 
   init {
     initJob = scope.launch {

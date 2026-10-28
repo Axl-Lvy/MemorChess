@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BarChart2
+import fr.axl_lvy.stockfish_multiplatform.EngineDownload
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
@@ -50,6 +51,7 @@ import proj.memorchess.axl.core.engine.PieceKind
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.engine.evaluation.EvaluationScore
 import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
+import proj.memorchess.axl.core.engine.evaluation.engineDownloadLabel
 import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
@@ -159,6 +161,10 @@ fun ExplorerContent(
   val evaluation by (evaluator?.evaluation ?: flowOf(null)).collectAsState(initial = null)
   val currentDepth by (evaluator?.currentDepth ?: flowOf(null)).collectAsState(initial = null)
   val bestMove by (evaluator?.bestMove ?: flowOf(null)).collectAsState(initial = null)
+  val engineDownload by
+    (evaluator?.download ?: flowOf(EngineDownload.Done)).collectAsState(
+      initial = EngineDownload.Done
+    )
   val bestMoveArrow by remember {
     derivedStateOf {
       val finalBestMove = bestMove
@@ -256,7 +262,9 @@ fun ExplorerContent(
             ExploreEvalState(
               enabled = evalBarEnabled,
               ratio = computeEvalRatio(evaluation),
-              displayValue = evaluation?.let { formatEvaluationScore(it) },
+              displayValue =
+                engineDownloadLabel(engineDownload)
+                  ?: evaluation?.let { formatEvaluationScore(it) },
               thin = false,
             ),
         )
