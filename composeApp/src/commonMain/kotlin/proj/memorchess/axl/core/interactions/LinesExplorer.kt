@@ -100,6 +100,22 @@ open class LinesExplorer(
     callCallBacks(false)
   }
 
+  /** Walks back to the session's starting position; does nothing when already there. */
+  suspend fun first() {
+    if (navigation.backToRoot()) afterJump()
+  }
+
+  /** Replays the whole forward history; does nothing when there is none. */
+  suspend fun last() {
+    if (navigation.forwardToEnd()) afterJump()
+  }
+
+  private suspend fun afterJump() {
+    engine = GameEngine(navigation.current)
+    state = treeStore.computeState(navigation.current, navigation.arrivedVia?.from)
+    callCallBacks(false)
+  }
+
   /**
    * Sorted list of classified outgoing moves at the current position, narrowed to [repertoireScope]
    * when this session is scoped (any [Edge.isGood] value passes, so a known trap the repertoire
