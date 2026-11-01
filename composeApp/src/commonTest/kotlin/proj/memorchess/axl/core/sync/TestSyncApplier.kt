@@ -132,4 +132,92 @@ class TestSyncApplier {
     // back over the applied one.
     cache.peek(positionKey)?.cardState?.dueDate shouldBe laterDueDate
   }
+
+  private val start = PositionKey.START_POSITION.value
+
+  private fun edge(origin: String, destination: String, move: String) =
+    EdgeSyncRow(
+      origin = origin,
+      destination = destination,
+      move = move,
+      isGood = true,
+      isDeleted = false,
+      updatedAt = now,
+      originDevice = DeviceId("remote"),
+      deviceSeq = 1L,
+    )
+
+  private suspend fun InMemoryDatabaseQueryManager.depthOf(key: String): Int? =
+    getPosition(PositionKey(key))?.depth
+
+  @Test
+  fun pulledPositionsTakeTheirDepthFromTheStart() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val applier = applier(database)
+    listOf(start, "a", "b").forEach { applier.applyNode(row(it)) }
+
+    applier.applyMove(edge(start, "a", "e4"))
+    applier.applyMove(edge("a", "b", "e5"))
+
+    listOf(start, "a", "b").map { database.depthOf(it) } shouldBe listOf(0, 1, 2)
+  }
+
+  @Test
+  fun aMovePulledBeforeItsOriginIsReachableSettlesOnceTheLineConnects() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val applier = applier(database)
+    listOf(start, "a", "b").forEach { applier.applyNode(row(it)) }
+
+    applier.applyMove(edge("a", "b", "e5"))
+    applier.applyMove(edge(start, "a", "e4"))
+
+    listOf(start, "a", "b").map { database.depthOf(it) } shouldBe listOf(0, 1, 2)
+  }
+
+  @Test
+  fun aPulledPositionWithNoPathFromTheStartIsNotTheShallowest() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+
+    applier(database).applyNode(row("a"))
+
+    database.depthOf("a") shouldBe Int.MAX_VALUE
+  }
+
+  @Test
+  fun aShorterPulledLineLowersTheDepthOfAPositionAndItsDescendants() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val applier = applier(database)
+    listOf(start, "a", "b", "c", "d").forEach { applier.applyNode(row(it)) }
+    applier.applyMove(edge(start, "a", "e4"))
+    applier.applyMove(edge("a", "b", "e5"))
+    applier.applyMove(edge("b", "c", "Nf3"))
+    applier.applyMove(edge("c", "d", "Nc6"))
+
+    applier.applyMove(edge(start, "c", "d4"))
+
+    listOf("c", "d").map { database.depthOf(it) } shouldBe listOf(1, 2)
+  }
+
+  @Test
+  fun aMoveCreatedByAPulledTagGivesItsDestinationADepth() = runTest {
+    val database = InMemoryDatabaseQueryManager()
+    val applier = applier(database)
+    listOf(start, "a").forEach { applier.applyNode(row(it)) }
+
+    applier.applyTag(
+      EdgeRepertoireTagSyncRow(
+        origin = start,
+        destination = "a",
+        repertoireId = "r",
+        move = "e4",
+        isGood = true,
+        isDeleted = false,
+        updatedAt = now,
+        originDevice = DeviceId("remote"),
+        deviceSeq = 1L,
+      )
+    )
+
+    database.depthOf("a") shouldBe 1
+  }
 }
