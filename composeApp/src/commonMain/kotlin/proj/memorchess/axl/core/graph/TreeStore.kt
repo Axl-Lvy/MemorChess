@@ -149,6 +149,9 @@ class TreeStore(
         deviceSeq = deviceIdentity.nextDeviceSeq(),
         ownIsGood = isGood,
       )
+    // Loaded first so an existing destination outside the cache is not recreated empty and then
+    // persisted over its own row.
+    node(to)
     cache.upsertEdge(edge, fromDepth)
     if (isGood != null) {
       persistNode(from)
