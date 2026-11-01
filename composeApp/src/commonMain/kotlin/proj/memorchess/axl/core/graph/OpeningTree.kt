@@ -13,7 +13,7 @@ import proj.memorchess.axl.core.data.PositionKey
  *
  * ## Eviction
  *
- * The cache keeps at most [MAX_CACHE_NODES] entries with a least recently used policy. Recency is
+ * The cache keeps at most [capacity] entries with a least recently used policy. Recency is
  * maintained explicitly because Kotlin Multiplatform does not expose an access ordered
  * [LinkedHashMap] on every target: [touch] (and every write) removes then re puts a key so the most
  * recently used entry sits at the tail of the insertion order, and eviction drops from the head.
@@ -29,9 +29,12 @@ import proj.memorchess.axl.core.data.PositionKey
  * concurrently with main thread resolves, so [NodeCache] funnels every read and write through a
  * single mutex. Do not mutate the cache from outside [NodeCache].
  *
- * All mutators are package internal. Production code only mutates the tree through [NodeCache].
+ * All mutators are package internal. Production code only mutates the shared tree through
+ * [NodeCache]; a batch write may stage its positions in a private, unbounded one.
+ *
+ * @param capacity Most entries kept before evicting the least recently used.
  */
-class OpeningTree {
+class OpeningTree(private val capacity: Int = MAX_CACHE_NODES) {
 
   private val positions = LinkedHashMap<PositionKey, Node>()
 
@@ -81,7 +84,7 @@ class OpeningTree {
 
   /**
    * Inserts or replaces the node at [Node.positionKey], marks it most recently used, and evicts the
-   * least recently used entries until the cache is back within [MAX_CACHE_NODES].
+   * least recently used entries until the cache is back within [capacity].
    */
   internal fun put(node: Node) {
     positions.remove(node.positionKey)
@@ -122,7 +125,7 @@ class OpeningTree {
   }
 
   private fun evictIfNeeded() {
-    while (positions.size > MAX_CACHE_NODES) {
+    while (positions.size > capacity) {
       val oldest = positions.keys.iterator().next()
       positions.remove(oldest)
     }

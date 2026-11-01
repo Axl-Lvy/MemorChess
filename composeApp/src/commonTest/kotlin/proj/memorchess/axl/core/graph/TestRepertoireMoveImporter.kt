@@ -1,19 +1,25 @@
 package proj.memorchess.axl.core.graph
 
+import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
+import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.repertoire.RepertoireMove
+import proj.memorchess.axl.core.data.repertoire.depthsFromStart
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.pgn.PgnImportException
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
+import proj.memorchess.axl.core.scheduling.CardPhase
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
+import proj.memorchess.axl.test_util.wideRepertoireMoves
 
 class TestRepertoireMoveImporter {
 
@@ -219,5 +225,28 @@ class TestRepertoireMoveImporter {
     val preview = importer.preview(line("e4", "e5"), repertoireId = "x")
 
     assertEquals(0, preview.movesToDelete)
+  }
+
+  @Test
+  fun importPersistsEveryPositionOfARepertoireLargerThanTheCache() = runTest {
+    val moves = wideRepertoireMoves()
+
+    importer.import(moves, repertoireId = "a")
+
+    val depths = moves.depthsFromStart()
+    depths.size shouldBe 801
+    depths.mapValues { (key, _) -> database.getPosition(PositionKey(key))?.depth } shouldBe depths
+  }
+
+  @Test
+  fun importKeepsTheCardStateOfAnExistingPositionOutsideTheCache() = runTest {
+    val e4 = line("e4").single()
+    val reviewed = CardStateFactory.new().copy(phase = CardPhase.REVIEW, reps = 3)
+    database.insertNodes(DataNode(PositionKey(e4.to), PreviousAndNextMoves(), reviewed, depth = 1))
+    val coldImporter = RepertoireMoveImporter(testTreeStore(database), tagStore)
+
+    coldImporter.import(listOf(e4), repertoireId = "a")
+
+    database.getPosition(PositionKey(e4.to))?.cardState shouldBe reviewed
   }
 }
