@@ -190,7 +190,7 @@ class SyncApplier(
       reviveIfDeleted(destination)
     }
     if (updated != null && updated != stored) database.applyRemoteMove(updated)
-    if ((updated ?: stored)?.isDeleted == false) settleDepth(destination)
+    if (updated?.isDeleted == false) settleDepth(destination)
     if (stored?.isDeleted == false && updated?.isDeleted == true) {
       pruneIfOrphaned(origin)
       pruneIfOrphaned(destination)
