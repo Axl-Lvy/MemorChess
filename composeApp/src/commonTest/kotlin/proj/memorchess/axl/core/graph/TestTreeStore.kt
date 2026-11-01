@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.graph
 
+import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -18,6 +19,7 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.CountingDatabaseQueryManager
 import proj.memorchess.axl.test_util.GatingDatabaseQueryManager
@@ -205,10 +207,15 @@ class TestTreeStore {
     val scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler))
     val store = testTreeStore(database, scope)
 
-    // Resolving child fans out a warm of `to`, which parks on the gate.
+    // Resolving child fans out a warm of `to`, which parks on the gate. addMove waits on that same
+    // load before writing `to`, so it runs alongside and the gate opens while both are parked.
     backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.node(child) }
-    store.addMove(from = from, move = "e4", to = to, isGood = true, fromDepth = 0)
+    val adding =
+      backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+        store.addMove(from = from, move = "e4", to = to, isGood = true, fromDepth = 0)
+      }
     database.gate.complete(Unit)
+    adding.join()
 
     // Cache side assertions: every backend merges move rows per key, so the disk state is identical
     // with and without the mark and a persisted row assertion cannot fail.
@@ -253,5 +260,25 @@ class TestTreeStore {
     assertNotNull(persisted)
     assertTrue(persisted.isDeleted, "the tombstone is durable")
     assertNull(store.node(posA), "the cache no longer serves the deleted position")
+  }
+
+  @Test
+  fun addMoveKeepsTheStateOfAnExistingDestinationOutsideTheCache() = runTest {
+    val database = TestDatabases.empty()
+    val reviewed = CardStateFactory.new().copy(phase = CardPhase.REVIEW, reps = 3)
+    val onward = move(posA, "e5", posB, t1)
+    database.insertNodes(
+      node(start, depth = 0, incoming = listOf(), outgoing = listOf()),
+      node(posA, depth = 1, incoming = listOf(), outgoing = listOf(onward))
+        .copy(cardState = reviewed, hasGoodOutgoing = true),
+      node(posB, depth = 2, incoming = listOf(onward), outgoing = listOf()),
+    )
+    val store = testTreeStore(database)
+
+    store.addMove(start, "e4", posA, isGood = true, fromDepth = 0)
+
+    val persisted = database.getPosition(posA)
+    persisted?.cardState shouldBe reviewed
+    persisted?.hasGoodOutgoing shouldBe true
   }
 }
