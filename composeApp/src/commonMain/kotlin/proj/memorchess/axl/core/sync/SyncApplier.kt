@@ -51,12 +51,13 @@ class SyncApplier(
       val dataNode =
         remote.toDataNode(
           existingMoves = local?.previousAndNextMoves ?: PreviousAndNextMoves(),
-          existingDepth = local?.depth ?: 0,
+          existingDepth = local?.depth ?: Int.MAX_VALUE,
           existingHasGoodOutgoing = local?.hasGoodOutgoing ?: false,
           existingCreatedAt = local?.createdAt ?: remote.updatedAt,
         )
       database.applyRemoteNode(dataNode)
       cache.invalidate(dataNode.positionKey)
+      settleDepth(dataNode.positionKey)
       rederiveHoldersAround(dataNode)
     }
     return resolution.source
@@ -189,6 +190,7 @@ class SyncApplier(
       reviveIfDeleted(destination)
     }
     if (updated != null && updated != stored) database.applyRemoteMove(updated)
+    if ((updated ?: stored)?.isDeleted == false) settleDepth(destination)
     if (stored?.isDeleted == false && updated?.isDeleted == true) {
       pruneIfOrphaned(origin)
       pruneIfOrphaned(destination)
@@ -220,6 +222,36 @@ class SyncApplier(
     val node = database.getPositionIncludingDeleted(position) ?: return
     if (!node.isDeleted) return
     database.applyRemoteNode(node.copy(isDeleted = false, cardState = CardStateFactory.new()))
+  }
+
+  /**
+   * Lowers [position]'s depth, without an outbox entry, to one more than its shallowest live
+   * parent's (zero for the start), and carries any lowering down its live moves. Depth never
+   * travels, so a pulled position only learns it from the moves that reach it.
+   */
+  private suspend fun settleDepth(position: PositionKey) {
+    val pending = ArrayDeque(listOf(position))
+    while (pending.isNotEmpty()) {
+      val node = database.getPosition(pending.removeFirst()) ?: continue
+      val derived = derivedDepth(node) ?: continue
+      if (derived >= node.depth) continue
+      database.applyRemoteNode(node.copy(depth = derived))
+      cache.invalidate(node.positionKey)
+      pending +=
+        node.previousAndNextMoves.nextMoves.values.filter { !it.isDeleted }.map { it.destination }
+    }
+  }
+
+  /** The depth [node]'s live parents give it, or `null` when none is reachable from the start. */
+  private suspend fun derivedDepth(node: DataNode): Int? {
+    if (node.positionKey == PositionKey.START_POSITION) return 0
+    return node.previousAndNextMoves.previousMoves.values
+      .filter { !it.isDeleted }
+      .mapNotNull {
+        database.getPosition(it.origin)?.depth?.takeIf { depth -> depth != Int.MAX_VALUE }
+      }
+      .minOrNull()
+      ?.plus(1)
   }
 
   /**
