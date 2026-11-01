@@ -169,7 +169,7 @@ class TreeStore(
   }
 
   /**
-   * Adds every move in [moves] to the cache, then persists all touched nodes in one batch.
+   * Adds every move in [moves], then persists all touched nodes in one batch.
    *
    * Behaves like calling [addMove] for each element, except that every node touched by a classified
    * move is written to the database exactly once, through a single
@@ -183,7 +183,7 @@ class TreeStore(
   suspend fun addMoves(moves: List<MoveInsertion>) {
     if (moves.isEmpty()) return
     val now = DateUtil.now()
-    val touched = linkedSetOf<PositionKey>()
+    val staging = BatchStaging()
     val dirtyEdges = mutableListOf<Pair<DirtyKey.EdgeKey, Long>>()
     // TODO: nextDeviceSeq below is allocated per edge, one at a time, even for exploration-only
     // moves (isGood == null, never persisted). A block-allocation batching fix is a larger change;
@@ -202,24 +202,22 @@ class TreeStore(
           deviceSeq = deviceIdentity.nextDeviceSeq(),
           ownIsGood = insertion.isGood,
         )
-      cache.upsertEdge(edge, insertion.fromDepth)
-      if (insertion.isGood != null) {
-        touched += insertion.from
-        touched += insertion.to
+      if (insertion.isGood == null) {
+        cache.upsertEdge(edge, insertion.fromDepth)
+      } else {
+        staging.upsertEdge(edge, insertion.fromDepth)
         dirtyEdges += DirtyKey.EdgeKey(insertion.from, insertion.to) to edge.deviceSeq
       }
     }
-    val nodesToPersist = touched.mapNotNull { cache.peek(it)?.toDataNode() }
-    if (nodesToPersist.isNotEmpty()) {
-      // insertNodes queues each node's own outbox entry transactionally; only the edges themselves
-      // need marking here, same as addMove.
-      database.insertNodes(*nodesToPersist.toTypedArray())
-      for ((edgeKey, seq) in dirtyEdges) database.markDirty(edgeKey, seq)
-      // A freshly created destination has no outgoing edges yet, so recomputing it too is a
-      // harmless no-op that resolves to an empty set.
-      for (origin in touched) trainable.recompute(origin)
-      notifyDirty()
-    }
+    if (staging.isEmpty()) return
+    // insertNodes queues each node's own outbox entry transactionally; only the edges themselves
+    // need marking here, same as addMove.
+    val touched = staging.persist()
+    for ((edgeKey, seq) in dirtyEdges) database.markDirty(edgeKey, seq)
+    // A freshly created destination has no outgoing edges yet, so recomputing it too is a harmless
+    // no-op that resolves to an empty set.
+    for (origin in touched) trainable.recompute(origin)
+    notifyDirty()
   }
 
   /**
@@ -236,7 +234,7 @@ class TreeStore(
       tagStore.tagInstalled(move.from, move.to, repertoireId, move.move, move.isGood)
     }
     val now = DateUtil.now()
-    val touched = linkedSetOf<PositionKey>()
+    val staging = BatchStaging()
     for (move in moves) {
       val prior = priorManualHold(move.from, move.move)
       val effective =
@@ -256,12 +254,9 @@ class TreeStore(
           deviceSeq = prior?.deviceSeq ?: 0L,
           ownIsGood = prior?.ownIsGood,
         )
-      cache.upsertEdge(edge, move.fromDepth)
-      touched += move.from
-      touched += move.to
+      staging.upsertEdge(edge, move.fromDepth)
     }
-    val nodesToPersist = touched.mapNotNull { cache.peek(it)?.toDataNode() }
-    database.insertNodes(*nodesToPersist.toTypedArray())
+    val touched = staging.persist()
     for (origin in touched) trainable.recompute(origin)
     notifyDirty()
     releaseHolds(repertoireId, dropped)
@@ -580,6 +575,41 @@ class TreeStore(
   private suspend fun persistNode(positionKey: PositionKey) {
     val node = cache.peek(positionKey) ?: return
     database.insertNodes(node.toDataNode())
+  }
+
+  /**
+   * The positions a batch write touches, staged outside the bounded cache so that none is evicted
+   * before it is written. Each is seeded from its persisted row, so an existing position keeps its
+   * [CardState] and edges.
+   */
+  private inner class BatchStaging {
+    private val tree = OpeningTree(capacity = Int.MAX_VALUE)
+    private val touched = linkedSetOf<PositionKey>()
+
+    fun isEmpty(): Boolean = touched.isEmpty()
+
+    /** Adds or replaces [edge], creating either endpoint at [fromDepth] / [fromDepth] + 1. */
+    suspend fun upsertEdge(edge: Edge, fromDepth: Int) {
+      seed(edge.from)
+      seed(edge.to)
+      tree.upsertEdge(edge, fromDepth)
+    }
+
+    /**
+     * Writes every staged position in one [DatabaseQueryManager.insertNodes] call, then drops them
+     * from the cache so the next resolve reads the written rows. Returns the written positions.
+     */
+    suspend fun persist(): Set<PositionKey> {
+      val nodes = touched.map { checkNotNull(tree[it]).toDataNode() }
+      database.insertNodes(*nodes.toTypedArray())
+      for (positionKey in touched) cache.invalidate(positionKey)
+      return touched
+    }
+
+    private suspend fun seed(positionKey: PositionKey) {
+      if (!touched.add(positionKey)) return
+      node(positionKey)?.let { tree.put(it) }
+    }
   }
 
   /**

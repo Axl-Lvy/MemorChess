@@ -32,6 +32,7 @@ import proj.memorchess.axl.test_util.InMemoryDailyActivityStore
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
+import proj.memorchess.axl.test_util.wideRepertoireMoves
 
 class TestTrainingScheduler {
 
@@ -790,5 +791,15 @@ class TestTrainingScheduler {
     // startPos remains a due new card, uncounted by any scope.
     assertEquals(1, scheduler.dueCount())
     assertEquals(0, scheduler.dueCount(repertoireId = "italian-game"))
+  }
+
+  @Test
+  fun everyPositionOfARepertoireLargerThanTheCacheBecomesACard() = runTest {
+    val (store, scheduler, tagStore) = newScheduler()
+    val moves = wideRepertoireMoves()
+
+    RepertoireMoveImporter(store, tagStore).import(moves, repertoireId = "a")
+
+    scheduler.pendingCount() shouldBe moves.map { it.from }.distinct().size
   }
 }

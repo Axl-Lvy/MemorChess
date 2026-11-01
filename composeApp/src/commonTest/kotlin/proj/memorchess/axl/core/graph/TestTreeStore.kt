@@ -18,6 +18,7 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.InMemoryDatabaseQueryManager
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.repertoire.depthsFromStart
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardStateFactory
@@ -26,6 +27,7 @@ import proj.memorchess.axl.test_util.GatingDatabaseQueryManager
 import proj.memorchess.axl.test_util.TestDatabases
 import proj.memorchess.axl.test_util.testRepertoireTagStore
 import proj.memorchess.axl.test_util.testTreeStore
+import proj.memorchess.axl.test_util.wideRepertoireMoves
 
 /**
  * Tests for the derived projection columns [DataNode.hasGoodOutgoing] and [DataNode.createdAt], and
@@ -260,6 +262,28 @@ class TestTreeStore {
     assertNotNull(persisted)
     assertTrue(persisted.isDeleted, "the tombstone is durable")
     assertNull(store.node(posA), "the cache no longer serves the deleted position")
+  }
+
+  @Test
+  fun addMovesPersistsEveryPositionOfABatchLargerThanTheCache() = runTest {
+    val database = TestDatabases.empty()
+    val store = testTreeStore(database)
+    val moves = wideRepertoireMoves()
+    val depths = moves.depthsFromStart()
+
+    store.addMoves(
+      moves.map {
+        MoveInsertion(
+          from = PositionKey(it.from),
+          move = it.move,
+          to = PositionKey(it.to),
+          isGood = true,
+          fromDepth = depths.getValue(it.from),
+        )
+      }
+    )
+
+    depths.mapValues { (key, _) -> database.getPosition(PositionKey(key))?.depth } shouldBe depths
   }
 
   @Test
