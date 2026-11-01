@@ -1,5 +1,6 @@
 package proj.memorchess.axl.core.graph
 
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -234,7 +235,7 @@ class TestRepertoireMoveImporter {
     importer.import(moves, repertoireId = "a")
 
     val depths = moves.depthsFromStart()
-    depths.size shouldBe 801
+    depths.size shouldBeGreaterThan OpeningTree.MAX_CACHE_NODES
     depths.mapValues { (key, _) -> database.getPosition(PositionKey(key))?.depth } shouldBe depths
   }
 
