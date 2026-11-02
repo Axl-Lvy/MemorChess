@@ -9,7 +9,7 @@ plugins {
   id("jacoco")
 }
 
-jacoco { toolVersion = "0.8.15" }
+jacoco { toolVersion = "0.8.16" }
 
 android {
   namespace = "proj.memorchess.axl"

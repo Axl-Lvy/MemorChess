@@ -24,7 +24,7 @@ plugins {
   id("jacoco")
 }
 
-jacoco { toolVersion = "0.8.15" }
+jacoco { toolVersion = "0.8.16" }
 
 kotlin {
   // Android configuration
