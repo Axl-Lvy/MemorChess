@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "commit": "efa8ec3d68da4de9330e2fe8151f53226a7eaa4b",
-  "date": "2026-09-04T07:34:54Z",
+  "commit": "8ad56eb81540cd06e00dd66741d308d085c65ab5",
+  "date": "2026-11-03T10:18:37Z",
   "runner": "Linux",
   "metrics": {
     "macro/BoardCompositionBenchmark.boardCompositionOnExploreEntry/%BoardGrid%Count_median": {
@@ -10,90 +10,90 @@
       "direction": "lower"
     },
     "macro/BoardCompositionBenchmark.boardCompositionOnExploreEntry/%BoardGrid%SumMs_median": {
-      "value": 24.6820735,
+      "value": 12.004072,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameCount_median": {
-      "value": 35.0,
+      "value": 37.0,
       "unit": "",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P50": {
-      "value": 86.6692085,
+      "value": 70.56877,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P90": {
-      "value": 108.1448075,
+      "value": 90.9513568,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P99": {
-      "value": 131.15364832999998,
+      "value": 115.43780695999985,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P50": {
-      "value": 103.50849600000001,
+      "value": 79.42398,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P90": {
-      "value": 134.715753,
+      "value": 110.4457492,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P99": {
-      "value": 167.78296050999998,
+      "value": 162.64476327999955,
       "unit": "ms",
       "direction": "lower"
     },
     "micro/FenBenchmark.cropPositionsToKeys": {
-      "value": 1677.3747404540277,
-      "error": 132.37997933216997,
+      "value": 1362.1182092046124,
+      "error": 62.99116046949455,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/FenBenchmark.parseCroppedFens": {
-      "value": 472.6669598084183,
-      "error": 23.070663742462365,
+      "value": 393.8698845343477,
+      "error": 57.545139185388045,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/Fsrs6SchedulingBenchmark.longTermSchedulingPass": {
-      "value": 5324.773065719115,
-      "error": 244.1573951373124,
+      "value": 4228.585262988495,
+      "error": 1861.3401764422094,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/Fsrs6SchedulingBenchmark.shortTermSchedulingPass": {
-      "value": 18649.970928317845,
-      "error": 1218.4394387621044,
+      "value": 17514.35514780879,
+      "error": 144.07358763550553,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/GameEngineBenchmark.playSanLines": {
-      "value": 11.967437395185499,
-      "error": 0.2204351991075658,
+      "value": 5.174137659269968,
+      "error": 0.2389318053264603,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/GameEngineBenchmark.positionKeyAfterEveryMove": {
-      "value": 11.708442423533237,
-      "error": 0.5133897802339115,
+      "value": 5.2548435275277425,
+      "error": 0.2130276465469961,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/OpeningTreeBenchmark.buildTreeFromEdges": {
-      "value": 4422.419863614903,
-      "error": 423.40968881864177,
+      "value": 1724.9585097791173,
+      "error": 267.17475698041864,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/OpeningTreeBenchmark.lookupEveryPosition": {
-      "value": 13745.640733948982,
-      "error": 3103.989777549168,
+      "value": 13255.89669071054,
+      "error": 467.69193397744266,
       "unit": "ops/s",
       "direction": "higher"
     }
