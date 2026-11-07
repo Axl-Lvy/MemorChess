@@ -1,99 +1,99 @@
 {
   "schema": 1,
-  "commit": "8423e934f8160db8923da2e5f8c742a1720cf565",
-  "date": "2026-09-08T07:36:04Z",
+  "commit": "8ad56eb81540cd06e00dd66741d308d085c65ab5",
+  "date": "2026-11-07T09:28:33Z",
   "runner": "Linux",
   "metrics": {
     "macro/BoardCompositionBenchmark.boardCompositionOnExploreEntry/%BoardGrid%Count_median": {
-      "value": 262.0,
+      "value": 263.0,
       "unit": "",
       "direction": "lower"
     },
     "macro/BoardCompositionBenchmark.boardCompositionOnExploreEntry/%BoardGrid%SumMs_median": {
-      "value": 26.558316,
+      "value": 25.488331000000002,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameCount_median": {
-      "value": 34.0,
+      "value": 34.5,
       "unit": "",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P50": {
-      "value": 87.48936950000001,
+      "value": 91.590836,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P90": {
-      "value": 116.6419453,
+      "value": 116.620041,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameDurationCpuMs_P99": {
-      "value": 145.15258880999994,
+      "value": 192.1699218000001,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P50": {
-      "value": 98.337974,
+      "value": 100.437687,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P90": {
-      "value": 143.09050350000004,
+      "value": 154.712042,
       "unit": "ms",
       "direction": "lower"
     },
     "macro/ScreenNavigationBenchmark.screenTransitions/frameOverrunMs_P99": {
-      "value": 187.14408013999991,
+      "value": 238.33185580000014,
       "unit": "ms",
       "direction": "lower"
     },
     "micro/FenBenchmark.cropPositionsToKeys": {
-      "value": 1512.1759394949925,
-      "error": 66.40391491817645,
+      "value": 1399.305642214724,
+      "error": 115.68108686551255,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/FenBenchmark.parseCroppedFens": {
-      "value": 426.9354660569582,
-      "error": 13.728130423356845,
+      "value": 393.2449303921565,
+      "error": 26.603287808323696,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/Fsrs6SchedulingBenchmark.longTermSchedulingPass": {
-      "value": 4880.338630360736,
-      "error": 202.2263748227356,
+      "value": 3939.99785349455,
+      "error": 746.7147493534471,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/Fsrs6SchedulingBenchmark.shortTermSchedulingPass": {
-      "value": 17057.244796800624,
-      "error": 153.7589001278074,
+      "value": 16265.081631729554,
+      "error": 222.45737809216845,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/GameEngineBenchmark.playSanLines": {
-      "value": 10.698897530385315,
-      "error": 0.43844356310465527,
+      "value": 4.909807221725023,
+      "error": 0.2815177381552454,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/GameEngineBenchmark.positionKeyAfterEveryMove": {
-      "value": 10.700759238716332,
-      "error": 0.24110595165010262,
+      "value": 4.896305111039315,
+      "error": 0.18664763867090095,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/OpeningTreeBenchmark.buildTreeFromEdges": {
-      "value": 2468.3699266526455,
-      "error": 125.19191977102169,
+      "value": 1669.8200350931788,
+      "error": 59.95087434041178,
       "unit": "ops/s",
       "direction": "higher"
     },
     "micro/OpeningTreeBenchmark.lookupEveryPosition": {
-      "value": 12626.689966627102,
-      "error": 4809.544046993363,
+      "value": 10345.732544119968,
+      "error": 949.9707551362957,
       "unit": "ops/s",
       "direction": "higher"
     }
