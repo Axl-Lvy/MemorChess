@@ -21,6 +21,9 @@
   <a href="https://axl-lvy.github.io/MemorChess/">
     <img src="https://axl-lvy.github.io/MemorChess/badge.svg" alt="Code provenance" />
   </a>
+  <a href="https://axl-lvy.github.io/MemorChess/benchmarks/">
+    <img src="https://img.shields.io/badge/benchmarks-history-4f7df3" alt="Benchmark history" />
+  </a>
   <a href="https://github.com/Axl-Lvy/MemorChess/actions/workflows/check.yml">
     <img src="https://gist.githubusercontent.com/Axl-Lvy/69f14a721eba3ba2b1d3b886b1923a8b/raw/badge.svg" alt="Test Results" />
   </a>

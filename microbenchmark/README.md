@@ -49,6 +49,7 @@ core logic; use `:macrobenchmark` for realistic on device UI performance.
 
 ## CI
 
-The manually triggered `benchmark.yml` workflow runs this suite in a `microbenchmark` job, in
-parallel with the `macrobenchmark` job, then merges both JSON result sets into a single
-`benchmark-results` artifact with one subdirectory per module.
+The `benchmark.yml` workflow (daily on master, or manually triggered) runs this suite in a
+`microbenchmark` job, in parallel with the `macrobenchmark` job, then merges both JSON result sets
+into a single `benchmark-results` artifact with one subdirectory per module. The daily master runs
+are charted at <https://axl-lvy.github.io/MemorChess/benchmarks/>, normalized for runner speed.
