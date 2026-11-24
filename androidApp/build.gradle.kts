@@ -13,7 +13,12 @@ jacoco { toolVersion = "0.8.16" }
 
 android {
   namespace = "proj.memorchess.axl"
-  compileSdk = libs.versions.android.compileSdk.get().toInt()
+  compileSdk {
+    version =
+      release(libs.versions.android.compileSdk.get().toInt()) {
+        minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+      }
+  }
 
   defaultConfig {
     applicationId = "proj.memorchess.axl"

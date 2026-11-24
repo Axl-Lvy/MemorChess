@@ -30,7 +30,12 @@ kotlin {
   // Android configuration
   androidLibrary {
     namespace = "proj.memorchess.axl.library"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk {
+      version =
+        release(libs.versions.android.compileSdk.get().toInt()) {
+          minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+        }
+    }
     minSdk = libs.versions.android.minSdk.get().toInt()
     compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
     // Package Compose Multiplatform resources into the AAR (CMP-9547). Without this the
