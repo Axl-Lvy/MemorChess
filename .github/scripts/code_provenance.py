@@ -151,6 +151,7 @@ def percentages(counts: dict[Era, int]) -> dict[Era, int]:
 def build_tree(files: list[FileReport]) -> dict[str, Any]:
     """Nests the files into folders, each node carrying its counts and percentages per era.
 
+    A chain of folders that each hold a single folder collapses into one node named `a/b/c`.
     A file node's `id` is its index in `files`, which names its `files/<id>.json` in the site.
     """
     root: dict[str, Any] = {"name": ROOT_NAME, "path": "", "children": []}
@@ -167,8 +168,19 @@ def build_tree(files: list[FileReport]) -> dict[str, Any]:
         counts = {era.value: n for era, n in report.counts.items()}
         node = {"name": parts[-1], "path": report.path, "file": True, "id": index, "counts": counts}
         parent["children"].append(node)
+    root["children"] = [_compact(child) for child in root["children"]]
     _sum_counts(root)
     return root
+
+
+def _compact(node: dict[str, Any]) -> dict[str, Any]:
+    if "children" not in node:
+        return node
+    while len(node["children"]) == 1 and "children" in node["children"][0]:
+        only = node["children"][0]
+        node = {**only, "name": f"{node['name']}/{only['name']}"}
+    node["children"] = [_compact(child) for child in node["children"]]
+    return node
 
 
 def _sum_counts(node: dict[str, Any]) -> dict[str, int]:
@@ -222,11 +234,7 @@ def write_site(files: list[FileReport], out: Path, template: Path) -> None:
         rows = [[line.number, line.text, line.era.value if line.era else None] for line in report.lines]
         target.write_text(_to_json(rows), encoding="utf-8")
     tree = build_tree(files)
-    data = {
-        "tree": tree,
-        "icons": {era.value: icon for era, icon in ICONS.items()},
-        "generated": datetime.now(timezone.utc).date().isoformat(),
-    }
+    data = {"tree": tree, "icons": {era.value: icon for era, icon in ICONS.items()}}
     page = template.read_text(encoding="utf-8").replace(DATA_PLACEHOLDER, _to_json(data).replace("</", "<\\/"))
     out.mkdir(parents=True, exist_ok=True)
     (out / "index.html").write_text(page, encoding="utf-8")
