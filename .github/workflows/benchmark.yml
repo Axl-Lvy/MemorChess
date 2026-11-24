@@ -22,10 +22,12 @@ jobs:
     uses: ./.github/workflows/benchmark-run.yml
     secrets: inherit
 
-  # Appends this run's summary to the benchmark-data branch. Guarded to master so the
-  # baseline always describes master; a manual dispatch on any other branch still runs
-  # the benchmarks and uploads the artifact but never touches the baseline. Manual
-  # dispatches on master record too, which allows seeding the baseline window quickly.
+  # Appends this run's summary to the benchmark-data branch, keeping every run, and
+  # rebuilds history.json there for the benchmark history page on GitHub Pages. Guarded
+  # to master so the baseline always describes master; a manual dispatch on any other
+  # branch still runs the benchmarks and uploads the artifact but never touches the
+  # baseline. Manual dispatches on master record too, which allows seeding the baseline
+  # window quickly.
   record-baseline:
     runs-on: ubuntu-latest
     needs: run
@@ -33,7 +35,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Full history so the history file can resolve every benchmarked commit's subject
+      # and the commits that landed between two benchmarked commits.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/checkout@v7
         with:
@@ -56,11 +62,18 @@ jobs:
             --runner "$RUNNER_OS" \
             --output "benchmark-data/runs/${stamp}_${GITHUB_SHA::8}.json"
 
+      - name: Build history file
+        run: |
+          python3 .github/scripts/build_benchmark_history.py \
+            --runs-dir benchmark-data/runs \
+            --repo . \
+            --output benchmark-data/history.json
+
       - name: Commit baseline entry
         working-directory: benchmark-data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add runs
+          git add runs history.json
           git commit -m "chore: record benchmark baseline for ${GITHUB_SHA::8}"
           git push origin benchmark-data
