@@ -131,7 +131,7 @@ class TestRepertoireRoutes {
       second.status shouldBe HttpStatusCode.NoContent
       val manifest =
         SYNC_JSON.decodeFromString<RepertoireManifest>(
-          client.get("/v1/repertoires/manifest.json").bodyAsText()
+          client.get("/v1/repertoires/manifest.json").bodyAsText(),
         )
       manifest.repertoires.first { it.id == id }.downloadCount shouldBe 2
     }
@@ -299,7 +299,7 @@ class TestRepertoireRoutes {
     app(store) { client ->
       val manifest =
         SYNC_JSON.decodeFromString<RepertoireManifest>(
-          client.get("/v1/repertoires/manifest.json").bodyAsText()
+          client.get("/v1/repertoires/manifest.json").bodyAsText(),
         )
 
       manifest.repertoires.single { it.id == id }.version shouldBe 2
@@ -413,7 +413,7 @@ class TestRepertoireRoutes {
         description = description,
         side = side,
         moves = moves,
-      )
+      ),
     )
 
   @Test

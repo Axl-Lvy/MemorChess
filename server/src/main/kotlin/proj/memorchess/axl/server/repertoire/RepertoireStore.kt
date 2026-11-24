@@ -136,13 +136,13 @@ internal class RepertoireStore(
     if (title.length > RepertoirePublishLimits.MAX_TITLE_LENGTH) {
       return PublishOutcome.InvalidPayload(
         "title must be at most ${RepertoirePublishLimits.MAX_TITLE_LENGTH} characters," +
-          " was ${title.length}"
+          " was ${title.length}",
       )
     }
     if (description.length > RepertoirePublishLimits.MAX_DESCRIPTION_LENGTH) {
       return PublishOutcome.InvalidPayload(
         "description must be at most ${RepertoirePublishLimits.MAX_DESCRIPTION_LENGTH}" +
-          " characters, was ${description.length}"
+          " characters, was ${description.length}",
       )
     }
 
@@ -183,13 +183,13 @@ internal class RepertoireStore(
       val (otherCount, otherMoves) = connection.authorFootprint(authorId, excludingId = id)
       if ((existing == null || republishingRemoved) && otherCount >= maxRepertoiresPerUser) {
         return@inTransaction PublishOutcome.QuotaExceeded(
-          "you already own $otherCount repertoires, the cap is $maxRepertoiresPerUser"
+          "you already own $otherCount repertoires, the cap is $maxRepertoiresPerUser",
         )
       }
       val projectedMoves = otherMoves + moves.size
       if (projectedMoves > maxTotalMovesPerUser) {
         return@inTransaction PublishOutcome.QuotaExceeded(
-          "publishing would use $projectedMoves of your $maxTotalMovesPerUser move quota"
+          "publishing would use $projectedMoves of your $maxTotalMovesPerUser move quota",
         )
       }
       // A moderator's removal is a latch, not a mutable flag an author can clear by republishing.
@@ -365,7 +365,7 @@ private fun Connection.acquireRepertoireLock(id: String) {
  */
 private fun Connection.lockLatestVersion(id: String): RepertoireRow? =
   prepareStatement(
-      "SELECT $ROW_COLUMNS FROM repertoire_version WHERE id = ? ORDER BY version DESC LIMIT 1 FOR UPDATE"
+      "SELECT $ROW_COLUMNS FROM repertoire_version WHERE id = ? ORDER BY version DESC LIMIT 1 FOR UPDATE",
     )
     .use { statement ->
       statement.setString(1, id)
@@ -375,7 +375,7 @@ private fun Connection.lockLatestVersion(id: String): RepertoireRow? =
 /** The latest version row for [id], unlocked. */
 private fun Connection.latestVersion(id: String): RepertoireRow? =
   prepareStatement(
-      "SELECT $ROW_COLUMNS FROM repertoire_version WHERE id = ? ORDER BY version DESC LIMIT 1"
+      "SELECT $ROW_COLUMNS FROM repertoire_version WHERE id = ? ORDER BY version DESC LIMIT 1",
     )
     .use { statement ->
       statement.setString(1, id)
@@ -391,7 +391,7 @@ private fun Connection.authorFootprint(authorId: UserId, excludingId: String): P
       "SELECT count(*), COALESCE(sum(move_count), 0) FROM (" +
         "SELECT DISTINCT ON (id) id, move_count, status FROM repertoire_version " +
         "WHERE author_id = ? ORDER BY id, version DESC" +
-        ") latest WHERE status != ? AND id != ?"
+        ") latest WHERE status != ? AND id != ?",
     )
     .use { statement ->
       statement.setString(1, authorId.value)
@@ -411,7 +411,7 @@ private fun Connection.authorFootprint(authorId: UserId, excludingId: String): P
 private fun Connection.incrementInstallCount(id: String) {
   prepareStatement(
       "INSERT INTO repertoire_install_count (id, count) VALUES (?, 1) " +
-        "ON CONFLICT (id) DO UPDATE SET count = repertoire_install_count.count + 1"
+        "ON CONFLICT (id) DO UPDATE SET count = repertoire_install_count.count + 1",
     )
     .use { statement ->
       statement.setString(1, id)
@@ -447,7 +447,7 @@ private fun Connection.updateStatusForEveryVersion(id: String, status: Repertoir
 private fun Connection.insertVersion(row: RepertoireRow) {
   prepareStatement(
       "INSERT INTO repertoire_version (id, version, author_id, title, description, side, " +
-        "move_count, status, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "move_count, status, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .use { statement ->
       statement.setString(1, row.id)
@@ -468,7 +468,7 @@ private fun Connection.insertMoves(row: RepertoireRow, moves: List<RepertoireMov
   val edgeIds = resolveEdgeIds(moves.map { EdgeIdentity(it.from, it.to, it.move) })
   prepareStatement(
       "INSERT INTO repertoire_edge (repertoire_id, version, edge_id, move, is_good) " +
-        "VALUES (?, ?, ?, ?, ?)"
+        "VALUES (?, ?, ?, ?, ?)",
     )
     .use { statement ->
       for (move in moves) {
@@ -501,7 +501,7 @@ private fun Connection.movesOf(id: String, version: Int): List<RepertoireMove> =
         "JOIN move_edge e ON e.id = r.edge_id " +
         "JOIN position o ON o.id = e.origin_id " +
         "JOIN position d ON d.id = e.destination_id " +
-        "WHERE r.repertoire_id = ? AND r.version = ? ORDER BY e.id"
+        "WHERE r.repertoire_id = ? AND r.version = ? ORDER BY e.id",
     )
     .use { statement ->
       statement.setString(1, id)
@@ -515,7 +515,7 @@ private fun Connection.movesOf(id: String, version: Int): List<RepertoireMove> =
                 rows.getString(2),
                 rows.getString(3),
                 rows.getBoolean(4),
-              )
+              ),
             )
           }
         }

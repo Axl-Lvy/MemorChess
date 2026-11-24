@@ -280,7 +280,7 @@ class TestTreeStore {
           isGood = true,
           fromDepth = depths.getValue(it.from),
         )
-      }
+      },
     )
 
     depths.mapValues { (key, _) -> database.getPosition(PositionKey(key))?.depth } shouldBe depths

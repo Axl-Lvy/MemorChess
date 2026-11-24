@@ -137,6 +137,6 @@ fun GoalRing(progress: Float, modifier: Modifier = Modifier) {
             center = tip,
           )
           drawCircle(color = progressColor, radius = TIP_DOT_RADIUS.toPx(), center = tip)
-        }
+        },
   )
 }

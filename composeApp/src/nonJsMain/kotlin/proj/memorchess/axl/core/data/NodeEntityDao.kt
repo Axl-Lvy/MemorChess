@@ -40,7 +40,7 @@ interface NodeEntityDao {
   @Query(
     "INSERT INTO OutboxEntryEntity (kind, key1, key2, key3, deviceSeq) " +
       "VALUES (:kind, :key1, :key2, :key3, :deviceSeq) " +
-      "ON CONFLICT(kind, key1, key2, key3) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)"
+      "ON CONFLICT(kind, key1, key2, key3) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)",
   )
   suspend fun upsertOutboxEntry(
     kind: String,
@@ -77,7 +77,7 @@ interface NodeEntityDao {
    */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
-      "WHERE isDeleted IS FALSE AND origin = :origin AND move = :move"
+      "WHERE isDeleted IS FALSE AND origin = :origin AND move = :move",
   )
   suspend fun softDeleteMove(
     origin: String,
@@ -89,7 +89,7 @@ interface NodeEntityDao {
 
   /** Live destination of [origin]/[move], or `null` when missing or already deleted. */
   @Query(
-    "SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin AND move = :move LIMIT 1"
+    "SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin AND move = :move LIMIT 1",
   )
   suspend fun liveMoveDestination(origin: String, move: String): String?
 
@@ -120,7 +120,7 @@ interface NodeEntityDao {
    */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
-      "WHERE isDeleted IS FALSE AND origin = :origin"
+      "WHERE isDeleted IS FALSE AND origin = :origin",
   )
   suspend fun softDeleteMoveFrom(
     origin: String,
@@ -137,7 +137,7 @@ interface NodeEntityDao {
    */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
-      "WHERE isDeleted IS FALSE AND destination = :destination"
+      "WHERE isDeleted IS FALSE AND destination = :destination",
   )
   suspend fun softDeleteMoveTo(
     destination: String,
@@ -166,7 +166,7 @@ interface NodeEntityDao {
    */
   @Query(
     "UPDATE NodeEntity SET isDeleted = TRUE, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
-      "WHERE isDeleted IS FALSE AND positionKey = :positionKey"
+      "WHERE isDeleted IS FALSE AND positionKey = :positionKey",
   )
   suspend fun softDeleteNode(
     positionKey: String,
@@ -233,7 +233,7 @@ interface NodeEntityDao {
   @Transaction
   @Query(
     "SELECT * FROM NodeEntity WHERE isDeleted IS FALSE AND positionKey > :cursor " +
-      "ORDER BY positionKey ASC LIMIT :limit"
+      "ORDER BY positionKey ASC LIMIT :limit",
   )
   suspend fun getNodesPageAfter(cursor: String, limit: Int): List<NodeWithMoves>
 
@@ -251,7 +251,7 @@ interface NodeEntityDao {
       "AND phase IN ('LEARNING', 'RELEARNING') AND dueDate <= :now " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
       "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
-      "ORDER BY dueDate ASC LIMIT 1"
+      "ORDER BY dueDate ASC LIMIT 1",
   )
   suspend fun nextReadyLearningCard(now: Instant, repertoireId: String? = null): NodeCardProjection?
 
@@ -265,7 +265,7 @@ interface NodeEntityDao {
       "AND phase IN ('LEARNING', 'RELEARNING') AND dueDate > :now " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
       "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
-      "ORDER BY dueDate ASC LIMIT 1"
+      "ORDER BY dueDate ASC LIMIT 1",
   )
   suspend fun nextPendingLearningCard(
     now: Instant,
@@ -282,7 +282,7 @@ interface NodeEntityDao {
       "AND dueDate < :dayEndExclusive " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
       "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
-      "ORDER BY depth ASC LIMIT 1"
+      "ORDER BY depth ASC LIMIT 1",
   )
   suspend fun nextDueReviewCard(
     dayEndExclusive: Instant,
@@ -299,7 +299,7 @@ interface NodeEntityDao {
       "AND dueDate < :dayEndExclusive " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
       "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId)) " +
-      "ORDER BY depth ASC, createdAt ASC LIMIT 1"
+      "ORDER BY depth ASC, createdAt ASC LIMIT 1",
   )
   suspend fun nextDueNewCard(
     dayEndExclusive: Instant,
@@ -309,14 +309,14 @@ interface NodeEntityDao {
   /** Count of cards first reviewed within the day window. */
   @Query(
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 " +
-      "AND firstReview >= :dayStart AND firstReview < :dayEndExclusive"
+      "AND firstReview >= :dayStart AND firstReview < :dayEndExclusive",
   )
   suspend fun countIntroducedBetween(dayStart: Instant, dayEndExclusive: Instant): Int
 
   /** Count of cards last reviewed within the day window. */
   @Query(
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 " +
-      "AND lastReview >= :dayStart AND lastReview < :dayEndExclusive"
+      "AND lastReview >= :dayStart AND lastReview < :dayEndExclusive",
   )
   suspend fun countTrainedBetween(dayStart: Instant, dayEndExclusive: Instant): Int
 
@@ -325,7 +325,7 @@ interface NodeEntityDao {
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
       "AND phase = 'REVIEW' AND dueDate < :dayEndExclusive " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
-      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))",
   )
   suspend fun countDueReviews(dayEndExclusive: Instant, repertoireId: String? = null): Int
 
@@ -334,7 +334,7 @@ interface NodeEntityDao {
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
       "AND phase = 'NEW' AND dueDate < :dayEndExclusive " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
-      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))",
   )
   suspend fun countDueNew(dayEndExclusive: Instant, repertoireId: String? = null): Int
 
@@ -343,7 +343,7 @@ interface NodeEntityDao {
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 " +
       "AND phase IN ('LEARNING', 'RELEARNING') " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
-      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))",
   )
   suspend fun countInSession(repertoireId: String? = null): Int
 
@@ -385,7 +385,7 @@ interface NodeEntityDao {
       "FROM NodeEntity WHERE isDeleted = 0 AND hasGoodOutgoing = 1 AND positionKey IN (:keys) " +
       "AND (phase IN ('LEARNING', 'RELEARNING') OR dueDate < :dayEndExclusive) " +
       "AND (:repertoireId IS NULL OR EXISTS(SELECT 1 FROM NodeRepertoireTrainableEntity t " +
-      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))"
+      "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))",
   )
   suspend fun eligibleAmong(
     keys: List<String>,
@@ -418,7 +418,7 @@ interface NodeEntityDao {
 
   /** Whether a non deleted node row exists for [positionKey]. */
   @Query(
-    "SELECT EXISTS(SELECT 1 FROM NodeEntity WHERE isDeleted = 0 AND positionKey = :positionKey)"
+    "SELECT EXISTS(SELECT 1 FROM NodeEntity WHERE isDeleted = 0 AND positionKey = :positionKey)",
   )
   suspend fun nodeExists(positionKey: String): Boolean
 }

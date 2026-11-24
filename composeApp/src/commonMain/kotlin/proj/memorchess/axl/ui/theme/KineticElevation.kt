@@ -61,7 +61,7 @@ fun Modifier.kineticShadow(
     }
     .then(
       if (drawBorder) Modifier.border(width = 1.dp, color = palette.line, shape = shape)
-      else Modifier
+      else Modifier,
     )
 }
 

@@ -18,7 +18,7 @@ import proj.memorchess.axl.ui.theme.ChessBoardColorScheme
 @HotPreview(density = 1.0f, widthDp = 200, heightDp = 100, captionBar = false)
 @Composable
 private fun TilePreview(
-  @HotPreviewParameter(TilePreviewProvider::class) params: ChessBoardColorScheme
+  @HotPreviewParameter(TilePreviewProvider::class) params: ChessBoardColorScheme,
 ) {
   CHESS_BOARD_COLOR_SETTING.setValue(params)
   Column(modifier = Modifier.fillMaxSize()) {

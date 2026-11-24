@@ -32,7 +32,7 @@ class TestSyncApiClient {
       respond(
         content =
           ByteReadChannel(
-            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"tok-1","nodes":[],"edges":[],"settings":[]}"""
+            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"tok-1","nodes":[],"edges":[],"settings":[]}""",
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),
@@ -218,7 +218,7 @@ class TestSyncApiClient {
       respond(
         content =
           ByteReadChannel(
-            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"t","nodes":[],"edges":[],"settings":[]}"""
+            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"t","nodes":[],"edges":[],"settings":[]}""",
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),
@@ -238,7 +238,7 @@ class TestSyncApiClient {
       respond(
         content =
           ByteReadChannel(
-            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"t","nodes":[],"edges":[],"settings":[]}"""
+            """{"serverTime":"2026-01-01T00:00:00Z","nextCursor":null,"pageToken":"t","nodes":[],"edges":[],"settings":[]}""",
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),
@@ -290,7 +290,7 @@ class TestSyncApiClient {
 
     result shouldBe
       SyncEraseOutcome.Ok(
-        SyncEraseResponse(Instant.parse("2026-01-01T00:00:00Z"), revision = Revision(9L))
+        SyncEraseResponse(Instant.parse("2026-01-01T00:00:00Z"), revision = Revision(9L)),
       )
   }
 

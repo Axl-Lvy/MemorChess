@@ -55,7 +55,7 @@ internal class TestSyncStoreDeleteUser {
               updatedAt = serverNow,
               originDevice = DeviceId("device-a"),
               deviceSeq = 1,
-            )
+            ),
           ),
         edges =
           listOf(
@@ -68,7 +68,7 @@ internal class TestSyncStoreDeleteUser {
               updatedAt = serverNow,
               originDevice = DeviceId("device-a"),
               deviceSeq = 1,
-            )
+            ),
           ),
         settings =
           listOf(
@@ -79,7 +79,7 @@ internal class TestSyncStoreDeleteUser {
               updatedAt = serverNow,
               originDevice = DeviceId("device-a"),
               deviceSeq = 1,
-            )
+            ),
           ),
         repertoires =
           listOf(
@@ -91,7 +91,7 @@ internal class TestSyncStoreDeleteUser {
               updatedAt = serverNow,
               originDevice = DeviceId("device-a"),
               deviceSeq = 1,
-            )
+            ),
           ),
         tags =
           listOf(
@@ -104,7 +104,7 @@ internal class TestSyncStoreDeleteUser {
               updatedAt = serverNow,
               originDevice = DeviceId("device-a"),
               deviceSeq = 1,
-            )
+            ),
           ),
         device = DEVICE,
       ),

@@ -37,7 +37,7 @@ class TestExplorerViewModel {
               status = HttpStatusCode.OK,
               headers = headersOf("Content-Type", "application/json"),
             )
-          }
+          },
         ) {
           install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
         },
@@ -90,7 +90,7 @@ class TestExplorerViewModel {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -111,7 +111,7 @@ class TestExplorerViewModel {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },

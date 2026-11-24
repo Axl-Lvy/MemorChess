@@ -126,7 +126,7 @@ class TestSettings : TestWithKoin() {
   @Test
   fun testEraseAllDataButton() = runTestFromSetup {
     database.insertNodes(
-      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new()),
     )
     streakTracker.recordReview()
     assertNodeWithTagDoesNotExists("confirmDialog")

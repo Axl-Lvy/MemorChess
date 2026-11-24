@@ -270,7 +270,7 @@ private fun ContinuationReviewLine(review: ContinuationReview) {
         modifier =
           Modifier.fillMaxHeight()
             .fillMaxWidth(recall.value.toFloat())
-            .background(palette.progress, barShape)
+            .background(palette.progress, barShape),
       )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

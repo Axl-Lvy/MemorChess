@@ -108,7 +108,7 @@ class TestTreeStoreSync {
       listOf(
         MoveInsertion(PositionKey("start"), "e4", PositionKey("k2"), isGood = true, fromDepth = 0),
         MoveInsertion(PositionKey("k2"), "e5", PositionKey("k3"), isGood = true, fromDepth = 1),
-      )
+      ),
     )
 
     val outbox = database.getOutbox().map { it.key }.toSet()

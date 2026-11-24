@@ -67,7 +67,7 @@ internal class TestKineticDesktopRail {
           cardsReviewed = 1,
           isActive = true,
           streakLength = streak,
-        )
+        ),
       )
     }
     if (done > 0) {
@@ -77,7 +77,7 @@ internal class TestKineticDesktopRail {
           cardsReviewed = done,
           isActive = true,
           streakLength = streak,
-        )
+        ),
       )
     }
   }

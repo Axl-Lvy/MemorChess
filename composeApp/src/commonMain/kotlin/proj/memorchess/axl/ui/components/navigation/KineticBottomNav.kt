@@ -257,7 +257,7 @@ fun KineticBottomNav(
               .padding(
                 vertical = PILL_VERTICAL_PADDING,
                 horizontal = PILL_HORIZONTAL_PADDING,
-              )
+              ),
         ) {
           NavCellIcon(item, style.content, active = active)
         }

@@ -54,7 +54,7 @@ private fun ServerConfig.pool(): DataSource =
       username = dbUser
       password = dbPassword
       maximumPoolSize = POOL_SIZE
-    }
+    },
   )
 
 /** Whether a connection can be taken from the pool and used. */

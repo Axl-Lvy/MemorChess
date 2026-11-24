@@ -114,7 +114,7 @@ private suspend fun RoutingContext.getManifest(store: RepertoireStore) {
   val repertoires = rows.map { it.toDescriptor(counts.getValue(it.id)) }
   call.cacheControl(CATALOG_CACHE_CONTROL)
   call.respond(
-    RepertoireManifest(schemaVersion = MANIFEST_SCHEMA_VERSION, repertoires = repertoires)
+    RepertoireManifest(schemaVersion = MANIFEST_SCHEMA_VERSION, repertoires = repertoires),
   )
 }
 
@@ -148,7 +148,7 @@ private suspend fun RoutingContext.getCatalogPage(store: RepertoireStore) {
     RepertoireCatalogPage(
       nextCursor = page.nextCursor,
       repertoires = page.rows.map { it.toDescriptor(counts.getValue(it.id)) },
-    )
+    ),
   )
 }
 

@@ -37,7 +37,7 @@ class LichessStudyImporter(
       is LichessStudyResult.Ok ->
         try {
           LichessStudyImportResult.Success(
-            pgnImporter.import(fetched.games, repertoireId = repertoireId)
+            pgnImporter.import(fetched.games, repertoireId = repertoireId),
           )
         } catch (e: PgnImportException) {
           LichessStudyImportResult.ImportFailed(e.message ?: "Import failed")

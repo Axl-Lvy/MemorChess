@@ -55,7 +55,7 @@ internal class TestRepertoireStore {
       connection
         .prepareStatement(
           "SELECT count(*) FROM move_edge e JOIN position p ON p.id = e.origin_id " +
-            "WHERE p.position_key = ? AND e.move = ?"
+            "WHERE p.position_key = ? AND e.move = ?",
         )
         .use { statement ->
           statement.setString(1, from)

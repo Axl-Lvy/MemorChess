@@ -434,7 +434,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
             parts.key1.toJsString(),
             parts.key2.toJsString(),
             parts.key3.toJsString(),
-          )
+          ),
         )
         ?.unsafeCast<JsOutboxEntry>()
     val newSeq = maxOf(existing?.deviceSeq?.toLong() ?: Long.MIN_VALUE, deviceSeq)
@@ -1114,7 +1114,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
             origin.value.toJsString(),
             destination.value.toJsString(),
             repertoireId.toJsString(),
-          )
+          ),
         )
         ?.unsafeCast<JsEdgeRepertoireTagEntity>()
         ?.toDataEdgeRepertoireTag()
@@ -1187,7 +1187,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   override suspend fun getRepertoireMasterySnapshots(
-    repertoireIds: List<String>
+    repertoireIds: List<String>,
   ): Map<String, RepertoireMasterySnapshot> {
     val database = db()
     return database.transaction(NODE_REPERTOIRE_TRAINABLE_STORE, NODES_STORE) {

@@ -71,7 +71,7 @@ class TestInMemoryDatabaseQueryManager {
     assertNull(database.getPosition(key2))
     // key0 never referenced key2, so its e4 move (to key1) survives the cascade untouched.
     assertFalse(
-      database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted
+      database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted,
     )
     // key1 keeps its incoming e4 live but its outgoing e5, which pointed at key2, is tombstoned.
     val key1Moves = database.getPosition(key1)!!.previousAndNextMoves
@@ -102,7 +102,7 @@ class TestInMemoryDatabaseQueryManager {
     database.deleteMove(key1, "e5")
     assertTrue(database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted)
     assertTrue(
-      database.getPosition(key2)!!.previousAndNextMoves.previousMoves.getValue("e5").isDeleted
+      database.getPosition(key2)!!.previousAndNextMoves.previousMoves.getValue("e5").isDeleted,
     )
   }
 
@@ -140,7 +140,7 @@ class TestInMemoryDatabaseQueryManager {
     assertFalse(originMoves.getValue("d4").isDeleted)
     assertTrue(originMoves.getValue("e4").isDeleted)
     assertTrue(
-      database.getPosition(key1)!!.previousAndNextMoves.previousMoves.getValue("e4").isDeleted
+      database.getPosition(key1)!!.previousAndNextMoves.previousMoves.getValue("e4").isDeleted,
     )
   }
 
@@ -163,7 +163,7 @@ class TestInMemoryDatabaseQueryManager {
     val nodeStamp = Instant.fromEpochSeconds(200)
     val recentMove = DataMove(key0, key1, "e4", isGood = true, updatedAt = moveStamp)
     database.insertNodes(
-      node(key0, previous = listOf(), next = listOf(recentMove), updatedAt = nodeStamp)
+      node(key0, previous = listOf(), next = listOf(recentMove), updatedAt = nodeStamp),
     )
     // The move is newer than its node, so it drives the aggregate.
     assertEquals(moveStamp, database.getLastUpdate())
@@ -775,7 +775,7 @@ class TestInMemoryDatabaseQueryManager {
     val database = InMemoryDatabaseQueryManager()
 
     database.insertRepertoire(
-      DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+      DataRepertoire(id = "italian-game", name = "Italian Game", color = null),
     )
 
     assertEquals(
@@ -789,7 +789,7 @@ class TestInMemoryDatabaseQueryManager {
     val database = InMemoryDatabaseQueryManager()
 
     database.insertTag(
-      DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4")
+      DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4"),
     )
 
     assertEquals(
@@ -809,7 +809,7 @@ class TestInMemoryDatabaseQueryManager {
     // tombstoned, exactly like Room's softDeleteNode + softDeleteMoveFrom + softDeleteMoveTo.
     assertTrue(database.getPosition(key0)!!.previousAndNextMoves.nextMoves.getValue("e4").isDeleted)
     assertTrue(
-      database.getPosition(key2)!!.previousAndNextMoves.previousMoves.getValue("e5").isDeleted
+      database.getPosition(key2)!!.previousAndNextMoves.previousMoves.getValue("e5").isDeleted,
     )
   }
 
@@ -837,7 +837,7 @@ class TestInMemoryDatabaseQueryManager {
     )
 
     assertTrue(
-      !database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted
+      !database.getPosition(key1)!!.previousAndNextMoves.nextMoves.getValue("e5").isDeleted,
     )
   }
 
@@ -879,7 +879,7 @@ class TestInMemoryDatabaseQueryManager {
   fun edgesTaggedWithJoinsTheTagOntoItsMoveForItsSan() = runTest {
     val database = seededLine()
     database.insertTag(
-      DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4")
+      DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4"),
     )
 
     val edges = database.edgesTaggedWith("italian-game")
@@ -891,11 +891,17 @@ class TestInMemoryDatabaseQueryManager {
   fun edgesTaggedWithExcludesADeletedTagOrADeletedMove() = runTest {
     val database = seededLine()
     database.insertTag(
-      DataEdgeRepertoireTag(key0, key1, repertoireId = "deleted-tag", move = "e4", isDeleted = true)
+      DataEdgeRepertoireTag(
+        key0,
+        key1,
+        repertoireId = "deleted-tag",
+        move = "e4",
+        isDeleted = true,
+      ),
     )
     database.deleteMove(key1, "e5", "device-a", 1L, Instant.fromEpochSeconds(1))
     database.insertTag(
-      DataEdgeRepertoireTag(key1, key2, repertoireId = "deleted-move", move = "e4")
+      DataEdgeRepertoireTag(key1, key2, repertoireId = "deleted-move", move = "e4"),
     )
 
     assertEquals(emptyList(), database.edgesTaggedWith("deleted-tag"))
@@ -913,7 +919,7 @@ class TestInMemoryDatabaseQueryManager {
   fun edgesTaggedWithExcludesATagWhoseOriginNodeDoesNotExist() = runTest {
     val database = InMemoryDatabaseQueryManager()
     database.insertTag(
-      DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4")
+      DataEdgeRepertoireTag(key0, key1, repertoireId = "italian-game", move = "e4"),
     )
 
     assertEquals(emptyList(), database.edgesTaggedWith("italian-game"))
@@ -987,7 +993,7 @@ class TestInMemoryDatabaseQueryManager {
         position,
         PreviousAndNextMoves(),
         CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = reviewedAt),
-      )
+      ),
     )
     database.replaceTrainableRepertoires(position, setOf("italian-game"), reviewedAt)
 
@@ -1019,7 +1025,7 @@ class TestInMemoryDatabaseQueryManager {
   fun nextDueNewCardWithANullRepertoireIdReproducesTheUnscopedResult() = runTest {
     val database = InMemoryDatabaseQueryManager()
     database.insertNodes(
-      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100))
+      schedNode("posA b K", CardPhase.NEW, dueDate = Instant.fromEpochSeconds(100)),
     )
 
     assertEquals(

@@ -355,7 +355,7 @@ private fun PlayedSquareOverlay(
         .drawBehind {
           val ramp = ((squareScale.value - 1f) / (SQUARE_POP_SCALE - 1f)).coerceIn(0f, 1f)
           drawRect(palette.progressSoft, alpha = ramp)
-        }
+        },
     )
   } else {
     Box(
@@ -363,7 +363,7 @@ private fun PlayedSquareOverlay(
         if (wrongPulseAlpha.value > 0f) {
           drawRect(color = palette.destructive, alpha = wrongPulseAlpha.value)
         }
-      }
+      },
     )
   }
 }

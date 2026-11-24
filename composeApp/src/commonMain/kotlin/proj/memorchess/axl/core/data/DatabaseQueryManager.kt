@@ -325,7 +325,7 @@ interface DatabaseQueryManager {
    * never a distinct value scan.
    */
   suspend fun getRepertoireMasterySnapshots(
-    repertoireIds: List<String>
+    repertoireIds: List<String>,
   ): Map<String, RepertoireMasterySnapshot>
 }
 

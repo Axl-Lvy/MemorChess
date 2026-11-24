@@ -49,7 +49,7 @@ fun LandscapeExploreLayout(modifier: Modifier = Modifier, content: ExploreLayout
         content.controlBar(Modifier.fillMaxWidth())
       }
       content.sideInfo(
-        Modifier.width(sideWidth).fillMaxHeight().padding(vertical = pad, horizontal = 0.dp)
+        Modifier.width(sideWidth).fillMaxHeight().padding(vertical = pad, horizontal = 0.dp),
       )
     }
   }

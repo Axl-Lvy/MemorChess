@@ -110,7 +110,7 @@ class TestRepertoireMoveImporter {
         .previousAndNextMoves
         .nextMoves
         .getValue("e4")
-        .ownIsGood
+        .ownIsGood,
     )
   }
 

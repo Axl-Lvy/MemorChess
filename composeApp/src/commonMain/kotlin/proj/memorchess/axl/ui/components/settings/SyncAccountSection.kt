@@ -223,7 +223,7 @@ private fun SyncAccountAction(
       Text(
         text =
           if (pending) stringResource(Res.string.sync_signing_in)
-          else stringResource(Res.string.sync_sign_in)
+          else stringResource(Res.string.sync_sign_in),
       )
     }
   }

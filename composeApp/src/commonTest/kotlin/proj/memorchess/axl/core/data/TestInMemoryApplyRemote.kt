@@ -47,7 +47,7 @@ class TestInMemoryApplyRemote {
     val db = InMemoryDatabaseQueryManager()
     db.insertNodes(node("a"), node("b"))
     db.applyRemoteMove(
-      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now)
+      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now),
     )
 
     // A remote node update (e.g. a scheduling change from another device) must not clobber the
@@ -74,7 +74,7 @@ class TestInMemoryApplyRemote {
     db.applyRemoteNode(node("b"))
 
     db.applyRemoteMove(
-      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now)
+      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now),
     )
 
     db.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
@@ -88,7 +88,7 @@ class TestInMemoryApplyRemote {
     db.insertNodes(node("a"))
 
     db.applyRemoteMove(
-      DataMove(PositionKey("a"), PositionKey("missing"), "e4", isGood = true, updatedAt = now)
+      DataMove(PositionKey("a"), PositionKey("missing"), "e4", isGood = true, updatedAt = now),
     )
 
     db.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves shouldBe emptyMap()

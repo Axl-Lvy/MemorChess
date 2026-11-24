@@ -46,7 +46,7 @@ fun EngineAndAnalysisSection(reloadKey: Any) {
         run {
           val stored = ENGINE_MAX_DEPTH_SETTING.getValue()
           if (stored == 0) 26f else stored.toFloat()
-        }
+        },
       )
     }
   val depthLabel = stringResource(Res.string.settings_engine_depth)

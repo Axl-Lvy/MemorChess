@@ -144,7 +144,7 @@ fun KineticSlider(
             Modifier.size(14.dp)
               .clip(RoundedCornerShape(7.dp))
               .background(color = palette.ink, shape = RoundedCornerShape(7.dp))
-              .border(width = 1.dp, color = palette.action, shape = RoundedCornerShape(7.dp))
+              .border(width = 1.dp, color = palette.action, shape = RoundedCornerShape(7.dp)),
         )
       },
     )

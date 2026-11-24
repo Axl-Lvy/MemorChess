@@ -12,7 +12,7 @@ internal class TestSchema {
     PostgresTestDb.dataSource().connection.use { connection ->
       connection
         .prepareStatement(
-          "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
         )
         .use { statement ->
           statement.executeQuery().use { rows -> while (rows.next()) tables += rows.getString(1) }

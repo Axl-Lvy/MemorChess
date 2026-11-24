@@ -41,7 +41,7 @@ class TestRepertoireCatalogIntegration {
         val movesResult = client.fetchMoves(descriptor.id, descriptor.version)
         val moves =
           withClue(
-            "Downloading ${descriptor.id} version ${descriptor.version} failed: $movesResult"
+            "Downloading ${descriptor.id} version ${descriptor.version} failed: $movesResult",
           ) {
             movesResult.shouldBeInstanceOf<CatalogResult.Ok<List<RepertoireMove>>>().value
           }

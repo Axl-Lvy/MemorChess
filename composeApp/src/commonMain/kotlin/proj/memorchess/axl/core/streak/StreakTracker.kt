@@ -50,7 +50,7 @@ class StreakTracker(private val store: DailyActivityStore) {
         cardsReviewed = (existing?.cardsReviewed ?: 0) + 1,
         isActive = true,
         streakLength = streakLength,
-      )
+      ),
     )
   }
 

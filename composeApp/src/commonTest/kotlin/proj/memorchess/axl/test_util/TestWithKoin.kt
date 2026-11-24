@@ -134,7 +134,7 @@ abstract class TestWithKoin : KoinComponent {
 
   private fun offlineExplorerHttpClient(): HttpClient =
     HttpClient(
-      MockEngine { _ -> respond(content = "", status = HttpStatusCode.ServiceUnavailable) }
+      MockEngine { _ -> respond(content = "", status = HttpStatusCode.ServiceUnavailable) },
     ) {
       install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
     }

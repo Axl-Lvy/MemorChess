@@ -43,7 +43,7 @@ fun PromotionSelector(state: BoardGridState) {
     modifier =
       Modifier.clip(RoundedCornerShape(24.dp))
         .background(Color.Black.copy(alpha = 0.7f))
-        .padding(16.dp)
+        .padding(16.dp),
   ) {
     possibilities.forEachIndexed { index, (kind, piece) ->
       val pieceName =
@@ -54,7 +54,7 @@ fun PromotionSelector(state: BoardGridState) {
             PieceKind.BISHOP -> Res.string.piece_bishop
             PieceKind.KNIGHT -> Res.string.piece_knight
             else -> Res.string.piece_queen
-          }
+          },
         )
       val label = stringResource(Res.string.promotion_promote_to, pieceName)
 
@@ -67,7 +67,7 @@ fun PromotionSelector(state: BoardGridState) {
             .clickable(
               onClick = { scope.launch { state.applyPromotion(kind) } },
               onClickLabel = label,
-            )
+            ),
       ) {
         Piece(piece, Modifier.fillMaxSize())
       }

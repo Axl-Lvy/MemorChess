@@ -122,7 +122,7 @@ class TestOidcRedirectResumer {
       respond(
         content =
           ByteReadChannel(
-            """{"access_token":"tok-xyz","refresh_token":"ref-abc","expires_in":3600}"""
+            """{"access_token":"tok-xyz","refresh_token":"ref-abc","expires_in":3600}""",
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),

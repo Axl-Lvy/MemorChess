@@ -128,7 +128,7 @@ internal fun KineticBottomSheet(
                 onClickLabel = stringResource(Res.string.dialog_close),
               ) {
                 onDismissRequest()
-              }
+              },
           )
           Column(
             modifier
@@ -148,7 +148,7 @@ internal fun KineticBottomSheet(
               // offset because its Dialog window reserves shadow room around a content-wrapped
               // panel. A sheet pinned to the screen edge has no room to give.
               .border(width = 1.dp, color = palette.line)
-              .background(palette.panel)
+              .background(palette.panel),
           ) {
             // HUD strip flush to the top edge, mirrors KineticDialog.
             Box(Modifier.fillMaxWidth().height(2.dp).background(palette.actionGlow))

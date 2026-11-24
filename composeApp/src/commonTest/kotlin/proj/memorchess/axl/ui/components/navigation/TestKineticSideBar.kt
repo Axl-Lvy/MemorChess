@@ -89,7 +89,7 @@ internal class TestKineticSideBar {
           cardsReviewed = 1,
           isActive = true,
           streakLength = streak,
-        )
+        ),
       )
     }
     if (done > 0) {
@@ -99,7 +99,7 @@ internal class TestKineticSideBar {
           cardsReviewed = done,
           isActive = true,
           streakLength = streak,
-        )
+        ),
       )
     }
   }
