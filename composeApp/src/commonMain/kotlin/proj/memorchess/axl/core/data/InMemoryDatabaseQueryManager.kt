@@ -62,7 +62,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
                   node.previousAndNextMoves.previousMoves,
               nextMoves =
                 existing.previousAndNextMoves.nextMoves + node.previousAndNextMoves.nextMoves,
-            )
+            ),
         )
   }
 
@@ -77,15 +77,15 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       origin.copy(
         previousAndNextMoves =
           origin.previousAndNextMoves.copy(
-            nextMoves = origin.previousAndNextMoves.nextMoves + (move.move to move)
-          )
+            nextMoves = origin.previousAndNextMoves.nextMoves + (move.move to move),
+          ),
       )
     nodes[move.destination] =
       destination.copy(
         previousAndNextMoves =
           destination.previousAndNextMoves.copy(
-            previousMoves = destination.previousAndNextMoves.previousMoves + (move.move to move)
-          )
+            previousMoves = destination.previousAndNextMoves.previousMoves + (move.move to move),
+          ),
       )
   }
 
@@ -125,7 +125,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
                     incoming.previousAndNextMoves.previousMoves,
                 nextMoves =
                   existing.previousAndNextMoves.nextMoves + incoming.previousAndNextMoves.nextMoves,
-              )
+              ),
           )
       nodes[incoming.positionKey] = merged
       mark(DirtyKey.NodeKey(incoming.positionKey), incoming.deviceSeq)
@@ -217,13 +217,14 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
       if (isNext) {
         val edge = moves.nextMoves[move] ?: return
         moves.copy(
-          nextMoves = moves.nextMoves + (move to edge.tombstone(originDevice, deviceSeq, updatedAt))
+          nextMoves =
+            moves.nextMoves + (move to edge.tombstone(originDevice, deviceSeq, updatedAt)),
         )
       } else {
         val edge = moves.previousMoves[move] ?: return
         moves.copy(
           previousMoves =
-            moves.previousMoves + (move to edge.tombstone(originDevice, deviceSeq, updatedAt))
+            moves.previousMoves + (move to edge.tombstone(originDevice, deviceSeq, updatedAt)),
         )
       }
     nodes[neighborKey] = neighbor.copy(previousAndNextMoves = updated)
@@ -263,7 +264,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     nodes[origin] =
       node.copy(
         previousAndNextMoves =
-          node.previousAndNextMoves.withTombstonedNext(move, originDevice, deviceSeq, updatedAt)
+          node.previousAndNextMoves.withTombstonedNext(move, originDevice, deviceSeq, updatedAt),
       )
     val destinationNode = nodes[destination] ?: return
     nodes[destination] =
@@ -274,7 +275,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
             originDevice,
             deviceSeq,
             updatedAt,
-          )
+          ),
       )
     mark(DirtyKey.EdgeKey(origin, destination), deviceSeq)
   }
@@ -573,7 +574,7 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   }
 
   override suspend fun getRepertoireMasterySnapshots(
-    repertoireIds: List<String>
+    repertoireIds: List<String>,
   ): Map<String, RepertoireMasterySnapshot> = repertoireIds.associateWith { id ->
     // A tombstoned position's trainable row is stale until its own delete path clears it (see
     // TreeStore); filtering it out here too is the correctness backstop, not merely an

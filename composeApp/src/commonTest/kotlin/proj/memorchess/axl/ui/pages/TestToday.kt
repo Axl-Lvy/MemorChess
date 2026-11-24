@@ -147,7 +147,7 @@ class TestToday : TestWithKoin() {
     val store = InMemoryDailyActivityStore()
     val today = DateUtil.today()
     store.putRecord(
-      DailyActivityRecord(date = today, cardsReviewed = 2, isActive = true, streakLength = 1)
+      DailyActivityRecord(date = today, cardsReviewed = 2, isActive = true, streakLength = 1),
     )
     val database = dbWithDueCards(0)
     val streakTracker = StreakTracker(store)

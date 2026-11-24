@@ -256,7 +256,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   }
 
   override suspend fun getRepertoireMasterySnapshots(
-    repertoireIds: List<String>
+    repertoireIds: List<String>,
   ): Map<String, RepertoireMasterySnapshot> {
     val dao = database.getRepertoireDao()
     return repertoireIds.associateWith { id ->

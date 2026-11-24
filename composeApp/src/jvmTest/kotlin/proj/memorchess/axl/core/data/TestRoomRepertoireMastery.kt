@@ -90,7 +90,7 @@ class TestRoomRepertoireMastery {
         position,
         PreviousAndNextMoves(),
         CardStateFactory.new().copy(phase = CardPhase.REVIEW, lastReview = reviewedAt),
-      )
+      ),
     )
     manager.replaceTrainableRepertoires(position, setOf("italian-game"), reviewedAt)
 

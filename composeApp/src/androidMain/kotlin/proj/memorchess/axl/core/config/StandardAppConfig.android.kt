@@ -7,5 +7,8 @@ import proj.memorchess.axl.AndroidContextProvider
 
 actual fun getPlatformSpecificSettings(): Settings =
   SharedPreferencesSettings(
-    AndroidContextProvider.context.getSharedPreferences("memorchess_settings", Context.MODE_PRIVATE)
+    AndroidContextProvider.context.getSharedPreferences(
+      "memorchess_settings",
+      Context.MODE_PRIVATE,
+    ),
   )

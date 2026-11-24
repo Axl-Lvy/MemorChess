@@ -403,7 +403,7 @@ private fun PgnDialog(
         Modifier.fillMaxWidth()
           .heightIn(max = 600.dp)
           .background(palette.panel)
-          .border(width = 1.dp, color = palette.line)
+          .border(width = 1.dp, color = palette.line),
     ) {
       Row(
         modifier =
@@ -438,7 +438,7 @@ private fun PgnDialog(
         modifier =
           Modifier.fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp)
+            .padding(horizontal = 20.dp, vertical = 18.dp),
       ) {
         if (rows.isEmpty()) {
           Text(text = pgnText, style = typography.mono.copy(fontSize = 13.sp, color = palette.ink2))

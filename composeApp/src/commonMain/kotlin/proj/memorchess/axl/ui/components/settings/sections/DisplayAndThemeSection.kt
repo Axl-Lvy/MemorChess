@@ -44,7 +44,7 @@ fun DisplayAndThemeSection(reloadKey: Any, onReload: () -> Unit = {}) {
   var animation by
     remember(reloadKey) {
       mutableStateOf(
-        MOVE_ANIMATION_DURATION_SETTING.getValue().inWholeMilliseconds.toFloat() / 1_000f
+        MOVE_ANIMATION_DURATION_SETTING.getValue().inWholeMilliseconds.toFloat() / 1_000f,
       )
     }
   val moveAnimationLabel = stringResource(Res.string.settings_move_animation)

@@ -59,7 +59,7 @@ data class DataNode(
     val isDeleted: Boolean,
   ) {
     constructor(
-      dataNode: DataNode
+      dataNode: DataNode,
     ) : this(
       dataNode.positionKey,
       dataNode.previousAndNextMoves,

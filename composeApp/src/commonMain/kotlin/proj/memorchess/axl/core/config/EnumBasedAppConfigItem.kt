@@ -37,7 +37,7 @@ class EnumBasedAppConfigItem<T>(
         valueOf(settings[name, defaultValue.name])
       } catch (_: IllegalArgumentException) {
         defaultValue
-      }
+      },
     )
 
   companion object {

@@ -105,7 +105,7 @@ class TestSyncApplier {
           updatedAt = now,
           originDevice = DeviceId("remote"),
           deviceSeq = 1L,
-        )
+        ),
       )
 
     outcome shouldBe ResolutionSource.REMOTE
@@ -215,7 +215,7 @@ class TestSyncApplier {
         updatedAt = now,
         originDevice = DeviceId("remote"),
         deviceSeq = 1L,
-      )
+      ),
     )
 
     database.depthOf("a") shouldBe 1

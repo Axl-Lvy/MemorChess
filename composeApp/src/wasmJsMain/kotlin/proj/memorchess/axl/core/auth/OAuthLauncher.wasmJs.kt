@@ -108,7 +108,7 @@ private fun installMessageListener(redirectUri: String, expectedState: String): 
           globalThis.__memorchessOAuthHref = href;
         }
       };
-    }"""
+    }""",
   )
 
 /**
@@ -120,7 +120,7 @@ private fun takeMatchedHref(): String? =
       var href = globalThis.__memorchessOAuthHref;
       globalThis.__memorchessOAuthHref = null;
       return href || null;
-    }"""
+    }""",
   )
 
 private fun uninstallMessageListener(): Unit =
@@ -131,7 +131,7 @@ private fun uninstallMessageListener(): Unit =
         globalThis.__memorchessOAuthChannel = null;
       }
       globalThis.__memorchessOAuthHref = null;
-    }"""
+    }""",
   )
 
 private fun decodeUriComponent(value: String): String = decodeUriComponentJs(value)

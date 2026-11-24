@@ -98,7 +98,7 @@ sealed class ValueBasedAppConfigItem<StoredT : Any, T : Any>(
         is Double -> settings[name, defaultStoredValue]
         else ->
           throw IllegalArgumentException(
-            "Unsupported value type: ${defaultStoredValue::class.simpleName}"
+            "Unsupported value type: ${defaultStoredValue::class.simpleName}",
           )
       }
     return converter(value as StoredT)

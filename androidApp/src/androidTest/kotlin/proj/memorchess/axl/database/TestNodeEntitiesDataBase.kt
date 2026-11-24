@@ -49,9 +49,9 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new())
-          )
-        )
+            DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new()),
+          ),
+        ),
       )
       retrievedNodes = nodeEntityDao.getNodesPage(PAGE_LIMIT)
     }
@@ -69,9 +69,9 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(
         listOf(
           NodeWithMoves.convertToEntity(
-            DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new())
-          )
-        )
+            DataNode(game.toPositionKey(), PreviousAndNextMoves(), CardStateFactory.new()),
+          ),
+        ),
       )
       nodeEntityDao.eraseAllNodes()
       retrievedNode = nodeEntityDao.getNodesPage(PAGE_LIMIT).firstOrNull()

@@ -182,7 +182,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
               id = "italian-game",
               name = "Italian Game",
               color = RepertoireColor.WHITE,
-            )
+            ),
           )
         },
       )
@@ -326,11 +326,13 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val gate = CompletableDeferred<Unit>()
     var loadCalls = 0
     val viewModel =
-      buildViewModel({
-        loadCalls++
-        gate.await()
-        CachedManifestResult.Fresh(manifest(london))
-      })
+      buildViewModel(
+        {
+          loadCalls++
+          gate.await()
+          CachedManifestResult.Fresh(manifest(london))
+        },
+      )
     testScheduler.advanceUntilIdle()
 
     viewModel.forceRefresh()
@@ -346,11 +348,13 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
     val gate = CompletableDeferred<Unit>()
     var loadCalls = 0
     val viewModel =
-      buildViewModel({
-        loadCalls++
-        gate.await()
-        CachedManifestResult.Fresh(manifest(london))
-      })
+      buildViewModel(
+        {
+          loadCalls++
+          gate.await()
+          CachedManifestResult.Fresh(manifest(london))
+        },
+      )
     testScheduler.advanceUntilIdle()
 
     viewModel.refresh()
@@ -628,7 +632,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
     state[london.id] shouldBe
       RepertoireInstallState.Failed(
-        InstallError.ImportFailed("Illegal move Qx9 at ply 4 in game 1")
+        InstallError.ImportFailed("Illegal move Qx9 at ply 4 in game 1"),
       )
     store.isInstalled(london.id) shouldBe false
   }
@@ -958,7 +962,7 @@ class TestRepertoireLibraryViewModel : TestWithKoin() {
 
     state[london.id] shouldBe
       RepertoirePreviewState.Failed(
-        InstallError.ImportFailed("Illegal move Qx9 at ply 4 in game 1")
+        InstallError.ImportFailed("Illegal move Qx9 at ply 4 in game 1"),
       )
   }
 

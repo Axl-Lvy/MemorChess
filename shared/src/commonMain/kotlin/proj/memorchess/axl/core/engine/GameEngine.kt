@@ -29,7 +29,7 @@ class GameEngine private constructor(private val game: ChessGame) {
    * half-move clock, full-move number) are filled with defaults.
    */
   constructor(
-    positionKey: PositionKey
+    positionKey: PositionKey,
   ) : this(ChessGame().also { it.loadFen(toFullFen(positionKey.value)) })
 
   /** The player whose turn it is to move. */
@@ -87,7 +87,7 @@ class GameEngine private constructor(private val game: ChessGame) {
         it.from == fromSquare && it.to == toSquare && it.promotionPieceType == null
       }
         ?: throw IllegalMoveException(
-          "No legal move from ${BoardUtils.tileName(from)} to ${BoardUtils.tileName(to)}"
+          "No legal move from ${BoardUtils.tileName(from)} to ${BoardUtils.tileName(to)}",
         )
     val san = SanUtils.moveToSan(move, game.getBoard(), game.getGameState()).stripCheckMarkers()
     val success = game.makeMove(move)

@@ -44,7 +44,7 @@ fun EvaluationBar(evaluation: EvaluationScore?, currentDepth: Int?, modifier: Mo
 
   Box(
     modifier =
-      modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(8.dp)).background(blackColor)
+      modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(8.dp)).background(blackColor),
   ) {
     Row(modifier = Modifier.matchParentSize()) {
       // White section
@@ -54,7 +54,7 @@ fun EvaluationBar(evaluation: EvaluationScore?, currentDepth: Int?, modifier: Mo
       ) {
         Box(
           modifier =
-            Modifier.matchParentSize().background(whiteColor).clip(RoundedCornerShape(8.dp))
+            Modifier.matchParentSize().background(whiteColor).clip(RoundedCornerShape(8.dp)),
         )
       }
       // Black section

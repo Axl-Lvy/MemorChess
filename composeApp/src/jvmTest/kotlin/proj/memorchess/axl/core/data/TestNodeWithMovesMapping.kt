@@ -135,10 +135,10 @@ class TestNodeWithMovesMapping {
   @Test
   fun aMixOfDeletedGoodAndLiveGoodMovesMakesTheFlagTrue() {
     hasGoodOutgoingAfterConversion(
-      listOf(move(isGood = true, isDeleted = true), move(isGood = false))
+      listOf(move(isGood = true, isDeleted = true), move(isGood = false)),
     ) shouldBe false
     hasGoodOutgoingAfterConversion(
-      listOf(move(isGood = true, isDeleted = true), move(isGood = true))
+      listOf(move(isGood = true, isDeleted = true), move(isGood = true)),
     ) shouldBe true
   }
 

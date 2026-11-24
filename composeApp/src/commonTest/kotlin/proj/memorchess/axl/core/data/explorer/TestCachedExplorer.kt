@@ -57,7 +57,7 @@ class TestCachedExplorer {
                 status = HttpStatusCode.OK,
                 headers = headersOf("Content-Type", "application/json"),
               )
-            }
+            },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -95,7 +95,7 @@ class TestCachedExplorer {
                 status = HttpStatusCode.OK,
                 headers = headersOf("Content-Type", "application/json"),
               )
-            }
+            },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -125,7 +125,7 @@ class TestCachedExplorer {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -146,7 +146,7 @@ class TestCachedExplorer {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.InternalServerError) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -167,7 +167,7 @@ class TestCachedExplorer {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -196,7 +196,7 @@ class TestCachedExplorer {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.Unauthorized) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -217,7 +217,7 @@ class TestCachedExplorer {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -247,7 +247,7 @@ class TestCachedExplorer {
         tokenProvider = { LichessToken("test-token") },
         httpClient =
           HttpClient(
-            MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) }
+            MockEngine { _ -> respond(content = "", status = HttpStatusCode.TooManyRequests) },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },
@@ -277,7 +277,7 @@ class TestCachedExplorer {
             MockEngine { _ ->
               networkCalls++
               respond(content = "", status = HttpStatusCode.InternalServerError)
-            }
+            },
           ) {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
           },

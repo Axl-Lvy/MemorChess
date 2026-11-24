@@ -39,7 +39,7 @@ class TestPgnImporter {
     store.install(
       "london",
       listOf(
-        proj.memorchess.axl.core.graph.InstalledMove(keyAfter(), "e4", keyAfter("e4"), true, 0)
+        proj.memorchess.axl.core.graph.InstalledMove(keyAfter(), "e4", keyAfter("e4"), true, 0),
       ),
     )
 

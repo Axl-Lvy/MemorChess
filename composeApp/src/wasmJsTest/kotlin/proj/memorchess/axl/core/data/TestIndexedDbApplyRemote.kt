@@ -59,7 +59,7 @@ class TestIndexedDbApplyRemote {
     db.applyRemoteNode(node("b"))
 
     db.applyRemoteMove(
-      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now)
+      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now),
     )
 
     db.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
@@ -77,7 +77,7 @@ class TestIndexedDbApplyRemote {
     db.applyRemoteNode(node("b"))
     db.applyRemoteMove(DataMove(origin, destination, "e4", isGood = true, updatedAt = now))
     db.insertTag(
-      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4")
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4"),
     )
 
     db.edgesTaggedWith("italian-game") shouldBe listOf(TaggedEdge(origin, destination, "e4"))
@@ -99,7 +99,7 @@ class TestIndexedDbApplyRemote {
         repertoireId = "italian-game",
         move = "e4",
         isDeleted = true,
-      )
+      ),
     )
 
     db.edgesTaggedWith("italian-game") shouldBe emptyList()
@@ -142,7 +142,7 @@ class TestIndexedDbApplyRemote {
         isGood = true,
         ownIsGood = true,
         updatedAt = now,
-      )
+      ),
     )
 
     db.deleteMove(PositionKey("a"), "e4", "d", 2L, now)
@@ -212,7 +212,7 @@ class TestIndexedDbApplyRemote {
         move = "f4",
         isDeleted = true,
         updatedAt = now,
-      )
+      ),
     )
 
     db.getTagsTouching(a).map { it.move }.toSet() shouldBe setOf("e4", "d4")

@@ -149,7 +149,7 @@ class TestTreeStoreImport {
           cardState = CardStateFactory.new(),
           depth = depth,
           updatedAt = updatedAt,
-        )
+        ),
       )
 
     val databaseA = TestDatabases.empty()

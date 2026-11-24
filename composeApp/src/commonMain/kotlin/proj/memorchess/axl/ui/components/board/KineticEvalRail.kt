@@ -177,7 +177,7 @@ fun KineticEvalRail(
               size = Size(w, markerBand.endInclusive - markerBand.start),
             )
           }
-          .border(1.5.dp, palette.line, railShape)
+          .border(1.5.dp, palette.line, railShape),
     ) {}
 
     if (displayValue != null) {

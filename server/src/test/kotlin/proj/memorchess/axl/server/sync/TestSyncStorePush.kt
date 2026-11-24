@@ -167,7 +167,7 @@ internal class TestSyncStorePush {
       user,
       DEVICE,
       request(
-        setting("theme", "light", Instant.fromEpochMilliseconds(20), device = DeviceId("device-b"))
+        setting("theme", "light", Instant.fromEpochMilliseconds(20), device = DeviceId("device-b")),
       ),
       serverNow,
     )
@@ -222,7 +222,7 @@ internal class TestSyncStorePush {
             "light",
             Instant.fromEpochMilliseconds(10),
             device = DeviceId("device-b"),
-          )
+          ),
         ),
         serverNow,
       )

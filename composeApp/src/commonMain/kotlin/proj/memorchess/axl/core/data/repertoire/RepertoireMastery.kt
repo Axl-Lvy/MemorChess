@@ -35,7 +35,7 @@ internal suspend fun mostRecentRepertoireMastery(tagStore: RepertoireTagStore): 
         compareByDescending<Pair<DataRepertoire, RepertoireMasterySnapshot>> {
             it.second.lastReview
           }
-          .thenBy { it.first.name }
+          .thenBy { it.first.name },
       )
       .firstOrNull() ?: return null
   return RepertoireMastery(

@@ -37,7 +37,7 @@ class TestRoomCountDescendants {
 
   private suspend fun insertNode(name: String, previous: List<DataMove>, next: List<DataMove>) {
     manager.insertNodes(
-      DataNode(key(name), PreviousAndNextMoves(previous, next), CardStateFactory.new())
+      DataNode(key(name), PreviousAndNextMoves(previous, next), CardStateFactory.new()),
     )
   }
 

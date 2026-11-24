@@ -163,7 +163,7 @@ internal class TestSyncCodec {
               id = "origin|destination",
               code = "illegal_move",
               reason = "illegal move",
-            )
+            ),
           ),
       )
     SYNC_JSON.decodeFromString<SyncPushResponse>(SYNC_JSON.encodeToString(response)) shouldBe

@@ -61,7 +61,7 @@ class RepertoireCatalogClient(
     if (manifest.schemaVersion != SUPPORTED_SCHEMA_VERSION) {
       return CatalogResult.MalformedManifest(
         "Unsupported manifest schema version ${manifest.schemaVersion}," +
-          " expected $SUPPORTED_SCHEMA_VERSION"
+          " expected $SUPPORTED_SCHEMA_VERSION",
       )
     }
     return CatalogResult.Ok(manifest)

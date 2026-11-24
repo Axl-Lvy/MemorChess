@@ -107,7 +107,7 @@ fun KineticCounterBlock(
               fadeIn(KineticMotion.Celebratory.correctAnswer()))
             .togetherWith(
               slideOutVertically(KineticMotion.Celebratory.correctAnswer()) { height -> -height } +
-                fadeOut(KineticMotion.Celebratory.correctAnswer())
+                fadeOut(KineticMotion.Celebratory.correctAnswer()),
             )
         },
         label = "counter value",

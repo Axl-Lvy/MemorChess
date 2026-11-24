@@ -31,7 +31,7 @@ internal object RepertoireMovesValidator {
     if (moves.isEmpty()) return MoveListValidation.Rejected("the repertoire has no move")
     if (moves.size > maxMoves) {
       return MoveListValidation.TooLarge(
-        "the repertoire has ${moves.size} moves, the cap is $maxMoves"
+        "the repertoire has ${moves.size} moves, the cap is $maxMoves",
       )
     }
     if (moves.distinctBy { it.from to it.to }.size != moves.size) {

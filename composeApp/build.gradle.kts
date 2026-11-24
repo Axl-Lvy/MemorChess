@@ -30,7 +30,12 @@ kotlin {
   // Android configuration
   androidLibrary {
     namespace = "proj.memorchess.axl.library"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk {
+      version =
+        release(libs.versions.android.compileSdk.get().toInt()) {
+          minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+        }
+    }
     minSdk = libs.versions.android.minSdk.get().toInt()
     compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
     // Package Compose Multiplatform resources into the AAR (CMP-9547). Without this the
@@ -240,7 +245,7 @@ tasks.withType<KotlinWebpack>().configureEach {
 
 tasks.withType<KotlinJsTest>().configureEach {
   notCompatibleWithConfigurationCache(
-    "Kotlin/JS testing tasks store Project references and use non-serializable types."
+    "Kotlin/JS testing tasks store Project references and use non-serializable types.",
   )
 }
 
@@ -258,7 +263,7 @@ val wasmJsProductionDist = layout.buildDirectory.dir("dist/wasmJs/productionExec
 val hashWasmJsBundle by tasks.registering {
   dependsOn("wasmJsBrowserDistribution")
   notCompatibleWithConfigurationCache(
-    "reads and rewrites files wasmJsBrowserDistribution just wrote"
+    "reads and rewrites files wasmJsBrowserDistribution just wrote",
   )
   doLast {
     val distDir = wasmJsProductionDist.get().asFile

@@ -149,7 +149,7 @@ class TestOidcSignInController {
       respond(
         content =
           ByteReadChannel(
-            """{"access_token":"tok-refreshed","refresh_token":"ref-new","expires_in":3600}"""
+            """{"access_token":"tok-refreshed","refresh_token":"ref-new","expires_in":3600}""",
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),
