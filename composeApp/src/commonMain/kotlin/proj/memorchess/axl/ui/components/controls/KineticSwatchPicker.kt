@@ -124,7 +124,7 @@ fun <T> KineticSwatchPicker(
                 enabled = enabled,
                 role = Role.RadioButton,
                 onClick = { onSelect(swatch.value) },
-              )
+              ),
         ) {
           Canvas(modifier = Modifier.size(48.dp)) {
             val half = size.width / 2f

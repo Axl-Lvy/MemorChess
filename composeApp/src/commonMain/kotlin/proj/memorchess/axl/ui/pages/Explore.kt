@@ -105,7 +105,7 @@ fun Explore(
               Res.plurals.explore_delete_confirm,
               finalNodesToDelete,
               finalNodesToDelete,
-            )
+            ),
           )
         }
         LaunchedEffect(showDeleteSheet) {

@@ -154,6 +154,6 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
   ) = delegate.replaceTrainableRepertoires(positionKey, repertoireIds, lastReview)
 
   override suspend fun getRepertoireMasterySnapshots(
-    repertoireIds: List<String>
+    repertoireIds: List<String>,
   ): Map<String, RepertoireMasterySnapshot> = delegate.getRepertoireMasterySnapshots(repertoireIds)
 }

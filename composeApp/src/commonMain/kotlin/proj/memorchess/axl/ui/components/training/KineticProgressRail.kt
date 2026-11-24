@@ -113,6 +113,6 @@ fun KineticProgressRail(progress: Float, modifier: Modifier = Modifier) {
             radius = markerRadiusPx,
             center = Offset(markerX, centerY),
           )
-        }
+        },
   )
 }

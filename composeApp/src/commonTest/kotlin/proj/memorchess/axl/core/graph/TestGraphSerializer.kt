@@ -437,7 +437,7 @@ class TestGraphSerializer {
    * `nextCursor` set only when a full page was returned.
    */
   private fun pagedProducer(
-    nodes: List<DataNode>
+    nodes: List<DataNode>,
   ): suspend (cursor: String?, limit: Int) -> NodesPage {
     val sorted = nodes.filter { !it.isDeleted }.sortedBy { it.positionKey.value }
     return { cursor, limit ->

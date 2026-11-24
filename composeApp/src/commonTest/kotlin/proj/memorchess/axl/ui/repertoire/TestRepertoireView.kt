@@ -108,7 +108,7 @@ class TestRepertoireView : TestWithKoin() {
 
   /** Catalog + client backed by a [MockEngine] serving a one line manifest and its moves. */
   private fun mockCatalog(
-    pgn: String = "1. e4 e5 2. Nf3 *"
+    pgn: String = "1. e4 e5 2. Nf3 *",
   ): Pair<CachedRepertoireCatalog, RepertoireCatalogClient> {
     val manifest =
       """{"schemaVersion":2,"repertoires":[{"id":"test-rep","name":"Test Repertoire",""" +
@@ -216,7 +216,7 @@ class TestRepertoireView : TestWithKoin() {
           fromDepth = 0,
         )
         store.addMove(from = afterE4, move = "e5", to = afterE4E5, isGood = true, fromDepth = 1)
-      }
+      },
     ) {
       onNodeWithText("READ ONLY").assertExists()
       waitUntilNodeExists(hasTestTag("Play e4").and(hasText("YOURS"))).assertExists()
@@ -487,8 +487,8 @@ class TestRepertoireView : TestWithKoin() {
         mapOf(
           secondDescriptor.id to
             RepertoireInstallState.Installed(
-              summary = PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2)
-            )
+              summary = PgnImportSummary(movesAdded = 5, movesAlreadyPresent = 2),
+            ),
         ),
       masterySnapshots = mapOf(secondDescriptor.id to snapshot(solid = 3, total = 10)),
     )
@@ -563,7 +563,8 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
       installStates =
         mapOf(
-          secondDescriptor.id to RepertoireInstallState.Installed(summary = null, isOutdated = true)
+          secondDescriptor.id to
+            RepertoireInstallState.Installed(summary = null, isOutdated = true),
         ),
     )
     onNode(hasText("UPDATE").and(hasAnyAncestor(hasTestTag(cardTag(secondDescriptor)))))
@@ -579,14 +580,15 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
       installStates =
         mapOf(
-          secondDescriptor.id to RepertoireInstallState.Installed(summary = null, isOutdated = true)
+          secondDescriptor.id to
+            RepertoireInstallState.Installed(summary = null, isOutdated = true),
         ),
       previewStates =
         mapOf(
           secondDescriptor.id to
             RepertoirePreviewState.Ready(
-              PgnImportPreview(totalMoves = 5, movesInCommon = 4, movesToDelete = 1)
-            )
+              PgnImportPreview(totalMoves = 5, movesInCommon = 4, movesToDelete = 1),
+            ),
         ),
     )
 
@@ -657,7 +659,7 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
       installStates =
         mapOf(
-          secondDescriptor.id to RepertoireInstallState.Failed(InstallError.Network("offline"))
+          secondDescriptor.id to RepertoireInstallState.Failed(InstallError.Network("offline")),
         ),
     )
     onNodeWithText("Download failed: offline").assertExists()
@@ -688,7 +690,7 @@ class TestRepertoireView : TestWithKoin() {
       installStates =
         mapOf(
           secondDescriptor.id to
-            RepertoireInstallState.Failed(InstallError.MalformedRepertoire("bad pgn"))
+            RepertoireInstallState.Failed(InstallError.MalformedRepertoire("bad pgn")),
         ),
     )
     onNodeWithText("This repertoire could not be read: bad pgn").assertExists()
@@ -719,7 +721,7 @@ class TestRepertoireView : TestWithKoin() {
       installStates =
         mapOf(
           secondDescriptor.id to
-            RepertoireInstallState.Failed(InstallError.ImportFailed("import blew up"))
+            RepertoireInstallState.Failed(InstallError.ImportFailed("import blew up")),
         ),
     )
     onNodeWithText("Import failed: import blew up").assertExists()
@@ -820,7 +822,7 @@ class TestRepertoireView : TestWithKoin() {
     // the tie falls back to catalog order, identical to the placeholder behavior this replaced.
     setLibraryContent(
       catalogState =
-        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
     )
     onNode(hasText(descriptor.name).and(hasAnyAncestor(hasTestTag("library_hero_card"))))
       .assertExists()
@@ -841,7 +843,7 @@ class TestRepertoireView : TestWithKoin() {
   @Test
   fun heroShowsTheReadyOverlap() = runLibraryTest {
     setHeroPreview(
-      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 10, movesInCommon = 3))
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 10, movesInCommon = 3)),
     )
     onNodeWithTag("library_hero_progress_bar")
       .assertRangeInfoEquals(ProgressBarRangeInfo(0.30f, 0f..1f))
@@ -852,7 +854,7 @@ class TestRepertoireView : TestWithKoin() {
   @Test
   fun heroShowsAnEmptyBarWhenNothingIsInCommon() = runLibraryTest {
     setHeroPreview(
-      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 1, movesInCommon = 0))
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 1, movesInCommon = 0)),
     )
     onNodeWithTag("library_hero_progress_bar")
       .assertRangeInfoEquals(ProgressBarRangeInfo(0f, 0f..1f))
@@ -862,7 +864,7 @@ class TestRepertoireView : TestWithKoin() {
   @Test
   fun heroShowsAFullBarWhenEverythingIsInCommon() = runLibraryTest {
     setHeroPreview(
-      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 1, movesInCommon = 1))
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 1, movesInCommon = 1)),
     )
     onNodeWithTag("library_hero_progress_bar")
       .assertRangeInfoEquals(ProgressBarRangeInfo(1f, 0f..1f))
@@ -872,7 +874,7 @@ class TestRepertoireView : TestWithKoin() {
   @Test
   fun heroShowsALargeOverlap() = runLibraryTest {
     setHeroPreview(
-      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 20_000, movesInCommon = 5_000))
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 20_000, movesInCommon = 5_000)),
     )
     onNodeWithTag("library_hero_progress_bar")
       .assertRangeInfoEquals(ProgressBarRangeInfo(0.25f, 0f..1f))
@@ -882,7 +884,7 @@ class TestRepertoireView : TestWithKoin() {
   @Test
   fun heroHidesTheOverlapForAnEmptyRepertoire() = runLibraryTest {
     setHeroPreview(
-      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 0, movesInCommon = 0))
+      RepertoirePreviewState.Ready(PgnImportPreview(totalMoves = 0, movesInCommon = 0)),
     )
     onNodeWithTag("library_hero_card").assertExists()
     onNodeWithTag("library_hero_progress_bar").assertDoesNotExist()
@@ -907,7 +909,7 @@ class TestRepertoireView : TestWithKoin() {
   fun heroHidesTheOverlapBeforeAnyPreviewIsPublished() = runLibraryTest {
     setLibraryContent(
       catalogState =
-        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
     )
     onNodeWithTag("library_hero_card").assertExists()
     onNodeWithTag("library_hero_progress_bar").assertDoesNotExist()
@@ -1038,7 +1040,7 @@ class TestRepertoireView : TestWithKoin() {
       mainClock.autoAdvance = false
       var installStates by
         mutableStateOf<Map<String, RepertoireInstallState>>(
-          mapOf(secondDescriptor.id to RepertoireInstallState.Importing(1f))
+          mapOf(secondDescriptor.id to RepertoireInstallState.Importing(1f)),
         )
       setTestContent {
         InitializeApp {
@@ -1099,7 +1101,7 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(
           listOf(descriptor, secondDescriptor, blackDescriptor),
           isStale = false,
-        )
+        ),
     )
     onNodeWithTag("library_filter_chip:all").assertTextEquals("All 3")
     onNodeWithTag("library_filter_chip:white").assertTextEquals("White 2")
@@ -1110,7 +1112,7 @@ class TestRepertoireView : TestWithKoin() {
   fun filterChipsShowZeroCountForAbsentColorEdgeCase() = runLibraryTest {
     setLibraryContent(
       catalogState =
-        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
     )
     onNodeWithTag("library_filter_chip:black").assertExists().assertTextEquals("Black 0")
   }
@@ -1122,7 +1124,7 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(
           listOf(descriptor, secondDescriptor, blackDescriptor),
           isStale = false,
-        )
+        ),
     )
     onNodeWithTag("library_filter_chip:white").performClick()
     onNodeWithTag(cardTag(descriptor)).assertExists()
@@ -1137,7 +1139,7 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(
           listOf(descriptor, secondDescriptor, blackDescriptor),
           isStale = false,
-        )
+        ),
     )
     onNodeWithTag("library_filter_chip:black").performClick()
     onNodeWithTag(cardTag(blackDescriptor)).assertExists()
@@ -1169,7 +1171,7 @@ class TestRepertoireView : TestWithKoin() {
         LibraryCatalogState.Loaded(
           listOf(descriptor, secondDescriptor, blackDescriptor),
           isStale = false,
-        )
+        ),
     )
     onNodeWithTag(cardTag(descriptor)).assertExists()
     onNodeWithTag(cardTag(secondDescriptor)).assertExists()
@@ -1180,7 +1182,7 @@ class TestRepertoireView : TestWithKoin() {
   fun selectingChipWithZeroMatchesShowsEmptyFilterMessage() = runLibraryTest {
     setLibraryContent(
       catalogState =
-        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false)
+        LibraryCatalogState.Loaded(listOf(descriptor, secondDescriptor), isStale = false),
     )
     onNodeWithTag("library_filter_chip:black").performClick()
     onNodeWithTag("library_filter_empty").assertExists()

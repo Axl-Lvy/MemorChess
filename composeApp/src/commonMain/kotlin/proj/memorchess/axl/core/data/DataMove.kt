@@ -66,7 +66,7 @@ data class DataMove(
     val isDeleted: Boolean,
   ) {
     constructor(
-      storedNode: DataMove
+      storedNode: DataMove,
     ) : this(
       storedNode.origin,
       storedNode.destination,

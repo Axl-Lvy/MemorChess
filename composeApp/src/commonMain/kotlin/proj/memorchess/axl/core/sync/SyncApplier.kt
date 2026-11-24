@@ -83,7 +83,7 @@ class SyncApplier(
           updatedAt = pulled.updatedAt,
           originDevice = pulled.originDevice,
           deviceSeq = pulled.deviceSeq,
-        ) ?: pulled
+        ) ?: pulled,
       )
       recomputeHolders(originKey, destinationKey, remote.move)
     }

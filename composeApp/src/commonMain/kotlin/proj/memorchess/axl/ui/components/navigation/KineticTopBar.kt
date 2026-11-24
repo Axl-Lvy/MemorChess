@@ -97,7 +97,7 @@ fun KineticTopBar(
           0.5f to palette.action,
           0.85f to palette.streak,
           1.0f to Color.Transparent,
-        )
+        ),
     )
 
   Row(

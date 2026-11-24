@@ -61,7 +61,7 @@ class TestExplorePruneSheet : TestWithKoin() {
   @Test
   fun testDeleteButtonShowsPruneSheetWithCount() = runTestFromSetup {
     database.insertNodes(
-      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new()),
     )
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTagExists("pruneConfirmSheet")
@@ -71,7 +71,7 @@ class TestExplorePruneSheet : TestWithKoin() {
   @Test
   fun testCancelDismissesSheetWithoutDeleting() = runTestFromSetup {
     database.insertNodes(
-      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new()),
     )
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTagExists("pruneConfirmSheetCancelButton").performClick()
@@ -82,7 +82,7 @@ class TestExplorePruneSheet : TestWithKoin() {
   @Test
   fun testConfirmDeletesTheCurrentNode() = runTestFromSetup {
     database.insertNodes(
-      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new()),
     )
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTagExists("pruneConfirmSheetOkButton").performClick()
@@ -95,7 +95,7 @@ class TestExplorePruneSheet : TestWithKoin() {
     // on its text or padding fell through to the full-screen scrim behind it and dismissed the
     // sheet instead of doing nothing.
     database.insertNodes(
-      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new()),
     )
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTextExists("Are you sure you want to delete 1 position?").performClick()
@@ -105,7 +105,7 @@ class TestExplorePruneSheet : TestWithKoin() {
   @Test
   fun testTappingScrimDismissesSheetWithoutDeleting() = runTestFromSetup {
     database.insertNodes(
-      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new())
+      DataNode(PositionKey.START_POSITION, PreviousAndNextMoves(), CardStateFactory.new()),
     )
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTagExists("pruneConfirmSheet")
@@ -138,7 +138,7 @@ class TestExplorePruneSheet : TestWithKoin() {
     database.insertNodes(*buildDescendantChain(DESCENDANT_COUNT_CAP - 1).toTypedArray())
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTextExists(
-      "Are you sure you want to delete ${DESCENDANT_COUNT_CAP - 1} positions?"
+      "Are you sure you want to delete ${DESCENDANT_COUNT_CAP - 1} positions?",
     )
   }
 
@@ -147,7 +147,7 @@ class TestExplorePruneSheet : TestWithKoin() {
     database.insertNodes(*buildDescendantChain(DESCENDANT_COUNT_CAP).toTypedArray())
     waitUntilNodeExists(hasContentDescription("Delete")).performClick()
     assertNodeWithTextExists(
-      "Are you sure you want to delete $DESCENDANT_COUNT_CAP or more positions?"
+      "Are you sure you want to delete $DESCENDANT_COUNT_CAP or more positions?",
     )
   }
 }

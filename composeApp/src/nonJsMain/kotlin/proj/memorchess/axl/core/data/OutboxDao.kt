@@ -15,7 +15,7 @@ interface OutboxDao {
   @Query(
     "INSERT INTO OutboxEntryEntity (kind, key1, key2, key3, deviceSeq) " +
       "VALUES (:kind, :key1, :key2, :key3, :deviceSeq) " +
-      "ON CONFLICT(kind, key1, key2, key3) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)"
+      "ON CONFLICT(kind, key1, key2, key3) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)",
   )
   suspend fun upsert(
     kind: String,
@@ -36,7 +36,7 @@ interface OutboxDao {
    */
   @Query(
     "DELETE FROM OutboxEntryEntity WHERE kind = :kind AND key1 = :key1 AND key2 = :key2 " +
-      "AND key3 = :key3 AND deviceSeq <= :pushedSeq"
+      "AND key3 = :key3 AND deviceSeq <= :pushedSeq",
   )
   suspend fun deleteIfNotNewer(
     kind: String,

@@ -209,7 +209,7 @@ private fun GoalSection(stats: TodayStats) {
       overflow = TextOverflow.Clip,
       modifier =
         Modifier.testTag(
-          if (stats.target > 0) "today_goal_label_progress" else "today_goal_label_done"
+          if (stats.target > 0) "today_goal_label_progress" else "today_goal_label_done",
         ),
       style = typography.display.copy(color = palette.ink),
     )
@@ -273,7 +273,7 @@ private fun EmptyPickUpCard() {
       Modifier.fillMaxWidth()
         .testTag("today_pickup_empty")
         .background(palette.panel2, MaterialTheme.shapes.small)
-        .padding(16.dp)
+        .padding(16.dp),
   ) {
     Text(
       text = stringResource(Res.string.today_pickup_empty),

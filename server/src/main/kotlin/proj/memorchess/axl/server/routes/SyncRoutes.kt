@@ -70,7 +70,7 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
             ack(),
             pageLimit(DEFAULT_PULL_LIMIT, MAX_PULL_LIMIT),
             clock(),
-          )
+          ),
         )
       }
     }
@@ -86,7 +86,7 @@ internal fun Route.syncRoutes(store: SyncStore, clock: () -> Instant) {
             request.tags.size
         if (rows > MAX_PUSH_ROWS) {
           throw TooLargeException(
-            "a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows"
+            "a batch may carry at most $MAX_PUSH_ROWS rows, this one had $rows",
           )
         }
         val device = requireDevice(request.device.value, "device")
@@ -154,7 +154,7 @@ private fun ApplicationCall.deviceId(): DeviceId =
 private fun requireDevice(raw: String, field: String): DeviceId =
   DeviceId.parseOrNull(raw)
     ?: throw BadRequestException(
-      "$field must be a canonical UUID other than the nil one, was '$raw'"
+      "$field must be a canonical UUID other than the nil one, was '$raw'",
     )
 
 /**

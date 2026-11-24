@@ -60,7 +60,7 @@ class TestRoomSchedulingQueries {
             destination = PositionKey("$keyName-child"),
             move = "e4",
             isGood = true,
-          )
+          ),
         )
       } else {
         emptyList()
@@ -85,7 +85,7 @@ class TestRoomSchedulingQueries {
         isDeleted = isDeleted,
         hasGoodOutgoing = hasGoodOutgoing,
         createdAt = createdAt,
-      )
+      ),
     )
   }
 
@@ -177,7 +177,7 @@ class TestRoomSchedulingQueries {
                 destination = PositionKey("depthOmitted-child"),
                 move = "e4",
                 isGood = true,
-              )
+              ),
             ),
           ),
         cardState =
@@ -192,7 +192,7 @@ class TestRoomSchedulingQueries {
           ),
         hasGoodOutgoing = true,
         createdAt = Instant.fromEpochSeconds(50),
-      )
+      ),
     )
 
     manager.nextDueNewCard(dayEnd)?.positionKey shouldBe PositionKey("depth0")

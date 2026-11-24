@@ -122,8 +122,8 @@ class TestSyncRoutes {
       contentType(ContentType.Application.Json)
       setBody(
         SYNC_JSON.encodeToString(
-          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DeviceId(DEVICE))
-        )
+          SyncPushRequest(emptyList(), emptyList(), rows.toList(), device = DeviceId(DEVICE)),
+        ),
       )
     }
 
@@ -191,7 +191,7 @@ class TestSyncRoutes {
 
     val page =
       SYNC_JSON.decodeFromString<SyncPullResponse>(
-        client.pull(token, "ack=${first.pageToken}").bodyAsText()
+        client.pull(token, "ack=${first.pageToken}").bodyAsText(),
       )
 
     page.settings shouldHaveSize 0
@@ -209,7 +209,7 @@ class TestSyncRoutes {
 
     val second =
       SYNC_JSON.decodeFromString<SyncPullResponse>(
-        client.pull(token, "ack=${first.pageToken}&limit=2").bodyAsText()
+        client.pull(token, "ack=${first.pageToken}&limit=2").bodyAsText(),
       )
 
     second.settings shouldHaveSize 2
@@ -291,7 +291,7 @@ class TestSyncRoutes {
 
       val retry =
         SYNC_JSON.decodeFromString<SyncPullResponse>(
-          client.pull(token, "ack=not-a-token").bodyAsText()
+          client.pull(token, "ack=not-a-token").bodyAsText(),
         )
 
       retry.settings shouldHaveSize 1
@@ -314,8 +314,8 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(emptyList(), emptyList(), rows, device = DeviceId(DEVICE))
-          )
+            SyncPushRequest(emptyList(), emptyList(), rows, device = DeviceId(DEVICE)),
+          ),
         )
       }
 
@@ -349,8 +349,8 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(nodes, edges, settings, device = DeviceId(DEVICE))
-          )
+            SyncPushRequest(nodes, edges, settings, device = DeviceId(DEVICE)),
+          ),
         )
       }
 
@@ -426,13 +426,13 @@ class TestSyncRoutes {
                       updatedAt = serverNow,
                       originDevice = DeviceId("device-a"),
                       deviceSeq = 1,
-                    )
+                    ),
                   ),
                 edges = emptyList(),
                 settings = emptyList(),
                 device = DeviceId(DEVICE),
-              )
-            )
+              ),
+            ),
           )
         }
 
@@ -521,8 +521,8 @@ class TestSyncRoutes {
               emptyList(),
               emptyList(),
               device = DeviceId(DEVICE),
-            )
-          )
+            ),
+          ),
         )
       }
 
@@ -547,8 +547,8 @@ class TestSyncRoutes {
         contentType(ContentType.Application.Json)
         setBody(
           SYNC_JSON.encodeToString(
-            SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DeviceId(stranger))
-          )
+            SyncPushRequest(emptyList(), emptyList(), emptyList(), device = DeviceId(stranger)),
+          ),
         )
       }
 

@@ -60,7 +60,7 @@ internal fun Connection.resolveEdgeIds(edges: Collection<EdgeIdentity>): Map<Edg
 
   prepareStatement(
       "INSERT INTO move_edge (origin_id, destination_id, move) VALUES (?, ?, ?) " +
-        "ON CONFLICT DO NOTHING"
+        "ON CONFLICT DO NOTHING",
     )
     .use { statement ->
       for (edge in distinct) {
@@ -78,7 +78,7 @@ internal fun Connection.resolveEdgeIds(edges: Collection<EdgeIdentity>): Map<Edg
   prepareStatement(
       "SELECT e.origin_id, e.destination_id, e.id FROM move_edge e " +
         "JOIN unnest(?::bigint[], ?::bigint[]) AS k(o, d) " +
-        "ON e.origin_id = k.o AND e.destination_id = k.d"
+        "ON e.origin_id = k.o AND e.destination_id = k.d",
     )
     .use { statement ->
       statement.setArray(1, createArrayOf("bigint", origins))

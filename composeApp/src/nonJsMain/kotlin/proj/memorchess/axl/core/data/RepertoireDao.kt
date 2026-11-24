@@ -53,20 +53,20 @@ interface RepertoireDao {
 
   @Query(
     "SELECT * FROM EdgeRepertoireTagEntity WHERE isDeleted IS FALSE " +
-      "AND origin = :origin AND destination = :destination"
+      "AND origin = :origin AND destination = :destination",
   )
   suspend fun getTags(origin: String, destination: String): List<EdgeRepertoireTagEntity>
 
   @Query(
     "SELECT * FROM EdgeRepertoireTagEntity WHERE isDeleted IS FALSE " +
-      "AND (origin = :position OR destination = :position)"
+      "AND (origin = :position OR destination = :position)",
   )
   suspend fun getTagsTouching(position: String): List<EdgeRepertoireTagEntity>
 
   /** [getTags] narrowed to one repertoire, without the `isDeleted IS FALSE` filter. */
   @Query(
     "SELECT * FROM EdgeRepertoireTagEntity " +
-      "WHERE origin = :origin AND destination = :destination AND repertoireId = :repertoireId"
+      "WHERE origin = :origin AND destination = :destination AND repertoireId = :repertoireId",
   )
   suspend fun getTagIncludingDeleted(
     origin: String,
@@ -81,7 +81,7 @@ interface RepertoireDao {
   @Query(
     "SELECT m.* FROM EdgeRepertoireTagEntity t JOIN MoveEntity m " +
       "ON t.origin = m.origin AND t.destination = m.destination " +
-      "WHERE t.repertoireId = :repertoireId AND t.isDeleted IS FALSE AND m.isDeleted IS FALSE"
+      "WHERE t.repertoireId = :repertoireId AND t.isDeleted IS FALSE AND m.isDeleted IS FALSE",
   )
   suspend fun edgesTaggedWith(repertoireId: String): List<MoveEntity>
 
@@ -93,7 +93,7 @@ interface RepertoireDao {
   @Query(
     "INSERT INTO OutboxEntryEntity (kind, key1, key2, key3, deviceSeq) " +
       "VALUES (:kind, :key1, :key2, :key3, :deviceSeq) " +
-      "ON CONFLICT(kind, key1, key2, key3) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)"
+      "ON CONFLICT(kind, key1, key2, key3) DO UPDATE SET deviceSeq = MAX(deviceSeq, excluded.deviceSeq)",
   )
   suspend fun upsertOutboxEntry(
     kind: String,
@@ -128,7 +128,7 @@ interface RepertoireDao {
   @Query(
     "SELECT COUNT(*) FROM NodeRepertoireTrainableEntity t JOIN NodeEntity n " +
       "ON n.positionKey = t.positionKey " +
-      "WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE AND n.phase = 'REVIEW'"
+      "WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE AND n.phase = 'REVIEW'",
   )
   suspend fun countSolid(repertoireId: String): Int
 
@@ -140,13 +140,13 @@ interface RepertoireDao {
    */
   @Query(
     "SELECT COUNT(*) FROM NodeRepertoireTrainableEntity t JOIN NodeEntity n " +
-      "ON n.positionKey = t.positionKey WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE"
+      "ON n.positionKey = t.positionKey WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE",
   )
   suspend fun countTotal(repertoireId: String): Int
 
   @Query(
     "SELECT MAX(t.lastReview) FROM NodeRepertoireTrainableEntity t JOIN NodeEntity n " +
-      "ON n.positionKey = t.positionKey WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE"
+      "ON n.positionKey = t.positionKey WHERE t.repertoireId = :repertoireId AND n.isDeleted IS FALSE",
   )
   suspend fun maxLastReview(repertoireId: String): Instant?
 

@@ -78,7 +78,7 @@ class RepertoireMoveExporter(
 
   /** Every position some live edge of [taggedEdges] is reachable from, mapped to its node. */
   private suspend fun nodesLeadingTo(
-    taggedEdges: Set<Pair<PositionKey, PositionKey>>
+    taggedEdges: Set<Pair<PositionKey, PositionKey>>,
   ): Map<PositionKey, Node> {
     val nodes = mutableMapOf<PositionKey, Node>()
     val pending = ArrayDeque<Node>()

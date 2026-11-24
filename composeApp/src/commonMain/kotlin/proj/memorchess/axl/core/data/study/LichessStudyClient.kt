@@ -100,7 +100,7 @@ class LichessStudyClient(private val httpClient: HttpClient) {
     private val STUDY_URL_REGEX =
       Regex(
         "^(?:https?://)?(?:www\\.)?lichess\\.org/study/([a-zA-Z0-9]{8})" +
-          "(?:/[a-zA-Z0-9]{8})?/?(?:[?#].*)?$"
+          "(?:/[a-zA-Z0-9]{8})?/?(?:[?#].*)?$",
       )
   }
 }

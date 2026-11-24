@@ -94,7 +94,7 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
 
   val appClasses =
     fileTree(
-      "${layout.buildDirectory.get()}/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+      "${layout.buildDirectory.get()}/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes",
     ) {
       exclude(fileFilter)
     }
@@ -117,13 +117,13 @@ tasks.register<JacocoReport>("jacocoAndroidTestReport") {
       "$composeAppSrc/debugMain/kotlin",
       "${project.projectDir}/src/main/kotlin",
       "${rootProject.projectDir}/shared/src/commonMain/kotlin",
-    )
+    ),
   )
   classDirectories.setFrom(files(appClasses, libraryClasses, sharedClasses))
 
   // Use both possible locations for coverage execution data
   executionData.setFrom(
-    fileTree(layout.buildDirectory.get()) { include("outputs/code_coverage/**/*.ec") }
+    fileTree(layout.buildDirectory.get()) { include("outputs/code_coverage/**/*.ec") },
   )
 
   // Only run if coverage data exists

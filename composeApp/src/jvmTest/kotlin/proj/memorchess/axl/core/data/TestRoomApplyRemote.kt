@@ -56,7 +56,7 @@ class TestRoomApplyRemote {
   fun applyRemoteNodePreservesExistingMoves() = runTest {
     manager.insertNodes(node("a"), node("b"))
     manager.applyRemoteMove(
-      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now)
+      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now),
     )
 
     manager.applyRemoteNode(node("a", deviceSeq = 2L))
@@ -79,7 +79,7 @@ class TestRoomApplyRemote {
     manager.applyRemoteNode(node("b"))
 
     manager.applyRemoteMove(
-      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now)
+      DataMove(PositionKey("a"), PositionKey("b"), "e4", isGood = true, updatedAt = now),
     )
 
     manager.getPosition(PositionKey("a"))!!.previousAndNextMoves.nextMoves.keys shouldBe setOf("e4")
@@ -123,7 +123,7 @@ class TestRoomApplyRemote {
         isGood = true,
         ownIsGood = true,
         updatedAt = now,
-      )
+      ),
     )
 
     db.deleteMove(PositionKey("a"), "e4", "d", 2L, now)
@@ -190,7 +190,7 @@ class TestRoomApplyRemote {
         move = "f4",
         isDeleted = true,
         updatedAt = now,
-      )
+      ),
     )
 
     db.getTagsTouching(a).map { it.move }.toSet() shouldBe setOf("e4", "d4")

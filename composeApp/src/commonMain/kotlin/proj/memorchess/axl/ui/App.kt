@@ -88,7 +88,7 @@ fun App(startRoute: Route = Route.TodayRoute, onNavHostReady: suspend (Navigator
       val fontFamilyResolver = LocalFontFamilyResolver.current
       val fontFamilies = LocalKineticTypography.current.fontFamilies()
       LoadingWidget(
-        suspendingFunction = { fontFamilies.forEach { fontFamilyResolver.preload(it) } }
+        suspendingFunction = { fontFamilies.forEach { fontFamilyResolver.preload(it) } },
       ) {
         MainLayout(
           topBar = {

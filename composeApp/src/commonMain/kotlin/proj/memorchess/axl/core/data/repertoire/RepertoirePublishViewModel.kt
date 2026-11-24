@@ -42,7 +42,7 @@ class RepertoirePublishViewModel(
   private val internalState =
     MutableStateFlow<PublishState>(
       publishedStore.publishedSlug(localId)?.let { PublishState.Published(it) }
-        ?: PublishState.NotPublished
+        ?: PublishState.NotPublished,
     )
 
   /** Current publish lifecycle state of [localId]. */
@@ -121,11 +121,11 @@ class RepertoirePublishViewModel(
       export.moves.size > RepertoirePublishLimits.MAX_REPERTOIRE_MOVES ->
         PublishError.PayloadTooLarge(
           "this repertoire has ${export.moves.size} moves, the cap is" +
-            " ${RepertoirePublishLimits.MAX_REPERTOIRE_MOVES}"
+            " ${RepertoirePublishLimits.MAX_REPERTOIRE_MOVES}",
         )
       export.maxPlyDepth > RepertoirePublishLimits.MAX_PLY_DEPTH ->
         PublishError.PayloadTooLarge(
-          "a line goes past ${RepertoirePublishLimits.MAX_PLY_DEPTH} plies deep"
+          "a line goes past ${RepertoirePublishLimits.MAX_PLY_DEPTH} plies deep",
         )
       else -> null
     }

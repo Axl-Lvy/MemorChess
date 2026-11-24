@@ -240,7 +240,7 @@ tasks.withType<KotlinWebpack>().configureEach {
 
 tasks.withType<KotlinJsTest>().configureEach {
   notCompatibleWithConfigurationCache(
-    "Kotlin/JS testing tasks store Project references and use non-serializable types."
+    "Kotlin/JS testing tasks store Project references and use non-serializable types.",
   )
 }
 
@@ -258,7 +258,7 @@ val wasmJsProductionDist = layout.buildDirectory.dir("dist/wasmJs/productionExec
 val hashWasmJsBundle by tasks.registering {
   dependsOn("wasmJsBrowserDistribution")
   notCompatibleWithConfigurationCache(
-    "reads and rewrites files wasmJsBrowserDistribution just wrote"
+    "reads and rewrites files wasmJsBrowserDistribution just wrote",
   )
   doLast {
     val distDir = wasmJsProductionDist.get().asFile

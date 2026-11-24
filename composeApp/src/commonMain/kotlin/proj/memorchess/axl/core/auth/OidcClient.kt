@@ -59,7 +59,7 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
         append("client_id", clientId)
         append("code_verifier", codeVerifier)
         append("resource", audience)
-      }
+      },
     )
 
   /**
@@ -78,7 +78,7 @@ class OidcClient(private val httpClient: HttpClient, private val issuer: String 
         append("refresh_token", refreshToken.value)
         append("client_id", clientId)
         append("resource", audience)
-      }
+      },
     )
 
   private suspend fun tokenRequest(parameters: Parameters): OidcTokenExchangeResult {

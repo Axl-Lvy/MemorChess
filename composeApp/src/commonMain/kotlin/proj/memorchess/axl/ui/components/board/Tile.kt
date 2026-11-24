@@ -16,8 +16,9 @@ fun Tile(location: BoardLocation, modifier: Modifier = Modifier) {
     modifier =
       modifier
         .background(
-          if (location.color == TileColor.BLACK) colors.darkSquareColor else colors.lightSquareColor
+          if (location.color == TileColor.BLACK) colors.darkSquareColor
+          else colors.lightSquareColor,
         )
-        .fillMaxSize()
+        .fillMaxSize(),
   )
 }
