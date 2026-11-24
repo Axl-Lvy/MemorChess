@@ -256,6 +256,14 @@ class TestRepertoireView : TestWithKoin() {
     }
 
   @Test
+  fun theReadOnlyViewerShowsNoReview() = runViewer {
+    waitUntilNodeExists(hasTestTag("Play e4")).assertExists()
+
+    onNode(hasTestTag("Play e4").and(hasText("NEW"))).assertDoesNotExist()
+    onNode(hasTestTag("Play e4").and(hasText("due", substring = true))).assertDoesNotExist()
+  }
+
+  @Test
   fun offBookMoveIsRejected() = runViewer {
     onNodeWithText("READ ONLY").assertExists()
     assertTileContainsPiece("e2", whitePawn)
