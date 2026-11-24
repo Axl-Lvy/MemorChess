@@ -103,6 +103,12 @@ class Fsrs6SchedulingAlgorithm(
     }
   }
 
+  override fun retrievability(card: CardState, now: Instant): Retrievability? {
+    val lastReview = card.lastReview ?: return null
+    val elapsedDays = ((now - lastReview).inWholeMilliseconds / MILLIS_PER_DAY).coerceAtLeast(0.0)
+    return Retrievability(forgettingCurve(elapsedDays, card.stability))
+  }
+
   /**
    * Short term path: advances the FSRS memory state exactly as the long term path does, then routes
    * the card through the learning, review or relearning steps based on its current
@@ -110,12 +116,6 @@ class Fsrs6SchedulingAlgorithm(
    * session; graduating to [CardPhase.REVIEW] produces a day grained interval and removes it from
    * the session.
    */
-  override fun retrievability(card: CardState, now: Instant): Retrievability? {
-    val lastReview = card.lastReview ?: return null
-    val elapsedDays = ((now - lastReview).inWholeMilliseconds / MILLIS_PER_DAY).coerceAtLeast(0.0)
-    return Retrievability(forgettingCurve(elapsedDays, card.stability))
-  }
-
   private fun shortTermReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
     val lastReview = base.lastReview
     val elapsedDays =

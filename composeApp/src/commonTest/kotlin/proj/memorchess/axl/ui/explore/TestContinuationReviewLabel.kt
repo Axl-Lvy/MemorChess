@@ -75,6 +75,7 @@ class TestContinuationReviewLabel : TestWithKoin() {
     clickOnBack()
 
     waitUntilNodeExists(hasTestTag("Play e4").and(hasText("due in 3d"))).assertExists()
+    waitUntilNodeExists(hasTestTag("Play e4").and(hasText("100%"))).assertExists()
   }
 
   @Test
