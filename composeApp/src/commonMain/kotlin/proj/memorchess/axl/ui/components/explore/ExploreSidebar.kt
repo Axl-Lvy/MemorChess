@@ -24,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -31,6 +33,7 @@ import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import memorchess.composeapp.generated.resources.explore_no_continuations
 import memorchess.composeapp.generated.resources.explore_notes_coming_soon
+import memorchess.composeapp.generated.resources.explore_prune_marked
 import memorchess.composeapp.generated.resources.explore_tab_continuations
 import memorchess.composeapp.generated.resources.explore_tab_lichess
 import memorchess.composeapp.generated.resources.explore_tab_notes
@@ -67,6 +70,8 @@ enum class ExploreInfoTab {
  * @param onPlayLichessMove Invoked when the user taps a Lichess move.
  * @param isMine Returns whether a SAN continuation is already a classified good move in the
  *   viewer's own repertoire. Matching continuations are tagged YOURS. Null disables the tagging.
+ * @param markedForPruning Whether the continuations belong to a branch selected for pruning, which
+ *   paints them in the destructive pink.
  * @param modifier Outer modifier (caller sets the panel size).
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -77,6 +82,7 @@ fun ExploreSidebar(
   explorerViewModel: ExplorerViewModel,
   onPlayLichessMove: (String) -> Unit,
   isMine: ((String) -> Boolean)? = null,
+  markedForPruning: Boolean = false,
   modifier: Modifier = Modifier,
 ) {
   val palette = LocalKineticPalette.current
@@ -113,7 +119,12 @@ fun ExploreSidebar(
 
     when (selected) {
       ExploreInfoTab.CONTINUATIONS ->
-        ContinuationsContent(nextMoves = nextMoves, onPlay = onPlayMove, isMine = isMine)
+        ContinuationsContent(
+          nextMoves = nextMoves,
+          onPlay = onPlayMove,
+          isMine = isMine,
+          markedForPruning = markedForPruning,
+        )
       ExploreInfoTab.LICHESS ->
         LichessExplorerPanel(
           viewModel = explorerViewModel,
@@ -134,17 +145,27 @@ fun ExploreSidebar(
   }
 }
 
-/** Flowing row of 12.dp mono SAN pills, 1.5.dp stroke, for the Continuations tab. */
+/**
+ * Flowing row of 12.dp mono SAN pills, 1.5.dp stroke, for the Continuations tab. Pills turn pink
+ * when [markedForPruning].
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ContinuationsContent(
   nextMoves: List<String>,
   onPlay: (String) -> Unit,
-  isMine: ((String) -> Boolean)? = null,
+  isMine: ((String) -> Boolean)?,
+  markedForPruning: Boolean,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
   val chipShape = MaterialTheme.shapes.extraSmall
+  val chipBackground = if (markedForPruning) palette.destructiveSoft else palette.panel2
+  val chipBorder = if (markedForPruning) palette.destructive else palette.line
+  val sanColor = if (markedForPruning) palette.destructiveText else palette.ink
+  val prunedState = stringResource(Res.string.explore_prune_marked)
+  val pruningSemantics =
+    if (markedForPruning) Modifier.semantics { stateDescription = prunedState } else Modifier
 
   if (nextMoves.isEmpty()) {
     Box(
@@ -171,8 +192,9 @@ private fun ContinuationsContent(
       // repertoire tests resolve through.
       Box(
         modifier =
-          Modifier.background(palette.panel2, chipShape)
-            .border(width = 1.5.dp, color = palette.line, shape = chipShape)
+          Modifier.background(chipBackground, chipShape)
+            .border(width = 1.5.dp, color = chipBorder, shape = chipShape)
+            .then(pruningSemantics)
             .clip(chipShape)
             .clickable { onPlay(san) }
             .testTag(stringResource(Res.string.description_board_next_move, san))
@@ -184,7 +206,7 @@ private fun ContinuationsContent(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
           ) {
-            Text(text = san, style = typography.mono.copy(color = palette.ink))
+            Text(text = san, style = typography.mono.copy(color = sanColor))
             Text(
               text = stringResource(Res.string.repertoire_view_yours),
               style =
@@ -199,7 +221,7 @@ private fun ContinuationsContent(
             )
           }
         } else {
-          Text(text = san, style = typography.mono.copy(color = palette.ink))
+          Text(text = san, style = typography.mono.copy(color = sanColor))
         }
       }
     }

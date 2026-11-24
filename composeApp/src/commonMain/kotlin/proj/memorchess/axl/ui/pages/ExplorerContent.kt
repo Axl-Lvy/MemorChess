@@ -128,6 +128,8 @@ internal fun rememberExplorerViewModel(
  * @param viewerMode When non-null, renders the read-only viewer variant; see [ExplorerViewerMode].
  * @param myTreeStore When non null, continuations already present as a classified good move the
  *   user owns in this store at the current position are tagged YOURS in the sidebar.
+ * @param markedForPruning Whether the branch from the current position is selected for pruning,
+ *   which highlights its move in the trail and its continuations in the sidebar.
  */
 @Composable
 fun ExplorerContent(
@@ -138,6 +140,7 @@ fun ExplorerContent(
   header: @Composable () -> Unit = {},
   viewerMode: ExplorerViewerMode? = null,
   myTreeStore: TreeStore? = null,
+  markedForPruning: Boolean = false,
 ) {
   val readOnly = viewerMode != null
   var inverted by remember { mutableStateOf(viewerMode?.initialInverted ?: false) }
@@ -291,6 +294,7 @@ fun ExplorerContent(
           modifier = trailModifier,
           openingName = null,
           pgnText = buildPgnText(playedMoves),
+          currentMarkedForPruning = markedForPruning,
         )
       },
       controlBar = { ctrlModifier ->
@@ -324,6 +328,7 @@ fun ExplorerContent(
           explorerViewModel = explorerViewModel,
           onPlayLichessMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
           isMine = { san -> yoursBySan[san] == true },
+          markedForPruning = markedForPruning,
         )
       },
       mobileInfo = { infoModifier ->
@@ -334,6 +339,7 @@ fun ExplorerContent(
           explorerViewModel = explorerViewModel,
           onPlayLichessMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
           isMine = { san -> yoursBySan[san] == true },
+          markedForPruning = markedForPruning,
         )
       },
       statBadges = { badgeModifier -> ExploreStatBadgesRow(modifier = badgeModifier) },

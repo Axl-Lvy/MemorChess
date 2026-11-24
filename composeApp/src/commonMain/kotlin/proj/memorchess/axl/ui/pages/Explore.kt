@@ -2,9 +2,6 @@ package proj.memorchess.axl.ui.pages
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,29 +14,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.launch
-import memorchess.composeapp.generated.resources.Res
-import memorchess.composeapp.generated.resources.dialog_cancel
-import memorchess.composeapp.generated.resources.dialog_delete
-import memorchess.composeapp.generated.resources.explore_delete_confirm
-import memorchess.composeapp.generated.resources.explore_delete_confirm_many
-import org.jetbrains.compose.resources.pluralStringResource
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
-import proj.memorchess.axl.core.data.DESCENDANT_COUNT_CAP
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PruneImpact
 import proj.memorchess.axl.core.data.explorer.CachedExplorer
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
+import proj.memorchess.axl.ui.components.explore.ExplorePruneSheet
+import proj.memorchess.axl.ui.components.explore.PruneStep
 import proj.memorchess.axl.ui.components.loading.LoadingWidget
-import proj.memorchess.axl.ui.components.popup.KineticBottomSheet
 import proj.memorchess.axl.ui.pages.navigation.Route
 
 private val LOGGER = Logger.withTag("Explore")
 
 /**
  * Free exploration page. Lets the user wander the opening graph, save lines as good, or prune
- * subtrees.
+ * subtrees in two steps: Delete highlights the branch behind a scrim, then a sheet confirms the
+ * loss.
  *
  * The persisted graph is demand paged, so nothing is preloaded: the loading phase only resolves
  * whether the requested [position] is stored (a single point lookup), then the board reads each
@@ -68,60 +60,39 @@ fun Explore(
       val coroutineScope = rememberCoroutineScope()
       val explorerViewModel = rememberExplorerViewModel(linesExplorer, cachedExplorer)
 
-      var showDeleteSheet by remember { mutableStateOf(false) }
-
-      KineticBottomSheet(
-        visible = showDeleteSheet,
-        onDismissRequest = { showDeleteSheet = false },
-        modifier = Modifier.testTag("pruneConfirmSheet"),
-        buttons = {
-          TextButton(
-            modifier = Modifier.testTag("pruneConfirmSheetCancelButton"),
-            onClick = { showDeleteSheet = false },
-          ) {
-            Text(stringResource(Res.string.dialog_cancel))
-          }
-          TextButton(
-            modifier = Modifier.testTag("pruneConfirmSheetOkButton"),
-            onClick = {
-              showDeleteSheet = false
-              coroutineScope.launch { linesExplorer.delete() }
-            },
-          ) {
-            Text(stringResource(Res.string.dialog_delete))
-          }
-        },
-      ) {
-        var nodesToDelete by remember { mutableStateOf<Int?>(null) }
-        val finalNodesToDelete = nodesToDelete
-        if (finalNodesToDelete == null) {
-          CircularProgressIndicator()
-        } else if (finalNodesToDelete >= DESCENDANT_COUNT_CAP) {
-          // The count is capped DB-side, so at the cap we only know "this many or more".
-          Text(stringResource(Res.string.explore_delete_confirm_many, DESCENDANT_COUNT_CAP))
-        } else {
-          Text(
-            pluralStringResource(
-              Res.plurals.explore_delete_confirm,
-              finalNodesToDelete,
-              finalNodesToDelete,
-            )
-          )
-        }
-        LaunchedEffect(showDeleteSheet) {
-          if (showDeleteSheet) {
-            // Reset so the spinner shows again on reopen, not a stale count from last time.
-            nodesToDelete = null
-            nodesToDelete = linesExplorer.calculateNumberOfNodeToDelete()
-          }
+      // The step outlives the sheet's visibility so the content holds still while it slides out.
+      var pruneOpen by remember { mutableStateOf(false) }
+      var pruneStep by remember { mutableStateOf(PruneStep.SELECTING) }
+      var pruneImpact by remember { mutableStateOf<PruneImpact?>(null) }
+      LaunchedEffect(pruneOpen) {
+        if (pruneOpen) {
+          // Reset so the spinner shows again on reopen, not a stale impact from last time.
+          pruneImpact = null
+          pruneImpact = linesExplorer.calculatePruneImpact()
         }
       }
+
+      ExplorePruneSheet(
+        visible = pruneOpen,
+        step = pruneStep,
+        impact = pruneImpact,
+        onContinue = { pruneStep = PruneStep.CONFIRMING },
+        onConfirm = {
+          pruneOpen = false
+          coroutineScope.launch { linesExplorer.delete() }
+        },
+        onDismiss = { pruneOpen = false },
+      )
 
       ExplorerContent(
         explorer = linesExplorer,
         explorerViewModel = explorerViewModel,
         onSave = { coroutineScope.launch { linesExplorer.save() } },
-        onDelete = { showDeleteSheet = true },
+        onDelete = {
+          pruneStep = PruneStep.SELECTING
+          pruneOpen = true
+        },
+        markedForPruning = pruneOpen,
       )
     }
   }

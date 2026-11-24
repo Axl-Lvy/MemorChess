@@ -9,6 +9,7 @@ import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.OutboxEntry
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PruneImpact
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
 import proj.memorchess.axl.core.data.SchedulingCounts
 import proj.memorchess.axl.core.data.ScopedSchedulingCounts
@@ -96,8 +97,8 @@ class CountingDatabaseQueryManager(private val delegate: DatabaseQueryManager) :
     repertoireId: String?,
   ): TrainingEntry? = delegate.findEligibleAmong(keys, dayEndExclusive, repertoireId)
 
-  override suspend fun countDescendants(key: PositionKey, cap: Int): Int =
-    delegate.countDescendants(key, cap)
+  override suspend fun pruneImpact(key: PositionKey, cap: Int): PruneImpact =
+    delegate.pruneImpact(key, cap)
 
   override suspend fun markDirty(key: DirtyKey, deviceSeq: Long) =
     delegate.markDirty(key, deviceSeq)

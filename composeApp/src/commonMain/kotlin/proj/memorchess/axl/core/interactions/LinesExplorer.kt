@@ -9,6 +9,7 @@ import memorchess.composeapp.generated.resources.toast_no_next_move
 import memorchess.composeapp.generated.resources.toast_no_previous_move
 import memorchess.composeapp.generated.resources.toast_saved
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PruneImpact
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.NavigationHistory
@@ -257,12 +258,11 @@ open class LinesExplorer(
   }
 
   /**
-   * Returns the count of positions that [delete] would remove starting at the current position,
-   * bounded by the backend's cap. A descendant is counted only when it is not convergent (the
-   * subtree being deleted is its sole set of parents), matching [delete]'s cascade rule. Delegates
-   * to the DB side capped count so it never pages the whole subtree through the cache.
+   * Measures what [delete] would remove starting at the current position, bounded by the backend's
+   * cap. A descendant is counted only when it is not convergent (the subtree being deleted is its
+   * sole set of parents), matching [delete]'s cascade rule.
    */
-  suspend fun calculateNumberOfNodeToDelete(): Int = treeStore.countDescendants(navigation.current)
+  suspend fun calculatePruneImpact(): PruneImpact = treeStore.pruneImpact(navigation.current)
 
   private enum class ClassifyMode {
     /** Mark every incoming edge as good. */

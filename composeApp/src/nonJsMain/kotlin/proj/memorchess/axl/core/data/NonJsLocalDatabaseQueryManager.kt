@@ -139,9 +139,13 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     return keys.firstNotNullOfOrNull { eligible[it.value] }?.toTrainingEntry()
   }
 
-  override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
-    if (!database.getNodeEntityDao().nodeExists(key.value)) return 0
-    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  override suspend fun pruneImpact(key: PositionKey, cap: Int): PruneImpact {
+    val dao = database.getNodeEntityDao()
+    if (!dao.nodeExists(key.value)) return PruneImpact.NONE
+    val removed = cappedDescendants(key, cap) { liveSingleParentChildren(it) }
+    val reviewed =
+      removed.map { it.value }.chunked(SQLITE_KEY_CHUNK).sumOf { dao.countReviewed(it) }
+    return PruneImpact(positions = removed.size, reviewedPositions = reviewed)
   }
 
   /**
@@ -264,6 +268,9 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     }
   }
 }
+
+/** Keys bound per `IN` list, under SQLite's oldest bound-variable limit of 999. */
+private const val SQLITE_KEY_CHUNK = 500
 
 /** The parts an [OutboxEntryEntity]'s compound key splits into. See [DirtyKey.outboxKeyParts]. */
 private data class OutboxKeyParts(

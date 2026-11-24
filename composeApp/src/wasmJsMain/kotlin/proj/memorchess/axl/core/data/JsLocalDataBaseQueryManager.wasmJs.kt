@@ -893,10 +893,24 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     }
   }
 
-  override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
-    if (cap <= 0) return 0
-    if (!nodeExistsLive(key.value)) return 0
-    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  override suspend fun pruneImpact(key: PositionKey, cap: Int): PruneImpact {
+    if (cap <= 0) return PruneImpact.NONE
+    if (!nodeExistsLive(key.value)) return PruneImpact.NONE
+    val removed = cappedDescendants(key, cap) { liveSingleParentChildren(it) }
+    return PruneImpact(positions = removed.size, reviewedPositions = countReviewed(removed))
+  }
+
+  /** Number of live nodes among [keys] that have been reviewed at least once. */
+  private suspend fun countReviewed(keys: Collection<PositionKey>): Int {
+    val database = db()
+    return database.transaction(NODES_STORE) {
+      val store = objectStore(NODES_STORE)
+      keys.count { key ->
+        val node = store.get(Key(key.value.toJsString()))?.unsafeCast<JsNodeEntity>()
+        // lastReview 0 encodes a never reviewed card.
+        node != null && !node.isDeleted && node.lastReview != 0.0
+      }
+    }
   }
 
   /** True when [positionKey] has a non-deleted node row. */

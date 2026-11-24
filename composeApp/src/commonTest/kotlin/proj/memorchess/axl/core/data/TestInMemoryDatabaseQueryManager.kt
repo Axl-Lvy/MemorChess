@@ -389,44 +389,44 @@ class TestInMemoryDatabaseQueryManager {
     assertNull(database.findEligibleAmong(listOf(PositionKey("notDue")), dayEnd))
   }
 
-  // --- countDescendants ---------------------------------------------------------------------
+  // --- pruneImpact ---------------------------------------------------------------------
 
   /** Builds a node with the given outgoing edges; depth is irrelevant to the descendant count. */
   private fun countNode(key: PositionKey, previous: List<DataMove>, next: List<DataMove>) =
     DataNode(key, PreviousAndNextMoves(previous, next), CardStateFactory.new())
 
   @Test
-  fun countDescendantsOfUnknownKeyIsZero() = runTest {
-    assertEquals(0, InMemoryDatabaseQueryManager().countDescendants(key0))
+  fun pruneImpactOfUnknownKeyIsZero() = runTest {
+    assertEquals(0, InMemoryDatabaseQueryManager().pruneImpact(key0).positions)
   }
 
   @Test
-  fun countDescendantsLeafIsOne() = runTest {
+  fun pruneImpactLeafIsOne() = runTest {
     val database = InMemoryDatabaseQueryManager()
     database.insertNodes(countNode(key0, previous = listOf(), next = listOf()))
     // The root itself is counted even with no children.
-    assertEquals(1, database.countDescendants(key0))
+    assertEquals(1, database.pruneImpact(key0).positions)
   }
 
   @Test
-  fun countDescendantsSingleChildIsTwo() = runTest {
+  fun pruneImpactSingleChildIsTwo() = runTest {
     val database = InMemoryDatabaseQueryManager()
     database.insertNodes(
       countNode(key0, previous = listOf(), next = listOf(moveE4)),
       countNode(key1, previous = listOf(moveE4), next = listOf()),
     )
-    assertEquals(2, database.countDescendants(key0))
+    assertEquals(2, database.pruneImpact(key0).positions)
   }
 
   @Test
-  fun countDescendantsLinearChainCountsEveryNode() = runTest {
-    assertEquals(3, seededLine().countDescendants(key0))
-    assertEquals(2, seededLine().countDescendants(key1))
-    assertEquals(1, seededLine().countDescendants(key2))
+  fun pruneImpactLinearChainCountsEveryNode() = runTest {
+    assertEquals(3, seededLine().pruneImpact(key0).positions)
+    assertEquals(2, seededLine().pruneImpact(key1).positions)
+    assertEquals(1, seededLine().pruneImpact(key2).positions)
   }
 
   @Test
-  fun countDescendantsStopsAtConvergentNode() = runTest {
+  fun pruneImpactStopsAtConvergentNode() = runTest {
     // key0 -e4-> key1 -e5-> key2, plus a second parent posB -d4-> key2. Deleting key0's subtree
     // would keep key2 (reachable through posB), so it is not counted.
     val posB = keyAfter("d4")
@@ -439,7 +439,76 @@ class TestInMemoryDatabaseQueryManager {
       countNode(posB, previous = listOf(), next = listOf(d4)),
     )
     // key0 and key1 are counted; key2 is convergent and excluded.
-    assertEquals(2, database.countDescendants(key0))
+    assertEquals(2, database.pruneImpact(key0).positions)
+  }
+
+  /** A card reviewed once, so its position carries review history. */
+  private val reviewedCard = CardStateFactory.new().copy(lastReview = Instant.fromEpochSeconds(1_000))
+
+  /** Line key0 -e4-> key1 -e5-> key2 where only the positions in [reviewed] have review history. */
+  private suspend fun lineReviewedAt(reviewed: Set<PositionKey> = emptySet()): InMemoryDatabaseQueryManager {
+    fun card(key: PositionKey) = if (key in reviewed) reviewedCard else CardStateFactory.new()
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      DataNode(key0, PreviousAndNextMoves(listOf(), listOf(moveE4)), card(key0)),
+      DataNode(key1, PreviousAndNextMoves(listOf(moveE4), listOf(moveE5)), card(key1)),
+      DataNode(key2, PreviousAndNextMoves(listOf(moveE5), listOf()), card(key2)),
+    )
+    return database
+  }
+
+  @Test
+  fun pruneImpactOfUnknownKeyIsNone() = runTest {
+    assertEquals(PruneImpact.NONE, InMemoryDatabaseQueryManager().pruneImpact(key0))
+  }
+
+  @Test
+  fun pruneImpactWithNoReviewedPositionHasZeroReviewed() = runTest {
+    assertEquals(PruneImpact(positions = 3, reviewedPositions = 0), lineReviewedAt().pruneImpact(key0))
+  }
+
+  @Test
+  fun pruneImpactCountsASingleReviewedDescendant() = runTest {
+    assertEquals(PruneImpact(positions = 3, reviewedPositions = 1), lineReviewedAt(setOf(key2)).pruneImpact(key0))
+  }
+
+  @Test
+  fun pruneImpactCountsTheReviewedRoot() = runTest {
+    assertEquals(PruneImpact(positions = 2, reviewedPositions = 1), lineReviewedAt(setOf(key1)).pruneImpact(key1))
+  }
+
+  @Test
+  fun pruneImpactCountsEveryReviewedPosition() = runTest {
+    val database = lineReviewedAt(setOf(key0, key1, key2))
+    assertEquals(PruneImpact(positions = 3, reviewedPositions = 3), database.pruneImpact(key0))
+  }
+
+  @Test
+  fun pruneImpactIgnoresReviewedPositionsAboveTheRoot() = runTest {
+    assertEquals(PruneImpact(positions = 1, reviewedPositions = 0), lineReviewedAt(setOf(key0, key1)).pruneImpact(key2))
+  }
+
+  @Test
+  fun pruneImpactIgnoresAReviewedConvergentPosition() = runTest {
+    // key2 is reachable through posB as well, so a delete from key0 keeps it and its history.
+    val posB = keyAfter("d4")
+    val d4 = DataMove(posB, key2, "d4", isGood = true)
+    val database = InMemoryDatabaseQueryManager()
+    database.insertNodes(
+      countNode(key0, previous = listOf(), next = listOf(moveE4)),
+      countNode(key1, previous = listOf(moveE4), next = listOf(moveE5)),
+      DataNode(key2, PreviousAndNextMoves(listOf(moveE5, d4), listOf()), reviewedCard),
+      countNode(posB, previous = listOf(), next = listOf(d4)),
+    )
+    assertEquals(PruneImpact(positions = 2, reviewedPositions = 0), database.pruneImpact(key0))
+  }
+
+  @Test
+  fun pruneImpactReviewedCountCoversOnlyPositionsWithinTheCap() = runTest {
+    // Only key2 is reviewed: a cap of 2 stops before it, a cap of 3 reaches it.
+    val database = lineReviewedAt(setOf(key2))
+    assertEquals(PruneImpact(positions = 2, reviewedPositions = 0), database.pruneImpact(key0, cap = 2))
+    assertEquals(PruneImpact(positions = 3, reviewedPositions = 1), database.pruneImpact(key0, cap = 3))
   }
 
   // --- getNodesPage -------------------------------------------------------------------------
@@ -555,7 +624,7 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   @Test
-  fun countDescendantsIsCappedAtTheRequestedBound() = runTest {
+  fun pruneImpactIsCappedAtTheRequestedBound() = runTest {
     // A linear chain of 10 nodes: key_0 -> key_1 -> ... -> key_9.
     val keys = (0 until 10).map { PositionKey("chain$it x K") }
     val moves = (0 until 9).map { DataMove(keys[it], keys[it + 1], "m$it", isGood = true) }
@@ -569,13 +638,13 @@ class TestInMemoryDatabaseQueryManager {
     val root = keys[0]
     // The chain has 10 nodes, so any cap below 10 binds and returns exactly the cap. Just below, at
     // and just above an arbitrary cap of 5 all return that cap.
-    assertEquals(4, database.countDescendants(root, cap = 4))
-    assertEquals(5, database.countDescendants(root, cap = 5))
-    assertEquals(6, database.countDescendants(root, cap = 6))
+    assertEquals(4, database.pruneImpact(root, cap = 4).positions)
+    assertEquals(5, database.pruneImpact(root, cap = 5).positions)
+    assertEquals(6, database.pruneImpact(root, cap = 6).positions)
     // The whole chain when the cap is generous.
-    assertEquals(10, database.countDescendants(root, cap = 100))
+    assertEquals(10, database.pruneImpact(root, cap = 100).positions)
     // Zero (and negative) cap counts nothing.
-    assertEquals(0, database.countDescendants(root, cap = 0))
+    assertEquals(0, database.pruneImpact(root, cap = 0).positions)
   }
 
   @Test

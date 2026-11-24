@@ -181,11 +181,24 @@
   <string name="explore_save">Save</string>
 
   <!-- Explore: delete confirmation (plural) -->
-  <plurals name="explore_delete_confirm">
-    <item quantity="one">Are you sure you want to delete %1$d position?</item>
-    <item quantity="other">Are you sure you want to delete %1$d positions?</item>
+  <string name="explore_prune_select_title">Prune this branch?</string>
+  <string name="explore_prune_select_body">The highlighted moves and every line after them will be removed. Nothing is deleted yet.</string>
+  <string name="explore_prune_continue">Continue</string>
+  <string name="explore_prune_marked">Marked for pruning</string>
+  <plurals name="explore_prune_positions">
+    <item quantity="one">Remove %1$d position?</item>
+    <item quantity="other">Remove %1$d positions?</item>
   </plurals>
-  <string name="explore_delete_confirm_many">Are you sure you want to delete %1$d or more positions?</string>
+  <string name="explore_prune_positions_many">Remove %1$d or more positions?</string>
+  <plurals name="explore_prune_reviewed">
+    <item quantity="one">%1$d of them has review history you already earned.</item>
+    <item quantity="other">%1$d of them have review history you already earned.</item>
+  </plurals>
+  <plurals name="explore_prune_reviewed_at_least">
+    <item quantity="one">At least %1$d of them has review history you already earned.</item>
+    <item quantity="other">At least %1$d of them have review history you already earned.</item>
+  </plurals>
+  <string name="explore_prune_reviewed_none">None of them has review history yet.</string>
 
   <!-- Board: state indicator labels -->
   <string name="state_first">Start</string>
