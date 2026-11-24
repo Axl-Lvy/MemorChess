@@ -1,19 +1,22 @@
-# Publishes the code provenance report (share of code written by hand, with Copilot and with Claude)
-# to GitHub Pages on every push to the default branch.
 name: Code provenance
 
 on:
   push:
     branches:
       - master
+  pull_request:
+    paths:
+      - '.github/scripts/code_provenance*'
+      - '.github/scripts/test_code_provenance.py'
+      - '.github/workflows/provenance.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('provenance-pr-{0}', github.event.pull_request.number) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -34,14 +37,13 @@ jobs:
       - name: Build the report
         run: python3 .github/scripts/code_provenance.py _site
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -51,4 +53,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

@@ -149,10 +149,13 @@ def percentages(counts: dict[Era, int]) -> dict[Era, int]:
 
 
 def build_tree(files: list[FileReport]) -> dict[str, Any]:
-    """Nests the files into folders, each node carrying its summed counts per era."""
+    """Nests the files into folders, each node carrying its counts and percentages per era.
+
+    A file node's `id` is its index in `files`, which names its `files/<id>.json` in the site.
+    """
     root: dict[str, Any] = {"name": ROOT_NAME, "path": "", "children": []}
     folders = {"": root}
-    for report in files:
+    for index, report in enumerate(files):
         parts = report.path.split("/")
         parent = root
         for depth in range(1, len(parts)):
@@ -162,7 +165,8 @@ def build_tree(files: list[FileReport]) -> dict[str, Any]:
                 parent["children"].append(folders[path])
             parent = folders[path]
         counts = {era.value: n for era, n in report.counts.items()}
-        parent["children"].append({"name": parts[-1], "path": report.path, "file": True, "counts": counts})
+        node = {"name": parts[-1], "path": report.path, "file": True, "id": index, "counts": counts}
+        parent["children"].append(node)
     _sum_counts(root)
     return root
 
@@ -173,6 +177,8 @@ def _sum_counts(node: dict[str, Any]) -> dict[str, int]:
         for child in node["children"]:
             for era, n in _sum_counts(child).items():
                 node["counts"][era] += n
+    shares = percentages({era: node["counts"][era.value] for era in Era})
+    node["pct"] = {era.value: percent for era, percent in shares.items()}
     return node["counts"]
 
 
@@ -209,10 +215,10 @@ def _text_width(text: str) -> float:
 
 
 def write_site(files: list[FileReport], out: Path, template: Path) -> None:
-    """Writes `index.html`, one `files/<path>.json` per source file and `badge.svg` into `out`."""
-    for report in files:
-        target = out / "files" / f"{report.path}.json"
-        target.parent.mkdir(parents=True, exist_ok=True)
+    """Writes `index.html`, one `files/<id>.json` per source file and `badge.svg` into `out`."""
+    (out / "files").mkdir(parents=True, exist_ok=True)
+    for index, report in enumerate(files):
+        target = out / "files" / f"{index}.json"
         rows = [[line.number, line.text, line.era.value if line.era else None] for line in report.lines]
         target.write_text(_to_json(rows), encoding="utf-8")
     tree = build_tree(files)

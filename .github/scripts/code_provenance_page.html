@@ -191,21 +191,7 @@ function chevron() {
 function prepare(node) {
   node.total = ERAS.reduce((sum, era) => sum + node.counts[era.key], 0);
   node.share = Object.fromEntries(ERAS.map((era) => [era.key, node.total ? node.counts[era.key] / node.total : 0]));
-  node.pct = rounded(node);
   (node.children || []).forEach(prepare);
-}
-
-function rounded(node) {
-  const result = {};
-  if (!node.total) return result;
-  const exact = ERAS.map((era) => ({ key: era.key, value: 100 * node.share[era.key] }));
-  exact.forEach((e) => (result[e.key] = Math.floor(e.value)));
-  let left = 100 - exact.reduce((sum, e) => sum + result[e.key], 0);
-  for (const e of [...exact].sort((a, b) => (b.value - Math.floor(b.value)) - (a.value - Math.floor(a.value)))) {
-    if (left-- <= 0) break;
-    result[e.key] += 1;
-  }
-  return result;
 }
 
 function pctText(node, era) {
@@ -311,7 +297,10 @@ function findFile(path) {
   return node.file ? node : null;
 }
 
+let loadToken = 0;
+
 async function showFile(path) {
+  const token = ++loadToken;
   const view = $("file-view");
   const node = findFile(path);
   $("tree-view").hidden = true;
@@ -330,15 +319,19 @@ async function showFile(path) {
     ...ERAS.map((era) => el("span", { class: era.key }, icon(era.key), el("b", { text: pctText(node, era.key) }))));
   let rows;
   try {
-    const url = "files/" + path.split("/").map(encodeURIComponent).join("/") + ".json";
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const response = await fetch(`files/${node.id}.json`);
+    if (!response.ok) {
+      view.replaceChildren(crumbs, stats, el("p", { class: "message",
+        text: `Could not load the lines of this file (HTTP ${response.status}). Reload the page to get the latest report.` }));
+      return;
+    }
     rows = await response.json();
   } catch (error) {
     view.replaceChildren(crumbs, stats, el("p", { class: "message",
-      text: `Could not load the lines of this file (${error.message}). The page must be served over HTTP, not opened from disk.` }));
+      text: "Could not load the lines of this file. The page must be served over HTTP, not opened from disk." }));
     return;
   }
+  if (token !== loadToken) return;
   const code = el("div", { class: "code" }, ...rows.map(([number, text, era]) =>
     el("div", { class: era ? `l-${era}` : "" },
       el("span", { class: "num", text: String(number) }),
@@ -355,8 +348,11 @@ function closeFile() {
 function route() {
   const match = location.hash.match(/^#file=(.+)$/);
   if (match) {
-    showFile(decodeURIComponent(match[1]));
+    let path;
+    try { path = decodeURIComponent(match[1]); } catch { path = match[1]; }
+    showFile(path);
   } else {
+    loadToken++;
     $("file-view").hidden = true;
     $("tree-view").hidden = false;
   }
@@ -367,7 +363,6 @@ renderSummary();
 renderHead();
 renderRows();
 window.addEventListener("hashchange", route);
-window.addEventListener("popstate", route);
 route();
 </script>
 </body>

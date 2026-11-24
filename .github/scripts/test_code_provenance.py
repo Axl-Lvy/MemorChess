@@ -161,8 +161,9 @@ class ReportTest(unittest.TestCase):
         self.assertEqual((a["name"], a["path"]), ("a", "a"))
         self.assertEqual(a["counts"], {"human": 1, "copilot": 0, "claude": 1})
         b = next(child for child in a["children"] if child["name"] == "b")
-        self.assertEqual(b["children"], [{"name": "y.kt", "path": "a/b/y.kt", "file": True,
-                                          "counts": {"human": 0, "copilot": 0, "claude": 1}}])
+        self.assertEqual(b["children"], [{"name": "y.kt", "path": "a/b/y.kt", "file": True, "id": 1,
+                                          "counts": {"human": 0, "copilot": 0, "claude": 1},
+                                          "pct": {"human": 0, "copilot": 0, "claude": 100}}])
 
     def test_render_badge(self):
         svg = render_badge({Era.HUMAN: 7, Era.COPILOT: 2, Era.CLAUDE: 91})
@@ -185,13 +186,33 @@ class ReportTest(unittest.TestCase):
             write_site(self.FILES, out, template)
 
             self.assertTrue((out / "badge.svg").is_file())
-            rows = json.loads((out / "files/a/b/y.kt.json").read_text())
-            self.assertEqual(rows, [[1, "y", "claude"], [2, "", None]])
             page = (out / "index.html").read_text()
             self.assertNotIn("/*PROVENANCE_DATA*/", page)
             data = json.loads(page.removeprefix("<script>const DATA = ").removesuffix(";</script>"))
             self.assertEqual(set(data), {"tree", "icons", "generated"})
             self.assertEqual(set(data["icons"]), {"human", "copilot", "claude"})
+            y = data["tree"]["children"][0]["children"][1]["children"][0]
+            rows = json.loads((out / "files" / f"{y['id']}.json").read_text())
+            self.assertEqual(rows, [[1, "y", "claude"], [2, "", None]])
+
+    def test_write_site_keeps_dot_folders_out_of_published_names(self):
+        files = [FileReport(".github/scripts/a.py", [Line(1, "x", Era.HUMAN)])]
+        with tempfile.TemporaryDirectory() as tmp:
+            out, template = Path(tmp) / "site", Path(tmp) / "page.html"
+            template.write_text("/*PROVENANCE_DATA*/")
+
+            write_site(files, out, template)
+
+            names = [p.relative_to(out).parts for p in out.rglob("*")]
+            self.assertFalse([parts for parts in names if any(part.startswith(".") for part in parts)])
+
+    def test_build_tree_carries_rounded_percentages(self):
+        files = [FileReport("a.kt", [Line(1, "x", Era.COPILOT)] * 23 + [Line(2, "y", Era.CLAUDE)] * 17)]
+
+        tree = build_tree(files)
+
+        self.assertEqual(tree["pct"], {"human": 0, "copilot": 58, "claude": 42})
+        self.assertEqual(tree["children"][0]["pct"], tree["pct"])
 
     def test_write_site_escapes_script_end(self):
         files = [FileReport("</script>.kt", [Line(1, "x", Era.HUMAN)])]
