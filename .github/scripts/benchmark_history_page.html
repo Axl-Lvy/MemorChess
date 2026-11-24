@@ -75,8 +75,8 @@
   .detail h2 { font-size: 17px; margin: 0; overflow-wrap: anywhere; }
   .detail .dir { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 6px; }
   .detail .summary { font-size: 13.5px; color: var(--muted); margin: 2px 0 10px; font-variant-numeric: tabular-nums; }
-  .chart { position: relative; }
-  .chart svg { display: block; width: 100%; overflow: visible; touch-action: none; user-select: none; }
+  .chart { position: relative; touch-action: pan-y; cursor: grab; }
+  .chart svg { display: block; width: 100%; overflow: visible; user-select: none; }
   .axis { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
   .grid { stroke: var(--line); }
   .boundary { stroke: var(--muted); stroke-opacity: 0.35; stroke-dasharray: 3 3; }
@@ -94,6 +94,30 @@
   .recent button:hover { background: var(--hover); }
   .recent .when { color: var(--muted); white-space: nowrap; }
   .recent .subj { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .zoom { display: inline-flex; gap: 4px; }
+  .zoom button { min-width: 32px; padding: 4px 9px; font-size: 13.5px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .zoom button:hover { background: var(--hover); }
+
+  #overview { padding: 14px 16px 12px; margin-bottom: 14px; }
+  #overview h2, .step h3 { font-size: 15px; margin: 0; }
+  #overview .sub { font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+  .chart:focus-visible { outline-offset: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 3px; border-radius: 2px; }
+  .marker { fill: var(--muted); fill-opacity: 0.55; }
+  .zero { stroke: var(--muted); stroke-opacity: 0.6; }
+
+  .step { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 13px; }
+  .step header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .step header a { font-size: 12.5px; }
+  .step .close { margin-left: auto; padding: 0 6px; font-size: 18px; line-height: 1; color: var(--muted); }
+  .step ol { margin: 6px 0 0; padding: 0; list-style: none; }
+  .step li { display: flex; gap: 10px; padding: 4px 0; border-top: 1px solid var(--line); }
+  .step li:first-child { border-top: 0; }
+  .step .subj { min-width: 0; overflow-wrap: anywhere; }
+  .step .pr { margin-left: auto; white-space: nowrap; }
 
   footer { margin-top: 24px; font-size: 13px; color: var(--muted); }
 
@@ -116,12 +140,27 @@
       <button type="button" data-mode="normalized" aria-pressed="true">Normalized for runner speed</button>
       <button type="button" data-mode="raw" aria-pressed="false">Raw</button>
     </div>
+    <div class="zoom" role="group" aria-label="Time range">
+      <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+      <button type="button" data-zoom="out" aria-label="Zoom out">−</button>
+      <button type="button" data-zoom="reset">Reset</button>
+    </div>
     <span class="hint" id="generated"></span>
   </div>
-  <section class="panel" id="overview" aria-label="Overview" hidden></section>
+  <section class="panel" id="overview" aria-label="Overview" hidden>
+    <h2>JVM core overview</h2>
+    <div class="sub">Per-commit medians as % change from the first commit in view; up is always better. Scroll or pinch to zoom, drag to pan, double-click to reset, click to see a commit's changes.</div>
+    <div class="chart" id="overview-chart" tabindex="0" aria-label="Overview chart. Plus and minus zoom, arrow keys pan, zero resets."></div>
+    <ul class="legend" id="legend"></ul>
+  </section>
   <div class="focus" id="focus" hidden>
     <nav class="panel list" id="list" aria-label="Metrics"></nav>
-    <section class="panel detail" id="detail" aria-live="polite"></section>
+    <section class="panel detail" id="detail">
+      <div id="detail-head" aria-live="polite"></div>
+      <div class="chart" id="focus-chart" tabindex="0" aria-label="Metric chart. Plus and minus zoom, arrow keys pan, zero resets."></div>
+      <div id="step-panel" hidden></div>
+      <ul class="recent" id="recent"></ul>
+    </section>
   </div>
   <section class="panel message" id="status">Loading benchmark history…</section>
   <footer>Data from the <a href="https://github.com/Axl-Lvy/MemorChess/tree/benchmark-data">benchmark-data branch</a> of <a href="https://github.com/Axl-Lvy/MemorChess">github.com/Axl-Lvy/MemorChess</a>. See also the <a href="../">code provenance report</a>.</footer>
@@ -332,41 +371,145 @@ function tooltipHtml(key, point) {
     + `<br><span class="soft">CPU: ${esc(cpu)}</span>`;
 }
 
-function drawFocus(key, win) {
-  const detail = document.getElementById('detail');
+const PALETTE = ['#4f7df3', '#d97757', '#2da44e', '#a371f7', '#bf8700', '#1b9aaa', '#cf222e', '#8c959f'];
+let view = null;
+
+function currentView() {
+  return view || fullRange();
+}
+
+function setView(from, to) {
+  const full = fullRange();
+  const fullSpan = full.to - full.from;
+  let span = Math.max(to - from, Math.min(DAY, fullSpan));
+  if (span >= fullSpan) {
+    view = null;
+  } else {
+    let start = Math.min(Math.max(from + (to - from - span) / 2, full.from), full.to - span);
+    view = { from: start, to: start + span };
+  }
+  scheduleDraw();
+}
+
+let drawPending = false;
+function scheduleDraw() {
+  if (drawPending) return;
+  drawPending = true;
+  requestAnimationFrame(() => {
+    drawPending = false;
+    drawCharts();
+  });
+}
+
+function drawCharts() {
+  const win = currentView();
+  drawOverview(win);
+  drawFocus(state.key, win);
+}
+
+function zoomBy(factor, anchor) {
+  const win = currentView();
+  const t = anchor ?? (win.from + win.to) / 2;
+  setView(t - (t - win.from) * factor, t + (win.to - t) * factor);
+}
+
+function panBy(fraction) {
+  const win = currentView();
+  const dt = (win.to - win.from) * fraction;
+  setView(win.from + dt, win.to + dt);
+}
+
+function plotFrame(host, height) {
+  host.querySelectorAll('svg, .tip').forEach(node => node.remove());
+  const w = Math.max(host.clientWidth || 640, 260), h = height(w);
+  const pad = { l: 52, r: 10, t: 8, b: 22 };
+  const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, height: h }, host);
+  const clipId = `clip-${host.id}`;
+  el('rect', { x: pad.l, y: 0, width: w - pad.l - pad.r, height: h }, el('clipPath', { id: clipId }, el('defs', {}, svg)));
+  const tip = document.createElement('div');
+  tip.className = 'tip';
+  tip.hidden = true;
+  host.appendChild(tip);
+  return { svg, tip, w, h, pad, clipId };
+}
+
+function niceStep(raw) {
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+}
+
+function axisLabel(v, step) {
+  const exp = Math.floor(Math.log10(step));
+  const decimals = Math.max(0, -exp + (Math.round(step / 10 ** exp * 10) % 10 ? 1 : 0));
+  return v.toLocaleString('en', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function drawAxes(frame, win, lo, hi, format) {
+  const { svg, w, h, pad } = frame;
+  const X = t => pad.l + (t - win.from) / (win.to - win.from) * (w - pad.l - pad.r);
+  const Y = v => pad.t + (1 - (v - lo) / (hi - lo)) * (h - pad.t - pad.b);
+  const step = niceStep((hi - lo) / 4);
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    el('line', { x1: pad.l, x2: w - pad.r, y1: Y(v), y2: Y(v), class: 'grid' }, svg);
+    el('text', { x: pad.l - 6, y: Y(v) + 4, 'text-anchor': 'end', class: 'axis' }, svg).textContent = format(Math.abs(v) < step / 1e6 ? 0 : v, step);
+  }
+  const withYear = win.to - win.from > 300 * DAY;
+  for (const t of timeTicks(win)) el('text', { x: X(t), y: h - 5, 'text-anchor': 'middle', class: 'axis' }, svg).textContent = day(t, withYear);
+  return { X, Y };
+}
+
+function placeTip(frame, host, html, event) {
+  const { tip } = frame;
+  tip.innerHTML = html;
+  tip.hidden = false;
+  const box = host.getBoundingClientRect();
+  const left = event.clientX - box.left + 14;
+  tip.style.left = Math.max(0, Math.min(left, box.width - tip.offsetWidth)) + 'px';
+  tip.style.top = (event.clientY - box.top + 14) + 'px';
+}
+
+function svgX(frame, event) {
+  const box = frame.svg.getBoundingClientRect();
+  return (event.clientX - box.left) * frame.w / box.width;
+}
+
+function renderDetail(key) {
   const l = label(key);
   const meta = model.metrics[key];
   const segments = series(model, key, !state.raw);
   const noiseLevel = noise(segments);
   const last = segments[segments.length - 1];
   const retired = model.retiredKeys.includes(key);
-  detail.innerHTML = `<h2>${esc(l.cls)} · ${esc(l.name)}<span class="dir">${meta.direction === 'higher' ? 'higher is better' : 'lower is better'}${retired ? ' · retired' : ''}</span></h2>`
+  document.getElementById('detail-head').innerHTML = `<h2>${esc(l.cls)} · ${esc(l.name)}<span class="dir">${meta.direction === 'higher' ? 'higher is better' : 'lower is better'}${retired ? ' · retired' : ''}</span></h2>`
     + `<div class="summary">latest commit median <b>${fmt(last?.med)} ${esc(meta.unit)}</b>${retired ? '' : changeHtml(key, segments)} vs previous commit · `
-    + `${noiseLevel == null ? 'noise unknown' : `run-to-run noise ±${(noiseLevel * 100).toFixed(1)}%`}</div>`
-    + `<div class="chart"></div><ul class="recent"></ul>`;
-  const host = detail.querySelector('.chart');
-  const w = Math.max(host.clientWidth || 640, 280), h = w < 500 ? 240 : 300;
-  const pad = { l: 52, r: 10, t: 8, b: 22 };
-  const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, height: h, role: 'img', 'aria-label': `${l.name} over time` }, host);
+    + `${noiseLevel == null ? 'noise unknown' : `run-to-run noise ±${(noiseLevel * 100).toFixed(1)}%`}</div>`;
+  document.getElementById('focus-chart').setAttribute('aria-label', `${l.name} over time. Plus and minus zoom, arrow keys pan, zero resets.`);
+  const recent = document.getElementById('recent');
+  recent.textContent = '';
+  for (const s of segments.slice(-5).reverse()) {
+    const li = document.createElement('li');
+    li.innerHTML = `<button type="button"><span class="mono">${short(s.commit)}</span><span class="when">${day(s.t0)}</span><span class="subj">${esc(subjectOf(s.commit))}</span></button>`;
+    li.firstChild.addEventListener('click', () => openStepPanel(s.commit));
+    recent.appendChild(li);
+  }
+}
+
+function drawFocus(key, win) {
+  const host = document.getElementById('focus-chart');
+  const frame = plotFrame(host, w => (w < 500 ? 240 : 300));
+  const { svg, w, h, pad, clipId } = frame;
+  const segments = series(model, key, !state.raw);
   const inView = segments.flatMap(s => s.pts.filter(p => p.t >= win.from && p.t <= win.to));
   const { lo, hi } = yRange(inView.length ? inView.map(p => p.v) : segments.flatMap(s => s.pts.map(p => p.v)));
-  const X = t => pad.l + (t - win.from) / (win.to - win.from) * (w - pad.l - pad.r);
-  const Y = v => pad.t + (1 - (v - lo) / (hi - lo)) * (h - pad.t - pad.b);
-  const clipId = 'clip-focus';
-  el('rect', { x: pad.l, y: 0, width: w - pad.l - pad.r, height: h, }, el('clipPath', { id: clipId }, el('defs', {}, svg)));
-
-  for (let i = 0; i <= 4; i++) {
-    const v = lo + (hi - lo) * i / 4;
-    el('line', { x1: pad.l, x2: w - pad.r, y1: Y(v), y2: Y(v), class: 'grid' }, svg);
-    el('text', { x: pad.l - 6, y: Y(v) + 4, 'text-anchor': 'end', class: 'axis' }, svg).textContent = fmt(v);
-  }
-  const ticks = timeTicks(win);
-  const withYear = win.to - win.from > 300 * DAY;
-  for (const t of ticks) el('text', { x: X(t), y: h - 5, 'text-anchor': 'middle', class: 'axis' }, svg).textContent = day(t, withYear);
+  const { X, Y } = drawAxes(frame, win, lo, hi, axisLabel);
 
   const plot = el('g', { 'clip-path': `url(#${clipId})` }, svg);
   const points = [];
   segments.forEach((s, i) => {
+    if (i > 0) {
+      const x = (X(segments[i - 1].t1) + X(s.t0)) / 2;
+      el('line', { x1: x, x2: x, y1: pad.t, y2: h - pad.b, class: 'boundary' }, plot);
+    }
     const xa = X(s.t0) - 3, xb = Math.max(X(s.t1) + 3, xa + 6);
     el('rect', { x: xa, width: xb - xa, y: Y(s.max), height: Math.max(Y(s.min) - Y(s.max), 1), rx: 2, class: 'band' }, plot);
     el('line', { x1: xa, x2: xb, y1: Y(s.med), y2: Y(s.med), class: 'median' }, plot);
@@ -376,71 +519,221 @@ function drawFocus(key, win) {
       points.push({ ...p, seg: s, x: X(p.t), y: Y(p.v) });
     }
   });
-  const overlay = el('rect', { x: pad.l, y: pad.t, width: w - pad.l - pad.r, height: h - pad.t - pad.b, fill: 'transparent' }, svg);
-  segments.forEach((s, i) => {
-    if (i === 0) return;
-    const x = (X(segments[i - 1].t1) + X(s.t0)) / 2;
-    if (x < pad.l || x > w - pad.r) return;
-    el('line', { x1: x, x2: x, y1: pad.t, y2: h - pad.b, class: 'boundary' }, svg);
-    const hit = el('line', { x1: x, x2: x, y1: pad.t, y2: h - pad.b, class: 'boundary-hit' }, svg);
-    el('title', {}, hit).textContent = `${short(s.commit)} ${subjectOf(s.commit)}`;
-    hit.addEventListener('click', () => openStepPanel(s.commit));
-  });
+  const visible = points.filter(p => p.x >= pad.l && p.x <= w - pad.r);
   const ring = el('circle', { r: 5.5, class: 'ring', visibility: 'hidden' }, svg);
-  const tip = document.createElement('div');
-  tip.className = 'tip';
-  tip.hidden = true;
-  host.appendChild(tip);
   const nearest = event => {
-    const box = svg.getBoundingClientRect();
-    const mx = (event.clientX - box.left) * w / box.width;
+    const mx = svgX(frame, event);
     let best = null;
-    for (const p of points) if (p.x >= pad.l && p.x <= w - pad.r && (!best || Math.abs(p.x - mx) < Math.abs(best.x - mx))) best = p;
+    for (const p of visible) if (!best || Math.abs(p.x - mx) < Math.abs(best.x - mx)) best = p;
     return best;
   };
-  overlay.addEventListener('pointermove', event => {
-    const p = nearest(event);
-    if (!p) return;
-    ring.setAttribute('cx', p.x);
-    ring.setAttribute('cy', p.y);
-    ring.setAttribute('visibility', 'visible');
-    tip.innerHTML = tooltipHtml(key, p);
-    tip.hidden = false;
-    const box = host.getBoundingClientRect();
-    const left = event.clientX - box.left + 14;
-    tip.style.left = Math.max(0, Math.min(left, box.width - tip.offsetWidth)) + 'px';
-    tip.style.top = (event.clientY - box.top + 14) + 'px';
+  host.chart = {
+    frame,
+    pick: event => nearest(event)?.run.commit,
+    hover: event => {
+      const p = nearest(event);
+      if (!p) return;
+      ring.setAttribute('cx', p.x);
+      ring.setAttribute('cy', p.y);
+      ring.setAttribute('visibility', 'visible');
+      placeTip(frame, host, tooltipHtml(key, p), event);
+    },
+    leave: () => {
+      frame.tip.hidden = true;
+      ring.setAttribute('visibility', 'hidden');
+    },
+  };
+}
+
+function overviewSeries(win) {
+  return model.liveKeys.filter(isMicro).map((key, i) => {
+    const higher = model.metrics[key].direction === 'higher';
+    const segments = series(model, key, !state.raw);
+    const mid = s => (s.t0 + s.t1) / 2;
+    const base = segments.find(s => mid(s) >= win.from) || segments[segments.length - 1];
+    const pts = segments.map(s => ({ t: mid(s), v: (higher ? s.med / base.med : base.med / s.med) - 1, commit: s.commit }));
+    return { key, color: PALETTE[i % PALETTE.length], pts };
   });
-  overlay.addEventListener('pointerleave', () => {
-    tip.hidden = true;
-    ring.setAttribute('visibility', 'hidden');
-  });
-  overlay.addEventListener('click', event => {
-    const p = nearest(event);
-    if (p) openStepPanel(p.run.commit);
+}
+
+function benchmarkedCommits() {
+  const seen = new Map();
+  for (const run of model.runs) if (!seen.has(run.commit)) seen.set(run.commit, run.t);
+  return [...seen].map(([sha, t]) => ({ sha, t }));
+}
+
+function drawOverview(win) {
+  const host = document.getElementById('overview-chart');
+  const frame = plotFrame(host, w => (w < 500 ? 200 : 240));
+  const { svg, w, h, pad, clipId } = frame;
+  const lines = overviewSeries(win);
+  const inView = lines.flatMap(l => l.pts.filter(p => p.t >= win.from && p.t <= win.to).map(p => p.v));
+  const { lo, hi } = yRange([...inView, 0]);
+  const { X, Y } = drawAxes(frame, win, lo, hi, (v, step) => `${v > 0 ? '+' : ''}${axisLabel(v * 100, step * 100)}%`);
+  const plot = el('g', { 'clip-path': `url(#${clipId})` }, svg);
+  el('line', { x1: pad.l, x2: w - pad.r, y1: Y(0), y2: Y(0), class: 'zero' }, plot);
+  for (const line of lines) {
+    el('polyline', { points: line.pts.map(p => `${X(p.t)},${Y(p.v)}`).join(' '), fill: 'none', stroke: line.color, 'stroke-width': 2, 'stroke-linejoin': 'round' }, plot);
+    for (const p of line.pts) el('circle', { cx: X(p.t), cy: Y(p.v), r: 2.2, fill: line.color }, plot);
+  }
+  const commits = benchmarkedCommits().map(c => ({ ...c, x: X(c.t) }));
+  for (const c of commits) el('path', { d: `M${c.x - 4},${h - pad.b} l4,-6 l4,6 z`, class: 'marker' }, plot);
+  const visible = commits.filter(c => c.x >= pad.l && c.x <= w - pad.r);
+  const guide = el('line', { y1: pad.t, y2: h - pad.b, class: 'boundary', visibility: 'hidden' }, svg);
+  const nearest = event => {
+    const mx = svgX(frame, event);
+    let best = null;
+    for (const c of visible) if (!best || Math.abs(c.x - mx) < Math.abs(best.x - mx)) best = c;
+    return best;
+  };
+  const legend = document.getElementById('legend');
+  legend.innerHTML = lines.map(l => `<li><i style="background:${l.color}"></i>${esc(label(l.key).cls)}.${esc(label(l.key).name)}</li>`).join('');
+  host.chart = {
+    frame,
+    pick: event => nearest(event)?.sha,
+    hover: event => {
+      const c = nearest(event);
+      if (!c) return;
+      guide.setAttribute('x1', c.x);
+      guide.setAttribute('x2', c.x);
+      guide.setAttribute('visibility', 'visible');
+      const rows = lines.map(l => {
+        const p = l.pts.find(q => q.commit === c.sha);
+        return p ? `<br><span style="color:${l.color}">■</span> ${esc(label(l.key).name)} ${p.v > 0 ? '+' : ''}${(p.v * 100).toFixed(1)}%` : '';
+      }).join('');
+      placeTip(frame, host, `${day(c.t, true)} · <span class="mono">${short(c.sha)}</span><br>${esc(subjectOf(c.sha))}${rows}`, event);
+    },
+    leave: () => {
+      frame.tip.hidden = true;
+      guide.setAttribute('visibility', 'hidden');
+    },
+  };
+}
+
+function attachInteractions(host) {
+  const pointers = new Map();
+  let gesture = null;
+  let clickTimer = null;
+  const timeAt = clientX => {
+    const { frame } = host.chart;
+    const win = currentView();
+    const x = svgX(frame, { clientX });
+    return win.from + (x - frame.pad.l) / (frame.w - frame.pad.l - frame.pad.r) * (win.to - win.from);
+  };
+  const msPerPx = () => {
+    const { frame } = host.chart;
+    const box = frame.svg.getBoundingClientRect();
+    const win = currentView();
+    return (win.to - win.from) / ((frame.w - frame.pad.l - frame.pad.r) * box.width / frame.w);
+  };
+
+  host.addEventListener('wheel', event => {
+    if (!host.chart) return;
+    event.preventDefault();
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+      setView(currentView().from + event.deltaX * msPerPx(), currentView().to + event.deltaX * msPerPx());
+      return;
+    }
+    zoomBy(event.deltaY > 0 ? 1.2 : 1 / 1.2, timeAt(event.clientX));
+  }, { passive: false });
+
+  host.addEventListener('pointerdown', event => {
+    if (!host.chart) return;
+    try {
+      host.setPointerCapture(event.pointerId);
+    } catch {
+      // Capture only keeps a drag alive outside the chart; the gesture works without it.
+    }
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const win = currentView();
+    if (pointers.size === 1) {
+      gesture = { kind: 'pan', startX: event.clientX, startY: event.clientY, win, moved: false, scale: msPerPx() };
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      gesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, anchor: timeAt((a.x + b.x) / 2), win, moved: true };
+    }
   });
 
-  const recent = detail.querySelector('.recent');
-  for (const s of segments.slice(-5).reverse()) {
-    const li = document.createElement('li');
-    li.innerHTML = `<button type="button"><span class="mono">${short(s.commit)}</span><span class="when">${day(s.t0)}</span><span class="subj">${esc(subjectOf(s.commit))}</span></button>`;
-    li.firstChild.addEventListener('click', () => openStepPanel(s.commit));
-    recent.appendChild(li);
-  }
+  host.addEventListener('pointermove', event => {
+    if (!host.chart) return;
+    if (!pointers.has(event.pointerId)) {
+      host.chart.hover(event);
+      return;
+    }
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (!gesture) return;
+    if (gesture.kind === 'pan') {
+      const dx = event.clientX - gesture.startX;
+      if (!gesture.moved && Math.hypot(dx, event.clientY - gesture.startY) < 4) return;
+      gesture.moved = true;
+      host.chart.leave();
+      const dt = -dx * gesture.scale;
+      setView(gesture.win.from + dt, gesture.win.to + dt);
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const factor = gesture.dist / (Math.hypot(a.x - b.x, a.y - b.y) || 1);
+      const t = gesture.anchor;
+      setView(t - (t - gesture.win.from) * factor, t + (gesture.win.to - t) * factor);
+    }
+  });
+
+  const release = event => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.delete(event.pointerId);
+    const finished = gesture;
+    if (pointers.size === 0) gesture = null;
+    if (event.type !== 'pointerup' || !finished || finished.moved || finished.kind !== 'pan') return;
+    const sha = host.chart?.pick(event);
+    clearTimeout(clickTimer);
+    if (sha) clickTimer = setTimeout(() => openStepPanel(sha), 250);
+  };
+  host.addEventListener('pointerup', release);
+  host.addEventListener('pointercancel', release);
+  host.addEventListener('pointerleave', () => host.chart?.leave());
+  host.addEventListener('dblclick', () => {
+    clearTimeout(clickTimer);
+    setView(-Infinity, Infinity);
+  });
+  host.addEventListener('keydown', event => {
+    const actions = { '+': () => zoomBy(1 / 1.5), '=': () => zoomBy(1 / 1.5), '-': () => zoomBy(1.5), '0': () => setView(-Infinity, Infinity), ArrowLeft: () => panBy(-0.1), ArrowRight: () => panBy(0.1) };
+    if (!actions[event.key]) return;
+    event.preventDefault();
+    actions[event.key]();
+  });
+}
+
+function previousBenchmarked(sha) {
+  const commits = benchmarkedCommits();
+  const i = commits.findIndex(c => c.sha === sha);
+  return i > 0 ? commits[i - 1].sha : null;
 }
 
 function openStepPanel(sha) {
-  window.open(commitUrl(sha), '_blank', 'noopener');
-}
-
-function currentView() {
-  return fullRange();
+  const panel = document.getElementById('step-panel');
+  const info = model.commits[sha];
+  const range = info?.range?.length ? info.range : [{ sha, subject: info?.subject || '' }];
+  const previous = previousBenchmarked(sha);
+  const compare = previous ? `<a href="${REPO}/compare/${previous}...${sha}" target="_blank" rel="noopener">compare on GitHub</a>` : '';
+  const items = range.map(c => {
+    const pr = c.subject.match(/\(#(\d+)\)$/);
+    return `<li><a class="mono" href="${commitUrl(c.sha)}" target="_blank" rel="noopener">${short(c.sha)}</a>`
+      + `<span class="subj">${esc(c.subject)}</span>`
+      + (pr ? `<a class="pr" href="${REPO}/pull/${pr[1]}" target="_blank" rel="noopener">#${pr[1]}</a>` : '')
+      + '</li>';
+  }).join('');
+  const count = range.length === 1 ? '1 commit' : `${range.length} commits`;
+  panel.innerHTML = `<div class="step"><header><h3>${count} in this step</h3><span class="hint">since ${previous ? `<span class="mono">${short(previous)}</span>` : 'the first benchmarked commit'}</span>${compare}`
+    + `<button type="button" class="close" aria-label="Close">×</button></header><ol>${items}</ol></div>`;
+  panel.hidden = false;
+  panel.querySelector('.close').addEventListener('click', () => { panel.hidden = true; });
+  panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 function render() {
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.mode === 'raw') === state.raw)));
   renderList();
-  drawFocus(state.key, currentView());
+  renderDetail(state.key);
+  drawCharts();
 }
 
 function writeHash() {
@@ -497,6 +790,13 @@ async function load() {
   readHash();
   document.getElementById('status').hidden = true;
   document.getElementById('focus').hidden = false;
+  document.getElementById('overview').hidden = !model.liveKeys.some(isMicro);
+  attachInteractions(document.getElementById('overview-chart'));
+  attachInteractions(document.getElementById('focus-chart'));
+  document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.zoom === 'reset') setView(-Infinity, Infinity);
+    else zoomBy(b.dataset.zoom === 'in' ? 1 / 1.5 : 1.5);
+  }));
   if (model.generated) document.getElementById('generated').textContent = `${model.runs.length} runs · updated ${day(Date.parse(model.generated), true)}`;
   document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
     state.raw = b.dataset.mode === 'raw';
@@ -504,11 +804,11 @@ async function load() {
     render();
   }));
   window.addEventListener('hashchange', () => { readHash(); render(); });
-  let width = document.getElementById('detail').clientWidth;
+  let width = document.querySelector('main').clientWidth;
   new ResizeObserver(() => {
-    const next = document.getElementById('detail').clientWidth;
-    if (next !== width) { width = next; drawFocus(state.key, currentView()); }
-  }).observe(document.getElementById('detail'));
+    const next = document.querySelector('main').clientWidth;
+    if (next !== width) { width = next; scheduleDraw(); }
+  }).observe(document.querySelector('main'));
   render();
 }
 
