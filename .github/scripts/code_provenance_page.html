@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MemorChess code provenance</title>
+<meta name="description" content="Share of MemorChess code written by hand, with GitHub Copilot, and with Claude, per folder and file.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1f2328;
+    --muted: #59636e;
+    --line: #d8dee4;
+    --hover: #eef1f4;
+    --human: #2da44e;
+    --copilot: #4f7df3;
+    --claude: #d97757;
+    --tint: 14%;
+    --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171c;
+      --surface: #1c1f26;
+      --ink: #e6e8eb;
+      --muted: #9aa4af;
+      --line: #2e333c;
+      --hover: #252932;
+      --human: #3fb862;
+      --copilot: #6d93f7;
+      --claude: #e08a6c;
+      --tint: 20%;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  main { max-width: 1080px; margin: 0 auto; padding: 40px 16px 64px; }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--copilot); outline-offset: 2px; border-radius: 3px; }
+  .icon { width: 1em; height: 1em; fill: currentColor; flex: none; }
+
+  header h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+  header p { margin: 0; color: var(--muted); max-width: 70ch; }
+
+  .strip { display: flex; height: 56px; margin: 28px 0 12px; border-radius: 8px; overflow: hidden; background: var(--line); }
+  .strip > div { display: flex; align-items: center; gap: 8px; padding: 0 12px; color: #fff; min-width: max-content; white-space: nowrap; }
+  .strip .icon { width: 22px; height: 22px; }
+  .strip strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .strip span { font-size: 14px; opacity: 0.9; }
+  .human-bg { background: var(--human); }
+  .copilot-bg { background: var(--copilot); }
+  .claude-bg { background: var(--claude); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .legend li { display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+  .legend .icon { width: 16px; height: 16px; }
+  .human { color: var(--human); }
+  .copilot { color: var(--copilot); }
+  .claude { color: var(--claude); }
+  .legend b { color: var(--ink); font-weight: 600; }
+  .method { font-size: 13px; color: var(--muted); margin: 0 0 28px; max-width: 80ch; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 7px 12px; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; white-space: normal; width: 100%; }
+  thead th { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--muted); z-index: 1; vertical-align: middle; }
+  thead button { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+  thead button .icon { width: 15px; height: 15px; }
+  thead th[aria-sort] button { color: var(--ink); }
+  .arrow { width: 0.8em; display: inline-block; text-align: center; }
+  tbody tr { border-top: 1px solid var(--line); }
+  tbody tr:first-child { border-top: 0; }
+  tbody tr:hover { background: var(--hover); }
+  .name { display: flex; align-items: center; gap: 6px; min-width: 0; text-align: left; }
+  .name span { overflow-wrap: break-word; min-width: 0; }
+  .chev { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--muted); stroke-width: 2; transition: transform 120ms ease; }
+  [aria-expanded="true"] .chev { transform: rotate(90deg); }
+  .dir { font-weight: 600; }
+  .file span { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  .file:hover span { text-decoration-color: currentColor; }
+  .dot { width: 14px; flex: none; }
+  td.pct { width: 64px; }
+  td.zero, td.dash { color: var(--muted); }
+  .bar { display: flex; width: 120px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); }
+
+  .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .back { font-weight: 600; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; }
+  .back:hover { background: var(--hover); }
+  .path { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+  .file-stats { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .file-stats span { display: inline-flex; align-items: center; gap: 6px; }
+  .code { overflow-x: auto; font: 12.5px/1.6 var(--mono); tab-size: 4; }
+  .code > div { display: flex; min-width: max-content; }
+  .code .num { width: 56px; flex: none; padding-right: 10px; text-align: right; color: var(--muted); user-select: none; }
+  .code .gut { width: 4px; flex: none; }
+  .code pre { margin: 0; padding: 0 16px 0 10px; font: inherit; white-space: pre; }
+  .code .l-human { background: color-mix(in srgb, var(--human) var(--tint), transparent); }
+  .code .l-copilot { background: color-mix(in srgb, var(--copilot) var(--tint), transparent); }
+  .code .l-claude { background: color-mix(in srgb, var(--claude) var(--tint), transparent); }
+  .message { padding: 24px 14px; color: var(--muted); }
+
+  footer { margin-top: 24px; font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    main { padding-top: 24px; }
+    header h1 { font-size: 24px; }
+    .strip { height: 44px; }
+    .strip > div { padding: 0 10px; }
+    .strip span { display: none; }
+    .strip strong { font-size: 16px; }
+    th, td { padding: 7px 8px; }
+    .col-lines, .col-bar, thead .era-label { display: none; }
+    thead button .icon { width: 18px; height: 18px; }
+    td.pct { width: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Who wrote MemorChess?</h1>
+    <p id="summary"></p>
+  </header>
+  <div class="strip" id="strip"></div>
+  <ul class="legend" id="legend"></ul>
+  <p class="method">Each line counts for the commit that last changed it. Commits before 9 Aug 2025 count as written by hand, commits until 6 Mar 2026 as written with Copilot, and later commits as written with Claude. Blank lines and comments are not counted.</p>
+  <section class="panel" id="tree-view" aria-label="Folders and files">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+  <section class="panel" id="file-view" aria-label="File" hidden></section>
+  <footer>Generated from <a href="https://github.com/Axl-Lvy/MemorChess">github.com/Axl-Lvy/MemorChess</a>.</footer>
+</main>
+<script>
+const DATA = /*PROVENANCE_DATA*/;
+const ERAS = [
+  { key: "human", label: "Human" },
+  { key: "copilot", label: "Copilot" },
+  { key: "claude", label: "Claude" },
+];
+const COLUMNS = [
+  { key: "name", label: "Name" },
+  { key: "lines", label: "Lines", cls: "col-lines" },
+  ...ERAS.map((era) => ({ ...era, era: true })),
+  { key: "bar", label: "", cls: "col-bar" },
+];
+
+const state = { sort: "lines", dir: -1, open: new Set() };
+const $ = (id) => document.getElementById(id);
+const fmt = new Intl.NumberFormat("en-GB");
+
+function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === "class") node.className = value;
+    else if (key === "text") node.textContent = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value);
+  }
+  node.append(...children.filter((child) => child != null));
+  return node;
+}
+
+function icon(era) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "icon");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML = DATA.icons[era];
+  return svg;
+}
+
+function chevron() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("class", "chev");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML = '<path d="M6 3l5 5-5 5"/>';
+  return svg;
+}
+
+function prepare(node) {
+  node.total = ERAS.reduce((sum, era) => sum + node.counts[era.key], 0);
+  node.share = Object.fromEntries(ERAS.map((era) => [era.key, node.total ? node.counts[era.key] / node.total : 0]));
+  (node.children || []).forEach(prepare);
+}
+
+function pctText(node, era) {
+  if (!node.total) return "–";
+  const value = node.pct[era];
+  return value === 0 && node.counts[era] > 0 ? "<1%" : `${value}%`;
+}
+
+function compare(a, b) {
+  if (!a.total !== !b.total && state.sort !== "name") return a.total ? -1 : 1;
+  let result;
+  if (state.sort === "name") result = a.name.localeCompare(b.name);
+  else if (state.sort === "lines") result = a.total - b.total;
+  else result = a.share[state.sort] - b.share[state.sort] || a.total - b.total;
+  return state.dir * result || a.name.localeCompare(b.name);
+}
+
+function bar(node) {
+  return el("div", { class: "bar", "aria-hidden": "true" },
+    ...ERAS.map((era) => el("div", { class: `${era.key}-bg`, style: `width:${100 * node.share[era.key]}%` })));
+}
+
+function renderSummary() {
+  const root = DATA.tree;
+  const day = new Date(`${DATA.generated}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  $("summary").textContent = `${fmt.format(root.total)} lines of code, as of ${day}. Open a folder to see its share, or a file to see each line.`;
+  $("strip").replaceChildren(...ERAS.filter((era) => root.counts[era.key]).map((era) =>
+    el("div", { class: `${era.key}-bg`, style: `flex:${root.counts[era.key]} 1 0`, title: `${era.label}: ${pctText(root, era.key)}` },
+      icon(era.key), el("strong", { text: pctText(root, era.key) }),
+      root.share[era.key] >= 0.25 ? el("span", { text: era.label }) : null)));
+  $("legend").replaceChildren(...ERAS.map((era) =>
+    el("li", { class: era.key }, icon(era.key), el("b", { text: era.label }),
+      el("span", { text: `${fmt.format(root.counts[era.key])} lines` }))));
+}
+
+function renderHead() {
+  $("head").replaceChildren(...COLUMNS.map((col) => {
+    const th = el("th", { class: col.cls || "", scope: "col" });
+    if (col.key === "bar") return th;
+    const active = state.sort === col.key;
+    if (active) th.setAttribute("aria-sort", state.dir < 0 ? "descending" : "ascending");
+    const arrow = el("span", { class: "arrow", "aria-hidden": "true", text: active ? (state.dir < 0 ? "↓" : "↑") : "" });
+    th.append(el("button", { type: "button", title: `Sort by ${col.label}`, onclick: () => sortBy(col.key) },
+      col.key === "name" ? null : arrow,
+      col.era ? icon(col.key) : null, el("span", { class: col.era ? "era-label" : "", text: col.label }),
+      col.key === "name" ? arrow : null));
+    return th;
+  }));
+}
+
+function sortBy(key) {
+  if (state.sort === key) state.dir = -state.dir;
+  else { state.sort = key; state.dir = key === "name" ? 1 : -1; }
+  renderHead();
+  renderRows();
+}
+
+function renderRows() {
+  const fragment = document.createDocumentFragment();
+  const walk = (node, depth) => {
+    for (const child of [...node.children].sort(compare)) {
+      fragment.append(row(child, depth));
+      if (child.children && state.open.has(child.path)) walk(child, depth + 1);
+    }
+  };
+  walk(DATA.tree, 0);
+  $("rows").replaceChildren(fragment);
+}
+
+function row(node, depth) {
+  const isDir = !!node.children;
+  const open = isDir && state.open.has(node.path);
+  const label = el("span", { text: node.name });
+  const name = isDir
+    ? el("button", { type: "button", class: "name dir", "aria-expanded": String(open), onclick: () => toggle(node.path) }, chevron(), label)
+    : el("button", { type: "button", class: "name file", onclick: () => openFile(node.path) }, el("span", { class: "dot" }), label);
+  return el("tr", {},
+    el("td", { style: `padding-left:${12 + depth * 18}px` }, name),
+    el("td", { class: "col-lines", text: fmt.format(node.total) }),
+    ...ERAS.map((era) => el("td", {
+      class: `pct ${node.total ? (node.counts[era.key] ? "" : "zero") : "dash"}`,
+      text: pctText(node, era.key),
+    })),
+    el("td", { class: "col-bar" }, bar(node)));
+}
+
+function toggle(path) {
+  if (state.open.has(path)) state.open.delete(path);
+  else state.open.add(path);
+  renderRows();
+}
+
+function openFile(path) {
+  location.hash = `file=${encodeURIComponent(path)}`;
+}
+
+function findFile(path) {
+  let node = DATA.tree;
+  for (const part of path.split("/")) {
+    node = (node.children || []).find((child) => child.name === part);
+    if (!node) return null;
+  }
+  return node.file ? node : null;
+}
+
+let loadToken = 0;
+
+async function showFile(path) {
+  const token = ++loadToken;
+  const view = $("file-view");
+  const node = findFile(path);
+  $("tree-view").hidden = true;
+  view.hidden = false;
+  const crumbs = el("div", { class: "crumbs" },
+    el("button", { type: "button", class: "back", onclick: closeFile, text: "All files" }),
+    el("span", { class: "path", text: path }));
+  view.replaceChildren(crumbs, el("p", { class: "message", text: "Loading…" }));
+  window.scrollTo(0, 0);
+  if (!node) {
+    view.replaceChildren(crumbs, el("p", { class: "message", text: "This file is not in the report. It may have been renamed or deleted." }));
+    return;
+  }
+  const stats = el("div", { class: "file-stats" },
+    el("span", { text: `${fmt.format(node.total)} lines of code` }),
+    ...ERAS.map((era) => el("span", { class: era.key }, icon(era.key), el("b", { text: pctText(node, era.key) }))));
+  let rows;
+  try {
+    const response = await fetch(`files/${node.id}.json`);
+    if (!response.ok) {
+      view.replaceChildren(crumbs, stats, el("p", { class: "message",
+        text: `Could not load the lines of this file (HTTP ${response.status}). Reload the page to get the latest report.` }));
+      return;
+    }
+    rows = await response.json();
+  } catch (error) {
+    view.replaceChildren(crumbs, stats, el("p", { class: "message",
+      text: "Could not load the lines of this file. The page must be served over HTTP, not opened from disk." }));
+    return;
+  }
+  if (token !== loadToken) return;
+  const code = el("div", { class: "code" }, ...rows.map(([number, text, era]) =>
+    el("div", { class: era ? `l-${era}` : "" },
+      el("span", { class: "num", text: String(number) }),
+      el("span", { class: `gut ${era ? `${era}-bg` : ""}` }),
+      el("pre", { text: text || " " }))));
+  view.replaceChildren(crumbs, stats, code);
+}
+
+function closeFile() {
+  history.pushState(null, "", location.pathname + location.search);
+  route();
+}
+
+function route() {
+  const match = location.hash.match(/^#file=(.+)$/);
+  if (match) {
+    let path;
+    try { path = decodeURIComponent(match[1]); } catch { path = match[1]; }
+    showFile(path);
+  } else {
+    loadToken++;
+    $("file-view").hidden = true;
+    $("tree-view").hidden = false;
+  }
+}
+
+prepare(DATA.tree);
+renderSummary();
+renderHead();
+renderRows();
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>
