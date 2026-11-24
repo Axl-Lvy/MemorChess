@@ -5,7 +5,8 @@ package proj.memorchess.axl.core.data
  *
  * @property positions Positions removed, the starting one included. Equals the walk's cap when the
  *   subtree is at least that large.
- * @property reviewedPositions How many of [positions] carry review history (reviewed at least once).
+ * @property reviewedPositions How many of [positions] carry review history (reviewed at least
+ *   once).
  */
 data class PruneImpact(val positions: Int, val reviewedPositions: Int) {
   companion object {

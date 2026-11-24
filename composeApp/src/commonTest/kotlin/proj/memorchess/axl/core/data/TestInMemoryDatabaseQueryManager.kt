@@ -443,10 +443,13 @@ class TestInMemoryDatabaseQueryManager {
   }
 
   /** A card reviewed once, so its position carries review history. */
-  private val reviewedCard = CardStateFactory.new().copy(lastReview = Instant.fromEpochSeconds(1_000))
+  private val reviewedCard =
+    CardStateFactory.new().copy(lastReview = Instant.fromEpochSeconds(1_000))
 
   /** Line key0 -e4-> key1 -e5-> key2 where only the positions in [reviewed] have review history. */
-  private suspend fun lineReviewedAt(reviewed: Set<PositionKey> = emptySet()): InMemoryDatabaseQueryManager {
+  private suspend fun lineReviewedAt(
+    reviewed: Set<PositionKey> = emptySet()
+  ): InMemoryDatabaseQueryManager {
     fun card(key: PositionKey) = if (key in reviewed) reviewedCard else CardStateFactory.new()
     val database = InMemoryDatabaseQueryManager()
     database.insertNodes(
@@ -464,17 +467,26 @@ class TestInMemoryDatabaseQueryManager {
 
   @Test
   fun pruneImpactWithNoReviewedPositionHasZeroReviewed() = runTest {
-    assertEquals(PruneImpact(positions = 3, reviewedPositions = 0), lineReviewedAt().pruneImpact(key0))
+    assertEquals(
+      PruneImpact(positions = 3, reviewedPositions = 0),
+      lineReviewedAt().pruneImpact(key0),
+    )
   }
 
   @Test
   fun pruneImpactCountsASingleReviewedDescendant() = runTest {
-    assertEquals(PruneImpact(positions = 3, reviewedPositions = 1), lineReviewedAt(setOf(key2)).pruneImpact(key0))
+    assertEquals(
+      PruneImpact(positions = 3, reviewedPositions = 1),
+      lineReviewedAt(setOf(key2)).pruneImpact(key0),
+    )
   }
 
   @Test
   fun pruneImpactCountsTheReviewedRoot() = runTest {
-    assertEquals(PruneImpact(positions = 2, reviewedPositions = 1), lineReviewedAt(setOf(key1)).pruneImpact(key1))
+    assertEquals(
+      PruneImpact(positions = 2, reviewedPositions = 1),
+      lineReviewedAt(setOf(key1)).pruneImpact(key1),
+    )
   }
 
   @Test
@@ -485,7 +497,10 @@ class TestInMemoryDatabaseQueryManager {
 
   @Test
   fun pruneImpactIgnoresReviewedPositionsAboveTheRoot() = runTest {
-    assertEquals(PruneImpact(positions = 1, reviewedPositions = 0), lineReviewedAt(setOf(key0, key1)).pruneImpact(key2))
+    assertEquals(
+      PruneImpact(positions = 1, reviewedPositions = 0),
+      lineReviewedAt(setOf(key0, key1)).pruneImpact(key2),
+    )
   }
 
   @Test
@@ -507,8 +522,14 @@ class TestInMemoryDatabaseQueryManager {
   fun pruneImpactReviewedCountCoversOnlyPositionsWithinTheCap() = runTest {
     // Only key2 is reviewed: a cap of 2 stops before it, a cap of 3 reaches it.
     val database = lineReviewedAt(setOf(key2))
-    assertEquals(PruneImpact(positions = 2, reviewedPositions = 0), database.pruneImpact(key0, cap = 2))
-    assertEquals(PruneImpact(positions = 3, reviewedPositions = 1), database.pruneImpact(key0, cap = 3))
+    assertEquals(
+      PruneImpact(positions = 2, reviewedPositions = 0),
+      database.pruneImpact(key0, cap = 2),
+    )
+    assertEquals(
+      PruneImpact(positions = 3, reviewedPositions = 1),
+      database.pruneImpact(key0, cap = 3),
+    )
   }
 
   // --- getNodesPage -------------------------------------------------------------------------

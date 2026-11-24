@@ -199,8 +199,8 @@ interface DatabaseQueryManager {
    * cannot drift.
    *
    * Bounded by [cap]: the traversal stops once [cap] positions have been counted, so a subtree at
-   * or above [cap] reports exactly [cap] positions, and its reviewed count covers only those. The UI
-   * renders that as a "cap or more" sentinel instead of paying for an unbounded walk. Returns
+   * or above [cap] reports exactly [cap] positions, and its reviewed count covers only those. The
+   * UI renders that as a "cap or more" sentinel instead of paying for an unbounded walk. Returns
    * [PruneImpact.NONE] when [key] is not stored.
    *
    * @param key Root of the subtree to measure.

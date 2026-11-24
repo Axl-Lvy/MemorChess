@@ -43,7 +43,8 @@ class TestRoomPruneImpact {
     reviewed: Boolean = false,
   ) {
     val card = CardStateFactory.new()
-    val reviewedCard = if (reviewed) card.copy(lastReview = Instant.fromEpochSeconds(1_000)) else card
+    val reviewedCard =
+      if (reviewed) card.copy(lastReview = Instant.fromEpochSeconds(1_000)) else card
     manager.insertNodes(DataNode(key(name), PreviousAndNextMoves(previous, next), reviewedCard))
   }
 
@@ -136,8 +137,10 @@ class TestRoomPruneImpact {
   @Test
   fun reviewedCountCoversOnlyPositionsWithinTheCap() = runTest {
     insertChain(listOf("a", "b", "c"), reviewed = setOf("c"))
-    manager.pruneImpact(key("a"), cap = 2) shouldBe PruneImpact(positions = 2, reviewedPositions = 0)
-    manager.pruneImpact(key("a"), cap = 3) shouldBe PruneImpact(positions = 3, reviewedPositions = 1)
+    manager.pruneImpact(key("a"), cap = 2) shouldBe
+      PruneImpact(positions = 2, reviewedPositions = 0)
+    manager.pruneImpact(key("a"), cap = 3) shouldBe
+      PruneImpact(positions = 3, reviewedPositions = 1)
   }
 
   @Test

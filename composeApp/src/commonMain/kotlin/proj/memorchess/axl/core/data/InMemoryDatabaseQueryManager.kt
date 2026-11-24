@@ -383,11 +383,11 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * Capped breadth first prune walk over the in memory map. This is the cross backend
-   * reference implementation of the convergence rule: a child is counted and descended into only
-   * when its total non deleted incoming edge count is at most one, so a position reachable through
-   * an outside parent is left alone. Iterating the backing map is acceptable here because this is
-   * the throwaway in memory store; the Room and IndexedDB backends express the same walk with point
+   * Capped breadth first prune walk over the in memory map. This is the cross backend reference
+   * implementation of the convergence rule: a child is counted and descended into only when its
+   * total non deleted incoming edge count is at most one, so a position reachable through an
+   * outside parent is left alone. Iterating the backing map is acceptable here because this is the
+   * throwaway in memory store; the Room and IndexedDB backends express the same walk with point
    * queries.
    */
   override suspend fun pruneImpact(key: PositionKey, cap: Int): PruneImpact {
