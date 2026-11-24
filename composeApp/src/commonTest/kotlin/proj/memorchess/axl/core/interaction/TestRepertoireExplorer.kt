@@ -32,7 +32,7 @@ class TestRepertoireExplorer : TestWithKoin() {
   @Test
   fun nextMovesAtRootAreTheBookFirstMoves() = test {
     val explorer = explorerOf("1. e4 e5 2. Nf3 *")
-    assertEquals(listOf("e4"), explorer.getNextMoves())
+    assertEquals(listOf("e4"), explorer.getNextMoves().map { it.move })
   }
 
   @Test
@@ -40,7 +40,7 @@ class TestRepertoireExplorer : TestWithKoin() {
     val explorer = explorerOf("1. e4 e5 2. Nf3 *")
     explorer.playMove("e4")
     assertEquals(keyAfter("e4"), explorer.engine.toPositionKey())
-    assertEquals(listOf("e5"), explorer.getNextMoves())
+    assertEquals(listOf("e5"), explorer.getNextMoves().map { it.move })
   }
 
   @Test
@@ -49,7 +49,7 @@ class TestRepertoireExplorer : TestWithKoin() {
     // d4 is a legal chess move but is not part of the repertoire.
     explorer.playMove("d4")
     assertEquals(PositionKey.START_POSITION, explorer.engine.toPositionKey())
-    assertEquals(listOf("e4"), explorer.getNextMoves())
+    assertEquals(listOf("e4"), explorer.getNextMoves().map { it.move })
   }
 
   @Test
@@ -85,7 +85,7 @@ class TestRepertoireExplorer : TestWithKoin() {
     explorer.playMove("e4")
     explorer.reset()
     assertEquals(PositionKey.START_POSITION, explorer.engine.toPositionKey())
-    assertEquals(listOf("e4"), explorer.getNextMoves())
+    assertEquals(listOf("e4"), explorer.getNextMoves().map { it.move })
   }
 
   @Test
@@ -94,14 +94,14 @@ class TestRepertoireExplorer : TestWithKoin() {
     val explorer = explorerOf("1. e4 e5 2. Nf3 (2. Bc4) *")
     explorer.playMove("e4")
     explorer.playMove("e5")
-    assertEquals(listOf("Bc4", "Nf3"), explorer.getNextMoves())
+    assertEquals(listOf("Bc4", "Nf3"), explorer.getNextMoves().map { it.move })
   }
 
   @Test
   fun transposedLinesShareTheSamePosition() = test {
     // Two move orders reaching the same position via different first moves.
     val explorer = explorerOf("1. d4 d5 2. Nf3 *", "1. Nf3 d5 2. d4 *")
-    assertEquals(listOf("Nf3", "d4"), explorer.getNextMoves())
+    assertEquals(listOf("Nf3", "d4"), explorer.getNextMoves().map { it.move })
 
     explorer.playMove("d4")
     explorer.playMove("d5")
@@ -122,14 +122,14 @@ class TestRepertoireExplorer : TestWithKoin() {
   fun emptyRepertoireHasNoMoves() = test {
     val explorer = explorerOf("*")
     assertEquals(PositionKey.START_POSITION, explorer.engine.toPositionKey())
-    assertTrue(explorer.getNextMoves().isEmpty())
+    assertTrue(explorer.getNextMoves().map { it.move }.isEmpty())
   }
 
   @Test
   fun singleMoveRepertoireEndsAfterThatMove() = test {
     val explorer = explorerOf("1. e4 *")
-    assertEquals(listOf("e4"), explorer.getNextMoves())
+    assertEquals(listOf("e4"), explorer.getNextMoves().map { it.move })
     explorer.playMove("e4")
-    assertTrue(explorer.getNextMoves().isEmpty())
+    assertTrue(explorer.getNextMoves().map { it.move }.isEmpty())
   }
 }

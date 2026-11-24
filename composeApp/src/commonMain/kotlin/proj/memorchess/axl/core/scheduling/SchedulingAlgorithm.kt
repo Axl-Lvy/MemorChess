@@ -27,4 +27,7 @@ interface SchedulingAlgorithm {
    * @param now Moment at which the review took place.
    */
   fun schedule(previous: CardState?, grade: ReviewGrade, now: Instant): CardState
+
+  /** Probability that the user recalls [card] at [now], or `null` for a never reviewed card. */
+  fun retrievability(card: CardState, now: Instant): Retrievability?
 }

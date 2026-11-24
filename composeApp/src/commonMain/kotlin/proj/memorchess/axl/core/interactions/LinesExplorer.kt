@@ -3,18 +3,24 @@ package proj.memorchess.axl.core.interactions
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlin.time.Instant
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.toast_deleted
 import memorchess.composeapp.generated.resources.toast_no_next_move
 import memorchess.composeapp.generated.resources.toast_no_previous_move
 import memorchess.composeapp.generated.resources.toast_saved
+import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.Edge
 import proj.memorchess.axl.core.graph.NavigationHistory
+import proj.memorchess.axl.core.graph.Node
 import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.core.scheduling.CardState
+import proj.memorchess.axl.core.scheduling.SchedulingAlgorithm
 
 /**
  * Free exploration of stored openings backed by a [TreeStore].
@@ -48,6 +54,8 @@ open class LinesExplorer(
   private val startPosition = position ?: PositionKey.START_POSITION
 
   protected val navigation = NavigationHistory(startPosition)
+
+  private val scheduler: SchedulingAlgorithm by inject()
 
   /** Moves this scoped session created, tagged with [repertoireScope] once a save holds them. */
   private val newMoves = mutableSetOf<Pair<PositionKey, PositionKey>>()
@@ -117,19 +125,36 @@ open class LinesExplorer(
   }
 
   /**
-   * Sorted list of classified outgoing moves at the current position, narrowed to [repertoireScope]
-   * when this session is scoped (any [Edge.isGood] value passes, so a known trap the repertoire
-   * teaches to counter still shows).
+   * Classified outgoing moves at the current position sorted by SAN, each with the review state of
+   * the card that trains it, narrowed to [repertoireScope] when this session is scoped (any
+   * [Edge.isGood] value passes, so a known trap the repertoire teaches to counter still shows).
    */
-  suspend fun getNextMoves(): List<String> {
+  suspend fun getNextMoves(): List<Continuation> {
     val node = treeStore.node(navigation.current) ?: return emptyList()
     val classified = node.outgoing.values.filter { it.isGood != null }
     val scoped =
       repertoireScope?.let { scope ->
         classified.filter { scope in tagStore.tagsFor(it.from, it.to) }
       } ?: classified
-    return scoped.map { it.move }.sorted()
+    val now = DateUtil.now()
+    return scoped
+      .sortedBy { it.move }
+      .map { edge -> Continuation(edge.move, reviewCard(node, edge)?.let { review(it, now) }) }
   }
+
+  /**
+   * The card that trains [edge]: [origin]'s own for a good move, otherwise the destination's when
+   * the user has a good move there.
+   */
+  private suspend fun reviewCard(origin: Node, edge: Edge): CardState? {
+    if (edge.isGood == true) return origin.cardState
+    val destination = treeStore.node(edge.to) ?: return null
+    val trainable = destination.outgoing.values.any { it.isGood == true && !it.isDeleted }
+    return if (trainable) destination.cardState else null
+  }
+
+  private fun review(card: CardState, now: Instant) =
+    ContinuationReview(scheduler.retrievability(card, now), card.dueDate)
 
   /** SAN moves played from the root position to [navigation.current], in playing order. */
   fun playedMoves(): List<String> = navigation.getBackPath().map { it.second.move }

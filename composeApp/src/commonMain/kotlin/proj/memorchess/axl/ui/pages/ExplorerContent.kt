@@ -64,6 +64,7 @@ import proj.memorchess.axl.core.engine.evaluation.StockfishEvaluator
 import proj.memorchess.axl.core.engine.evaluation.engineDownloadLabel
 import proj.memorchess.axl.core.graph.NodeState
 import proj.memorchess.axl.core.graph.TreeStore
+import proj.memorchess.axl.core.interactions.Continuation
 import proj.memorchess.axl.core.interactions.LinesExplorer
 import proj.memorchess.axl.ui.components.board.BestMoveArrowData
 import proj.memorchess.axl.ui.components.board.Board
@@ -144,7 +145,7 @@ fun ExplorerContent(
   val coroutineScope = rememberCoroutineScope()
   // Demand paged: the next-move list is resolved through a suspend lookup, so it starts empty and
   // is filled once below and again on every navigation callback.
-  val nextMoves = remember { mutableStateListOf<String>() }
+  val nextMoves = remember { mutableStateListOf<Continuation>() }
   val yoursBySan = remember { mutableStateMapOf<String, Boolean>() }
   // SAN path from the explorer's root to the current position, for the moves trail.
   val playedSans = remember { mutableStateListOf<String>() }
@@ -153,7 +154,7 @@ fun ExplorerContent(
     nextMoves.clear()
     yoursBySan.clear()
     nextMoves.addAll(explorer.getNextMoves())
-    refreshYours(nextMoves, myTreeStore, explorer, yoursBySan)
+    refreshYours(nextMoves.map { it.move }, myTreeStore, explorer, yoursBySan)
     playedSans.clear()
     playedSans.addAll(explorer.playedMoves())
   }
@@ -215,7 +216,7 @@ fun ExplorerContent(
         nextMoves.clear()
         yoursBySan.clear()
         nextMoves.addAll(moves)
-        refreshYours(nextMoves, myTreeStore, explorer, yoursBySan)
+        refreshYours(nextMoves.map { it.move }, myTreeStore, explorer, yoursBySan)
       }
       evaluator?.let { eval ->
         coroutineScope.launch { eval.evaluate(explorer.engine.toFen(), explorer.engine.playerTurn) }
@@ -234,9 +235,11 @@ fun ExplorerContent(
         ControlButton.FORWARD.render(it) { coroutineScope.launch { explorer.forward() } }
       },
       nextMoveButtons = {
-        nextMoves.map<String, @Composable (() -> Unit)> {
-          { NextMoveButton(it) { coroutineScope.launch { explorer.playMove(it) } } }
-        }
+        nextMoves
+          .map { it.move }
+          .map<String, @Composable (() -> Unit)> {
+            { NextMoveButton(it) { coroutineScope.launch { explorer.playMove(it) } } }
+          }
       },
       playerTurnIndicator = { PlayerTurnIndicator(explorer) },
       stateIndicators = { if (!readOnly) StateIndicator(it, explorer.state) },
@@ -319,7 +322,8 @@ fun ExplorerContent(
       sideInfo = { sideModifier ->
         ExploreSidebar(
           modifier = sideModifier,
-          nextMoves = nextMoves.toList(),
+          continuations = nextMoves.toList(),
+          showReview = !readOnly,
           onPlayMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
           explorerViewModel = explorerViewModel,
           onPlayLichessMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
@@ -329,7 +333,8 @@ fun ExplorerContent(
       mobileInfo = { infoModifier ->
         ExploreSidebar(
           modifier = infoModifier,
-          nextMoves = nextMoves.toList(),
+          continuations = nextMoves.toList(),
+          showReview = !readOnly,
           onPlayMove = { san -> coroutineScope.launch { explorer.playMove(san) } },
           explorerViewModel = explorerViewModel,
           onPlayLichessMove = { san -> coroutineScope.launch { explorer.playMove(san) } },

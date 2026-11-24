@@ -170,6 +170,9 @@
   <string name="explore_tab_notes">Notes</string>
   <string name="explore_notes_coming_soon">Notes coming soon</string>
   <string name="explore_no_continuations">No continuations stored at this position.</string>
+  <string name="explore_continuation_new">NEW</string>
+  <string name="explore_continuation_due_today">due today</string>
+  <string name="explore_continuation_due_in">due in %1$dd</string>
 
   <!-- Explore: PGN + stat badges + ctrl bar -->
   <string name="explore_pgn">PGN</string>
