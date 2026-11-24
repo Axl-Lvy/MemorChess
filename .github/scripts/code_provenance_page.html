@@ -44,11 +44,11 @@
   :focus-visible { outline: 2px solid var(--copilot); outline-offset: 2px; border-radius: 3px; }
   .icon { width: 1em; height: 1em; fill: currentColor; flex: none; }
 
-  header h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
-  header p { margin: 0; color: var(--muted); max-width: 70ch; }
+  header h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
 
   .strip { display: flex; height: 56px; margin: 28px 0 12px; border-radius: 8px; overflow: hidden; background: var(--line); }
-  .strip > div { display: flex; align-items: center; gap: 8px; padding: 0 12px; color: #fff; min-width: max-content; white-space: nowrap; }
+  .strip > div { display: flex; align-items: center; gap: 8px; color: #fff; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .strip > div:not(:empty) { padding: 0 12px; }
   .strip .icon { width: 22px; height: 22px; }
   .strip strong { font-size: 20px; font-variant-numeric: tabular-nums; }
   .strip span { font-size: 14px; opacity: 0.9; }
@@ -56,14 +56,14 @@
   .copilot-bg { background: var(--copilot); }
   .claude-bg { background: var(--claude); }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0 0 28px; padding: 0; list-style: none; }
   .legend li { display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
   .legend .icon { width: 16px; height: 16px; }
   .human { color: var(--human); }
   .copilot { color: var(--copilot); }
   .claude { color: var(--claude); }
   .legend b { color: var(--ink); font-weight: 600; }
-  .method { font-size: 13px; color: var(--muted); margin: 0 0 28px; max-width: 80ch; }
+  .legend strong { font-weight: 600; }
 
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -78,7 +78,7 @@
   tbody tr:first-child { border-top: 0; }
   tbody tr:hover { background: var(--hover); }
   .name { display: flex; align-items: center; gap: 6px; min-width: 0; text-align: left; }
-  .name span { overflow-wrap: break-word; min-width: 0; }
+  .name span { overflow-wrap: anywhere; min-width: 0; }
   .chev { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--muted); stroke-width: 2; transition: transform 120ms ease; }
   [aria-expanded="true"] .chev { transform: rotate(90deg); }
   .dir { font-weight: 600; }
@@ -111,7 +111,7 @@
     main { padding-top: 24px; }
     header h1 { font-size: 24px; }
     .strip { height: 44px; }
-    .strip > div { padding: 0 10px; }
+    .strip > div:not(:empty) { padding: 0 10px; }
     .strip span { display: none; }
     .strip strong { font-size: 16px; }
     th, td { padding: 7px 8px; }
@@ -126,11 +126,9 @@
 <main>
   <header>
     <h1>Who wrote MemorChess?</h1>
-    <p id="summary"></p>
   </header>
   <div class="strip" id="strip"></div>
   <ul class="legend" id="legend"></ul>
-  <p class="method">Each line counts for the commit that last changed it. Commits before 9 Aug 2025 count as written by hand, commits until 6 Mar 2026 as written with Copilot, and later commits as written with Claude. Blank lines and comments are not counted.</p>
   <section class="panel" id="tree-view" aria-label="Folders and files">
     <table>
       <thead><tr id="head"></tr></thead>
@@ -188,9 +186,11 @@ function chevron() {
   return svg;
 }
 
+const filesByPath = new Map();
 function prepare(node) {
   node.total = ERAS.reduce((sum, era) => sum + node.counts[era.key], 0);
   node.share = Object.fromEntries(ERAS.map((era) => [era.key, node.total ? node.counts[era.key] / node.total : 0]));
+  if (node.file) filesByPath.set(node.path, node);
   (node.children || []).forEach(prepare);
 }
 
@@ -216,14 +216,15 @@ function bar(node) {
 
 function renderSummary() {
   const root = DATA.tree;
-  const day = new Date(`${DATA.generated}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-  $("summary").textContent = `${fmt.format(root.total)} lines of code, as of ${day}. Open a folder to see its share, or a file to see each line.`;
+  // Only a wide segment holds a label, so every segment keeps its true proportion.
   $("strip").replaceChildren(...ERAS.filter((era) => root.counts[era.key]).map((era) =>
-    el("div", { class: `${era.key}-bg`, style: `flex:${root.counts[era.key]} 1 0`, title: `${era.label}: ${pctText(root, era.key)}` },
-      icon(era.key), el("strong", { text: pctText(root, era.key) }),
-      root.share[era.key] >= 0.25 ? el("span", { text: era.label }) : null)));
+    el("div", { class: `${era.key}-bg`, style: `flex:${root.counts[era.key]} 0 0`, title: `${era.label}: ${pctText(root, era.key)}` },
+      ...(root.share[era.key] >= 0.25
+        ? [icon(era.key), el("strong", { text: pctText(root, era.key) }), el("span", { text: era.label })]
+        : []))));
   $("legend").replaceChildren(...ERAS.map((era) =>
     el("li", { class: era.key }, icon(era.key), el("b", { text: era.label }),
+      el("strong", { text: pctText(root, era.key) }),
       el("span", { text: `${fmt.format(root.counts[era.key])} lines` }))));
 }
 
@@ -264,7 +265,7 @@ function renderRows() {
 function row(node, depth) {
   const isDir = !!node.children;
   const open = isDir && state.open.has(node.path);
-  const label = el("span", { text: node.name });
+  const label = el("span", {}, ...node.name.split("/").flatMap((part, i) => (i ? ["/", el("wbr"), part] : [part])));
   const name = isDir
     ? el("button", { type: "button", class: "name dir", "aria-expanded": String(open), onclick: () => toggle(node.path) }, chevron(), label)
     : el("button", { type: "button", class: "name file", onclick: () => openFile(node.path) }, el("span", { class: "dot" }), label);
@@ -288,21 +289,12 @@ function openFile(path) {
   location.hash = `file=${encodeURIComponent(path)}`;
 }
 
-function findFile(path) {
-  let node = DATA.tree;
-  for (const part of path.split("/")) {
-    node = (node.children || []).find((child) => child.name === part);
-    if (!node) return null;
-  }
-  return node.file ? node : null;
-}
-
 let loadToken = 0;
 
 async function showFile(path) {
   const token = ++loadToken;
   const view = $("file-view");
-  const node = findFile(path);
+  const node = filesByPath.get(path);
   $("tree-view").hidden = true;
   view.hidden = false;
   const crumbs = el("div", { class: "crumbs" },

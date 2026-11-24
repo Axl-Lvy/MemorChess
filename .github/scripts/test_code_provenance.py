@@ -165,6 +165,44 @@ class ReportTest(unittest.TestCase):
                                           "counts": {"human": 0, "copilot": 0, "claude": 1},
                                           "pct": {"human": 0, "copilot": 0, "claude": 100}}])
 
+    def test_build_tree_compacts_single_folder_chains(self):
+        files = [
+            FileReport("a/b/c/x.kt", [Line(1, "x", Era.HUMAN)]),
+            FileReport("a/b/c/d/y.kt", [Line(1, "y", Era.CLAUDE)]),
+        ]
+
+        tree = build_tree(files)
+
+        abc = tree["children"][0]
+        self.assertEqual((abc["name"], abc["path"]), ("a/b/c", "a/b/c"))
+        self.assertEqual(abc["counts"], {"human": 1, "copilot": 0, "claude": 1})
+        self.assertEqual([(c["name"], c["path"]) for c in abc["children"]], [("x.kt", "a/b/c/x.kt"), ("d", "a/b/c/d")])
+
+    def test_build_tree_compacts_chains_below_a_branching_folder(self):
+        files = [
+            FileReport("a/x.kt", [Line(1, "x", Era.HUMAN)]),
+            FileReport("a/b/c/y.kt", [Line(1, "y", Era.CLAUDE)]),
+        ]
+
+        tree = build_tree(files)
+
+        a = tree["children"][0]
+        self.assertEqual(a["name"], "a")
+        self.assertEqual([(c["name"], c["path"]) for c in a["children"]], [("x.kt", "a/x.kt"), ("b/c", "a/b/c")])
+
+    def test_build_tree_keeps_a_folder_holding_a_single_file(self):
+        tree = build_tree([FileReport("a/x.kt", [Line(1, "x", Era.HUMAN)])])
+
+        a = tree["children"][0]
+        self.assertEqual(a["name"], "a")
+        self.assertEqual([c["name"] for c in a["children"]], ["x.kt"])
+
+    def test_build_tree_keeps_the_root(self):
+        tree = build_tree([FileReport("a/b/x.kt", [Line(1, "x", Era.HUMAN)])])
+
+        self.assertEqual(tree["name"], "MemorChess")
+        self.assertEqual(tree["children"][0]["name"], "a/b")
+
     def test_render_badge(self):
         svg = render_badge({Era.HUMAN: 7, Era.COPILOT: 2, Era.CLAUDE: 91})
 
@@ -189,7 +227,7 @@ class ReportTest(unittest.TestCase):
             page = (out / "index.html").read_text()
             self.assertNotIn("/*PROVENANCE_DATA*/", page)
             data = json.loads(page.removeprefix("<script>const DATA = ").removesuffix(";</script>"))
-            self.assertEqual(set(data), {"tree", "icons", "generated"})
+            self.assertEqual(set(data), {"tree", "icons"})
             self.assertEqual(set(data["icons"]), {"human", "copilot", "claude"})
             y = data["tree"]["children"][0]["children"][1]["children"][0]
             rows = json.loads((out / "files" / f"{y['id']}.json").read_text())
