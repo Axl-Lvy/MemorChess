@@ -63,6 +63,11 @@
       "allowedVersions": "!/compat/"
     },
     {
+      "description": "Direct androidx.compose ui and runtime artifacts must match the androidx.compose version that Compose Multiplatform 1.12.x resolves to on Android (1.12.1). 1.13.0 pulls androidx.compose.ui 1.13.0, which requires compileSdk 37.1. Raise this bound together with the Compose Multiplatform bump.",
+      "matchPackageNames": ["androidx.compose.ui:*", "androidx.compose.runtime:*"],
+      "allowedVersions": "<1.13.0"
+    },
+    {
       "description": "Gradle 9.7.x exhausts the daemon heap while storing the configuration cache entry for the Kotlin/Wasm browser tasks (KotlinWebpack, KotlinJsTest), so :composeApp:wasmJsBrowserDevelopmentRun and :composeApp:wasmJsTest die with \"Java heap space\" before any task runs. The entry is discarded anyway (those tasks are not configuration-cache compatible); 9.6.1 stores and discards it in ~25s.",
       "matchManagers": ["gradle-wrapper"],
       "allowedVersions": "<9.7.0"

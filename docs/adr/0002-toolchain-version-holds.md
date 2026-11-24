@@ -15,6 +15,12 @@ The Gradle wrapper hold still stands: Gradle 9.8.2 was re-checked on
 2026-10-25 and still exhausts the daemon heap on the same
 configuration cache entry.
 
+Amended, 2026-11-24: the direct `androidx.compose.ui` and
+`androidx.compose.runtime` artifacts are held below 1.13.0. Compose
+Multiplatform 1.12.2 resolves to `androidx.compose` 1.12.1, and 1.13.0
+requires `compileSdk` 37.1 (PR #431). Raise this bound together with
+the Compose Multiplatform bump.
+
 ## Context
 
 Five dependency lines are pinned below their latest release. They are
