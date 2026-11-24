@@ -1,16 +1,25 @@
 package proj.memorchess.axl.core.interaction
 
+import io.kotest.matchers.doubles.plusOrMinus
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import kotlin.test.*
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.InstalledMove
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.interactions.LinesExplorer
+import proj.memorchess.axl.core.scheduling.CardPhase
+import proj.memorchess.axl.core.scheduling.CardStateFactory
 import proj.memorchess.axl.test_util.TestWithKoin
 
 class TestLinesExplorer : TestWithKoin() {
@@ -349,6 +358,87 @@ class TestLinesExplorer : TestWithKoin() {
 
   // --- Move holders -------------------------------------------------------------------------
 
+  @Test
+  fun aGoodMoveCarriesTheCurrentPositionCard() = test {
+    interactionsManager.playMove("e4")
+    interactionsManager.save()
+    interactionsManager.back()
+    val now = DateUtil.now()
+    val card =
+      CardStateFactory.new(now)
+        .copy(lastReview = now - 1.days, stability = 3.0, dueDate = now + 2.days)
+    treeStore.updateCardState(PositionKey.START_POSITION, card)
+
+    val review = interactionsManager.getNextMoves().single().review.shouldNotBeNull()
+
+    review.dueDate shouldBe card.dueDate
+    review.recall.shouldNotBeNull()
+  }
+
+  @Test
+  fun anOpponentMoveCarriesTheDestinationCard() = test {
+    interactionsManager.playMove("e4")
+    interactionsManager.playMove("e5")
+    interactionsManager.playMove("Nf3")
+    interactionsManager.save()
+    interactionsManager.back()
+    interactionsManager.back()
+    val now = DateUtil.now()
+    val card = CardStateFactory.new(now).copy(dueDate = now + 5.days)
+    treeStore.updateCardState(keyAfter("e4", "e5"), card)
+
+    val e5 = interactionsManager.getNextMoves().single { it.move == "e5" }
+
+    e5.review.shouldNotBeNull().dueDate shouldBe card.dueDate
+  }
+
+  @Test
+  fun aMoveIntoAPositionWithoutGoodMovesHasNoReview() = test {
+    treeStore.addMove(
+      from = PositionKey.START_POSITION,
+      move = "d4",
+      to = keyAfter("d4"),
+      isGood = false,
+      fromDepth = 0,
+    )
+
+    val d4 = interactionsManager.getNextMoves().single { it.move == "d4" }
+
+    d4.review.shouldBeNull()
+  }
+
+  @Test
+  fun aNeverReviewedCardHasADueDateButNoRecall() = test {
+    interactionsManager.playMove("e4")
+    interactionsManager.save()
+    interactionsManager.back()
+
+    val review = interactionsManager.getNextMoves().single().review.shouldNotBeNull()
+
+    review.recall.shouldBeNull()
+  }
+
+  @Test
+  fun aCardInALearningStepIsDueNowWithFullRecall() = test {
+    interactionsManager.playMove("e4")
+    interactionsManager.save()
+    interactionsManager.back()
+    val now = DateUtil.now()
+    val card =
+      CardStateFactory.new(now)
+        .copy(
+          lastReview = now,
+          stability = 0.5,
+          dueDate = now + 10.minutes,
+          phase = CardPhase.LEARNING,
+        )
+    treeStore.updateCardState(PositionKey.START_POSITION, card)
+
+    val review = interactionsManager.getNextMoves().single().review.shouldNotBeNull()
+
+    review.recall.shouldNotBeNull().value shouldBe (1.0 plusOrMinus 1e-3)
+  }
+
   private fun keyAfter(vararg sans: String): PositionKey =
     GameEngine().apply { sans.forEach { playSanMove(it) } }.toPositionKey()
 
@@ -489,7 +579,7 @@ class TestLinesExplorer : TestWithKoin() {
       LinesExplorer(treeStore = treeStore, tagStore = tagStore, repertoireScope = "italian-game")
     explorer.initState()
 
-    assertEquals(emptyList(), explorer.getNextMoves())
+    assertEquals(emptyList(), explorer.getNextMoves().map { it.move })
   }
 
   @Test
@@ -565,6 +655,6 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.back() // save() left navigation at the destination; getNextMoves() below
     // must read the origin's own outgoing moves.
 
-    assertEquals(listOf("e4"), interactionsManager.getNextMoves())
+    assertEquals(listOf("e4"), interactionsManager.getNextMoves().map { it.move })
   }
 }

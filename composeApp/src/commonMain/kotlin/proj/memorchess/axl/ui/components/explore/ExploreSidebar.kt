@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,8 +32,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import kotlinx.datetime.TimeZone
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
+import memorchess.composeapp.generated.resources.explore_continuation_due_in
+import memorchess.composeapp.generated.resources.explore_continuation_due_today
+import memorchess.composeapp.generated.resources.explore_continuation_new
 import memorchess.composeapp.generated.resources.explore_no_continuations
 import memorchess.composeapp.generated.resources.explore_notes_coming_soon
 import memorchess.composeapp.generated.resources.explore_prune_marked
@@ -40,6 +47,9 @@ import memorchess.composeapp.generated.resources.explore_tab_notes
 import memorchess.composeapp.generated.resources.repertoire_view_yours
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
+import proj.memorchess.axl.core.date.DateUtil
+import proj.memorchess.axl.core.interactions.Continuation
+import proj.memorchess.axl.core.interactions.ContinuationReview
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -60,29 +70,32 @@ enum class ExploreInfoTab {
  * Three tabs:
  * - **Continuations** — saved next moves at the current position, wrapped in a [FlowRow] of 12.dp
  *   mono SAN pills with a 1.5.dp stroke, so they reflow without a hard column count. Behaves well
- *   on a 280.dp landscape strip and on a 420.dp desktop column alike.
+ *   on a 280.dp landscape strip and on a 420.dp desktop column alike. Each pill can carry a recall
+ *   bar and due label.
  * - **Lichess** — embedded [LichessExplorerPanel] driven by [explorerViewModel].
  * - **Notes** — placeholder for future personal annotations.
  *
- * @param nextMoves List of SAN continuations available at the current position.
- * @param onPlayMove Invoked when the user taps one of the continuation chips.
+ * @param continuations Stored moves at the current position, with their review state.
+ * @param onPlayMove Invoked with the SAN when the user taps one of the continuation chips.
  * @param explorerViewModel View model driving the Lichess opening explorer tab.
  * @param onPlayLichessMove Invoked when the user taps a Lichess move.
  * @param isMine Returns whether a SAN continuation is already a classified good move in the
  *   viewer's own repertoire. Matching continuations are tagged YOURS. Null disables the tagging.
  * @param markedForPruning Whether the continuations belong to a branch selected for pruning, which
  *   paints them in the destructive pink.
+ * @param showReview Whether chips show the recall bar and due label.
  * @param modifier Outer modifier (caller sets the panel size).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExploreSidebar(
-  nextMoves: List<String>,
+  continuations: List<Continuation>,
   onPlayMove: (String) -> Unit,
   explorerViewModel: ExplorerViewModel,
   onPlayLichessMove: (String) -> Unit,
   isMine: ((String) -> Boolean)? = null,
   markedForPruning: Boolean = false,
+  showReview: Boolean = true,
   modifier: Modifier = Modifier,
 ) {
   val palette = LocalKineticPalette.current
@@ -120,10 +133,11 @@ fun ExploreSidebar(
     when (selected) {
       ExploreInfoTab.CONTINUATIONS ->
         ContinuationsContent(
-          nextMoves = nextMoves,
+          continuations = continuations,
           onPlay = onPlayMove,
           isMine = isMine,
           markedForPruning = markedForPruning,
+          showReview = showReview,
         )
       ExploreInfoTab.LICHESS ->
         LichessExplorerPanel(
@@ -152,10 +166,11 @@ fun ExploreSidebar(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ContinuationsContent(
-  nextMoves: List<String>,
+  continuations: List<Continuation>,
   onPlay: (String) -> Unit,
   isMine: ((String) -> Boolean)?,
   markedForPruning: Boolean,
+  showReview: Boolean,
 ) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
@@ -167,7 +182,7 @@ private fun ContinuationsContent(
   val pruningSemantics =
     if (markedForPruning) Modifier.semantics { stateDescription = prunedState } else Modifier
 
-  if (nextMoves.isEmpty()) {
+  if (continuations.isEmpty()) {
     Box(
       modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
       contentAlignment = Alignment.Center,
@@ -185,7 +200,8 @@ private fun ContinuationsContent(
     horizontalArrangement = Arrangement.spacedBy(8.dp),
     verticalArrangement = Arrangement.spacedBy(8.dp),
   ) {
-    nextMoves.forEach { san ->
+    continuations.forEach { continuation ->
+      val san = continuation.move
       // The clip must precede `clickable`: the indication's state layer paints the node's square
       // bounds, so without it the ripple squares off the 12.dp corners. Keeping `clickable` and
       // `testTag` adjacent keeps the click and the tag on one semantics node, which the board and
@@ -201,29 +217,65 @@ private fun ContinuationsContent(
             .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
       ) {
-        if (isMine?.invoke(san) == true) {
-          Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-          ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          if (isMine?.invoke(san) == true) {
+            Row(
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(text = san, style = typography.mono.copy(color = sanColor))
+              Text(
+                text = stringResource(Res.string.repertoire_view_yours),
+                style =
+                  typography.labelSm.copy(
+                    fontSize = 7.5.sp,
+                    letterSpacing = 0.08.em,
+                    color = palette.onProgress,
+                  ),
+                modifier =
+                  Modifier.background(palette.progress, RoundedCornerShape(7.dp))
+                    .padding(horizontal = 5.dp, vertical = 2.dp),
+              )
+            }
+          } else {
             Text(text = san, style = typography.mono.copy(color = sanColor))
-            Text(
-              text = stringResource(Res.string.repertoire_view_yours),
-              style =
-                typography.labelSm.copy(
-                  fontSize = 7.5.sp,
-                  letterSpacing = 0.08.em,
-                  color = palette.onProgress,
-                ),
-              modifier =
-                Modifier.background(palette.progress, RoundedCornerShape(7.dp))
-                  .padding(horizontal = 5.dp, vertical = 2.dp),
-            )
           }
-        } else {
-          Text(text = san, style = typography.mono.copy(color = sanColor))
+          val review = continuation.review
+          if (showReview && review != null) ContinuationReviewLine(review)
         }
       }
+    }
+  }
+}
+
+/** Recall bar with percentage and due label, or a NEW label for a never reviewed card. */
+@Composable
+private fun ContinuationReviewLine(review: ContinuationReview) {
+  val palette = LocalKineticPalette.current
+  val typography = LocalKineticTypography.current
+  val labelStyle = typography.labelSm.copy(fontSize = 9.sp, color = palette.ink3)
+  val recall = review.recall
+  if (recall == null) {
+    Text(text = stringResource(Res.string.explore_continuation_new), style = labelStyle)
+    return
+  }
+  val days = review.daysUntilDue(DateUtil.today(), TimeZone.currentSystemDefault())
+  val dueLabel =
+    if (days == 0) stringResource(Res.string.explore_continuation_due_today)
+    else stringResource(Res.string.explore_continuation_due_in, days)
+  Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    val barShape = RoundedCornerShape(2.dp)
+    Box(modifier = Modifier.width(56.dp).height(4.dp).clip(barShape).background(palette.line)) {
+      Box(
+        modifier =
+          Modifier.fillMaxHeight()
+            .fillMaxWidth(recall.value.toFloat())
+            .background(palette.progress, barShape)
+      )
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+      Text(text = "${recall.toPercent()}%", style = labelStyle)
+      Text(text = dueLabel, style = labelStyle)
     }
   }
 }
