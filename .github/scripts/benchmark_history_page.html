@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MemorChess benchmarks</title>
+<meta name="description" content="History of the MemorChess JVM and Android benchmarks on master, normalized for CI runner speed.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1f2328;
+    --muted: #59636e;
+    --line: #d8dee4;
+    --hover: #eef1f4;
+    --accent: #4f7df3;
+    --good: #1a7f37;
+    --bad: #cf222e;
+    --selected: #e8effe;
+    --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171c;
+      --surface: #1c1f26;
+      --ink: #e6e8eb;
+      --muted: #9aa4af;
+      --line: #2e333c;
+      --hover: #252932;
+      --accent: #6d93f7;
+      --good: #3fb862;
+      --bad: #f47067;
+      --selected: #23304d;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 16px 64px; }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  code, .mono { font-family: var(--mono); font-size: 0.92em; }
+
+  header h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  header p { margin: 8px 0 0; color: var(--muted); max-width: 760px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 24px 0 16px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { padding: 5px 12px; font-size: 13.5px; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .hint { font-size: 13px; color: var(--muted); }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .message { padding: 24px 16px; color: var(--muted); }
+
+  .focus { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 14px; align-items: start; }
+  .list { max-height: 560px; overflow: auto; padding: 4px 0; }
+  .group { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 10px 12px 4px; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 0 10px; width: 100%; padding: 6px 12px; text-align: left; border-top: 1px solid var(--line); }
+  .row:hover { background: var(--hover); }
+  .row[aria-current="true"] { background: var(--selected); }
+  .row .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .cls { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row svg { grid-row: span 2; align-self: center; }
+  .row.retired { opacity: 0.55; }
+  .chg { font-weight: 600; margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .good { color: var(--good); }
+  .bad { color: var(--bad); }
+  .flat, .unknown { color: var(--muted); font-weight: 400; }
+
+  .detail { padding: 14px 16px 16px; min-width: 0; }
+  .detail h2 { font-size: 17px; margin: 0; overflow-wrap: anywhere; }
+  .detail .dir { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .detail .summary { font-size: 13.5px; color: var(--muted); margin: 2px 0 10px; font-variant-numeric: tabular-nums; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; overflow: visible; touch-action: none; user-select: none; }
+  .axis { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .grid { stroke: var(--line); }
+  .boundary { stroke: var(--muted); stroke-opacity: 0.35; stroke-dasharray: 3 3; }
+  .boundary-hit { stroke: transparent; stroke-width: 10; cursor: pointer; }
+  .band { fill: var(--accent); fill-opacity: 0.14; }
+  .median { stroke: var(--accent); stroke-width: 2.5; }
+  .run { fill: var(--ink); fill-opacity: 0.6; }
+  .err { stroke: var(--muted); stroke-opacity: 0.45; }
+  .ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+  .tip { position: absolute; z-index: 2; pointer-events: none; max-width: 300px; padding: 7px 9px; border-radius: 7px; background: var(--ink); color: var(--surface); font-size: 12.5px; line-height: 1.45; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+  .tip .soft { opacity: 0.72; }
+  .recent { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; }
+  .recent li { border-top: 1px solid var(--line); }
+  .recent button { display: flex; gap: 10px; width: 100%; padding: 6px 2px; text-align: left; }
+  .recent button:hover { background: var(--hover); }
+  .recent .when { color: var(--muted); white-space: nowrap; }
+  .recent .subj { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer { margin-top: 24px; font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    main { padding-top: 24px; }
+    header h1 { font-size: 24px; }
+    .focus { grid-template-columns: minmax(0, 1fr); }
+    .list { max-height: 300px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>MemorChess benchmarks</h1>
+    <p>Every daily benchmark run on master. JVM numbers are normalized for CI runner speed by default, because GitHub runners vary by up to 2× between runs; switch to Raw to see the measured values.</p>
+  </header>
+  <div class="toolbar">
+    <div class="seg" role="group" aria-label="Value mode">
+      <button type="button" data-mode="normalized" aria-pressed="true">Normalized for runner speed</button>
+      <button type="button" data-mode="raw" aria-pressed="false">Raw</button>
+    </div>
+    <span class="hint" id="generated"></span>
+  </div>
+  <section class="panel" id="overview" aria-label="Overview" hidden></section>
+  <div class="focus" id="focus" hidden>
+    <nav class="panel list" id="list" aria-label="Metrics"></nav>
+    <section class="panel detail" id="detail" aria-live="polite"></section>
+  </div>
+  <section class="panel message" id="status">Loading benchmark history…</section>
+  <footer>Data from the <a href="https://github.com/Axl-Lvy/MemorChess/tree/benchmark-data">benchmark-data branch</a> of <a href="https://github.com/Axl-Lvy/MemorChess">github.com/Axl-Lvy/MemorChess</a>. See also the <a href="../">code provenance report</a>.</footer>
+</main>
+<script>
+const DATA_URL = 'https://raw.githubusercontent.com/Axl-Lvy/MemorChess/benchmark-data/history.json';
+const REPO = 'https://github.com/Axl-Lvy/MemorChess';
+const DATA_BRANCH = REPO + '/tree/benchmark-data';
+const NS = 'http://www.w3.org/2000/svg';
+const DAY = 864e5;
+
+let model = null;
+const state = { key: null, raw: false };
+
+function median(values) {
+  const s = [...values].sort((a, b) => a - b), n = s.length;
+  if (!n) return null;
+  return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+}
+
+function esc(text) {
+  return String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+const isMicro = key => key.startsWith('micro/');
+
+function prepare(history) {
+  const runs = history.runs
+    .map(r => ({ ...r, t: Date.parse(r.date) }))
+    .filter(r => Number.isFinite(r.t))
+    .sort((a, b) => a.t - b.t);
+  const metrics = history.metrics || {};
+  const keys = Object.keys(metrics).sort((a, b) => (isMicro(b) - isMicro(a)) || a.localeCompare(b));
+  const newest = runs[runs.length - 1];
+  const liveKeys = keys.filter(k => newest && k in newest.values);
+  const retiredKeys = keys.filter(k => !liveKeys.includes(k));
+  const microKeys = keys.filter(isMicro);
+  const typical = {};
+  for (const k of microKeys) typical[k] = median(runs.filter(r => r.values[k]?.[0] > 0).map(r => r.values[k][0]));
+  for (const r of runs) {
+    const logs = microKeys
+      .filter(k => r.values[k]?.[0] > 0 && typical[k] > 0)
+      .map(k => Math.log(metrics[k].direction === 'higher' ? r.values[k][0] / typical[k] : typical[k] / r.values[k][0]));
+    r.speed = logs.length ? Math.exp(median(logs)) : 1;
+  }
+  return { runs, metrics, commits: history.commits || {}, keys, liveKeys, retiredKeys, generated: history.generated };
+}
+
+function series(m, key, normalized) {
+  const higher = m.metrics[key].direction === 'higher';
+  const segments = [];
+  for (const run of m.runs) {
+    const v = run.values[key];
+    if (!v) continue;
+    const f = normalized && isMicro(key) ? run.speed : 1;
+    const scale = x => (x == null ? null : higher ? x / f : x * f);
+    let seg = segments[segments.length - 1];
+    if (!seg || seg.commit !== run.commit) {
+      seg = { commit: run.commit, pts: [] };
+      segments.push(seg);
+    }
+    seg.pts.push({ t: run.t, v: scale(v[0]), e: scale(v[1]), run });
+  }
+  for (const s of segments) {
+    const vs = s.pts.map(p => p.v);
+    s.med = median(vs);
+    s.min = Math.min(...vs);
+    s.max = Math.max(...vs);
+    s.t0 = s.pts[0].t;
+    s.t1 = s.pts[s.pts.length - 1].t;
+  }
+  return segments;
+}
+
+function noise(segments) {
+  const spreads = segments.filter(s => s.pts.length >= 2 && s.med).map(s => (s.max - s.min) / Math.abs(s.med));
+  return spreads.length ? median(spreads) / 2 : null;
+}
+
+function latestChange(segments) {
+  if (segments.length < 2) return null;
+  const prev = segments[segments.length - 2].med, last = segments[segments.length - 1].med;
+  return prev ? (last - prev) / Math.abs(prev) : null;
+}
+
+function changeClass(delta, noiseLevel, direction) {
+  if (noiseLevel == null) return 'unknown';
+  if (Math.abs(delta) <= noiseLevel) return 'flat';
+  return (direction === 'higher' ? delta > 0 : delta < 0) ? 'good' : 'bad';
+}
+
+function changeHtml(key, segments) {
+  const delta = latestChange(segments);
+  if (delta == null) return '<span class="chg flat">–</span>';
+  const cls = changeClass(delta, noise(segments), model.metrics[key].direction);
+  const title = cls === 'unknown' ? ' title="noise unknown"' : '';
+  return `<span class="chg ${cls}"${title}>${delta > 0 ? '+' : ''}${(delta * 100).toFixed(1)}%</span>`;
+}
+
+function label(key) {
+  const [src, bench, metric] = key.split('/');
+  const [cls, method] = bench.split('.');
+  const shortCls = cls.replace(/Benchmark$/, '');
+  if (src === 'micro') return { cls: shortCls, name: method };
+  const name = (metric || '').replace(/_median$/, '').replace(/_P(\d+)$/, ' P$1').replace('%BoardGrid%', 'BoardGrid ');
+  return { cls: `${shortCls}.${method}`, name };
+}
+
+function fmt(v) {
+  if (v == null || !Number.isFinite(v)) return '–';
+  const a = Math.abs(v);
+  if (a >= 1000) return Math.round(v).toLocaleString('en');
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  return v.toFixed(2);
+}
+
+function day(t, withYear) {
+  return new Date(t).toLocaleDateString('en', { month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
+}
+
+const short = sha => sha.slice(0, 7);
+const subjectOf = sha => model.commits[sha]?.subject || '';
+const commitUrl = sha => `${REPO}/commit/${sha}`;
+
+function el(tag, attrs, parent) {
+  const node = document.createElementNS(NS, tag);
+  for (const name in attrs) node.setAttribute(name, attrs[name]);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+
+function fullRange() {
+  const runs = model.runs;
+  const from = runs[0].t, to = runs[runs.length - 1].t;
+  const margin = Math.max((to - from) * 0.015, DAY / 2);
+  return { from: from - margin, to: to + margin };
+}
+
+function yRange(values) {
+  let lo = Math.min(...values), hi = Math.max(...values);
+  if (!Number.isFinite(lo)) return { lo: 0, hi: 1 };
+  const pad = hi > lo ? (hi - lo) * 0.08 : Math.abs(hi) * 0.05 || 1;
+  return { lo: lo - pad, hi: hi + pad };
+}
+
+function timeTicks(win) {
+  const span = win.to - win.from;
+  const step = [1, 2, 7, 14, 30, 61, 91, 182, 365].map(d => d * DAY).find(s => span / s <= 7) || 730 * DAY;
+  const ticks = [];
+  for (let t = Math.ceil(win.from / step) * step; t <= win.to; t += step) ticks.push(t);
+  return ticks;
+}
+
+function sparkline(key) {
+  const segments = series(model, key, !state.raw);
+  const w = 64, h = 28, win = fullRange();
+  const svg = el('svg', { width: w, height: h, viewBox: `0 0 ${w} ${h}`, 'aria-hidden': 'true' });
+  const { lo, hi } = yRange(segments.flatMap(s => s.pts.map(p => p.v)));
+  const X = t => 2 + (t - win.from) / (win.to - win.from) * (w - 4);
+  const Y = v => 2 + (1 - (v - lo) / (hi - lo)) * (h - 4);
+  for (const s of segments) {
+    el('line', { x1: X(s.t0) - 1, x2: X(s.t1) + 1, y1: Y(s.med), y2: Y(s.med), stroke: 'var(--accent)', 'stroke-width': 1.6 }, svg);
+    for (const p of s.pts) el('circle', { cx: X(p.t), cy: Y(p.v), r: 1.1, class: 'run' }, svg);
+  }
+  return svg;
+}
+
+function renderList() {
+  const list = document.getElementById('list');
+  list.textContent = '';
+  const groups = [
+    ['JVM core', model.liveKeys.filter(isMicro), false],
+    ['Android UI', model.liveKeys.filter(k => !isMicro(k)), false],
+    ['Retired', model.retiredKeys, true],
+  ];
+  for (const [title, keys, retired] of groups) {
+    if (!keys.length) continue;
+    list.insertAdjacentHTML('beforeend', `<div class="group">${title}</div>`);
+    for (const key of keys) {
+      const l = label(key);
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'row' + (retired ? ' retired' : '');
+      row.dataset.key = key;
+      row.setAttribute('aria-current', String(key === state.key));
+      const change = retired ? '' : changeHtml(key, series(model, key, !state.raw));
+      row.innerHTML = `<span class="nm">${esc(l.name)}</span>`;
+      row.appendChild(sparkline(key));
+      row.insertAdjacentHTML('beforeend', `<span class="cls">${esc(l.cls)}${change}</span>`);
+      row.addEventListener('click', () => select(key));
+      list.appendChild(row);
+    }
+  }
+}
+
+function tooltipHtml(key, point) {
+  const unit = model.metrics[key].unit;
+  const run = point.run;
+  const cpu = (isMicro(key) ? run.cpu?.micro : run.cpu?.macro) || 'unknown';
+  const segRuns = point.seg.pts.length;
+  const speed = isMicro(key) ? `<br><span class="soft">runner speed ×${run.speed.toFixed(2)}${state.raw ? '' : ' (divided out)'}</span>` : '';
+  return `<b>${fmt(point.v)} ${esc(unit)}</b>${point.e != null ? ' ± ' + fmt(point.e) : ''}<br>`
+    + `${day(point.t, true)} · <span class="mono">${short(run.commit)}</span><br>`
+    + `${esc(subjectOf(run.commit))}<br>`
+    + `<span class="soft">commit median ${fmt(point.seg.med)}, ${segRuns} run${segRuns === 1 ? '' : 's'}</span>`
+    + speed
+    + `<br><span class="soft">CPU: ${esc(cpu)}</span>`;
+}
+
+function drawFocus(key, win) {
+  const detail = document.getElementById('detail');
+  const l = label(key);
+  const meta = model.metrics[key];
+  const segments = series(model, key, !state.raw);
+  const noiseLevel = noise(segments);
+  const last = segments[segments.length - 1];
+  const retired = model.retiredKeys.includes(key);
+  detail.innerHTML = `<h2>${esc(l.cls)} · ${esc(l.name)}<span class="dir">${meta.direction === 'higher' ? 'higher is better' : 'lower is better'}${retired ? ' · retired' : ''}</span></h2>`
+    + `<div class="summary">latest commit median <b>${fmt(last?.med)} ${esc(meta.unit)}</b>${retired ? '' : changeHtml(key, segments)} vs previous commit · `
+    + `${noiseLevel == null ? 'noise unknown' : `run-to-run noise ±${(noiseLevel * 100).toFixed(1)}%`}</div>`
+    + `<div class="chart"></div><ul class="recent"></ul>`;
+  const host = detail.querySelector('.chart');
+  const w = Math.max(host.clientWidth || 640, 280), h = w < 500 ? 240 : 300;
+  const pad = { l: 52, r: 10, t: 8, b: 22 };
+  const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, height: h, role: 'img', 'aria-label': `${l.name} over time` }, host);
+  const inView = segments.flatMap(s => s.pts.filter(p => p.t >= win.from && p.t <= win.to));
+  const { lo, hi } = yRange(inView.length ? inView.map(p => p.v) : segments.flatMap(s => s.pts.map(p => p.v)));
+  const X = t => pad.l + (t - win.from) / (win.to - win.from) * (w - pad.l - pad.r);
+  const Y = v => pad.t + (1 - (v - lo) / (hi - lo)) * (h - pad.t - pad.b);
+  const clipId = 'clip-focus';
+  el('rect', { x: pad.l, y: 0, width: w - pad.l - pad.r, height: h, }, el('clipPath', { id: clipId }, el('defs', {}, svg)));
+
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + (hi - lo) * i / 4;
+    el('line', { x1: pad.l, x2: w - pad.r, y1: Y(v), y2: Y(v), class: 'grid' }, svg);
+    el('text', { x: pad.l - 6, y: Y(v) + 4, 'text-anchor': 'end', class: 'axis' }, svg).textContent = fmt(v);
+  }
+  const ticks = timeTicks(win);
+  const withYear = win.to - win.from > 300 * DAY;
+  for (const t of ticks) el('text', { x: X(t), y: h - 5, 'text-anchor': 'middle', class: 'axis' }, svg).textContent = day(t, withYear);
+
+  const plot = el('g', { 'clip-path': `url(#${clipId})` }, svg);
+  const points = [];
+  segments.forEach((s, i) => {
+    const xa = X(s.t0) - 3, xb = Math.max(X(s.t1) + 3, xa + 6);
+    el('rect', { x: xa, width: xb - xa, y: Y(s.max), height: Math.max(Y(s.min) - Y(s.max), 1), rx: 2, class: 'band' }, plot);
+    el('line', { x1: xa, x2: xb, y1: Y(s.med), y2: Y(s.med), class: 'median' }, plot);
+    for (const p of s.pts) {
+      if (p.e != null) el('line', { x1: X(p.t), x2: X(p.t), y1: Y(p.v - p.e), y2: Y(p.v + p.e), class: 'err' }, plot);
+      el('circle', { cx: X(p.t), cy: Y(p.v), r: 2.8, class: 'run' }, plot);
+      points.push({ ...p, seg: s, x: X(p.t), y: Y(p.v) });
+    }
+  });
+  const overlay = el('rect', { x: pad.l, y: pad.t, width: w - pad.l - pad.r, height: h - pad.t - pad.b, fill: 'transparent' }, svg);
+  segments.forEach((s, i) => {
+    if (i === 0) return;
+    const x = (X(segments[i - 1].t1) + X(s.t0)) / 2;
+    if (x < pad.l || x > w - pad.r) return;
+    el('line', { x1: x, x2: x, y1: pad.t, y2: h - pad.b, class: 'boundary' }, svg);
+    const hit = el('line', { x1: x, x2: x, y1: pad.t, y2: h - pad.b, class: 'boundary-hit' }, svg);
+    el('title', {}, hit).textContent = `${short(s.commit)} ${subjectOf(s.commit)}`;
+    hit.addEventListener('click', () => openStepPanel(s.commit));
+  });
+  const ring = el('circle', { r: 5.5, class: 'ring', visibility: 'hidden' }, svg);
+  const tip = document.createElement('div');
+  tip.className = 'tip';
+  tip.hidden = true;
+  host.appendChild(tip);
+  const nearest = event => {
+    const box = svg.getBoundingClientRect();
+    const mx = (event.clientX - box.left) * w / box.width;
+    let best = null;
+    for (const p of points) if (p.x >= pad.l && p.x <= w - pad.r && (!best || Math.abs(p.x - mx) < Math.abs(best.x - mx))) best = p;
+    return best;
+  };
+  overlay.addEventListener('pointermove', event => {
+    const p = nearest(event);
+    if (!p) return;
+    ring.setAttribute('cx', p.x);
+    ring.setAttribute('cy', p.y);
+    ring.setAttribute('visibility', 'visible');
+    tip.innerHTML = tooltipHtml(key, p);
+    tip.hidden = false;
+    const box = host.getBoundingClientRect();
+    const left = event.clientX - box.left + 14;
+    tip.style.left = Math.max(0, Math.min(left, box.width - tip.offsetWidth)) + 'px';
+    tip.style.top = (event.clientY - box.top + 14) + 'px';
+  });
+  overlay.addEventListener('pointerleave', () => {
+    tip.hidden = true;
+    ring.setAttribute('visibility', 'hidden');
+  });
+  overlay.addEventListener('click', event => {
+    const p = nearest(event);
+    if (p) openStepPanel(p.run.commit);
+  });
+
+  const recent = detail.querySelector('.recent');
+  for (const s of segments.slice(-5).reverse()) {
+    const li = document.createElement('li');
+    li.innerHTML = `<button type="button"><span class="mono">${short(s.commit)}</span><span class="when">${day(s.t0)}</span><span class="subj">${esc(subjectOf(s.commit))}</span></button>`;
+    li.firstChild.addEventListener('click', () => openStepPanel(s.commit));
+    recent.appendChild(li);
+  }
+}
+
+function openStepPanel(sha) {
+  window.open(commitUrl(sha), '_blank', 'noopener');
+}
+
+function currentView() {
+  return fullRange();
+}
+
+function render() {
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.mode === 'raw') === state.raw)));
+  renderList();
+  drawFocus(state.key, currentView());
+}
+
+function writeHash() {
+  const params = new URLSearchParams();
+  params.set('m', state.key);
+  if (state.raw) params.set('raw', '1');
+  history.replaceState(null, '', '#' + params.toString());
+}
+
+function readHash() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const key = params.get('m');
+  state.raw = params.get('raw') === '1';
+  state.key = key && model.keys.includes(key) ? key : (model.liveKeys.find(isMicro) || model.liveKeys[0] || model.keys[0]);
+}
+
+function select(key) {
+  state.key = key;
+  writeHash();
+  render();
+}
+
+function dataUrl() {
+  const override = new URLSearchParams(location.search).get('data');
+  if (!override) return DATA_URL;
+  const relative = !/^[a-z][a-z0-9+.-]*:/i.test(override) && !override.startsWith('//');
+  return relative || override.startsWith('https:') ? override : DATA_URL;
+}
+
+function showStatus(html) {
+  const status = document.getElementById('status');
+  status.innerHTML = html;
+  status.hidden = false;
+}
+
+async function load() {
+  let history;
+  try {
+    const response = await fetch(dataUrl(), { cache: 'no-cache' });
+    if (!response.ok) {
+      showStatus(`No benchmark history published yet. The daily benchmark run on master publishes it to the <a href="${DATA_BRANCH}">benchmark-data branch</a>.`);
+      return;
+    }
+    history = await response.json();
+  } catch (error) {
+    showStatus(`Could not load the benchmark history (${esc(error.message)}). The raw data lives on the <a href="${DATA_BRANCH}">benchmark-data branch</a>.`);
+    return;
+  }
+  model = prepare(history);
+  if (!model.runs.length || !model.keys.length) {
+    showStatus(`No benchmark history published yet. The daily benchmark run on master publishes it to the <a href="${DATA_BRANCH}">benchmark-data branch</a>.`);
+    return;
+  }
+  readHash();
+  document.getElementById('status').hidden = true;
+  document.getElementById('focus').hidden = false;
+  if (model.generated) document.getElementById('generated').textContent = `${model.runs.length} runs · updated ${day(Date.parse(model.generated), true)}`;
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    state.raw = b.dataset.mode === 'raw';
+    writeHash();
+    render();
+  }));
+  window.addEventListener('hashchange', () => { readHash(); render(); });
+  let width = document.getElementById('detail').clientWidth;
+  new ResizeObserver(() => {
+    const next = document.getElementById('detail').clientWidth;
+    if (next !== width) { width = next; drawFocus(state.key, currentView()); }
+  }).observe(document.getElementById('detail'));
+  render();
+}
+
+load();
+</script>
+</body>
+</html>
