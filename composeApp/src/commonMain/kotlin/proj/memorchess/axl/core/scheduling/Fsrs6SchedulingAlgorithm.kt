@@ -110,6 +110,12 @@ class Fsrs6SchedulingAlgorithm(
    * session; graduating to [CardPhase.REVIEW] produces a day grained interval and removes it from
    * the session.
    */
+  override fun retrievability(card: CardState, now: Instant): Retrievability? {
+    val lastReview = card.lastReview ?: return null
+    val elapsedDays = ((now - lastReview).inWholeMilliseconds / MILLIS_PER_DAY).coerceAtLeast(0.0)
+    return Retrievability(forgettingCurve(elapsedDays, card.stability))
+  }
+
   private fun shortTermReview(base: CardState, grade: ReviewGrade, now: Instant): CardState {
     val lastReview = base.lastReview
     val elapsedDays =

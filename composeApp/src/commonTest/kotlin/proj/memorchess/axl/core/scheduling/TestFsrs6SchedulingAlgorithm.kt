@@ -4,7 +4,11 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.comparables.shouldBeGreaterThanOrEqualTo
 import io.kotest.matchers.comparables.shouldBeLessThanOrEqualTo
+import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.doubles.shouldBeGreaterThan
+import io.kotest.matchers.doubles.shouldBeLessThan
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlin.random.Random
 import kotlin.test.Test
@@ -348,5 +352,42 @@ class TestFsrs6SchedulingAlgorithm {
     state.phase shouldBe CardPhase.REVIEW
     state.step shouldBe 0
     (state.dueDate - now).inWholeDays shouldBeGreaterThanOrEqualTo 1L
+  }
+
+  private fun reviewedCard(lastReview: Instant, stability: Double) =
+    CardStateFactory.new(now).copy(lastReview = lastReview, stability = stability)
+
+  @Test
+  fun retrievabilityOfANeverReviewedCardIsNull() {
+    algorithm.retrievability(CardStateFactory.new(now), now).shouldBeNull()
+  }
+
+  @Test
+  fun retrievabilityRightAfterAReviewIsOne() {
+    val recall = algorithm.retrievability(reviewedCard(now, 5.0), now).shouldNotBeNull()
+
+    recall.value shouldBe (1.0 plusOrMinus 1e-9)
+  }
+
+  @Test
+  fun retrievabilityAfterStabilityDaysEqualsTheRequestedRetention() {
+    val recall = algorithm.retrievability(reviewedCard(now - 5.days, 5.0), now).shouldNotBeNull()
+
+    recall.value shouldBe (0.9 plusOrMinus 1e-9)
+  }
+
+  @Test
+  fun retrievabilityLongOverdueIsLowButPositive() {
+    val recall = algorithm.retrievability(reviewedCard(now - 3650.days, 1.0), now).shouldNotBeNull()
+
+    recall.value shouldBeGreaterThan 0.0
+    recall.value shouldBeLessThan 0.5
+  }
+
+  @Test
+  fun retrievabilityWithALastReviewInTheFutureIsOne() {
+    val recall = algorithm.retrievability(reviewedCard(now + 1.days, 5.0), now).shouldNotBeNull()
+
+    recall.value shouldBe (1.0 plusOrMinus 1e-9)
   }
 }
