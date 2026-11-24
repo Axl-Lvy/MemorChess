@@ -36,7 +36,7 @@ krontab = "3.1.0"
 ktor = "3.6.1"
 material-icons = "1.7.3"
 material3-adaptive = "1.3.0"
-material3Android = "1.5.0"
+material3Android = "1.4.0"
 # Must track the androidx.compose.runtime version that the Compose Multiplatform release
 # above resolves to on Android, otherwise composition tracing produces no sections
 composeRuntimeTracing = "1.13.0"

@@ -63,6 +63,11 @@
       "allowedVersions": "!/compat/"
     },
     {
+      "description": "androidx material3 must match the version Compose Multiplatform material3 resolves to on Android (1.9.0 -> 1.4.0). material3 1.5.0 removes the Slider(value, thumb, track) overload that commonMain code calls, so commonMain cannot compile against both. Raise this bound together with a stable Compose Multiplatform material3 1.10.",
+      "matchPackageNames": ["androidx.compose.material3:*"],
+      "allowedVersions": "<1.5.0"
+    },
+    {
       "description": "Gradle 9.7.x exhausts the daemon heap while storing the configuration cache entry for the Kotlin/Wasm browser tasks (KotlinWebpack, KotlinJsTest), so :composeApp:wasmJsBrowserDevelopmentRun and :composeApp:wasmJsTest die with \"Java heap space\" before any task runs. The entry is discarded anyway (those tasks are not configuration-cache compatible); 9.6.1 stores and discards it in ~25s.",
       "matchManagers": ["gradle-wrapper"],
       "allowedVersions": "<9.7.0"
