@@ -448,7 +448,7 @@ class TestInMemoryDatabaseQueryManager {
 
   /** Line key0 -e4-> key1 -e5-> key2 where only the positions in [reviewed] have review history. */
   private suspend fun lineReviewedAt(
-    reviewed: Set<PositionKey> = emptySet()
+    reviewed: Set<PositionKey> = emptySet(),
   ): InMemoryDatabaseQueryManager {
     fun card(key: PositionKey) = if (key in reviewed) reviewedCard else CardStateFactory.new()
     val database = InMemoryDatabaseQueryManager()

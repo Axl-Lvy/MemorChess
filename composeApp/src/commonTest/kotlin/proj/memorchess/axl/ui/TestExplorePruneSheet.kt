@@ -272,7 +272,7 @@ class TestExplorePruneSheet : TestWithKoin() {
     openConfirmStep()
 
     assertNodeWithTextExists(
-      "At least $DESCENDANT_COUNT_CAP of them have review history you already earned."
+      "At least $DESCENDANT_COUNT_CAP of them have review history you already earned.",
     )
   }
 

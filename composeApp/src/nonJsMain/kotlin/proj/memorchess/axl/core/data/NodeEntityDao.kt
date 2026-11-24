@@ -412,7 +412,7 @@ interface NodeEntityDao {
   /** Number of non deleted rows among [positionKeys] that have been reviewed at least once. */
   @Query(
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND lastReview IS NOT NULL " +
-      "AND positionKey IN (:positionKeys)"
+      "AND positionKey IN (:positionKeys)",
   )
   suspend fun countReviewed(positionKeys: List<String>): Int
 
