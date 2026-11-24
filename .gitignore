@@ -26,3 +26,5 @@ docs/superpowers/
 
 # Transient git worktrees used by agents (see CLAUDE.md); never committed.
 .claude/worktrees/
+
+__pycache__/
