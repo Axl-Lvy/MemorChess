@@ -54,9 +54,7 @@ jobs:
             --commit "$GITHUB_SHA" \
             --date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --runner "$RUNNER_OS" \
-            --output "benchmark-data/runs/${stamp}_${GITHUB_SHA::8}.json" \
-            --prune-dir benchmark-data/runs \
-            --prune-days 60
+            --output "benchmark-data/runs/${stamp}_${GITHUB_SHA::8}.json"
 
       - name: Commit baseline entry
         working-directory: benchmark-data

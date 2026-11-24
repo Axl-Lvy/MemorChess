@@ -14,19 +14,20 @@ Both are flattened into a single `metrics` map keyed by a stable string
 carrying its value, unit and direction so the comparison script needs no
 knowledge of either source format.
 
-The optional `--prune-dir/--prune-days` pair deletes baseline files whose
-filename date prefix (YYYY-MM-DDTHH-MM) is older than the cutoff, keeping the
-baseline branch bounded.
+Each benchmark job may also upload a `runner-cpu.txt` holding the CPU model of
+the machine it ran on; it is recorded under `cpu` so runs on different runner
+hardware can be told apart.
 """
 
 import argparse
 import json
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Optional
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+
+CPU_FILE_NAME = "runner-cpu.txt"
 
 # Percentiles kept from Macrobenchmark sampled metrics (e.g. frameDurationCpuMs).
 SAMPLED_PERCENTILES = ("P50", "P90", "P99")
@@ -100,23 +101,12 @@ def collect_micro_metrics(micro_dir: Path) -> Dict[str, dict]:
     return metrics
 
 
-def prune_old_runs(runs_dir: Path, max_age_days: int, now: datetime) -> None:
-    """Deletes run files whose filename date prefix is older than the cutoff."""
-    cutoff = now - timedelta(days=max_age_days)
-    for path in runs_dir.glob("*.json"):
-        timestamp = parse_filename_date(path.name)
-        if timestamp is not None and timestamp < cutoff:
-            print(f"Pruning baseline entry older than {max_age_days} days: {path.name}")
-            path.unlink()
-
-
-def parse_filename_date(filename: str) -> Optional[datetime]:
-    try:
-        return datetime.strptime(filename[:16], "%Y-%m-%dT%H-%M").replace(
-            tzinfo=timezone.utc
-        )
-    except ValueError:
-        return None
+def read_cpu(directory: Path) -> Optional[str]:
+    """Returns the CPU model recorded under the directory, or None when absent or blank."""
+    for path in sorted(directory.rglob(CPU_FILE_NAME)):
+        model = path.read_text().strip()
+        return model or None
+    return None
 
 
 def main() -> int:
@@ -127,8 +117,6 @@ def main() -> int:
     parser.add_argument("--date", required=True, help="ISO 8601 UTC run date")
     parser.add_argument("--runner", default="unknown")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--prune-dir", type=Path, default=None)
-    parser.add_argument("--prune-days", type=int, default=60)
     args = parser.parse_args()
 
     macro = collect_macro_metrics(args.macro_dir) if args.macro_dir.is_dir() else {}
@@ -142,16 +130,13 @@ def main() -> int:
         "commit": args.commit,
         "date": args.date,
         "runner": args.runner,
+        "cpu": {"micro": read_cpu(args.micro_dir), "macro": read_cpu(args.macro_dir)},
         "metrics": {**macro, **micro},
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(summary, indent=2) + "\n")
     print(f"Wrote {len(macro)} macro and {len(micro)} micro metrics to {args.output}")
-
-    if args.prune_dir is not None and args.prune_dir.is_dir():
-        now = datetime.fromisoformat(args.date.replace("Z", "+00:00"))
-        prune_old_runs(args.prune_dir, args.prune_days, now)
 
     return 0
 
