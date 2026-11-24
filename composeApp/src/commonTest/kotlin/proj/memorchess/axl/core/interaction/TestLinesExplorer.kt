@@ -166,19 +166,19 @@ class TestLinesExplorer : TestWithKoin() {
   }
 
   @Test
-  fun testCalculateNumberOfNodeToDelete_SimpleLine() = test {
+  fun testCalculatePruneImpact_SimpleLine() = test {
     // The count runs DB side over persisted positions, so the line is saved first.
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
     interactionsManager.playMove("Nf3")
     interactionsManager.save()
     interactionsManager.back()
-    val count = interactionsManager.calculateNumberOfNodeToDelete()
+    val count = interactionsManager.calculatePruneImpact().positions
     assertEquals(2, count)
   }
 
   @Test
-  fun testCalculateNumberOfNodeToDelete_ConvergingNodes() = test {
+  fun testCalculatePruneImpact_ConvergingNodes() = test {
     // Line 1, saved so its positions are persisted.
     interactionsManager.playMove("e4")
     interactionsManager.playMove("e5")
@@ -191,7 +191,7 @@ class TestLinesExplorer : TestWithKoin() {
     interactionsManager.playMove("e4")
     interactionsManager.save()
     interactionsManager.back()
-    val count1 = interactionsManager.calculateNumberOfNodeToDelete()
+    val count1 = interactionsManager.calculatePruneImpact().positions
     assertEquals(1, count1, "Should only delete the current node, the next one is still reachable")
   }
 

@@ -384,16 +384,20 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /**
-   * Capped breadth first descendant count over the in memory map. This is the cross backend
-   * reference implementation of the convergence rule: a child is counted and descended into only
-   * when its total non deleted incoming edge count is at most one, so a position reachable through
-   * an outside parent is left alone. Iterating the backing map is acceptable here because this is
-   * the throwaway in memory store; the Room and IndexedDB backends express the same walk with point
+   * Capped breadth first prune walk over the in memory map. This is the cross backend reference
+   * implementation of the convergence rule: a child is counted and descended into only when its
+   * total non deleted incoming edge count is at most one, so a position reachable through an
+   * outside parent is left alone. Iterating the backing map is acceptable here because this is the
+   * throwaway in memory store; the Room and IndexedDB backends express the same walk with point
    * queries.
    */
-  override suspend fun countDescendants(key: PositionKey, cap: Int): Int {
-    if (nodes[key]?.takeIf { !it.isDeleted } == null) return 0
-    return cappedDescendantCount(key, cap) { liveSingleParentChildren(it) }
+  override suspend fun pruneImpact(key: PositionKey, cap: Int): PruneImpact {
+    if (nodes[key]?.takeIf { !it.isDeleted } == null) return PruneImpact.NONE
+    val removed = cappedDescendants(key, cap) { liveSingleParentChildren(it) }
+    return PruneImpact(
+      positions = removed.size,
+      reviewedPositions = removed.count { nodes[it]?.cardState?.lastReview != null },
+    )
   }
 
   /**

@@ -184,11 +184,24 @@
   <string name="explore_save">Enregistrer</string>
 
   <!-- Explore: delete confirmation (plural) -->
-  <plurals name="explore_delete_confirm">
-    <item quantity="one">Voulez-vous vraiment supprimer %1$d position ?</item>
-    <item quantity="other">Voulez-vous vraiment supprimer %1$d positions ?</item>
+  <string name="explore_prune_select_title">Élaguer cette branche ?</string>
+  <string name="explore_prune_select_body">Les coups surlignés et toutes les lignes qui suivent seront supprimés. Rien n'est encore supprimé.</string>
+  <string name="explore_prune_continue">Continuer</string>
+  <string name="explore_prune_marked">Marqué pour l'élagage</string>
+  <plurals name="explore_prune_positions">
+    <item quantity="one">Supprimer %1$d position ?</item>
+    <item quantity="other">Supprimer %1$d positions ?</item>
   </plurals>
-  <string name="explore_delete_confirm_many">Voulez-vous vraiment supprimer %1$d positions ou plus ?</string>
+  <string name="explore_prune_positions_many">Supprimer %1$d positions ou plus ?</string>
+  <plurals name="explore_prune_reviewed">
+    <item quantity="one">%1$d d'entre elles a un historique de révision déjà acquis.</item>
+    <item quantity="other">%1$d d'entre elles ont un historique de révision déjà acquis.</item>
+  </plurals>
+  <plurals name="explore_prune_reviewed_at_least">
+    <item quantity="one">Au moins %1$d d'entre elles a un historique de révision déjà acquis.</item>
+    <item quantity="other">Au moins %1$d d'entre elles ont un historique de révision déjà acquis.</item>
+  </plurals>
+  <string name="explore_prune_reviewed_none">Aucune n'a encore d'historique de révision.</string>
 
   <!-- Board: state indicator labels -->
   <string name="state_first">Début</string>

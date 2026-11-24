@@ -7,6 +7,7 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.DatabaseQueryManager
 import proj.memorchess.axl.core.data.DirtyKey
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PruneImpact
 import proj.memorchess.axl.core.data.TaggedEdge
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil
@@ -90,12 +91,12 @@ class TreeStore(
   suspend fun getDepth(positionKey: PositionKey): Int = node(positionKey)?.depth ?: Int.MAX_VALUE
 
   /**
-   * Counts the non deleted positions a recursive delete starting at [key] would remove, [key]
-   * included, bounded by [cap]. Delegates to the backend's bounded breadth first walk so the count
-   * never pages the whole subtree through the cache. See [DatabaseQueryManager.countDescendants].
+   * Measures what a recursive delete starting at [key] would remove, bounded by [cap]. Delegates to
+   * the backend's bounded breadth first walk so it never pages the whole subtree through the cache.
+   * See [DatabaseQueryManager.pruneImpact].
    */
-  suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int =
-    database.countDescendants(key, cap)
+  suspend fun pruneImpact(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): PruneImpact =
+    database.pruneImpact(key, cap)
 
   /**
    * Ensures [positionKey] exists in the cache at the given [depth], under the cache's own lock so

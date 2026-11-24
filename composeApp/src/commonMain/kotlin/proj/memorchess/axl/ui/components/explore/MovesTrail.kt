@@ -40,6 +40,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,6 +52,7 @@ import kotlinx.coroutines.launch
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.dialog_close
 import memorchess.composeapp.generated.resources.explore_pgn
+import memorchess.composeapp.generated.resources.explore_prune_marked
 import org.jetbrains.compose.resources.stringResource
 import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.ui.theme.KineticPalette
@@ -113,6 +116,8 @@ private val ArrowSize = 24.dp
  * @param openingName Optional opening label rendered in the pinned left badge.
  * @param pgnText Optional raw PGN string shown in the overlay. The overlay button is only shown
  *   when this is non-null.
+ * @param currentMarkedForPruning Whether the current move's branch is selected for pruning, which
+ *   paints its chip in the destructive pink.
  */
 @Composable
 fun MovesTrail(
@@ -122,6 +127,7 @@ fun MovesTrail(
   modifier: Modifier = Modifier,
   openingName: String? = null,
   pgnText: String? = null,
+  currentMarkedForPruning: Boolean = false,
 ) {
   // Self-hide when there's nothing meaningful to display. The trail still occupies its container
   // slot via the caller's [modifier], so layouts using `Modifier.fillMaxWidth()` won't suddenly
@@ -188,6 +194,7 @@ fun MovesTrail(
       listState = listState,
       moves = moves,
       currentIndex = currentIndex,
+      currentMarkedForPruning = currentMarkedForPruning,
       onSeek = onSeek,
       palette = palette,
     )
@@ -232,6 +239,7 @@ private fun RowScope.TrailChipStrip(
   listState: LazyListState,
   moves: List<MoveDisplay>,
   currentIndex: Int,
+  currentMarkedForPruning: Boolean,
   onSeek: (Int) -> Unit,
   palette: KineticPalette,
 ) {
@@ -275,7 +283,13 @@ private fun RowScope.TrailChipStrip(
       modifier = Modifier.fillMaxWidth(),
     ) {
       itemsIndexed(moves) { index, move ->
-        MoveChip(move = move, isCurrent = index == currentIndex, onClick = { onSeek(index) })
+        val isCurrent = index == currentIndex
+        MoveChip(
+          move = move,
+          isCurrent = isCurrent,
+          markedForPruning = isCurrent && currentMarkedForPruning,
+          onClick = { onSeek(index) },
+        )
       }
     }
   }
@@ -288,20 +302,42 @@ private fun nextScrollTarget(listState: LazyListState, moveCount: Int): Int {
   return (lastVisible + 4).coerceAtMost((moveCount - 1).coerceAtLeast(0))
 }
 
-/** Single move chip — renders one ply with its number prefix, current/guess states, and click. */
+/**
+ * Single move chip — renders one ply with its number prefix, current/guess/pruning states, and
+ * click.
+ */
 @Composable
-private fun MoveChip(move: MoveDisplay, isCurrent: Boolean, onClick: () -> Unit) {
+private fun MoveChip(
+  move: MoveDisplay,
+  isCurrent: Boolean,
+  markedForPruning: Boolean,
+  onClick: () -> Unit,
+) {
   val palette = LocalKineticPalette.current
   val typography = LocalKineticTypography.current
 
-  val background = if (isCurrent) palette.action else palette.bg
+  val background =
+    when {
+      markedForPruning -> palette.destructive
+      isCurrent -> palette.action
+      else -> palette.bg
+    }
   val borderColor =
     when {
+      markedForPruning -> palette.destructive
       isCurrent -> palette.action
       move.isGuess -> palette.ink4
       else -> palette.line
     }
-  val contentColor = if (isCurrent) palette.onAction else palette.ink2
+  val contentColor =
+    when {
+      markedForPruning -> palette.onDestructive
+      isCurrent -> palette.onAction
+      else -> palette.ink2
+    }
+  val prunedState = stringResource(Res.string.explore_prune_marked)
+  val pruningSemantics =
+    if (markedForPruning) Modifier.semantics { stateDescription = prunedState } else Modifier
 
   // Dashed border for guess chips: drawn with a dashed PathEffect via drawBehind so the dash
   // pattern matches `.trail-mv.guess { border-style: dashed }`.
@@ -332,6 +368,7 @@ private fun MoveChip(move: MoveDisplay, isCurrent: Boolean, onClick: () -> Unit)
     modifier =
       Modifier.background(background)
         .then(borderModifier)
+        .then(pruningSemantics)
         .clickable(onClick = onClick)
         .padding(horizontal = ChipHorizontalPadding, vertical = ChipVerticalPadding),
     contentAlignment = Alignment.Center,

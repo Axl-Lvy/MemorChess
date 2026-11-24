@@ -396,7 +396,7 @@ interface NodeEntityDao {
   /**
    * Destinations of every non deleted move leaving [origin]. Used by the bounded descendant count
    * to expand one node's children with a single indexed point query (`origin` is indexed). See
-   * [DatabaseQueryManager.countDescendants].
+   * [DatabaseQueryManager.pruneImpact].
    */
   @Query("SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin")
   suspend fun childrenOf(origin: String): List<String>
@@ -404,10 +404,17 @@ interface NodeEntityDao {
   /**
    * Number of non deleted move edges arriving at [destination] (`destination` is indexed). Used by
    * the bounded descendant count to honour the convergence rule. See
-   * [DatabaseQueryManager.countDescendants].
+   * [DatabaseQueryManager.pruneImpact].
    */
   @Query("SELECT COUNT(*) FROM MoveEntity WHERE isDeleted = 0 AND destination = :destination")
   suspend fun incomingCount(destination: String): Int
+
+  /** Number of non deleted rows among [positionKeys] that have been reviewed at least once. */
+  @Query(
+    "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND lastReview IS NOT NULL " +
+      "AND positionKey IN (:positionKeys)",
+  )
+  suspend fun countReviewed(positionKeys: List<String>): Int
 
   /** Whether a non deleted node row exists for [positionKey]. */
   @Query(
