@@ -1,11 +1,24 @@
+import json
 import os
 import subprocess
+import xml.etree.ElementTree as ET
 import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
 
-from code_provenance import Era, collect, era_for, is_code_line
+from code_provenance import (
+    Era,
+    FileReport,
+    Line,
+    build_tree,
+    collect,
+    era_for,
+    is_code_line,
+    percentages,
+    render_badge,
+    write_site,
+)
 
 
 def git(repo: Path, *args: str, day: str = "2025-01-01", author: str = "Dev") -> None:
@@ -118,6 +131,77 @@ class CollectTest(RepoTest):
         counts = self.report("A.kt").counts
 
         self.assertEqual(counts[Era.HUMAN], 1)
+
+
+class ReportTest(unittest.TestCase):
+    FILES = [
+        FileReport("a/x.kt", [Line(1, "x", Era.HUMAN)]),
+        FileReport("a/b/y.kt", [Line(1, "y", Era.CLAUDE), Line(2, "", None)]),
+    ]
+
+    def test_percentages_sum_to_100(self):
+        self.assertEqual(
+            percentages({Era.HUMAN: 1, Era.COPILOT: 1, Era.CLAUDE: 1}),
+            {Era.HUMAN: 34, Era.COPILOT: 33, Era.CLAUDE: 33},
+        )
+        self.assertEqual(
+            sum(percentages({Era.HUMAN: 3830, Era.COPILOT: 1281, Era.CLAUDE: 51873}).values()), 100
+        )
+
+    def test_percentages_of_zero(self):
+        result = percentages({Era.HUMAN: 0, Era.COPILOT: 0, Era.CLAUDE: 0})
+
+        self.assertEqual(result, {Era.HUMAN: 0, Era.COPILOT: 0, Era.CLAUDE: 0})
+
+    def test_build_tree_aggregates_folders(self):
+        tree = build_tree(self.FILES)
+
+        self.assertEqual(tree["counts"], {"human": 1, "copilot": 0, "claude": 1})
+        a = tree["children"][0]
+        self.assertEqual((a["name"], a["path"]), ("a", "a"))
+        self.assertEqual(a["counts"], {"human": 1, "copilot": 0, "claude": 1})
+        b = next(child for child in a["children"] if child["name"] == "b")
+        self.assertEqual(b["children"], [{"name": "y.kt", "path": "a/b/y.kt", "file": True,
+                                          "counts": {"human": 0, "copilot": 0, "claude": 1}}])
+
+    def test_render_badge(self):
+        svg = render_badge({Era.HUMAN: 7, Era.COPILOT: 2, Era.CLAUDE: 91})
+
+        ET.fromstring(svg)
+        self.assertIn("code provenance", svg)
+        for text in ["7%", "2%", "91%"]:
+            self.assertIn(text, svg)
+
+    def test_render_badge_of_zero(self):
+        svg = render_badge({Era.HUMAN: 0, Era.COPILOT: 0, Era.CLAUDE: 0})
+
+        self.assertEqual(svg.count(">0%<"), 3)
+
+    def test_write_site(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out, template = Path(tmp) / "site", Path(tmp) / "page.html"
+            template.write_text("<script>const DATA = /*PROVENANCE_DATA*/;</script>")
+
+            write_site(self.FILES, out, template)
+
+            self.assertTrue((out / "badge.svg").is_file())
+            rows = json.loads((out / "files/a/b/y.kt.json").read_text())
+            self.assertEqual(rows, [[1, "y", "claude"], [2, "", None]])
+            page = (out / "index.html").read_text()
+            self.assertNotIn("/*PROVENANCE_DATA*/", page)
+            data = json.loads(page.removeprefix("<script>const DATA = ").removesuffix(";</script>"))
+            self.assertEqual(set(data), {"tree", "icons", "generated"})
+            self.assertEqual(set(data["icons"]), {"human", "copilot", "claude"})
+
+    def test_write_site_escapes_script_end(self):
+        files = [FileReport("</script>.kt", [Line(1, "x", Era.HUMAN)])]
+        with tempfile.TemporaryDirectory() as tmp:
+            out, template = Path(tmp) / "site", Path(tmp) / "page.html"
+            template.write_text("<script>/*PROVENANCE_DATA*/</script>")
+
+            write_site(files, out, template)
+
+            self.assertEqual((out / "index.html").read_text().count("</script>"), 1)
 
 
 if __name__ == "__main__":
