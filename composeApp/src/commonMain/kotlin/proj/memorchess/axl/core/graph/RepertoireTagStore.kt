@@ -66,7 +66,7 @@ class RepertoireTagStore(
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
-      )
+      ),
     )
     notifyDirty()
   }
@@ -138,7 +138,7 @@ class RepertoireTagStore(
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
-      )
+      ),
     )
     trainable.recompute(origin)
     notifyDirty()
@@ -166,7 +166,7 @@ class RepertoireTagStore(
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
-      )
+      ),
     )
     notifyDirty()
   }
@@ -179,7 +179,7 @@ class RepertoireTagStore(
         updatedAt = DateUtil.now(),
         originDevice = deviceIdentity.originDevice.value,
         deviceSeq = deviceIdentity.nextDeviceSeq(),
-      )
+      ),
     )
     notifyDirty()
   }
@@ -196,7 +196,7 @@ class RepertoireTagStore(
           updatedAt = DateUtil.now(),
           originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
-        )
+        ),
       )
     }
   }
@@ -210,7 +210,7 @@ class RepertoireTagStore(
           updatedAt = DateUtil.now(),
           originDevice = deviceIdentity.originDevice.value,
           deviceSeq = deviceIdentity.nextDeviceSeq(),
-        )
+        ),
       )
     }
   }

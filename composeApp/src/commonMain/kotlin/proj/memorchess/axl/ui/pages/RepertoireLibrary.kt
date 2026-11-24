@@ -955,7 +955,7 @@ private fun LibraryProgressBar(
           size = Size(size.width * clamped, size.height),
           cornerRadius = CornerRadius(5.dp.toPx(), 5.dp.toPx()),
         )
-      }
+      },
   )
 }
 
@@ -1002,7 +1002,7 @@ private fun SkeletonBlock(modifier: Modifier, shape: Shape, color: Color, testTa
     modifier
       .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
       .graphicsLayer { this.alpha = alpha }
-      .background(color, shape)
+      .background(color, shape),
   )
 }
 
@@ -1257,10 +1257,10 @@ private fun FilterChip(
         .clickable(onClick = onClick)
         .then(
           if (isSelected) Modifier.background(palette.ink, shape)
-          else Modifier.background(palette.panel, shape).border(1.5.dp, palette.line, shape)
+          else Modifier.background(palette.panel, shape).border(1.5.dp, palette.line, shape),
         )
         .clip(shape)
-        .padding(horizontal = 13.dp, vertical = 7.dp)
+        .padding(horizontal = 13.dp, vertical = 7.dp),
   ) {
     Text(
       label,
@@ -1510,8 +1510,8 @@ private fun InstallStatusRow(
             KineticButtonLabel(
               stringResource(
                 if (installState.isOutdated) Res.string.library_update
-                else Res.string.library_reinstall
-              )
+                else Res.string.library_reinstall,
+              ),
             )
           }
           KineticButton(

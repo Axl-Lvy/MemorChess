@@ -323,7 +323,7 @@ internal class SyncStore(
 
   private fun Connection.setAcked(userId: UserId, deviceId: DeviceId, acked: Revision) {
     prepareStatement(
-        "UPDATE sync_device SET last_acked_revision = ? WHERE user_id = ? AND device_id = ?"
+        "UPDATE sync_device SET last_acked_revision = ? WHERE user_id = ? AND device_id = ?",
       )
       .use { statement ->
         statement.setLong(1, acked.value)
@@ -341,7 +341,7 @@ internal class SyncStore(
   ) {
     prepareStatement(
         "UPDATE sync_device SET last_served_revision = ?, last_page_token = ? " +
-          "WHERE user_id = ? AND device_id = ?"
+          "WHERE user_id = ? AND device_id = ?",
       )
       .use { statement ->
         statement.setLong(1, served.value)
@@ -362,7 +362,7 @@ internal class SyncStore(
           "n.difficulty, n.reps, n.lapses, n.phase, n.step, n.is_deleted, n.updated_at, " +
           "n.origin_device, n.device_seq, n.revision FROM user_node n " +
           "JOIN position p ON p.id = n.position_id " +
-          "WHERE n.user_id = ? AND n.revision > ? ORDER BY n.revision ASC LIMIT ?"
+          "WHERE n.user_id = ? AND n.revision > ? ORDER BY n.revision ASC LIMIT ?",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -388,7 +388,7 @@ internal class SyncStore(
                     updatedAt = rows.getTimestamp(12).toInstant().toKotlinInstant(),
                     originDevice = DeviceId(rows.getString(13)),
                     deviceSeq = rows.getLong(14),
-                  )
+                  ),
               )
             }
           }
@@ -405,7 +405,7 @@ internal class SyncStore(
           "ue.updated_at, ue.origin_device, ue.device_seq, ue.revision FROM user_edge ue " +
           "JOIN move_edge e ON e.id = ue.edge_id " +
           JOIN_EDGE_ENDPOINTS +
-          "WHERE ue.user_id = ? AND ue.revision > ? ORDER BY ue.revision ASC LIMIT ?"
+          "WHERE ue.user_id = ? AND ue.revision > ? ORDER BY ue.revision ASC LIMIT ?",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -425,7 +425,7 @@ internal class SyncStore(
                     updatedAt = rows.getTimestamp(6).toInstant().toKotlinInstant(),
                     originDevice = DeviceId(rows.getString(7)),
                     deviceSeq = rows.getLong(8),
-                  )
+                  ),
               )
             }
           }
@@ -439,7 +439,7 @@ internal class SyncStore(
   ): List<Pair<Revision, SettingSyncRow>> =
     prepareStatement(
         "SELECT key, value, is_deleted, updated_at, origin_device, device_seq, revision " +
-          "FROM user_setting WHERE user_id = ? AND revision > ? ORDER BY revision ASC LIMIT ?"
+          "FROM user_setting WHERE user_id = ? AND revision > ? ORDER BY revision ASC LIMIT ?",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -457,7 +457,7 @@ internal class SyncStore(
                     updatedAt = rows.getTimestamp(4).toInstant().toKotlinInstant(),
                     originDevice = DeviceId(rows.getString(5)),
                     deviceSeq = rows.getLong(6),
-                  )
+                  ),
               )
             }
           }
@@ -511,7 +511,7 @@ internal class SyncStore(
     prepareStatement(
         "UPDATE sync_device SET removed_at = NULL, last_acked_revision = 0, " +
           "last_served_revision = 0, last_page_token = NULL " +
-          "WHERE user_id = ? AND device_id = ?"
+          "WHERE user_id = ? AND device_id = ?",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -561,7 +561,7 @@ internal class SyncStore(
     inTransaction { connection ->
       connection
         .prepareStatement(
-          "UPDATE sync_device SET removed_at = ? WHERE user_id = ? AND device_id = ?"
+          "UPDATE sync_device SET removed_at = ? WHERE user_id = ? AND device_id = ?",
         )
         .use { statement ->
           statement.setTimestamp(1, at.toTimestamp())
@@ -580,7 +580,7 @@ internal class SyncStore(
   private fun Connection.setGcFloor(userId: UserId, floor: Revision) {
     prepareStatement(
         "INSERT INTO sync_gc_floor (user_id, floor_revision) VALUES (?, ?) " +
-          "ON CONFLICT (user_id) DO UPDATE SET floor_revision = EXCLUDED.floor_revision"
+          "ON CONFLICT (user_id) DO UPDATE SET floor_revision = EXCLUDED.floor_revision",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -599,7 +599,7 @@ internal class SyncStore(
     prepareStatement(
         "INSERT INTO sync_device (user_id, device_id, platform, last_seen_at) " +
           "VALUES (?, ?, ?, ?) ON CONFLICT (user_id, device_id) DO UPDATE SET " +
-          "platform = EXCLUDED.platform, last_seen_at = EXCLUDED.last_seen_at"
+          "platform = EXCLUDED.platform, last_seen_at = EXCLUDED.last_seen_at",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -663,7 +663,7 @@ internal class SyncStore(
       connection
         .prepareStatement(
           "UPDATE sync_device SET last_acked_revision = ?, last_served_revision = ? " +
-            "WHERE user_id = ? AND device_id = ?"
+            "WHERE user_id = ? AND device_id = ?",
         )
         .use { statement ->
           statement.setLong(1, lastAcked.value)
@@ -684,7 +684,7 @@ internal class SyncStore(
   private fun Connection.readDevices(userId: UserId): List<DeviceRow> =
     prepareStatement(
         "SELECT device_id, platform, last_acked_revision, last_served_revision, " +
-          "last_page_token, removed_at FROM sync_device WHERE user_id = ? ORDER BY device_id"
+          "last_page_token, removed_at FROM sync_device WHERE user_id = ? ORDER BY device_id",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -701,7 +701,7 @@ internal class SyncStore(
                   lastServed = Revision(rows.getLong(4)),
                   lastPageToken = rows.getString(5),
                   removedAt = rows.getTimestamp(6)?.toInstant()?.toKotlinInstant(),
-                )
+                ),
               )
             }
           }
@@ -773,7 +773,7 @@ internal class SyncStore(
   private fun Connection.watermarkOf(userId: UserId): Revision? =
     prepareStatement(
         "SELECT min(last_acked_revision) FROM sync_device " +
-          "WHERE user_id = ? AND removed_at IS NULL"
+          "WHERE user_id = ? AND removed_at IS NULL",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -870,7 +870,7 @@ internal class SyncStore(
           "updated_at = GREATEST(?, updated_at + interval '1 millisecond'), " +
           "deleted_at = GREATEST(?, updated_at + interval '1 millisecond'), " +
           "origin_device = ?, device_seq = ?, revision = nextval('sync_revision') " +
-          "WHERE user_id = ? AND NOT is_deleted RETURNING revision"
+          "WHERE user_id = ? AND NOT is_deleted RETURNING revision",
       )
       .use { statement ->
         statement.setTimestamp(1, serverNow.toTimestamp())
@@ -889,7 +889,7 @@ internal class SyncStore(
           "(user_id, erased_at, erased_revision, erased_by, erase_device_seq) " +
           "VALUES (?, ?, ?, ?, ?) ON CONFLICT (user_id) DO UPDATE SET " +
           "erased_at = EXCLUDED.erased_at, erased_revision = EXCLUDED.erased_revision, " +
-          "erased_by = EXCLUDED.erased_by, erase_device_seq = EXCLUDED.erase_device_seq"
+          "erased_by = EXCLUDED.erased_by, erase_device_seq = EXCLUDED.erase_device_seq",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -905,7 +905,7 @@ internal class SyncStore(
   private fun Connection.eraseCutoffOf(userId: UserId): EraseCutoff? =
     prepareStatement(
         "SELECT erased_at, erased_revision, erased_by, erase_device_seq " +
-          "FROM sync_erase_cutoff WHERE user_id = ?"
+          "FROM sync_erase_cutoff WHERE user_id = ?",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -928,7 +928,7 @@ internal class SyncStore(
     prepareStatement(
         "SELECT repertoire_id, name, color, is_deleted, updated_at, origin_device, device_seq, " +
           "revision, installed_version FROM user_repertoire WHERE user_id = ? AND revision > ? " +
-          "ORDER BY revision ASC LIMIT ?"
+          "ORDER BY revision ASC LIMIT ?",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -948,7 +948,7 @@ internal class SyncStore(
                     updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
                     originDevice = DeviceId(rows.getString(6)),
                     deviceSeq = rows.getLong(7),
-                  )
+                  ),
               )
             }
           }
@@ -966,7 +966,7 @@ internal class SyncStore(
           "FROM user_edge_repertoire_tag t " +
           "JOIN move_edge e ON e.id = t.edge_id " +
           JOIN_EDGE_ENDPOINTS +
-          "WHERE t.user_id = ? AND t.revision > ? ORDER BY t.revision ASC LIMIT ?"
+          "WHERE t.user_id = ? AND t.revision > ? ORDER BY t.revision ASC LIMIT ?",
       )
       .use { statement ->
         statement.setString(1, userId.value)
@@ -987,7 +987,7 @@ internal class SyncStore(
                     updatedAt = rows.getTimestamp(5).toInstant().toKotlinInstant(),
                     originDevice = DeviceId(rows.getString(6)),
                     deviceSeq = rows.getLong(7),
-                  )
+                  ),
               )
             }
           }
@@ -1401,7 +1401,7 @@ private val NODE_QUOTA =
     countStored =
       countStoredAmong(
         "SELECT count(*) FROM user_node n JOIN position p ON p.id = n.position_id " +
-          "WHERE n.user_id = ? AND p.position_key = ANY (?)"
+          "WHERE n.user_id = ? AND p.position_key = ANY (?)",
       ),
   )
 
@@ -1417,7 +1417,7 @@ private val EDGE_QUOTA =
           JOIN_EDGE_ENDPOINTS +
           "JOIN unnest(?::text[], ?::text[]) AS k(o, d) " +
           "ON po.position_key = k.o AND pd.position_key = k.d " +
-          "WHERE ue.user_id = ?"
+          "WHERE ue.user_id = ?",
       ) { (origin, destination) ->
         listOf(origin, destination)
       },
@@ -1430,7 +1430,7 @@ private val REPERTOIRE_QUOTA =
     identity = { it.id },
     countStored =
       countStoredAmong(
-        "SELECT count(*) FROM user_repertoire WHERE user_id = ? AND repertoire_id = ANY (?)"
+        "SELECT count(*) FROM user_repertoire WHERE user_id = ? AND repertoire_id = ANY (?)",
       ),
   )
 
@@ -1446,7 +1446,7 @@ private val TAG_QUOTA =
           JOIN_EDGE_ENDPOINTS +
           "JOIN unnest(?::text[], ?::text[], ?::text[]) AS k(o, d, r) " +
           "ON po.position_key = k.o AND pd.position_key = k.d AND t.repertoire_id = k.r " +
-          "WHERE t.user_id = ?"
+          "WHERE t.user_id = ?",
       ) { (origin, destination, repertoireId) ->
         listOf(origin, destination, repertoireId)
       },

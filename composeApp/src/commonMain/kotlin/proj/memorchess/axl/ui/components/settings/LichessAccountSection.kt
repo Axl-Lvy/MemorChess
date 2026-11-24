@@ -192,7 +192,7 @@ private fun LichessAccountAction(
       Text(
         text =
           if (pending) stringResource(Res.string.lichess_signing_in)
-          else stringResource(Res.string.lichess_sign_in)
+          else stringResource(Res.string.lichess_sign_in),
       )
     }
   }

@@ -15,6 +15,13 @@ The Gradle wrapper hold still stands: Gradle 9.8.2 was re-checked on
 2026-10-25 and still exhausts the daemon heap on the same
 configuration cache entry.
 
+Amended, 2026-11-24: `androidx.compose.material3` is held below 1.5.0.
+Compose Multiplatform material3 1.9.0, the latest stable, resolves to
+1.4.0 on Android. 1.5.0 removes the `Slider(value, thumb, track)`
+overload, and no overload is shared by both versions, so `commonMain`
+cannot compile against 1.5.0 on Android and 1.9.0 elsewhere. The hold
+lifts with a stable Compose Multiplatform material3 1.10.
+
 ## Context
 
 Five dependency lines are pinned below their latest release. They are

@@ -182,7 +182,7 @@ class TestRepertoireCreationViewModel {
     vm.state.value shouldBe CreationState.Done("italian-game-copy")
     forked shouldBe
       listOf(
-        Forked("italian-game", "italian-game-copy", "Italian Game copy", RepertoireColor.WHITE)
+        Forked("italian-game", "italian-game-copy", "Italian Game copy", RepertoireColor.WHITE),
       )
   }
 

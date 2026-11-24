@@ -83,7 +83,7 @@ fun SettingsSection(
             }
           } else {
             Modifier
-          }
+          },
         )
         .border(width = 1.5.dp, color = borderColor, shape = cardShape)
         .padding(
@@ -92,8 +92,8 @@ fun SettingsSection(
             top = 18.dp,
             end = 18.dp,
             bottom = 18.dp,
-          )
-        )
+          ),
+        ),
   ) {
     Text(text = title, style = typography.display.copy(color = titleColor))
     if (description != null) {

@@ -174,7 +174,7 @@ fun ExplorerContent(
   val bestMove by (evaluator?.bestMove ?: flowOf(null)).collectAsState(initial = null)
   val engineDownload by
     (evaluator?.download ?: flowOf(EngineDownload.Done)).collectAsState(
-      initial = EngineDownload.Done
+      initial = EngineDownload.Done,
     )
   val bestMoveArrow by remember {
     derivedStateOf {
@@ -352,7 +352,7 @@ fun ExplorerContent(
     modifier =
       Modifier.fillMaxSize().focusRequester(focusRequester).focusable().onPreviewKeyEvent {
         handleNavigationKey(it, explorer, coroutineScope)
-      }
+      },
   ) {
     header()
     BoxWithConstraints(modifier = Modifier.weight(1f)) {

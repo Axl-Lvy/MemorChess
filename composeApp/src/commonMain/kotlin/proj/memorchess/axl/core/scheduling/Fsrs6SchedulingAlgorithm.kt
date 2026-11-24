@@ -224,7 +224,7 @@ class Fsrs6SchedulingAlgorithm(
     val fuzz = nextFuzz()
     val intervals =
       monotonicIntervals(
-        initialStabilities.mapValues { (_, s) -> intervalDays(s, elapsedDays = 0.0, fuzz) }
+        initialStabilities.mapValues { (_, s) -> intervalDays(s, elapsedDays = 0.0, fuzz) },
       )
     val isLapse = grade == ReviewGrade.AGAIN
     return CardState(

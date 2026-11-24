@@ -74,7 +74,7 @@ class TestTrainingScheduler {
 
   /** Same as [newScheduler], with a real [StreakTracker] over an isolated in memory store. */
   private fun newSchedulerWithStreak(
-    timeZone: TimeZone = TimeZone.currentSystemDefault()
+    timeZone: TimeZone = TimeZone.currentSystemDefault(),
   ): Triple<TreeStore, TrainingScheduler, StreakTracker> {
     val database = TestDatabases.empty()
     val store = testTreeStore(database)

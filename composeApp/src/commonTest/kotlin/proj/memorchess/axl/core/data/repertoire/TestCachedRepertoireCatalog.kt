@@ -124,7 +124,7 @@ class TestCachedRepertoireCatalog : TestWithKoin() {
         RepertoireCatalogClient(
           httpClient = HttpClient(engine),
           baseUrl = "https://example.invalid/catalog",
-        )
+        ),
       )
 
     val result = catalog.getManifest()

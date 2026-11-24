@@ -89,7 +89,7 @@ fun SettingsSidebar(
           )
         }
         .verticalScroll(scroll)
-        .padding(vertical = 24.dp)
+        .padding(vertical = 24.dp),
   ) {
     Text(
       text = stringResource(Res.string.settings_sidebar_caption),

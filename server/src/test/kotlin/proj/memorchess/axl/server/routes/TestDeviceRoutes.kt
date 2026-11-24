@@ -195,7 +195,7 @@ class TestDeviceRoutes {
               updatedAt = serverNow,
               originDevice = DeviceId(DEVICE),
               deviceSeq = 1,
-            )
+            ),
           ),
           device = DeviceId(DEVICE),
         ),

@@ -6,6 +6,8 @@ import kotlin.time.Instant
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.UtcOffset
+import kotlinx.datetime.asTimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
 import proj.memorchess.axl.core.interactions.ContinuationReview
@@ -43,7 +45,7 @@ class TestContinuationReview {
   fun daysAreCountedInTheGivenTimeZone() {
     val review = dueAt("2026-11-24T23:30:00Z")
 
-    review.daysUntilDue(today, TimeZone.of("Europe/Paris")) shouldBe 1
+    review.daysUntilDue(today, UtcOffset(hours = 1).asTimeZone()) shouldBe 1
     review.daysUntilDue(today, TimeZone.UTC) shouldBe 0
   }
 }

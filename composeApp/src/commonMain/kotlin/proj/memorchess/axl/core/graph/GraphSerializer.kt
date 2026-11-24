@@ -166,7 +166,7 @@ object GraphSerializer {
           dataMove.isGood,
           dataMove.updatedAt,
           dataMove.createdAt,
-        )
+        ),
       )
     }
   }

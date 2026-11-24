@@ -82,7 +82,7 @@ class NodeCache(private val loader: NodeLoader, loadScope: CoroutineScope) {
     CoroutineScope(
       loadScope.coroutineContext +
         SupervisorJob(loadScope.coroutineContext[Job]) +
-        Dispatchers.Unconfined
+        Dispatchers.Unconfined,
     )
 
   private val tree = OpeningTree()

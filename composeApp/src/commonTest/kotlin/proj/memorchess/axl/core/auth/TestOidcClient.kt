@@ -90,7 +90,7 @@ class TestOidcClient {
       respond(
         content =
           ByteReadChannel(
-            """{"access_token":"tok-xyz","refresh_token":"ref-abc","expires_in":3600,"id_token":"$idToken"}"""
+            """{"access_token":"tok-xyz","refresh_token":"ref-abc","expires_in":3600,"id_token":"$idToken"}""",
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),
@@ -163,7 +163,7 @@ class TestOidcClient {
       respond(
         content =
           ByteReadChannel(
-            """{"access_token":"tok-new","refresh_token":"ref-new","expires_in":3600}"""
+            """{"access_token":"tok-new","refresh_token":"ref-new","expires_in":3600}""",
           ),
         status = HttpStatusCode.OK,
         headers = headersOf(HttpHeaders.ContentType, "application/json"),

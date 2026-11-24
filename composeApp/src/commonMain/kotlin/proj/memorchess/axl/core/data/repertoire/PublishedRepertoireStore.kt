@@ -48,7 +48,7 @@ class PublishedRepertoireStore {
     PUBLISHED_REPERTOIRES_SETTING.setValue(
       entries.entries
         .sortedBy { it.key }
-        .joinToString(SEPARATOR) { "${it.key}$PAIR_SEPARATOR${it.value}" }
+        .joinToString(SEPARATOR) { "${it.key}$PAIR_SEPARATOR${it.value}" },
     )
   }
 

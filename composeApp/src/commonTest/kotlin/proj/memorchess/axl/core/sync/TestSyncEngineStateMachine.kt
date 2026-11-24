@@ -55,7 +55,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Success
-        }
+        },
       )
     e.start()
 
@@ -75,7 +75,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Success
-        }
+        },
       )
     e.start()
 
@@ -93,7 +93,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Success
-        }
+        },
       )
     e.start()
 
@@ -121,7 +121,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.PausedNoAuth
-        }
+        },
       )
     e.start()
 
@@ -142,7 +142,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.QuotaExceeded
-        }
+        },
       )
     e.start()
 
@@ -163,7 +163,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.QuotaExceeded
-        }
+        },
       )
     e.start()
     e.syncNow()
@@ -181,7 +181,7 @@ class TestSyncEngineStateMachine {
   fun aStoredQuotaExceededPauseAtStartupStaysPausedWithNoRetryTimer() = runTest {
     val jobStore = SyncJobStore(TestSettings())
     jobStore.write(
-      SyncJobState(SyncJobStatus.PAUSED_QUOTA_EXCEEDED, nextAttemptAt = null, attempt = 0)
+      SyncJobState(SyncJobStatus.PAUSED_QUOTA_EXCEEDED, nextAttemptAt = null, attempt = 0),
     )
     var cycles = 0
     val e = engine(cycle = { cycles++.let { CycleOutcome.Success } }, jobStore = jobStore)
@@ -221,7 +221,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Success
-        }
+        },
       )
 
     // The lifecycle hook can reach the engine before start() does: a resume effect runs during
@@ -243,7 +243,7 @@ class TestSyncEngineStateMachine {
           cycles++
           delay(1.seconds)
           CycleOutcome.Success
-        }
+        },
       )
 
     e.onAppForeground()
@@ -262,7 +262,7 @@ class TestSyncEngineStateMachine {
         SyncJobStatus.BACKING_OFF,
         nextAttemptAt = Instant.fromEpochMilliseconds(0),
         attempt = 1,
-      )
+      ),
     )
     var cycles = 0
     val e =
@@ -288,7 +288,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Success
-        }
+        },
       )
     e.start()
 
@@ -311,7 +311,7 @@ class TestSyncEngineStateMachine {
           cycles++
           if (cycles == 1) engineRef.notifyDirty()
           CycleOutcome.Success
-        }
+        },
       )
     engineRef = e
     e.start()
@@ -333,7 +333,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Success
-        }
+        },
       )
     e.start()
     e.status.value shouldBe SyncJobStatus.IDLE
@@ -351,7 +351,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Success
-        }
+        },
       )
     e.start()
 
@@ -368,7 +368,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.Transient
-        }
+        },
       )
     e.start()
     e.notifyDirty()
@@ -391,7 +391,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.PausedNoAuth
-        }
+        },
       )
     e.start()
     e.notifyDirty()
@@ -412,7 +412,7 @@ class TestSyncEngineStateMachine {
         cycle = {
           cycles++
           CycleOutcome.QuotaExceeded
-        }
+        },
       )
     e.start()
     e.notifyDirty()
@@ -457,7 +457,7 @@ class TestSyncEngineStateMachine {
           kotlinx.coroutines.delay(5.seconds)
           running--
           CycleOutcome.Success
-        }
+        },
       )
     e.start()
     e.syncNow()

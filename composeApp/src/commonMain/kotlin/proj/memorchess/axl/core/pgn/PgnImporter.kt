@@ -99,7 +99,7 @@ class PgnImporter(
     if (existingColor != incomingColor) {
       throw PgnImportException(
         "Repertoire '$repertoireId' is registered as $existingColor, cannot extend it with a " +
-          "$incomingColor import"
+          "$incomingColor import",
       )
     }
   }

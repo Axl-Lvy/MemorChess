@@ -28,7 +28,7 @@ internal object PostgresTestDb {
           username = container.username
           password = container.password
           maximumPoolSize = 8
-        }
+        },
       )
       .also { applySchema(it) }
   }

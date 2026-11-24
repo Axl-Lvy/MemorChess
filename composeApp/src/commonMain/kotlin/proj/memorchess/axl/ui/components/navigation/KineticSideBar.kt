@@ -362,7 +362,7 @@ fun KineticSideNav(
             Box(
               modifier =
                 Modifier.background(palette.action, BADGE_SHAPE)
-                  .padding(vertical = 2.dp, horizontal = 7.dp)
+                  .padding(vertical = 2.dp, horizontal = 7.dp),
             ) {
               Text(
                 text = count.toString(),
@@ -456,7 +456,7 @@ fun KineticDesktopRail(
           )
         }
         .windowInsetsPadding(WindowInsets.systemBars)
-        .padding(vertical = RAIL_VERTICAL_PADDING, horizontal = RAIL_HORIZONTAL_PADDING)
+        .padding(vertical = RAIL_VERTICAL_PADDING, horizontal = RAIL_HORIZONTAL_PADDING),
   ) {
     Column(
       modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),

@@ -38,7 +38,7 @@ class TestRoomOutboxAndSoftDelete {
   fun softDeletingANodeStampsUpdatedAt() = runTest {
     val key = PositionKey("k1")
     manager.insertNodes(
-      DataNode(key, PreviousAndNextMoves(emptyList(), emptyList()), CardStateFactory.new())
+      DataNode(key, PreviousAndNextMoves(emptyList(), emptyList()), CardStateFactory.new()),
     )
 
     manager.deletePosition(
@@ -177,7 +177,7 @@ class TestRoomOutboxAndSoftDelete {
       ),
     )
     manager.insertTag(
-      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4")
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4"),
     )
 
     manager.edgesTaggedWith("italian-game") shouldBe listOf(TaggedEdge(origin, destination, "e4"))
@@ -203,7 +203,7 @@ class TestRoomOutboxAndSoftDelete {
         repertoireId = "italian-game",
         move = "e4",
         isDeleted = true,
-      )
+      ),
     )
 
     manager.edgesTaggedWith("italian-game") shouldBe emptyList()
@@ -271,10 +271,10 @@ class TestRoomOutboxAndSoftDelete {
     val origin = PositionKey("k1")
     val destination = PositionKey("k2")
     manager.insertRepertoire(
-      DataRepertoire(id = "italian-game", name = "Italian Game", color = null)
+      DataRepertoire(id = "italian-game", name = "Italian Game", color = null),
     )
     manager.insertTag(
-      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4")
+      DataEdgeRepertoireTag(origin, destination, repertoireId = "italian-game", move = "e4"),
     )
 
     manager.eraseAll()

@@ -80,7 +80,7 @@ fun KineticDialog(
             // kineticShadow must precede background so the hard offset block is drawn *behind* the
             // panel fill (the panel then paints over the overlap, leaving only the offset strip).
             // With background first the shadow painted on top of the panel.
-            modifier = modifier.fillMaxWidth().kineticShadow(big = true).background(palette.panel)
+            modifier = modifier.fillMaxWidth().kineticShadow(big = true).background(palette.panel),
           ) {
             // Bright HUD strip flush to the top edge.
             Box(Modifier.fillMaxWidth().height(2.dp).background(palette.actionGlow))

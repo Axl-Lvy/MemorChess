@@ -40,21 +40,21 @@ class TestEngineDownloadLabel {
   @Test
   fun theTotalIsOneHundredPercent() {
     engineDownloadLabel(
-      EngineDownload.InProgress(receivedBytes = 1_000, totalBytes = 1_000)
+      EngineDownload.InProgress(receivedBytes = 1_000, totalBytes = 1_000),
     ) shouldBe "100%"
   }
 
   @Test
   fun moreThanTheTotalIsCappedAtOneHundredPercent() {
     engineDownloadLabel(
-      EngineDownload.InProgress(receivedBytes = 1_001, totalBytes = 1_000)
+      EngineDownload.InProgress(receivedBytes = 1_001, totalBytes = 1_000),
     ) shouldBe "100%"
   }
 
   @Test
   fun halfOfTheFullEngine() {
     engineDownloadLabel(
-      EngineDownload.InProgress(receivedBytes = 56_503_670, totalBytes = 113_007_340)
+      EngineDownload.InProgress(receivedBytes = 56_503_670, totalBytes = 113_007_340),
     ) shouldBe "50%"
   }
 

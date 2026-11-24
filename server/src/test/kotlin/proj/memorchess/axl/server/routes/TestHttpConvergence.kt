@@ -85,7 +85,7 @@ class TestHttpConvergence {
    * clock the test moves.
    */
   private fun twoDevices(
-    block: suspend (TestDevice, SyncTransport, TestDevice, SyncTransport, ServerClock) -> Unit
+    block: suspend (TestDevice, SyncTransport, TestDevice, SyncTransport, ServerClock) -> Unit,
   ) = testApplication {
     val user = PostgresTestDb.newUserId()
     val clock = ServerClock(base)

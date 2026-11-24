@@ -266,7 +266,7 @@ private fun Modifier.kineticButtonShell(state: ButtonShellState): Modifier =
     .then(
       if (state.elevated) {
         Modifier.kineticPressableElevation(state.pressed, state.metrics.shape, state.outline)
-      } else Modifier
+      } else Modifier,
     )
     .background(color = state.background, shape = state.metrics.shape)
     .then(if (state.elevated) Modifier else Modifier.border(state.outline, state.metrics.shape))
@@ -337,7 +337,7 @@ fun KineticButton(
           outline = outline,
           background = face.background,
           indication = indication,
-        )
+        ),
       ),
     contentAlignment = Alignment.Center,
   ) {

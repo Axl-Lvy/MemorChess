@@ -106,7 +106,7 @@ fun KineticBoardShell(
               size = Size(stripeWpx, stripeHpx),
             )
           }
-          .padding(innerPadding)
+          .padding(innerPadding),
     ) {
       content()
     }
@@ -118,7 +118,7 @@ fun KineticBoardShell(
           Modifier.align(Alignment.TopStart)
             .offset(x = 12.dp, y = (-7).dp)
             .background(palette.panel)
-            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           Text(
@@ -143,7 +143,7 @@ fun KineticBoardShell(
           Modifier.align(Alignment.TopCenter)
             .offset(y = (-16).dp)
             .background(palette.action)
-            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           Text(

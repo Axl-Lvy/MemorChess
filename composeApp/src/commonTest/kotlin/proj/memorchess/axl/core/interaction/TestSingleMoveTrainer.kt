@@ -333,7 +333,7 @@ class TestSingleMoveTrainer : TestWithKoin() {
         positionKey = start,
         PreviousAndNextMoves(listOf(), listOf(DataMove(start, nf3Position, "Ngf3", isGood = true))),
         testNode.cardState,
-      )
+      ),
     )
     return SingleMoveTrainer(checkNotNull(treeStore.node(start))) { edge, played, correct ->
       lastEdge = edge

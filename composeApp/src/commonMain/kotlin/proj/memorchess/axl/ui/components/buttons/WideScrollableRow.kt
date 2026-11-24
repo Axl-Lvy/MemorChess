@@ -124,7 +124,7 @@ private fun WideScrollableRowItem(
             colors.selected
           } else {
             colors.base
-          }
+          },
         )
         .testTag(child.testTag)
         .clickable(!isSelected) { onClick() }
@@ -150,9 +150,9 @@ private fun BoxWithConstraintsScope.DrawScrollIndicators(
             .width(24.dp)
             .background(
               Brush.horizontalGradient(
-                colors = listOf(Color.Black.copy(alpha = 0.15f), Color.Transparent)
-              )
-            )
+                colors = listOf(Color.Black.copy(alpha = 0.15f), Color.Transparent),
+              ),
+            ),
       )
     }
     // Right gradient
@@ -164,9 +164,9 @@ private fun BoxWithConstraintsScope.DrawScrollIndicators(
             .width(24.dp)
             .background(
               Brush.horizontalGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.15f))
-              )
-            )
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.15f)),
+              ),
+            ),
       )
     }
   }

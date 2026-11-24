@@ -86,7 +86,7 @@ fun KineticToggle(
         Modifier.offset(x = thumbOffset)
           .size(18.dp)
           .clip(thumbShape)
-          .background(color = thumbColor, shape = thumbShape)
+          .background(color = thumbColor, shape = thumbShape),
     )
   }
 }

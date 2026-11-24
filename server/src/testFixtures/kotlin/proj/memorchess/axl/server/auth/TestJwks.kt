@@ -39,7 +39,7 @@ internal class TestSigningKey(internal val keyId: String) {
         "use" to "sig",
         "n" to (pair.public as RSAPublicKey).modulus.toUrlSafeBase64(),
         "e" to (pair.public as RSAPublicKey).publicExponent.toUrlSafeBase64(),
-      )
+      ),
     )
 
   /** Signs a token, defaulting every claim to something the server should accept. */
@@ -57,8 +57,8 @@ internal class TestSigningKey(internal val keyId: String) {
       .apply { if (subject.isNotEmpty()) withSubject(subject) }
       .withExpiresAt(
         java.util.Date.from(
-          java.time.Instant.ofEpochMilli((Clock.System.now() + expiresIn).toEpochMilliseconds())
-        )
+          java.time.Instant.ofEpochMilli((Clock.System.now() + expiresIn).toEpochMilliseconds()),
+        ),
       )
       .sign(algorithm)
 }

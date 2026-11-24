@@ -75,7 +75,7 @@ internal class TestKineticElevation {
   private fun ReservedRoomBox(tag: String, shape: Shape?) {
     Box(
       modifier =
-        Modifier.testTag(tag).background(Color(0xFF000000)).padding(end = 10.dp, bottom = 10.dp)
+        Modifier.testTag(tag).background(Color(0xFF000000)).padding(end = 10.dp, bottom = 10.dp),
     ) {
       Box(
         modifier =
@@ -84,7 +84,7 @@ internal class TestKineticElevation {
               if (shape == null) it.kineticShadow(big = false, drawBorder = false)
               else it.kineticShadow(big = false, shape = shape, drawBorder = false)
             }
-            .background(Color.White)
+            .background(Color.White),
       )
     }
   }
@@ -131,14 +131,14 @@ internal class TestKineticElevation {
             Modifier.size(40.dp)
               .testTag("withBorder")
               .background(Color.White)
-              .kineticShadow(big = false)
+              .kineticShadow(big = false),
         )
         Box(
           modifier =
             Modifier.size(40.dp)
               .testTag("noBorder")
               .background(Color.White)
-              .kineticShadow(big = false, drawBorder = false)
+              .kineticShadow(big = false, drawBorder = false),
         )
       }
     }
