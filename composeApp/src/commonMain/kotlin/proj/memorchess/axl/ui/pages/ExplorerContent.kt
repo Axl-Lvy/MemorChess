@@ -152,7 +152,7 @@ fun ExplorerContent(
   LaunchedEffect(explorer) {
     nextMoves.clear()
     yoursBySan.clear()
-    nextMoves.addAll(explorer.getNextMoves())
+    nextMoves.addAll(explorer.getNextMoves().map { it.move })
     refreshYours(nextMoves, myTreeStore, explorer, yoursBySan)
     playedSans.clear()
     playedSans.addAll(explorer.playedMoves())
@@ -211,7 +211,7 @@ fun ExplorerContent(
       playedSans.clear()
       playedSans.addAll(explorer.playedMoves())
       coroutineScope.launch {
-        val moves = explorer.getNextMoves()
+        val moves = explorer.getNextMoves().map { it.move }
         nextMoves.clear()
         yoursBySan.clear()
         nextMoves.addAll(moves)
