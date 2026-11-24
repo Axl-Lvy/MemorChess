@@ -188,8 +188,8 @@ interface DatabaseQueryManager {
   ): ScopedSchedulingCounts
 
   /**
-   * Counts the non-deleted positions in the subtree reachable from [key] that a recursive delete
-   * would remove, [key] itself included.
+   * Measures the non-deleted positions in the subtree reachable from [key] that a recursive delete
+   * would remove, [key] itself included, and how many of them carry review history.
    *
    * A descendant is counted only when [key]'s subtree is its sole set of parents: a convergent
    * position reachable through a parent outside the visited subtree is not counted (and not
@@ -198,15 +198,16 @@ interface DatabaseQueryManager {
    * first traversal over the move edges, identical across every backend so the convergence rule
    * cannot drift.
    *
-   * Bounded by [cap]: the traversal stops enqueuing once [cap] positions have been counted, so a
-   * subtree at or above [cap] returns exactly [cap]. The UI renders that as a "cap or more"
-   * sentinel instead of paying for an unbounded walk. Returns `0` when [key] is not stored.
+   * Bounded by [cap]: the traversal stops once [cap] positions have been counted, so a subtree at
+   * or above [cap] reports exactly [cap] positions, and its reviewed count covers only those. The
+   * UI renders that as a "cap or more" sentinel instead of paying for an unbounded walk. Returns
+   * [PruneImpact.NONE] when [key] is not stored.
    *
-   * @param key Root of the subtree to count.
-   * @param cap Upper bound on the returned count; the traversal never visits more than [cap]
+   * @param key Root of the subtree to measure.
+   * @param cap Upper bound on [PruneImpact.positions]; the traversal never visits more than [cap]
    *   positions.
    */
-  suspend fun countDescendants(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): Int
+  suspend fun pruneImpact(key: PositionKey, cap: Int = DESCENDANT_COUNT_CAP): PruneImpact
 
   /**
    * Queues [key] for the next sync push at [deviceSeq], or refreshes it if already queued.
@@ -329,7 +330,7 @@ interface DatabaseQueryManager {
 }
 
 /**
- * Default upper bound for [DatabaseQueryManager.countDescendants]. A delete confirmation that would
+ * Default upper bound for [DatabaseQueryManager.pruneImpact]. A delete confirmation that would
  * remove this many or more positions is shown as a "[DESCENDANT_COUNT_CAP] or more" sentinel rather
  * than paging the whole subtree to produce an exact number.
  */
