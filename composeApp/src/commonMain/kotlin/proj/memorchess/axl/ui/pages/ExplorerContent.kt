@@ -235,9 +235,11 @@ fun ExplorerContent(
         ControlButton.FORWARD.render(it) { coroutineScope.launch { explorer.forward() } }
       },
       nextMoveButtons = {
-        nextMoves.map { it.move }.map<String, @Composable (() -> Unit)> {
-          { NextMoveButton(it) { coroutineScope.launch { explorer.playMove(it) } } }
-        }
+        nextMoves
+          .map { it.move }
+          .map<String, @Composable (() -> Unit)> {
+            { NextMoveButton(it) { coroutineScope.launch { explorer.playMove(it) } } }
+          }
       },
       playerTurnIndicator = { PlayerTurnIndicator(explorer) },
       stateIndicators = { if (!readOnly) StateIndicator(it, explorer.state) },

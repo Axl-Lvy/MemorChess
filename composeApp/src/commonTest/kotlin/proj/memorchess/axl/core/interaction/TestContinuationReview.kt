@@ -14,7 +14,8 @@ class TestContinuationReview {
 
   private val today = LocalDate(2026, 11, 24)
 
-  private fun dueAt(instant: String) = ContinuationReview(recall = null, dueDate = Instant.parse(instant))
+  private fun dueAt(instant: String) =
+    ContinuationReview(recall = null, dueDate = Instant.parse(instant))
 
   @Test
   fun dueEarlierTodayIsZeroDays() {

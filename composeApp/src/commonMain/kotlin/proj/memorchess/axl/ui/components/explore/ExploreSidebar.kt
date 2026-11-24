@@ -30,8 +30,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import memorchess.composeapp.generated.resources.Res
 import kotlinx.datetime.TimeZone
+import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.description_board_next_move
 import memorchess.composeapp.generated.resources.explore_continuation_due_in
 import memorchess.composeapp.generated.resources.explore_continuation_due_today

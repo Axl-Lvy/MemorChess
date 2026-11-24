@@ -3,12 +3,12 @@ package proj.memorchess.axl.core.interactions
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlin.time.Instant
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.toast_deleted
 import memorchess.composeapp.generated.resources.toast_no_next_move
 import memorchess.composeapp.generated.resources.toast_no_previous_move
 import memorchess.composeapp.generated.resources.toast_saved
-import kotlin.time.Instant
 import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.date.DateUtil
