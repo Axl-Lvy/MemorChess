@@ -5,12 +5,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.engine.Fen
 
@@ -39,12 +41,29 @@ class ExplorerViewModel(
   private val fenFlow = MutableStateFlow<Fen?>(null)
   private val sourceFlow = MutableStateFlow(ExplorerSource.MASTERS)
   private val internalState = MutableStateFlow<ExplorerState>(ExplorerState.Idle)
+  private val lastLoad = MutableStateFlow<HeldLoad?>(null)
 
   /** Current state of the panel. */
   val state: StateFlow<ExplorerState> = internalState.asStateFlow()
 
   /** Currently selected source (masters or lichess). */
   val source: StateFlow<ExplorerSource> = sourceFlow.asStateFlow()
+
+  /**
+   * The last loaded position totals, flagged as outdated while they don't match the current
+   * position and source. Never goes back to [PositionStatsState.Hidden] once something has loaded.
+   */
+  val positionStats: StateFlow<PositionStatsState> =
+    combine(lastLoad, fenFlow, sourceFlow) { held, fen, source ->
+        if (held == null) PositionStatsState.Hidden
+        else
+          PositionStatsState.Shown(
+            source = held.source,
+            response = held.response,
+            isCurrent = held.fen == fen && held.source == source,
+          )
+      }
+      .stateIn(scope, SharingStarted.Eagerly, PositionStatsState.Hidden)
 
   init {
     scope.launch {
@@ -68,6 +87,11 @@ class ExplorerViewModel(
   private suspend fun runFetch(fen: Fen, source: ExplorerSource) {
     internalState.value = ExplorerState.Loading(fen, source)
     val result = cachedExplorer.fetch(source, fen)
+    when (result) {
+      is CachedExplorerResult.Fresh -> lastLoad.value = HeldLoad(fen, source, result.response)
+      is CachedExplorerResult.Stale -> lastLoad.value = HeldLoad(fen, source, result.response)
+      else -> Unit
+    }
     internalState.value =
       when (result) {
         is CachedExplorerResult.Fresh ->
@@ -85,6 +109,28 @@ class ExplorerViewModel(
     /** Default debounce between rapid FEN changes. */
     val DEFAULT_DEBOUNCE: Duration = 150.milliseconds
   }
+}
+
+private data class HeldLoad(
+  val fen: Fen,
+  val source: ExplorerSource,
+  val response: LichessExplorerResponse,
+)
+
+/** What the position stats bar shows. */
+sealed class PositionStatsState {
+  /** Nothing has loaded on this screen yet. */
+  data object Hidden : PositionStatsState()
+
+  /**
+   * Totals from [source] for the last loaded position. [isCurrent] is `false` while they belong to
+   * another position or source than the one selected.
+   */
+  data class Shown(
+    val source: ExplorerSource,
+    val response: LichessExplorerResponse,
+    val isCurrent: Boolean,
+  ) : PositionStatsState()
 }
 
 /** State of the explorer panel. Consumed by Compose. */

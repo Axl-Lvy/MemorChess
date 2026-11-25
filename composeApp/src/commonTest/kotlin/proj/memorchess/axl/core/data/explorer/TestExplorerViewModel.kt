@@ -11,11 +11,13 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import proj.memorchess.axl.core.auth.LichessToken
 import proj.memorchess.axl.core.engine.Fen
+import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.test_util.InMemoryExplorerCache
 
 class TestExplorerViewModel {
@@ -123,5 +125,99 @@ class TestExplorerViewModel {
     vm.setFen(Fen("fen with no auth"))
     val unauth = vm.state.first { it is ExplorerState.Unauthorized } as ExplorerState.Unauthorized
     unauth.source shouldBe ExplorerSource.MASTERS
+  }
+
+  private val startFen = GameEngine().toFen()
+  private val afterE4Fen = GameEngine().apply { playSanMove("e4") }.toFen()
+  private val startResponse =
+    LichessExplorerResponse(white = 10, draws = 5, black = 3, moves = emptyList())
+
+  /** A view model whose client has no token, so only seeded positions ever load. */
+  private fun signedOutViewModel(
+    cache: InMemoryExplorerCache,
+    scope: CoroutineScope,
+  ): ExplorerViewModel {
+    val client =
+      LichessExplorerClient(
+        httpClient = HttpClient(MockEngine { _ -> respond("", HttpStatusCode.ServiceUnavailable) }),
+        tokenProvider = { null },
+        minGap = 0.milliseconds,
+      )
+    return ExplorerViewModel(CachedExplorer(client, cache), scope, debounce = 0.milliseconds)
+  }
+
+  private fun seededCache(): InMemoryExplorerCache =
+    InMemoryExplorerCache().apply { seed(startFen, ExplorerSource.MASTERS, startResponse) }
+
+  @Test
+  fun noLoadYetIsHidden() = runTest {
+    val vm = signedOutViewModel(InMemoryExplorerCache(), backgroundScope)
+
+    vm.setFen(startFen)
+    vm.state.first { it is ExplorerState.Unauthorized }
+
+    vm.positionStats.value shouldBe PositionStatsState.Hidden
+  }
+
+  @Test
+  fun cachedPositionIsShownCurrent() = runTest {
+    val vm = signedOutViewModel(seededCache(), backgroundScope)
+
+    vm.setFen(startFen)
+
+    vm.positionStats.first { it is PositionStatsState.Shown } shouldBe
+      PositionStatsState.Shown(ExplorerSource.MASTERS, startResponse, isCurrent = true)
+  }
+
+  @Test
+  fun signedOutUncachedPositionKeepsPreviousStatsDimmed() = runTest {
+    val vm = signedOutViewModel(seededCache(), backgroundScope)
+    vm.setFen(startFen)
+    vm.positionStats.first { it is PositionStatsState.Shown }
+
+    vm.setFen(afterE4Fen)
+    vm.state.first { it is ExplorerState.Unauthorized }
+
+    vm.positionStats.first { it is PositionStatsState.Shown && !it.isCurrent } shouldBe
+      PositionStatsState.Shown(ExplorerSource.MASTERS, startResponse, isCurrent = false)
+  }
+
+  @Test
+  fun returningToCachedPositionIsCurrentAgain() = runTest {
+    val vm = signedOutViewModel(seededCache(), backgroundScope)
+    vm.setFen(startFen)
+    vm.positionStats.first { it is PositionStatsState.Shown }
+    vm.setFen(afterE4Fen)
+    vm.state.first { it is ExplorerState.Unauthorized }
+
+    vm.setFen(startFen)
+
+    vm.positionStats.first { it is PositionStatsState.Shown && it.isCurrent } shouldBe
+      PositionStatsState.Shown(ExplorerSource.MASTERS, startResponse, isCurrent = true)
+  }
+
+  @Test
+  fun sourceSwitchKeepsOldSourceUntilNewNumbersArrive() = runTest {
+    val vm = signedOutViewModel(seededCache(), backgroundScope)
+    vm.setFen(startFen)
+    vm.positionStats.first { it is PositionStatsState.Shown }
+
+    vm.setSource(ExplorerSource.LICHESS)
+    vm.state.first { it is ExplorerState.Unauthorized }
+
+    vm.positionStats.first { it is PositionStatsState.Shown && !it.isCurrent } shouldBe
+      PositionStatsState.Shown(ExplorerSource.MASTERS, startResponse, isCurrent = false)
+  }
+
+  @Test
+  fun zeroGameResponseIsShown() = runTest {
+    val empty = LichessExplorerResponse(white = 0, draws = 0, black = 0, moves = emptyList())
+    val cache = InMemoryExplorerCache().apply { seed(startFen, ExplorerSource.MASTERS, empty) }
+    val vm = signedOutViewModel(cache, backgroundScope)
+
+    vm.setFen(startFen)
+
+    vm.positionStats.first { it is PositionStatsState.Shown } shouldBe
+      PositionStatsState.Shown(ExplorerSource.MASTERS, empty, isCurrent = true)
   }
 }
