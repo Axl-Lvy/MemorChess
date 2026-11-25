@@ -44,7 +44,10 @@ kotlin {
   }
 
   // JVM/Desktop configuration
-  jvm()
+  jvm {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    mainRun { mainClass.set("proj.memorchess.axl.MainKt") }
+  }
 
   // iOS configuration
   listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
