@@ -1,5 +1,8 @@
 package proj.memorchess.axl.core.sync
 
+/** Root URL of the production `:server` that native platforms sync against. */
+const val PRODUCTION_SYNC_BASE_URL: String = "https://memorchess.axl-lvy.fr"
+
 /**
  * Root URL of the deployed `:server`, fronting both `/v1/sync` and `/v1/repertoires`. Native
  * platforms hardcode the mini PC domain; wasmJs derives it from the page origin so local dev

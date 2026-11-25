@@ -6,6 +6,8 @@ import io.ktor.server.netty.Netty
 import java.net.URI
 import java.util.UUID
 import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.runBlocking
 import proj.memorchess.axl.server.auth.TEST_AUDIENCE
@@ -46,8 +48,9 @@ internal constructor(
   /** A user id no other caller of this server has used. */
   fun newUserId(): String = "e2e-${UUID.randomUUID()}"
 
-  /** A signed access token the server accepts for [userId]. */
-  fun tokenFor(userId: String): String = key.token(subject = userId)
+  /** A signed access token the server accepts for [userId] until [expiresIn] from now. */
+  fun tokenFor(userId: String, expiresIn: Duration = 1.hours): String =
+    key.token(subject = userId, expiresIn = expiresIn)
 
   /** Stops the server. */
   override fun close() {
@@ -55,12 +58,15 @@ internal constructor(
   }
 }
 
-/** Starts an [E2eServer] serving the production routes. Blocks until the port is bound. */
-fun startE2eServer(): E2eServer {
+/**
+ * Starts an [E2eServer] serving the production routes on [port] (`0` picks a free one). Blocks
+ * until the port is bound.
+ */
+fun startE2eServer(port: Int = 0): E2eServer {
   val key = TestSigningKey("e2e")
   val dataSource = PostgresTestDb.dataSource()
   val server =
-    embeddedServer(Netty, port = 0, host = "127.0.0.1") {
+    embeddedServer(Netty, port = port, host = "127.0.0.1") {
         serverModules(
           config = E2E_CONFIG,
           jwkProvider = TestJwkProvider(key),

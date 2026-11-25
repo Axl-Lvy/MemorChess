@@ -67,7 +67,9 @@ sonar {
       // :server's entrypoint: it wires a real Postgres/S3/Netty stack and is never invoked
       // directly by a test, which always calls syncModule/repertoireModule/staticFrontendModule
       // instead. Still analyzed for code quality, exempt from coverage only.
-      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/Main.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt,**/core/auth/SyncClientId.*.kt,**/macrobenchmark/**,**/microbenchmark/**",
+      // **/dev/DevMain.kt is the `devRun` entry point, the same kind of wiring as main.kt: it
+      // starts Koin and opens the window, and its logic lives in the tested DevData.kt.
+      "**/build/**,**/generated/**,**/*.gradle.kts,**/R.java,**/BuildConfig.java,**/*Manifest*.xml,**/debugMain/**,**/wasmJsMain/**,**/iosMain/**,**/ui/**,**/main.kt,**/Main.kt,**/dev/DevMain.kt,**/core/auth/OAuthLauncher.*.kt,**/core/auth/LichessOAuthRedirectActivity.kt,**/core/auth/LichessRedirectUri.*.kt,**/core/auth/SyncClientId.*.kt,**/macrobenchmark/**,**/microbenchmark/**",
     )
 
     // PL/SQL specific configuration for SQL files
