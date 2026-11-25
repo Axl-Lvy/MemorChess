@@ -46,7 +46,14 @@ abstract class PositionKeyStorageContract {
   private fun lineNodes(): List<DataNode> {
     val moves =
       line.indices.map { i ->
-        DataMove(lineKeys[i], lineKeys[i + 1], line[i], isGood = true, updatedAt = now)
+        DataMove(
+          lineKeys[i],
+          lineKeys[i + 1],
+          line[i],
+          isGood = true,
+          createdAt = now,
+          updatedAt = now,
+        )
       }
     return lineKeys.indices.map { i ->
       node(lineKeys[i], listOfNotNull(moves.getOrNull(i - 1)), listOfNotNull(moves.getOrNull(i)))
@@ -123,6 +130,22 @@ abstract class PositionKeyStorageContract {
 
     val streamed = GraphSerializer.serializeStreaming(3) { c, l -> db.getNodesPage(c, l) }
 
-    streamed shouldBe GraphSerializer.serialize(db.drainPages(limit = 100))
+    streamed shouldBe GraphSerializer.serialize(nodes)
+  }
+
+  @Test
+  fun outboxKeepsTextKeysForRealPositions() = runTest {
+    val db = freshManager()
+    db.insertNodes(*lineNodes().toTypedArray())
+    db.insertTag(
+      DataEdgeRepertoireTag(lineKeys[1], lineKeys[2], "rep", "d5", isGood = true, updatedAt = now),
+    )
+
+    db.deletePosition(lineKeys.last(), originDevice = "d", deviceSeq = 2L, updatedAt = now)
+
+    db.getOutbox().map { it.key }.toSet() shouldBe
+      lineKeys.map { DirtyKey.NodeKey(it) }.toSet() +
+        DirtyKey.TagKey(lineKeys[1], lineKeys[2], "rep") +
+        DirtyKey.EdgeKey(lineKeys[3], lineKeys[4])
   }
 }
