@@ -30,6 +30,8 @@ import org.koin.core.component.inject
 import proj.memorchess.axl.core.data.DataRepertoire
 import proj.memorchess.axl.core.data.PositionKey
 import proj.memorchess.axl.core.data.RepertoireMasterySnapshot
+import proj.memorchess.axl.core.data.explorer.ExplorerSource
+import proj.memorchess.axl.core.data.explorer.LichessExplorerResponse
 import proj.memorchess.axl.core.data.repertoire.CachedRepertoireCatalog
 import proj.memorchess.axl.core.data.repertoire.InstallError
 import proj.memorchess.axl.core.data.repertoire.LibraryCatalogState
@@ -45,6 +47,7 @@ import proj.memorchess.axl.core.engine.Player
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImportPreview
 import proj.memorchess.axl.core.pgn.PgnImportSummary
+import proj.memorchess.axl.test_util.InMemoryExplorerCache
 import proj.memorchess.axl.test_util.TestWithKoin
 import proj.memorchess.axl.test_util.repertoireMovesJsonOf
 import proj.memorchess.axl.ui.assertTileContainsPiece
@@ -63,6 +66,7 @@ class TestRepertoireView : TestWithKoin() {
 
   private val whitePawn = ChessPiece(PieceKind.PAWN, Player.WHITE)
   private val treeStore: TreeStore by inject()
+  private val explorerCache: InMemoryExplorerCache by inject()
 
   private val descriptor =
     RepertoireDescriptor(
@@ -1213,4 +1217,18 @@ class TestRepertoireView : TestWithKoin() {
     onNodeWithTag("library_filter_chip:mine").performClick()
     onNodeWithTag("library_filter_empty").assertExists()
   }
+
+  @Test
+  fun viewerShowsPositionStats() =
+    runViewer(
+      seedTreeStore = {
+        explorerCache.seed(
+          GameEngine().toFen(),
+          ExplorerSource.MASTERS,
+          LichessExplorerResponse(456_000, 372_000, 372_000, moves = emptyList()),
+        )
+      },
+    ) {
+      waitUntilNodeExists(hasTestTag("position_stats_bar").and(hasText("MASTERS · 1.2M")))
+    }
 }

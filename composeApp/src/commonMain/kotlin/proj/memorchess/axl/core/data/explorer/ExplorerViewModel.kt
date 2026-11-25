@@ -3,14 +3,19 @@ package proj.memorchess.axl.core.data.explorer
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.engine.Fen
 
@@ -29,22 +34,47 @@ import proj.memorchess.axl.core.engine.Fen
  *    Compose).
  * 2. Push the current FEN via [setFen] whenever the explorer's board position changes.
  */
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class ExplorerViewModel(
   private val cachedExplorer: CachedExplorer,
   scope: CoroutineScope,
   debounce: Duration = DEFAULT_DEBOUNCE,
+  dimDelay: Duration = DEFAULT_DIM_DELAY,
 ) {
 
   private val fenFlow = MutableStateFlow<Fen?>(null)
   private val sourceFlow = MutableStateFlow(ExplorerSource.MASTERS)
   private val internalState = MutableStateFlow<ExplorerState>(ExplorerState.Idle)
+  private val lastLoad = MutableStateFlow<HeldLoad?>(null)
 
   /** Current state of the panel. */
   val state: StateFlow<ExplorerState> = internalState.asStateFlow()
 
   /** Currently selected source (masters or lichess). */
   val source: StateFlow<ExplorerSource> = sourceFlow.asStateFlow()
+
+  /**
+   * The last loaded position totals, flagged as outdated once they have not matched the current
+   * position and source for the dim delay. Never goes back to [PositionStatsState.Hidden] once
+   * something has loaded.
+   */
+  val positionStats: StateFlow<PositionStatsState> =
+    combine(lastLoad, fenFlow, sourceFlow) { held, fen, source ->
+        if (held == null) PositionStatsState.Hidden
+        else
+          PositionStatsState.Shown(
+            source = held.source,
+            response = held.response,
+            isCurrent = held.fen == fen && held.source == source,
+          )
+      }
+      // Outdated stats are reported only once they stay outdated, so stepping through cached
+      // positions doesn't blink the bar.
+      .transformLatest { stats ->
+        if (stats is PositionStatsState.Shown && !stats.isCurrent) delay(dimDelay)
+        emit(stats)
+      }
+      .stateIn(scope, SharingStarted.Eagerly, PositionStatsState.Hidden)
 
   init {
     scope.launch {
@@ -68,6 +98,11 @@ class ExplorerViewModel(
   private suspend fun runFetch(fen: Fen, source: ExplorerSource) {
     internalState.value = ExplorerState.Loading(fen, source)
     val result = cachedExplorer.fetch(source, fen)
+    when (result) {
+      is CachedExplorerResult.Fresh -> lastLoad.value = HeldLoad(fen, source, result.response)
+      is CachedExplorerResult.Stale -> lastLoad.value = HeldLoad(fen, source, result.response)
+      else -> Unit
+    }
     internalState.value =
       when (result) {
         is CachedExplorerResult.Fresh ->
@@ -84,7 +119,32 @@ class ExplorerViewModel(
   companion object {
     /** Default debounce between rapid FEN changes. */
     val DEFAULT_DEBOUNCE: Duration = 150.milliseconds
+
+    /** Default time position stats must stay outdated before they are reported as such. */
+    val DEFAULT_DIM_DELAY: Duration = 300.milliseconds
   }
+}
+
+private data class HeldLoad(
+  val fen: Fen,
+  val source: ExplorerSource,
+  val response: LichessExplorerResponse,
+)
+
+/** What the position stats bar shows. */
+sealed class PositionStatsState {
+  /** Nothing has loaded on this screen yet. */
+  data object Hidden : PositionStatsState()
+
+  /**
+   * Totals from [source] for the last loaded position. [isCurrent] is `false` while they belong to
+   * another position or source than the one selected.
+   */
+  data class Shown(
+    val source: ExplorerSource,
+    val response: LichessExplorerResponse,
+    val isCurrent: Boolean,
+  ) : PositionStatsState()
 }
 
 /** State of the explorer panel. Consumed by Compose. */

@@ -205,4 +205,23 @@ class TestLichessExplorerPanel {
     onAllNodes(hasText("Lichess"))[0].performClick()
     kotlin.test.assertEquals(ExplorerSource.LICHESS, selected)
   }
+
+  @Test
+  fun perMoveRowsUseOutcomeBar() = runComposeUiTest {
+    setKineticContent {
+      LichessExplorerPanelContent(
+        state =
+          ExplorerState.Loaded(
+            source = ExplorerSource.MASTERS,
+            response = loadedResponse,
+            isStale = false,
+          ),
+        source = ExplorerSource.MASTERS,
+        onSetSource = {},
+        onClickMove = {},
+      )
+    }
+
+    onAllNodes(hasTestTag("outcome_bar_white"), useUnmergedTree = true).assertCountEquals(2)
+  }
 }

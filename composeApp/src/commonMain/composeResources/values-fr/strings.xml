@@ -163,6 +163,19 @@
   <string name="explore_error">Impossible de charger l'explorateur : %1$s</string>
   <string name="explore_no_games">Aucune partie trouvée pour cette position.</string>
 
+  <!-- Explore: position stats bar -->
+  <string name="explore_stats_source_masters">MAÎTRES</string>
+  <string name="explore_stats_source_lichess">LICHESS 2500+</string>
+  <string name="explore_stats_label">%1$s · %2$s</string>
+  <string name="explore_stats_percents">%1$s · %2$s · %3$s</string>
+  <string name="explore_stats_no_percents">—</string>
+  <string name="explore_stats_updating">Mise à jour</string>
+  <plurals name="explore_stats_description">
+    <item quantity="one">%1$s : %2$s partie, les blancs gagnent %3$s %, nulle %4$s %, les noirs gagnent %5$s %</item>
+    <item quantity="other">%1$s : %2$s parties, les blancs gagnent %3$s %, nulle %4$s %, les noirs gagnent %5$s %</item>
+  </plurals>
+  <string name="explore_stats_description_empty">%1$s : aucune partie</string>
+
   <!-- Explore: side info / continuations -->
   <string name="explore_no_next_moves">Aucun coup suivant</string>
   <string name="explore_tab_continuations">Suites</string>
