@@ -91,6 +91,26 @@ tasks.processResources {
   filesMatching("build-info.properties") { expand("buildSha" to buildSha.get()) }
 }
 
+// Local sync server a `:composeApp:devRun` client is signed in to: see the fixtures' DevServer.kt.
+// The port is derived from the worktree path so several worktrees' servers can run side by side.
+tasks.register<JavaExec>("devRun") {
+  group = "application"
+  description = "Runs a local dev sync server for this worktree (needs Docker)."
+  classpath = sourceSets["testFixtures"].runtimeClasspath
+  mainClass.set("proj.memorchess.axl.server.DevServerKt")
+  // Same Docker API floor as tasks.test, for the same reason.
+  systemProperty("api.version", System.getenv("DOCKER_API_VERSION") ?: "1.40")
+  environment("MEMORCHESS_DEV_PORT", 20000 + rootDir.absolutePath.hashCode().mod(10000))
+  environment(
+    "MEMORCHESS_DEV_SESSION_FILE",
+    rootProject.layout.buildDirectory
+      .file("dev-server/session.properties")
+      .get()
+      .asFile
+      .absolutePath,
+  )
+}
+
 ktfmt { googleStyle() }
 
 // Match the engine composeApp and shared use, or Kover refuses to merge the reports. Fixtures are
