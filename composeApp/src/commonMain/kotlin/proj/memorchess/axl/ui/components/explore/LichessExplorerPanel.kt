@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -40,6 +39,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerState
 import proj.memorchess.axl.core.data.explorer.ExplorerViewModel
 import proj.memorchess.axl.core.data.explorer.LichessExplorerMove
 import proj.memorchess.axl.core.data.explorer.LichessExplorerResponse
+import proj.memorchess.axl.core.data.explorer.toCompactCount
 import proj.memorchess.axl.ui.components.controls.KineticSegmentedControl
 import proj.memorchess.axl.ui.theme.LocalKineticPalette
 import proj.memorchess.axl.ui.theme.LocalKineticTypography
@@ -217,39 +217,15 @@ private fun MoveRow(move: LichessExplorerMove, onClick: () -> Unit) {
       modifier = Modifier.width(60.dp),
     )
     Text(
-      text = move.totalGames.toReadableCount(),
+      text = move.totalGames.toCompactCount(),
       style = typography.labelSm.copy(color = palette.ink3),
       modifier = Modifier.width(56.dp),
     )
-    StackedResultBar(move = move, modifier = Modifier.weight(1f).height(14.dp))
+    OutcomeBar(
+      white = move.white,
+      draws = move.draws,
+      black = move.black,
+      modifier = Modifier.weight(1f).height(14.dp),
+    )
   }
 }
-
-@Composable
-private fun StackedResultBar(move: LichessExplorerMove, modifier: Modifier = Modifier) {
-  val palette = LocalKineticPalette.current
-  val total = move.totalGames.coerceAtLeast(1L).toFloat()
-  val whiteWeight = (move.white / total).coerceAtLeast(MIN_WEIGHT)
-  val drawWeight = (move.draws / total).coerceAtLeast(MIN_WEIGHT)
-  val blackWeight = (move.black / total).coerceAtLeast(MIN_WEIGHT)
-  Row(modifier = modifier.background(palette.panel3)) {
-    if (move.white > 0) {
-      Box(modifier = Modifier.weight(whiteWeight).fillMaxHeight().background(palette.progress))
-    }
-    if (move.draws > 0) {
-      Box(modifier = Modifier.weight(drawWeight).fillMaxHeight().background(palette.ink3))
-    }
-    if (move.black > 0) {
-      Box(modifier = Modifier.weight(blackWeight).fillMaxHeight().background(palette.destructive))
-    }
-  }
-}
-
-private const val MIN_WEIGHT = 0.0001f
-
-private fun Long.toReadableCount(): String =
-  when {
-    this >= 1_000_000 -> "${this / 1_000_000}M"
-    this >= 1_000 -> "${this / 1_000}k"
-    else -> toString()
-  }

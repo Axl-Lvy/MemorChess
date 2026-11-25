@@ -54,6 +54,11 @@ Read the `:macrobenchmark` and `:microbenchmark` READMEs before running benchmar
 - Testcontainers needs `systemProperty("api.version", "1.40")` on the test task (set in `server/build.gradle.kts`), otherwise every container test fails with "no valid Docker environment". `DOCKER_API_VERSION` does not work.
 - Adding `wasmJs` to a module fails the first build on `:kotlinWasmStoreYarnLock`. Run `./gradlew kotlinWasmUpgradeYarnLock` once, then rebuild.
 
+## Mockups
+
+- **Never draw a mockup inline in the CLI**: no ASCII layouts, no `AskUserQuestion` previews of UI. Every mockup or visual comparison is a real page the user opens in the browser.
+- A small mockup is a local HTML file opened in the browser; anything larger is a published Artifact.
+
 ## Git
 
 - Develop in a dedicated worktree, never the main checkout (`using-git-worktrees` skill).
