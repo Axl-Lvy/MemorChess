@@ -18,6 +18,9 @@ import kotlin.time.Instant
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.get
+import org.khronos.webgl.set
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
@@ -31,7 +34,7 @@ import proj.memorchess.axl.core.scheduling.CardState
 
 /** JS object stored in the "nodes" object store. */
 private external interface JsNodeEntity : JsAny {
-  var positionKey: JsAny // Uint8Array of PositionKeyCodec bytes
+  var positionKey: Uint8Array
   var dueDate: Double // epoch seconds
   var lastReview: Double // epoch seconds, 0 means null (brand new card)
   var firstReview: Double // epoch seconds, 0 means null (never reviewed card)
@@ -52,8 +55,8 @@ private external interface JsNodeEntity : JsAny {
 
 /** JS object stored in the "moves" object store. */
 private external interface JsMoveEntity : JsAny {
-  var origin: JsAny // Uint8Array of PositionKeyCodec bytes
-  var destination: JsAny // Uint8Array of PositionKeyCodec bytes
+  var origin: Uint8Array
+  var destination: Uint8Array
   var move: String
   var isGood: Boolean
   var ownIsGood: Boolean? // null without a manual hold
@@ -87,8 +90,8 @@ private external interface JsRepertoireEntity : JsAny {
 
 /** JS object stored in the "edgeRepertoireTags" object store. */
 private external interface JsEdgeRepertoireTagEntity : JsAny {
-  var origin: JsAny // Uint8Array of PositionKeyCodec bytes
-  var destination: JsAny // Uint8Array of PositionKeyCodec bytes
+  var origin: Uint8Array
+  var destination: Uint8Array
   var repertoireId: String
   var move: String
   var isGood: Boolean? // null for a membership only tag
@@ -100,7 +103,7 @@ private external interface JsEdgeRepertoireTagEntity : JsAny {
 
 /** JS object stored in the "nodeRepertoireTrainable" object store. */
 private external interface JsNodeRepertoireTrainableEntity : JsAny {
-  var positionKey: JsAny // Uint8Array of PositionKeyCodec bytes
+  var positionKey: Uint8Array
   var repertoireId: String
   var lastReview: Double // epoch seconds; 0 means null, same convention as JsNodeEntity
 }
@@ -126,33 +129,16 @@ private fun <T : JsAny> JsArray<*>.toList(): List<T> {
   return result
 }
 
-// ---------------------------------------------------------------------------
-// Packed position keys: PositionKeyCodec bytes stored as binary IndexedDB keys
-// ---------------------------------------------------------------------------
-
-private fun newUint8Array(size: Int): JsAny = js("new Uint8Array(size)")
-
-private fun setUint8(array: JsAny, index: Int, value: Int): Unit = js("{ array[index] = value; }")
-
-/** IndexedDB hands binary primary keys back as `ArrayBuffer` and stored values as `Uint8Array`. */
-private fun asUint8Array(binary: JsAny): JsAny =
-  js("binary instanceof ArrayBuffer ? new Uint8Array(binary) : binary")
-
-private fun uint8Length(array: JsAny): Int = js("array.length")
-
-private fun getUint8(array: JsAny, index: Int): Int = js("array[index]")
-
-private fun PositionKey.toJsKey(): JsAny {
+/** Stores [this] as its [PositionKeyCodec] bytes, a binary IndexedDB key. */
+private fun PositionKey.toJsKey(): Uint8Array {
   val bytes = PositionKeyCodec.encode(this)
-  val array = newUint8Array(bytes.size)
-  for (i in bytes.indices) setUint8(array, i, bytes[i].toInt() and 0xFF)
+  val array = Uint8Array(bytes.size)
+  for (i in bytes.indices) array[i] = bytes[i]
   return array
 }
 
-private fun JsAny.toPositionKey(): PositionKey {
-  val array = asUint8Array(this)
-  return PositionKeyCodec.decode(ByteArray(uint8Length(array)) { getUint8(array, it).toByte() })
-}
+private fun Uint8Array.toPositionKey(): PositionKey =
+  PositionKeyCodec.decode(ByteArray(length) { this[it] })
 
 // ---------------------------------------------------------------------------
 // Conversion: JS → domain
@@ -797,7 +783,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
    * key, bounded the same way every other candidate check in this class already is.
    */
   private suspend fun com.juul.indexeddb.Transaction.isTrainableFor(
-    positionKey: JsAny,
+    positionKey: Uint8Array,
     repertoireId: String?,
   ): Boolean {
     if (repertoireId == null) return true
@@ -936,7 +922,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /** True when [positionKey] has a non-deleted node row. */
-  private suspend fun nodeExistsLive(positionKey: JsAny): Boolean {
+  private suspend fun nodeExistsLive(positionKey: Uint8Array): Boolean {
     val database = db()
     return database.transaction(NODES_STORE) {
       val node = objectStore(NODES_STORE).get(Key(positionKey))?.unsafeCast<JsNodeEntity>()
@@ -959,7 +945,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /** Destinations of every non-deleted move leaving [origin]. */
-  private suspend fun childMoveDestinations(origin: JsAny): List<JsAny> {
+  private suspend fun childMoveDestinations(origin: Uint8Array): List<Uint8Array> {
     val database = db()
     return database.transaction(MOVES_STORE) {
       val moves: List<JsMoveEntity> =
@@ -969,7 +955,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /** True when [child] is a live node reached by at most one non-deleted incoming edge. */
-  private suspend fun isLiveSingleParent(child: JsAny): Boolean {
+  private suspend fun isLiveSingleParent(child: Uint8Array): Boolean {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
       val node = objectStore(NODES_STORE).get(Key(child))?.unsafeCast<JsNodeEntity>()

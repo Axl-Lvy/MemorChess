@@ -145,38 +145,44 @@ object PositionKeyCodec {
   }
 
   private fun unpack(bytes: ByteArray): String {
+    val occupancy = readOccupancy(bytes)
+    val position = UnpackedPosition()
+    var nibble = 0
+    for (square in 0 until 64) {
+      if (occupancy and (1L shl square) != 0L) {
+        position.place(square, nibbleAt(bytes, nibble))
+        nibble++
+      }
+    }
+    return position.toFen()
+  }
+
+  private fun readOccupancy(bytes: ByteArray): Long {
     var occupancy = 0L
     for (i in 0 until OCCUPANCY_BYTES) {
       occupancy = (occupancy shl 8) or (bytes[i].toLong() and 0xFF)
     }
-    val board = CharArray(64)
-    var blackToMove = false
-    val castling = BooleanArray(4)
-    var enPassant = -1
-    var nibble = 0
-    for (square in 0 until 64) {
-      if (occupancy and (1L shl square) == 0L) continue
-      val byte = bytes[OCCUPANCY_BYTES + nibble / 2].toInt()
-      val code = (if (nibble % 2 == 0) byte else byte shr 4) and 0x0F
-      nibble++
+    return occupancy
+  }
+
+  private fun nibbleAt(bytes: ByteArray, nibble: Int): Int {
+    val byte = bytes[OCCUPANCY_BYTES + nibble / 2].toInt()
+    return (if (nibble % 2 == 0) byte else byte shr 4) and 0x0F
+  }
+
+  /** Board, side to move, castling rights and en passant target rebuilt from packed nibbles. */
+  private class UnpackedPosition {
+    private val board = CharArray(64)
+    private var blackToMove = false
+    private val castling = BooleanArray(4)
+    private var enPassant = -1
+
+    fun place(square: Int, code: Int) {
       board[square] =
         when (code) {
-          EN_PASSANT_PAWN ->
-            if (square < 32) {
-              enPassant = square - 8
-              'P'
-            } else {
-              enPassant = square + 8
-              'p'
-            }
-          CASTLING_WHITE_ROOK -> {
-            castling[if (square == H1) 0 else 1] = true
-            'R'
-          }
-          CASTLING_BLACK_ROOK -> {
-            castling[if (square == H8) 2 else 3] = true
-            'r'
-          }
+          EN_PASSANT_PAWN -> placeEnPassantPawn(square)
+          CASTLING_WHITE_ROOK -> placeCastlingRook(if (square == H1) 0 else 1, 'R')
+          CASTLING_BLACK_ROOK -> placeCastlingRook(if (square == H8) 2 else 3, 'r')
           BLACK_KING_TO_MOVE -> {
             blackToMove = true
             'k'
@@ -184,26 +190,46 @@ object PositionKeyCodec {
           else -> PIECE_CHARS[code]
         }
     }
-    return buildString {
+
+    /** A pawn on rank 4 is white and was pushed from rank 2; otherwise it is black on rank 5. */
+    private fun placeEnPassantPawn(square: Int): Char {
+      val white = square < 32
+      enPassant = if (white) square - 8 else square + 8
+      return if (white) 'P' else 'p'
+    }
+
+    private fun placeCastlingRook(right: Int, rook: Char): Char {
+      castling[right] = true
+      return rook
+    }
+
+    fun toFen(): String = buildString {
       for (rank in 7 downTo 0) {
-        var empty = 0
-        for (file in 0 until 8) {
-          val piece = board[rank * 8 + file]
-          if (piece == '\u0000') {
-            empty++
-          } else {
-            if (empty > 0) append(empty)
-            empty = 0
-            append(piece)
-          }
-        }
-        if (empty > 0) append(empty)
+        appendRank(rank)
         if (rank > 0) append('/')
       }
       append(if (blackToMove) " b " else " w ")
-      val rights = "KQkq".filterIndexed { i, _ -> castling[i] }
-      append(rights.ifEmpty { "-" })
+      append("KQkq".filterIndexed { i, _ -> castling[i] }.ifEmpty { "-" })
       if (enPassant >= 0) append(' ').append('a' + enPassant % 8).append(enPassant / 8 + 1)
+    }
+
+    private fun StringBuilder.appendRank(rank: Int) {
+      var empty = 0
+      for (file in 0 until 8) {
+        val piece = board[rank * 8 + file]
+        if (piece == EMPTY) {
+          empty++
+          continue
+        }
+        if (empty > 0) append(empty)
+        empty = 0
+        append(piece)
+      }
+      if (empty > 0) append(empty)
+    }
+
+    private companion object {
+      const val EMPTY = '\u0000'
     }
   }
 
