@@ -1,6 +1,8 @@
 package proj.memorchess.axl.dev
 
+import com.russhwolf.settings.PreferencesSettings
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -50,6 +52,11 @@ class TestDevLaunchConfig {
   @Test
   fun devDatabaseLivesInDataDir() {
     resolveDatabaseFile(config, File("/t")).parentFile shouldBe dataDir
+  }
+
+  @Test
+  fun normalLaunchKeepsSharedPreferences() {
+    resolveSettings(null).shouldBeInstanceOf<PreferencesSettings>()
   }
 
   @Test

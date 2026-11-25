@@ -1,5 +1,6 @@
 package proj.memorchess.axl.dev
 
+import com.russhwolf.settings.PreferencesSettings
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import java.util.UUID
@@ -54,6 +55,21 @@ class TestLichessTokenMirror {
     mirrorLichessToken(OAuthTokenStore(TestSettings()), target)
 
     target.getToken() shouldBe LichessToken("dev")
+  }
+
+  @Test
+  fun existingNodeExposesItsLichessAccount() {
+    val path = "proj/memorchess/axl-test-${UUID.randomUUID()}"
+    val node = Preferences.userRoot().node(path)
+    try {
+      OAuthTokenStore(PreferencesSettings(node)).save(LichessToken("shared"), "carlsen")
+
+      val shared = sharedLichessTokenStore(path)
+
+      shared?.account?.value?.username shouldBe "carlsen"
+    } finally {
+      node.removeNode()
+    }
   }
 
   @Test

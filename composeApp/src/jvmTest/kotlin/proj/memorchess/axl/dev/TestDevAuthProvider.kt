@@ -50,6 +50,18 @@ class TestDevAuthProvider {
   }
 
   @Test
+  fun sessionExpiringWhileRunningSignsOut() = runTest {
+    var now = expiresAt - 1.days
+    val provider = DevAuthProvider(session) { now }
+    provider.accessToken() shouldBe TokenResult.Ok(AccessToken("jwt"))
+
+    now = expiresAt
+
+    provider.accessToken() shouldBe TokenResult.SignedOut
+    provider.currentAccount.value.shouldBeNull()
+  }
+
+  @Test
   fun signInRestoresTheDevSession() = runTest {
     val provider = DevAuthProvider(session) { expiresAt - 1.days }
     provider.signOut()
