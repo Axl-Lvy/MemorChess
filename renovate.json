@@ -68,6 +68,11 @@
       "allowedVersions": "<1.5.0"
     },
     {
+      "description": "androidx.compose.runtime:runtime-tracing must match the androidx.compose.runtime version Compose Multiplatform resolves to on Android (1.12.2 -> 1.12.1). 1.13.0 drags the benchmark build's Compose runtime to 1.13.0 and androidx.tracing to 2.x, and the macrobenchmark tests fail on the emulator. Raise this bound together with the Compose Multiplatform release that resolves to runtime 1.13.",
+      "matchPackageNames": ["androidx.compose.runtime:runtime-tracing"],
+      "allowedVersions": "<1.13.0"
+    },
+    {
       "description": "Gradle 9.7.x exhausts the daemon heap while storing the configuration cache entry for the Kotlin/Wasm browser tasks (KotlinWebpack, KotlinJsTest), so :composeApp:wasmJsBrowserDevelopmentRun and :composeApp:wasmJsTest die with \"Java heap space\" before any task runs. The entry is discarded anyway (those tasks are not configuration-cache compatible); 9.6.1 stores and discards it in ~25s.",
       "matchManagers": ["gradle-wrapper"],
       "allowedVersions": "<9.7.0"
