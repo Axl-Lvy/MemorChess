@@ -46,6 +46,8 @@ kotlin {
 
   // JVM/Desktop configuration
   jvm {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    mainRun { mainClass.set("proj.memorchess.axl.MainKt") }
     // Dev-only launcher (devRun): its own compilation, so none of it is in the main artifact.
     // Associated with main to use internal APIs, and the tests are associated with it in turn.
     val main = compilations.getByName("main")
