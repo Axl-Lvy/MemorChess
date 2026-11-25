@@ -67,6 +67,8 @@ enum class ExploreInfoTab {
  * between orientations, only the parent's [modifier] decides the panel's footprint. The panel is a
  * 20.dp card with a 1.5.dp stroke.
  *
+ * A [PositionStatsBar] above the tabs summarizes how the current position goes in real games.
+ *
  * Three tabs:
  * - **Continuations** — saved next moves at the current position, wrapped in a [FlowRow] of 12.dp
  *   mono SAN pills with a 1.5.dp stroke, so they reflow without a hard column count. Behaves well
@@ -116,6 +118,7 @@ fun ExploreSidebar(
         .padding(12.dp),
     verticalArrangement = Arrangement.spacedBy(10.dp),
   ) {
+    PositionStatsBar(viewModel = explorerViewModel)
     KineticSegmentedControl(
       options = ExploreInfoTab.entries.toList(),
       selected = selected,
