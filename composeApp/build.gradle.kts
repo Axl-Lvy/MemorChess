@@ -238,6 +238,38 @@ tasks.withType<Test>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAM
 
 tasks.withType<JavaExec>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAMED") }
 
+// Seeded per-worktree desktop launch: see proj.memorchess.axl.dev.DevMain.
+val devDataDir = layout.buildDirectory.dir("dev-data")
+val devSessionFile = rootProject.layout.buildDirectory.file("dev-server/session.properties")
+val devReseed =
+  tasks.register<Delete>("devReseed") {
+    description = "Deletes this worktree's dev data so the next devRun seeds again."
+    delete(devDataDir)
+    // A local, not a script-level val: onlyIf must not capture the build script.
+    val reseedRequested = providers.gradleProperty("reseed").isPresent
+    onlyIf { reseedRequested }
+  }
+
+fun JavaExec.configureDevLaunch() {
+  group = "application"
+  dependsOn(devReseed)
+  val jvmMain = kotlin.jvm().compilations.getByName("main")
+  classpath = files(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
+  mainClass.set("proj.memorchess.axl.dev.DevMainKt")
+  systemProperty("memorchess.dev.dataDir", devDataDir.get().asFile.absolutePath)
+  systemProperty("memorchess.dev.sessionFile", devSessionFile.get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("devRun") {
+  description = "Runs the desktop app on this worktree's seeded dev data (-Preseed to reset)."
+  configureDevLaunch()
+}
+
+tasks.register<ComposeHotRun>("devRunHot") {
+  description = "Like devRun, with Compose hot reload."
+  configureDevLaunch()
+}
+
 // Disable configuration cache for all tasks involving wasmJs
 tasks.withType<KotlinWebpack>().configureEach {
   notCompatibleWithConfigurationCache("Kotlin/JS Webpack tasks store Project references")

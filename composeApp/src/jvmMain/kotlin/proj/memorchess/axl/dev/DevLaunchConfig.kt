@@ -20,7 +20,8 @@ internal const val DEV_SYNC_URL_PROPERTY = "memorchess.dev.syncUrl"
 /** Base URL a dev launch syncs against when no dev server is known: it never resolves. */
 internal const val UNREACHABLE_SYNC_BASE_URL = "https://chess.invalid"
 
-private const val SHARED_PREFERENCES_NODE = "proj/memorchess/axl"
+/** Java Preferences node holding the settings of a normal (non-dev) desktop launch. */
+internal const val SHARED_PREFERENCES_NODE = "proj/memorchess/axl"
 
 /** Where a dev launch keeps its data and where it looks for the local dev server's session. */
 internal data class DevLaunchConfig(val dataDir: File, val sessionFile: File?)
