@@ -273,8 +273,6 @@ val devReseed =
 fun JavaExec.configureDevLaunch() {
   group = "application"
   dependsOn(devReseed)
-  val jvmMain = kotlin.jvm().compilations.getByName("main")
-  classpath = files(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
   mainClass.set("proj.memorchess.axl.dev.DevMainKt")
   systemProperty("memorchess.dev.dataDir", devDataDir.get().asFile.absolutePath)
   systemProperty("memorchess.dev.sessionFile", devSessionFile.get().asFile.absolutePath)
@@ -283,6 +281,9 @@ fun JavaExec.configureDevLaunch() {
 tasks.register<JavaExec>("devRun") {
   description = "Runs the desktop app on this worktree's seeded dev data (-Preseed to reset)."
   configureDevLaunch()
+  // Only here: ComposeHotRun brings its own classpath, with the hot reload runtime on it.
+  val jvmMain = kotlin.jvm().compilations.getByName("main")
+  classpath = files(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
 }
 
 tasks.register<ComposeHotRun>("devRunHot") {
