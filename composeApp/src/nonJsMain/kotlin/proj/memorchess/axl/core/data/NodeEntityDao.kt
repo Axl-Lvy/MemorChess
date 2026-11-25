@@ -26,7 +26,7 @@ interface NodeEntityDao {
       insertMoves(it.nextMoves + it.previousMoves)
       upsertOutboxEntry(
         OutboxEntryEntity.KIND_NODE,
-        it.node.positionKey,
+        it.node.positionKey.toKeyText(),
         deviceSeq = it.node.deviceSeq,
       )
     }
@@ -80,7 +80,7 @@ interface NodeEntityDao {
       "WHERE isDeleted IS FALSE AND origin = :origin AND move = :move",
   )
   suspend fun softDeleteMove(
-    origin: String,
+    origin: ByteArray,
     move: String,
     updatedAt: Instant,
     originDevice: String,
@@ -91,7 +91,7 @@ interface NodeEntityDao {
   @Query(
     "SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin AND move = :move LIMIT 1",
   )
-  suspend fun liveMoveDestination(origin: String, move: String): String?
+  suspend fun liveMoveDestination(origin: ByteArray, move: String): ByteArray?
 
   /**
    * Soft deletes [origin]/[move] and queues its edge for push, atomically: the destination is read
@@ -101,7 +101,7 @@ interface NodeEntityDao {
    */
   @Transaction
   suspend fun softDeleteMoveAndMarkDirty(
-    origin: String,
+    origin: ByteArray,
     move: String,
     updatedAt: Instant,
     originDevice: String,
@@ -109,21 +109,26 @@ interface NodeEntityDao {
   ) {
     val destination = liveMoveDestination(origin, move) ?: return
     softDeleteMove(origin, move, updatedAt, originDevice, deviceSeq)
-    upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, destination, deviceSeq = deviceSeq)
+    upsertOutboxEntry(
+      OutboxEntryEntity.KIND_EDGE,
+      origin.toKeyText(),
+      destination.toKeyText(),
+      deviceSeq = deviceSeq,
+    )
   }
 
   /**
    * Soft deletes all moves leaving [origin] by flipping their `isDeleted` flag and stamping the
    * sync fields.
    *
-   * @param origin The FEN string of the origin position.
+   * @param origin The packed origin position.
    */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND origin = :origin",
   )
   suspend fun softDeleteMoveFrom(
-    origin: String,
+    origin: ByteArray,
     updatedAt: Instant,
     originDevice: String,
     deviceSeq: Long,
@@ -133,14 +138,14 @@ interface NodeEntityDao {
    * Soft deletes all moves arriving at [destination] by flipping their `isDeleted` flag and
    * stamping the sync fields.
    *
-   * @param destination The FEN string of the destination position.
+   * @param destination The packed destination position.
    */
   @Query(
     "UPDATE MoveEntity SET isDeleted = TRUE, ownIsGood = NULL, updatedAt = :updatedAt, originDevice = :originDevice, deviceSeq = :deviceSeq " +
       "WHERE isDeleted IS FALSE AND destination = :destination",
   )
   suspend fun softDeleteMoveTo(
-    destination: String,
+    destination: ByteArray,
     updatedAt: Instant,
     originDevice: String,
     deviceSeq: Long,
@@ -148,7 +153,7 @@ interface NodeEntityDao {
 
   @Transaction
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :positionKey AND isDeleted IS FALSE")
-  suspend fun getNode(positionKey: String): NodeWithMoves?
+  suspend fun getNode(positionKey: ByteArray): NodeWithMoves?
 
   /**
    * [getNode] without the `isDeleted IS FALSE` filter, for conflict resolution against a pulled
@@ -156,7 +161,7 @@ interface NodeEntityDao {
    */
   @Transaction
   @Query("SELECT * FROM NodeEntity WHERE positionKey = :positionKey")
-  suspend fun getNodeIncludingDeleted(positionKey: String): NodeWithMoves?
+  suspend fun getNodeIncludingDeleted(positionKey: ByteArray): NodeWithMoves?
 
   /**
    * Soft deletes a node row by flipping its `isDeleted` flag and stamping the sync fields.
@@ -169,7 +174,7 @@ interface NodeEntityDao {
       "WHERE isDeleted IS FALSE AND positionKey = :positionKey",
   )
   suspend fun softDeleteNode(
-    positionKey: String,
+    positionKey: ByteArray,
     updatedAt: Instant,
     originDevice: String,
     deviceSeq: Long,
@@ -177,7 +182,7 @@ interface NodeEntityDao {
 
   /** Live origins of every non deleted move arriving at [destination]. */
   @Query("SELECT origin FROM MoveEntity WHERE isDeleted = 0 AND destination = :destination")
-  suspend fun liveMoveOrigins(destination: String): List<String>
+  suspend fun liveMoveOrigins(destination: ByteArray): List<ByteArray>
 
   /**
    * Soft deletes [positionKey]'s node and every incident move, queuing the node (when it was live)
@@ -187,7 +192,7 @@ interface NodeEntityDao {
    */
   @Transaction
   suspend fun softDeletePositionAndMarkDirty(
-    positionKey: String,
+    positionKey: ByteArray,
     updatedAt: Instant,
     originDevice: String,
     deviceSeq: Long,
@@ -198,17 +203,22 @@ interface NodeEntityDao {
     softDeleteMoveFrom(positionKey, updatedAt, originDevice, deviceSeq)
     softDeleteMoveTo(positionKey, updatedAt, originDevice, deviceSeq)
     if (nodeChanged)
-      upsertOutboxEntry(OutboxEntryEntity.KIND_NODE, positionKey, deviceSeq = deviceSeq)
+      upsertOutboxEntry(OutboxEntryEntity.KIND_NODE, positionKey.toKeyText(), deviceSeq = deviceSeq)
     for (destination in outgoing) {
       upsertOutboxEntry(
         OutboxEntryEntity.KIND_EDGE,
-        positionKey,
-        destination,
+        positionKey.toKeyText(),
+        destination.toKeyText(),
         deviceSeq = deviceSeq,
       )
     }
     for (origin in incoming) {
-      upsertOutboxEntry(OutboxEntryEntity.KIND_EDGE, origin, positionKey, deviceSeq = deviceSeq)
+      upsertOutboxEntry(
+        OutboxEntryEntity.KIND_EDGE,
+        origin.toKeyText(),
+        positionKey.toKeyText(),
+        deviceSeq = deviceSeq,
+      )
     }
   }
 
@@ -235,7 +245,7 @@ interface NodeEntityDao {
     "SELECT * FROM NodeEntity WHERE isDeleted IS FALSE AND positionKey > :cursor " +
       "ORDER BY positionKey ASC LIMIT :limit",
   )
-  suspend fun getNodesPageAfter(cursor: String, limit: Int): List<NodeWithMoves>
+  suspend fun getNodesPageAfter(cursor: ByteArray, limit: Int): List<NodeWithMoves>
 
   @Query("SELECT MAX(updatedAt) FROM NodeEntity") suspend fun getLastNodeUpdate(): Instant?
 
@@ -388,7 +398,7 @@ interface NodeEntityDao {
       "WHERE t.positionKey = NodeEntity.positionKey AND t.repertoireId = :repertoireId))",
   )
   suspend fun eligibleAmong(
-    keys: List<String>,
+    keys: List<ByteArray>,
     dayEndExclusive: Instant,
     repertoireId: String? = null,
   ): List<NodeCardProjection>
@@ -399,7 +409,7 @@ interface NodeEntityDao {
    * [DatabaseQueryManager.pruneImpact].
    */
   @Query("SELECT destination FROM MoveEntity WHERE isDeleted = 0 AND origin = :origin")
-  suspend fun childrenOf(origin: String): List<String>
+  suspend fun childrenOf(origin: ByteArray): List<ByteArray>
 
   /**
    * Number of non deleted move edges arriving at [destination] (`destination` is indexed). Used by
@@ -407,18 +417,21 @@ interface NodeEntityDao {
    * [DatabaseQueryManager.pruneImpact].
    */
   @Query("SELECT COUNT(*) FROM MoveEntity WHERE isDeleted = 0 AND destination = :destination")
-  suspend fun incomingCount(destination: String): Int
+  suspend fun incomingCount(destination: ByteArray): Int
 
   /** Number of non deleted rows among [positionKeys] that have been reviewed at least once. */
   @Query(
     "SELECT COUNT(*) FROM NodeEntity WHERE isDeleted = 0 AND lastReview IS NOT NULL " +
       "AND positionKey IN (:positionKeys)",
   )
-  suspend fun countReviewed(positionKeys: List<String>): Int
+  suspend fun countReviewed(positionKeys: List<ByteArray>): Int
 
   /** Whether a non deleted node row exists for [positionKey]. */
   @Query(
     "SELECT EXISTS(SELECT 1 FROM NodeEntity WHERE isDeleted = 0 AND positionKey = :positionKey)",
   )
-  suspend fun nodeExists(positionKey: String): Boolean
+  suspend fun nodeExists(positionKey: ByteArray): Boolean
 }
+
+/** The FEN text of a packed key, for outbox entries, which keep text keys. */
+internal fun ByteArray.toKeyText(): String = PositionKeyCodec.decode(this).value

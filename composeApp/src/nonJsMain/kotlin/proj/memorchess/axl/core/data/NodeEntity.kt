@@ -14,7 +14,8 @@ import proj.memorchess.axl.core.scheduling.CardPhase
  * [proj.memorchess.axl.core.scheduling.SchedulingAlgorithm]. Wave A persists the full FSRS card
  * state on every node so that scheduling decisions are stable across sessions.
  *
- * @property positionKey FEN string uniquely identifying the chess position.
+ * @property positionKey [PositionKeyCodec] form of the position key uniquely identifying the chess
+ *   position.
  * @property dueDate Moment when the card is next due for review.
  * @property lastReview Moment of the most recent review, or `null` for a brand new card.
  * @property firstReview Moment of the very first review, or `null` for a never reviewed card.
@@ -50,7 +51,7 @@ import proj.memorchess.axl.core.scheduling.CardPhase
     ],
 )
 data class NodeEntity(
-  @PrimaryKey(autoGenerate = false) val positionKey: String,
+  @PrimaryKey(autoGenerate = false) val positionKey: ByteArray,
   val dueDate: Instant = DateUtil.now(),
   val lastReview: Instant? = null,
   val firstReview: Instant? = null,

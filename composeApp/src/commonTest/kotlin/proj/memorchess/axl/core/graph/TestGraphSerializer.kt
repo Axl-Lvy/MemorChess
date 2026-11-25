@@ -10,6 +10,7 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.NodesPage
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionKeyCodec
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
@@ -439,9 +440,18 @@ class TestGraphSerializer {
   private fun pagedProducer(
     nodes: List<DataNode>,
   ): suspend (cursor: String?, limit: Int) -> NodesPage {
-    val sorted = nodes.filter { !it.isDeleted }.sortedBy { it.positionKey.value }
+    val sorted =
+      nodes
+        .filter { !it.isDeleted }
+        .sortedWith(compareBy(PositionKeyCodec.ORDER) { it.positionKey })
     return { cursor, limit ->
-      val page = sorted.filter { cursor == null || it.positionKey.value > cursor }.take(limit)
+      val page =
+        sorted
+          .filter {
+            cursor == null ||
+              PositionKeyCodec.ORDER.compare(it.positionKey, PositionKey(cursor)) > 0
+          }
+          .take(limit)
       val nextCursor = if (page.size == limit) page.last().positionKey.value else null
       NodesPage(page, nextCursor)
     }
@@ -483,6 +493,20 @@ class TestGraphSerializer {
         ),
       )
     }
+
+  @Test
+  fun eagerSerializeOrdersNodesByEncodedKey() {
+    val nodes = complexGraphNodes
+    val byText = nodes.map { it.positionKey }.sortedBy { it.value }
+    val byEncoding = nodes.map { it.positionKey }.sortedWith(PositionKeyCodec.ORDER)
+    (byText == byEncoding) shouldBe false
+
+    val serialized = GraphSerializer.serialize(nodes)
+
+    val keysInFile =
+      serialized.substringBefore("\n\n").lines().map { PositionKey(it.split("\t")[1]) }
+    keysInFile shouldBe byEncoding
+  }
 
   @Test
   fun streamedExportIsByteIdenticalToEagerSerialize() = runTest {

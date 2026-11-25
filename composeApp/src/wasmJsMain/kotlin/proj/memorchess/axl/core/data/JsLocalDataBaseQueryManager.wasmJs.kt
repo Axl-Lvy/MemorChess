@@ -18,6 +18,9 @@ import kotlin.time.Instant
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import org.khronos.webgl.Uint8Array
+import org.khronos.webgl.get
+import org.khronos.webgl.set
 import proj.memorchess.axl.core.data.repertoire.RepertoireColor
 import proj.memorchess.axl.core.date.DateUtil.truncateToSeconds
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
@@ -31,7 +34,7 @@ import proj.memorchess.axl.core.scheduling.CardState
 
 /** JS object stored in the "nodes" object store. */
 private external interface JsNodeEntity : JsAny {
-  var positionKey: String
+  var positionKey: Uint8Array
   var dueDate: Double // epoch seconds
   var lastReview: Double // epoch seconds, 0 means null (brand new card)
   var firstReview: Double // epoch seconds, 0 means null (never reviewed card)
@@ -52,8 +55,8 @@ private external interface JsNodeEntity : JsAny {
 
 /** JS object stored in the "moves" object store. */
 private external interface JsMoveEntity : JsAny {
-  var origin: String
-  var destination: String
+  var origin: Uint8Array
+  var destination: Uint8Array
   var move: String
   var isGood: Boolean
   var ownIsGood: Boolean? // null without a manual hold
@@ -87,8 +90,8 @@ private external interface JsRepertoireEntity : JsAny {
 
 /** JS object stored in the "edgeRepertoireTags" object store. */
 private external interface JsEdgeRepertoireTagEntity : JsAny {
-  var origin: String
-  var destination: String
+  var origin: Uint8Array
+  var destination: Uint8Array
   var repertoireId: String
   var move: String
   var isGood: Boolean? // null for a membership only tag
@@ -100,7 +103,7 @@ private external interface JsEdgeRepertoireTagEntity : JsAny {
 
 /** JS object stored in the "nodeRepertoireTrainable" object store. */
 private external interface JsNodeRepertoireTrainableEntity : JsAny {
-  var positionKey: String
+  var positionKey: Uint8Array
   var repertoireId: String
   var lastReview: Double // epoch seconds; 0 means null, same convention as JsNodeEntity
 }
@@ -126,14 +129,25 @@ private fun <T : JsAny> JsArray<*>.toList(): List<T> {
   return result
 }
 
+/** Stores [this] as its [PositionKeyCodec] bytes, a binary IndexedDB key. */
+private fun PositionKey.toJsKey(): Uint8Array {
+  val bytes = PositionKeyCodec.encode(this)
+  val array = Uint8Array(bytes.size)
+  for (i in bytes.indices) array[i] = bytes[i]
+  return array
+}
+
+private fun Uint8Array.toPositionKey(): PositionKey =
+  PositionKeyCodec.decode(ByteArray(length) { this[it] })
+
 // ---------------------------------------------------------------------------
 // Conversion: JS → domain
 // ---------------------------------------------------------------------------
 
 private fun JsMoveEntity.toDataMove(): DataMove =
   DataMove(
-    origin = PositionKey(origin),
-    destination = PositionKey(destination),
+    origin = origin.toPositionKey(),
+    destination = destination.toPositionKey(),
     move = move,
     isGood = isGood,
     ownIsGood = ownIsGood,
@@ -152,7 +166,7 @@ private fun JsNodeEntity.toDataNode(
   val lastReviewSec = lastReview.toLong()
   val firstReviewSec = firstReview.toLong()
   return DataNode(
-    positionKey = PositionKey(positionKey),
+    positionKey = positionKey.toPositionKey(),
     previousAndNextMoves =
       PreviousAndNextMoves(
         previousMoves.filter { includeDeletedMoves || !it.isDeleted },
@@ -188,7 +202,7 @@ private fun JsNodeEntity.toTrainingEntry(): TrainingEntry {
   val lastReviewSec = lastReview.toLong()
   val firstReviewSec = firstReview.toLong()
   return TrainingEntry(
-    PositionKey(positionKey),
+    positionKey.toPositionKey(),
     CardState(
       dueDate = Instant.fromEpochSeconds(dueDate.toLong()),
       lastReview = if (lastReviewSec == 0L) null else Instant.fromEpochSeconds(lastReviewSec),
@@ -231,7 +245,7 @@ private val HIGH_NUMBER: JsAny = Double.POSITIVE_INFINITY.toJsNumber()
 private fun DataNode.toJsNodeEntity(): JsNodeEntity {
   val node = this
   return emptyObject<JsNodeEntity>().apply {
-    positionKey = node.positionKey.value
+    positionKey = node.positionKey.toJsKey()
     dueDate = node.cardState.dueDate.epochSeconds.toDouble()
     lastReview = node.cardState.lastReview?.epochSeconds?.toDouble() ?: 0.0
     firstReview = node.cardState.firstReview?.epochSeconds?.toDouble() ?: 0.0
@@ -263,8 +277,8 @@ private fun DataMove.toJsMoveEntity(): JsMoveEntity {
     "A DataMove must have a isGood value to be inserted into the database"
   }
   return emptyObject<JsMoveEntity>().apply {
-    origin = dataMove.origin.value
-    destination = dataMove.destination.value
+    origin = dataMove.origin.toJsKey()
+    destination = dataMove.destination.toJsKey()
     move = dataMove.move
     isGood = isGoodValue
     ownIsGood = dataMove.ownIsGood
@@ -305,8 +319,8 @@ private fun JsRepertoireEntity.toDataRepertoire(): DataRepertoire =
 private fun DataEdgeRepertoireTag.toJsEdgeRepertoireTagEntity(): JsEdgeRepertoireTagEntity {
   val tag = this
   return emptyObject<JsEdgeRepertoireTagEntity>().apply {
-    origin = tag.origin.value
-    destination = tag.destination.value
+    origin = tag.origin.toJsKey()
+    destination = tag.destination.toJsKey()
     repertoireId = tag.repertoireId
     move = tag.move
     isGood = tag.isGood
@@ -319,8 +333,8 @@ private fun DataEdgeRepertoireTag.toJsEdgeRepertoireTagEntity(): JsEdgeRepertoir
 
 private fun JsEdgeRepertoireTagEntity.toDataEdgeRepertoireTag(): DataEdgeRepertoireTag =
   DataEdgeRepertoireTag(
-    origin = PositionKey(origin),
-    destination = PositionKey(destination),
+    origin = origin.toPositionKey(),
+    destination = destination.toPositionKey(),
     repertoireId = repertoireId,
     move = move,
     isGood = isGood,
@@ -398,7 +412,7 @@ internal const val REPERTOIRES_STORE = "repertoires"
 internal const val TAGS_STORE = "edgeRepertoireTags"
 internal const val NODE_REPERTOIRE_TRAINABLE_STORE = "nodeRepertoireTrainable"
 internal const val DB_NAME = "memorchess"
-internal const val DB_VERSION = 14
+internal const val DB_VERSION = 15
 
 /** Compound-key value for `hasGoodOutgoing = true`, encoded as the integer `1`. */
 private val GOOD: JsAny = 1.toJsKey()
@@ -464,16 +478,15 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
       val jsNode =
-        objectStore(NODES_STORE)
-          .get(Key(positionKey.value.toJsString()))
-          ?.unsafeCast<JsNodeEntity>() ?: return@transaction null
+        objectStore(NODES_STORE).get(Key(positionKey.toJsKey()))?.unsafeCast<JsNodeEntity>()
+          ?: return@transaction null
       if (jsNode.isDeleted) return@transaction null
 
       val movesStore = objectStore(MOVES_STORE)
       val nextMoves: List<JsMoveEntity> =
-        movesStore.index("origin").getAll(Key(positionKey.value.toJsString())).toList()
+        movesStore.index("origin").getAll(Key(positionKey.toJsKey())).toList()
       val previousMoves: List<JsMoveEntity> =
-        movesStore.index("destination").getAll(Key(positionKey.value.toJsString())).toList()
+        movesStore.index("destination").getAll(Key(positionKey.toJsKey())).toList()
 
       jsNode.toDataNode(previousMoves.map { it.toDataMove() }, nextMoves.map { it.toDataMove() })
     }
@@ -483,14 +496,13 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
       val jsNode =
-        objectStore(NODES_STORE)
-          .get(Key(positionKey.value.toJsString()))
-          ?.unsafeCast<JsNodeEntity>() ?: return@transaction null
+        objectStore(NODES_STORE).get(Key(positionKey.toJsKey()))?.unsafeCast<JsNodeEntity>()
+          ?: return@transaction null
       val movesStore = objectStore(MOVES_STORE)
       val nextMoves: List<JsMoveEntity> =
-        movesStore.index("origin").getAll(Key(positionKey.value.toJsString())).toList()
+        movesStore.index("origin").getAll(Key(positionKey.toJsKey())).toList()
       val previousMoves: List<JsMoveEntity> =
-        movesStore.index("destination").getAll(Key(positionKey.value.toJsString())).toList()
+        movesStore.index("destination").getAll(Key(positionKey.toJsKey())).toList()
       jsNode.toDataNode(
         previousMoves.map { it.toDataMove() },
         nextMoves.map { it.toDataMove() },
@@ -523,7 +535,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       // Primary key range over positionKey: open lower bound skips the cursor itself so the page
       // starts strictly after it, mirroring the SQL `positionKey > :cursor`. With a null cursor the
       // whole store is in range and the cursor walks from the smallest key ascending.
-      val range = cursor?.let { lowerBound(it.toJsString(), open = true) }
+      val range = cursor?.let { lowerBound(PositionKey(it).toJsKey(), open = true) }
       val live = mutableListOf<JsNodeEntity>()
       nodesStore
         .openCursor(range, Cursor.Direction.Next)
@@ -540,10 +552,9 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
       val nodes = live.map { jsNode ->
         val key = jsNode.positionKey
-        val nextMoves: List<JsMoveEntity> =
-          movesStore.index("origin").getAll(Key(key.toJsString())).toList()
+        val nextMoves: List<JsMoveEntity> = movesStore.index("origin").getAll(Key(key)).toList()
         val previousMoves: List<JsMoveEntity> =
-          movesStore.index("destination").getAll(Key(key.toJsString())).toList()
+          movesStore.index("destination").getAll(Key(key)).toList()
         jsNode.toDataNode(
           previousMoves = previousMoves.map { it.toDataMove() },
           nextMoves = nextMoves.map { it.toDataMove() },
@@ -563,12 +574,9 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     database.writeTransaction(NODES_STORE, MOVES_STORE, OUTBOX_STORE) {
       val originMoves: List<JsMoveEntity> =
-        objectStore(MOVES_STORE).index("origin").getAll(Key(position.value.toJsString())).toList()
+        objectStore(MOVES_STORE).index("origin").getAll(Key(position.toJsKey())).toList()
       val destMoves: List<JsMoveEntity> =
-        objectStore(MOVES_STORE)
-          .index("destination")
-          .getAll(Key(position.value.toJsString()))
-          .toList()
+        objectStore(MOVES_STORE).index("destination").getAll(Key(position.toJsKey())).toList()
       val incidentMoves = originMoves + destMoves
       softDeletePosition(position, incidentMoves, originDevice, deviceSeq, updatedAt)
     }
@@ -587,7 +595,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   ) {
     val nodesStore = objectStore(NODES_STORE)
     val movesStore = objectStore(MOVES_STORE)
-    val jsNode = nodesStore.get(Key(position.value.toJsString()))?.unsafeCast<JsNodeEntity>()
+    val jsNode = nodesStore.get(Key(position.toJsKey()))?.unsafeCast<JsNodeEntity>()
     if (jsNode != null && !jsNode.isDeleted) {
       jsNode.isDeleted = true
       jsNode.updatedAt = updatedAt.epochSeconds.toDouble()
@@ -607,7 +615,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       movesStore.put(move)
       // Queues exactly the edges this call tombstoned, in the same transaction.
       upsertOutboxEntry(
-        DirtyKey.EdgeKey(PositionKey(move.origin), PositionKey(move.destination)),
+        DirtyKey.EdgeKey(move.origin.toPositionKey(), move.destination.toPositionKey()),
         deviceSeq,
       )
     }
@@ -624,7 +632,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     database.writeTransaction(MOVES_STORE, OUTBOX_STORE) {
       val movesStore = objectStore(MOVES_STORE)
       val moves: List<JsMoveEntity> =
-        movesStore.index("origin").getAll(Key(origin.value.toJsString())).toList()
+        movesStore.index("origin").getAll(Key(origin.toJsKey())).toList()
       for (m in moves) {
         if (m.move != move || m.isDeleted) continue
         m.isDeleted = true
@@ -634,7 +642,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         m.deviceSeq = deviceSeq.toDouble()
         movesStore.put(m)
         // Queues the edge's own outbox entry in the same transaction as the row flip.
-        upsertOutboxEntry(DirtyKey.EdgeKey(origin, PositionKey(m.destination)), deviceSeq)
+        upsertOutboxEntry(DirtyKey.EdgeKey(origin, m.destination.toPositionKey()), deviceSeq)
       }
     }
   }
@@ -775,12 +783,12 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
    * key, bounded the same way every other candidate check in this class already is.
    */
   private suspend fun com.juul.indexeddb.Transaction.isTrainableFor(
-    positionKey: String,
+    positionKey: Uint8Array,
     repertoireId: String?,
   ): Boolean {
     if (repertoireId == null) return true
     return objectStore(NODE_REPERTOIRE_TRAINABLE_STORE)
-      .get(Key(positionKey.toJsString(), repertoireId.toJsString())) != null
+      .get(Key(positionKey, repertoireId.toJsString())) != null
   }
 
   override suspend fun getSchedulingCounts(
@@ -853,7 +861,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       val store = objectStore(NODES_STORE)
       // Bounded by the candidate count (branching factor): one primary-key get per key, in order.
       for (key in keys) {
-        val node = store.get(Key(key.value.toJsString()))?.unsafeCast<JsNodeEntity>() ?: continue
+        val node = store.get(Key(key.toJsKey()))?.unsafeCast<JsNodeEntity>() ?: continue
         if (node.isDeleted || node.hasGoodOutgoing != 1) continue
         if (!isTrainableFor(node.positionKey, repertoireId)) continue
         val inSession =
@@ -895,7 +903,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
 
   override suspend fun pruneImpact(key: PositionKey, cap: Int): PruneImpact {
     if (cap <= 0) return PruneImpact.NONE
-    if (!nodeExistsLive(key.value)) return PruneImpact.NONE
+    if (!nodeExistsLive(key.toJsKey())) return PruneImpact.NONE
     val removed = cappedDescendants(key, cap) { liveSingleParentChildren(it) }
     return PruneImpact(positions = removed.size, reviewedPositions = countReviewed(removed))
   }
@@ -906,7 +914,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     return database.transaction(NODES_STORE) {
       val store = objectStore(NODES_STORE)
       keys.count { key ->
-        val node = store.get(Key(key.value.toJsString()))?.unsafeCast<JsNodeEntity>()
+        val node = store.get(Key(key.toJsKey()))?.unsafeCast<JsNodeEntity>()
         // lastReview 0 encodes a never reviewed card.
         node != null && !node.isDeleted && node.lastReview != 0.0
       }
@@ -914,11 +922,10 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
   }
 
   /** True when [positionKey] has a non-deleted node row. */
-  private suspend fun nodeExistsLive(positionKey: String): Boolean {
+  private suspend fun nodeExistsLive(positionKey: Uint8Array): Boolean {
     val database = db()
     return database.transaction(NODES_STORE) {
-      val node =
-        objectStore(NODES_STORE).get(Key(positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
+      val node = objectStore(NODES_STORE).get(Key(positionKey))?.unsafeCast<JsNodeEntity>()
       node != null && !node.isDeleted
     }
   }
@@ -929,34 +936,34 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
    * reachable through an outside parent is excluded.
    */
   private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
-    val candidates = childMoveDestinations(origin.value)
+    val candidates = childMoveDestinations(origin.toJsKey())
     val result = mutableListOf<PositionKey>()
     for (child in candidates) {
-      if (isLiveSingleParent(child)) result.add(PositionKey(child))
+      if (isLiveSingleParent(child)) result.add(child.toPositionKey())
     }
     return result
   }
 
   /** Destinations of every non-deleted move leaving [origin]. */
-  private suspend fun childMoveDestinations(origin: String): List<String> {
+  private suspend fun childMoveDestinations(origin: Uint8Array): List<Uint8Array> {
     val database = db()
     return database.transaction(MOVES_STORE) {
       val moves: List<JsMoveEntity> =
-        objectStore(MOVES_STORE).index("origin").getAll(Key(origin.toJsString())).toList()
+        objectStore(MOVES_STORE).index("origin").getAll(Key(origin)).toList()
       moves.filterNot { it.isDeleted }.map { it.destination }
     }
   }
 
   /** True when [child] is a live node reached by at most one non-deleted incoming edge. */
-  private suspend fun isLiveSingleParent(child: String): Boolean {
+  private suspend fun isLiveSingleParent(child: Uint8Array): Boolean {
     val database = db()
     return database.transaction(NODES_STORE, MOVES_STORE) {
-      val node = objectStore(NODES_STORE).get(Key(child.toJsString()))?.unsafeCast<JsNodeEntity>()
+      val node = objectStore(NODES_STORE).get(Key(child))?.unsafeCast<JsNodeEntity>()
       if (node == null || node.isDeleted) {
         false
       } else {
         val incoming: List<JsMoveEntity> =
-          objectStore(MOVES_STORE).index("destination").getAll(Key(child.toJsString())).toList()
+          objectStore(MOVES_STORE).index("destination").getAll(Key(child)).toList()
         incoming.count { !it.isDeleted } <= 1
       }
     }
@@ -1083,7 +1090,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       val rows: List<JsEdgeRepertoireTagEntity> =
         objectStore(TAGS_STORE)
           .index("origin_destination")
-          .getAll(Key(origin.value.toJsString(), destination.value.toJsString()))
+          .getAll(Key(origin.toJsKey(), destination.toJsKey()))
           .toList()
       rows.filter { !it.isDeleted }.map { it.toDataEdgeRepertoireTag() }
     }
@@ -1093,7 +1100,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     val database = db()
     return database.transaction(TAGS_STORE) {
       val store = objectStore(TAGS_STORE)
-      val key = Key(position.value.toJsString())
+      val key = Key(position.toJsKey())
       val rows: List<JsEdgeRepertoireTagEntity> =
         store.index("origin").getAll(key).toList<JsEdgeRepertoireTagEntity>() +
           store.index("destination").getAll(key).toList<JsEdgeRepertoireTagEntity>()
@@ -1111,8 +1118,8 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       objectStore(TAGS_STORE)
         .get(
           Key(
-            origin.value.toJsString(),
-            destination.value.toJsString(),
+            origin.toJsKey(),
+            destination.toJsKey(),
             repertoireId.toJsString(),
           ),
         )
@@ -1151,12 +1158,9 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
       tags
         .filter { !it.isDeleted }
         .mapNotNull { tag ->
-          val move =
-            movesStore
-              .get(Key(tag.origin.toJsString(), tag.destination.toJsString()))
-              ?.unsafeCast<JsMoveEntity>()
+          val move = movesStore.get(Key(tag.origin, tag.destination))?.unsafeCast<JsMoveEntity>()
           if (move == null || move.isDeleted) null
-          else TaggedEdge(PositionKey(tag.origin), PositionKey(tag.destination), move.move)
+          else TaggedEdge(tag.origin.toPositionKey(), tag.destination.toPositionKey(), move.move)
         }
     }
   }
@@ -1170,14 +1174,14 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
     database.writeTransaction(NODE_REPERTOIRE_TRAINABLE_STORE) {
       val store = objectStore(NODE_REPERTOIRE_TRAINABLE_STORE)
       val existing: List<JsNodeRepertoireTrainableEntity> =
-        store.index("positionKey").getAll(Key(positionKey.value.toJsString())).toList()
+        store.index("positionKey").getAll(Key(positionKey.toJsKey())).toList()
       for (row in existing) {
-        store.delete(Key(row.positionKey.toJsString(), row.repertoireId.toJsString()))
+        store.delete(Key(row.positionKey, row.repertoireId.toJsString()))
       }
       for (id in repertoireIds) {
         val row =
           emptyObject<JsNodeRepertoireTrainableEntity>().apply {
-            this.positionKey = positionKey.value
+            this.positionKey = positionKey.toJsKey()
             this.repertoireId = id
             this.lastReview = lastReview?.epochSeconds?.toDouble() ?: 0.0
           }
@@ -1205,7 +1209,7 @@ object JsLocalDatabaseQueryManager : DatabaseQueryManager {
         // A tombstoned position's trainable row is stale until its own delete path clears it (see
         // TreeStore); this filter is the correctness backstop for that, not merely an optimization.
         val live = rows.mapNotNull { row ->
-          val node = nodesStore.get(Key(row.positionKey.toJsString()))?.unsafeCast<JsNodeEntity>()
+          val node = nodesStore.get(Key(row.positionKey))?.unsafeCast<JsNodeEntity>()
           if (node != null && !node.isDeleted) row to node else null
         }
         val solid = live.count { (_, node) -> node.phase == CardPhase.REVIEW.name }

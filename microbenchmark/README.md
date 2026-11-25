@@ -13,6 +13,7 @@ algorithms underneath it, with no device or emulator required.
 | `OpeningTreeBenchmark`     | Building the opening graph through `TreeStore` and the lookup path used on every navigation step.       |
 | `Fsrs6SchedulingBenchmark` | A full FSRS 6 scheduling pass over a card batch covering every `ReviewGrade` and `CardPhase`.            |
 | `FenBenchmark`             | Parsing cropped FENs into engines and cropping positions back into `PositionKey`s.                       |
+| `PositionKeyCodecBenchmark` | Packing `PositionKey`s into their binary database form and back, paid on every position read and write. |
 
 All inputs are deterministic fixtures (`OpeningLines`); the FSRS fuzz source is a constant. Runs
 are therefore comparable across machines, up to hardware differences.

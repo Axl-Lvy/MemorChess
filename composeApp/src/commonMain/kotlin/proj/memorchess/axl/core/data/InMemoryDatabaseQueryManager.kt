@@ -97,8 +97,10 @@ class InMemoryDatabaseQueryManager : DatabaseQueryManager {
     // ordered, cursor bounded slice as a single bounded query.
     val page =
       live()
-        .filter { cursor == null || it.positionKey.value > cursor }
-        .sortedBy { it.positionKey.value }
+        .filter {
+          cursor == null || PositionKeyCodec.ORDER.compare(it.positionKey, PositionKey(cursor)) > 0
+        }
+        .sortedWith(compareBy(PositionKeyCodec.ORDER) { it.positionKey })
         .take(limit)
     val nextCursor = if (page.size == limit) page.last().positionKey.value else null
     return NodesPage(page, nextCursor)

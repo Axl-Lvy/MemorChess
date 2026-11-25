@@ -7,7 +7,7 @@ import kotlin.time.Instant
  * [proj.memorchess.axl.core.graph.TrainingEntry] needs. It never loads edges, keeping the bounded
  * scheduling queries cheap.
  *
- * @property positionKey FEN string identifying the position.
+ * @property positionKey [PositionKeyCodec] form of the position key.
  * @property dueDate Moment the card is next due.
  * @property lastReview Moment of the most recent review, or `null` for a brand new card.
  * @property firstReview Moment of the very first review, or `null` for a never reviewed card.
@@ -19,7 +19,7 @@ import kotlin.time.Instant
  * @property step Index into the active learning or relearning step ladder.
  */
 data class NodeCardProjection(
-  val positionKey: String,
+  val positionKey: ByteArray,
   val dueDate: Instant,
   val lastReview: Instant?,
   val firstReview: Instant?,

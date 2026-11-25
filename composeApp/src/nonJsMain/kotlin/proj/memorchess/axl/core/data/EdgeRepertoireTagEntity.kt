@@ -11,15 +11,14 @@ import proj.memorchess.axl.core.date.DateUtil
   primaryKeys = ["origin", "destination", "repertoireId"],
   indices =
     [
-      Index(value = ["origin", "destination"]),
       Index(value = ["destination"]),
       Index(value = ["isDeleted"]),
       Index(value = ["updatedAt"]),
     ],
 )
 data class EdgeRepertoireTagEntity(
-  val origin: String,
-  val destination: String,
+  val origin: ByteArray,
+  val destination: ByteArray,
   val repertoireId: String,
   val move: String,
   val isGood: Boolean? = null,
@@ -31,8 +30,8 @@ data class EdgeRepertoireTagEntity(
 
   fun toDataEdgeRepertoireTag(): DataEdgeRepertoireTag =
     DataEdgeRepertoireTag(
-      origin = PositionKey(origin),
-      destination = PositionKey(destination),
+      origin = PositionKeyCodec.decode(origin),
+      destination = PositionKeyCodec.decode(destination),
       repertoireId = repertoireId,
       move = move,
       isGood = isGood,
@@ -45,8 +44,8 @@ data class EdgeRepertoireTagEntity(
   companion object {
     fun convertToEntity(tag: DataEdgeRepertoireTag): EdgeRepertoireTagEntity =
       EdgeRepertoireTagEntity(
-        origin = tag.origin.value,
-        destination = tag.destination.value,
+        origin = PositionKeyCodec.encode(tag.origin),
+        destination = PositionKeyCodec.encode(tag.destination),
         repertoireId = tag.repertoireId,
         move = tag.move,
         isGood = tag.isGood,

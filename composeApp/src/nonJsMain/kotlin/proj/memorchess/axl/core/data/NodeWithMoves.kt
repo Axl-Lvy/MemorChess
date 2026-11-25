@@ -16,7 +16,7 @@ data class NodeWithMoves(
   /** Converts to a [DataNode], keeping soft deleted moves only when [includeDeletedMoves]. */
   fun toStoredNode(includeDeletedMoves: Boolean = false): DataNode {
     return DataNode(
-      PositionKey(node.positionKey),
+      PositionKeyCodec.decode(node.positionKey),
       PreviousAndNextMoves(
         previousMoves.filter { includeDeletedMoves || !it.isDeleted }.map { it.toStoredMove() },
         nextMoves.filter { includeDeletedMoves || !it.isDeleted }.map { it.toStoredMove() },
@@ -47,7 +47,7 @@ data class NodeWithMoves(
       val card = dataNode.cardState
       return NodeWithMoves(
         NodeEntity(
-          positionKey = dataNode.positionKey.value,
+          positionKey = PositionKeyCodec.encode(dataNode.positionKey),
           dueDate = card.dueDate,
           lastReview = card.lastReview,
           firstReview = card.firstReview,
