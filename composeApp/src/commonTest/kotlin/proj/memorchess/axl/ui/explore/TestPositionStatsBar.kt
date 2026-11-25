@@ -128,4 +128,15 @@ class TestPositionStatsBar {
       hasContentDescription("Masters: 1 game, white wins 100%, draws 0%, black wins 0%"),
     )
   }
+
+  @Test
+  fun contentDescriptionSpellsOutLargeCount() = runComposeUiTest {
+    render(shown(456_000, 372_000, 372_000))
+
+    assertBarHas(
+      hasContentDescription(
+        "Masters: 1200000 games, white wins 38%, draws 31%, black wins 31%",
+      ),
+    )
+  }
 }

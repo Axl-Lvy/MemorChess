@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import memorchess.composeapp.generated.resources.Res
 import memorchess.composeapp.generated.resources.explore_source_lichess
@@ -46,7 +47,7 @@ private const val OUTDATED_ALPHA = 0.45f
  * until a first response has loaded.
  */
 @Composable
-fun PositionStatsBar(viewModel: ExplorerViewModel, modifier: Modifier = Modifier) {
+internal fun PositionStatsBar(viewModel: ExplorerViewModel, modifier: Modifier = Modifier) {
   val state by viewModel.positionStats.collectAsState()
   PositionStatsBarContent(state = state, modifier = modifier)
 }
@@ -70,7 +71,7 @@ internal fun PositionStatsBarContent(state: PositionStatsState, modifier: Modifi
         shareLabel(response.draws, percents.draws),
         shareLabel(response.black, percents.black),
       )
-  val description = description(shown, count, percents)
+  val description = description(shown, percents)
   val updating = stringResource(Res.string.explore_stats_updating)
 
   Column(
@@ -87,11 +88,24 @@ internal fun PositionStatsBarContent(state: PositionStatsState, modifier: Modifi
   ) {
     Row(
       modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.SpaceBetween,
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      Text(text = label, style = typography.labelSm.copy(color = palette.ink2), maxLines = 1)
-      Text(text = percentsText, style = typography.labelSm.copy(color = palette.ink3), maxLines = 1)
+      // The label gives way first so the percentages are never cut.
+      Text(
+        text = label,
+        style = typography.labelSm.copy(color = palette.ink2),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.weight(1f),
+      )
+      Text(
+        text = percentsText,
+        style = typography.labelSm.copy(color = palette.ink3),
+        maxLines = 1,
+        softWrap = false,
+      )
     }
     OutcomeBar(
       white = response.white,
@@ -112,7 +126,6 @@ private fun sourceLabel(source: ExplorerSource): String =
 @Composable
 private fun description(
   shown: PositionStatsState.Shown,
-  count: String,
   percents: OutcomePercents?,
 ): String {
   val sourceName =
@@ -128,7 +141,8 @@ private fun description(
     Res.plurals.explore_stats_description,
     response.totalGames.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
     sourceName,
-    count,
+    // The full number: screen readers misread compact suffixes such as "M".
+    response.totalGames.toString(),
     shareLabel(response.white, percents.white),
     shareLabel(response.draws, percents.draws),
     shareLabel(response.black, percents.black),

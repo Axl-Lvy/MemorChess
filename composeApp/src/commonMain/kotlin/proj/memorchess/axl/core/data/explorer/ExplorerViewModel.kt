@@ -3,7 +3,9 @@ package proj.memorchess.axl.core.data.explorer
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import proj.memorchess.axl.core.engine.Fen
 
@@ -31,11 +34,12 @@ import proj.memorchess.axl.core.engine.Fen
  *    Compose).
  * 2. Push the current FEN via [setFen] whenever the explorer's board position changes.
  */
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class ExplorerViewModel(
   private val cachedExplorer: CachedExplorer,
   scope: CoroutineScope,
   debounce: Duration = DEFAULT_DEBOUNCE,
+  dimDelay: Duration = DEFAULT_DIM_DELAY,
 ) {
 
   private val fenFlow = MutableStateFlow<Fen?>(null)
@@ -50,8 +54,9 @@ class ExplorerViewModel(
   val source: StateFlow<ExplorerSource> = sourceFlow.asStateFlow()
 
   /**
-   * The last loaded position totals, flagged as outdated while they don't match the current
-   * position and source. Never goes back to [PositionStatsState.Hidden] once something has loaded.
+   * The last loaded position totals, flagged as outdated once they have not matched the current
+   * position and source for the dim delay. Never goes back to [PositionStatsState.Hidden] once
+   * something has loaded.
    */
   val positionStats: StateFlow<PositionStatsState> =
     combine(lastLoad, fenFlow, sourceFlow) { held, fen, source ->
@@ -62,6 +67,12 @@ class ExplorerViewModel(
             response = held.response,
             isCurrent = held.fen == fen && held.source == source,
           )
+      }
+      // Outdated stats are reported only once they stay outdated, so stepping through cached
+      // positions doesn't blink the bar.
+      .transformLatest { stats ->
+        if (stats is PositionStatsState.Shown && !stats.isCurrent) delay(dimDelay)
+        emit(stats)
       }
       .stateIn(scope, SharingStarted.Eagerly, PositionStatsState.Hidden)
 
@@ -108,6 +119,9 @@ class ExplorerViewModel(
   companion object {
     /** Default debounce between rapid FEN changes. */
     val DEFAULT_DEBOUNCE: Duration = 150.milliseconds
+
+    /** Default time position stats must stay outdated before they are reported as such. */
+    val DEFAULT_DIM_DELAY: Duration = 300.milliseconds
   }
 }
 
