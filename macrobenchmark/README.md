@@ -62,7 +62,8 @@ device) can run:
   -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR
 ```
 
-The `benchmark.yml` workflow wires this up on GitHub Actions behind a manual trigger.
+The `benchmark.yml` workflow wires this up on GitHub Actions, daily on master or manually
+triggered. The daily master runs are charted at <https://axl-lvy.github.io/MemorChess/benchmarks/>.
 
 ## Interpreting results
 

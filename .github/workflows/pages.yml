@@ -1,4 +1,7 @@
-name: Code provenance
+# Publishes the GitHub Pages site: the code provenance report at the root and the
+# benchmark history page under benchmarks/, which loads its data from the
+# benchmark-data branch at view time.
+name: GitHub Pages
 
 on:
   push:
@@ -7,8 +10,11 @@ on:
   pull_request:
     paths:
       - '.github/scripts/code_provenance*'
-      - '.github/scripts/test_code_provenance.py'
-      - '.github/workflows/provenance.yml'
+      - '.github/scripts/test_*.py'
+      - '.github/scripts/benchmark_history_page.html'
+      - '.github/scripts/build_benchmark_history.py'
+      - '.github/scripts/extract_benchmark_summary.py'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -31,11 +37,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Test the report script
-        run: python3 -m unittest discover -s .github/scripts -p 'test_code_provenance.py'
+      - name: Test the scripts
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
       - name: Build the report
         run: python3 .github/scripts/code_provenance.py _site
+
+      - name: Add the benchmark history page
+        run: mkdir -p _site/benchmarks && cp .github/scripts/benchmark_history_page.html _site/benchmarks/index.html
 
       - uses: actions/upload-pages-artifact@v5
         with:

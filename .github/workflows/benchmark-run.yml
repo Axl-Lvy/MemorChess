@@ -44,6 +44,12 @@ jobs:
             -Pandroid.testoptions.manageddevices.emulator.gpu=swiftshader_indirect \
             -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR
 
+      - name: Record the runner CPU
+        if: always()
+        run: |
+          mkdir -p macrobenchmark/build/outputs
+          lscpu | sed -n 's/^Model name:[[:space:]]*//p' > macrobenchmark/build/outputs/runner-cpu.txt
+
       - name: Upload benchmark results
         uses: actions/upload-artifact@v7
         if: always()
@@ -52,6 +58,7 @@ jobs:
           path: |
             macrobenchmark/build/outputs/**/*.json
             macrobenchmark/build/outputs/**/*.perfetto-trace
+            macrobenchmark/build/outputs/runner-cpu.txt
           retention-days: 30
 
   # JVM microbenchmarks for the pure Kotlin core: no emulator, no KVM, runs in parallel
@@ -77,12 +84,20 @@ jobs:
       - name: Run JVM microbenchmarks
         run: ./gradlew :microbenchmark:benchmark
 
+      - name: Record the runner CPU
+        if: always()
+        run: |
+          mkdir -p microbenchmark/build/reports/benchmarks
+          lscpu | sed -n 's/^Model name:[[:space:]]*//p' > microbenchmark/build/reports/benchmarks/runner-cpu.txt
+
       - name: Upload benchmark results
         uses: actions/upload-artifact@v7
         if: always()
         with:
           name: microbenchmark-results
-          path: microbenchmark/build/reports/benchmarks/**/*.json
+          path: |
+            microbenchmark/build/reports/benchmarks/**/*.json
+            microbenchmark/build/reports/benchmarks/runner-cpu.txt
           retention-days: 30
 
   # The two benchmark jobs run in parallel and cannot write to the same artifact, so a
