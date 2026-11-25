@@ -16,13 +16,13 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   DatabaseQueryManager {
 
   override suspend fun getPosition(positionKey: PositionKey): DataNode? {
-    return database.getNodeEntityDao().getNode(positionKey.value)?.toStoredNode()
+    return database.getNodeEntityDao().getNode(positionKey.packed())?.toStoredNode()
   }
 
   override suspend fun getPositionIncludingDeleted(positionKey: PositionKey): DataNode? =
     database
       .getNodeEntityDao()
-      .getNodeIncludingDeleted(positionKey.value)
+      .getNodeIncludingDeleted(positionKey.packed())
       ?.toStoredNode(includeDeletedMoves = true)
 
   override suspend fun applyRemoteNode(node: DataNode) {
@@ -36,7 +36,9 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   override suspend fun getNodesPage(cursor: String?, limit: Int): NodesPage {
     require(limit > 0) { "Page limit must be strictly positive, was $limit" }
     val dao = database.getNodeEntityDao()
-    val rows = if (cursor == null) dao.getNodesPage(limit) else dao.getNodesPageAfter(cursor, limit)
+    val rows =
+      if (cursor == null) dao.getNodesPage(limit)
+      else dao.getNodesPageAfter(PositionKey(cursor).packed(), limit)
     val nodes = rows.map { it.toStoredNode() }
     val nextCursor = if (nodes.size == limit) nodes.last().positionKey.value else null
     return NodesPage(nodes, nextCursor)
@@ -50,7 +52,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   ) {
     database
       .getNodeEntityDao()
-      .softDeletePositionAndMarkDirty(position.value, updatedAt, originDevice, deviceSeq)
+      .softDeletePositionAndMarkDirty(position.packed(), updatedAt, originDevice, deviceSeq)
   }
 
   override suspend fun deleteMove(
@@ -62,7 +64,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   ) {
     database
       .getNodeEntityDao()
-      .softDeleteMoveAndMarkDirty(origin.value, move, updatedAt, originDevice, deviceSeq)
+      .softDeleteMoveAndMarkDirty(origin.packed(), move, updatedAt, originDevice, deviceSeq)
   }
 
   override suspend fun eraseAll() {
@@ -133,18 +135,18 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     val eligible =
       database
         .getNodeEntityDao()
-        .eligibleAmong(keys.map { it.value }, dayEndExclusive, repertoireId)
-        .associateBy { it.positionKey }
+        .eligibleAmong(keys.map { it.packed() }, dayEndExclusive, repertoireId)
+        .associateBy { it.positionKey.toPositionKey() }
     // Preserve the caller's candidate order: return the first key that came back eligible.
-    return keys.firstNotNullOfOrNull { eligible[it.value] }?.toTrainingEntry()
+    return keys.firstNotNullOfOrNull { eligible[it] }?.toTrainingEntry()
   }
 
   override suspend fun pruneImpact(key: PositionKey, cap: Int): PruneImpact {
     val dao = database.getNodeEntityDao()
-    if (!dao.nodeExists(key.value)) return PruneImpact.NONE
+    if (!dao.nodeExists(key.packed())) return PruneImpact.NONE
     val removed = cappedDescendants(key, cap) { liveSingleParentChildren(it) }
     val reviewed =
-      removed.map { it.value }.chunked(SQLITE_KEY_CHUNK).sumOf { dao.countReviewed(it) }
+      removed.map { it.packed() }.chunked(SQLITE_KEY_CHUNK).sumOf { dao.countReviewed(it) }
     return PruneImpact(positions = removed.size, reviewedPositions = reviewed)
   }
 
@@ -156,9 +158,9 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   private suspend fun liveSingleParentChildren(origin: PositionKey): List<PositionKey> {
     val dao = database.getNodeEntityDao()
     val result = mutableListOf<PositionKey>()
-    for (child in dao.childrenOf(origin.value)) {
+    for (child in dao.childrenOf(origin.packed())) {
       if (dao.nodeExists(child) && dao.incomingCount(child) <= 1) {
-        result.add(PositionKey(child))
+        result.add(child.toPositionKey())
       }
     }
     return result
@@ -167,7 +169,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   /** Rebuilds a [TrainingEntry] from the lightweight projection, no edges loaded. */
   private fun NodeCardProjection.toTrainingEntry(): TrainingEntry =
     TrainingEntry(
-      PositionKey(positionKey),
+      positionKey.toPositionKey(),
       CardState(
         dueDate = dueDate,
         lastReview = lastReview,
@@ -216,12 +218,14 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     origin: PositionKey,
     destination: PositionKey,
   ): List<DataEdgeRepertoireTag> =
-    database.getRepertoireDao().getTags(origin.value, destination.value).map {
+    database.getRepertoireDao().getTags(origin.packed(), destination.packed()).map {
       it.toDataEdgeRepertoireTag()
     }
 
   override suspend fun getTagsTouching(position: PositionKey): List<DataEdgeRepertoireTag> =
-    database.getRepertoireDao().getTagsTouching(position.value).map { it.toDataEdgeRepertoireTag() }
+    database.getRepertoireDao().getTagsTouching(position.packed()).map {
+      it.toDataEdgeRepertoireTag()
+    }
 
   override suspend fun getTagIncludingDeleted(
     origin: PositionKey,
@@ -230,7 +234,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
   ): DataEdgeRepertoireTag? =
     database
       .getRepertoireDao()
-      .getTagIncludingDeleted(origin.value, destination.value, repertoireId)
+      .getTagIncludingDeleted(origin.packed(), destination.packed(), repertoireId)
       ?.toDataEdgeRepertoireTag()
 
   override suspend fun insertTag(tag: DataEdgeRepertoireTag) {
@@ -243,7 +247,7 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
 
   override suspend fun edgesTaggedWith(repertoireId: String): List<TaggedEdge> =
     database.getRepertoireDao().edgesTaggedWith(repertoireId).map {
-      TaggedEdge(PositionKey(it.origin), PositionKey(it.destination), it.move)
+      TaggedEdge(it.origin.toPositionKey(), it.destination.toPositionKey(), it.move)
     }
 
   override suspend fun replaceTrainableRepertoires(
@@ -254,8 +258,8 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     database
       .getRepertoireDao()
       .replaceTrainable(
-        positionKey.value,
-        repertoireIds.map { NodeRepertoireTrainableEntity(positionKey.value, it, lastReview) },
+        positionKey.packed(),
+        repertoireIds.map { NodeRepertoireTrainableEntity(positionKey.packed(), it, lastReview) },
       )
   }
 
@@ -268,6 +272,10 @@ internal class NonJsLocalDatabaseQueryManager(private val database: CustomDataba
     }
   }
 }
+
+private fun PositionKey.packed(): ByteArray = PositionKeyCodec.encode(this)
+
+private fun ByteArray.toPositionKey(): PositionKey = PositionKeyCodec.decode(this)
 
 /** Keys bound per `IN` list, under SQLite's oldest bound-variable limit of 999. */
 private const val SQLITE_KEY_CHUNK = 500

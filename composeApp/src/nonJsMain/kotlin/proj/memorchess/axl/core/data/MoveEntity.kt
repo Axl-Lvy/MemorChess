@@ -8,8 +8,8 @@ import proj.memorchess.axl.core.date.DateUtil
 /**
  * Room entity representing an [DataMove].
  *
- * @property origin FEN string of the origin position.
- * @property destination FEN string of the destination position.
+ * @property origin [PositionKeyCodec] form of the origin position.
+ * @property destination [PositionKeyCodec] form of the destination position.
  * @property move The move string (e.g., "e4").
  * @property isGood Effective marking: whether the move has to be learned.
  * @property ownIsGood The user's own marking, or `null` without a manual hold.
@@ -20,15 +20,14 @@ import proj.memorchess.axl.core.date.DateUtil
   indices =
     [
       Index(value = ["isGood"]),
-      Index(value = ["origin"]),
       Index(value = ["destination"]),
       Index(value = ["isDeleted"]),
       Index(value = ["updatedAt"]),
     ],
 )
 data class MoveEntity(
-  val origin: String,
-  val destination: String,
+  val origin: ByteArray,
+  val destination: ByteArray,
   val move: String,
   val isGood: Boolean,
   val ownIsGood: Boolean? = null,
@@ -52,8 +51,8 @@ data class MoveEntity(
   /** Converts to an [DataMove]. */
   fun toStoredMove(): DataMove {
     return DataMove(
-      PositionKey(origin),
-      PositionKey(destination),
+      PositionKeyCodec.decode(origin),
+      PositionKeyCodec.decode(destination),
       move,
       isGood,
       ownIsGood,
@@ -73,8 +72,8 @@ data class MoveEntity(
         "A StoredMove must have a isGood value to be inserted into the database"
       }
       return MoveEntity(
-        dataMove.origin.value,
-        dataMove.destination.value,
+        PositionKeyCodec.encode(dataMove.origin),
+        PositionKeyCodec.encode(dataMove.destination),
         dataMove.move,
         isGood,
         dataMove.ownIsGood,

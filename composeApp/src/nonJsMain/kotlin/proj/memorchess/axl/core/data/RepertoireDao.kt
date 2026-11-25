@@ -44,8 +44,8 @@ interface RepertoireDao {
     insertTag(item)
     upsertOutboxEntry(
       OutboxEntryEntity.KIND_TAG,
-      item.origin,
-      item.destination,
+      item.origin.toKeyText(),
+      item.destination.toKeyText(),
       item.repertoireId,
       item.deviceSeq,
     )
@@ -55,13 +55,13 @@ interface RepertoireDao {
     "SELECT * FROM EdgeRepertoireTagEntity WHERE isDeleted IS FALSE " +
       "AND origin = :origin AND destination = :destination",
   )
-  suspend fun getTags(origin: String, destination: String): List<EdgeRepertoireTagEntity>
+  suspend fun getTags(origin: ByteArray, destination: ByteArray): List<EdgeRepertoireTagEntity>
 
   @Query(
     "SELECT * FROM EdgeRepertoireTagEntity WHERE isDeleted IS FALSE " +
       "AND (origin = :position OR destination = :position)",
   )
-  suspend fun getTagsTouching(position: String): List<EdgeRepertoireTagEntity>
+  suspend fun getTagsTouching(position: ByteArray): List<EdgeRepertoireTagEntity>
 
   /** [getTags] narrowed to one repertoire, without the `isDeleted IS FALSE` filter. */
   @Query(
@@ -69,8 +69,8 @@ interface RepertoireDao {
       "WHERE origin = :origin AND destination = :destination AND repertoireId = :repertoireId",
   )
   suspend fun getTagIncludingDeleted(
-    origin: String,
-    destination: String,
+    origin: ByteArray,
+    destination: ByteArray,
     repertoireId: String,
   ): EdgeRepertoireTagEntity?
 
@@ -110,7 +110,7 @@ interface RepertoireDao {
   @Query("DELETE FROM EdgeRepertoireTagEntity") suspend fun eraseAllTags()
 
   @Query("DELETE FROM NodeRepertoireTrainableEntity WHERE positionKey = :positionKey")
-  suspend fun clearTrainable(positionKey: String)
+  suspend fun clearTrainable(positionKey: ByteArray)
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertTrainable(items: Collection<NodeRepertoireTrainableEntity>)
@@ -118,7 +118,7 @@ interface RepertoireDao {
   /** Replaces [positionKey]'s entire trainable row set with [items] in one transaction. */
   @Transaction
   suspend fun replaceTrainable(
-    positionKey: String,
+    positionKey: ByteArray,
     items: Collection<NodeRepertoireTrainableEntity>,
   ) {
     clearTrainable(positionKey)

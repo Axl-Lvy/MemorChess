@@ -18,6 +18,7 @@ import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.MoveEntity
 import proj.memorchess.axl.core.data.NodeEntityDao
 import proj.memorchess.axl.core.data.NodeWithMoves
+import proj.memorchess.axl.core.data.PositionKeyCodec
 import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.engine.GameEngine
 import proj.memorchess.axl.core.graph.PreviousAndNextMoves
@@ -85,7 +86,13 @@ class TestNodeEntitiesDataBase {
     val game = GameEngine()
     val rootPositionKey = game.toPositionKey()
     game.playSanMove("e4")
-    val linkMove = MoveEntity(rootPositionKey.value, game.toPositionKey().value, "e4", true)
+    val linkMove =
+      MoveEntity(
+        PositionKeyCodec.encode(rootPositionKey),
+        PositionKeyCodec.encode(game.toPositionKey()),
+        "e4",
+        true,
+      )
     val now = DateUtil.now()
     val rootNode =
       DataNode(
@@ -101,7 +108,7 @@ class TestNodeEntitiesDataBase {
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(rootNode)))
       nodeEntityDao.insertNodeAndMoves(listOf(NodeWithMoves.convertToEntity(childNode)))
       nodeEntityDao.softDeleteNode(
-        childNode.positionKey.value,
+        PositionKeyCodec.encode(childNode.positionKey),
         now,
         identity.originDevice.value,
         identity.nextDeviceSeq(),

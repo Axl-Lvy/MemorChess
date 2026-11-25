@@ -16,7 +16,7 @@ import kotlin.time.Instant
   indices = [Index(value = ["repertoireId", "lastReview"])],
 )
 data class NodeRepertoireTrainableEntity(
-  val positionKey: String,
+  val positionKey: ByteArray,
   val repertoireId: String,
   val lastReview: Instant?,
 )

@@ -23,7 +23,7 @@ import proj.memorchess.axl.core.data.explorer.ExplorerCacheEntity
       EdgeRepertoireTagEntity::class,
       NodeRepertoireTrainableEntity::class,
     ],
-  version = 14,
+  version = 15,
   exportSchema = false,
 )
 @TypeConverters(DateConverters::class)
