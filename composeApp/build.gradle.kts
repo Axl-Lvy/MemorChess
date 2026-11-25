@@ -45,7 +45,13 @@ kotlin {
   }
 
   // JVM/Desktop configuration
-  jvm()
+  jvm {
+    // Dev-only launcher (devRun): its own compilation, so none of it is in the main artifact.
+    // Associated with main to use internal APIs, and the tests are associated with it in turn.
+    val main = compilations.getByName("main")
+    val devLaunch = compilations.create("devLaunch") { associateWith(main) }
+    compilations.getByName("test").associateWith(devLaunch)
+  }
 
   // iOS configuration
   listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
@@ -282,13 +288,14 @@ tasks.register<JavaExec>("devRun") {
   description = "Runs the desktop app on this worktree's seeded dev data (-Preseed to reset)."
   configureDevLaunch()
   // Only here: ComposeHotRun brings its own classpath, with the hot reload runtime on it.
-  val jvmMain = kotlin.jvm().compilations.getByName("main")
-  classpath = files(jvmMain.output.allOutputs, jvmMain.runtimeDependencyFiles)
+  val devLaunch = kotlin.jvm().compilations.getByName("devLaunch")
+  classpath = files(devLaunch.output.allOutputs, devLaunch.runtimeDependencyFiles)
 }
 
 tasks.register<ComposeHotRun>("devRunHot") {
   description = "Like devRun, with Compose hot reload."
   configureDevLaunch()
+  compilation.set(kotlin.jvm().compilations.getByName("devLaunch"))
 }
 
 // Disable configuration cache for all tasks involving wasmJs
@@ -365,6 +372,7 @@ extensions.configure<org.sonarqube.gradle.SonarExtension> {
           "src/commonMain/kotlin",
           "src/debugMain/kotlin",
           "src/iosMain/kotlin",
+          "src/jvmDevLaunch/kotlin",
           "src/jvmMain/kotlin",
           "src/nonJsMain/kotlin",
           "src/wasmJsMain/kotlin",
