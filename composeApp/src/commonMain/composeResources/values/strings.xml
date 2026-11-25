@@ -163,6 +163,19 @@
   <string name="explore_error">Could not load explorer: %1$s</string>
   <string name="explore_no_games">No games found for this position.</string>
 
+  <!-- Explore: position stats bar -->
+  <string name="explore_stats_source_masters">MASTERS</string>
+  <string name="explore_stats_source_lichess">LICHESS 2500+</string>
+  <string name="explore_stats_label">%1$s · %2$s</string>
+  <string name="explore_stats_percents">%1$s · %2$s · %3$s</string>
+  <string name="explore_stats_no_percents">—</string>
+  <string name="explore_stats_updating">Updating</string>
+  <plurals name="explore_stats_description">
+    <item quantity="one">%1$s: %2$s game, white wins %3$s%, draws %4$s%, black wins %5$s%</item>
+    <item quantity="other">%1$s: %2$s games, white wins %3$s%, draws %4$s%, black wins %5$s%</item>
+  </plurals>
+  <string name="explore_stats_description_empty">%1$s: no games</string>
+
   <!-- Explore: side info / continuations -->
   <string name="explore_no_next_moves">No next moves</string>
   <string name="explore_tab_continuations">Continuations</string>
