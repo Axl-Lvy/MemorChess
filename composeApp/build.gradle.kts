@@ -1,6 +1,7 @@
 import com.ncorti.ktfmt.gradle.tasks.KtfmtBaseTask
 import java.io.File
 import java.security.MessageDigest
+import java.util.Properties
 import org.jetbrains.compose.reload.gradle.ComposeHotRun
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -245,9 +246,28 @@ val devReseed =
   tasks.register<Delete>("devReseed") {
     description = "Deletes this worktree's dev data so the next devRun seeds again."
     delete(devDataDir)
-    // A local, not a script-level val: onlyIf must not capture the build script.
+    // Locals, not script-level vals: onlyIf must not capture the build script.
     val reseedRequested = providers.gradleProperty("reseed").isPresent
-    onlyIf { reseedRequested }
+    val sessionFile = devSessionFile.get().asFile
+    val generationMarker = devDataDir.get().file("server-generation").asFile
+    onlyIf { task ->
+      val serverGeneration =
+        sessionFile
+          .takeIf { it.isFile }
+          ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
+          ?.getProperty("generation")
+      val clientGeneration = generationMarker.takeIf { it.isFile }?.readText()?.trim()
+      val serverRestarted =
+        serverGeneration != null && clientGeneration != null && serverGeneration != clientGeneration
+      if (serverRestarted) {
+        task.logger.lifecycle("Local dev server restarted: resetting dev client data")
+      } else if (reseedRequested && serverGeneration != null) {
+        task.logger.lifecycle(
+          "Note: the local dev server still holds the previous seed; restart :server:devRun to clear it",
+        )
+      }
+      reseedRequested || serverRestarted
+    }
   }
 
 fun JavaExec.configureDevLaunch() {

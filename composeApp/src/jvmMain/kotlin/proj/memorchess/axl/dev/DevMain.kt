@@ -8,6 +8,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.TimeZone
 import org.koin.core.Koin
 import org.koin.core.context.startKoin
+import org.koin.dsl.module
+import proj.memorchess.axl.core.auth.AuthProvider
 import proj.memorchess.axl.core.auth.OAuthTokenStore
 import proj.memorchess.axl.core.config.MAX_NEW_MOVES_PER_DAY_SETTING
 import proj.memorchess.axl.core.config.MAX_TOTAL_MOVES_PER_DAY_SETTING
@@ -22,6 +24,9 @@ import proj.memorchess.axl.launchDesktopWindow
 
 private const val SEED_RANDOM = 42
 
+/** Records which dev server run this data was synced with; `devReseed` compares it. */
+private const val SERVER_GENERATION_FILE = "server-generation"
+
 /** Desktop entry point for `./gradlew :composeApp:devRun`: per-worktree, seeded dev data. */
 fun main() {
   val config = currentDevLaunchConfig
@@ -29,9 +34,18 @@ fun main() {
     System.err.println("DevMain runs only through ./gradlew :composeApp:devRun")
     exitProcess(1)
   }
-  val koin = startKoin { modules(*initKoinModules()) }.koin
+  val session = readDevSession(config.sessionFile)
+  // Must run before anything reads SYNC_BASE_URL, which is initialised once from this property.
+  session?.let { System.setProperty(DEV_SYNC_URL_PROPERTY, it.baseUrl) }
+  val devAuth = module { single<AuthProvider> { DevAuthProvider(session) } }
+  val koin = startKoin {
+    allowOverride(true)
+    modules(*initKoinModules(), devAuth)
+  }
+    .koin
   mirrorLichessToken(sharedLichessTokenStore(), koin.get<OAuthTokenStore>())
   runBlocking { seedIfEmpty(config, koin) }
+  session?.let { File(config.dataDir, SERVER_GENERATION_FILE).writeText(it.generation.value) }
   launchDesktopWindow("Memor Chess (dev: ${worktreeName(config)})")
 }
 
