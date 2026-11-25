@@ -432,18 +432,24 @@ function panBy(fraction) {
   setView(win.from + dt, win.to + dt);
 }
 
+// Builds a detached chart frame; mountFrame swaps it in once drawn.
 function plotFrame(host, height) {
-  host.querySelectorAll('svg, .tip').forEach(node => node.remove());
   const w = Math.max(host.clientWidth || 640, 260), h = height(w);
   const pad = { l: 52, r: 10, t: 8, b: 22 };
-  const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, height: h }, host);
+  const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, height: h });
   const clipId = `clip-${host.id}`;
   el('rect', { x: pad.l, y: 0, width: w - pad.l - pad.r, height: h }, el('clipPath', { id: clipId }, el('defs', {}, svg)));
   const tip = document.createElement('div');
   tip.className = 'tip';
   tip.hidden = true;
-  host.appendChild(tip);
   return { svg, tip, w, h, pad, clipId };
+}
+
+// Replaces the host's chart in one insertion. Building in place costs one live mutation per node, which
+// extensions observing the page (e.g. a cookie-consent blocker) turn into a frame-long stall in Firefox,
+// and emptying the host first shortens the page, which Firefox answers by clamping the scroll position.
+function mountFrame(host, frame) {
+  host.replaceChildren(frame.svg, frame.tip);
 }
 
 function niceStep(raw) {
@@ -540,6 +546,7 @@ function drawFocus(key, win) {
     for (const p of visible) if (!best || Math.abs(p.x - mx) < Math.abs(best.x - mx)) best = p;
     return best;
   };
+  mountFrame(host, frame);
   host.chart = {
     frame,
     pick: event => nearest(event)?.run.commit,
@@ -599,8 +606,13 @@ function drawOverview(win) {
     for (const c of visible) if (!best || Math.abs(c.x - mx) < Math.abs(best.x - mx)) best = c;
     return best;
   };
+  const legendHtml = lines.map(l => `<li><i style="background:${l.color}"></i>${esc(label(l.key).cls)}.${esc(label(l.key).name)}</li>`).join('');
   const legend = document.getElementById('legend');
-  legend.innerHTML = lines.map(l => `<li><i style="background:${l.color}"></i>${esc(label(l.key).cls)}.${esc(label(l.key).name)}</li>`).join('');
+  if (legend.dataset.html !== legendHtml) {
+    legend.innerHTML = legendHtml;
+    legend.dataset.html = legendHtml;
+  }
+  mountFrame(host, frame);
   host.chart = {
     frame,
     pick: event => nearest(event)?.sha,
