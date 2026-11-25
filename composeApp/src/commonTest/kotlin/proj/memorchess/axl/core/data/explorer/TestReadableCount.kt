@@ -30,6 +30,8 @@ class TestReadableCount {
             LichessExplorerMove(uci = "e2e4", san = "e4", white = 999, draws = 0, black = 0),
             LichessExplorerMove(uci = "d2d4", san = "d4", white = 1000, draws = 0, black = 0),
             LichessExplorerMove(uci = "g1f3", san = "Nf3", white = 1_000_000, draws = 0, black = 0),
+            LichessExplorerMove(uci = "c2c4", san = "c4", white = 1_200, draws = 0, black = 0),
+            LichessExplorerMove(uci = "b1c3", san = "Nc3", white = 1_200_000, draws = 0, black = 0),
           ),
         opening = null,
       )
@@ -51,5 +53,7 @@ class TestReadableCount {
     onNode(hasText("999")).assertExists()
     onNode(hasText("1k")).assertExists()
     onNode(hasText("1M")).assertExists()
+    onNode(hasText("1.2k")).assertExists()
+    onNode(hasText("1.2M")).assertExists()
   }
 }
