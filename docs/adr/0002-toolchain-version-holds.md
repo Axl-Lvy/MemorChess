@@ -22,6 +22,14 @@ overload, and no overload is shared by both versions, so `commonMain`
 cannot compile against 1.5.0 on Android and 1.9.0 elsewhere. The hold
 lifts with a stable Compose Multiplatform material3 1.10.
 
+Amended, 2026-11-25: `androidx.compose.runtime:runtime-tracing` is
+held below 1.13.0. It must match the `androidx.compose.runtime`
+version Compose Multiplatform 1.12.2 resolves to on Android (1.12.1).
+1.13.0 drags the benchmark variant's Compose runtime to 1.13.0 and
+`androidx.tracing` to 2.x, and the macrobenchmark tests fail on the
+emulator. The hold lifts with the Compose Multiplatform release that
+resolves to runtime 1.13.
+
 ## Context
 
 Five dependency lines are pinned below their latest release. They are
