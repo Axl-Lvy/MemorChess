@@ -5,6 +5,7 @@ import proj.memorchess.axl.core.data.DataMove
 import proj.memorchess.axl.core.data.DataNode
 import proj.memorchess.axl.core.data.NodesPage
 import proj.memorchess.axl.core.data.PositionKey
+import proj.memorchess.axl.core.data.PositionKeyCodec
 import proj.memorchess.axl.core.scheduling.CardPhase
 import proj.memorchess.axl.core.scheduling.CardState
 
@@ -19,7 +20,7 @@ import proj.memorchess.axl.core.scheduling.CardState
  *   never been reviewed and `<phase>` is a [proj.memorchess.axl.core.scheduling.CardPhase] name.
  * - **Edge lines**: `<originIndex>\t<destIndex>\t<move>\t<isGood>\t<updatedAt>\t<createdAt>`
  *
- * Nodes are sorted by [PositionKey.value] and edges by `(originIndex, destIndex, move)` for
+ * Nodes are sorted by [PositionKeyCodec.ORDER] and edges by `(originIndex, destIndex, move)` for
  * determinism.
  */
 object GraphSerializer {
@@ -44,7 +45,7 @@ object GraphSerializer {
   /** Serializes nodes to a deterministic text string. Filters out deleted nodes and moves. */
   fun serialize(nodes: List<DataNode>): String {
     val liveNodes = nodes.filter { !it.isDeleted }
-    val sorted = liveNodes.sortedBy { it.positionKey.value }
+    val sorted = liveNodes.sortedWith(compareBy(PositionKeyCodec.ORDER) { it.positionKey })
     val indexByKey = buildMap { sorted.forEachIndexed { i, node -> put(node.positionKey, i + 1) } }
 
     val nodeLines = sorted.mapIndexed { i, node -> nodeLine(i + 1, node) }
@@ -69,9 +70,8 @@ object GraphSerializer {
    * section (nodes then edges) on disk format is therefore byte stable and the deserializer is
    * untouched.
    *
-   * The position key ordering of [NodesPage] matches the `sortedBy { positionKey.value }` order
-   * [serialize] uses, so indices assigned by the incrementing page counter are identical to the
-   * eager path.
+   * The [PositionKeyCodec.ORDER] ordering of [NodesPage] matches the order [serialize] uses, so
+   * indices assigned by the incrementing page counter are identical to the eager path.
    *
    * @param pageSize Maximum rows per page; forwarded as the `limit` to [pageProducer]. Must be
    *   strictly positive.
