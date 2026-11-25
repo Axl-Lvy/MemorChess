@@ -38,3 +38,11 @@ internal fun readDevSession(file: File?): DevSession? {
     generation = DevServerGeneration(required("generation")),
   )
 }
+
+/** Returns what to tell the developer when [session] has expired at [now], or `null` if not. */
+internal fun expiredSessionHint(session: DevSession?, now: Instant): String? =
+  if (session != null && now >= session.expiresAt) {
+    "Dev session expired: restart ./gradlew :server:devRun"
+  } else {
+    null
+  }

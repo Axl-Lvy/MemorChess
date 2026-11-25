@@ -1,15 +1,19 @@
 package proj.memorchess.axl.dev
 
+import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.ints.shouldBeGreaterThanOrEqual
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.time.Instant
 import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 import org.koin.core.component.get
 import proj.memorchess.axl.core.data.DailyActivityStore
 import proj.memorchess.axl.core.data.DatabaseQueryManager
@@ -17,6 +21,7 @@ import proj.memorchess.axl.core.date.DateUtil
 import proj.memorchess.axl.core.graph.RepertoireTagStore
 import proj.memorchess.axl.core.graph.TreeStore
 import proj.memorchess.axl.core.pgn.PgnImporter
+import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 import proj.memorchess.axl.core.streak.StreakTracker
 import proj.memorchess.axl.test_util.TestWithKoin
@@ -25,7 +30,9 @@ class TestDevSeeder : TestWithKoin() {
 
   private val zone = TimeZone.currentSystemDefault()
 
-  private suspend fun seed() {
+  private val paris = TimeZone.of("Europe/Paris")
+
+  private suspend fun seed(now: Instant = DateUtil.now(), timeZone: TimeZone = zone) {
     val tagStore = get<RepertoireTagStore>()
     val treeStore = get<TreeStore>()
     val seeder =
@@ -40,13 +47,42 @@ class TestDevSeeder : TestWithKoin() {
             algorithm =
               Fsrs6SchedulingAlgorithm(enableFuzz = { false }, enableShortTerm = { true }),
             random = Random(42),
-            timeZone = zone,
+            timeZone = timeZone,
             maxNewPerDay = 10,
             maxTotalPerDay = 100,
           ),
       )
-    seeder.seed(DateUtil.now())
+    seeder.seed(now)
   }
+
+  private suspend fun seededCardStates(): List<CardState> {
+    val database = get<DatabaseQueryManager>()
+    val states = mutableListOf<CardState>()
+    var cursor: String? = null
+    do {
+      val page = database.getNodesPage(cursor, 500)
+      states += page.nodes.filter { it.hasGoodOutgoing }.map { it.cardState }
+      cursor = page.nextCursor
+    } while (cursor != null)
+    return states
+  }
+
+  private suspend fun assertEveryBucketFilled(dateTime: String) {
+    val now = LocalDateTime.parse(dateTime).toInstant(paris)
+
+    seed(now, paris)
+
+    for ((bucket, count) in seedBuckets(seededCardStates(), now, paris)) {
+      withClue("$bucket at $dateTime") { count shouldBeGreaterThan 0 }
+    }
+  }
+
+  @Test fun realSeedFillsEveryBucket() = test { assertEveryBucketFilled("2026-11-25T10:00") }
+
+  @Test fun realSeedFillsEveryBucketOverDst() = test { assertEveryBucketFilled("2026-03-29T10:00") }
+
+  @Test
+  fun realSeedFillsEveryBucketOverNewYear() = test { assertEveryBucketFilled("2027-01-01T00:30") }
 
   @Test
   fun seedsThreeRepertoires() = test {

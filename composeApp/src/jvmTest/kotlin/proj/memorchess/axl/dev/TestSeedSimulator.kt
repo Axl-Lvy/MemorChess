@@ -15,13 +15,11 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import proj.memorchess.axl.core.scheduling.CardPhase
-import proj.memorchess.axl.core.scheduling.CardState
 import proj.memorchess.axl.core.scheduling.Fsrs6SchedulingAlgorithm
 
 class TestSeedSimulator {
@@ -43,27 +41,12 @@ class TestSeedSimulator {
 
   private fun today(now: Instant): LocalDate = now.toLocalDateTime(zone).date
 
-  private fun buckets(states: Collection<CardState>, now: Instant): Map<String, Int> {
-    val todayStart = today(now).atStartOfDayIn(zone)
-    val tomorrowStart = today(now).plus(DatePeriod(days = 1)).atStartOfDayIn(zone)
-    val review = states.filter { it.phase == CardPhase.REVIEW }
-    return mapOf(
-      "new" to states.count { it.phase == CardPhase.NEW },
-      "learning" to
-        states.count { it.phase == CardPhase.LEARNING || it.phase == CardPhase.RELEARNING },
-      "dueToday" to review.count { it.dueDate >= todayStart && it.dueDate < tomorrowStart },
-      "overdue" to review.count { it.dueDate < todayStart },
-      "mature" to
-        review.count { state -> state.lastReview?.let { state.dueDate - it >= 21.days } == true },
-    )
-  }
-
   @Test
   fun everyBucketIsFilled() {
     for (now in listOf(at("2026-11-25T10:00"), at("2026-03-29T10:00"), at("2027-01-01T00:30"))) {
       val result = simulator().simulate(cards, now)
 
-      for ((bucket, count) in buckets(result.cardStates.values, now)) {
+      for ((bucket, count) in seedBuckets(result.cardStates.values, now, zone)) {
         withClue(now, bucket) { count shouldBeGreaterThan 0 }
       }
     }

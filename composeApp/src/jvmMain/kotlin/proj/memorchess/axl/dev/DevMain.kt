@@ -35,6 +35,7 @@ fun main() {
     exitProcess(1)
   }
   val session = readDevSession(config.sessionFile)
+  expiredSessionHint(session, DateUtil.now())?.let(System.err::println)
   // Must run before anything reads SYNC_BASE_URL, which is initialised once from this property.
   session?.let { System.setProperty(DEV_SYNC_URL_PROPERTY, it.baseUrl) }
   val devAuth = module { single<AuthProvider> { DevAuthProvider(session) } }

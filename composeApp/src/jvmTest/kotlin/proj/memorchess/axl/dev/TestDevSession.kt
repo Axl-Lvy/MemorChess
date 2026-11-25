@@ -6,6 +6,8 @@ import io.kotest.matchers.string.shouldContain
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import proj.memorchess.axl.core.auth.AccessToken
 import proj.memorchess.axl.core.auth.Account
@@ -58,5 +60,29 @@ class TestDevSession {
     val error = shouldThrow<IllegalStateException> { readDevSession(file) }
 
     error.message shouldContain "accessToken"
+  }
+
+  private val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+
+  private val session = readDevSession(sessionFile(complete))!!
+
+  @Test
+  fun sessionValidUntilJustBeforeExpiryHasNoHint() {
+    expiredSessionHint(session, expiresAt - 1.milliseconds) shouldBe null
+  }
+
+  @Test
+  fun sessionAtExpiryGetsRestartHint() {
+    expiredSessionHint(session, expiresAt)!! shouldContain "./gradlew :server:devRun"
+  }
+
+  @Test
+  fun longExpiredSessionGetsRestartHint() {
+    expiredSessionHint(session, expiresAt + 365.days)!! shouldContain "./gradlew :server:devRun"
+  }
+
+  @Test
+  fun noSessionHasNoHint() {
+    expiredSessionHint(null, expiresAt) shouldBe null
   }
 }

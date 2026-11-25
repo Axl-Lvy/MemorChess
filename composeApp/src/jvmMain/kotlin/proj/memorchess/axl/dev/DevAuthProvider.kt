@@ -37,7 +37,7 @@ internal class DevAuthProvider(
     if (_currentAccount.value == null) return TokenResult.SignedOut
     val valid = validSession()
     if (valid == null) {
-      System.err.println("Dev session expired: restart ./gradlew :server:devRun")
+      expiredSessionHint(session, clock())?.let(System.err::println)
       _currentAccount.value = null
       return TokenResult.SignedOut
     }
