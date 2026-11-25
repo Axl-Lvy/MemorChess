@@ -1,8 +1,7 @@
 package proj.memorchess.axl.core.config
 
-import com.russhwolf.settings.PreferencesSettings
 import com.russhwolf.settings.Settings
-import java.util.prefs.Preferences
+import proj.memorchess.axl.dev.currentDevLaunchConfig
+import proj.memorchess.axl.dev.resolveSettings
 
-actual fun getPlatformSpecificSettings(): Settings =
-  PreferencesSettings(Preferences.userRoot().node("proj/memorchess/axl"))
+actual fun getPlatformSpecificSettings(): Settings = resolveSettings(currentDevLaunchConfig)

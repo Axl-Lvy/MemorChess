@@ -13,7 +13,17 @@ MemorChess is a Kotlin Multiplatform app for memorizing chess openings with spac
 ./gradlew :e2e:test                                                                     # client against a real server, needs Docker
 ./gradlew :androidApp:connectedCheck                                                    # Android instrumented tests
 ./gradlew :composeApp:jvmRun                                                            # run desktop
+./gradlew :composeApp:devRun                                                            # desktop on this worktree's seeded dev data (-Preseed to reset)
+./gradlew :composeApp:devRunHot                                                         # same, with Compose hot reload
+./gradlew :server:devRun                                                                # local sync server the dev client is signed in to, needs Docker
 ```
+
+## Trying a feature live
+
+- When a feature is ready to try, run `./gradlew :composeApp:jvmMainClasses` in the worktree first, then give the developer the exact `cd <worktree> && ./gradlew :composeApp:devRun` command, plus `./gradlew :server:devRun` in a second terminal when sync, catalog or publishing is involved.
+- The dev launcher lives in `composeApp/src/jvmDevLaunch` (its own JVM compilation, never in the main artifact); only the inert `DevLaunchConfig` hook is in `jvmMain`.
+- `devRun` keeps its data under the worktree's `composeApp/build/dev-data`, seeds it on first launch (`proj.memorchess.axl.dev.DevSeeder`), mirrors only the Lichess token from the normal desktop settings, and can never reach the production server. Restarting `:server:devRun` resets the dev client on its next launch.
+- If the feature needs data the seed lacks, extend `SEED_REPERTOIRES` or `DevSeeder` in the same PR.
 
 Read the `:macrobenchmark` and `:microbenchmark` READMEs before running benchmarks.
 
