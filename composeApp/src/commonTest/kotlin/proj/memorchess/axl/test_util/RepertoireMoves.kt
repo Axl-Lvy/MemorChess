@@ -31,7 +31,11 @@ fun repertoireMovesJsonOf(vararg pgns: String): String =
  * [proj.memorchess.axl.core.graph.OpeningTree.MAX_CACHE_NODES]: every pair of first moves, each
  * followed by one white reply.
  */
-fun wideRepertoireMoves(): List<RepertoireMove> {
+fun wideRepertoireMoves(): List<RepertoireMove> = wideRepertoire
+
+private val wideRepertoire: List<RepertoireMove> by lazy { buildWideRepertoireMoves() }
+
+private fun buildWideRepertoireMoves(): List<RepertoireMove> {
   val white = listOf("a3", "a4", "b3", "b4", "c3", "c4", "d3", "d4", "e3", "e4")
   val whiteMore = listOf("f3", "f4", "g3", "g4", "h3", "h4", "Na3", "Nc3", "Nf3", "Nh3")
   val black = listOf("a6", "a5", "b6", "b5", "c6", "c5", "d6", "d5", "e6", "e5")

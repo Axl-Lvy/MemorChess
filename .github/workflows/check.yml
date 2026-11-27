@@ -406,12 +406,34 @@ jobs:
       - name: Update local.properties
         run: .github/scripts/update_properties.sh
 
+      # Kotlin/Native keeps its toolchain and LLVM in ~/.konan, which setup-gradle does not
+      # cache. Keyed on the Kotlin version alone so dependency bumps keep reusing it.
+      - name: Read Kotlin version
+        id: kotlin
+        run: echo "version=$(sed -nE 's/^kotlin = "([^"]+)"/\1/p' gradle/libs.versions.toml)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Kotlin/Native toolchain
+        id: konan
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ steps.kotlin.outputs.version }}
+
+      # The Linux-only jvm-tests cache is useless on macOS, so this job writes its own,
+      # but only from the nightly master run: PRs read it without adding entries per branch.
       - uses: gradle/actions/setup-gradle@v6
         with:
-          cache-read-only: true
+          cache-read-only: ${{ github.event_name != 'schedule' }}
 
       - name: Run iOS simulator tests
         run: ./gradlew :composeApp:iosSimulatorArm64Test
+
+      - name: Save Kotlin/Native toolchain
+        if: github.event_name == 'schedule' && steps.konan.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.konan
+          key: ${{ steps.konan.outputs.cache-primary-key }}
 
       - name: Upload iOS test result files
         uses: actions/upload-artifact@v7

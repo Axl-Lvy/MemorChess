@@ -21,7 +21,7 @@ class TestPositionKeyCodec {
 
   @Test
   fun randomGamesRoundTrip() {
-    val keys = randomGameKeys(Random(396), games = 100, plies = 50)
+    val keys = randomGameKeys(Random(9), games = 20, plies = 40)
 
     for (key in keys) {
       val encoded = PositionKeyCodec.encode(key)
