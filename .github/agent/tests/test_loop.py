@@ -197,6 +197,29 @@ class LoopTest(unittest.TestCase):
         self.assertEqual(record.outcome, "handoff")
         self.assertFalse(record.approved)
 
+    def test_build_sandbox_has_utf8_locale_writable_home_and_no_daemons(self):
+        seen = []
+
+        def recording(sb, argv):
+            seen.append((sb, argv))
+            return argv
+
+        adapters = {
+            "triage": FakeAdapter([{"output": brief_dict()}]),
+            "implement": FakeAdapter([{"effect": GOOD}]),
+            "review": FakeAdapter([{"output": PASS}]),
+        }
+
+        run_pipeline(ISSUE, self.repo, self.base, self.cfg, self.out, adapters, wrap=recording)
+
+        sb, argv = seen[0]
+        self.assertEqual(sb.env["LANG"], "C.UTF-8")
+        self.assertEqual(sb.env["LC_ALL"], "C.UTF-8")
+        self.assertIn(sb.env["HOME"], sb.rw_binds)
+        self.assertEqual(sb.env["ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy"], "in-process")
+        self.assertIn("-Dorg.gradle.daemon=false", sb.env["GRADLE_OPTS"])
+        self.assertIn("--no-daemon", argv)
+
     def test_run_json_records_config_and_prompt_hashes(self):
         self.run_with([{"output": brief_dict()}], [{"effect": GOOD}], [{"output": PASS}])
 

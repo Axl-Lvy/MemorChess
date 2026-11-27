@@ -92,14 +92,26 @@ class _Run:
         Path(gradle_home).mkdir(parents=True, exist_ok=True)
         java_home = os.environ.get("JAVA_HOME", "")
         ro = list(cfg.sandbox_ro_binds) + ([java_home] if java_home else [])
-        env = {"GRADLE_USER_HOME": gradle_home, "PATH": "/usr/bin:/bin"}
+        home = out / "work" / "home"
+        home.mkdir(parents=True, exist_ok=True)
+        # --clearenv drops the locale: without it the JVM uses ASCII file names and tests with
+        # non-ASCII paths fail. Daemons are off: Kotlin compiles in process, nothing outlives a step.
+        env = {
+            "GRADLE_USER_HOME": gradle_home,
+            "HOME": str(home),
+            "PATH": "/usr/bin:/bin",
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+            "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8",
+            "ORG_GRADLE_PROJECT_kotlin.compiler.execution.strategy": "in-process",
+        }
         if java_home:
             env["JAVA_HOME"] = java_home
             env["PATH"] = f"{java_home}/bin:/usr/bin:/bin"
         if os.environ.get("GRADLE_RO_DEP_CACHE"):
             env["GRADLE_RO_DEP_CACHE"] = os.environ["GRADLE_RO_DEP_CACHE"]
             ro.append(os.environ["GRADLE_RO_DEP_CACHE"])
-        self.build_sb = Sandbox(ro_binds=tuple(ro), rw_binds=(gradle_home,), env=env, workdir="/")
+        self.build_sb = Sandbox(ro_binds=tuple(ro), rw_binds=(gradle_home, str(home)), env=env, workdir="/")
 
     def step(self, name: str, prompt: str | None, sb: Sandbox, out_dir: Path,
              session: str | None = None, feedback: str = "") -> StepResult:

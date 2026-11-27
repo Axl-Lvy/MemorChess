@@ -7,7 +7,7 @@ fix_rounds = 2
 attempts = 2
 brief_gate = false
 llm_base_url = "http://127.0.0.1:4000"
-gradle_args = ["--offline", "--console=plain"]
+gradle_args = ["--offline", "--console=plain", "--no-daemon"]
 deny_paths = [".github/**", "gradle/wrapper/**", "CODEOWNERS"]
 build_files = [
   "**/*.gradle.kts",
