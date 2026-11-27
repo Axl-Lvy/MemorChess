@@ -200,6 +200,13 @@ def matches_any(path: str, globs: tuple[str, ...]) -> bool:
     return False
 
 
+def inside_repo(path: str, repo: Path) -> bool:
+    """True when `path` is relative, has no `..`, and resolves (through symlinks) inside `repo`."""
+    if not path or Path(path).is_absolute() or ".." in Path(path).parts:
+        return False
+    return (repo / path).resolve().is_relative_to(repo.resolve())
+
+
 def validate_brief(brief: Brief, repo: Path, cfg: Config) -> list[str]:
     """Checks a parsed brief against the repo and itself; returns every problem (empty = valid)."""
     if not brief.ready:
@@ -209,6 +216,16 @@ def validate_brief(brief: Brief, repo: Path, cfg: Config) -> list[str]:
         errors.append(f"title '{brief.title}' is not a Conventional Commit with a repo type")
     if "[skip-tests]" in brief.title.lower():
         errors.append("title must not contain [skip-tests]")
+    outside = sorted({
+        p for p in (
+            [f.path for f in brief.files_to_touch + brief.files_not_to_touch]
+            + [h.path for h in brief.helpers_to_reuse] + [t.file for t in brief.tests]
+            + list(brief.allow_test_changes)
+        )
+        if not inside_repo(p, repo)
+    })
+    if outside:
+        return errors + [f"{p}: path is outside the repository" for p in outside]
     touch = {f.path for f in brief.files_to_touch}
     not_touch = {f.path for f in brief.files_not_to_touch}
     for ref in brief.files_to_touch:

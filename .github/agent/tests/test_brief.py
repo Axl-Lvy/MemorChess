@@ -122,6 +122,27 @@ class BriefTest(unittest.TestCase):
 
         self.assertTrue(any(THEME_SRC in e for e in self.errors(data)))
 
+    def test_paths_outside_the_repo_rejected(self):
+        data = brief_dict()
+        data["files_to_touch"].append({"path": "/etc/passwd", "reason": "x", "new": False})
+        data["files_to_touch"].append({"path": "shared/../../outside.kt", "reason": "x", "new": True})
+        data["files_not_to_touch"].append({"path": "/etc/hostname", "reason": "x", "new": False})
+        data["helpers_to_reuse"].append({"symbol": "root", "path": "/etc/passwd"})
+
+        errors = self.errors(data)
+
+        for path in ("/etc/passwd", "shared/../../outside.kt", "/etc/hostname"):
+            self.assertTrue(any(path in e and "outside the repository" in e for e in errors), (path, errors))
+        self.assertFalse(any("symbol root not found" in e for e in errors), errors)
+
+    def test_symlinked_directory_escaping_repo_rejected(self):
+        import os
+        os.symlink("/etc", self.repo / "shared" / "etc")
+
+        errors = self.errors({**brief_dict(), "helpers_to_reuse": [{"symbol": "root", "path": "shared/etc/passwd"}]})
+
+        self.assertTrue(any("outside the repository" in e for e in errors), errors)
+
     def test_key_normalises(self):
         self.assertEqual(
             test_key("proj.x.TestBoard", "`draws dots on legal squares`"),
