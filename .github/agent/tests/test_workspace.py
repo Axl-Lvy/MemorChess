@@ -8,9 +8,9 @@ from agentrun.brief import parse_brief
 from agentrun.workspace import (
     apply_and_commit,
     capture_patch,
-    check_patch,
+    changed_entries,
+    check_changes,
     fresh_clone,
-    patch_paths,
     restore_commit,
 )
 from tests.helpers import BOARD_SRC, brief_dict, git, make_repo, repo_config
@@ -38,6 +38,10 @@ class WorkspaceTest(unittest.TestCase):
 
     def scratch(self) -> Path:
         return fresh_clone(self.repo, self.base, self.root / "scratch")
+
+    def problems(self, scratch: Path, brief=None) -> list[str]:
+        capture_patch(scratch, self.base)
+        return check_changes(changed_entries(scratch, self.base), self.cfg, brief or self.brief)
 
     def test_clone_has_no_hooks(self):
         marker = self.root / "marker"
@@ -68,7 +72,7 @@ class WorkspaceTest(unittest.TestCase):
         (scratch / ".github" / "workflows").mkdir(parents=True)
         (scratch / ".github" / "workflows" / "x.yml").write_text("on: push\n")
 
-        errors = check_patch(capture_patch(scratch, self.base), self.cfg, self.brief)
+        errors = self.problems(scratch)
 
         self.assertTrue(any(".github/workflows/x.yml" in e for e in errors), errors)
 
@@ -77,26 +81,25 @@ class WorkspaceTest(unittest.TestCase):
         (scratch / ".github").mkdir()
         os.rename(scratch / BOARD_SRC, scratch / ".github" / "Board.kt")
 
-        patch = capture_patch(scratch, self.base)
-        errors = check_patch(patch, self.cfg, self.brief)
+        errors = self.problems(scratch)
 
-        self.assertIn((BOARD_SRC, ".github/Board.kt"), patch_paths(patch))
+        entries = changed_entries(scratch, self.base)
+        self.assertIn((BOARD_SRC, ".github/Board.kt"), [(e.old_path, e.new_path) for e in entries])
         self.assertTrue(any(".github/Board.kt" in e for e in errors), errors)
 
     def test_build_file_needs_brief_permission(self):
         scratch = self.scratch()
         (scratch / "shared" / "build.gradle.kts").write_text("// changed\n")
-        patch = capture_patch(scratch, self.base)
 
-        self.assertTrue(any("build file" in e for e in check_patch(patch, self.cfg, self.brief)))
+        self.assertTrue(any("build file" in e for e in self.problems(scratch)))
         allowed = parse_brief(json.dumps({**brief_dict(), "build_files_allowed": True}))
-        self.assertEqual(check_patch(patch, self.cfg, allowed), [])
+        self.assertEqual(self.problems(scratch, allowed), [])
 
     def test_stray_file_rejected(self):
         scratch = self.scratch()
         (scratch / "shared" / "Board.kt.orig").write_text("x")
 
-        errors = check_patch(capture_patch(scratch, self.base), self.cfg, self.brief)
+        errors = self.problems(scratch)
 
         self.assertTrue(any("Board.kt.orig" in e for e in errors), errors)
 
@@ -105,10 +108,39 @@ class WorkspaceTest(unittest.TestCase):
         (scratch / "shared" / ".gitattributes").write_text("* filter=evil\n")
         os.symlink("/etc/passwd", scratch / "shared" / "link.kt")
 
-        errors = check_patch(capture_patch(scratch, self.base), self.cfg, self.brief)
+        errors = self.problems(scratch)
 
         self.assertTrue(any("shared/.gitattributes" in e for e in errors), errors)
         self.assertTrue(any("symbolic link" in e for e in errors), errors)
+
+    def test_quoted_non_ascii_path_still_denied(self):
+        scratch = self.scratch()
+        (scratch / ".github" / "workflows").mkdir(parents=True)
+        (scratch / ".github" / "workflows" / "na\u00efve.yml").write_text("on: push\n")
+
+        errors = self.problems(scratch)
+
+        self.assertTrue(any("na\u00efve.yml" in e and "deny" in e for e in errors), errors)
+
+    def test_retargeted_symlink_rejected(self):
+        os.symlink("Board.kt", self.repo / "shared" / "link.kt")
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", "link")
+        self.base = git(self.repo, "rev-parse", "HEAD")
+        scratch = self.scratch()
+        (scratch / "shared" / "link.kt").unlink()
+        os.symlink("/etc/passwd", scratch / "shared" / "link.kt")
+
+        self.assertTrue(any("symbolic link" in e for e in self.problems(scratch)))
+
+    def test_gitlink_rejected(self):
+        scratch = self.scratch()
+        nested = scratch / "shared" / "nested"
+        nested.mkdir()
+        git(nested, "init", "-q")
+        git(nested, "-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "--allow-empty", "-m", "x")
+
+        self.assertTrue(any("submodule" in e for e in self.problems(scratch)))
 
     def test_binary_and_deletion_apply(self):
         scratch = self.scratch()

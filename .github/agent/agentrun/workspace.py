@@ -4,9 +4,9 @@ Every clone keeps its git data in a sibling `<dest>.gitdir` directory that is ne
 into the sandbox, so an agent cannot plant hooks, filters or config the trusted side would run.
 """
 
-import re
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from agentrun.brief import Brief, matches_any
@@ -59,42 +59,53 @@ def capture_patch(scratch: Path, base: str) -> str:
     return _git(scratch, "diff", "--cached", "--binary", "--find-renames", base)
 
 
-_DIFF_HEADER = re.compile(r"^diff --git a/(.+) b/(.+)$")
+@dataclass(frozen=True)
+class Entry:
+    """One changed file as git records it: modes, status and both paths (None when absent)."""
+
+    old_mode: str
+    new_mode: str
+    status: str
+    old_path: str | None
+    new_path: str | None
 
 
-def patch_paths(patch: str) -> list[tuple[str | None, str | None]]:
-    """(old path, new path) for every file in `patch`; None marks a created or deleted side."""
-    files: list[list[str | None]] = []
-    for line in patch.splitlines():
-        header = _DIFF_HEADER.match(line)
-        if header:
-            files.append([header.group(1), header.group(2)])
-        elif not files:
-            continue
-        elif line.startswith("new file mode"):
-            files[-1][0] = None
-        elif line.startswith("deleted file mode"):
-            files[-1][1] = None
-        elif line.startswith("rename from "):
-            files[-1][0] = line[len("rename from "):]
-        elif line.startswith("rename to "):
-            files[-1][1] = line[len("rename to "):]
-    return [(old, new) for old, new in files]
+def changed_entries(scratch: Path, base: str) -> list[Entry]:
+    """What `capture_patch` staged, read from git's NUL-separated raw diff (no quoting issues)."""
+    fields = _git(scratch, "diff", "--cached", "--raw", "-z", "-M", base).split("\0")
+    entries, i = [], 0
+    while i < len(fields) and fields[i]:
+        meta = fields[i].lstrip(":").split()
+        old_mode, new_mode, status = meta[0], meta[1], meta[4]
+        if status[0] in "RC":
+            old, new, i = fields[i + 1], fields[i + 2], i + 3
+        else:
+            old = new = fields[i + 1]
+            i += 2
+        entries.append(Entry(
+            old_mode, new_mode, status[0],
+            None if status[0] == "A" else old,
+            None if status[0] == "D" else new,
+        ))
+    return entries
 
 
-def check_patch(patch: str, cfg: Config, brief: Brief) -> list[str]:
-    """Problems that stop a patch from being applied: denied paths, build files, strays, links."""
+def check_changes(entries: list[Entry], cfg: Config, brief: Brief) -> list[str]:
+    """Problems that stop a change from being applied: denied paths, build files, strays, links."""
     errors = []
-    for old, new in patch_paths(patch):
-        for path in {p for p in (old, new) if p}:
+    for e in entries:
+        for path in {p for p in (e.old_path, e.new_path) if p}:
             if matches_any(path, cfg.deny_paths + ALWAYS_DENIED):
                 errors.append(f"{path}: deny-listed path")
             elif not brief.build_files_allowed and matches_any(path, cfg.build_files):
                 errors.append(f"{path}: build file changed but the brief does not allow it")
-        if new and matches_any(Path(new).name, cfg.stray_globs):
-            errors.append(f"{new}: stray file")
-    if re.search(r"^(new file mode|new mode) 120000", patch, re.MULTILINE):
-        errors.append("patch creates a symbolic link")
+        if e.new_path and matches_any(Path(e.new_path).name, cfg.stray_globs):
+            errors.append(f"{e.new_path}: stray file")
+        modes = {e.old_mode, e.new_mode}
+        if "120000" in modes:
+            errors.append(f"{e.new_path or e.old_path}: symbolic links cannot be added, changed or removed")
+        if "160000" in modes:
+            errors.append(f"{e.new_path or e.old_path}: submodules (nested git repositories) are not allowed")
     return errors
 
 

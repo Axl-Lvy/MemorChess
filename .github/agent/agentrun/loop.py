@@ -22,7 +22,8 @@ from agentrun.sandbox import Sandbox, bwrap_argv
 from agentrun.workspace import (
     apply_and_commit,
     capture_patch,
-    check_patch,
+    changed_entries,
+    check_changes,
     fresh_clone,
     head,
     restore_commit,
@@ -229,7 +230,7 @@ class _Run:
                 result = self.step("implement", prompt, sb, work / "out", session=session if rnd else None, feedback=feedback)
                 session = result.session or session
                 patch = capture_patch(scratch, start_sha)
-                problems = check_patch(patch, self.cfg, brief)
+                problems = check_changes(changed_entries(scratch, start_sha), self.cfg, brief)
                 if problems:
                     self.stage(name, patch, None, None)
                     feedback = "Your change was rejected and not applied:\n- " + "\n- ".join(problems)
