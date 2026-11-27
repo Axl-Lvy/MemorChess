@@ -109,7 +109,8 @@ class AdaptersTest(unittest.TestCase):
 
         self.assertEqual(argv[0], "bwrap")
         inner = argv[argv.index("--") + 1:]
-        self.assertEqual(inner[:2], ["claude", "-p"])
+        self.assertTrue(inner[0].endswith("claude") or "/claude/" in inner[0], inner[0])
+        self.assertEqual(inner[1], "-p")
         self.assertIn("--max-turns", inner)
         self.assertEqual(inner[inner.index("--model") + 1], "qwen3.6-apex")
         envs = {argv[i + 1]: argv[i + 2] for i, a in enumerate(argv) if a == "--setenv"}
@@ -120,6 +121,23 @@ class AdaptersTest(unittest.TestCase):
             self.assertNotIn("GH_TOKEN", key)
             self.assertNotIn("APP_PRIVATE_KEY", key)
         self.assertIn(str(self.out), [argv[i + 1] for i, a in enumerate(argv) if a == "--bind"])
+
+    def test_claude_code_uses_configured_binary_and_small_model(self):
+        binary = self.out / "versions" / "2.1.332"
+        binary.parent.mkdir()
+        binary.write_text("")
+        os.environ["AGENT_CLAUDE_BIN"] = str(binary)
+        try:
+            argv = ClaudeCodeAdapter("http://localhost:11434").build_argv("x", step(model="spike-apex"), SB, self.out, resume=None)
+        finally:
+            del os.environ["AGENT_CLAUDE_BIN"]
+
+        inner = argv[argv.index("--") + 1:]
+        envs = {argv[i + 1]: argv[i + 2] for i, a in enumerate(argv) if a == "--setenv"}
+        self.assertEqual(inner[0], str(binary))
+        self.assertIn(str(binary.parent), [argv[i + 1] for i, a in enumerate(argv) if a == "--ro-bind"])
+        self.assertEqual(envs["ANTHROPIC_DEFAULT_HAIKU_MODEL"], "spike-apex")
+        self.assertEqual(envs["ANTHROPIC_SMALL_FAST_MODEL"], "spike-apex")
 
     def test_claude_code_resume_argv(self):
         adapter = ClaudeCodeAdapter("http://127.0.0.1:4000")

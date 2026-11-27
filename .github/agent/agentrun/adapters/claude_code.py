@@ -1,6 +1,7 @@
 """Runs Claude Code (`claude -p`) against the local LiteLLM endpoint, inside the sandbox."""
 
 import json
+import os
 import shutil
 from dataclasses import replace
 from pathlib import Path
@@ -30,6 +31,18 @@ def parse_stream(text: str) -> tuple[str | None, int | None, int | None, int | N
     return result.get("session_id"), result.get("num_turns"), tokens_in, usage.get("output_tokens")
 
 
+def claude_binary() -> Path:
+    """The real Claude Code binary: AGENT_CLAUDE_BIN, else ~/.local/bin/claude, else PATH.
+
+    Resolved through symlinks, so a version-named binary works and its directory can be
+    mounted read-only into the sandbox.
+    """
+    configured = os.environ.get("AGENT_CLAUDE_BIN")
+    local = Path.home() / ".local" / "bin" / "claude"
+    found = configured or (str(local) if local.exists() else shutil.which("claude")) or "claude"
+    return Path(found).resolve()
+
+
 class ClaudeCodeAdapter:
     """One fresh Claude Code home per call; `resume` continues the session with feedback."""
 
@@ -42,21 +55,25 @@ class ClaudeCodeAdapter:
         self, prompt: str, step: StepConfig, sb: Sandbox, out_dir: Path, resume: str | None
     ) -> list[str]:
         home = out_dir / "home"
-        claude = shutil.which("claude") or "claude"
-        ro = sb.ro_binds + (str(Path(claude).resolve().parent),) if shutil.which("claude") else sb.ro_binds
+        binary = claude_binary()
         env = {
             **sb.env,
             "HOME": str(home),
             "CLAUDE_CONFIG_DIR": str(home / ".claude"),
-            "PATH": f"{Path(claude).resolve().parent}:/usr/bin:/bin",
+            "PATH": sb.env.get("PATH", "/usr/bin:/bin"),
             "ANTHROPIC_BASE_URL": self.base_url,
             "ANTHROPIC_AUTH_TOKEN": "sk-local-proxy",
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL": step.model,
+            "ANTHROPIC_SMALL_FAST_MODEL": step.model,
             "AGENT_OUT": str(out_dir),
             "DISABLE_AUTOUPDATER": "1",
+            "DISABLE_TELEMETRY": "1",
             "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+            "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1",
         }
+        ro = sb.ro_binds + (str(binary.parent),)
         inner = [
-            "claude", "-p", prompt,
+            str(binary), "-p", prompt,
             "--output-format", "stream-json", "--verbose",
             "--max-turns", str(step.max_turns),
             "--model", step.model,
