@@ -128,6 +128,7 @@ class _Run:
         prompt = render(
             cfg.prompt,
             issue=_issue_text(self.issue),
+            modules=", ".join(sorted(self.cfg.modules)),
             repo_map=_repo_map(view, [d for m in self.cfg.modules.values() for d in m.src_dirs]),
         )
         sb = replace(self.build_sb, ro_binds=self.build_sb.ro_binds + (str(view),), workdir=str(view))
