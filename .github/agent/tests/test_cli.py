@@ -57,5 +57,40 @@ class CliTest(unittest.TestCase):
         self.assertEqual(built, [])
 
 
+class PreflightTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / "repo" / "gradle" / "wrapper").mkdir(parents=True)
+        (self.root / "repo" / "gradle" / "wrapper" / "gradle-wrapper.properties").write_text(
+            "distributionUrl=https\\://services.gradle.org/distributions/gradle-9.6.1-bin.zip\n"
+        )
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_gradle_home_must_hold_the_wrapper_distribution(self):
+        home = self.root / "gh"
+
+        with self.assertRaises(PreflightError) as ctx:
+            cli.preflight_gradle_home(None, self.root / "repo")
+        self.assertIn("AGENT_GRADLE_HOME", str(ctx.exception))
+        home.mkdir()
+        with self.assertRaises(PreflightError) as ctx:
+            cli.preflight_gradle_home(str(home), self.root / "repo")
+        self.assertIn("gradle-9.6.1-bin", str(ctx.exception))
+        (home / "wrapper" / "dists" / "gradle-9.6.1-bin").mkdir(parents=True)
+        cli.preflight_gradle_home(str(home), self.root / "repo")
+
+    def test_harness_binary_must_exist(self):
+        import os
+        os.environ["AGENT_CLAUDE_BIN"] = str(self.root / "missing")
+        try:
+            with self.assertRaises(PreflightError):
+                cli.preflight_harnesses(repo_config())
+        finally:
+            del os.environ["AGENT_CLAUDE_BIN"]
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,16 +9,19 @@ Exit codes: 0 handed off / needs info / brief ready, 1 failed, 2 config or prefl
 import argparse
 import dataclasses
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from agentrun.adapters import HARNESSES  # noqa: E402
+from agentrun.adapters.claude_code import claude_binary  # noqa: E402
 from agentrun.checks import preflight_java  # noqa: E402
 from agentrun.config import KNOWN_HARNESSES, REQUIRED_STEPS, Config, ConfigError, load_config  # noqa: E402
 from agentrun.loop import load_issue, run_pipeline  # noqa: E402
-from agentrun.sandbox import PreflightError, preflight  # noqa: E402
+from agentrun.sandbox import PreflightError, Sandbox, bwrap_argv, preflight  # noqa: E402
 
 AGENT_DIR = Path(__file__).resolve().parent
 STEP_FIELDS = {"harness": str, "model": str, "prompt": Path, "max_turns": int, "timeout_s": int, "retries": int, "enabled": bool}
@@ -69,9 +72,34 @@ def apply_overrides(cfg: Config, overrides: list[str], base: Path = AGENT_DIR) -
     return dataclasses.replace(cfg, steps=steps, **top)
 
 
-def _java_bin() -> str:
+def preflight_gradle_home(template: str | None, repo: Path) -> None:
+    """Gradle runs offline, so the template home must already hold the wrapper distribution."""
+    if not template:
+        raise PreflightError("set AGENT_GRADLE_HOME to a warmed Gradle home template (see README)")
+    props = (repo / "gradle" / "wrapper" / "gradle-wrapper.properties").read_text()
+    match = re.search(r"distributions/(gradle-[^/]+?)\.zip", props)
+    dist = match.group(1) if match else None
+    if not dist or not (Path(template) / "wrapper" / "dists" / dist).is_dir():
+        raise PreflightError(f"{template} has no wrapper/dists/{dist}; warm it first (see README)")
+
+
+def preflight_harnesses(cfg: Config) -> None:
+    """Every enabled step's harness binary must exist on this host."""
+    if any(s.enabled and s.harness == "claude-code" for s in cfg.steps.values()):
+        binary = claude_binary()
+        if not binary.is_file():
+            raise PreflightError(f"Claude Code not found at {binary} (set AGENT_CLAUDE_BIN)")
+
+
+def preflight_sandbox_java(java_min: int) -> None:
+    """Checks the Java the sandboxed builds will run, not the host's default."""
     home = os.environ.get("JAVA_HOME")
-    return str(Path(home) / "bin" / "java") if home else "java"
+    sb = Sandbox(
+        ro_binds=(home,) if home else (),
+        rw_binds=(),
+        env={"PATH": f"{home}/bin:/usr/bin:/bin" if home else "/usr/bin:/bin", **({"JAVA_HOME": home} if home else {})},
+    )
+    preflight_java("java", java_min, run=lambda argv, **kw: subprocess.run(bwrap_argv(sb, argv), **kw))
 
 
 def main(argv: list[str], preflights=None, harnesses=HARNESSES) -> int:
@@ -88,7 +116,10 @@ def main(argv: list[str], preflights=None, harnesses=HARNESSES) -> int:
     try:
         cfg = apply_overrides(load_config(args.config), args.set, base=args.config.parent)
         checks = preflights if preflights is not None else [
-            preflight, lambda: preflight_java(_java_bin(), cfg.java_min)
+            preflight,
+            lambda: preflight_sandbox_java(cfg.java_min),
+            lambda: preflight_gradle_home(os.environ.get("AGENT_GRADLE_HOME"), args.repo),
+            lambda: preflight_harnesses(cfg),
         ]
         for check in checks:
             check()

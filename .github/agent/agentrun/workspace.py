@@ -19,6 +19,11 @@ IDENTITY = ["-c", "user.name=agent-runner", "-c", "user.email=agent-runner@local
 ALWAYS_DENIED = (".gitattributes", "**/.gitattributes", ".gitmodules")
 
 
+def _git_env() -> dict[str, str]:
+    """The host environment minus any global or system git config (drivers, aliases, includes)."""
+    return {**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
+
+
 class GitError(Exception):
     """A git command failed; the message carries its stderr."""
 
@@ -30,7 +35,7 @@ def gitdir_of(worktree: Path) -> Path:
 
 def _git(worktree: Path, *args: str, input_text: str | None = None) -> str:
     argv = ["git", f"--git-dir={gitdir_of(worktree)}", f"--work-tree={worktree}", *SAFE, *args]
-    result = subprocess.run(argv, capture_output=True, text=True, input=input_text, cwd=worktree)
+    result = subprocess.run(argv, capture_output=True, text=True, input=input_text, cwd=worktree, env=_git_env())
     if result.returncode != 0:
         raise GitError(f"git {' '.join(args)}: {result.stderr.strip()}")
     return result.stdout
@@ -42,7 +47,7 @@ def fresh_clone(source_repo: Path, base: str, dest: Path) -> Path:
     subprocess.run(
         ["git", *SAFE, "clone", "-q", "--no-local", "--no-checkout",
          f"--separate-git-dir={gitdir}", str(source_repo), str(dest)],
-        check=True, capture_output=True, text=True,
+        check=True, capture_output=True, text=True, env=_git_env(),
     )
     _git(dest, "config", "core.hooksPath", "/dev/null")
     _git(dest, "config", "core.fsmonitor", "false")

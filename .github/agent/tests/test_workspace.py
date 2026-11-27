@@ -67,6 +67,21 @@ class WorkspaceTest(unittest.TestCase):
         self.assertIn("// changed", patch)
         self.assertFalse(marker.exists())
 
+    def test_trusted_git_ignores_global_config(self):
+        scratch = self.scratch()
+        marker = self.root / "marker"
+        cfg_file = self.root / "global.gitconfig"
+        cfg_file.write_text(f"[diff]\n\texternal = sh -c 'touch {marker}'\n")
+        (scratch / BOARD_SRC).write_text("package proj\n// changed\n")
+        os.environ["GIT_CONFIG_GLOBAL"] = str(cfg_file)
+        try:
+            patch = capture_patch(scratch, self.base)
+        finally:
+            del os.environ["GIT_CONFIG_GLOBAL"]
+
+        self.assertIn("// changed", patch)
+        self.assertFalse(marker.exists())
+
     def test_deny_listed_path_rejected(self):
         scratch = self.scratch()
         (scratch / ".github" / "workflows").mkdir(parents=True)

@@ -75,7 +75,7 @@ class ClaudeCodeAdapter:
             "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
             "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1",
         }
-        ro = sb.ro_binds + (str(binary.parent),)
+        ro = sb.ro_binds + ((str(binary.parent),) if binary.is_file() else ())
         inner = [
             str(binary), "-p", prompt,
             "--output-format", "stream-json", "--verbose",

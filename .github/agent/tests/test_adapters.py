@@ -142,6 +142,17 @@ class AdaptersTest(unittest.TestCase):
         self.assertEqual(envs["ANTHROPIC_DEFAULT_HAIKU_MODEL"], "spike-apex")
         self.assertEqual(envs["ANTHROPIC_SMALL_FAST_MODEL"], "spike-apex")
 
+    def test_missing_binary_does_not_mount_the_working_directory(self):
+        os.environ["AGENT_CLAUDE_BIN"] = str(self.out / "nope" / "claude")
+        try:
+            argv = ClaudeCodeAdapter("http://x").build_argv("x", step(), SB, self.out, resume=None)
+        finally:
+            del os.environ["AGENT_CLAUDE_BIN"]
+
+        ro = [argv[i + 1] for i, a in enumerate(argv) if a == "--ro-bind"]
+        self.assertNotIn(os.getcwd(), ro)
+        self.assertNotIn(str(self.out / "nope"), ro)
+
     def test_claude_code_resume_argv(self):
         adapter = ClaudeCodeAdapter("http://127.0.0.1:4000")
 
