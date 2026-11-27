@@ -33,7 +33,6 @@ fun repertoireMovesJsonOf(vararg pgns: String): String =
  */
 fun wideRepertoireMoves(): List<RepertoireMove> = wideRepertoire
 
-// Built once per test process: replaying these lines dominates each test using them on iOS.
 private val wideRepertoire: List<RepertoireMove> by lazy { buildWideRepertoireMoves() }
 
 private fun buildWideRepertoireMoves(): List<RepertoireMove> {
