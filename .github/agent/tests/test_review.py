@@ -79,6 +79,34 @@ class ReviewTest(unittest.TestCase):
         self.assertIn("Board.kt:4", kept[0])
         self.assertIn("engine.copy()", kept[0])
 
+    def test_criterion_fail_mentioning_tests_is_never_dropped(self):
+        verdict = parse_verdict(verdict_json(criteria=[
+            {"id": "AC1", "verdict": "fail", "reason": "The test echoes the production constant; it would not fail if dots were mirrored."},
+        ]), self.brief)
+
+        kept, dropped = rank_feedback(verdict, GREEN, self.brief, self.cfg)
+
+        self.assertEqual(dropped, [])
+        self.assertEqual(len(kept), 1)
+
+    def test_rule_break_finding_is_kept(self):
+        verdict = parse_verdict(verdict_json(blocking=[
+            {"file": None, "line": None, "text": "This breaks rule 'Kotest assertions, no mocking': the test uses mockk", "patch": None},
+        ]), self.brief)
+
+        kept, dropped = rank_feedback(verdict, GREEN, self.brief, self.cfg)
+
+        self.assertEqual((len(kept), dropped), (1, []))
+
+    def test_vague_tests_will_fail_on_green_is_dropped(self):
+        verdict = parse_verdict(verdict_json(blocking=[
+            {"file": None, "line": None, "text": "These tests will fail on CI.", "patch": None},
+        ]), self.brief)
+
+        kept, dropped = rank_feedback(verdict, GREEN, self.brief, self.cfg)
+
+        self.assertEqual((kept, len(dropped)), ([], 1))
+
     def test_approved_only_when_all_pass(self):
         ok = parse_verdict(verdict_json(), self.brief)
         failing = parse_verdict(verdict_json(criteria=[{"id": "AC1", "verdict": "fail", "reason": "x"}]), self.brief)

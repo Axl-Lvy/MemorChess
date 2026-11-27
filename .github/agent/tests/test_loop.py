@@ -285,6 +285,16 @@ class LoopTest(unittest.TestCase):
         self.assertFalse((template / "init.d").exists())
         self.assertTrue(all(h for h in homes))
 
+    def test_handoff_not_approved_when_only_dropped_findings_remain(self):
+        contradicted = {"criteria": [{"id": "AC1", "verdict": "pass", "reason": "ok"}], "blocking": [
+            {"file": None, "line": None, "text": "drawsDotsOnLegalSquares will fail", "patch": None}]}
+
+        record, _ = self.run_with([{"output": brief_dict()}], [{"effect": GOOD}], [{"output": contradicted}])
+
+        self.assertEqual(record.outcome, "handoff")
+        self.assertFalse(record.approved)
+        self.assertEqual(len(record.dropped_feedback), 1)
+
     def test_run_json_records_config_and_prompt_hashes(self):
         self.run_with([{"output": brief_dict()}], [{"effect": GOOD}], [{"output": PASS}])
 

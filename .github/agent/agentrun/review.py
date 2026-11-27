@@ -13,7 +13,12 @@ from agentrun.brief import Brief, matches_any
 from agentrun.checks import CheckReport
 from agentrun.config import Config
 
-FAIL_CLAIM = re.compile(r"\b(fail|fails|failing|will not pass|won't pass|wont pass|breaks?)\b", re.IGNORECASE)
+FAIL_CLAIM = re.compile(
+    r"\b(will|would|does|do|is going to|are going to)\s+fail\b|\bfails\b|\bfailing\b"
+    r"|\b(will not|won't|wont|does not|doesn't|do not|don't)\s+pass\b",
+    re.IGNORECASE,
+)
+NEGATED = re.compile(r"\b(would|will|does|do)\s+not\s+fail\b|\b(wouldn't|won't|doesn't|don't)\s+fail\b", re.IGNORECASE)
 MENTIONS_TESTS = re.compile(r"\btests?\b", re.IGNORECASE)
 
 
@@ -81,7 +86,8 @@ def _norm(text: str) -> str:
 
 
 def _contradicts_checks(text: str, report: CheckReport) -> str | None:
-    if not FAIL_CLAIM.search(text):
+    """Why a blocking finding claiming that tests fail is contradicted by the checks, if it is."""
+    if not FAIL_CLAIM.search(text) or NEGATED.search(text):
         return None
     norm = _norm(text)
     for key in report.tests_passed:
@@ -104,10 +110,6 @@ def rank_feedback(
         if verdict_value != "fail":
             continue
         reason = verdict.reasons.get(cid, "")
-        contradiction = _contradicts_checks(reason, report)
-        if contradiction:
-            dropped.append(f"{cid}: {reason} — dropped: {contradiction}")
-            continue
         note = ""
         mapped = tests_by_criterion.get(cid, ())
         if mapped and all(any(_norm(t.partition('.')[2]) == k.split('#', 1)[1] for k in report.tests_passed) for t in mapped):

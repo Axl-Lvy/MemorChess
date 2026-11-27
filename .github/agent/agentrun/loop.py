@@ -270,7 +270,7 @@ class _Run:
                 kept, dropped = rank_feedback(verdict, report, brief, self.cfg)
                 self.record.dropped_feedback += dropped
                 if approved(verdict) or not kept:
-                    return self.handoff(best, approved_=True)
+                    return self.handoff(best, approved_=approved(verdict))
                 feedback = "Review findings:\n- " + "\n- ".join(kept)
         if best:
             return self.handoff(best, approved_=False)
