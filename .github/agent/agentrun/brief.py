@@ -84,10 +84,15 @@ class Brief:
 
 
 def test_key(test_class: str, name: str) -> str:
-    """Normalises a test identity so camelCase, snake_case, backticks and spaces all match."""
-    simple_class = test_class.rsplit(".", 1)[-1]
+    """Normalises a test identity so camelCase, snake_case, backticks and spaces all match.
+
+    A trailing KMP target suffix such as `[jvm]` and a trailing `()` are ignored.
+    """
+    simple_class = re.sub(r"\[[^\]]*\]$", "", test_class.strip()).rsplit(".", 1)[-1]
+    bare = re.sub(r"(\(\))?(\[[^\]]*\])?$", "", name.strip())
+    bare = re.sub(r"(\(\))$", "", bare)
     norm = lambda s: re.sub(r"[^a-z0-9]", "", s.lower())  # noqa: E731
-    return f"{norm(simple_class)}#{norm(name)}"
+    return f"{norm(simple_class)}#{norm(bare)}"
 
 
 test_key.__test__ = False

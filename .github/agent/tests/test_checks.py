@@ -86,6 +86,13 @@ class ChecksTest(unittest.TestCase):
         self.assertIn(test_key("TestBoardKotest", "hint dots respect orientation"), passed)
         self.assertNotIn(test_key("TestBoard", "skipped one"), passed | failed)
 
+    def test_real_kmp_names_with_target_suffix_match(self):
+        passed, _ = parse_junit_dir(FIXTURES / "junit-real")
+
+        self.assertIn(test_key("TestBoard", "board renders upright when not inverted"), passed)
+        self.assertEqual(test_key("TestBoard", "x[jvm]"), test_key("TestBoard", "x"))
+        self.assertEqual(test_key("TestBoard", "x[wasmJs, browser]"), test_key("TestBoard", "x()"))
+
     def test_green_change_passes_everything(self):
         clone = self.good_change()
         self.junit_cases([("proj.TestBoard", "`draws dots on legal squares`()", True), ("proj.TestBoard", "mapsSquare", True)])
