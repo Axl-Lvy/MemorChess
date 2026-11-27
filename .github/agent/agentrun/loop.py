@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import subprocess
+import traceback
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable
@@ -92,6 +93,7 @@ class _Run:
             prompts_sha256={n: _sha256(s.prompt) for n, s in cfg.steps.items() if s.enabled},
         )
         self.stage_no = 0
+        self.current = "setup"
         template = os.environ.get("AGENT_GRADLE_HOME")
         self.gradle_template = Path(template) if template else None
         java_home = os.environ.get("JAVA_HOME", "")
@@ -148,6 +150,7 @@ class _Run:
         return st
 
     def triage(self) -> Brief | None:
+        self.current = "triage"
         cfg = self.cfg.steps["triage"]
         view = fresh_clone(self.repo, self.base, self.out / "work" / "triage-view")
         prompt = render(
@@ -229,6 +232,7 @@ class _Run:
             attempt_best: tuple[int, str] | None = None
             for rnd in range(self.cfg.fix_rounds + 1):
                 name = f"implement-a{attempt}" if rnd == 0 else f"round-a{attempt}r{rnd}"
+                self.current = name
                 work = self.out / "work" / name
                 start_sha = head(clone)
                 scratch = fresh_clone(clone, start_sha, work / "scratch")
@@ -308,6 +312,13 @@ def run_pipeline(
 ) -> RunRecord:
     """Runs the whole pipeline for `issue` on `repo` at `base`; writes everything under `out`."""
     out.mkdir(parents=True, exist_ok=True)
-    record = _Run(issue, repo, base, cfg, out, adapters, wrap, runner).run()
+    run = _Run(issue, repo, base, cfg, out, adapters, wrap, runner)
+    try:
+        record = run.run()
+    except Exception as e:  # noqa: BLE001 - any crash must still leave a run record
+        record = run.record
+        record.outcome, record.failed_stage, record.best_sha = "failed", run.current, None
+        record.error = "".join(traceback.format_exception_only(e)).strip()
+        (out / "traceback.txt").write_text(traceback.format_exc())
     write_record(record, out)
     return record

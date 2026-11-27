@@ -31,6 +31,11 @@ class ReviewTest(unittest.TestCase):
 
         self.assertIn("AC1", str(ctx.exception))
 
+    def test_wrong_shapes_raise_verdict_error(self):
+        for raw in ('{"criteria": 5}', '{"criteria": [], "blocking": 3}', '[1]', '{"criteria": [{"id": "AC1", "verdict": "pass"}], "blocking": ["x"]}'):
+            with self.assertRaises(VerdictError, msg=raw):
+                parse_verdict(raw, self.brief)
+
     def test_bad_verdict_value_rejected(self):
         with self.assertRaises(VerdictError):
             parse_verdict(verdict_json(criteria=[{"id": "AC1", "verdict": "maybe", "reason": ""}]), self.brief)

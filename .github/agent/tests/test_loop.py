@@ -330,6 +330,22 @@ class LoopTest(unittest.TestCase):
         self.assertFalse(record.approved)
         self.assertEqual(len(record.dropped_feedback), 1)
 
+    def test_unexpected_error_is_recorded_not_raised(self):
+        def broken_wrap(sb, argv):
+            raise RuntimeError("gradle exploded")
+
+        adapters = {
+            "triage": FakeAdapter([{"output": brief_dict()}]),
+            "implement": FakeAdapter([{"effect": GOOD}]),
+            "review": FakeAdapter([]),
+        }
+
+        record = run_pipeline(ISSUE, self.repo, self.base, self.cfg, self.out, adapters, wrap=broken_wrap)
+
+        self.assertEqual((record.outcome, record.failed_stage), ("failed", "implement-a1"))
+        data = json.loads((self.out / "run.json").read_text())
+        self.assertIn("gradle exploded", data["error"])
+
     def test_run_json_records_config_and_prompt_hashes(self):
         self.run_with([{"output": brief_dict()}], [{"effect": GOOD}], [{"output": PASS}])
 

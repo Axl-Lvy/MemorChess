@@ -115,6 +115,13 @@ class _Reader:
     def items(self, obj: dict, key: str, where: str) -> list:
         return self.get(obj, key, list, where, default=[]) or []
 
+    def strings(self, obj: dict, key: str, where: str) -> tuple[str, ...]:
+        values = self.items(obj, key, where)
+        if not all(isinstance(v, str) for v in values):
+            self.errors.append(f"{where}: '{key}' must be a list of strings")
+            return ()
+        return tuple(values)
+
 
 def _file_refs(r: _Reader, obj: dict, key: str) -> tuple[FileRef, ...]:
     refs = []
@@ -143,7 +150,7 @@ def parse_brief(raw: str) -> Brief:
         Criterion(
             id=r.get(c, "id", str, f"acceptance_criteria[{i}]", ""),
             text=r.get(c, "text", str, f"acceptance_criteria[{i}]", ""),
-            tests=tuple(r.items(c, "tests", f"acceptance_criteria[{i}]")),
+            tests=r.strings(c, "tests", f"acceptance_criteria[{i}]"),
         )
         for i, c in enumerate(r.items(obj, "acceptance_criteria", "brief"))
     )
@@ -170,7 +177,7 @@ def parse_brief(raw: str) -> Brief:
         r.errors.append("brief: 'ci_tier' must be 'cheap' or 'full'")
     brief = Brief(
         ready=r.get(obj, "ready", bool, "brief", False),
-        questions=tuple(r.items(obj, "questions", "brief")),
+        questions=r.strings(obj, "questions", "brief"),
         analysis=r.get(obj, "analysis", str, "brief", ""),
         title=r.get(obj, "title", str, "brief", ""),
         goal=r.get(obj, "goal", str, "brief", ""),
@@ -179,8 +186,8 @@ def parse_brief(raw: str) -> Brief:
         files_not_to_touch=_file_refs(r, obj, "files_not_to_touch"),
         helpers_to_reuse=helpers,
         build_files_allowed=r.get(obj, "build_files_allowed", bool, "brief", False),
-        allow_test_changes=tuple(r.items(obj, "allow_test_changes", "brief")),
-        rules=tuple(r.items(obj, "rules", "brief")),
+        allow_test_changes=r.strings(obj, "allow_test_changes", "brief"),
+        rules=r.strings(obj, "rules", "brief"),
         tests=tests,
         screenshots=r.get(obj, "screenshots", bool, "brief", False),
         ci_tier=ci_tier,

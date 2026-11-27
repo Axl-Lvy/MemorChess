@@ -44,6 +44,7 @@ class RunRecord:
     config_sha256: str = ""
     prompts_sha256: dict[str, str] = field(default_factory=dict)
     dropped_feedback: list[str] = field(default_factory=list)
+    error: str | None = None
 
 
 def _plain(value):

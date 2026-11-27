@@ -49,10 +49,14 @@ def parse_verdict(raw: str, brief: Brief) -> Verdict:
     """Parses the reviewer's JSON; every brief criterion must get `pass` or `fail`."""
     try:
         obj = json.loads(raw)
-        rows = obj["criteria"]
-        blocking = obj.get("blocking") or []
-    except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
-        raise VerdictError(f"malformed verdict: {e}") from e
+    except json.JSONDecodeError as e:
+        raise VerdictError(f"not JSON: {e}") from e
+    if not isinstance(obj, dict) or not isinstance(obj.get("criteria"), list):
+        raise VerdictError("verdict must be an object with a 'criteria' list")
+    rows = obj["criteria"]
+    blocking = obj.get("blocking") or []
+    if not isinstance(blocking, list):
+        raise VerdictError("'blocking' must be a list")
     criteria, reasons = {}, {}
     for row in rows:
         if not isinstance(row, dict) or row.get("verdict") not in ("pass", "fail"):

@@ -31,6 +31,20 @@ class BriefTest(unittest.TestCase):
 
         self.assertTrue(any("goal" in e for e in ctx.exception.errors))
 
+    def test_wrong_item_types_raise_brief_error(self):
+        mutations = [
+            lambda d: d["acceptance_criteria"][0].__setitem__("tests", [1]),
+            lambda d: d.__setitem__("questions", [None]),
+            lambda d: d.__setitem__("rules", [{"x": 1}]),
+            lambda d: d.__setitem__("allow_test_changes", [3]),
+        ]
+        for mutate in mutations:
+            data = brief_dict()
+            mutate(data)
+
+            with self.assertRaises(BriefError):
+                parse_brief(json.dumps(data))
+
     def test_test_file_in_not_to_touch_rejected(self):
         data = brief_dict()
         data["files_not_to_touch"].append({"path": BOARD_TEST, "reason": "x", "new": False})
