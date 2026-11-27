@@ -21,6 +21,7 @@ from agentrun.metrics import RunRecord, Stage, StepLog, write_record
 from agentrun.review import VerdictError, approved, parse_verdict, rank_feedback
 from agentrun.sandbox import Sandbox, bwrap_argv
 from agentrun.workspace import (
+    _git,
     apply_and_commit,
     capture_patch,
     changed_entries,
@@ -180,10 +181,7 @@ class _Run:
 
     def review(self, brief_json: str, brief: Brief, clone: Path, report: CheckReport, out_dir: Path):
         cfg = self.cfg.steps["review"]
-        diff = subprocess.run(
-            ["git", f"--git-dir={clone.parent / (clone.name + '.gitdir')}", "diff", self.base, "HEAD"],
-            capture_output=True, text=True,
-        ).stdout
+        diff = _git(clone, "diff", self.base, "HEAD")
         checks = "\n".join(f"{i.name}: {'ok' if i.ok else 'FAILED'} {i.detail}".strip() for i in report.items)
         prompt = render(cfg.prompt, **_brief_text(brief_json, diff=diff), checks=checks)
         view = fresh_clone(clone, head(clone), out_dir / "view")
@@ -228,13 +226,16 @@ class _Run:
                 build = self.build_sandbox(work / "build-implement")
                 sb = replace(build, rw_binds=build.rw_binds + (str(scratch),), workdir=str(scratch))
                 prompt = render(impl_cfg.prompt, **_brief_text(brief_json), repo_map=_repo_map(scratch, touched_dirs))
-                if rnd > 0 and not (session and self.adapters["implement"].can_resume):
-                    diff = subprocess.run(
-                        ["git", f"--git-dir={clone.parent / (clone.name + '.gitdir')}", "diff", self.base, "HEAD"],
-                        capture_output=True, text=True,
-                    ).stdout
-                    prompt += f"\n\nYour current changes:\n{diff}\n\nFix these problems:\n{feedback}"
-                result = self.step("implement", prompt, sb, work / "out", session=session if rnd else None, feedback=feedback)
+                if rnd > 0:
+                    diff = _git(clone, "diff", self.base, "HEAD")
+                    restart_prompt = f"{prompt}\n\nYour current changes:\n{diff}\n\nFix these problems:\n{feedback}"
+                resuming = rnd > 0 and bool(session) and self.adapters["implement"].can_resume
+                if resuming:
+                    result = self.step("implement", None, sb, work / "out", session=session, feedback=feedback)
+                    if result.status != "ok" and not result.turns:
+                        session, resuming = None, False
+                if not resuming:
+                    result = self.step("implement", restart_prompt if rnd > 0 else prompt, sb, work / "out-restart" if rnd > 0 else work / "out")
                 session = result.session or session
                 shutil.rmtree(work / "build-implement", ignore_errors=True)
                 patch = capture_patch(scratch, start_sha)

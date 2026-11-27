@@ -168,6 +168,25 @@ class LoopTest(unittest.TestCase):
 
         self.assertEqual(adapters["implement"].calls[1][0], "resume")
 
+    def test_failed_resume_restarts_with_diff_and_feedback(self):
+        cfg = dataclasses.replace(self.cfg, fix_rounds=1, attempts=1)
+
+        _, adapters = self.run_with(
+            [{"output": brief_dict()}],
+            [{"effect": GOOD}, {"status": "error", "turns": 0}, {"effect": GOOD}],
+            [{"output": FAIL}, {"output": PASS}],
+            cfg=cfg,
+        )
+
+        kinds = [k for k, _ in adapters["implement"].calls]
+        self.assertEqual(kinds, ["start", "resume", "start"])
+        self.assertIn("mirrored squares", adapters["implement"].calls[2][1])
+
+    def test_claude_code_does_not_resume(self):
+        from agentrun.adapters.claude_code import ClaudeCodeAdapter
+
+        self.assertFalse(ClaudeCodeAdapter("http://x").can_resume)
+
     def test_attempt_two_starts_from_base(self):
         cfg = dataclasses.replace(self.cfg, fix_rounds=0, attempts=2)
         half = edit({BOARD_SRC: GOOD_SRC})

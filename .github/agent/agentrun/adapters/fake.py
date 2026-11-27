@@ -41,7 +41,7 @@ class FakeAdapter:
             status=entry.get("status", "ok"),
             session=entry.get("session", "fake-session"),
             output_file=target if target.exists() else None,
-            turns=1,
+            turns=entry.get("turns", 1),
             tokens_in=0,
             tokens_out=0,
             wall_s=0.0,

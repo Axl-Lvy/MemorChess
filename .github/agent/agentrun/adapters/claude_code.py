@@ -44,9 +44,13 @@ def claude_binary() -> Path:
 
 
 class ClaudeCodeAdapter:
-    """One fresh Claude Code home per call; `resume` continues the session with feedback."""
+    """One fresh Claude Code home per call.
 
-    can_resume = True
+    It does not resume: each call has its own config dir and scratch tree, where `--resume`
+    finds no session. Repair rounds restart it with the brief, the current diff and the feedback.
+    """
+
+    can_resume = False
 
     def __init__(self, base_url: str):
         self.base_url = base_url
