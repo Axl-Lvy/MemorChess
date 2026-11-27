@@ -30,7 +30,8 @@ preflight error (nothing ran). Everything lands in `--out`:
 | `brief.json` / `questions.json` | triage's output |
 | `stages/NN-<stage>.patch` | the diff each implementation stage produced |
 | `work/trusted` | the clone holding the result; `best_sha` is the commit to hand off |
-| `work/<stage>/` | the scratch tree, harness logs (`*.stream.jsonl`), Gradle logs |
+| `work/<stage>/` | the scratch tree, harness logs (`*.stream.jsonl`, outside what the agent can write), Gradle logs |
+| `traceback.txt` | only when the run crashed; `run.json` then names the stage and the error |
 
 ## Configuration
 
@@ -53,13 +54,17 @@ preflight error (nothing ran). Everything lands in `--out`:
 
 ## What is trusted and what is not
 
-- **Harness steps** run in a bubblewrap sandbox that starts empty: `/usr`, `/etc`, the JDK, the
-  Gradle home and their own scratch tree only. They hold no GitHub token or key.
+- **Harness steps** run in a bubblewrap sandbox that starts empty: `/usr`, `/etc`, the JDK and
+  their own scratch tree only; the implementer also gets a fresh copy of the Gradle home.
+  Triage and review get no Gradle home. They hold no GitHub token or key, and they can write
+  only `$AGENT_OUT` and their own home; the runner reads their outputs without following links.
 - **Trusted code** (this package) never runs anything the agent wrote outside the sandbox. It
   reads the agent's work as a patch, rejects deny-listed paths, build files (unless the brief
   allows them), `.gitattributes`, `.gitmodules`, symlinks and stray files, and applies the rest
   to a separate clone whose git directory the sandbox never sees.
-- **Gradle** (compile, ktfmt, tests) runs `--offline` inside the sandbox too.
+- **Gradle** (compile, ktfmt, tests) runs `--offline`, without daemons, inside the sandbox, in a
+  disposable checkout of the commit under test with its own fresh Gradle home; agent-written
+  test results are read without following links.
 - **Feedback ranking:** trusted check results outrank the LLM reviewer; review findings that
   contradict a check, or target a file the brief forbids, are dropped and listed in `run.json`.
 
@@ -83,15 +88,28 @@ localhost). Egress is restricted in CI, outside the sandbox.
   sudo apparmor_parser -r /etc/apparmor.d/bwrap
   ```
 
-  The run checks `bwrap` before any model call and refuses to start without it.
+  The run checks `bwrap`, the sandboxed JDK, the Gradle home and the harness binary before any
+  model call, and refuses to start if one is missing.
 - **JDK 21 or later** in `JAVA_HOME` (`chess-core` needs 21; a missing `JAVA_HOME` silently
   falls back to whatever `java` is on `PATH`, which is how Java 17 sneaks in).
-- **A warmed Gradle home** in `AGENT_GRADLE_HOME`: Gradle runs offline, so the wrapper
-  distribution and dependencies must already be there. Use a disposable copy, not your own
-  `~/.gradle`: agent-written build code runs against it. Optionally `GRADLE_RO_DEP_CACHE`
-  points at a read-only dependency cache.
-- **The harness on the host**, e.g. `claude` for `claude-code`; its install directory is
-  mounted read-only into the sandbox.
+- **A warmed Gradle home template** in `AGENT_GRADLE_HOME`: Gradle runs offline, so the wrapper
+  distribution (and the toolchain JDKs, Node and Yarn the build uses) must already be there.
+  The template is never mounted: each implement round and each check run gets a fresh copy
+  (`cp -a --reflink=auto`), deleted afterwards, so nothing an agent writes there persists.
+  `GRADLE_RO_DEP_CACHE` can point at a read-only dependency cache (for example
+  `~/.gradle/caches`). A minimal template:
+
+  ```sh
+  T=/srv/agent-gradle-home; mkdir -p $T/wrapper/dists
+  cp -a ~/.gradle/wrapper/dists/gradle-9.6.1-bin $T/wrapper/dists/
+  cp -a ~/.gradle/jdks ~/.gradle/nodejs ~/.gradle/yarn $T/
+  ```
+
+  Preflight refuses to start when the wrapper distribution named in
+  `gradle/wrapper/gradle-wrapper.properties` is missing from it.
+- **The harness on the host**, e.g. Claude Code for `claude-code`: `AGENT_CLAUDE_BIN`, else
+  `~/.local/bin/claude`, resolved through symlinks; its directory is mounted read-only. It is
+  never resumed: each repair round restarts it with the brief, the current diff and the feedback.
 
 ## Tests
 
