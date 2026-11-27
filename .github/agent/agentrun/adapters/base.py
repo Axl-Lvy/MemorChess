@@ -43,7 +43,9 @@ def output_path(out_dir: Path, step: StepConfig) -> Path:
     return out_dir / f"{step.name}.json"
 
 
-def run_bounded(argv: list[str], timeout_s: int, log: Path) -> tuple[int | None, float]:
+def run_bounded(
+    argv: list[str], timeout_s: int, log: Path, cwd: Path | None = None
+) -> tuple[int | None, float]:
     """Runs `argv` in its own process group with output to `log`; kills the group on timeout.
 
     Returns the exit code (None on timeout) and the wall time in seconds.
@@ -52,7 +54,12 @@ def run_bounded(argv: list[str], timeout_s: int, log: Path) -> tuple[int | None,
     started = time.monotonic()
     with log.open("wb") as sink:
         proc = subprocess.Popen(
-            argv, stdout=sink, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True
+            argv,
+            stdout=sink,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            cwd=cwd,
         )
         try:
             code = proc.wait(timeout=timeout_s)
