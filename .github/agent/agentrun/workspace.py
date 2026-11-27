@@ -4,6 +4,8 @@ Every clone keeps its git data in a sibling `<dest>.gitdir` directory that is ne
 into the sandbox, so an agent cannot plant hooks, filters or config the trusted side would run.
 """
 
+import os
+import stat
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -126,3 +128,20 @@ def restore_commit(clone: Path, target_sha: str, message: str) -> str:
     _git(clone, "read-tree", "--reset", "-u", target_sha)
     _git(clone, *IDENTITY, "commit", "-q", "--allow-empty", "-m", message)
     return head(clone)
+
+
+def read_regular_file(path: Path, max_bytes: int = 1_000_000) -> bytes | None:
+    """Reads an agent-written file without following symlinks, blocking on FIFOs or reading
+    without bound; returns None unless it is a regular file of at most `max_bytes`."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > max_bytes:
+            return None
+        with os.fdopen(fd, "rb", closefd=False) as f:
+            return f.read(max_bytes + 1)[:max_bytes]
+    finally:
+        os.close(fd)

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from agentrun.brief import parse_brief, test_key
 from agentrun.checks import parse_junit_dir, preflight_java, run_checks
 from agentrun.sandbox import PreflightError, Sandbox
+from tests.test_sandbox import bwrap_works
 from agentrun.workspace import apply_and_commit, capture_patch, fresh_clone
 from tests.helpers import BOARD_SRC, BOARD_TEST, FILES, FIXTURES, brief_dict, git, make_repo, repo_config
 
@@ -188,15 +189,6 @@ class ChecksTest(unittest.TestCase):
         self.assertIn("--offline", test_call)
         self.assertIn(":shared:jvmTest --tests *.TestBoard", test_call)
 
-    def test_stale_results_cleared(self):
-        clone = self.good_change()
-        stale = clone / "shared/build/test-results/jvmTest"
-        stale.mkdir(parents=True)
-        (stale / "TEST-old.xml").write_text('<testsuite><testcase name="drawsDotsOnLegalSquares" classname="proj.TestBoard"/></testsuite>')
-        os.environ.pop("FAKE_JUNIT_SRC")
-
-        self.assertFalse(self.item(self.run_on(clone), "acceptance").ok)
-
     def test_gradle_runs_in_sandbox(self):
         clone = self.good_change()
         seen = []
@@ -209,7 +201,32 @@ class ChecksTest(unittest.TestCase):
 
         self.assertTrue(seen)
         self.assertTrue(all(argv[0] == "./gradlew" and "--offline" in argv for _, argv in seen))
-        self.assertTrue(all(sb.workdir == str(clone) for sb, _ in seen))
+        self.assertTrue(all(sb.workdir != str(clone) and sb.workdir in sb.rw_binds for sb, _ in seen))
+        self.assertTrue(all(str(clone) not in sb.rw_binds for sb, _ in seen))
+
+    @unittest.skipUnless(bwrap_works(), "bwrap not usable on this host")
+    def test_checks_run_in_a_bound_disposable_checkout(self):
+        clone = self.good_change()
+        self.junit_cases([("proj.TestBoard", "`draws dots on legal squares`()[jvm]", True), ("proj.TestBoard", "mapsSquare", True)])
+        sb = Sandbox(ro_binds=(str(self.junit),), rw_binds=(), env={"FAKE_JUNIT_SRC": str(self.junit), "PATH": "/usr/bin:/bin"}, workdir="/")
+
+        report = run_checks(clone, self.base, self.brief, self.cfg, sb)
+
+        self.assertTrue(report.green, [(i.name, i.detail) for i in report.failures()])
+        self.assertFalse((clone / "shared" / "build").exists())
+
+    def test_symlinked_results_are_not_read(self):
+        clone = self.good_change()
+        outside = self.root / "outside.xml"
+        outside.write_text('<testsuite><testcase name="drawsDotsOnLegalSquares" classname="proj.TestBoard"/></testsuite>')
+        os.environ.pop("FAKE_JUNIT_SRC")
+        os.environ["FAKE_JUNIT_LINK"] = str(outside)
+        try:
+            report = self.run_on(clone)
+        finally:
+            os.environ.pop("FAKE_JUNIT_LINK")
+
+        self.assertFalse(self.item(report, "acceptance").ok)
 
     def test_preflight_rejects_java_17(self):
         old = lambda *a, **k: SimpleNamespace(returncode=0, stderr='openjdk version "17.0.12" 2024-07-16\n', stdout="")

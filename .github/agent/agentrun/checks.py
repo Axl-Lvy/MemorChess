@@ -1,6 +1,7 @@
 """Trusted checks: Gradle compile, format and tests in the sandbox, plus checks on the diff
 that catch what small models do when they cannot make a test pass honestly."""
 
+import os
 import re
 import shutil
 import subprocess
@@ -15,7 +16,7 @@ from agentrun.adapters.base import run_bounded
 from agentrun.brief import Brief, test_key
 from agentrun.config import Config
 from agentrun.sandbox import PreflightError, Sandbox, bwrap_argv
-from agentrun.workspace import _git
+from agentrun.workspace import GitError, _git, fresh_clone, head, read_regular_file
 
 GRADLE_TIMEOUT_S = 1800
 ASSERTION = re.compile(r"\b(shouldBe|should\w*|assert\w*|expect\w*)\b")
@@ -68,12 +69,26 @@ def preflight_java(java_bin: str, java_min: int, run: Callable = subprocess.run)
         raise PreflightError(f"Java {major} found at {java_bin}; the build needs Java {java_min} or later")
 
 
-def parse_junit_dir(d: Path) -> tuple[set[str], set[str]]:
-    """Test keys that passed and that failed, from every JUnit XML file under `d`."""
+def parse_junit_dir(d: Path, root_dir: Path | None = None) -> tuple[set[str], set[str]]:
+    """Test keys that passed and that failed, from the JUnit XML files under `d`.
+
+    Agent-written code produced these files, so symlinks are never followed, `d` must resolve
+    inside `root_dir`, and only regular files of bounded size are read.
+    """
     passed, failed = set(), set()
-    for xml in sorted(d.rglob("*.xml")) if d.is_dir() else []:
+    if not d.is_dir() or d.is_symlink():
+        return passed, failed
+    if root_dir is not None and not d.resolve().is_relative_to(root_dir.resolve()):
+        return passed, failed
+    files = []
+    for dirpath, _dirs, names in os.walk(d, followlinks=False):
+        files += [Path(dirpath) / n for n in names if n.endswith(".xml")]
+    for xml in sorted(files):
+        content = read_regular_file(xml, max_bytes=20_000_000)
+        if content is None:
+            continue
         try:
-            root = ET.parse(xml).getroot()
+            root = ET.fromstring(content)
         except ET.ParseError:
             continue
         for case in root.iter("testcase"):
@@ -126,8 +141,10 @@ def _module_of(path: str, cfg: Config) -> str | None:
 
 
 def _gradle(
-    clone: Path, tasks: list[str], cfg: Config, sb: Sandbox, wrap, runner, log_dir: Path, label: str
+    clone: Path, tasks: list[str], cfg: Config, sb: Sandbox, wrap, runner, log_dir: Path, label: str,
+    checkout: Path,
 ) -> tuple[bool, str]:
+    clone = checkout
     argv = wrap(replace(sb, workdir=str(clone)), ["./gradlew", *cfg.gradle_args, *tasks])
     log = log_dir / f"gradle-{label}.log"
     code, _ = runner(argv, GRADLE_TIMEOUT_S, log, cwd=clone)
@@ -150,7 +167,22 @@ def run_checks(
     runner: Callable = run_bounded,
     log_dir: Path | None = None,
 ) -> CheckReport:
-    """Runs every trusted check on the clone's HEAD against `base`; Gradle logs go to `log_dir`."""
+    """Runs every trusted check on the clone's HEAD against `base`; Gradle logs go to `log_dir`.
+
+    Gradle runs in a disposable checkout of HEAD, the only writable tree in its sandbox, so
+    agent-written tests never write to the trusted clone. `sb` must already carry a fresh
+    Gradle home.
+    """
+    scratch_root = Path(tempfile.mkdtemp(prefix="agent-checkout-"))
+    try:
+        return _run_checks(clone, base, brief, cfg, sb, wrap, runner, log_dir, scratch_root)
+    finally:
+        shutil.rmtree(scratch_root, ignore_errors=True)
+
+
+def _run_checks(clone, base, brief, cfg, sb, wrap, runner, log_dir, scratch_root) -> CheckReport:
+    checkout = fresh_clone(clone, head(clone), scratch_root / "checkout")
+    sb = replace(sb, rw_binds=sb.rw_binds + (str(checkout),))
     changes = _changes(clone, base)
     diff = _diff_lines(clone, base)
     touched = sorted({m for _, p in changes if (m := _module_of(p, cfg))}) or sorted(cfg.modules)
@@ -158,10 +190,10 @@ def run_checks(
     log_dir = log_dir or Path(tempfile.mkdtemp(prefix="agent-checks-"))
     items: list[CheckItem] = []
 
-    ok, detail = _gradle(clone, [cfg.modules[m].compile_task for m in touched], cfg, sb, wrap, runner, log_dir, "compile")
+    ok, detail = _gradle(clone, [cfg.modules[m].compile_task for m in touched], cfg, sb, wrap, runner, log_dir, "compile", checkout)
     items.append(CheckItem("compile", ok, detail))
     compiled = ok
-    ok, detail = _gradle(clone, [cfg.modules[m].format_task for m in touched], cfg, sb, wrap, runner, log_dir, "format")
+    ok, detail = _gradle(clone, [cfg.modules[m].format_task for m in touched], cfg, sb, wrap, runner, log_dir, "format", checkout)
     items.append(CheckItem("format", ok, detail or ("" if ok else "run ktfmtFormat")))
 
     test_modules: dict[str, set[str]] = {}
@@ -171,8 +203,6 @@ def run_checks(
             test_modules.setdefault(module, set()).add(Path(path).stem)
     for t in brief.tests:
         test_modules.setdefault(t.module, set()).add(t.test_class.rsplit(".", 1)[-1])
-    for module in test_modules:
-        shutil.rmtree(clone / cfg.modules[module].results_dir, ignore_errors=True)
     if not compiled:
         items.append(CheckItem("tests", False, "not run: compile failed"))
     else:
@@ -181,11 +211,11 @@ def run_checks(
             tasks.append(cfg.modules[module].test_task)
             for cls in sorted(classes):
                 tasks += ["--tests", f"*.{cls}"]
-        ok, detail = _gradle(clone, tasks, cfg, sb, wrap, runner, log_dir, "tests") if tasks else (True, "")
+        ok, detail = _gradle(clone, tasks, cfg, sb, wrap, runner, log_dir, "tests", checkout) if tasks else (True, "")
         items.append(CheckItem("tests", ok, detail))
     passed, failed = set(), set()
     for module in test_modules:
-        p, f = parse_junit_dir(clone / cfg.modules[module].results_dir)
+        p, f = parse_junit_dir(checkout / cfg.modules[module].results_dir, root_dir=checkout)
         passed |= p
         failed |= f
     failed -= passed
@@ -200,8 +230,10 @@ def run_checks(
 
     absent = []
     for t in brief.tests:
-        source = clone / t.file
-        text = source.read_text(errors="replace") if source.is_file() and not source.is_symlink() else ""
+        try:
+            text = _git(clone, "show", f"HEAD:{t.file}")
+        except GitError:
+            text = ""
         if t.expected not in text:
             absent.append(f"{t.test_class}.{t.name} must assert the expected value {t.expected!r} in {t.file}")
     items.append(CheckItem("expected_values", not absent, "\n".join(absent)))

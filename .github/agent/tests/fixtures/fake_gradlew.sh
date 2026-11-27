@@ -12,4 +12,7 @@ if [ -n "$FAKE_JUNIT_SRC" ]; then
     mkdir -p "$d" && cp "$FAKE_JUNIT_SRC"/*.xml "$d"/
   done
 fi
+if [ -n "$FAKE_JUNIT_LINK" ]; then
+  mkdir -p shared/build/test-results/jvmTest && ln -sf "$FAKE_JUNIT_LINK" shared/build/test-results/jvmTest/TEST-link.xml
+fi
 exit 0

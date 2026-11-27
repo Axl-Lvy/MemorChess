@@ -220,6 +220,52 @@ class LoopTest(unittest.TestCase):
         self.assertIn("-Dorg.gradle.daemon=false", sb.env["GRADLE_OPTS"])
         self.assertIn("--no-daemon", argv)
 
+    def test_gradle_homes_are_fresh_copies_and_triage_review_get_none(self):
+        template = self.root / "gradle-template"
+        (template / "wrapper").mkdir(parents=True)
+        (template / "wrapper" / "marker").write_text("pristine")
+        os.environ["AGENT_GRADLE_HOME"] = str(template)
+        seen = {"triage": [], "implement": [], "review": [], "checks": []}
+
+        def capture(kind, also=None):
+            def effect(sb):
+                seen[kind].append(sb)
+                if also:
+                    also(sb)
+            return effect
+
+        def poison(sb):
+            (Path(sb.env["GRADLE_USER_HOME"]) / "init.d").mkdir(exist_ok=True)
+            (Path(sb.env["GRADLE_USER_HOME"]) / "init.d" / "evil.gradle").write_text("x")
+            GOOD(sb)
+
+        def recording(sb, argv):
+            seen["checks"].append(sb)
+            gh = Path(sb.env["GRADLE_USER_HOME"])
+            self.assertTrue((gh / "wrapper" / "marker").is_file())
+            self.assertFalse((gh / "init.d").exists())
+            return argv
+
+        adapters = {
+            "triage": FakeAdapter([{"output": brief_dict(), "effect": capture("triage")}]),
+            "implement": FakeAdapter([{"effect": capture("implement", poison)}]),
+            "review": FakeAdapter([{"output": PASS, "effect": capture("review")}]),
+        }
+        try:
+            run_pipeline(ISSUE, self.repo, self.base, self.cfg, self.out, adapters, wrap=recording)
+        finally:
+            del os.environ["AGENT_GRADLE_HOME"]
+
+        for sb in seen["triage"] + seen["review"]:
+            self.assertNotIn("GRADLE_USER_HOME", sb.env)
+        homes = [sb.env["GRADLE_USER_HOME"] for sb in seen["implement"] + seen["checks"]]
+        self.assertTrue(seen["checks"])
+        self.assertNotIn(seen["implement"][0].env["GRADLE_USER_HOME"], [sb.env["GRADLE_USER_HOME"] for sb in seen["checks"]])
+        for sb in seen["implement"] + seen["checks"] + seen["triage"] + seen["review"]:
+            self.assertNotIn(str(template), sb.rw_binds)
+        self.assertFalse((template / "init.d").exists())
+        self.assertTrue(all(h for h in homes))
+
     def test_run_json_records_config_and_prompt_hashes(self):
         self.run_with([{"output": brief_dict()}], [{"effect": GOOD}], [{"output": PASS}])
 

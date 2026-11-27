@@ -7,6 +7,7 @@ the next step is made here, in trusted code.
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -89,18 +90,14 @@ class _Run:
             prompts_sha256={n: _sha256(s.prompt) for n, s in cfg.steps.items() if s.enabled},
         )
         self.stage_no = 0
-        gradle_home = os.environ.get("AGENT_GRADLE_HOME") or str(out / "work" / "gradle-home")
-        Path(gradle_home).mkdir(parents=True, exist_ok=True)
+        template = os.environ.get("AGENT_GRADLE_HOME")
+        self.gradle_template = Path(template) if template else None
         java_home = os.environ.get("JAVA_HOME", "")
         ro = list(cfg.sandbox_ro_binds) + ([java_home] if java_home else [])
-        home = out / "work" / "home"
-        home.mkdir(parents=True, exist_ok=True)
         # --clearenv drops the locale: without it the JVM uses ASCII file names and tests with
         # non-ASCII paths fail. Daemons are off: Kotlin compiles in process, nothing outlives a step.
         env = {
-            "GRADLE_USER_HOME": gradle_home,
-            "HOME": str(home),
-            "PATH": "/usr/bin:/bin",
+            "PATH": f"{java_home}/bin:/usr/bin:/bin" if java_home else "/usr/bin:/bin",
             "LANG": "C.UTF-8",
             "LC_ALL": "C.UTF-8",
             "GRADLE_OPTS": "-Dorg.gradle.daemon=false -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8",
@@ -108,11 +105,24 @@ class _Run:
         }
         if java_home:
             env["JAVA_HOME"] = java_home
-            env["PATH"] = f"{java_home}/bin:/usr/bin:/bin"
         if os.environ.get("GRADLE_RO_DEP_CACHE"):
             env["GRADLE_RO_DEP_CACHE"] = os.environ["GRADLE_RO_DEP_CACHE"]
             ro.append(os.environ["GRADLE_RO_DEP_CACHE"])
-        self.build_sb = Sandbox(ro_binds=tuple(ro), rw_binds=(gradle_home, str(home)), env=env, workdir="/")
+        self.base_sb = Sandbox(ro_binds=tuple(ro), rw_binds=(), env=env, workdir="/")
+
+    def build_sandbox(self, dest: Path) -> Sandbox:
+        """A sandbox that may run Gradle: a fresh copy of the pristine Gradle home template and
+        a writable home, both disposable. The template itself is never mounted."""
+        gradle_home, home = dest / "gradle-home", dest / "home"
+        shutil.rmtree(dest, ignore_errors=True)
+        dest.mkdir(parents=True)
+        if self.gradle_template:
+            subprocess.run(["cp", "-a", "--reflink=auto", str(self.gradle_template), str(gradle_home)], check=True)
+        else:
+            gradle_home.mkdir()
+        home.mkdir()
+        env = {**self.base_sb.env, "GRADLE_USER_HOME": str(gradle_home), "HOME": str(home)}
+        return replace(self.base_sb, rw_binds=(str(gradle_home), str(home)), env=env)
 
     def step(self, name: str, prompt: str | None, sb: Sandbox, out_dir: Path,
              session: str | None = None, feedback: str = "") -> StepResult:
@@ -144,7 +154,7 @@ class _Run:
             modules=", ".join(sorted(self.cfg.modules)),
             repo_map=_repo_map(view, [d for m in self.cfg.modules.values() for d in m.src_dirs]),
         )
-        sb = replace(self.build_sb, ro_binds=self.build_sb.ro_binds + (str(view),), workdir=str(view))
+        sb = replace(self.base_sb, ro_binds=self.base_sb.ro_binds + (str(view),), workdir=str(view))
         errors: list[str] = []
         for attempt in range(1 + cfg.retries):
             text = prompt if attempt == 0 else (
@@ -177,7 +187,7 @@ class _Run:
         checks = "\n".join(f"{i.name}: {'ok' if i.ok else 'FAILED'} {i.detail}".strip() for i in report.items)
         prompt = render(cfg.prompt, **_brief_text(brief_json, diff=diff), checks=checks)
         view = fresh_clone(clone, head(clone), out_dir / "view")
-        sb = replace(self.build_sb, ro_binds=self.build_sb.ro_binds + (str(view),), workdir=str(view))
+        sb = replace(self.base_sb, ro_binds=self.base_sb.ro_binds + (str(view),), workdir=str(view))
         for attempt in range(1 + cfg.retries):
             result = self.step("review", prompt, sb, out_dir / f"try-{attempt + 1}")
             if result.output_file is None:
@@ -215,11 +225,8 @@ class _Run:
                 work = self.out / "work" / name
                 start_sha = head(clone)
                 scratch = fresh_clone(clone, start_sha, work / "scratch")
-                sb = replace(
-                    self.build_sb,
-                    rw_binds=self.build_sb.rw_binds + (str(scratch),),
-                    workdir=str(scratch),
-                )
+                build = self.build_sandbox(work / "build-implement")
+                sb = replace(build, rw_binds=build.rw_binds + (str(scratch),), workdir=str(scratch))
                 prompt = render(impl_cfg.prompt, **_brief_text(brief_json), repo_map=_repo_map(scratch, touched_dirs))
                 if rnd > 0 and not (session and self.adapters["implement"].can_resume):
                     diff = subprocess.run(
@@ -229,6 +236,7 @@ class _Run:
                     prompt += f"\n\nYour current changes:\n{diff}\n\nFix these problems:\n{feedback}"
                 result = self.step("implement", prompt, sb, work / "out", session=session if rnd else None, feedback=feedback)
                 session = result.session or session
+                shutil.rmtree(work / "build-implement", ignore_errors=True)
                 patch = capture_patch(scratch, start_sha)
                 problems = check_changes(changed_entries(scratch, start_sha), self.cfg, brief)
                 if problems:
@@ -236,7 +244,9 @@ class _Run:
                     feedback = "Your change was rejected and not applied:\n- " + "\n- ".join(problems)
                     continue
                 sha = apply_and_commit(clone, patch, f"agent: {name}") if patch.strip() else start_sha
-                report = run_checks(clone, self.base, brief, self.cfg, self.build_sb, self.wrap, self.runner, log_dir=work / "checks")
+                check_sb = self.build_sandbox(work / "build-checks")
+                report = run_checks(clone, self.base, brief, self.cfg, check_sb, self.wrap, self.runner, log_dir=work / "checks")
+                shutil.rmtree(work / "build-checks", ignore_errors=True)
                 self.stage(name, patch, sha, report)
                 if best and report.score < best[0]:
                     restore_commit(clone, best[1], f"agent: regression guard restores {best[1][:7]}")
