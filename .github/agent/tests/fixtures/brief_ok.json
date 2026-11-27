@@ -1,0 +1,36 @@
+{
+  "analysis": "The board maps squares to tiles in Board.kt; the hint dots must reuse it.",
+  "ready": true,
+  "questions": [],
+  "title": "feat(ui): show legal move hints on the board",
+  "goal": "Draw a dot on every legal destination square.",
+  "acceptance_criteria": [
+    {"id": "AC1", "text": "Dots use the existing square mapping.", "tests": ["TestBoard.draws dots on legal squares"]}
+  ],
+  "files_to_touch": [
+    {"path": "shared/src/commonMain/kotlin/proj/Board.kt", "reason": "add hint computation", "new": false},
+    {"path": "shared/src/commonTest/kotlin/proj/TestBoard.kt", "reason": "acceptance tests", "new": false},
+    {"path": "shared/src/commonMain/kotlin/proj/Hints.kt", "reason": "new hint model", "new": true}
+  ],
+  "files_not_to_touch": [
+    {"path": "composeApp/src/commonMain/kotlin/proj/Theme.kt", "reason": "colours are out of scope", "new": false}
+  ],
+  "helpers_to_reuse": [
+    {"symbol": "squareToTile", "path": "shared/src/commonMain/kotlin/proj/Board.kt"}
+  ],
+  "build_files_allowed": false,
+  "allow_test_changes": [],
+  "rules": ["Kotest assertions, no mocking."],
+  "tests": [
+    {
+      "module": "shared",
+      "file": "shared/src/commonTest/kotlin/proj/TestBoard.kt",
+      "class": "TestBoard",
+      "name": "draws dots on legal squares",
+      "input": "start position, e2 selected",
+      "expected": "setOf(20, 28)"
+    }
+  ],
+  "screenshots": false,
+  "ci_tier": "cheap"
+}
