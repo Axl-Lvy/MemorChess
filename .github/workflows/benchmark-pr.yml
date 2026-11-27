@@ -28,7 +28,13 @@ jobs:
         id: check
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
+          # Agent PRs never run benchmarks: benchmark-run.yml inherits every secret.
+          if [[ "$HEAD_REF" == agent/* ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if printf '%s' "$PR_BODY" | grep -qE '\- \[x\] Run benchmarks'; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
