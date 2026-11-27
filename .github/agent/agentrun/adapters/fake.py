@@ -1,6 +1,7 @@
 """A scripted adapter for tests: replays queued results without running any model."""
 
 import json
+import os
 from pathlib import Path
 from typing import Callable
 
@@ -31,7 +32,14 @@ class FakeAdapter:
         if effect:
             effect(sb)
         target = output_path(out_dir, step)
-        if "raw" in entry:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if "symlink_to" in entry:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.symlink_to(entry["symlink_to"])
+        elif entry.get("fifo"):
+            target.parent.mkdir(parents=True, exist_ok=True)
+            os.mkfifo(target)
+        elif "raw" in entry:
             target.write_text(entry["raw"])
         elif entry.get("output") is not None:
             target.write_text(json.dumps(entry["output"]))
@@ -40,7 +48,7 @@ class FakeAdapter:
         return StepResult(
             status=entry.get("status", "ok"),
             session=entry.get("session", "fake-session"),
-            output_file=target if target.exists() else None,
+            output_file=target if os.path.lexists(target) else None,
             turns=entry.get("turns", 1),
             tokens_in=0,
             tokens_out=0,

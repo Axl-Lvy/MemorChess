@@ -89,6 +89,16 @@ class LoopTest(unittest.TestCase):
 
         self.assertEqual(record.failed_stage, "triage")
 
+    def test_symlinked_or_fifo_output_is_not_read(self):
+        secret = self.root / "secret.json"
+        secret.write_text(json.dumps(brief_dict()))
+
+        record, _ = self.run_with([{"symlink_to": str(secret)}, {"fifo": True}], [])
+
+        self.assertEqual(record.failed_stage, "triage")
+        errors = json.loads((self.out / "triage-errors.json").read_text())
+        self.assertTrue(any("regular file" in e for e in errors), errors)
+
     def test_not_ready_ends_needs_info(self):
         record, adapters = self.run_with([{"output": {**brief_dict(), "ready": False, "questions": ["Which theme?"]}}], [])
 

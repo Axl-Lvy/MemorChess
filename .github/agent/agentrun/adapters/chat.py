@@ -49,6 +49,7 @@ class ChatAdapter:
         log.write_text(json.dumps(reply))
         content = reply.get("choices", [{}])[0].get("message", {}).get("content")
         target = output_path(out_dir, step)
+        target.parent.mkdir(parents=True, exist_ok=True)
         if content:
             target.write_text(content)
         usage = reply.get("usage", {})

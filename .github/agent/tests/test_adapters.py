@@ -115,12 +115,15 @@ class AdaptersTest(unittest.TestCase):
         self.assertEqual(inner[inner.index("--model") + 1], "qwen3.6-apex")
         envs = {argv[i + 1]: argv[i + 2] for i, a in enumerate(argv) if a == "--setenv"}
         self.assertEqual(envs["ANTHROPIC_BASE_URL"], "http://127.0.0.1:4000")
-        self.assertEqual(envs["AGENT_OUT"], str(self.out))
         self.assertTrue(envs["HOME"].startswith(str(self.out)))
         for key, value in envs.items():
             self.assertNotIn("GH_TOKEN", key)
             self.assertNotIn("APP_PRIVATE_KEY", key)
-        self.assertIn(str(self.out), [argv[i + 1] for i, a in enumerate(argv) if a == "--bind"])
+        binds = [argv[i + 1] for i, a in enumerate(argv) if a == "--bind"]
+        self.assertNotIn(str(self.out), binds)
+        self.assertIn(str(self.out / "agent"), binds)
+        self.assertIn(str(self.out / "home"), binds)
+        self.assertEqual(envs["AGENT_OUT"], str(self.out / "agent"))
 
     def test_claude_code_uses_configured_binary_and_small_model(self):
         binary = self.out / "versions" / "2.1.332"

@@ -28,6 +28,7 @@ from agentrun.workspace import (
     check_changes,
     fresh_clone,
     head,
+    read_regular_file,
     restore_commit,
 )
 
@@ -166,7 +167,11 @@ class _Run:
             if result.output_file is None:
                 errors = [f"no output file was written ({result.status})"]
                 continue
-            raw = result.output_file.read_text()
+            content = read_regular_file(result.output_file)
+            if content is None:
+                errors = ["the output is not a regular file of at most 1 MB"]
+                continue
+            raw = content.decode(errors="replace")
             try:
                 brief = parse_brief(raw)
             except BriefError as e:
@@ -190,8 +195,11 @@ class _Run:
             result = self.step("review", prompt, sb, out_dir / f"try-{attempt + 1}")
             if result.output_file is None:
                 continue
+            content = read_regular_file(result.output_file)
+            if content is None:
+                continue
             try:
-                return parse_verdict(result.output_file.read_text(), brief)
+                return parse_verdict(content.decode(errors="replace"), brief)
             except VerdictError:
                 continue
         return None

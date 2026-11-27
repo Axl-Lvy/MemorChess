@@ -38,9 +38,14 @@ class Adapter(Protocol):
     ) -> StepResult: ...
 
 
+def agent_dir(out_dir: Path) -> Path:
+    """The only part of `out_dir` the agent can write (`$AGENT_OUT`); logs stay outside it."""
+    return out_dir / "agent"
+
+
 def output_path(out_dir: Path, step: StepConfig) -> Path:
     """Where the agent is told to write its JSON for `step`."""
-    return out_dir / f"{step.name}.json"
+    return agent_dir(out_dir) / f"{step.name}.json"
 
 
 def run_bounded(
