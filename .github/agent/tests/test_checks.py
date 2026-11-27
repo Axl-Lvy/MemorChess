@@ -105,7 +105,7 @@ class ChecksTest(unittest.TestCase):
             "compile", "format", "tests", "acceptance", "expected_values", "helpers_used",
             "tests_not_weakened", "stray_files",
         ])
-        self.assertEqual(report.score, 8 + 2)
+        self.assertEqual(report.score, 8)
 
     def test_acceptance_missing_vs_failing(self):
         clone = self.good_change()

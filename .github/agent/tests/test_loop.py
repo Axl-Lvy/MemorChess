@@ -146,6 +146,31 @@ class LoopTest(unittest.TestCase):
         self.assertEqual(record.outcome, "handoff")
         self.assertFalse(record.approved)
 
+    def test_green_round_is_never_rolled_back(self):
+        cfg = dataclasses.replace(self.cfg, fix_rounds=1, attempts=1)
+        tidy = edit({BOARD_SRC: GOOD_SRC + "// tidied\n"})
+
+        def tweak(sb):
+            tidy(sb)
+            write_junit(self.junit, [("proj.TestBoard", "drawsDotsOnLegalSquares", True)])
+
+        record, _ = self.run_with([{"output": brief_dict()}], [{"effect": GOOD}, {"effect": tweak}], [{"output": FAIL}, {"output": FAIL}], cfg=cfg)
+
+        trusted = self.out / "work" / "trusted"
+        self.assertEqual(record.best_sha, record.stages[1].sha)
+        self.assertNotIn("regression guard", git(trusted, "log", "--format=%s"))
+
+    def test_new_attempt_is_not_rolled_back_to_an_earlier_attempt(self):
+        cfg = dataclasses.replace(self.cfg, fix_rounds=0, attempts=2)
+        half = edit({BOARD_SRC: GOOD_SRC})
+
+        record, _ = self.run_with([{"output": brief_dict()}], [{"effect": GOOD}, {"effect": half}], [{"output": FAIL}], cfg=cfg)
+
+        trusted = self.out / "work" / "trusted"
+        self.assertNotIn("regression guard", git(trusted, "log", "--format=%s"))
+        self.assertEqual(record.best_sha, record.stages[0].sha)
+        self.assertEqual(git(trusted, "rev-parse", "HEAD^{tree}"), git(trusted, "rev-parse", f"{record.best_sha}^{{tree}}"))
+
     def test_non_resuming_adapter_gets_diff_and_feedback(self):
         cfg = dataclasses.replace(self.cfg, fix_rounds=1, attempts=1)
         adapters = {

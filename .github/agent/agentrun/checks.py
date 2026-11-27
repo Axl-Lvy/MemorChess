@@ -48,8 +48,9 @@ class CheckReport:
 
     @property
     def score(self) -> int:
-        """Checks passed plus tests passed; the regression guard compares commits by this."""
-        return sum(i.ok for i in self.items) + len(self.tests_passed)
+        """Checks passed; the regression guard compares commits by this (tests run vary with
+        what a change touches, so they do not count)."""
+        return sum(i.ok for i in self.items)
 
     def failures(self) -> list[CheckItem]:
         """The checks that did not pass."""

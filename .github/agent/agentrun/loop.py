@@ -218,6 +218,7 @@ class _Run:
             if attempt > 1:
                 restore_commit(clone, self.base, f"agent: attempt {attempt} restarts from the base")
             session, feedback = None, ""
+            attempt_best: tuple[int, str] | None = None
             for rnd in range(self.cfg.fix_rounds + 1):
                 name = f"implement-a{attempt}" if rnd == 0 else f"round-a{attempt}r{rnd}"
                 work = self.out / "work" / name
@@ -249,16 +250,16 @@ class _Run:
                 report = run_checks(clone, self.base, brief, self.cfg, check_sb, self.wrap, self.runner, log_dir=work / "checks")
                 shutil.rmtree(work / "build-checks", ignore_errors=True)
                 self.stage(name, patch, sha, report)
-                if best and report.score < best[0]:
-                    restore_commit(clone, best[1], f"agent: regression guard restores {best[1][:7]}")
+                if attempt_best and report.score < attempt_best[0]:
+                    restore_commit(clone, attempt_best[1], f"agent: regression guard restores {attempt_best[1][:7]}")
                     feedback = (
                         "Your last change made the checks worse and was rolled back. It caused:\n- "
                         + "\n- ".join(f"{i.name}: {i.detail}" for i in report.failures())
                         + (f"\n\nStill open from before:\n{feedback}" if feedback else "")
                     )
                     continue
-                if report.green and (best is None or report.score >= best[0]):
-                    best = (report.score, sha)
+                if report.green:
+                    attempt_best = best = (report.score, sha)
                 if not report.green:
                     feedback = "Trusted checks failed:\n- " + "\n- ".join(f"{i.name}: {i.detail}" for i in report.failures())
                     continue
@@ -278,6 +279,9 @@ class _Run:
         return self.record
 
     def handoff(self, best: tuple[int, str] | None, approved_: bool) -> RunRecord:
+        clone = self.out / "work" / "trusted"
+        if best and head(clone) != best[1]:
+            restore_commit(clone, best[1], f"agent: hand off {best[1][:7]}")
         self.record.outcome = "handoff"
         self.record.best_sha = best[1] if best else None
         self.record.approved = approved_
