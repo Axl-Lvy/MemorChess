@@ -52,3 +52,31 @@ def repo_config():
 
 def brief_dict() -> dict:
     return json.loads((FIXTURES / "brief_ok.json").read_text())
+
+
+NEW_TEST_BODY = (
+    "package proj\n\nclass TestBoard {\n"
+    "  @Test fun mapsSquare() { squareToTile(1) shouldBe 1 }\n"
+    "  @Test fun `draws dots on legal squares`() { hints(squareToTile(12)) shouldBe setOf(20, 28) }\n}\n"
+)
+GOOD_SRC = FILES[BOARD_SRC] + "fun hints(tile: Int): Set<Int> = setOf(20, 28)\n"
+
+
+def make_gradle_repo(root: Path) -> tuple[Path, str]:
+    """A fixture repo whose ./gradlew is the fake recorder; returns (repo, base commit)."""
+    files = dict(FILES)
+    files["gradlew"] = (FIXTURES / "fake_gradlew.sh").read_text()
+    repo = make_repo(root, files)
+    git(repo, "update-index", "--chmod=+x", "gradlew")
+    (repo / "gradlew").chmod(0o755)
+    git(repo, "commit", "-q", "-m", "exec")
+    return repo, git(repo, "rev-parse", "HEAD")
+
+
+def write_junit(dir_: Path, cases: list[tuple[str, str, bool]]) -> None:
+    """Writes one JUnit XML file with (classname, name, passed) test cases."""
+    body = "".join(
+        f'<testcase name="{n}" classname="{c}">' + ("" if ok else "<failure>x</failure>") + "</testcase>"
+        for c, n, ok in cases
+    )
+    (dir_ / "TEST-x.xml").write_text(f"<testsuite>{body}</testsuite>")
