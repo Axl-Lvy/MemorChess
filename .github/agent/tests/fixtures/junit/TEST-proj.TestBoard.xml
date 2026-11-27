@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="proj.TestBoard" tests="5" failures="1" errors="0" skipped="1">
+  <testcase name="`draws dots on legal squares`()" classname="proj.TestBoard" time="0.01"/>
+  <testcase name="mapsSquare" classname="proj.TestBoard" time="0.01"/>
+  <testcase name="keeps_contrast_above_threshold" classname="proj.TestBoard" time="0.01">
+    <failure message="expected 3.0 but was 1.5">AssertionError</failure>
+  </testcase>
+  <testcase name="skipped one" classname="proj.TestBoard" time="0"><skipped/></testcase>
+  <testcase name="hint dots respect orientation" classname="proj.TestBoardKotest" time="0.01"/>
+</testsuite>

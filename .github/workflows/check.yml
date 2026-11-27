@@ -26,6 +26,9 @@ jobs:
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
       translations: ${{ steps.tier.outputs.translations }}
+      # Agent pipeline PRs (head branch agent/*) run without secrets and can never opt out
+      # of checks; the agent runner writes their titles, so [skip-tests] is not trusted there.
+      agent: ${{ startsWith(github.head_ref, 'agent/') }}
     steps:
       - uses: actions/checkout@v7
 
@@ -35,13 +38,14 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ "$EVENT_NAME" = "schedule" ]; then
             echo "force=full" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if [ "$EVENT_NAME" = "pull_request" ]; then
-            if printf '%s' "$PR_TITLE" | grep -qi '\[skip-tests\]'; then
+            if [[ "$HEAD_REF" != agent/* ]] && printf '%s' "$PR_TITLE" | grep -qi '\[skip-tests\]'; then
               echo "force=noop" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -183,14 +187,15 @@ jobs:
 
       - name: Run JVM tests with coverage
         env:
-          LICHESS_API_TOKEN: ${{ secrets.LICHESS_API_TOKEN }}
+          # Agent branches run agent-written code: no secrets (the live Lichess test no-ops).
+          LICHESS_API_TOKEN: ${{ !startsWith(github.head_ref, 'agent/') && secrets.LICHESS_API_TOKEN || '' }}
         run: ./gradlew koverXmlReportJvm :server:koverXmlReport :e2e:test
 
       # On the cheap tier the JVM Kover XML is the only coverage source,
       # so run sonar in-line and skip the separate sonar-analysis job to
       # save one runner allocation and one recompile.
       - name: Run sonar (cheap tier only)
-        if: needs.detect.outputs.tier == 'cheap'
+        if: needs.detect.outputs.tier == 'cheap' && needs.detect.outputs.agent != 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew sonar --no-configuration-cache --no-parallel --no-daemon
@@ -527,6 +532,7 @@ jobs:
     needs: [detect, jvm-tests, android-tests]
     if: >
       needs.detect.outputs.tier == 'full' &&
+      needs.detect.outputs.agent != 'true' &&
       needs.jvm-tests.result == 'success' &&
       needs.android-tests.result == 'success'
     steps:
@@ -580,6 +586,7 @@ jobs:
       - name: Check job results
         env:
           TIER: ${{ needs.detect.outputs.tier }}
+          AGENT: ${{ needs.detect.outputs.agent }}
           FORMAT: ${{ needs.format-check.result }}
           TRANSLATIONS: ${{ needs.translations-check.result }}
           JVM: ${{ needs.jvm-tests.result }}
@@ -621,7 +628,12 @@ jobs:
             [ "$ANDROID" = "success" ] || fail android-tests "$ANDROID"
             [ "$WASM"    = "success" ] || fail wasm-tests "$WASM"
             [ "$IOS"     = "success" ] || fail ios-tests "$IOS"
-            [ "$SONAR"   = "success" ] || fail sonar-analysis "$SONAR"
+            if [ "$AGENT" = "true" ]; then
+              echo "agent branch: secret steps skipped"
+              [ "$SONAR" = "skipped" ] || fail sonar-analysis "$SONAR"
+            else
+              [ "$SONAR"   = "success" ] || fail sonar-analysis "$SONAR"
+            fi
           fi
 
           echo "All checks passed (tier=$TIER)"
