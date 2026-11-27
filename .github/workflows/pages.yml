@@ -15,6 +15,7 @@ on:
       - '.github/scripts/build_benchmark_history.py'
       - '.github/scripts/extract_benchmark_summary.py'
       - '.github/workflows/pages.yml'
+      - '.github/agent/**'
   workflow_dispatch:
 
 permissions:
@@ -39,6 +40,9 @@ jobs:
 
       - name: Test the scripts
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+      - name: Test the agent runner
+        run: python3 -m unittest discover -s .github/agent -t .github/agent -p 'test_*.py'
 
       - name: Build the report
         run: python3 .github/scripts/code_provenance.py _site

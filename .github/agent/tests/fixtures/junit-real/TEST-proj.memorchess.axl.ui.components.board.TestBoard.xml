@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="TestBoard[jvm]" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-27T09:26:39.572Z" hostname="host" time="1.25">
+  <properties/>
+  <testcase name="boardRendersUprightWhenNotInverted[jvm]" classname="proj.memorchess.axl.ui.components.board.TestBoard" time="1.195"/>
+  <testcase name="boardRendersInvertedWhenRequested[jvm]" classname="proj.memorchess.axl.ui.components.board.TestBoard" time="0.052"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

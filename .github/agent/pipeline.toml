@@ -1,0 +1,70 @@
+# Agent pipeline configuration. Every LLM step picks its harness, model and prompt here;
+# `run.py --set step.field=value` overrides any step field for one run.
+# Field reference: README.md.
+
+java_min = 21
+fix_rounds = 2
+attempts = 2
+brief_gate = false
+llm_base_url = "http://127.0.0.1:4000"
+gradle_args = ["--offline", "--console=plain", "--no-daemon"]
+deny_paths = [".github/**", "gradle/wrapper/**", "CODEOWNERS"]
+build_files = [
+  "**/*.gradle.kts",
+  "*.gradle.kts",
+  "gradle.properties",
+  "gradle/libs.versions.toml",
+]
+stray_globs = ["*.orig", "*.rej", "*.bak"]
+# Extra read-only paths the sandbox exposes (JDK, harness binaries, warmed Gradle cache).
+sandbox_ro_binds = []
+
+[steps.triage]
+harness = "claude-code"
+model = "qwen3.6-apex"
+prompt = "prompts/triage.md"
+max_turns = 60
+timeout_s = 1200
+retries = 1
+enabled = true
+
+[steps.implement]
+harness = "claude-code"
+model = "qwen3.6-apex"
+prompt = "prompts/implement.md"
+max_turns = 120
+timeout_s = 2400
+retries = 1
+enabled = true
+
+[steps.review]
+harness = "claude-code"
+model = "qwen3.6-apex"
+prompt = "prompts/review.md"
+max_turns = 40
+timeout_s = 1200
+retries = 1
+enabled = true
+
+[steps.precheck]
+harness = "chat"
+model = "qwen3.6-apex"
+prompt = "prompts/precheck.md"
+max_turns = 1
+timeout_s = 120
+retries = 1
+enabled = false
+
+[modules.composeApp]
+test_task = ":composeApp:jvmTest"
+compile_task = ":composeApp:compileKotlinJvm"
+format_task = ":composeApp:ktfmtCheck"
+results_dir = "composeApp/build/test-results/jvmTest"
+src_dirs = ["composeApp/src"]
+
+[modules.shared]
+test_task = ":shared:jvmTest"
+compile_task = ":shared:compileKotlinJvm"
+format_task = ":shared:ktfmtCheck"
+results_dir = "shared/build/test-results/jvmTest"
+src_dirs = ["shared/src"]
